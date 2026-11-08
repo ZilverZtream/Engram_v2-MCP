@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T15:36:03.097110+00:00",
+    "at_utc": "2026-11-08T15:48:11.008246+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast usefulness on the original classification task: presentation hypothesis rejected after both fresh next-action candidates chose the same bounded99-line source read. Continue the remaining prepared-count production/persistence/validation boundary using the deployed sidecar-backed property witnesses. No new output fix is selected from the tested baseline.",
-    "next_user_visible_deliverable": "Source-checked completion or an exact remaining gap for original classification criterion3 (prepared whole-file counts and validation), using actual current tool output. Any subsequent code change needs a concrete public-output/source discrepancy or failed recovery; byte counts and partial criteria alone are insufficient.",
+    "active_original_item": "Core CodeMap/Blast usefulness on retained original agent tasks. Prepared-count production/persistence/validation now has separately attributed source evidence; no new backend discrepancy selected. Continue the original upload-cancellation collection-provenance gap using current public navigation and independent source checks; runtime receiver stability remains unknown.",
+    "next_user_visible_deliverable": "Source-checked closure or exact remaining limit for the original cancellation collection boundary (where the iterated handlers enter the collection and what aliases expose), using current core tools. This is the application task, not the parked Engram legacy-ownership investigation. Only a concrete failed recovery or public-output/source discrepancy can justify another code change.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
-    "previous_goal_turn_classification": "PROGRESS: tested619e1a6 with3unit/23public checks and10actual candidate calls, then rejected and reverted it atf9a8eae because both fresh next-action agents chose the same source read. Candidate not installed; normal41632 restored with6readsPASS. Original goal remains active; no permission dependency.",
+    "previous_goal_turn_classification": "PROGRESS: rejected and reverted speculative summary prefix after equal fresh action choices, restored unchanged normal runtime, then verified prepared-count production/validation via4agentcalls plus persistence/caller source via2rootcalls and separately attributed ordinary-source traversal. No new production patch or frozen rescoring; original goal active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Continue the retained original classification prepared-count boundary as an explicitly informed followthrough: start from the already source-confirmed CacheMeta.CoordinateCount property witness, use actual impact summary and bounded source recovery to explain production, persistence and ReadMeta validity/zero handling. At most4calls/32KiB for this additional followthrough; do not rescore original frozen tasks or claim a comparative win. Root independently verifies source afterward. No broad audit, instruction drafting, ownership/catalog/performance project or speculative presentation patch.",
+    "independent_next_action": "Resume the retained original cancellation task at core-cancellation-collection-recovery-20261108.json: the emitted search reached manager770..772, getter401..403 and insertion98, but the producer origin lay outside the returned window. Inspect that already-identified source boundary with bounded current-source/CodeMap recovery, check independent raw source, and explain static collection/alias evidence without runtime binding or exhaustive ownership claims. Preserve original task criteria/scores. Do not start a broad audit, instruction drafting, catalog/performance/legacy-ownership project, or revive the rejected summary-prefix candidate.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -11132,6 +11132,18 @@
       "original_runtime_restored_pid": 41632,
       "goal_complete": false,
       "disposition": "Do not deploy rejected summary-source-actions package or use its prepared release gates; retain evidence."
+    },
+    "latest_prepared_count_followthrough": {
+      "status": "PREPARED_COUNT_SOURCE_RECOVERY_VERIFIED_WITH_EXPLICIT_PROVENANCE",
+      "tracked_receipt": {
+        "path": "eval/core-prepared-count-followthrough-20261108.json",
+        "sha256": "c22b4c680dee36e12051cf6aafcccad044e8ca9f0e0afef3ce722afb79e65910"
+      },
+      "agent_calls": 4,
+      "root_additional_calls": 2,
+      "combined_returned_bytes": 41915,
+      "ordinary_source_separate": true,
+      "goal_complete": false
     }
   }
 }
