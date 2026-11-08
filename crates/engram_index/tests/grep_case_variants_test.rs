@@ -116,6 +116,32 @@ fn files_of(r: &engram_index::grep::GrepResult) -> Vec<String> {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn invalid_regex_is_an_error_even_without_candidates_or_freshness_reads() {
+    let owned = tempfile::TempDir::new().unwrap();
+    let (engine, _) = build(owned.path()).await;
+    let root = owned.path().join("project");
+    for pattern in [r"_resetGeneration\s*(\+\+|\+=|=(?!=))", "personalliggare\\", "["] {
+        for prefix in [None, Some("missing/".to_string())] {
+            let mut q = query(pattern, Some(true));
+            q.regex = true;
+            q.freshness = FreshnessMode::Strict;
+            q.path_prefix = prefix;
+            let result = grep(&engine, &root, &q, || {
+                panic!("An invalid pattern must fail before reading freshness inputs")
+            });
+            assert!(result.is_err(), "Invalid pattern silently became empty results: {pattern}");
+            assert!(engram_index::grep::scan_working_tree_content("", "empty.rs", &q).is_err());
+        }
+    }
+    let literal = query("[Item]+{Value}", Some(true));
+    let result = grep(&engine, &root, &literal, || Ok(Vec::new())).unwrap();
+    assert_eq!(result.matches.len(), 1, "Literal punctuation must remain searchable");
+    assert_eq!(result.matches[0].file_path, "resources/messages.resx");
+    drop(engine);
+    owned.close().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn case_insensitive_literal_reaches_every_case_variant_on_the_term_index_tier() {
     let tmp = tempfile::TempDir::new().unwrap();
     let (engine, stats) = build(tmp.path()).await;

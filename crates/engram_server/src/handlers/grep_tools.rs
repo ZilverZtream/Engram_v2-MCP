@@ -196,6 +196,13 @@ impl Engram {
         req: GrepProjectRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.regex {
+            engram_index::grep::compile_regex(&req.pattern, req.case_sensitive, req.multiline)
+                .map_err(|error| McpError::invalid_params(
+                    format!("grep_project: invalid regular expression: {error}. Uses Rust regex syntax; look-around and backreferences are unsupported. Use regex=false to search literal text."),
+                    None,
+                ))?;
+        }
         let rec = ensure_project_record(&self.state, &req.project_id)
             .await
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
