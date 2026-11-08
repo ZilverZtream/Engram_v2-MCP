@@ -1,0 +1,552 @@
+{
+  "status": "KNOWN_REGRESSION_REPORT_QA_EQUIVALENT_ADEQUACY_LOWER_OBSERVED_CONTEXT_COST",
+  "at_utc": "2026-11-08T16:25:42.235754+00:00",
+  "scope": "One controlled actual OciusX CoordinateCount property-report QA case for already-deployed VB sidecar correction adb4fa6/6099f72. Same task and pinned source, same ordinary source capabilities and fixed caps, two fresh agents. This is a targeted known regression, not held-out general productivity evidence.",
+  "delivered_change": "Resolved local/parameter/field/method/metadata symbols no longer fall back to an unrelated same-name source property. Existing genuine property dependencies remain. No additional code or deployment change in this QA case.",
+  "report_provenance": {
+    "before": {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-parameter-property-impact-20261108.json",
+        "sha256": "3c78be7bef9f681dcd07d6eb3a1929f585c29ad3b6214d37f5161d870b13dd64"
+      },
+      "call_index": 0,
+      "generation": 3138,
+      "report_utf8_bytes": 19790,
+      "report_text_sha256": "a1e200ac1daf3b3bbdd6c04df081d1a58ece4eb6056dec1092a72931900a6ecb"
+    },
+    "after": {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\vb-bound-property-cold-v1-20261108\\acceptance.json",
+        "sha256": "d259298b0d8d16dd173d5412972f769cdb9527ca2501bbc4991514b414017a11"
+      },
+      "call_index": 607,
+      "generation": 3139,
+      "report_utf8_bytes": 16940,
+      "report_text_sha256": "92f97c69abda3b45c6cc11828b710ea03da0c6289ac31cf5874c25dc245b60b7"
+    },
+    "same_arguments": {
+      "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+      "symbol_fqn": "sym:property:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.CacheMeta.CoordinateCount:221",
+      "detail": "graph",
+      "max_depth": 1
+    },
+    "server_sha256_unchanged": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+    "report_mode": "Captured actual public impact_analysis reports, not reconstructed native parser summaries. No live tool calls in this matched comparison."
+  },
+  "source_pins": {
+    "Site/App_Code/visualisering/code/FileLayerSpatialService.vb": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+    "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53"
+  },
+  "protocol": {
+    "provided_report_items": 1,
+    "maximum_additional_source_requests": 7,
+    "maximum_total_evidence_items": 8,
+    "maximum_total_evidence_utf8_bytes": 65536,
+    "setup_includes_exact_report_once": true,
+    "source_operations_only": true,
+    "binding": "Two real fresh fork_none agents, no model override. User-supplied AGENTS context inherited and disclosed.",
+    "oracle_frozen_before_answers": true,
+    "quality_judgment_before_cost_and_mapping_reveal": true,
+    "quality_redaction_limits": "Packet omitted explicit budget sentence but unintentionally retained pine in A answer header. Report content reveals condition; reviewer knew source regression. No strict doubleblind claim.",
+    "answer_serialization_limit": "Candidate-written frozen answer artifacts are authoritative for scoring. Maple range dashes serialized as question marks; reviewer recorded recoverable range endpoints. Do not claim byte-exact preservation of chat typography."
+  },
+  "quality": {
+    "A_before_pine": {
+      "criteria": [
+        {
+          "id": 1,
+          "criterion": "Shown direct-use coverage",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "Shown relationships bullets e0 through e6",
+            "Thus the confirmed pure readers... paragraph"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2593,2373,2377,2527,2533,2344,1448,1465,2000",
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:76-84"
+          ],
+          "reason": "Audits all seven shown methods and all ten samples. Distinguishes five genuine sites from five local/parameter sites; does not turn invalid direct matches into absence of indirect effects."
+        },
+        {
+          "id": 2,
+          "criterion": "Reader/writer classification and defect diagnosis",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "e1 CollectFeatures",
+            "e2 ReadMeta",
+            "e4 WriteFeature",
+            "e6 ClassifyAutomatic",
+            "pure readers summary"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2353,2373,2377,2525-2533,1435-1465",
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:76-84"
+          ],
+          "reason": "Correct three readers, initializer writer and compound reader/writer. Explains two wholly invalid method attributions and two mixed valid/invalid edge positions using actual locals/parameter."
+        },
+        {
+          "id": 3,
+          "criterion": "Evidence and navigation",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "Evidence scope and S/Z source aliases",
+            "Declaration and per-edge reference anchors",
+            "Limitations"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:217-221,1386-1472,1979-2021,2343-2453,2497-2609",
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:1-107"
+          ],
+          "reason": "All decisive claims have exact delivered pinned source. Declaration vs reference vs graph admission vs runtime remains distinct. Minor ancillary locator errors are recorded separately; they do not remove or contradict the delivered decisive evidence."
+        },
+        {
+          "id": 4,
+          "criterion": "Minimal current-behavior regressions",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "Minimal current-behavior regression points, items1-4",
+            "proposed checks; none executed"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:1448,1450-1465,2000,2373-2378,2526-2533,2557-2569,2593",
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:45-50,76-106"
+          ],
+          "reason": "Concrete count preservation/invalid-input, full Long vs clamped field, viewport vs whole-file output, and existing policy boundary checks with expected results. Setups constrain successful/valid metadata and geometry; no hypothetical threshold patch or executed-test claim. Threshold expected values agree with inspected bands."
+        },
+        {
+          "id": 5,
+          "criterion": "Useful narrow decision and limits",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "Opening report reliance decision",
+            "Limitations final paragraph",
+            "e6 indirect source-level route distinction"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2344",
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:95-102"
+          ],
+          "reason": "Actionable decision: use own report as navigation, not an exact direct-use list; apply explicit corrections. Depth, helper, broader graph, compiler/runtime and safe-change limits are stated."
+        }
+      ],
+      "counts": {
+        "PASS": 5,
+        "PARTIAL": 0,
+        "FAIL": 0
+      },
+      "adequacy": "ADEQUATE_FOR_OWN_SHOWN_DIRECT_USE_AUDIT"
+    },
+    "B_after_maple": {
+      "criteria": [
+        {
+          "id": 1,
+          "criterion": "Shown direct-use coverage",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "Opening five shown relationships statement",
+            "five-row direct-use table"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2593,2533,2344,1465,2000"
+          ],
+          "reason": "Audits every one of own report five shown methods/reference positions and correctly confirms each. No invalid match is required when none is shown."
+        },
+        {
+          "id": 2,
+          "criterion": "Reader/writer classification and defect diagnosis",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "five-row reader/writer table",
+            "Classifying all five as readers, writers, or literal calls would be invalid"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:1387,1465,1979-2000,2343-2345,2531-2533,2584-2593"
+          ],
+          "reason": "Correct three readers, initializer writer and compound reader/writer. WriteMeta writes persisted records while reading this in-memory property; ReadMeta does the reverse. Generic calls is not treated as literal invocation/read semantics."
+        },
+        {
+          "id": 3,
+          "criterion": "Evidence and navigation",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "source identity paragraph",
+            "declaration vs reference paragraph",
+            "policy implementation was not inspected"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:190-245,2328-2615,1380-1480,1970-2030,1950-1977"
+          ],
+          "reason": "Decisive operations and full enclosing methods are delivered with matching current hashes. Additional CountCoordinates claim is supported by final delivered1950-1977 window. Policy internals explicitly uninspected; minor clamp locator error recorded separately."
+        },
+        {
+          "id": 4,
+          "criterion": "Minimal current-behavior regressions",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "four Minimal current-behavior regression bullets",
+            "These are proposed regression checks...No tests..."
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:1386-1465,1965-1977,2000,2344,2526-2533,2557-2569,2593"
+          ],
+          "reason": "Concrete start10/add3->13, Long2147483648 persistence/JSON, validzero vs invalid counts, and wrapper forwarding checks follow inspected source. No invented classification threshold or implementation patch. Success/validity assumptions and untested GDAL/validation are explicit."
+        },
+        {
+          "id": 5,
+          "criterion": "Useful narrow decision and limits",
+          "verdict": "PASS",
+          "candidate_anchors": [
+            "For the narrow decision...report is reliable after source verification",
+            "final limitations paragraph"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2593,2533,2344,1465,2000"
+          ],
+          "reason": "Justified reliance limited to own shown property uses after source verification; does not assert whole-graph accuracy or safe behavior change. Unshown/deeper uses, policy internals, compiler/runtime/rebuild and completeness remain unresolved."
+        }
+      ],
+      "counts": {
+        "PASS": 5,
+        "PARTIAL": 0,
+        "FAIL": 0
+      },
+      "adequacy": "ADEQUATE_FOR_OWN_SHOWN_DIRECT_USE_AUDIT"
+    },
+    "comparison": {
+      "verdict": "NARROW_QUALITY_ADEQUACY_EQUIVALENT",
+      "explanation": "Both correctly answer their own supplied report, establish the same five source-level property roles, and give source-justified unexecuted regression checks. A also rejects the extra invalid positions present in its own report and checks policy thresholds; B correctly does not invent invalid matches and explicitly leaves policy internals unresolved. Different report contents do not require equal defect counts or equal breadth. No quality winner is demonstrated by this single case.",
+      "limitations": "Equivalence concerns bounded rubric adequacy, not identical content, effort, costs, navigation efficiency, general productivity, or statistical equivalence."
+    },
+    "minor_errors": [
+      {
+        "candidate": "A",
+        "kind": "line_anchor_error",
+        "answer_anchor": "CollectFeatures local initialized at S:2354",
+        "correct_anchor": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2353",
+        "actual_at_cited_line": "Dim payloadBytes As Long = 0",
+        "material_false_guidance": false,
+        "effect": "Local semantics and decisive2373/2377 sites correct; complete method delivered."
+      },
+      {
+        "candidate": "A",
+        "kind": "incomplete_line_range",
+        "answer_anchor": "configured bands at Z:45-48",
+        "correct_anchor": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:45-50 (last band at49)",
+        "material_false_guidance": false,
+        "effect": "All stated thresholds/expected outputs correct and complete band block was delivered; cited range excludes final band."
+      },
+      {
+        "candidate": "B",
+        "kind": "line_anchor_error",
+        "answer_anchor": "per-feature field clamps at1446",
+        "correct_anchor": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:1448",
+        "actual_at_cited_line": "ogrFeature.SetField(SourceIdField, sourceIdJson)",
+        "material_false_guidance": false,
+        "effect": "Clamp and full Long distinction correct; both lines delivered."
+      },
+      {
+        "candidate": "B",
+        "kind": "rendering_ambiguity",
+        "answer_anchor": "range separators rendered as question marks, e.g.1965?1977",
+        "correct_anchor": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:1965-1977",
+        "material_false_guidance": false,
+        "effect": "Endpoint numbers and delivered source make intended ranges recoverable."
+      }
+    ],
+    "material_false_guidance": [],
+    "executed_tests": "None in this QA case. Proposed regression checks are source-supported, not passing test results."
+  },
+  "observed_task_results": {
+    "before": "Correctly identified five genuine method relationships, rejected CollectFeatures and ClassifyAutomatic as direct property relationships, and rejected misleading samples inside otherwise valid edges.",
+    "after": "Correctly confirmed all five shown method/reference relationships. Both answers distinguished three readers, ReadMeta initializer writer and WriteFeature compound reader/writer.",
+    "usefulness": "Same narrow task adequacy with 6377 fewer delivered evidence bytes in the corrected-report run; both used five source requests. This supports a context-cost benefit for this observed case only.",
+    "causality_limit": "Report difference directly removes false indexed evidence. Overall source-byte difference also reflects independently selected read ranges and task breadth, so do not attribute every saved byte or time difference solely to the sidecar."
+  },
+  "costs": {
+    "before": {
+      "source_requests": 5,
+      "provided_report_items": 1,
+      "total_evidence_items": 6,
+      "setup_bytes": 23135,
+      "source_response_bytes": 33564,
+      "total_bytes": 56699,
+      "source_operation_wall_seconds": 0.03126030002022162,
+      "complete": true,
+      "runner_status": "READY",
+      "completion_reason": "Voluntary final answer; no budget exhaustion, error or withheld response. No further evidence allowed by frozen completion.",
+      "source_windows": [
+        {
+          "number": 1,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 2340,
+              "line_end": 2610
+            }
+          },
+          "bytes": 14977,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.0067313000035937876
+        },
+        {
+          "number": 2,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 170,
+              "line_end": 245
+            }
+          },
+          "bytes": 4300,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.005765200010500848
+        },
+        {
+          "number": 3,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 1386,
+              "line_end": 1473
+            }
+          },
+          "bytes": 5047,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.006276400003116578
+        },
+        {
+          "number": 4,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 1979,
+              "line_end": 2022
+            }
+          },
+          "bytes": 3068,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.007067900005495176
+        },
+        {
+          "number": 5,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+              "line_start": 1,
+              "line_end": 107
+            }
+          },
+          "bytes": 6172,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.005419499997515231
+        }
+      ]
+    },
+    "after": {
+      "source_requests": 5,
+      "provided_report_items": 1,
+      "total_evidence_items": 6,
+      "setup_bytes": 20285,
+      "source_response_bytes": 30037,
+      "total_bytes": 50322,
+      "source_operation_wall_seconds": 0.035077600012300536,
+      "complete": true,
+      "runner_status": "READY",
+      "completion_reason": "Voluntary final answer; no budget exhaustion, error or withheld response. No further evidence allowed by frozen completion.",
+      "source_windows": [
+        {
+          "number": 1,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 190,
+              "line_end": 245
+            }
+          },
+          "bytes": 3255,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.006512499996460974
+        },
+        {
+          "number": 2,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 2328,
+              "line_end": 2615
+            }
+          },
+          "bytes": 15824,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.0074483000207692385
+        },
+        {
+          "number": 3,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 1380,
+              "line_end": 1480
+            }
+          },
+          "bytes": 5695,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.0071906999801285565
+        },
+        {
+          "number": 4,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 1970,
+              "line_end": 2030
+            }
+          },
+          "bytes": 3689,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.0071813999966252595
+        },
+        {
+          "number": 5,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+              "line_start": 1950,
+              "line_end": 1977
+            }
+          },
+          "bytes": 1574,
+          "source_and_delivery_verified": true,
+          "wall_seconds": 0.006744700018316507
+        }
+      ]
+    },
+    "comparison": {
+      "difference_total_bytes": 6377,
+      "relative_total_reduction_percent": 11.247111942009559,
+      "source_request_difference": 0,
+      "source_bytes_difference": 3527,
+      "limitation": "One known-regression captured-report case. Agent-selected read ranges and report contents differ. No aggregate productivity, statistically reliable latency or prevented-runtime-defect claim."
+    },
+    "timing_limit": "Source-operation wall times recorded for transparency; subsecond local reads and agent/coordinator scheduling do not support reliable task-latency claims. Neutral control messages excluded consistently from evidence charge."
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-contract.json",
+      "sha256": "f28b111021ca7b6add49e4e97f86cd74afd8a55114baeb4b1b885bc497641104"
+    },
+    "task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-task.json",
+      "sha256": "3be5062b8fb80a89a294edaeadc8a10682f32cbc266c057511a966329faaaf42"
+    },
+    "rubric": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-frozen-rubric.json",
+      "sha256": "37b933c2a9b459b1bce716b4821fdd7d4a26f87bc594ece8df5569cbfc542d6b"
+    },
+    "mapping": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-private-mapping.json",
+      "sha256": "46f9cacca06cba7bf177b4eea32c78060d93f013739789088c0bfc0aedbbaab2"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-binding.json",
+      "sha256": "258a9a2a162aaf1ca66c347ddaa264aa114dbcbc10fa5a64206ddf158006167e"
+    },
+    "exposures": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-exposure-disclosures.json",
+      "sha256": "5e214ad41f0effed163450d3b4b42289a724917a24990fb5fea21afb8bd22f9e"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-oracle.json",
+      "sha256": "dceff33745072b0f0cbf9bcb6d3da1922f7ca998f701085385519ce8cf0b7f91"
+    },
+    "adapter": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-relay.py",
+      "sha256": "fae089c815e59b320c4998c73b4cf35763e7e8ea926fbe9014a5da9adbb381cd"
+    },
+    "adapter_diff": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-relay.diff",
+      "sha256": "9f224305c3202389f2ae90645f3cea9647a4e229ae941ba22c020928b6d2f4a3"
+    },
+    "pure_guard_checks": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-relay-pure-checks.json",
+      "sha256": "689d21234478c9de59ca09c23afb97fedc340d580492f97b7211739792788da1"
+    },
+    "independent_adapter_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-independent-review.json",
+      "sha256": "ee92bd2161316730a751ebf8ce1d2700167733b8b2b6b70292cea6f2a591d8f0"
+    },
+    "freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-freeze.json",
+      "sha256": "0fc4f2fe7658fc106bcd32162a59ee0649677031914fac64f036bc2cad77a5d9"
+    },
+    "quality_packet": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-quality-packet.json",
+      "sha256": "bc2648afa5c65970dab47a6f34d40b0d34a991687d039a81b758f44e141dad36"
+    },
+    "quality_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-quality-judgment.json",
+      "sha256": "ff7db3b4a48d1bfe6712cab2ba25cf9c3fc95f9ba6291118ad676c9fcb8940fe"
+    },
+    "delivery_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-delivery-verification.json",
+      "sha256": "b79a0a54683933ef85cbeb450ca8d006a2d2e3f14d625c69c20bfabd7b34c062"
+    },
+    "before_answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-pine-answer.txt",
+      "sha256": "3c52a9bef98a223d5d543b5b626402acef9a3ad55426c76aa92e37b6436e6db7"
+    },
+    "after_answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-maple-answer.txt",
+      "sha256": "6741a912ac52e191a848eda4683af528cd5a3659dd8119e8a7059e700387623d"
+    },
+    "before_ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-pine-private-ledger.json",
+      "sha256": "a6ecfa650f47deba319288772801d4a42b9f6a5dcbf9a38dfe61e2d4b975de97"
+    },
+    "after_ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-maple-private-ledger.json",
+      "sha256": "c573912c3297984b9a092d7cba8433c5d0dfaa10255b7a9de934294c4d82d4ec"
+    }
+  },
+  "resources": {
+    "new_fixtures": false,
+    "new_builds": false,
+    "live_rpc_calls": 0,
+    "service_changes": false,
+    "existing_files_deleted": false,
+    "retained_evidence_prefix": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-",
+    "retention": "Keep all QA inputs, request/response files, ledgers, original answers, quality packet/oracle and review/outcome receipts for this task review. Removal requires later explicit exact-path authorization; no current cleanup operation."
+  },
+  "limits": [
+    "No OciusX writes, tests, compilation, runtime application execution, index changes or service restart.",
+    "No prevention of a production defect demonstrated; source verification corrected the earlier report successfully too.",
+    "No whole-codebase, deeper graph, compiler binding, proposed-change safety or runtime completeness claim.",
+    "Earlier frozen partial task outcomes and original findings/gates remain unchanged.",
+    "Known-regression controlled reports and shared instructions prevent held-out or general productivity claims. EG24 regular verification and broader EG25 evidence remain unfinished."
+  ],
+  "original31findings_closed": false,
+  "original19gates_closed": false,
+  "eg24_closed": false,
+  "eg25_closed": false,
+  "goal_complete": false,
+  "follow_on_triage": {
+    "status": "NO_LABEL_ONLY_FIX_WARRANTED",
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-report-qa-20261108-label-triage.json",
+      "sha256": "ebd152fe90846d05bc859f997426c4e81781a67a95cee07d9bd9560af7f034cc"
+    },
+    "reason": "Native property producer deliberately emits calls with syntax-derived property_get/property_set metadata. Public report explicitly qualifies generic dependency and reference samples. Existing subtype aggregation/output omissions do not establish material misleading guidance in this case; do not expose unvalidated reader/writer semantics.",
+    "parked_observation": "Per-position access subtype aggregation would require separate initializer/compound/mixed-access semantic validation if later selected by a real task. It is not the next task merely because discovered.",
+    "new_production_changes": false
+  }
+}

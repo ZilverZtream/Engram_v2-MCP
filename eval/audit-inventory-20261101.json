@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T16:12:14.677352+00:00",
-    "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
+    "at_utc": "2026-11-08T16:27:39.587202+00:00",
+    "reason": "Continued authorized core-tool goal through source-judged actual before/after sidecar report QA. Both answers adequate; observed corrected-report context cost lower. No new production defect selected from generic dependency labels.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original core-tool usefulness/EG25 evidence: representative cancellation collection source gap now verified with5publiccalls, no backend defect selected. Next use a single matched real CoordinateCount report-QA case to assess the already-delivered sidecar correction, using retained actual before/after impact outputs and identical source; do not make speculative new production changes.",
-    "next_user_visible_deliverable": "A matched, source-judged QA outcome for the real property impact report: confirmed direct readers/writers, incorrect shown relationships, current-behavior regression points, read/context cost and explicit limits. Same task/source/capabilities/caps; raw prior reports and all earlier task outcomes preserved. This known-regression case cannot establish general productivity or EG24 held-out/CI closure.",
+    "active_original_item": "Original core-tool usefulness/EG25 evidence remains active. The selected CoordinateCount captured-report QA case is complete: both fresh answers pass the frozen five criteria with no material false guidance, corrected report used6377fewerbytes with the same5source reads. Broader CodeMap/Blast real-agent usefulness and EG24/EG25 remain unfinished; no label-only patch or supporting-infrastructure detour selected.",
+    "next_user_visible_deliverable": "Continue the original CodeMap/Blast task-level queue from demonstrated remaining agent needs using actual deployed output and independent source evidence. Preserve this completed narrow case, original partial outcomes and honest unresolved graph/runtime boundaries. Select a concrete failed navigation/witness/recovery action before changing production code; do not repeat unchanged passing checks or treat generic qualified calls labels as a proven defect.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,12 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
-    "previous_goal_turn_classification": "PROGRESS: completed5call41238B cancellation collection followthrough, independently verified6current-source windows and inherited handler boundary; no mutation, backend defect or frozen rescore. Located matching actual old/new property impact reports for originalEG25 matched QA evidence; not a completion claim.",
+    "previous_goal_turn_classification": {
+      "classification": "PROGRESS",
+      "reason": "Completed real captured-report property QA with fresh agents, frozen oracle/rubric, independent source/quality judgment and exact cost verification. Both adequate;11.247percent less observed context after sidecar correction, no broad productivity claim.",
+      "goal_complete": false,
+      "permission_dependency": false
+    },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11155,6 +11160,20 @@
       "returned_bytes": 41238,
       "source_windows": 6,
       "backend_discrepancy_observed": false,
+      "goal_complete": false
+    },
+    "latest_property_report_qa": {
+      "status": "KNOWN_REGRESSION_REPORT_QA_EQUIVALENT_ADEQUACY_LOWER_OBSERVED_CONTEXT_COST",
+      "tracked_receipt": {
+        "path": "eval/core-property-report-qa-outcome-20261108.json",
+        "sha256": "2e421a7d936cb28f5bff3fc4495b7df0bd0a0ea8e6ad621285d5fdc373a56271"
+      },
+      "before_total_bytes": 56699,
+      "after_total_bytes": 50322,
+      "source_requests_each": 5,
+      "quality": "Both PASS all five frozen criteria; no material false guidance; minor locator errors recorded.",
+      "limitations": "Single known-regression case, inherited AGENTS context, condition-visible reports and retained candidate header; not strict doubleblind/general productivity. Proposed checks unexecuted.",
+      "follow_on_label_fix_selected": false,
       "goal_complete": false
     }
   }
