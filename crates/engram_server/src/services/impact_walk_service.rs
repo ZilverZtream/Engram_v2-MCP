@@ -929,6 +929,61 @@ fn recover_capped_member_search(value: &mut Value, full: &Value, fits: &dyn Fn(&
     }
 }
 
+// A hinted file can have a selected callable whose route crosses an API or
+// another non-callable node. Keep that declaration useful for source inspection
+// without presenting it as one of the callable-only source routes. Reuse only
+// this frame's explicit range action; do not resolve names or query source.
+fn append_hinted_file_declarations(value: &mut Value, full: &Value, fits: &dyn Fn(&Value) -> bool) {
+    let hints: Vec<_> = value["source_routes"]["file_hints"].as_array().into_iter().flatten()
+        .filter_map(Value::as_str).map(str::to_owned).collect();
+    if hints.is_empty() { return; }
+    let files: HashMap<_, _> = full["files"].as_array().into_iter().flatten()
+        .filter_map(|file| Some((file["ref"].as_str()?, file["path"].as_str()?))).collect();
+    let recoveries: HashMap<_, _> = full["recoveries"].as_array().into_iter().flatten()
+        .filter_map(|row| Some((row["ref"].as_str()?, row))).collect();
+    let shown: BTreeSet<_> = value["source_routes"]["nodes"].as_array().into_iter().flatten()
+        .chain(value["immediate_consumers"].as_array().into_iter().flatten())
+        .filter_map(|node| node["node_id"].as_str()).map(str::to_owned).collect();
+    let mut candidates = Vec::new();
+    for node in full["nodes"].as_array().into_iter().flatten() {
+        if node["admission"] != "selected" || node["is_seed"] != false
+            || !matches!(node["kind"].as_str(), Some("function" | "method" | "constructor"))
+        { continue; }
+        let Some(id) = node["node_id"].as_str().filter(|id| !shown.contains(*id)) else { continue; };
+        let Some(path) = node["file_ref"].as_str().and_then(|r| files.get(r)).copied() else { continue; };
+        let Some(rank) = hints.iter().position(|hint| hint == path) else { continue; };
+        let Some((start, end)) = node["start_line"].as_u64().zip(node["end_line"].as_u64()) else { continue; };
+        if start == 0 || end < start || end - start >= 120 || node["generation"].as_u64().is_none() { continue; }
+        let Some(recovery) = node["recovery_ref"].as_str().and_then(|r| recoveries.get(r)) else { continue; };
+        if recovery["tool"] != "get_full_method_body" || recovery["scope_ref"] != "range"
+            || recovery["arguments"]["file_path"] != path
+            || recovery["arguments"]["line_start"].as_u64() != Some(start)
+            || recovery["arguments"]["line_end"].as_u64() != Some(end)
+        { continue; }
+        candidates.push((rank, node["depth"].as_u64().unwrap_or(u64::MAX), start, id, node, *recovery));
+    }
+    candidates.sort_by(|a, b| (a.0, a.1, a.2, a.3).cmp(&(b.0, b.1, b.2, b.3)));
+    if candidates.is_empty() { return; }
+    let mut rows = Vec::new();
+    let mut used_files = BTreeSet::new();
+    for (rank, _, _, id, node, recovery) in &candidates {
+        if rows.len() == 2 { break; }
+        if used_files.contains(rank) { continue; }
+        rows.push(json!({"node_id":id,"generation":node["generation"],
+            "source_read":{"tool":recovery["tool"],"arguments":recovery["arguments"]}}));
+        value["hinted_file_declarations"] = json!({
+            "scope":"Selected declarations in hinted files, not value-flow routes or runtime binding. Reads inspect current indexed ranges; method bounds remain unverified.",
+            "eligible_declarations_observed":candidates.len(),"declarations_omitted":candidates.len()-rows.len(),"declarations":rows});
+        if fits(value) { used_files.insert(*rank); } else { rows.pop(); }
+    }
+    if rows.is_empty() {
+        value.as_object_mut().unwrap().remove("hinted_file_declarations");
+    } else {
+        value["hinted_file_declarations"]["declarations"] = json!(&rows);
+        value["hinted_file_declarations"]["declarations_omitted"] = json!(candidates.len()-rows.len());
+    }
+}
+
 fn summary_section(
     full: &Value,
     project: &str,
@@ -949,6 +1004,7 @@ fn summary_section(
         serde_json::to_vec(candidate).expect("JSON value serialization").len()
             <= SUMMARY_BYTES.saturating_sub(framing + 256);
     recover_capped_member_search(&mut value, full, &fits);
+    append_hinted_file_declarations(&mut value,full,&fits);
     append_consumer_navigation(&mut value,full,project,&fits);
     render_summary(&value,&immediate_prefix)
 }
@@ -975,6 +1031,7 @@ pub(crate) fn assessment_summary(
     let fits = |candidate: &Value|
         serde_json::to_vec(candidate).expect("JSON value serialization").len()<=SUMMARY_BYTES;
     recover_capped_member_search(&mut value, &assessment.evidence, &fits);
+    append_hinted_file_declarations(&mut value,&assessment.evidence,&fits);
     append_consumer_navigation(&mut value,&assessment.evidence,project,&fits);
     anyhow::ensure!(serde_json::to_vec(&value)?.len()<=SUMMARY_BYTES,
         "Required downstream summary facts exceed the 12KiB display bound");
@@ -1610,6 +1667,41 @@ fn append_caller_file_starts(value: &mut Value, project: &str, fits: &dyn Fn(&Va
 #[cfg(test)]
 mod caller_file_start_behavior {
     use super::*;
+
+    #[test]
+    fn hinted_file_declarations_cannot_displace_evidence_or_guess_a_source_range() {
+        let original=json!({"source_routes":{"file_hints":["src/client.ts"],"nodes":[]},
+            "coverage":{"truncated":true},"frontier":[{"reason":"missing_graph_node"}],
+            "terminal_member_inspection":{"action":{"tool":"grep_project"}}});
+        let frame=json!({"files":[{"ref":"f1","path":"src/client.ts"}],
+            "nodes":[{"ref":"n1","node_id":"sym:function:src/client.ts:save:10","kind":"function",
+                "admission":"selected","is_seed":false,"file_ref":"f1","generation":7,
+                "depth":4,"start_line":10,"end_line":20,"recovery_ref":"r1"}],
+            "recoveries":[{"ref":"r1","tool":"get_full_method_body","scope_ref":"range",
+                "arguments":{"project_id":"project","file_path":"src/client.ts","line_start":10,
+                    "line_end":20,"context_lines":0,"output_json":true}}]});
+        let mut roomy=original.clone();
+        append_hinted_file_declarations(&mut roomy,&frame,&|_|true);
+        assert_eq!(roomy["hinted_file_declarations"]["declarations"].as_array().unwrap().len(),1);
+        let required_bytes=serde_json::to_vec(&roomy).unwrap().len();
+        for limit in [serde_json::to_vec(&original).unwrap().len(),required_bytes-1,required_bytes] {
+            let mut actual=original.clone();
+            append_hinted_file_declarations(&mut actual,&frame,&|value|serde_json::to_vec(value).unwrap().len()<=limit);
+            assert!(serde_json::to_vec(&actual).unwrap().len()<=limit);
+            let lead=actual.as_object_mut().unwrap().remove("hinted_file_declarations");
+            assert_eq!(lead.is_some(),limit==required_bytes);
+            assert_eq!(actual,original,"Navigation must preserve every preselected fact and recovery");
+        }
+        for (field,bad_value) in [("admission",json!("unresolved")),("generation",Value::Null),
+            ("end_line",json!(130)),("is_seed",json!(true))] {
+            let mut bad=frame.clone();bad["nodes"][0][field]=bad_value;
+            let mut actual=original.clone();append_hinted_file_declarations(&mut actual,&bad,&|_|true);
+            assert_eq!(actual,original,"Unusable declaration must not become a convenient source lead");
+        }
+        let mut wrong_range=frame.clone();wrong_range["recoveries"][0]["arguments"]["file_path"]=json!("src/other.ts");
+        let mut actual=original.clone();append_hinted_file_declarations(&mut actual,&wrong_range,&|_|true);
+        assert_eq!(actual,original);
+    }
 
     #[test]
     fn member_recovery_sacrifices_broad_fallback_before_focused_action_or_existing_evidence() {
