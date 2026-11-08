@@ -1314,7 +1314,15 @@ internal sealed class AstEmitter
             {
                 var symbol = model.GetSymbolInfo(reference).Symbol;
                 var property = symbol as IPropertySymbol;
-                if (property is null || !property.Locations.Any(location => location.IsInSource))
+                // A resolved parameter/local/field/method, or a metadata-only
+                // property, cannot denote a same-named source property. Reserve
+                // the legacy name fallback for genuinely unresolved syntax.
+                if (symbol is not null &&
+                    (property is null || !property.Locations.Any(location => location.IsInSource)))
+                {
+                    return null;
+                }
+                if (property is null)
                 {
                     // In incomplete legacy Web Site compilations the receiver
                     // can be an error type even while the target declaration
