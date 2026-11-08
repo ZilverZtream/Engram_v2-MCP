@@ -522,6 +522,7 @@ pub struct CodebaseOverviewRequest {
     #[serde(default)]
     pub symbol_node_id: Option<String>,
     /// Exact, case-sensitive extracted declaration name (1..256 UTF-8 bytes).
+    /// Includes callable and class records (some extractors use class for interfaces).
     /// Exact-file scope tries exact names first; only after no admitted match,
     /// a bare name matches the final dot-separated name segment within that
     /// same file and shared work budget. Qualified/overload identities stay

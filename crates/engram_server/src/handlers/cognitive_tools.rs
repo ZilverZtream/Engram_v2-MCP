@@ -296,7 +296,7 @@ fn directory_named_navigation(
         "files":files,"next_page":next.filter(|offset|*offset>req.offset).map(|offset|page(offset,req.limit)),
         "retry_file":retry,"display_retry":null,"omitted_candidates":[],
         "limitations":[
-            "Exact native callable name under one held selected file page; candidates are not uniqueness, inventory, runtime binding or absence proof. Other kinds, legacy identities and aliases remain unassessed.",
+            "Exact native callable or class-record name under one held selected file page; candidates are not uniqueness, inventory, type/runtime binding or absence proof. Other kinds, legacy identities and aliases remain unassessed.",
             "Shared file/prefix/decode/candidate limits; deadlines checked between synchronous operations, which can overrun. Unfinished work/display omissions stay explicit; follow-ups are fresh, not atomic.",
             "Source actions check current bytes, not method bounds or freshness (indexed ranges capped120lines). For method context expand exact-file scope+symbol_node_id. No current source read here."
         ]});
@@ -1861,7 +1861,7 @@ impl Engram {
                         row["declaration_inventory"]=serde_json::json!("not_scanned");
                         row["name_selection"]=serde_json::json!({"requested_name":name,
                             "match":"exact_case_sensitive_extracted_name","observed":!symbols.is_empty(),
-                            "scope":"Admitted bounded native callable candidates, not uniqueness, FQN resolution or absence proof"});
+                            "scope":"Admitted bounded native callable or class-record candidates, not uniqueness, FQN resolution or absence proof"});
                         if let Some(lookup)=discovery.last().filter(|lookup|
                             lookup["name_match"]=="exact_case_sensitive_terminal_segment") {
                             row["name_selection"]["match"]=lookup["name_match"].clone();
@@ -1961,7 +1961,7 @@ impl Engram {
             navigation["detail"]=serde_json::json!("exact_name_candidates");
             navigation["limitations"]=serde_json::json!([
                 "Exact case-sensitive extracted Node.name within one selected canonical file; not class/FQN/suffix resolution. For example use save, not Widget.save when the extracted name is save.",
-                "Bounded native function/method/constructor/property prefixes under the held file/node selection. Same-name declarations remain candidates, not a unique target. Legacy/noncanonical identities, other kinds and name aliases remain unassessed; not observed never proves absence.",
+                "Bounded native function/method/constructor/property/class prefixes under the held file/node selection. Class records can represent interfaces; this is recorded declaration navigation, not type binding. Same-name declarations remain candidates, not a unique target. Legacy/noncanonical identities, other kinds and name aliases remain unassessed; not observed never proves absence.",
                 "Lookup work/decode/candidate/deadline gaps are reported in coverage. Display may omit retained candidates; no offset-based inventory continuation. File action returns ordinary discovery; symbol_node_id expands a known identity.",
                 "Executable source/impact/context actions are fresh observations, not atomic replay. Compare returned generations/hashes; indexed ranges are bounded and current-source, method-boundary, binding and runtime proof remain separate."
             ]);
@@ -1970,7 +1970,7 @@ impl Engram {
                 navigation["limitations"][0]=serde_json::json!(
                     "No admitted exact extracted-name candidate was observed. A bare name then compares exact case-sensitive final dot-separated name segments within this selected file; full qualified identities and overload candidates remain distinct, not resolved bindings.");
                 navigation["limitations"][1]=serde_json::json!(
-                    "Exact seeks and callable file-prefix recovery share one key/decode/candidate/deadline budget and held file/node selection. A capped or empty result does not prove absence. Exact-name successes are not unioned with qualified terminal alternatives; directory-name pages remain exact extracted-name only.");
+                    "Exact seeks and callable/class file-prefix recovery share one key/decode/candidate/deadline budget and held file/node selection. A capped or empty result does not prove absence. Exact-name successes are not unioned with qualified terminal alternatives; directory-name pages remain exact extracted-name only.");
             }
         }
         if !req.include_declarations {

@@ -2621,7 +2621,7 @@ fn named_terminal_lookup_preserves_ambiguity_and_exact_name_priority() {
         let preferred=navigate(&engram,request.clone()).await;
         assert_eq!(preferred["files"][0]["symbols"].as_array().unwrap().len(),1);assert_eq!(preferred["files"][0]["symbols"][0]["node_id"],exact.node_id);
         assert!(preferred["coverage"]["declarations"][0].get("terminal_name_fallback").is_none());
-        assert!(preferred["coverage"]["declarations"][0]["declaration_admission"]["raw_rows"].as_u64().unwrap()<=5,"A healthy exact match must not scan unrelated qualified declarations");
+        assert!(preferred["coverage"]["declarations"][0]["declaration_admission"]["raw_rows"].as_u64().unwrap()<=6,"A healthy exact match must not scan unrelated qualified declarations");
         exact.generation=2;engram.state.graph.upsert_nodes(PID,&[exact]).unwrap();
         let recovered=navigate(&engram,request).await;
         assert_eq!(recovered["files"][0]["symbols"].as_array().unwrap().len(),8,"An unselected exact declaration must not hide selected qualified candidates");
@@ -2655,6 +2655,97 @@ fn named_terminal_lookup_shares_remaining_key_and_decode_budgets() {
             let (_,current)=excerpt(&engram,fallback["arguments"].clone()).await;
             assert_eq!(current["source_file_hash"],ContentHash::compute(body.as_bytes()).0);
         }
+    });
+}
+
+#[test]
+fn named_contract_lookup_exposes_selected_type_source_and_impact_actions() {
+    owned_case(true, |engram, search| async move {
+        const VB: &str = "src/contracts.vb";
+        const TS: &str = "src/interfaces.ts";
+        let vb = format!("{}Namespace Demo\nPublic Class ViewportDescriptor\nPublic effectiveMinZoom As Integer?\nEnd Class\nEnd Namespace\n", "' preceding source\n".repeat(180));
+        let ts = format!("{}interface IViewportPolicy {{\neffectiveMinZoom?: number;\n}}\n", "// preceding source\n".repeat(180));
+        publish_named_sources(&engram, &search, &[(VB, &vb), (TS, &ts)]).await;
+        for (path, source, name, query, start, end) in [
+            (VB, &vb, "Demo.ViewportDescriptor", "ViewportDescriptor", 182, 184),
+            (TS, &ts, "IViewportPolicy", "IViewportPolicy", 181, 183),
+        ] {
+            let id = format!("sym:class:{path}:{name}:{start}");
+            let mut target = node(&id, "class", name, path, 1);
+            target.start_line = start;
+            target.end_line = end;
+            let future_name = format!("Future.{query}");
+            let mut future = node(&format!("sym:class:{path}:{future_name}:20"), "class", &future_name, path, 2);
+            future.start_line = 20;
+            future.end_line = 22;
+            engram.state.graph.upsert_nodes(PID, &[target, future]).unwrap();
+
+            let text = navigation_text(&engram, json!({"project_id":PID,"scope":path,
+                "symbol_name":query,"include_source":true})).await;
+            assert!(text.len() <= 12 * 1024);
+            let page = navigation(&text);
+            let symbols = page["files"][0]["symbols"].as_array().unwrap();
+            assert_eq!(symbols.len(), 1, "Only the selected contract should be navigable");
+            assert_eq!(symbols[0]["node_id"], id);
+            assert_eq!(symbols[0]["kind"], "class");
+            let preview = &page["current_source"];
+            assert_eq!(preview["indexed_anchor_node_id"], id);
+            assert!(preview["line_start"].as_u64().unwrap() <= start as u64);
+            assert!(preview["line_end"].as_u64().unwrap() >= end as u64);
+            assert_eq!(preview["source_file_hash"], ContentHash::compute(source.as_bytes()).0);
+            let actions = symbols[0]["actions"].as_array().unwrap();
+            assert!(!actions.iter().any(|a| a["tool"] == "get_method_edit_context"),
+                "A type declaration must not offer a method-only context query");
+            let read = actions.iter().find(|a| a["tool"] == "get_full_method_body").unwrap();
+            let (_, body) = excerpt(&engram, read["arguments"].clone()).await;
+            assert_eq!(body["source_code"], source.lines().skip(start as usize - 1)
+                .take((end - start + 1) as usize).collect::<Vec<_>>().join("\n"));
+            let action = actions.iter().find(|a| a["tool"] == "impact_analysis").unwrap();
+            let response = engram.handle_impact_analysis(serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!response.is_error.unwrap_or(false));
+            let impact: Value = serde_json::from_str(response.content[0].as_text().unwrap().text
+                .split_once("## Revision-admitted change impact").unwrap().1
+                .split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+            assert_eq!(impact["target"]["node_id"], id);
+            assert_eq!(impact["target_revision_admitted"], true);
+            if path == VB {
+                assert!(page["coverage"]["declarations"][0]["declaration_admission"]["non_selected_nodes"].as_u64().unwrap() > 0);
+            }
+
+            let directory = navigate(&engram, json!({"project_id":PID,"scope":"src","symbol_name":name})).await;
+            let matches: Vec<_> = directory["files"].as_array().unwrap().iter()
+                .flat_map(|f| f["symbols"].as_array().unwrap()).collect();
+            assert_eq!(matches.len(), 1);
+            assert_eq!(matches[0]["node_id"], id);
+        }
+    });
+}
+
+#[test]
+fn named_contract_lookup_keeps_constructor_collision_explicit() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/Packet.ts";
+        const SOURCE: &str = "class Packet {\nconstructor() {}\n}\n";
+        publish_named_sources(&engram, &search, &[(PATH, SOURCE)]).await;
+        let class_id = format!("sym:class:{PATH}:Packet:1");
+        let ctor_id = format!("sym:constructor:{PATH}:Packet:2");
+        let mut class = node(&class_id, "class", "Packet", PATH, 1);
+        class.end_line = 3;
+        let mut ctor = node(&ctor_id, "constructor", "Packet", PATH, 1);
+        ctor.start_line = 2;
+        ctor.end_line = 2;
+        let mut qualified = node(&format!("sym:function:{PATH}:Other.Packet:2"), "function", "Other.Packet", PATH, 1);
+        qualified.start_line = 2;
+        qualified.end_line = 2;
+        engram.state.graph.upsert_nodes(PID, &[class, ctor, qualified]).unwrap();
+        let page = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+            "symbol_name":"Packet","include_source":true})).await;
+        let symbols = page["files"][0]["symbols"].as_array().unwrap();
+        assert_eq!(symbols.len(), 2, "Exact class and constructor remain distinct; terminal alternatives are not unioned");
+        for id in [&class_id, &ctor_id] { assert!(symbols.iter().any(|s| s["node_id"] == *id)); }
+        assert!(page["current_source"]["indexed_anchor_node_id"].is_null(),
+            "An ambiguous name must not silently choose the class or constructor");
+        assert!(page["coverage"]["declarations"][0].get("terminal_name_fallback").is_none());
     });
 }
 

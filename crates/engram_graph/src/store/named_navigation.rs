@@ -9,6 +9,9 @@ const DECODE_BYTES: usize = 2 * 1024 * 1024;
 const RAW_KEYS: usize = 64;
 const CANDIDATES: usize = 8;
 const DEADLINE_MS: u64 = 500;
+// Some extractors also represent interfaces as class records. Navigate the
+// recorded declaration kind without claiming language-level type binding.
+const NAMED_KINDS: [&str; 5] = ["function", "method", "constructor", "property", "class"];
 
 struct Budget {
     started: Instant,
@@ -151,7 +154,7 @@ impl GraphStore {
                 if terminal && (directory || name.contains('.') || !out.is_empty() || budget.halted) {
                     break;
                 }
-                'kinds: for kind in ["function", "method", "constructor", "property"] {
+                'kinds: for kind in NAMED_KINDS {
                     if !budget.live() { break; }
                     kinds.push(kind);
                     let prefix = if terminal {
@@ -224,7 +227,7 @@ impl GraphStore {
                 "records_attempted":budget.attempted,"records_decoded":budget.decoded,
                 "decoded_bytes":budget.bytes,"raw_keys":budget.coverage.raw_rows,"prefix_seeks":kinds.len(),
                 "limits":{"files":8,"record_bytes":RECORD_BYTES,"decode_bytes":DECODE_BYTES,
-                    "raw_keys":RAW_KEYS,"prefix_seeks":32,"candidates":CANDIDATES,"deadline_ms":DEADLINE_MS},
+                    "raw_keys":RAW_KEYS,"prefix_seeks":8*NAMED_KINDS.len(),"candidates":CANDIDATES,"deadline_ms":DEADLINE_MS},
                 "truncated":budget.coverage.truncated,"reasons":budget.coverage.reasons,
                 "unknown":budget.coverage.unknown_nodes,"non_selected":budget.coverage.non_selected_nodes,
                 "missing":budget.coverage.missing_nodes})
@@ -232,7 +235,7 @@ impl GraphStore {
         if !terminal_kinds.is_empty() {
             report["observation"]=json!("bounded_exact_file_terminal_name_fallback");
             report["name_match"]=json!("exact_case_sensitive_terminal_segment");
-            report["declaration_inventory"]=json!("bounded_callable_file_prefixes");
+            report["declaration_inventory"]=json!("bounded_callable_and_class_file_prefixes");
             report["terminal_name_fallback"]=json!({"attempted":true,
                 "bounded_procedure_completed":completed,"kinds_started":terminal_kinds,
                 "prefix_seeks":prefix_seeks,"exact_extracted_name_priority":true,

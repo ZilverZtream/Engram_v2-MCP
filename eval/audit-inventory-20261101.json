@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T07:25:10.331341+00:00",
+  "last_updated_at": "2026-11-08T07:57:44.287157+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T07:25:10.331341+00:00",
+    "at_utc": "2026-11-08T07:57:44.287157+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent-useful navigation, witnesses and recovery remain the active original work. Current installed serializer task source-verifies all three immediate caller witnesses and distinguishes the wire field from derived browser state/editor thresholds. A separate owner-name path diagnostic reaches the browser and relevant source in two calls. No further backend defect selected from these tasks; broader goal and original unfinished states remain open.",
-    "next_user_visible_deliverable": "Finish the original shared-safety consistency check for the now source-verified AppendJson target: query installed check_edit_safety and get_method_edit_context with exact owner/FileLayerZoomPolicy/line382, history/business/caller bodies disabled. Compare their downstream facts and coverage with the actual impact/Blast: 3 direct plus 5 transitive dependents, missing-graph-node frontier and current serializer source. This is a narrow original core-delivery acceptance check, not another full task replay or new pilot. Fix only a concrete contradictory verdict/witness/recovery gap; if none, record that no further defect is selected and assess the remaining original core-delivery requirements from existing evidence before scheduling more experiments. Do not move into instruction drafting, broad audits, performance/catalog/ownership work or optional-agent blocking.",
+    "active_original_item": "CodeMap/Blast navigation for real agent contract edits. Actual CodeMap named lookup misses both verified viewport descriptor/policy types because its prefixes exclude their existing selected class records. Exact-ID expansion proves both records and correct source/impact actions already exist. Selected fix includes class records in bounded named lookup; no extraction/index/schema/global-scan work. Source implementation and33public cases pass; candidate/installed runtime validation and delivery remain required.",
+    "next_user_visible_deliverable": "Finish the selected class-name navigation delivery: native release build in the existing shared target, actual candidate reads for both original name requests against the verified exact-ID/source baseline, and preservation of prior callable task excerpts and graph facts. Near12KiB ClassifyAutomatic source coverage must not silently regress from extra metadata. Only get_codebase_overview description/schema documentation changes are intended;149otherdefinitions preserved. Complete paired-package/registry/selection/metadata/notes checks and installed normal validation before claiming deployment. Keep original task caps/qualified judgments unchanged; do not expand parser/catalog/ownership/performance/instruction pilots or stall for optional external review.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Hinted file declarations deployed:37unique focused/regression cases and native release PASS;387actual calls preserve79prior controls,150definitions, full Classify graph, existing facts/routes/capped recovery and registry/3136selection/14metadata/300notes. Both summaries12109B expose98line override-save read6144B verified against raw source.218active/218prior/5journals verified;32normal calls include30candidate comparisons/7source reads. No original31/full19 or fresh/full-task closure.",
-    "previous_goal_turn_classification": "PROGRESS: actual 9-call/77578-byte serializer planning task plus independent raw-source judgment; eight source windows, 16 grep hits and three callsite witnesses verified. Five frozen criteria satisfied; criterion3 retains an explicit false-premise correction because the browser derives the numeric value rather than reading that wire field. Agent namespace error (280 bytes, call5) remains charged. Separate 2-call/14004-byte CodeMap path recovery verifies two windows and source-path provenance; original task cap/score unchanged. No clean6/6, fresh-adoption, productivity or overall closure claim.",
+    "previous_goal_turn_classification": "PROGRESS: shared safety and method context agree exactly on yellow/8observed dependents and missing-node/semantics gaps; six method lines and24caller lines match source. Four scoped type-recovery calls verify both complete declarations. Six subsequent named/ID diagnostic calls isolate a real CodeMap omission with both class records already selected. Bounded class-name fix implemented; two new focused cases and all33CodeMap public regressions pass,35executions. Root review complete; no CodeRabbit review because host authfalse. No deployment or broader completion claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "All prior test/native/candidate/install runners terminal. Serializer task and path diagnostic observer pipes closed; no pending RPC, app edits or new fixture directories. Existing normal daemon served serializer task; later normal launcher 14056 only after idle daemon absence confirmed by process query and missing PRIMARY. One preflight before that launch failed before any RPC/ledger. Evidence stays in existing diagnostics root under prior cleanup policy; retained runtime pairs unchanged.",
+    "current_owned_resource_state": "All current observer and focused/regression runners terminal, pipes/Jobs/handles closed and both new test fixture directories removed. No pending RPC. Normal launches41672/34620 each followed verified idle daemon absence; no timeout restart. Evidence stays in existing diagnostics root and retained prior package cleanup policy is unchanged. Native class-name build not yet started at this checkpoint; once started, poll its same session and freeze source until terminal.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10654,6 +10654,38 @@
       "summary_routes": "Both impact summaries omit all four later source windows. This task does not prove standalone JSON data-flow coverage; graph counts are not breakage counts.",
       "path_recovery": "Prior browser-path knowledge was used in the original9call task. Separate diagnostic derives FileLayer from owner names and reads only the sole TS path returned by CodeMap; current normalization/gate/presence/stale guards available in two calls. This does not retroactively turn the original task into a cheaper or fresh run.",
       "selection": "No new backend fix selected from these limitations; preserve original tasks and avoid further replay without a concrete requirement."
+    },
+    "latest_serializer_shared_safety": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\serializer-shared-safety-source-judgment-20261108.json",
+      "sha256": "a652685e42080f6fdfaec5a3e00f0676e8605e74bf92666b286fa061ab5293ff"
+    },
+    "latest_serializer_contract_type_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\serializer-contract-types-source-judgment-20261108.json",
+      "sha256": "26276e8b8f4685a87d965223aca2d160fd7959eeff7516dddfe8907d11b84e3c"
+    },
+    "selected_class_name_navigation_gap": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-named-navigation-baseline-20261108.json",
+      "sha256": "9b9c0a9b32057961f4b78491320394cd612f69cd28640119fe48b9c926db0ce4"
+    },
+    "class_name_navigation_source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-named-navigation-source-review-20261108.json",
+      "sha256": "f3afb97f2b1e6867c4e8f319538b8dae08476dfd85aecff68503eb111e959f02"
+    },
+    "class_name_navigation_test_evidence": {
+      "focused": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-named-navigation-focused-v1-20261108.json",
+        "sha256": "f549835bdf3d02dbf1c0fe353e0f7b1c764fb8b1506dd897576df2720271792e"
+      },
+      "regression": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-named-navigation-regression-v1-20261108.json",
+        "sha256": "561f7b992d21ba47fe8d2ee454fb34f5fd124a38a8e3512386f2b5dbd1fb80b8"
+      },
+      "unique_cases": 33,
+      "owned_test_directories_removed": true,
+      "sessions_terminal": [
+        55904,
+        79408
+      ]
     }
   }
 }
