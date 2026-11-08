@@ -9842,7 +9842,7 @@
       }
     ],
     "active_original_item": "Bounded same-file source recovery for CodeMap omitted literal windows is committed at74065a5. All42 focused tests and the release build passed; package preserves214 native sidecar assets. Impact grouping remains unchanged after its proposed expansion exceeded existing budgets. Installed runtime is unchanged; core agent usefulness remains unfinished.",
-    "next_user_visible_deliverable": "Validate actual candidate OciusX reports and source recovery, compare against the frozen fresh-agent baseline, then complete paired installation and normal-runtime verification. Baseline used3 reads/31549 bytes including setup; adequacy judgment and candidate comparison pending. Two newly observed Codex-owned Engram connections prompted an unanswered restart question; no host or Engram process stopped. Continue independent work; preserve original task scores,31 findings and19 open release gates.",
+    "next_user_visible_deliverable": "Validate actual candidate OciusX reports and source recovery, compare against the frozen fresh-agent baseline, then complete paired installation and normal-runtime verification. Baseline passed all four frozen source-support criteria using3 reads/31549 bytes including setup; candidate comparison pending. Live Codex-owned Engram connections remain running and restart question unanswered. Normal observer is prepared and statically reviewed. Preserve original task scores,31 findings and19 open release gates.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -11229,7 +11229,7 @@
     },
     "selected_source_ranges_recovery": {
       "path": "eval/core-source-ranges-delivery-20261108.json",
-      "sha256": "c3e73175ae10ab70e25c64831949ece7540e522d21cd4bd61fb3c2d3cbc19014",
+      "sha256": "a7fe6cf2a10e58ed3e250ae70f1e3d6cff2e10b182a006fd3ce37b6c6c583806",
       "status": "SOURCE_COMMITTED_FOCUSED42_AND_RELEASE_BUILD_PASS_PACKAGE_PREPARED_NOT_INSTALLED",
       "installed_runtime_unchanged": true,
       "goal_complete": false
