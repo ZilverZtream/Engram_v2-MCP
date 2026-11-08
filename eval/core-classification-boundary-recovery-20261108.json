@@ -1,0 +1,73 @@
+{
+  "status": "SOURCE_VERIFIED_INFORMED_CLASSIFICATION_BOUNDARY_RECOVERY_PARTIAL",
+  "at_utc": "2026-11-08T14:07:24.527296+00:00",
+  "implementation_baseline": "adb4fa6",
+  "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+  "public_generation_observed": 3139,
+  "installed_server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+  "installed_manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+  "evidence": {
+    "consumer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-boundary-recovery-20261108.json",
+      "sha256": "ad83ce1d71944b9dea5630559359e03b38684164f409aaa083d715896eb44c08"
+    },
+    "independent_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-boundary-oracle-20261108.json",
+      "sha256": "56cb666e325bf9ee21eeb85e4945a325a76e1cb62b852dd6a18864abab7e7e4a"
+    },
+    "independent_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-boundary-judgment-20261108.json",
+      "sha256": "335a4e5a517ab885c554c699901a9a9e10a3b4c012971e77197d17262dcdfb46"
+    }
+  },
+  "actual_tool_usefulness": [
+    "Exact Blast-emitted setZoomOverride source read exposed named API dispatch, optimistic policy version and acknowledgment/error handling.",
+    "Literal dispatch search followed by exact-name CodeMap recovered the server save handler from a tail-only indexed locator.",
+    "Prior source-route action recovered current QueryViewport gates/cache call; prior inspected QueryCacheCore range could be reused under an independently matching whole-file hash.",
+    "Source-derived editor caller search and literal CodeMap source windows recovered automatic-band threshold, unknown-band fallback, numeric options and disabled saved/draft values."
+  ],
+  "qualified_findings": [
+    "The setter accepts integer0..maxOverrideZoom, while the editor applies its automatic-band lower bound; these are distinct constraints.",
+    "Server save handler validates/authorizes before UpdateZoomOverride, then returns a serialized BuildDescriptor. Durable persistence and outer transport were not inspected.",
+    "Descriptor application on success is conditional on successful parsing; done(true) follows even if no descriptor was produced. The merge helper implementation was not returned.",
+    "Current editor source uses automaticZoom, falls back to maxOverrideZoom when unknown, allows Automatic and disables unavailable saved/draft options.",
+    "Editor setZoomOverride callback was indexed context for the consumer; the independent judge separately confirmed its current text. This does not make it a current-source response or prove complete event wiring."
+  ],
+  "qa_decision_supported": "A classification-band change needs editor range/Automatic/unavailable-override cases in addition to classifier-only boundaries. This is a source-supported QA decision, not an executed regression suite or prevented-defect claim.",
+  "costs": {
+    "public_calls": 6,
+    "maximum_calls": 6,
+    "returned_text_utf8_bytes": 39176,
+    "maximum_returned_text_utf8_bytes": 49152,
+    "public_failures": 0,
+    "current_source_windows_independently_verified": 5,
+    "indexed_contexts_independently_verified": 4,
+    "setup_failure": "Guessed manifest filename absent before public call; corrected to actual installed windows-release-manifest.json. Retained in consumer receipt.",
+    "latency_limit": "No comparative model/coordinator elapsed-time or productivity claim."
+  },
+  "remaining_gaps": [
+    "Exact configured HTTP URL, request dispatch into GetFileLayerViewport, client _buildUrl details and deployed routing/build/runtime behavior are not newly established. Prior descriptor snippet uses ConfigSettings.LayerDownloadUrl but its value and routing were not resolved here.",
+    "BuildMetaOnlyJson serialization and FileLayerZoomPolicy.AppendJson are not fully recovered in this run. Prior call5 emitted2578..2602 recovery and prior QueryCacheCore names BuildMetaOnlyJson; the call cap remains unchanged.",
+    "QueryCache wrapper between current QueryViewport and earlier QueryCacheCore remains unread; matching whole-file hash supports reuse of earlier returned lines, not unseen implementation.",
+    "The editor save callback is indexed grep context only; current literal windows establish threshold/options but do not re-read849 onward. Full selected-option validation and event wiring outside returned windows remain unverified.",
+    "UpdateZoomOverride durable implementation, server outer JSON envelope and generic api.ajax transport are outside this bounded recovery.",
+    "No fresh before/after independent agent experiment, frozen rescoring, exhaustive graph correctness or goal-completion claim follows from these observations."
+  ],
+  "attribution": {
+    "backend_defect_established": false,
+    "fresh_autonomous_task_win": false,
+    "root_editor_priority_after_call3_received_after_call4": true,
+    "frozen_outcomes_changed": false,
+    "comparative_benefit_proven": false,
+    "oracle_only_facts_are_not_consumer_success": true
+  },
+  "resources": {
+    "observer_pipe_closed": true,
+    "server_started_or_stopped": false,
+    "temporary_resources_created": false,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-boundary-recovery-20261108.json",
+    "retention_condition": "Retain as bounded delivery evidence; no cleanup of prior artifacts."
+  },
+  "production_changes": false,
+  "goal_complete": false
+}
