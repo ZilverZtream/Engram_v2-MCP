@@ -1,0 +1,144 @@
+{
+  "status": "SOURCE_VERIFIED_REPRESENTATIVE_CANCELLATION_COLLECTION_PROVENANCE",
+  "at_utc": "2026-11-08T16:12:14.677352+00:00",
+  "scope": "Original upload-cancellation criterion4 collection boundary, continued from the retained unexecuted source action. Informed current-source recovery, not fresh comparative evidence or a frozen-result rescore.",
+  "evidence": {
+    "prior_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cancellation-collection-recovery-20261108.json",
+      "sha256": "ae0250c8b028be00038a113344168cb0fd8973e2d2f74683d5b094f85c6b722b"
+    },
+    "current_followthrough": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cancellation-provenance-followthrough-20261108.json",
+      "sha256": "1241b15ce3702bbf01b23e5d76e228a9880b46395c054d05a88482a05652132e"
+    },
+    "private_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cancellation-provenance-oracle-20261108.json",
+      "sha256": "137929ca4b32b261c6f2ef5c4e62edbb0c34be69ee24bb2c175298f9ac19f7f3"
+    },
+    "independent_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cancellation-provenance-judgment-20261108.json",
+      "sha256": "b1e16e1234c1aea92842dd77fa8c5c972b53779f4f9d8b4622b667fd619ca45e"
+    }
+  },
+  "current_runtime": {
+    "pid": 41632,
+    "generation": 3139,
+    "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+    "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7"
+  },
+  "costs": {
+    "public_calls": 5,
+    "returned_text_utf8_bytes": 41238,
+    "remaining_call_budget": 3,
+    "remaining_text_bytes": 24298,
+    "public_call_wall_seconds": 0.9424811999779195,
+    "errors": 0,
+    "timeouts": 0,
+    "control_frames": "Initialization/initialized frames retained separately; returned-text budget counts exact public tool text. No tools/list or auxiliary public calls."
+  },
+  "source_pins": [
+    {
+      "path": "Site/ts/imgHandler/imgManager.ts",
+      "bytes": 59159,
+      "sha256": "9c13647934fd8775bb641bfdca8ab9329e5f43b13334f853aa6926ba8cad3183",
+      "blake3": "0a40f5060713dcda51eddbb139e9a2f562a810dbdfa76ec8f367cc4493c6c8a9",
+      "current_hashes_match_oracle": true
+    },
+    {
+      "path": "Site/ts/imgHandler/imgGroupHandler.ts",
+      "bytes": 21835,
+      "sha256": "6844f9208428b9462411c0e7c368354ad2eb90c50051f15b44c95ee1f90c77f0",
+      "blake3": "e5962aa046d994986971af611f0ec3b46e42102a9ef1990887df66213bf0e475",
+      "current_hashes_match_oracle": true
+    },
+    {
+      "path": "Site/ts/imgHandler/imgHandler.ts",
+      "bytes": 133900,
+      "sha256": "ced797d6f7a4538cd6f141dace7ec5923905aed8d7c2fb959fa375f68c49b67d",
+      "blake3": "d1ca6da0c51b23dd59db7618a5af2ff81036bc1fb2fb2a29071cb93e55860c9f",
+      "current_hashes_match_oracle": true
+    }
+  ],
+  "chain": [
+    {
+      "file": "Site/ts/imgHandler/imgManager.ts",
+      "lines": [
+        658,
+        681,
+        683
+      ],
+      "fact": "Construct a group, insert that same local reference into the manager collection, return the registered group alias."
+    },
+    {
+      "file": "Site/ts/imgHandler/imgGroupHandler.ts",
+      "lines": [
+        65,
+        98
+      ],
+      "fact": "Construct an imgHandler and insert that same local reference into the group backing array."
+    },
+    {
+      "file": "Site/ts/imgHandler/imgGroupHandler.ts",
+      "lines": [
+        401,
+        403
+      ],
+      "fact": "Getter exposes the backing array directly; no defensive copy or read-only wrapper appears in the returned source."
+    },
+    {
+      "file": "Site/ts/imgHandler/imgManager.ts",
+      "lines": [
+        770,
+        772
+      ],
+      "fact": "Cancellation traverses manager groups and each group getter array, then invokes handler.cancelUpload."
+    }
+  ],
+  "additional_alias_evidence": "Returned manager source retains concrete handler references in batch members. No actual external slot replacement or cancellation bug was demonstrated.",
+  "handler_cancellation_boundary": {
+    "path": "Site/ts/imgHandler/imgHandler.ts",
+    "lines": [
+      2579,
+      2594
+    ],
+    "candidate_read_in_this_followthrough": false,
+    "candidate_evidence": "Inherited earlier inspected context, not a current public read in these five calls.",
+    "judge_current_source_rechecked": true,
+    "current_window_sha256": "a8895a885edfbe4e46c7cebc5f783822ccbee9d60799dec7f0b56845a74b3d8f",
+    "behavior": "Clears waiting attempt; inactive returns. Active cancellation advances attempt identity, clears timeout/active state, detaches controller, then aborts.",
+    "credit_limit": "Do not describe this five-call run as freshly rereading the full manager-to-handler cancellation semantics."
+  },
+  "source_window_checks": "Independent judge matched all5 public calls/6 current-source windows and their reported hashes to raw source. Handler cancellation body is inherited candidate context, independently rechecked by judge.",
+  "steering": [
+    {
+      "received_after_call": 3,
+      "before_call": 4,
+      "sender": "/root",
+      "instruction": "Include representative group registration into the manager collection plus per-group construction/insertion; check concrete aliases; no exhaustive factory/runtime ownership proof.",
+      "classification": "Scope clarification, no additional source anchor supplied."
+    }
+  ],
+  "navigation_outcome": "Saved recovery action supplied the missing construction/insertion link. Current CodeMap getter and manager navigation plus one explicitly widened74-line source range supplied group registration and aliases. No concrete backend failure or replacement defect found.",
+  "limits": [
+    "Representative intended source identity only; not exclusive ownership, exhaustive factory/writer coverage, runtime receiver binding, stable enumeration or complete graph extraction.",
+    "Current source windows do not create a resolved handler.cancelUpload graph edge.",
+    "No application code/tests were changed or run; original frozen outcomes remain unchanged."
+  ],
+  "resources": {
+    "all_observer_pipes_closed": true,
+    "pending_requests": 0,
+    "owned_temporary_directories": [],
+    "owned_retained_artifacts": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cancellation-provenance-followthrough-20261108.json"
+    ],
+    "retention_purpose": "Raw requests/replies and bounded informed source-chain findings for root independent verification. Preserve with related delivery evidence.",
+    "engram_started_stopped_or_mutated": false,
+    "tracked_files_changed": false,
+    "new_general_harness_created": false
+  },
+  "original31findings_closed": false,
+  "original19gates_closed": false,
+  "eg24_closed": false,
+  "eg25_closed": false,
+  "goal_complete": false
+}
