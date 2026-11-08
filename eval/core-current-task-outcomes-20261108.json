@@ -1,0 +1,338 @@
+{
+  "status": "CURRENT_CORE_TASKS_INDEPENDENTLY_JUDGED_PARTIAL",
+  "at_utc": "2026-11-08T12:04:43.244866+00:00",
+  "authorization": "User explicitly answered yes to the two task agents and independent judge, then reactivated goal. Authorization is resolved; do not ask again for this evaluation.",
+  "implementation_commit": "93a86e8",
+  "installed_server_sha256": "3b8c19b410fc2f65d1f1ee3c40dcc028067af5d56e9d7044e7fc2ef44a7702ff",
+  "judge": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-independent-judgment-20261108.json",
+    "sha256": "a52d2f1bd1e499913a7b11cb61fa8fd7644e22a71d3e15df6cbeddbb5281c99d"
+  },
+  "independent_source_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-independent-source-verification-20261108.json",
+    "sha256": "5928fd651f51c04c8982130defb327a5475d666fff2f9b2495496b9e3d297b8a",
+    "source_files": 14,
+    "oracle_ranges": 33,
+    "raw_bytes": 849350,
+    "all_sha256_and_exact_oracle_ranges_matched": true
+  },
+  "tasks": [
+    {
+      "task": "classification",
+      "result_counts": {
+        "pass": 2,
+        "partial": 3,
+        "fail": 0
+      },
+      "criteria": [
+        {
+          "criterion_number": 1,
+          "original_criterion": "Identify the actual current owner/signature and inclusive BOTH-count first-fit thresholds/fallback; do not conflate the unrelated category service.",
+          "result": "pass",
+          "candidate_anchors": [
+            "answer lines 1,5-7",
+            "ledger call 1 current_source FileLayerZoomPolicy.vb:1-112"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:15-33,35-50,73-84"
+          ],
+          "reason": "Correct file/owner and current method are selected, with the Public Shared Function signature, two Long parameters and Integer return visible in the inspected source. The answer gives all inclusive BOTH-count bands, first-fit ordering and 17 fallback, and never conflates the category service. The prose does not restate the namespace or complete signature; the cited source inspection supplies them."
+        },
+        {
+          "criterion_number": 2,
+          "original_criterion": "Trace the same-file Resolve call and its nullable-count, explicit-override and pending postconditions; distinguish direct caller from external indirect/payload consumers.",
+          "result": "pass",
+          "candidate_anchors": [
+            "answer lines 6,11-14",
+            "ledger calls 1,3,5"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:52-106",
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:371-400,2342-2345"
+          ],
+          "reason": "Correctly identifies Resolve as a direct call, requires both nullable counts before classification, retains AutomaticZoom under an override, gives override-first EffectiveMinZoom and pending behavior, and distinguishes ResolvePolicy/JSON consumers from direct classifier callers. It explicitly leaves QueryViewport routing uninspected."
+        },
+        {
+          "criterion_number": 3,
+          "original_criterion": "Explain prepared-whole-file metadata counts and QueryCacheCore policy/gate ordering before per-viewport collection; do not propose viewport-sized classification.",
+          "result": "partial",
+          "candidate_anchors": [
+            "answer lines 5,11,20,29",
+            "ledger call 3 FileLayerSpatialService.vb:2247-2345"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:1435-1466,1996-2006,2247-2287,2342-2345,2497-2539"
+          ],
+          "reason": "Whole-file classification and metadata/policy/meta-only/gate-before-CollectFeatures ordering are correct. However, count production, persistence and ReadMeta validation were not inspected or explained: the answer expressly defers them. Current source accumulates preparation totals, persists both totals, rejects missing/malformed/negative/overflowing counts as incomplete cache, and preserves stored zero. The documentation-level whole-file claim does not satisfy the complete prepared-metadata evidence requirement.",
+          "omitted_evidence": [
+            "Preparation stats accumulation",
+            "Persisted whole-file featureCount/coordinateCount",
+            "ReadMeta rejecting invalid or missing counts instead of substituting zero"
+          ],
+          "attribution": "Candidate selected other reads and explicitly deferred producers. Reverse impact states that input producers can lie outside the graph. The ledger does not demonstrate that a suitable bounded source read was unavailable; no backend defect follows from this partial result."
+        },
+        {
+          "criterion_number": 4,
+          "original_criterion": "Follow at least one representative HTTP/JSON-to-TS consumption path and its effective-zoom/discovery/editor effects from current source, preserving manual override behavior and stale-policy guards.",
+          "result": "partial",
+          "candidate_anchors": [
+            "answer lines 12-14,22-23,27",
+            "ledger calls 4,5,6,8"
+          ],
+          "source_anchors": [
+            "Site/kmlquery.aspx.vb:28-37,195-249",
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:371-400,2584-2594",
+            "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts:199-276,300-311,364-377,1136-1141,1471-1491,1504-1511,1556-1569",
+            "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts:689-699"
+          ],
+          "reason": "The answer follows a useful partial HTTP-to-client route and correctly explains effective zoom, equality, unknown-policy waiting, discovery/retries and stale-policy guards. It openly lacks the exact URL/dispatch/QueryViewport-to-cache bridges and complete metadata serialization. It entirely omits the editor's automaticZoom-based lower bound (fallback maxOverrideZoom when unknown), and does not inspect the override save/acknowledgment route. Preserving manual override semantics in Resolve and _applyPolicy is useful but does not complete the required UI/editor path.",
+          "omitted_evidence": [
+            "mapLayer._zoomEditorThreshold automatic-band lower bound and unknown-band fallback",
+            "_buildUrl metaOnly=1 and configured URL/dispatch linkage",
+            "Override save/version advancement and acknowledgment merge",
+            "BuildMetaOnlyJson serialization"
+          ],
+          "attribution": "The returned Blast summary exposed a TS file hint and a setZoomOverride read; the candidate used the hint but left that suggested declaration uninspected. CodeMap literal reads returned correct partial windows and explicit continuation/omission information. No direct editor witness was returned in the selected summary. This shows an unfinished route within the run budget, not proof that public tools cannot provide it. The coordinator-only refusal consumed one charged attempt and reduced recovery opportunity, but its causal contribution to any specific omitted route is unmeasured."
+        },
+        {
+          "criterion_number": 5,
+          "original_criterion": "Give a bounded method-change plan and behavior checks for equality boundaries, one count exceeding a band, heavy fallback, missing prepared counts, manual override and downstream gate/client effects; state omitted caller coverage, configuration/runtime and build-output uncertainty without claiming completeness.",
+          "result": "partial",
+          "candidate_anchors": [
+            "answer lines 1,7,18-23,27-31"
+          ],
+          "source_anchors": [
+            "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:35-106",
+            "Site/App_Code/visualisering/code/FileLayerSpatialService.vb:2497-2539",
+            "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts:689-699",
+            "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts:1471-1491,1504-1511,1556-1569"
+          ],
+          "reason": "The bounded threshold-change plan and most behavior cases are concrete: equality, independent count pressure, fallback, missing nullable counts, manual override, geometry gates and delayed client responses. Caller/runtime/compiler limitations are explicit. It does not specifically account for emitted/build-output uncertainty or configured LayerDownloadUrl/router verification, and does not include editor-bound behavior checks or invalid persisted-count/rebuild cases. Saying no compiler check occurred is narrower than identifying whether deployed client/build outputs match the inspected TS.",
+          "omitted_evidence": [
+            "Explicit emitted/build-output uncertainty",
+            "Configured download URL/router verification",
+            "Editor automaticZoom threshold regression",
+            "Invalid persisted count/rebuild regression"
+          ],
+          "attribution": "Answer/plan coverage omission. The current ledger contains no attempt to inspect configuration, emitted code or editor behavior; no public-tool failure is established."
+        }
+      ],
+      "false_guidance": [
+        {
+          "severity": "minor_wording",
+          "anchor": "answer line 14",
+          "finding": "Discovery is described as requiring an 'unsaved automatic policy'. Source checks not disposed/disabled/hidden/discovering/saving and unknown effective zoom. It does not test an unsaved-policy flag.",
+          "correction": "Say 'an unknown effective policy while visible and not currently saving/discovering'. This wording issue does not overturn the correctly described guard/version behavior."
+        },
+        {
+          "severity": "none_material_observed",
+          "anchor": "answer lines 5-31",
+          "finding": "No material wrong threshold, override, direct-caller, viewport-sized-classification or completeness guidance was found. The principal deficits are omitted required evidence, not invented facts."
+        }
+      ],
+      "costs_and_latency": {
+        "charged_attempts": 8,
+        "maximum_attempts": 8,
+        "public_rpcs_sent": 7,
+        "coordinator_refusals": 1,
+        "public_rpc_errors_observed": 0,
+        "returned_text_utf8_bytes": 61921,
+        "maximum_returned_text_utf8_bytes": 65536,
+        "remaining_call_slots": 0,
+        "remaining_bytes": 3615,
+        "within_both_caps": true,
+        "ledger_recorded_rpc_seconds_sum": 0.08417879999615252,
+        "ledger_recorded_rpc_seconds_min": 0.011244900000747293,
+        "ledger_recorded_rpc_seconds_max": 0.012658399995416403,
+        "outside_candidate_budget_preflight_entries": 2,
+        "latency_limit": "Tool-call timing fields only; no end-to-end model/coordinator latency estimate. Refusal has no measured seconds. Token and monetary costs unavailable."
+      },
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-classification-answer-20261108.txt",
+        "sha256": "bc0ff4f780d6e6b73b88a0fe8d7ec6b53c6b6be42ec71964c7f9656714722e48",
+        "line_count": 31
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-classification-ledger-20261108.json",
+        "sha256": "d3c6f2a13ca86487106f544b16661665193189476134ea4aa68b9e5acf8b003c",
+        "status": "WAITING_NEXT_RECORDED_BATCH",
+        "pending_request_id": null,
+        "observer_pipe_closed": true,
+        "server_sha256_as_recorded": "3b8c19b410fc2f65d1f1ee3c40dcc028067af5d56e9d7044e7fc2ef44a7702ff",
+        "server_binary_not_independently_read_by_judge": true
+      },
+      "observed_tool_usefulness": [
+        "Call 1 selected the actual qualified VB method and returned its complete classifier/Resolve contract in current source.",
+        "Call 2 supplied an immediate Resolve witness and executable source-route reads subsequently used in calls 3 and 4.",
+        "Calls 5 and 6 supplied literal policy windows; call 8 recovered the truncated TS discovery/guard context.",
+        "The selected output did not complete the count-producer or editor route. Honest frontier counts and current hashes did not make those missing task requirements complete."
+      ]
+    },
+    {
+      "task": "upload-cancellation",
+      "result_counts": {
+        "pass": 4,
+        "partial": 1,
+        "fail": 0
+      },
+      "criteria": [
+        {
+          "criterion_number": 1,
+          "original_criterion": "Select actual imgManager.cancelUpload and inspect its current body, including its opening statements and ordering of batch state changes versus per-handler cancellation.",
+          "result": "pass",
+          "candidate_anchors": [
+            "answer lines 1,3,5,8",
+            "ledger call 1 current_source imgManager.ts:721-840"
+          ],
+          "source_anchors": [
+            "Site/ts/imgHandler/imgManager.ts:762-791"
+          ],
+          "reason": "The actual manager method and its complete opening/body were inspected. Source increments batch ID, clears active/member/stall state, then visits handlers. The answer correctly makes invalidation-before-handler cancellation the critical ordering and distinguishes canceling a batch from forgetting session totals. It summarizes rather than enumerates the three additional manager field resets; those statements are present in the inspected evidence."
+        },
+        {
+          "criterion_number": 2,
+          "original_criterion": "Identify admitted callers and trace reset/reload session entry paths far enough to explain their source ordering and state-clearing effects; mark any omitted/uninspected routes explicitly.",
+          "result": "pass",
+          "candidate_anchors": [
+            "answer lines 3-4,6,14,18",
+            "ledger calls 1-7"
+          ],
+          "source_anchors": [
+            "Site/ts/imgHandler/imgManager.ts:762-791,975-990",
+            "Site/ts/imgHandler/imgGroupHandler.ts:118-136,329-349",
+            "Site/ts/imgHandler/imgHandler.ts:2627-2631,2733-2764"
+          ],
+          "reason": "Correctly identifies one admitted direct caller and two transitive manager entry points, then checks current source order. Reset/reload forget session state before group work; group reload resets before handler loading; handler load assigns IDs, resets and fetches. It marks external callers and collection binding unverified. The partial group _resetState window is sufficient for the claimed handler-reset order but is not a full method inventory."
+        },
+        {
+          "criterion_number": 3,
+          "original_criterion": "Inspect complete representative completion and stall callback guards and explain what their captured/current session identity protects. Identify the invalidating operation from source, without claiming exhaustive callback coverage.",
+          "result": "pass",
+          "candidate_anchors": [
+            "answer lines 1,5-6,13,15,18",
+            "ledger call 4 imgManager.ts:841-960",
+            "ledger calls 8-10 imgHandler.ts"
+          ],
+          "source_anchors": [
+            "Site/ts/imgHandler/imgManager.ts:762-775,863-893",
+            "Site/ts/imgHandler/imgHandler.ts:1696-1869,2579-2594,307-345"
+          ],
+          "reason": "Both complete manager completion/stall closures and representative handler completion/stall guards were inspected. The answer explains captured batch identity versus current manager ID, and active handler attempt identity versus current attempt ID. It identifies the actual invalidating increments and ordering, plus waiting/preparation generation checks, while declining exhaustive safety proof."
+        },
+        {
+          "criterion_number": 4,
+          "original_criterion": "Inspect the handler cancellation boundary and the collection relationship used to reach handlers. Separate indexed edges, intended source flow, exposed aliases and unknown runtime receiver stability.",
+          "result": "partial",
+          "candidate_anchors": [
+            "answer lines 4-5,8,18",
+            "ledger calls 1,5,6"
+          ],
+          "source_anchors": [
+            "Site/ts/imgHandler/imgManager.ts:770-773",
+            "Site/ts/imgHandler/imgHandler.ts:2579-2594",
+            "Site/ts/imgHandler/imgGroupHandler.ts:51-72,401-403"
+          ],
+          "reason": "The handler cancellation boundary is inspected accurately and receiver-based iteration is correctly separated from admitted manager callers. However, collection construction/ownership is explicitly deferred, and the exposed imageHandlers getter is not inspected or identified: current source returns the actual _imgHandlers array, not a copy. Therefore the alias relationship and concrete runtime receiver-stability unknown are not fully developed as required.",
+          "omitted_evidence": [
+            "imageHandlers getter returns backing _imgHandlers array",
+            "Construction/insertion/ownership linking manager groups to handlers",
+            "Concrete exposed-alias and runtime receiver-stability limitation"
+          ],
+          "attribution": "Candidate stopped voluntarily with two call slots and 6,252 returned-byte budget remaining and chose preparation/attempt reads before collection ownership. No collection getter read was attempted. Blast's capped unresolved scan returned no witnesses and a literal-inspection action; this bounded limitation may affect navigation but does not demonstrate that the required getter/source evidence was inaccessible. No backend defect is inferred from the partial score."
+        },
+        {
+          "criterion_number": 5,
+          "original_criterion": "Produce concrete regression scenarios for cancel/reset/reload and late callbacks with accurate source anchors and named remaining unknowns. Stay within12calls/96KiB; do not infer runtime safety or absence from small counts.",
+          "result": "pass",
+          "candidate_anchors": [
+            "answer lines 8,12-20"
+          ],
+          "source_anchors": [
+            "Site/ts/imgHandler/imgManager.ts:762-791,863-893,975-990",
+            "Site/ts/imgHandler/imgHandler.ts:2579-2594,2733-2764,1827-1869"
+          ],
+          "reason": "The regression plan concretely covers cancel, reset/reload, a later batch on the same handler, late success/failure/abort/stall callbacks, pending preparation/metadata, unavailable AbortController and dialog-disabled behavior. It supplies source anchors and names remaining ownership, timeout/completion implementation and preparation-write unknowns. It stays inside both caps and explicitly rejects safety/absence inference from small counts. Criterion 4's alias gap remains separately partial."
+        }
+      ],
+      "false_guidance": [
+        {
+          "severity": "none_material_in_candidate",
+          "anchor": "answer lines 1-20",
+          "finding": "No material incorrect cancellation order, identity guard, direct/transitive caller, or reset/reload guidance was found. Regression assertions are proposed checks, not claims that tests passed."
+        },
+        {
+          "severity": "public_index_binding_warning",
+          "anchor": "ledger call 2 source_routes.connections e3/e4/e5 and target.sample_connection_to_target",
+          "finding": "The public graph retains self-edges for manager cancelUpload/loadAllImages/resetState, including labels 'additional_verified_connection'. Independently inspected source shows the corresponding nested calls target handler/group receivers; those indexed self-edges do not establish recursive execution or receiver binding. The candidate explicitly declines to infer recursion, so this did not become false guidance in its answer.",
+          "scope": "A concrete suspicious indexed binding is observed; the ledger/source comparison does not determine the extraction cause or prove an additional patch is needed. The response also contains explicit indexed-only/runtime limitations."
+        }
+      ],
+      "costs_and_latency": {
+        "charged_attempts": 10,
+        "maximum_attempts": 12,
+        "public_rpcs_sent": 10,
+        "coordinator_refusals": 0,
+        "public_rpc_errors_observed": 0,
+        "returned_text_utf8_bytes": 92052,
+        "maximum_returned_text_utf8_bytes": 98304,
+        "remaining_call_slots": 2,
+        "remaining_bytes": 6252,
+        "within_both_caps": true,
+        "ledger_recorded_rpc_seconds_sum": 0.12588630005484447,
+        "ledger_recorded_rpc_seconds_min": 0.011619800003245473,
+        "ledger_recorded_rpc_seconds_max": 0.014905900025041774,
+        "outside_candidate_budget_preflight_entries": 2,
+        "latency_limit": "Tool-call timing fields only; no end-to-end model/coordinator latency estimate. Refusal has no measured seconds. Token and monetary costs unavailable."
+      },
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-upload-cancellation-answer-20261108.txt",
+        "sha256": "85f0666e0f553527582bffa4296f0eb427ce0216211f605a6c2d99c712d7b333",
+        "line_count": 20
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-upload-cancellation-ledger-20261108.json",
+        "sha256": "efcc95de0f307306aee376330b54439dea9e084641136dd458877968339a6c9d",
+        "status": "WAITING_NEXT_RECORDED_BATCH",
+        "pending_request_id": null,
+        "observer_pipe_closed": true,
+        "server_sha256_as_recorded": "3b8c19b410fc2f65d1f1ee3c40dcc028067af5d56e9d7044e7fc2ef44a7702ff",
+        "server_binary_not_independently_read_by_judge": true
+      },
+      "observed_tool_usefulness": [
+        "Call 1 returned the full manager cancellation/session-reset body including opening statements.",
+        "Call 2 gave the admitted _resetUploadSession/loadAllImages/resetState route, and call 3 checked both entry paths in one bounded source read.",
+        "Calls 4,8 and 9 recovered complete representative batch/attempt callback guards; current hashes matched across pages.",
+        "The collection getter/alias was left uninspected; the capped 512-row unresolved-member scan and empty witnesses did not establish absence."
+      ]
+    }
+  ],
+  "limitations": [
+    "These are two current-tool task evaluations, not a matched source-only experiment and not causal benefit measurements for the latest patch.",
+    "Both candidates were bound with fork_turns=none, but injected workspace AGENTS instructions disclosed historical deployments/usefulness and a prior ClassifyAutomatic count. They were therefore not history-blind despite fresh conversation contexts.",
+    "The judge inherited the same user-provided workspace policy and excluded its deployment/usefulness claims from evidence. No prior candidate answer/score artifact was read.",
+    "Candidate binding/exposure statements and final self-disclosures are recorded evidence, not a complete independent audit of every context byte or tool activity.",
+    "Only authorized current artifacts and the 14 exact nonexcluded source files were read. No Site/Q or named .audit path was traversed/read. No source edits, code execution tests or index mutation were performed by the judge.",
+    "Ledgers retain WAITING_NEXT_RECORDED_BATCH wording; parent confirmed terminal runs, no pending request IDs remain and observer_pipe_closed=true. That lifecycle wording is not an unfinished candidate response.",
+    "Preflight freshness/list_jobs entries are outside each candidate call/text charge. Their existence does not establish source revision or call-binding freshness, and they are not counted as candidate-selected calls.",
+    "Reported call seconds are ledger-recorded tool timings only. End-to-end agent/coordinator latency, model tokens and monetary cost are unavailable.",
+    "All existing evidence is preserved. Only the explicitly authorized source-verification and final judgment artifacts are created. No temporary fixtures are retained.",
+    "Do not close EG24, EG25 or the broader CodeMap/Blast goal from these criterion results."
+  ],
+  "causal_attribution": "The ledgers demonstrate useful current navigation, source witnesses and some recovery. Partial criteria mix candidate read allocation, bounded output omissions and one coordinator-only refusal. They do not isolate a causal backend defect or the latest patch's benefit. Any next fix needs a concrete public-output/source discrepancy or a demonstrated failed recovery, not the aggregate criterion totals.",
+  "next_core_evidence": {
+    "observation": "Cancellation summary labels three manager self-edges additional_verified_connection at declaration anchors 762,975,984. Actual current bodies call handler.cancelUpload at772 and group h.loadAllImages/h.resetState at979/988. The candidate correctly refused to infer recursion.",
+    "scope": "Concrete public-output/source discrepancy to trace before selecting a fix; not proof of extraction cause or runtime binding. Keep existing task scores unchanged.",
+    "next_action": "Trace receiver resolution and witness projection for these three observed self-edges. Preserve legitimate recursive calls and unresolved receiver leads; no broad graph/catalog audit."
+  },
+  "resources": {
+    "all_observer_pipes_closed": true,
+    "pending_requests": 0,
+    "candidate_and_judge_agents_completed": true,
+    "new_test_or_build_fixtures": 0,
+    "new_evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retention": "Retain current request/response files, bindings, ledgers, exact answers, launch receipt and independent judgments; do not delete preexisting artifacts. Normal installed daemon uses its existing idle lifecycle."
+  },
+  "goal_complete": false,
+  "eg24_closed": false,
+  "eg25_closed": false
+}
