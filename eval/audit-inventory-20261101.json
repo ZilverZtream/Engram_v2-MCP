@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T09:43:26.838954+00:00",
+  "last_updated_at": "2026-11-08T09:55:35.061201+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T09:43:26.838954+00:00",
+    "at_utc": "2026-11-08T09:55:35.061201+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains active. After delivered regex recovery, actual omitted-caller graph expansion succeeded within the bounded task. Continue original navigation/witness/recovery work; avoid further generation-guard replay or unsupported efficiency/safety claims.",
-    "next_user_visible_deliverable": "Evaluate a different change boundary already exposed by the original stateful task: imgGroupHandler.imageHandlers returns an escaping collection. Use CodeMap and both impact tools to plan a shallow-copy getter change, separating array mutation/identity from element operations and unassessed aliases. Inspect returned real evidence before selecting a fix; no application edits or parser/ownership expansion.",
+    "active_original_item": "CodeMap/Blast agent usefulness remains active. Collection-copy bounded planning is finished with source corroboration; existing recovery suffices and no backend fix is selected from zero graph counts or overlapping excerpts. Continue the original stateful task at its still-uninspected preparation/event-cleanup boundary; do not replay completed getter, guard or serializer checks.",
+    "next_user_visible_deliverable": "Use CodeMap and both impact tools on imgHandler.cancelUpload to determine what happens to an image still preparing when upload is cancelled: pending intent, callbacks, shared state and stale completion. Trace only source actions needed for that concrete change/test decision, compare them with independent source, and fix a demonstrated core-tool navigation/witness/recovery failure if one prevents the task. No application edits, new agents, parser/ownership expansion or broad audit.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Invalid-regex recovery delivered:28unique grep cases/29executions and native PASS.363candidate calls include one intended invalid-params error,50unchanged prior core controls and9unchanged valid task calls. Five task source windows/two reset hits raw-verified;150definitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified; normal22candidate comparisons include expected error and5raw source reads. Broader goal/full31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: executed the actual emitted full-graph recovery from generation-guard summary, then three source actions.4calls56450B within8/96KiB. All8summary-omitted direct identities recovered; all12direct witnesses/15positions and3current source windows188lines checked against rawsource. Source-backed tests distinguish generation suppression from shared-promise identity cleanup. Existing tool recovery suffices; no new backend fix selected from graph size or displayed omissions.",
+    "previous_goal_turn_classification": "PROGRESS: finished the existing collection-copy task using five additional public source reads. Nine total calls/61507B within original10/98304 caps. Six returned source windows and three lexical consumer references independently match current files. Source-backed plan distinguishes shared element identity from array mutation, identity and reentrant iteration. No application edits or new Engram blocker; no overall completion claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10509,7 +10509,7 @@
         "selection": "Recorded only. No fix selected from this limitation; continue actual core-tool task validation."
       }
     ],
-    "next_core_task_rationale": "Existing delivered recovery exposes an upstream collection consumer and batch lifecycle. Inspecting that actual caller route tests useful change planning beyond the previously rehearsed reset method. It does not redefine the completed reset rubric or seek exhaustive runtime safety.",
+    "next_core_task_rationale": "The authorized fresh batch-cancellation task explicitly left preparation/event-cleanup helpers uninspected. Getter work confirms cancellation reaches shared handler objects even after a shallow copy; whether pending preparation can restart upload is the unresolved real behavior boundary. This does not redefine earlier completed rubrics or claim runtime breakage.",
     "latest_batch_cancellation_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-informed01-source-judgment-20261107.json",
       "sha256": "c8bff5ac3935ccc5648a62a78b7d2fa61d0e15affa8ba118da7862fe38f2e06e"
@@ -10791,6 +10791,14 @@
     "latest_omitted_guard_callers_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\guard-omitted-callers-informed01-source-judgment-20261108.json",
       "sha256": "1f0d1ec89a55dd730a912574d9dda19496ca2441608113fb50025e423dd6980d"
-    }
+    },
+    "latest_collection_copy_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\collection-copy-informed01-source-judgment-20261108.json",
+      "sha256": "b72e54eda89cbf8ebb308c134d279bc1cf9fa5f90ebc3359b670c77126313f43",
+      "classification": "BOUNDED_COLLECTION_COPY_PLAN_SOURCE_VERIFIED",
+      "calls": 9,
+      "returned_bytes": 61507
+    },
+    "collection_copy_decision": "Zero graph dependents were not absence: emitted terminal-member recovery found next-image navigation, upload-member selection and cancellation. All three current-source uses recovered. Shallow copy preserves shared handler effects but changes collection identity and may change iteration under reentrant mutation. Proposed tests are planning evidence, not executed application QA. Retain v1 observer off-by-one failure and corrected v2; original task criteria unchanged."
   }
 }
