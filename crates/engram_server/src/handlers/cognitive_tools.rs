@@ -245,6 +245,33 @@ fn codemap_literal_inspection(
     if let Some((start,end))=first_missing {preview["recovery"]=read(start,Some(end));}
     navigation["current_source"]=preview;
     if !fits(&navigation)? {return Err("Literal-inspection recovery metadata exceeds12KiB; use a separate bounded source read".into());}
+    // Upgrade only the final recovery. Reserving this larger action earlier
+    // could evict useful inline source. Original groups also retain omissions
+    // whose metadata row did not fit; displayed rows alone are not an inventory.
+    if let Some(first_missing)=first_missing {
+        let inline: Vec<_>=rows.iter().filter(|row|row.get("source_code").is_some())
+            .map(|row|(row["line_start"].as_u64().unwrap(),row["line_end"].as_u64().unwrap())).collect();
+        let mut omitted=Vec::new();let mut total_lines=0;
+        for (start,end,_) in &groups {
+            if inline.contains(&(*start,*end)) {continue;}
+            let count=end-start+1;
+            if omitted.len()==3 || total_lines+count>120
+                || omitted.last().is_some_and(|(_,previous_end)|start<=previous_end) {break;}
+            omitted.push((*start,*end));total_lines+=count;
+        }
+        if omitted.first()==Some(&first_missing) && omitted.len()>=2 {
+            let original=navigation["current_source"]["recovery"].clone();
+            for count in (2..=omitted.len()).rev() {
+                navigation["current_source"]["recovery"]=serde_json::json!({"tool":"get_full_method_body","arguments":{
+                    "project_id":project,"file_path":file,"context_lines":0,"include_caller_bodies":false,"output_json":true,
+                    "source_ranges":omitted[..count].iter().map(|(start,end)|serde_json::json!({
+                        "line_start":start,"line_end":end})).collect::<Vec<_>>()}});
+                if serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len()<=8*1024
+                    && render(&navigation)?.len()<=12*1024 {break;}
+                navigation["current_source"]["recovery"]=original.clone();
+            }
+        }
+    }
     render(&navigation)
 }
 

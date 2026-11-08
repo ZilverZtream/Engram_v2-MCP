@@ -2119,11 +2119,123 @@ fn codemap_literal_inspection_keeps_distant_callback_contexts_useful_under_sourc
         assert!(supplied[2]["source_code"].as_str().unwrap().contains("requestGeneration !== currentGeneration"));
         assert_eq!(field["sampled_matching_lines_source_omitted"],2);
         assert_eq!(field["windows_omitted"],0);
+        assert_eq!(field["recovery"]["arguments"]["source_ranges"],json!([
+            {"line_start":288,"line_end":312},{"line_start":388,"line_end":412}]));
+        for row in rows {
+            assert_eq!(row["source_read"]["arguments"]["line_start"],row["line_start"]);
+            assert_eq!(row["source_read"]["arguments"]["line_end"],row["line_end"]);
+            assert!(row["source_read"]["arguments"].get("source_ranges").is_none());
+        }
         let (_,recovered)=excerpt(&engram,field["recovery"]["arguments"].clone()).await;
         assert_eq!(recovered["source_file_hash"],field["source_file_hash"]);
         assert_eq!(recovered["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
-        assert!(recovered["line_start"].as_u64().unwrap()<=300 && recovered["line_end"].as_u64().unwrap()>=300);
-        assert!(recovered["source_code"].as_str().unwrap().contains("applyPolicy(metadata)"));
+        assert_eq!(recovered["windows"].as_array().unwrap().len(),2);
+        for (window,(start,end)) in recovered["windows"].as_array().unwrap().iter().zip([(288,312),(388,412)]) {
+            assert_eq!(window["source_code"],source.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
+        }
+    });
+}
+
+#[test]
+fn codemap_literal_recovery_reads_only_the_earliest_three_missing_windows() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/missing-policy-windows.ts";
+        let mut lines=vec!["// context".to_owned();540];
+        for line in [20,100,180,260,340,420,500] {lines[line-1]="applyPolicy(payload);".into();}
+        // Oversized early contexts are omitted, but later useful windows still
+        // fit inline. Recovery must skip those supplied windows, not just take
+        // the first three occurrences or the last three metadata rows.
+        for line in [20,180] {lines[line-1].push_str(&format!(" // {}","x".repeat(9000)));}
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let text=navigation_text(&engram,json!({"project_id":PID,"scope":PATH,"include_declarations":false,
+            "include_source":true,"source_contains":"applyPolicy("})).await;
+        let result=navigation(&text);let field=&result["current_source"];
+        assert!(text.len()<=12*1024 && serde_json::to_vec(field).unwrap().len()<=8*1024);
+        assert_eq!(field["sampled_matching_lines_source_omitted"],4);
+        let inline:Vec<_>=field["windows"].as_array().unwrap().iter().filter(|row|row.get("source_code").is_some())
+            .map(|row|row["matched_lines"].clone()).collect();
+        assert_eq!(inline,vec![json!([100]),json!([260]),json!([340])]);
+        assert_eq!(field["recovery"]["arguments"]["source_ranges"],json!([
+            {"line_start":8,"line_end":32},{"line_start":168,"line_end":192},{"line_start":408,"line_end":432}]));
+        let (_,recovered)=excerpt(&engram,field["recovery"]["arguments"].clone()).await;
+        assert_eq!(recovered["total_returned_lines"],75);
+        assert_eq!(recovered["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        for (window,(start,end)) in recovered["windows"].as_array().unwrap().iter().zip([(8,32),(168,192),(408,432)]) {
+            assert_eq!(window["source_code"],source.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
+        }
+    });
+}
+
+#[test]
+fn codemap_literal_recovery_preserves_the_first_missing_window_when_combining_exceeds120_lines() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/wide-policy-windows.ts";
+        let mut lines=vec!["// context".to_owned();230];
+        for line in [20,44,68,92,140,200] {lines[line-1]="applyPolicy(payload);".into();}
+        for line in [20,140] {lines[line-1].push_str(&format!(" // {}","x".repeat(9000)));}
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let result=navigate(&engram,json!({"project_id":PID,"scope":PATH,"include_declarations":false,
+            "include_source":true,"source_contains":"applyPolicy("})).await;
+        let field=&result["current_source"];
+        assert_eq!(field["windows_observed"],3);
+        assert_eq!(field["sampled_matching_lines_source_omitted"],5);
+        assert_eq!(field["recovery"],field["windows"][0]["source_read"]);
+        assert_eq!(field["recovery"]["arguments"]["line_start"],8);
+        assert_eq!(field["recovery"]["arguments"]["line_end"],104);
+        assert!(field["recovery"]["arguments"].get("source_ranges").is_none(),
+            "The first97-line omission plus the next25-line omission cannot become a122-line action");
+    });
+}
+
+#[test]
+fn codemap_literal_recovery_never_displaces_rows_and_includes_omissions_without_metadata() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/recovery-pressure.ts";
+        const ANCHOR: &str="applyPolicy(payload); // padding";
+        let mut lines=vec!["// context".to_owned();440];
+        for line in [20,100,180,300,400] {lines[line-1]="applyPolicy(payload);".into();}
+        lines[19]=ANCHOR.into();
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let args=json!({"project_id":PID,"scope":PATH,"include_declarations":false,
+            "include_source":true,"source_contains":"applyPolicy("});
+        let initial=navigate(&engram,args.clone()).await;
+        let field=&initial["current_source"];
+        assert_eq!(field["windows"].as_array().unwrap().len(),5);
+        assert_eq!(field["recovery"]["arguments"]["source_ranges"],json!([
+            {"line_start":288,"line_end":312},{"line_start":388,"line_end":412}]));
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        for omit_last_metadata in [false,true] {
+            let mut expected=field.clone();
+            if omit_last_metadata {
+                expected["windows"].as_array_mut().unwrap().pop();
+                expected["windows_omitted"]=json!(1);
+            } else {
+                expected["recovery"]=field["windows"][3]["source_read"].clone();
+            }
+            // Fill the final expected preview, not an implementation-specific
+            // reservation. Only the optional combined action or last metadata
+            // row exceeds the budget; all previously supplied source must stay.
+            let padding=8190-serde_json::to_vec(&expected).unwrap().len();
+            let padded_anchor=format!("{ANCHOR}{}","x".repeat(padding));
+            let padded_source=source.replacen(ANCHOR,&padded_anchor,1);
+            let first=expected["windows"][0]["source_code"].as_str().unwrap().replacen(ANCHOR,&padded_anchor,1);
+            expected["windows"][0]["source_code"]=json!(first);
+            expected["source_file_hash"]=json!(blake3::hash(padded_source.as_bytes()).to_hex().to_string());
+            std::fs::write(root.join(PATH),&padded_source).unwrap();
+            let text=navigation_text(&engram,args.clone()).await;
+            let actual=navigation(&text);
+            assert!(text.len()<=12*1024);
+            assert_eq!(actual["current_source"],expected,
+                "Recovery upgrades must preserve all inline source, actions, rows and coverage; missing metadata must not erase the original omitted group");
+            if omit_last_metadata {
+                let (_,recovered)=excerpt(&engram,actual["current_source"]["recovery"]["arguments"].clone()).await;
+                assert_eq!(recovered["windows"].as_array().unwrap().len(),2);
+                assert_eq!(recovered["source_file_hash"],expected["source_file_hash"]);
+            }
+        }
     });
 }
 
