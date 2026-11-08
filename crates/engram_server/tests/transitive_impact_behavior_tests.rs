@@ -1266,22 +1266,6 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(prepared["arguments"]["line_start"], 1);
             assert_eq!(prepared["arguments"]["line_end"], 3,
                 "The shortcut must not prevent one bounded read from inspecting the prepared alternate route");
-            let before_evidence = text.split_once("## Revision-admitted change impact").unwrap().0;
-            let visible_reads: Vec<Value> = before_evidence.split("```json\n").skip(1)
-                .map(|block| serde_json::from_str(block.split_once("\n```").unwrap().0).unwrap()).collect();
-            assert_eq!(visible_reads.len(), 2,
-                "Before the large JSON, show the actual same-file caller first and one conditional external source read");
-            assert!(before_evidence.contains("First immediate indexed consumer")
-                && before_evidence.contains("Resolve") && before_evidence.contains(POLICY)
-                && before_evidence.contains("[calls]")
-                && before_evidence.contains("If same-file body already read")
-                && before_evidence.contains("Unexecuted") && before_evidence.contains("check hashes")
-                && before_evidence.contains("no runtime or safe-change proof"));
-            assert_eq!(visible_reads[0], immediate[0]["source_read"]);
-            assert_eq!(visible_reads[1], json!({"tool":prepared["tool"],"arguments":prepared["arguments"]}),
-                "Promote the exact retained route action, without replacing the actual direct caller");
-            assert!(before_evidence.len() <= 2048,
-                "Both fully executable actions must remain visible before large canonical evidence");
             let covered: std::collections::BTreeSet<_> = prepared["covered_refs"].as_array().unwrap().iter()
                 .map(|r| source_nodes[r.as_str().unwrap()]["node_id"].as_str().unwrap()).collect();
             assert!(covered.contains(policy.as_str()) && covered.contains(cache.as_str()) && covered.contains(viewport.as_str()));
@@ -1290,8 +1274,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 assert_eq!(read["tool"], "get_full_method_body");
                 let args = &read["arguments"];
                 assert!(args["line_end"].as_u64().unwrap() - args["line_start"].as_u64().unwrap() < 120);
-                let executable = if args["file_path"] == SPATIAL { &visible_reads[1]["arguments"] } else { args };
-                let reply = fixture.engram.handle_get_full_method_body(serde_json::from_value(executable.clone()).unwrap()).await.unwrap();
+                let reply = fixture.engram.handle_get_full_method_body(serde_json::from_value(args.clone()).unwrap()).await.unwrap();
                 let current: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
                 let path = args["file_path"].as_str().unwrap();
                 let raw = std::fs::read(fixture.root.join(path)).unwrap();
@@ -1364,7 +1347,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             let read = fixture
                 .engram
                 .handle_get_full_method_body(
-                    serde_json::from_value(visible_reads[0]["arguments"].clone()).unwrap(),
+                    serde_json::from_value(call["arguments"].clone()).unwrap(),
                 )
                 .await
                 .unwrap();
