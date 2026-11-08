@@ -53,6 +53,88 @@ fn packet(text: &str) -> Value {
 }
 
 #[test]
+fn class_impact_recovers_constructor_source_without_inventing_type_dependencies() -> Result<()> {
+    let owned = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    runtime.block_on(async {
+        let declaration = "src/contracts/descriptor.ts";
+        let producer = "src/contracts/build.ts";
+        let producer_body = "function build(): Descriptor {\n return new Descriptor();\n}\n";
+        for (path, body) in [
+            (declaration, "class Descriptor {\n field: string;\n}\n"),
+            (producer, producer_body),
+            ("src/contracts/comments.ts", "// Descriptor here is only a comment.\n"),
+            ("src/contracts-other/unrelated.ts", "// Descriptor outside the directory.\n"),
+        ] {
+            let path = owned.path().join("repo").join(path);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, body)?;
+        }
+        let app = open(owned.path()).await?;
+        let indexed = app.handle_index_project(serde_json::from_value(json!({
+            "directory":owned.path().join("repo"),"project_name":"Class impact recovery",
+            "project_type":"general","wait":true
+        }))?).await?;
+        ensure!(indexed.is_error != Some(true));
+        settle(&app).await?;
+        let pid = app.state.registry.list_projects()?[0].project_id.clone();
+        let mut target = app.state.graph.query_nodes(&pid, Some("class"), None, Some(declaration), 8)?
+            .into_iter().find(|node| node.name == "Descriptor").unwrap();
+        let before = serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?;
+        for detail in ["summary", "graph"] {
+            for blast in [false, true] {
+                let mut args = json!({"project_id":pid,"symbol_fqn":target.node_id,"detail":detail,
+                    "max_depth":6,"include_guidance":false});
+                let reply = if blast {
+                    app.handle_compute_blast_radius(serde_json::from_value(args)?).await?
+                } else {
+                    args.as_object_mut().unwrap().remove("include_guidance");
+                    app.handle_impact_analysis(serde_json::from_value(args)?).await?
+                };
+                ensure!(reply.is_error != Some(true));
+                let text = &reply.content[0].as_text().unwrap().text;
+                if detail == "summary" { ensure!(text.len() <= 12 * 1024); }
+                let report = packet(text);
+                ensure!(report["selected_dependents_observed"] == 0,
+                    "No bound type dependencies in this fixture: {report}");
+                ensure!(report["change_breakage_proven"] == false && report["exhaustive_codebase"] == false);
+                let inspection = &report["type_name_inspection"];
+                ensure!(inspection["scope"].as_str().is_some_and(|s| s.contains("do not add graph dependents")));
+                let hits = app.handle_grep_project(serde_json::from_value(inspection["action"]["arguments"].clone())?).await?;
+                ensure!(hits.is_error != Some(true));
+                let hits: Value = serde_json::from_str(&hits.content[0].as_text().unwrap().text)?;
+                let matches = hits["matches"].as_array().unwrap();
+                ensure!(matches.iter().all(|hit| hit["file_path"].as_str().unwrap().starts_with("src/contracts/")));
+                ensure!(matches.iter().any(|hit| hit["file_path"] == "src/contracts/comments.ts"),
+                    "Literal mentions must not be mislabeled as references");
+                let hit = matches.iter().find(|hit| hit["file_path"] == producer && hit["line"] == 2).unwrap();
+                let source = app.handle_get_full_method_body(serde_json::from_value(hit["current_source_recovery"]["arguments"].clone())?).await?;
+                ensure!(source.is_error != Some(true));
+                let source: Value = serde_json::from_str(&source.content[0].as_text().unwrap().text)?;
+                ensure!(source["source_file_hash"] == ContentHash::compute(producer_body.as_bytes()).0);
+                ensure!(source["source_code"].as_str().unwrap().contains("return new Descriptor();"));
+            }
+        }
+        ensure!(before == serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?);
+        // A stale class must not acquire a convenient current-name recovery.
+        target.generation = 0;
+        app.state.graph.upsert_nodes(&pid, &[target.clone()])?;
+        let reply = app.handle_impact_analysis(serde_json::from_value(json!({
+            "project_id":pid,"symbol_fqn":target.node_id,"detail":"summary"
+        }))?).await?;
+        ensure!(reply.is_error != Some(true));
+        let report = packet(&reply.content[0].as_text().unwrap().text);
+        ensure!(report["target_revision_admitted"] == false && report.get("type_name_inspection").is_none());
+        settle(&app).await?;
+        drop(app);
+        Ok::<(), anyhow::Error>(())
+    })?;
+    drop(runtime);
+    owned.close()?;
+    Ok(())
+}
+
+#[test]
 fn capped_empty_receiver_scan_keeps_executable_member_recovery_beside_known_callers() -> Result<()> {
     let owned = tempfile::TempDir::new()?;
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;

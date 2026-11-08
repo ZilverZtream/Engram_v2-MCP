@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T10:39:21.265652+00:00",
+  "last_updated_at": "2026-11-08T10:52:03.902493+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T10:39:21.265652+00:00",
+    "at_utc": "2026-11-08T10:52:03.902493+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original rank5 accepted-task verification (EG24), after core CodeMap/Blast delivery. Collection mechanism and protocol gate implemented; a real new model run is not yet executed and regular current-tool evaluation is still incomplete. EG25 remains separate.",
-    "next_user_visible_deliverable": "Use the prepared private historical regression only if fresh candidate/judge delegation is explicitly authorized under current session instructions. Eight separate fresh candidate contexts and one independent judge are required by that protocol; do not substitute root-informed responses or reuse old answers. The collector itself does not prove freshness. Also retain the distinct remaining need to collect current Engram tool context for regular tool-regression evidence; historical fixed packets alone do not test new CodeMap/Blast builds.",
+    "active_original_item": "Core CodeMap/Blast agent usefulness: repair demonstrated class-impact recovery gap. EG24 historical collector and policy producer patch preserved, not current delivery.",
+    "next_user_visible_deliverable": "A selected class impact result offers an executable bounded type-name search that reaches current producer source despite zero graph dependents. Verify both impact tools on actual OciusX descriptor, preserve graph counts/witnesses and response caps, then deploy through existing native pair workflow.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Invalid-regex recovery delivered:28unique grep cases/29executions and native PASS.363candidate calls include one intended invalid-params error,50unchanged prior core controls and9unchanged valid task calls. Five task source windows/two reset hits raw-verified;150definitions, registry/3136selection/14metadata/300notes preserved.218active/218prior/5journals verified; normal22candidate comparisons include expected error and5raw source reads. Broader goal/full31/full19 remain open.",
-    "previous_goal_turn_classification": "PROGRESS: added supported preparation/binding/response/judgment collection commands to the existing frozen-task path, fixed judge-oracle/task integrity and escaped-canary acceptance gaps, and wired explicitly labeled protocol tests into existing benchmark CI. Eight casesPASS; archived real8candidate metrics unchanged. Actual new private8packet run prepared with116original corpus files unchanged. No model agents launched; EG24/EG25 remain open.",
+    "previous_goal_turn_classification": "PROGRESS: six actual OciusX calls exposed class-impact recovery gap; independent current source verified. Optional type-name recovery implemented.18unit checks and32public regression cases pass; initial fixture-schema failure preserved and corrected. Native candidate/action-chain/deployment still pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10839,6 +10839,39 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "Explicit request presented for eight fresh historical-task candidates and one independent judge; no response recorded, no agent launch authorized by elapsed time.",
-    "independent_next_action": "While the fresh-agent choice is pending, review preserved November4 scoped-policy producer replay patch v4 against current baselines. Do not apply it blindly or expand to a new platform; original README edits must survive. This is root work and must not stall on optional delegation."
+    "independent_next_action": "Finish class-impact recovery source tests, existing core regression controls, native build and actual OciusX candidate/installed action-chain validation. No new agent authorization required. Keep scoped-policy producer patch v4 unapplied.",
+    "selected_class_impact_recovery": {
+      "baseline": {
+        "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
+        "sha256": "73960fc72b1cd48ad5ee2d6ea407a0e49b6f821fb42880d40f2353bca3e09ceb"
+      },
+      "state": "SOURCE_AND_REGRESSION_PASS_NATIVE_BUILD_NEXT_NOT_DEPLOYED",
+      "session_id": null,
+      "source_files": [
+        "crates/engram_server/src/services/impact_walk_service.rs",
+        "crates/engram_server/tests/typescript_receiver_behavior_tests.rs",
+        "docs/TOOL_CONTRACT.md"
+      ],
+      "limits": "Root-informed targeted recovery diagnostic; no fresh/paired benefit claim, no graph binding/parser expansion. Historical EG24/EG25 and31findings/19gates unchanged.",
+      "source_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-source-review-20261108.json",
+        "sha256": "8fff307070984bd565a34d8d4ae571ddc913ea2611577a13e42007c9aad1ec07"
+      },
+      "tests": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-focused-v1-20261108.json",
+          "sha256": "02d8432fdd7df00b5ccb88f0d961b953f580fbef20912c42de3be5d6ed8cf82d"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-focused-v2-20261108.json",
+          "sha256": "80fdb21fb3157233be9d2b246a4454ea75b5ee444cf86da2649e69475da22b10"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\class-impact-recovery-regression-v1-20261108.json",
+          "sha256": "d6a43447e183f9f7feea07e8e17cd59aae18c076aff18404e53bf76855994699"
+        }
+      ],
+      "fixture_failure_preserved": "First public case passed include_guidance to impact_analysis and was rejected by its strict schema; corrected test only, production unchanged.18unit cases passed in the same initial run, focused case thenPASS and full23transitive+9receiver casesPASS."
+    }
   }
 }
