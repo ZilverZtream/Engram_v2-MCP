@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T12:04:43.244866+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T12:04:43.244866+00:00",
+    "at_utc": "2026-11-08T13:16:21.150479+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Core CodeMap/Blast witness correctness: deployed scoped refresh removed three false upload manager self-edges; implement automatic migration of unchanged legacy script extraction using per-file receiver/position compatibility.",
-    "next_user_visible_deliverable": "Package and deploy the reviewed per-file script call compatibility fix; actual ordinary OciusX refresh must require then clear incompatible extraction and preserve correct source witnesses.",
+    "active_original_item": "Core CodeMap/Blast usefulness: script-call compatibility migration delivered; use existing sidecar-derived property dependencies on actual classification producer task and source-check a suspicious parameter-to-property link before selecting any fix.",
+    "next_user_visible_deliverable": "Validate actual retained property navigation against current source; distinguish useful producer recovery from false bindings. Do not turn sidecar discovery into a broad infrastructure/audit project.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9855,7 +9855,7 @@
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "93a86e8 class-impact type-name recovery deployed and normal verified. Emitted narrow search -> producer CodeMap -> producer impact -> API serializer source succeeds7calls60322B within8/65536. Class graph unchanged;50priorcontrols/150definitions/3136selection/registry/14metadata/300notes preserved.18unit+32public regression cases pass; initial fixture-schema failure preserved. Full goal/EG24/EG25/31/19 remain open.",
+    "latest_completed_core_batch": "6fe7b36 pushed origin/master; native and no-vector ordinary-update behavior passed; installed887d2b62/manifest4221a353 normal11requestsPASS. One ordinary OciusX update3137->3138 refreshed357scripts, kept1950revisions, pruned8already-absent entries, processed1gitcommit/55temporal edges. Both impacttools correct3invocationedges/no false selfedges;300notes/14metadata/3upload files preserved. Both runtime observer FAILs retained/reconciled independently; allownedresourcesclosed/configreleased/218oldpair retained. Frozen task outcomes/fullgoal unchanged.",
     "previous_goal_turn_classification": "PROGRESS: authorized current public task evaluations and independent source judgment completed; concrete self-edge/source discrepancy identified for bounded follow-through.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -10839,7 +10839,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Build one native release through existing owned runner, finalize unchanged-sidecar pair, review prepared candidate/gate scripts, then perform held exclusive current-data migration/validation and paired install. No user permission dependency. All test processes/fixtures now closed.",
+    "independent_next_action": "Continue read-only retained Roslyn property navigation: ResolvePolicy outgoing yielded FeatureCount/CoordinateCount/OverrideZoom; incoming count properties yielded WriteFeature/WriteMeta/ReadMeta and current source validates those3stages. CoordinateCount also returned ClassifyAutomatic, whose inspected body uses a same-named parameter, not CacheMeta; inspect exact current impact edge before deciding next narrow fix. Do not rerun migration/rebuild or ask agent permission. Installed normal daemon9416; original goalactive.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -10916,7 +10916,7 @@
       "sha256": "5ff6e82d42dfd3194fde499d8c2608d8c328bb661d34cce879e8ad9c8fc88cb7"
     },
     "latest_script_call_contract_checkpoint": {
-      "at_utc": "2026-11-08T12:18:15.778121+00:00",
+      "at_utc": "2026-11-08T13:16:21.150479+00:00",
       "before_regression": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-before-20261108.json",
         "sha256": "f50b5f3cd5b90bdef25c0349e2f4b8d9fcaa3e09edfac8e057f9ce81a9bfb11a"
@@ -10934,9 +10934,9 @@
       ],
       "source_scope": "Per-file script receipt; global version remains7; VB Roslyn provenance unchanged. No semantic receiver/type binding expansion.",
       "review_agent": "/root/core_current_judge",
-      "deployment": "Installed runtime still3b8c19b...; three files refreshed at3137 using existing parser. Automatic upgrade patch not yet built/deployed.",
+      "deployment": "6fe7b36 pushed origin/master; native and no-vector ordinary-update behavior passed; installed887d2b62/manifest4221a353 normal11requestsPASS. One ordinary OciusX update3137->3138 refreshed357scripts, kept1950revisions, pruned8already-absent entries, processed1gitcommit/55temporal edges. Both impacttools correct3invocationedges/no false selfedges;300notes/14metadata/3upload files preserved. Both runtime observer FAILs retained/reconciled independently; allownedresourcesclosed/configreleased/218oldpair retained. Frozen task outcomes/fullgoal unchanged.",
       "no_permission_dependency": true,
-      "status": "NATIVE_AND_ACTUAL_NO_VECTOR_PUBLIC_MIGRATION_PASS_REVIEWED_NOT_DEPLOYED",
+      "status": "DEPLOYED_NORMAL_IPC_VERIFIED",
       "source_review": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-source-review-20261108.json",
         "sha256": "48bd807a02cdfd8cabc60bcedcec30d0dc4d5eeb1b65367c947eda95f187c34b"
@@ -10955,7 +10955,65 @@
           "sha256": "0131c1c6b44aef347b334583d35fe8fccb739c74479e9e45ad7c887db05bb921"
         }
       },
-      "fixture_correction": "Initial after-run:9 existing tests passed, new test incorrectly unwrapped optional source_routes. Replaced with public no-false-cycle check; focused retry passed. Production logic unchanged."
+      "fixture_correction": "Initial after-run:9 existing tests passed, new test incorrectly unwrapped optional source_routes. Replaced with public no-false-cycle check; focused retry passed. Production logic unchanged.",
+      "release_build": {
+        "label": "script-receiver-upgrade-shipping-20261108",
+        "session_id": null,
+        "status": "PASS",
+        "source_commit": "6fe7b36",
+        "owned_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-shipping-20261108-state.json",
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-shipping-20261108.json",
+          "sha256": "56b1ad24c5cc88d570fea35baec5eb82765cdd6d5f1b14f0d87fa70e5c90fc5d"
+        }
+      },
+      "prepared_runtime_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-observer-review-20261108.json",
+        "sha256": "ba2853b38f7a7a02aab4c5165032582a389c25a0bfd441da9518d5627c6d43d4"
+      },
+      "paired_package": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-paired-package-20261108.json",
+        "sha256": "0bea11f490c2e1b5ef5645e05a0aed9528a978f917b2a65829cc7ff64d85be9c"
+      },
+      "config_hold": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-config-hold-20261108.json",
+        "sha256": "b7883b6470672e91a5b7beb2e470d61025f229c5a6677882d8527785371e7bd4"
+      },
+      "proxy_close": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-proxy-stop-20261108.json",
+        "sha256": "320de03a53ff54a7eb9abedd6be4ef8e1e7e735bbd176428efa3821d1f22d01e"
+      },
+      "initial_candidate_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-cold-v1-20261108\\acceptance.json",
+        "sha256": "e421e27ca0de90b2839b832302c2e22f22004ad7e42082054d178878e964cbe6"
+      },
+      "final_admission": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-readonly-followup-20261108\\admission.json",
+        "sha256": "c15e19af6730daf307a82fb9707ca3c91b9e998ae82718ff83dc8ac365f8f12f"
+      },
+      "installed_normal": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-normal-validation-20261108.json",
+        "sha256": "bdddc2ac96ad3ed27689594d87cf9f473c784e2ebe96e2b12444ab8a6e6e73c3"
+      }
+    },
+    "latest_script_call_contract_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\script-call-contract-delivery-20261108.json",
+      "sha256": "cb4f59518dcf6905e800c657f4451273e7b55b3a6294624c4374369797080ba3"
+    },
+    "sidecar_navigation_followthrough": {
+      "graph": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-resolvepolicy-navigation-20261108.json",
+        "sha256": "17cce456ad05f0998660c3cdad0a03f67e14b9080c713779712c0e24edcd245b"
+      },
+      "property_graphs": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-count-property-navigation-20261108.json",
+        "sha256": "32af3a990379b20c61040ec29860fd16fc51911f683b861455a85713098c9704"
+      },
+      "partial_source_checks": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-sidecar-count-source-checks-20261108.json",
+        "sha256": "3ce78d6f4d2ad7e22aba5d7d129b3acc06ad196387d84e0d65f62b1f7528dc90"
+      },
+      "limits": "Root-informed diagnostic. First3sourcechecks passed; fourthsource comparison request1..85 ended on blankline and assertionfailed before response retained. Preserve partial file, no4checkPASS claimed; need inspect bounded finalmethodrange. No frozen evaluation rescoring."
     }
   }
 }

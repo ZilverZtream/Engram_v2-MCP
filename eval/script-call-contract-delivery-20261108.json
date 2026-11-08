@@ -1,0 +1,95 @@
+{
+  "status": "DEPLOYED_SCRIPT_CALL_CONTRACT_ORDINARY_REFRESH_VERIFIED",
+  "at_utc": "2026-11-08T13:16:21.150479+00:00",
+  "implementation_commit": "6fe7b367b270b848dc47bd1bfed1a733b42bbfbf",
+  "behavior": "Ordinary updates require newly produced script-call compatibility receipts even for unchanged TS/TSX/JS/JSX sources, repairing legacy receiver bindings without deleting real this-recursion. Global source version7 and VB sidecar package unchanged.",
+  "actual_ociusx": {
+    "source_generation_before": 3137,
+    "source_generation_after": 3138,
+    "ordinary_update_calls": 1,
+    "script_files_refreshed": 357,
+    "selected_revisions_unchanged": 1950,
+    "already_absent_source_entries_pruned": 8,
+    "git_commits_processed": 1,
+    "temporal_edges_added": 55,
+    "authored_memory_sections_preserved": 300,
+    "other14_metadata_preserved": true,
+    "upload_source_files_unchanged": 3,
+    "both_impact_tools_agree": true,
+    "direct_dependents": 1,
+    "transitive_dependents": 2,
+    "correct_call_lines": [
+      783,
+      976,
+      985
+    ],
+    "false_selfedges": 0,
+    "installed_public_requests": 11,
+    "live_installed_daemon_pid": 9416
+  },
+  "validation": {
+    "public_native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-retry-20261108.json",
+      "sha256": "a45ff85503df6859dfe190f8681e98cab594780def6607b554a0d8b03c87f41e"
+    },
+    "publication_unit": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-contract-unit-20261108.json",
+      "sha256": "399cbeb60a3f5e4843ed00c9445ec6f70ae80616d485973f386a96dd65fd29b1"
+    },
+    "public_no_vector": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-no-vector-20261108.json",
+      "sha256": "0131c1c6b44aef347b334583d35fe8fccb739c74479e9e45ad7c887db05bb921"
+    },
+    "native_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-shipping-20261108.json",
+      "sha256": "56b1ad24c5cc88d570fea35baec5eb82765cdd6d5f1b14f0d87fa70e5c90fc5d"
+    },
+    "candidate_admission": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-readonly-followup-20261108\\admission.json",
+      "sha256": "c15e19af6730daf307a82fb9707ca3c91b9e998ae82718ff83dc8ac365f8f12f"
+    },
+    "installed_pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-installed-pair-20261108.json",
+      "sha256": "be2ad4b639ddc344184eef8da70688a0199223b532f39a82fe21e41af6aa583c"
+    },
+    "installed_normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-normal-validation-20261108.json",
+      "sha256": "bdddc2ac96ad3ed27689594d87cf9f473c784e2ebe96e2b12444ab8a6e6e73c3"
+    }
+  },
+  "retained_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-before-20261108.json",
+      "sha256": "f50b5f3cd5b90bdef25c0349e2f4b8d9fcaa3e09edfac8e057f9ce81a9bfb11a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-after-20261108.json",
+      "sha256": "3dd249f877357ec0c3f1f392a9f4fec4710fd955a36e972a7107db6948bb829a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-cold-v1-20261108\\acceptance.json",
+      "sha256": "e421e27ca0de90b2839b832302c2e22f22004ad7e42082054d178878e964cbe6"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\script-receiver-upgrade-readonly-followup-20261108\\acceptance.json",
+      "sha256": "5317ff0450b90f4a4a42d3e29357d7540757e8435a335af52fb63ca6d7ab3571"
+    }
+  ],
+  "failure_reconciliation": "Expected before-fix regression; initial after-test fixture unwrapped optional source_routes; candidate observer stripped UTF8 BOM and omitted shared revision sequence; readonly followup assumed zero stale source-path pruning. Original failures remain failures; final admission binds independent checks and exactly8 absent paths. No second update.",
+  "resources": {
+    "owned_test_build_and_maintenance_resources_closed": true,
+    "owned_fixture_tmp_removed": true,
+    "configuration_hold_released_unchanged": true,
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "evidence_retention": "Retain diagnostics for delivery review; no preexisting-folder deletion authorized.",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-43f0a499a01544548fc3179b4f8149de",
+    "retained_old_pair_files": 218,
+    "retained_old_pair_cleanup_condition": "Prior complete runtime retained for reviewed recovery; exact-path cleanup approval required. No automatic deletion or rollback proof."
+  },
+  "limits": [
+    "Bounded source/edge witnesses and compatibility behavior, not full semantic graph correctness.",
+    "Frozen independent classification2pass3partial and cancellation4pass1partial are unchanged.",
+    "No fresh matched productivity claim, no full original31findings/19gates closure."
+  ],
+  "goal_complete": false
+}
