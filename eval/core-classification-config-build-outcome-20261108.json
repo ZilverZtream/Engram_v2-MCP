@@ -1,0 +1,267 @@
+{
+  "status": "SOURCE_VERIFIED_REPRESENTATIVE_CONFIGURATION_AND_CLIENT_BUILD_LINKAGE",
+  "at_utc": "2026-11-08T16:43:17.573681+00:00",
+  "selected_original_requirement": "Original classification criteria4/5: configured LayerDownloadUrl, representative request dispatch, client URL construction and explicit build-output/deployment boundaries. This finishes the selected representative source-linkage followthrough, not the broader original goal.",
+  "runtime": {
+    "pid": 41632,
+    "generation": 3139,
+    "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
+    "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+    "scope": "Normal installed public IPC, process executable and OS pipe owner checked per-call by scoped adapters. No install/update/restart."
+  },
+  "stages": [
+    {
+      "name": "initial informed public-tool recovery",
+      "calls": 8,
+      "returned_utf8_bytes": 60405,
+      "cap_calls": 8,
+      "cap_bytes": 65536,
+      "result": "PARTIAL: configuration and dispatch source established, one charged invalid-namespace request; build linkage remains incomplete."
+    },
+    {
+      "name": "recorded-action informed followthrough",
+      "calls": 6,
+      "returned_utf8_bytes": 25883,
+      "cap_calls": 6,
+      "cap_bytes": 49152,
+      "result": "PARTIAL: selected client references, declared compiler output and entry source; registration and URL tail still uninspected."
+    },
+    {
+      "name": "root oracle-guided exact public reads",
+      "calls": 7,
+      "returned_utf8_bytes": 18376,
+      "cap_calls": 7,
+      "cap_bytes": 32768,
+      "result": "Source links completed using independently found oracle locations. Explicitly guided retrieval, not autonomous discovery or extension inside either earlier cap."
+    }
+  ],
+  "combined_accounting": {
+    "calls": 21,
+    "returned_utf8_bytes": 104664,
+    "errors": 1,
+    "observation_timeouts": 0,
+    "current_windows_verified": 18,
+    "not_one_budgeted_run": true,
+    "original_stage1_status_unchanged": true,
+    "stage2_status_unchanged": true,
+    "guided_calls": 7,
+    "guided_returned_utf8_bytes": 18376
+  },
+  "verified_source_chain": [
+    {
+      "id": "configuration_descriptor_client",
+      "provenance": [
+        "stage1 call3 ConfigSettings82-106,345-369",
+        "stage1 call5 Web.config148",
+        "inherited descriptor source383-385; independently current-file re-pinned, not a new public read",
+        "guided call1 TS1136-1152"
+      ],
+      "assessment": "SUPPORTED_SOURCE_CHAIN",
+      "fact": "Checked-in kmlfileurl http://localhost:52065/kmlquery.aspx feeds LayerDownloadUrl. Inherited current-pinned BuildDescriptor appends viewport=1/vsk_id/pr_id. Client _buildUrl chooses separator and appends metaOnly=1 or encoded bounds plus floored zoom.",
+      "limit": "Repository setting only; no deployed settings, origin/credentials success or network route proof."
+    },
+    {
+      "id": "physical_page_dispatch",
+      "provenance": [
+        "guided call7 kmlquery.aspx1",
+        "stage1 call6 kmlquery.aspx.vb16-47,180-240"
+      ],
+      "assessment": "SUPPORTED_REPRESENTATIVE_SOURCE_LINK",
+      "fact": "ASPX names CodeFile and class; codebehind viewport branch authenticates then dispatches to method validating ids/request/access/visible layer, calling QueryViewport and writing UTF8 application/json.",
+      "limit": "Class declaration/Me.Load event hook are prior oracle context, not newly returned in these ranges; no runtime routing proof. Representative link does not require a full router audit."
+    },
+    {
+      "id": "client_source_inclusion",
+      "provenance": [
+        "stage2 call4 tsconfig1-18",
+        "stage2 call5 main.ts1-45",
+        "guided call2 app.ts1-5",
+        "guided call3 vsElement.ts1-5",
+        "stage2 call2 vsMap.ts23-142"
+      ],
+      "assessment": "SUPPORTED_DECLARED_REFERENCE_CHAIN",
+      "fact": "tsconfig includes main.ts; reference paths join main->app->vsElement->vsMap->vsFileLayerLazyLoaded. main constructs MyApp and initMap calls map.init. Declared outFile resolves to Site/modules/map/~.js/map.js.",
+      "limit": "No compilation success or dependency completeness proven. Q reference strings occur in allowed headers; Q bodies were not followed. mapLayer reference at vsMap11 remains oracle-only and is not needed to claim this representative vsFileLayer chain."
+    },
+    {
+      "id": "output_bundle_page",
+      "provenance": [
+        "stage2 call4 tsconfig13",
+        "guided call4 BundleConfig168-176",
+        "guided call5 map.aspx2779-2780",
+        "guided call6 Global.asax.vb47-85"
+      ],
+      "assessment": "SUPPORTED_SOURCE_REGISTRATION_PATH",
+      "fact": "Declared map.js output matches file included in ~/bundles/dashboard/public/map. Map page renders that bundle and names initMap callback. Inspected Application_Start source calls RegisterBundles.",
+      "limit": "Declared path/script registration, not current emitted bytes, served output/load order, startup execution or browser behavior."
+    }
+  ],
+  "inherited_descriptor_provenance": {
+    "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+    "sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+    "lines": [
+      383,
+      385
+    ],
+    "source_text_sha256": "e9a66c912c5b6cbd86c15e219fb72dd7860b2d48efe16dd6f068480c0548a02b",
+    "provenance": "Frozen oracle/prior source evidence, independently complete current-file hash matched now. Not returned by any of these21 public calls.",
+    "fact": "Formats {0}?viewport=1&vsk_id={1}&pr_id={2} from ConfigSettings.LayerDownloadUrl,parent.vsk_id,prId."
+  },
+  "qa_implications": [
+    {
+      "topic": "URL construction",
+      "implication": "Any future check of the shown source contract should distinguish metaOnly from viewport parameters and preserve existing query separators, encoded bounds and floored zoom. This review executes no such runtime test."
+    },
+    {
+      "topic": "Repository linkage",
+      "implication": "Changes to the configured download endpoint or declared map output path should remain consistent with the source handler/page and named bundle inclusion; actual deployment or compilation needs separate evidence only if later claimed."
+    },
+    {
+      "topic": "Evidence reliance",
+      "implication": "The representative source links are now adequately evidenced for this selected task. Do not infer current emitted JavaScript identity from tsconfig/bundle path agreement."
+    }
+  ],
+  "tool_failure_assessment": {
+    "concrete_core_tool_failure_demonstrated": false,
+    "details": [
+      "stage1 unknown namespace source is an observer argument error; actual JSON-RPC error explains valid namespace/default, retained as one failed call.",
+      "Stage1 capped broad searches and stage2 bounded snippets/omission are explicitly labelled. Remaining navigation work is not evidence of false source retrieval.",
+      "Stage2 scoped empty search is limited to its requested indexed scope, not proof of absent registration.",
+      "Guided exact source reads succeeded and match current source, establishing retrieval usefulness for these locations without establishing autonomous discoverability."
+    ],
+    "material_false_guidance": []
+  },
+  "remaining_scope_limits": [
+    "Effective deployed configuration/host routing and actual HTTP behavior.",
+    "Compiler version/invocation, successful build, emitted/bundled JavaScript bytes/hash or source equivalence, served output and browser execution.",
+    "Startup binding/runtime activation is not supplied by guided47-85; full application lifecycle not claimed.",
+    "Whole graph/value flow, exhaustive dependency/search coverage and all possible entry paths remain outside scope. These are limits, not additional required work for the selected representative-source task."
+  ],
+  "source_pins_checked": {
+    "Site/App_Code/shared-code/ConfigSettings.vb": {
+      "sha256": "ca89a4030b7f2993be6163a9d32d57716ee2a0b84086a03fa5b4c63c8ff14654",
+      "blake3": "17898e4616bae8e59a484f9d815885f31f4e9514fcf972f83493aa5cbea4e797",
+      "bytes": 100468
+    },
+    "Site/Web.config": {
+      "sha256": "7086ef87e02e331613a24491dee93734fc218af15b818313228bd812695fbbbf",
+      "blake3": "bc19a76c4ff35fbd3642654f83ee71bdc27ff7aeaedc4f4353e9c672efab97f0",
+      "bytes": 41992
+    },
+    "Site/kmlquery.aspx.vb": {
+      "sha256": "2da041635de130cef6c72c6e6ce6b65ea9500ac318ebc9eca3f7ed8fe6a442a7",
+      "blake3": "5f98d42462b51f48a7dbc0957bcbd488b1ae3a24353bff43ab7534ea9fd5aa58",
+      "bytes": 29148
+    },
+    "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts": {
+      "sha256": "71dfd6f1d9f320331910950a01da05c3da4acfa177e848337301c39badf87f21",
+      "blake3": "72607fc77902469fc81beb3a320015b4d76f59f78bc9432a7aa97acbfe3fe62b",
+      "bytes": 75325
+    },
+    "Site/modules/dashboard/ts/map/vsMap/vsMap.ts": {
+      "sha256": "07858e4817ceddb9aa0b0ff320bc22b32bac83d9fea09e1841a5247194811ec3",
+      "blake3": "8bb75548eec7c3bc2e3f82d1a70a2a021af82a2578bbe5a2b3b408fbbfff2bc6",
+      "bytes": 104202
+    },
+    "Site/modules/dashboard/ts/map/tsconfig.json": {
+      "sha256": "39193448eddbaf71fcc2a838c2c216225e190dfdccf85409a89e68fdba1d2dd7",
+      "blake3": "12b085c790f92bed5ac2b36e6bd4342b16f5d00d12b87222860553cfd33e3cf7",
+      "bytes": 398
+    },
+    "Site/modules/dashboard/ts/map/main.ts": {
+      "sha256": "bcf57b806900802fa584aa8e31be46cff2ad151aaed27adf3a88faabec0cc42d",
+      "blake3": "2f4ce92125307f3405281d0d7c19c5337547b09ca5ef10d5067ec5c55db1d126",
+      "bytes": 2169
+    },
+    "Site/modules/dashboard/ts/map/app.ts": {
+      "sha256": "89d0fed6efda6af0cd4412aafe9cd4fc0b1334d0f2cfbaba51d656e078ac60fe",
+      "blake3": "526eddd80a095e0ce108019e7a977660fd7c4371970c47d9bccc9947fafaa24f",
+      "bytes": 22344
+    },
+    "Site/modules/dashboard/ts/map/vsElement/vsElement.ts": {
+      "sha256": "f8e73494d8082621e35cc0dd01dee691052b2cbbb25601fbdf7e1fcd6851a585",
+      "blake3": "7d02cb0601c0e640d14b6f5f61efafaf5b7b7b9ff04abb789081642db761653e",
+      "bytes": 14789
+    },
+    "Site/App_Code/BundleConfig.vb": {
+      "sha256": "c41a7ebe60209f64d9d84b510af519a7ab4d4b47476c77583ac2a3b39b1cd574",
+      "blake3": "dc1dab7472164683612196146a7a76a22948e55612ee6af6d84b003b019bcb1c",
+      "bytes": 36767
+    },
+    "Site/modules/dashboard/pages/public/map/map.aspx": {
+      "sha256": "70cbbe62af9cbb2e26918cd4aa4103595fd3284a57266692ada7f187e551a3bd",
+      "blake3": "8a3383c2e7f12e36e95e491234d00d41af8f1df5a26541c0f6abc8cff34c3772",
+      "bytes": 219990
+    },
+    "Site/App_Code/Global.asax.vb": {
+      "sha256": "638ec4bf48f810ba677a196c72000bcba2145026aae97637272c24aea20dba06",
+      "blake3": "eddb70179c8f33a32cb169d703072c341ce57d57397bd2ce9d70165c6d80a052",
+      "bytes": 39166
+    },
+    "Site/kmlquery.aspx": {
+      "sha256": "8ef555aea4bff1f7c14ea4c2aa82a7e92f63f0985d2dfbb5facdd6ffb91d7bb1",
+      "blake3": "4e95215723cf7608b820e26c286918c03aa7eba441cfc8635a385a69d2d8b1a3",
+      "bytes": 100
+    },
+    "Site/App_Code/visualisering/code/FileLayerSpatialService.vb": {
+      "sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+      "blake3": "a4beea3062721ae819f887b783a5c4c1fd88366ffd0701f6b63738c3f38f27ec",
+      "bytes": 138994
+    }
+  },
+  "evidence": {
+    "initial": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-config-build-recovery-20261108.json",
+      "sha256": "cc6162ee9ac60e888545d6a1765067963401b18f30e9770df901788283a2e861"
+    },
+    "followthrough": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-build-followthrough-20261108.json",
+      "sha256": "72e96b2b5d07ee9edc1cd6ccf0e2ec93d504294648f00d8401ce8e72f2fdd098"
+    },
+    "guided": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-config-build-guided-20261108.json",
+      "sha256": "51cd3f57fa0be706daf3ee5e23d3ab7115799b61ec521716fd06e45cdf04d381"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-config-build-oracle-20261108.json",
+      "sha256": "cd735c7b797c0426117a560826313d20041d3ac951abafab4a549dee57452fcf"
+    },
+    "independent_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-config-build-combined-judgment-20261108.json",
+      "sha256": "26af952c3ce94974325d37e3e46880d78dbe690caed161e22c9ded00d0cd2949"
+    }
+  },
+  "protocol_limits": [
+    "Informed, separately bounded source followthrough plus oracle-guided reads; not a fresh autonomous task win, original cap success, frozen rescore or general comparative productivity claim.",
+    "No tests, application execution, compiler invocation or emitted/served JavaScript inspection performed. Source-supported QA implications are not passing runtime regressions.",
+    "Taskagent received an API-only path_contains discovery hint after choosing its source actions; no oracle/source anchors were supplied until root separately executed the guided stage.",
+    "Raw initial indexed context included an unrelated credential-like setting and instruction snippets; no credential value or source instruction is reproduced or acted on in this tracked receipt.",
+    "Public source reads of permitted TS headers include Q reference strings; excluded bodies were not opened."
+  ],
+  "resources": {
+    "all_observer_pipes_closed": true,
+    "pending_requests": 0,
+    "new_fixtures": false,
+    "builds": false,
+    "source_or_index_mutations": false,
+    "server_restart": false,
+    "preexisting_deletions": false,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefixes": [
+      "core-classification-config-build-recovery-20261108",
+      "core-classification-config-build-recovery-call-20261108",
+      "core-classification-build-followthrough-20261108",
+      "core-classification-config-build-guided-20261108",
+      "core-classification-config-build-oracle-20261108",
+      "core-classification-config-build-combined-judgment-20261108"
+    ],
+    "purpose": "Raw source-task requests/replies, scoped adapters and independent oracle/judgment retained for verification and original queue continuity.",
+    "removal_condition": "Retain through task review; later deletion requires exact-path authorization. No current cleanup requested."
+  },
+  "production_changes": false,
+  "original31findings_closed": false,
+  "original19gates_closed": false,
+  "eg24_closed": false,
+  "eg25_closed": false,
+  "goal_complete": false
+}
