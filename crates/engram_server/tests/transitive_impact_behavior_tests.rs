@@ -2996,6 +2996,57 @@ fn file_impact_shared_excerpt_keeps_unrecorded_positions_unknown() {
 }
 
 #[test]
+fn hinted_file_declarations_recover_current_source_across_a_non_callable_boundary() {
+    owned_case(|fixture| async move {
+        const UI: &str = "src/policy_client.rs";
+        let body = "// Client policy editing\n\npub fn save_override() {\n    send_policy();\n}\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        std::fs::write(fixture.root.join(UI), body).unwrap();
+        fixture.search.prepare_source_snapshot(PID,2,3,&[RelPath::new(UI)],&[],&cancel).await.unwrap();
+        fixture.search.index_docs(PID,&[source_doc(3,98,UI,body)],&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let mut consumer = declaration(UI,"save_override",3,3);
+        consumer.end_line=5;
+        fixture.engram.state.graph.upsert_nodes(PID,&[file_node(UI,body,3),consumer]).unwrap();
+        // The retained route passes through a file dependency, so it cannot be
+        // described as a continuous callable-only source route.
+        fixture.engram.state.graph.upsert_edges(PID,&[
+            edge(format!("file:{SPATIAL}"),id(POLICY,"ClassifyAutomatic",1),EdgeKind::Dependency,1),
+            edge(format!("file:{UI}"),format!("file:{SPATIAL}"),EdgeKind::Dependency,3),
+            edge(id(UI,"save_override",3),format!("file:{SPATIAL}"),EdgeKind::Dependency,3),
+        ]).unwrap();
+        let target=id(POLICY,"ClassifyAutomatic",1);
+        let graph=impact_packet(&impact_target(&fixture,&target,Some(6)).await);
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let text=summary_impact(&fixture,tool,&target,6).await;
+            assert!(text.len()<=12*1024);
+            let report=impact_packet(&text);
+            assert_eq!(report["coverage"],graph["coverage"]);
+            assert_eq!(report["selected_dependents_observed"],graph["selected_dependents_observed"]);
+            let hints=report["source_routes"]["file_hints"].as_array().unwrap();
+            assert!(hints.contains(&json!(UI)));
+            assert!(!report["source_routes"]["nodes"].as_array().unwrap().iter()
+                .any(|node|node["node_id"]==id(UI,"save_override",3)));
+            let leads=&report["hinted_file_declarations"];
+            let lead=leads["declarations"].as_array().unwrap().iter()
+                .find(|row|row["node_id"]==id(UI,"save_override",3)).unwrap();
+            assert_eq!(lead["generation"],3);
+            assert!(leads["scope"].as_str().unwrap().contains("not value-flow routes or runtime binding"));
+            let read=&lead["source_read"];
+            assert_eq!(read["tool"],"get_full_method_body");
+            let response=fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+            let recovered:Value=serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(recovered["source_code"],"pub fn save_override() {\n    send_policy();\n}");
+            assert_eq!(recovered["source_file_hash"],ContentHash::compute(body.as_bytes()).0);
+            assert_eq!(recovered["source_verification"],"explicit_range_current_file_snapshot");
+        }
+    });
+}
+
+#[test]
 fn file_impact_deeper_inventory_cannot_erase_first_hop_connections() {
     owned_case(|fixture| async move {
         let mut entries=Vec::new();

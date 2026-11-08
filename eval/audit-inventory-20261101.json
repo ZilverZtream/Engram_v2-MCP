@@ -9809,9 +9809,9 @@
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
     }
   },
-  "last_updated_at": "2026-11-08T06:01:48.627202+00:00",
+  "last_updated_at": "2026-11-08T06:19:39.446743+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T06:01:48.627202+00:00",
+    "at_utc": "2026-11-08T06:19:39.446743+00:00",
     "reason": "User explicitly corrected repeated five-day drift from original ranked tool-improvement work. Supporting work must not replace the original queue.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent-useful navigation and recovery. Authorized fresh batchcancel01 consumer met all five frozen bounded planning criteria in11calls96748B;12source windows and6grep hits independently checked against raw source. It used named previews, Blast source routes and source continuations, and rejected selected self-links as recursion proof. Broader original core-tool assignment remains unfinished; do not infer causal adoption of latest capped-member patch.",
-    "next_user_visible_deliverable": "Continue the original CodeMap/Blast task queue with the still-unresolved original VB classification adoption case. Preserve fresh09 failure/partial evidence and controlled13 informed success separately; use their existing public traces and current output to isolate any remaining concrete navigation burden before selecting another implementation. Do not repeat already-passed root tasks, automatically spawn another agent, expand pilots/instructions, or promote an OciusX application concern into this core-tool assignment.",
+    "active_original_item": "CodeMap/Blast agent-useful navigation and recovery: expose existing selected declaration source reads in hinted files across non-callable boundaries. Current installed ClassifyAutomatic graph confirms setZoomOverride1442..1539 hidden behind TS file hint.37unique focused/regression behaviors pass; native delivery and actual source-recovery validation pending. Original31/19 remain unchanged.",
+    "next_user_visible_deliverable": "Finish selected hinted-file declaration lead: build native release from frozen tested source, compare actual OciusX standalone/nested output with existing facts/routes/capped-member recovery and full graph preserved, execute emitted setZoomOverride source action and compare raw source, then deploy and verify normal runtime. Use prepared verify_hinted_file_declarations_v1_20261108.py after reviewing its baseline/age normalization and package pins. Preserve original VB partial/fresh09 and informed13 outcomes; do not require optional fresh agents, expand pilots or claim full task/goal completion from this slice.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
     "latest_completed_core_batch": "Capped member recovery deployed:8focused behaviors/native build PASS, frozen inputs and owned cleanup. Actual382calls preserve63prior controls,150definitions and full cancelUpload Graph; returned search/current source reaches manager772 without adding indexed callers.218active/218prior/5journals verified; normal runtime matches candidate. Original31/full19 and broader adoption remain open.",
-    "previous_goal_turn_classification": "PROGRESS: corrected improper goal-level stall and continued authorized root work. Three actual installed-tool calls verified against raw source; former grep blocker absent and existing first-hit recovery exposes discovery response path. No new feature justified by this diagnostic; historical partial/fresh and informed outcomes remain distinct.",
+    "previous_goal_turn_classification": "PROGRESS: actual current graph/raw source selected concrete missing declaration navigation; implemented bounded leads with no new query or inferred binding; two new tests and36integration regressions passed (37unique). All owned test resources closed/removed. Native/actual delivery remains next.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10542,7 +10542,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "All RPCs terminal and pipe handles closed. No new temporary directory. Retained scripts/contracts/ledger/report all in existing diagnostics location until evidence review. Normal daemon owns idle lifetime; preexisting installation pairs untouched.",
+    "current_owned_resource_state": "Both focused/regression runners terminal PASS; owned temp8ypyiuhq/zvdr69zf removed only after exact Jobs/handles closed. No pending RPC. Normal daemon owns idle lifetime. Existing diagnostics retain immutable evidence/scripts for delivery review. Previous installed pairs untouched.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -10596,6 +10596,19 @@
       "classification": "CURRENT_RECOVERY_SOURCE_VERIFIED_NO_NEW_FIX_SELECTED",
       "calls": 3,
       "returned_bytes": 15898
+    },
+    "latest_hinted_file_declaration_source_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\hinted-file-declarations-source-evidence-20261108.json",
+      "sha256": "e2f5bdb0d02a254b408a138b1d5b17ea477e36ccdb2a7970d0dbbd1bf933de41"
+    },
+    "latest_hinted_file_declaration_behavior_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\hinted-file-declarations-behavior-review-20261108.json",
+      "sha256": "888552c205d4ab794b7bad27d4ba8fa773ccca8c89155f021172f68529ccc1a6"
+    },
+    "prepared_hinted_file_declaration_observer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_hinted_file_declarations_v1_20261108.py",
+      "sha256": "9870ede7fc1f3d6b5e7dad37174da62506931f33d20653d16f32df298887a600",
+      "status": "PREPARED_SYNTAX_CHECKED_NOT_EXECUTED"
     }
   }
 }
