@@ -1,0 +1,125 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_FILE_MEMBER_NAVIGATION",
+  "at_utc": "2026-11-09T21:11:20.447777+00:00",
+  "source_commit": "a85feb756416356cca9162fca44323e745385150",
+  "server_sha256": "1d466a2ddd4f011b1e39fa8ba59c85b7e05aa79125ecae2e4a55f2c5172f4978",
+  "manifest_sha256": "425db907929568fb1e0bc851450277305fa2698b4f0c0c06d90db2ee060e58c6",
+  "primary": {
+    "pid": "56084",
+    "started_at_ms": "1794258612707",
+    "protocol_version": "1",
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+    "version": "0.1.0"
+  },
+  "source_generation": 3139,
+  "implementation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-file-member-navigation-20261109.json",
+    "sha256": "ede237d1b18a826ee82485a72e2deb76f771af1f57482c15947540b2bee231ac"
+  },
+  "evidence": {
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-tests-v2-20261109.json",
+      "sha256": "e3c20b419bb65b7e4ab068d46f4872c5fc726303ce24a6bf8762c0728b6ab433"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-shipping-20261109.json",
+      "sha256": "84c5ff8acb0066ed58c069855963b56cb3b0e70c0f313b82c0e5df458a78363d"
+    },
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-build-artifact.json",
+      "sha256": "d6c2e1c08cdb76cc35de35f700ff8946525c9f639b85c558d8e1ca67e2f2b47d"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-paired-package.json",
+      "sha256": "0da02d30b434bdec4716996e527152bcde0118df93de8e6897232628f1693ef6"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-cold-v2\\acceptance.json",
+      "sha256": "0f5277f5bf0a98bf87bf86356484f6b3eef74d9eb764de1fc5e2f4ff0559a116"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-normal-v1.json",
+      "sha256": "ec4f2896339c34ecae328b9c5a0e25ca650be2f4e0bacb8173377f65f1907f17"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-release-gates-v3.json",
+      "sha256": "155c853f0abdb8b2ef9c88ac96c06006c5546516ea796cfd25f7f1ff04ced02c"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-upgrade.json",
+      "sha256": "1a38b332dcd54d2c6b26d507459ca4abff483c9d35e32c5e6e401e51aab92448"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-config-hold-20261109.json.released.json",
+      "sha256": "07f09a3dc8cac4abc12c12a084816290ef6b0cfb4fafbfb9af61f17771b515f1"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-helpers-review-20261109-v3.json",
+      "sha256": "7b01d638554cd5e9e46fbc285faa07cfe218cdc6f391eb26cb388932f80b44ce"
+    },
+    "independent_file_graph": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-sample-graph-20261109.json",
+      "sha256": "58ce39f51d0f31a4c3750c718a7e624f100b557587ffe6e68f5d89652913ec80"
+    },
+    "literal_member_actions": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-current-actions-20261109.json",
+      "sha256": "e0512ef6e096e31209bb8b1593b9e1b63f13a248773a032351dba49c8113c7f4"
+    }
+  },
+  "actual_delivered_behavior": {
+    "file_summary_utf8_bytes": 11379,
+    "directory_utf8_bytes": 4508,
+    "retained_members_observed": 11,
+    "directory_members_omitted": 0,
+    "prior_summary_members_represented_by_four_consumers": 3,
+    "literal_expansions_executed": [
+      "Resolve",
+      "AppendJson",
+      "TryParseOverride"
+    ],
+    "symbol_and_graph_responses_unchanged": true,
+    "all150_definitions_unchanged": true,
+    "cold_calls": 33,
+    "normal_calls": 33,
+    "all16_ociusx_pins_verified_after_normal": true
+  },
+  "limits": [
+    "Directory describes retained admitted member witnesses, not every member or complete per-member counts.",
+    "Fresh symbol expansions may include same-file callers excluded by file query; counts overlap and are non-additive.",
+    "Full immediate-consumer samples can shrink to fit member choices; original graph recovery and required counts/coverage remain.",
+    "Crowded depth6 file response drops preexisting best-effort source_routes_omitted:true marker while both old/new lack source_routes. Required coverage, limitations, graph_omissions and nonempty graph continuation remain exact. Absence never proves no routes. This marker loss is disclosed, not claimed preserved.",
+    "No new agent task attempt or rescoring; prior original fullQA remains PASS/PARTIAL/PARTIAL/FAIL/PARTIAL. This delivery does not prove whole-task success or comparative productivity."
+  ],
+  "preserved_failed_attempts": {
+    "initial_test_29pass_1fail": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-tests-20261109.json",
+      "sha256": "cf69f4b942e755bbb1c35a26a218fa973155fad8ccc541f0032c2a224f8a2093"
+    },
+    "cold_v1_checker_rejection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-cold-v1\\acceptance.json",
+      "sha256": "37166cc6a6a32f3e4fc020d652e9d4e325685e1a2e88ec5815c3f952d10db34a"
+    },
+    "offline_v2_marker_rejection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-20261109-offline-v2-verification.json",
+      "sha256": "03a7b707c240640a2b8d37bcf9cea29830dc3c734f5c460044b7a65de9351531"
+    }
+  },
+  "acceptance_correction": "Versioned v3 checker permits independently witnessed additional depth1 file paths with unchanged totals/scope and exact omission arithmetic, plus only the explicit prior-true-to-absent marker case with all route/coverage/recovery protections.18offline checks include negative mutations. Same package reused; all v1/v2 helper and failed receipt bytes preserved.",
+  "resources": {
+    "maintenance_hold_released": true,
+    "config_unchanged": true,
+    "old_runtime_exited_naturally": true,
+    "no_processes_signaled": true,
+    "codex_host_signaled": false,
+    "test_build_candidate_owned_temporaries_removed": true,
+    "jobs_and_handles_closed": true,
+    "normal_observer_closed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-25b3ebee5ecc460382545d3b6ab9bc19",
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain release package, versioned checker evidence and old pair for review/recovery until exact-path cleanup is authorized; no preexisting directory deletion."
+  },
+  "goal_complete": false,
+  "fresh_agent_task_win_proven": false,
+  "full_original_backlog_complete": false,
+  "original_full19gates_closed": false
+}

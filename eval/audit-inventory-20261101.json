@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T20:43:57.275214+00:00",
-    "reason": "Actual file Blast hid member branches retained in graph. Generic bounded memberdirectory implemented/reviewed;30behaviorcases pass after fixing real allocation regression.",
+    "at_utc": "2026-11-09T21:11:20.447777+00:00",
+    "reason": "File-member navigation a85feb7 deployed. ActualfileBlast exposes11retainedmembers/0directoryomissions within11379B; literalResolve/AppendJson/TryParseOverride actions checked. Cold33+normal33PASS after narrowversionedverifiercorrection; priorfullQA unchanged.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Deliver file-member navigation in core impact tools against actual11-member OciusX graph and unchanged source evidence.",
-    "next_user_visible_deliverable": "Installed file summary exposes retained distinctmember choices and working exactactions; preserve prior fulltask failure and avoid task-win claims from this bounded proof.",
+    "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. File-member branch discovery gap delivered; original full-task and comparative-usefulness requirements remain incomplete.",
+    "next_user_visible_deliverable": "Continue original agent-work completion requirements without another broad audit, coached retry, or task-win claim from directory counts.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -11471,6 +11471,10 @@
     "latest_file_member_navigation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-file-member-navigation-20261109.json",
       "sha256": "ede237d1b18a826ee82485a72e2deb76f771af1f57482c15947540b2bee231ac"
+    },
+    "latest_file_member_navigation_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-file-member-navigation-delivery-20261109.json",
+      "sha256": "79d3ae53111d504ab348e355d203a73ae09a4054e4ac4be2530305b19da12e13"
     }
   }
 }
