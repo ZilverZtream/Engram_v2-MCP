@@ -613,6 +613,26 @@ fn append_terminal_inspection(value: &mut Value, inspection: &Value, fits: &dyn 
     }
 }
 
+// An empty admitted incoming walk is not proof that source has no callers.
+// Use the selected node's name, never reinterpret the requested identity.
+fn zero_dependent_inspection(node: &engram_graph::Node, project: &str) -> Option<Value> {
+    if !matches!(node.node_type.as_str(), "function" | "method")
+        || node.name.chars().any(char::is_control) {
+        return None;
+    }
+    let name = node.name.rsplit("::").next()?.rsplit('.').next()?;
+    if name.is_empty() || name.len() > 128 || !name.chars().enumerate().all(|(i, c)|
+        c == '_' || c == '$' || if i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) {
+        return None;
+    }
+    Some(json!({
+        "scope":"Inspect project-wide literal name mentions with strict freshness after zero selected graph dependents. This action has not run. The caller must retain task exclusions by adding exclude_path_prefixes; impact requests do not carry them. Comments, declarations, prefix names and other overloads may match. Matches are lexical leads, not Calls edges, binding, execution, breakage or absence proof; graph counts stay unchanged. Follow returned current-source actions and compare hashes/freshness before combining observations.",
+        "action":{"tool":"grep_project","arguments":{"project_id":project,"pattern":name,
+            "regex":false,"case_sensitive":false,"max_results":20,"context_before":0,
+            "context_after":0,"freshness":"strict","output_json":true}}
+    }))
+}
+
 /// Recover useful current-file windows from this frame only. A window can
 /// combine connected indexed declaration spans, never infer value flow or pull
 /// an input producer into reverse impact. No database/source/HEAD query occurs.
@@ -2782,6 +2802,7 @@ fn render_projection(
     }
     // Optional source discovery comes after canonical evidence. A terminal
     // mention can recover an unassessed receiver, never establish its callee.
+    let mut focused_terminal_eligible = false;
     if let Some(root) = lookup.get(target).filter(|n|
         n.admission == ImpactAdmission::Selected && n.node.node_type == "function") {
         let path = root.node.file_path.as_str();
@@ -2791,6 +2812,7 @@ fn render_projection(
             && name.chars().enumerate().all(|(i,c)| c == '_' || c == '$'
                 || if i == 0 { c.is_alphabetic() } else { c.is_alphanumeric() }) {
             if let Some((directory, _)) = path.rsplit_once('/') {
+                focused_terminal_eligible = true;
                 let fallback = json!({"tool":"grep_project","arguments":{"project_id":project,
                         "pattern":name,"regex":false,"case_sensitive":true,"path_prefix":format!("{directory}/"),
                         "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}});
@@ -2809,6 +2831,17 @@ fn render_projection(
         }
     }
     append_caller_file_starts(&mut value, project, &|value|section(value).len()<=RESPONSE_BYTES);
+    // Preserve existing focused recovery and all allocated evidence. This is
+    // an optional lexical action, not an additional graph/query observation.
+    if value["selected_dependents_observed"].as_u64() == Some(0)
+        && !focused_terminal_eligible && value.get("terminal_member_inspection").is_none() {
+        if let Some(root) = lookup.get(target).filter(|n| n.admission == ImpactAdmission::Selected) {
+            if let Some(inspection) = zero_dependent_inspection(&root.node, project) {
+                append_terminal_inspection(&mut value, &inspection,
+                    &|value| section(value).len() <= RESPONSE_BYTES);
+            }
+        }
+    }
     ensure!(
         section(&value).len() <= RESPONSE_BYTES,
         "Impact evidence exceeds response budget"

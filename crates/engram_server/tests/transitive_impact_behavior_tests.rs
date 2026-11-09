@@ -268,6 +268,109 @@ where
 }
 
 #[test]
+fn zero_graph_dependents_offer_executable_lexical_recovery_without_claiming_callers() {
+    owned_case(|fixture| async move {
+        const TARGET: &str = "src/zoom.vb";
+        const CALLER: &str = "src/endpoint.vb";
+        const EXCLUDED: &str = "src/excluded.vb";
+        let sources = [
+            (TARGET, "Function CanEditZoom() As Boolean\nReturn True\nEnd Function\n"),
+            (CALLER, "If Policy.caneditzoom() Then Save()\n' CanEditZoom is also mentioned in a comment\n"),
+            (EXCLUDED, "CanEditZoom()\n"),
+        ];
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        let cancel = CancellationToken::new();
+        let paths: Vec<_> = sources.iter().map(|(path, _)| RelPath::new(path)).collect();
+        fixture.search.prepare_source_snapshot(PID, 2, 3, &paths, &[], &cancel).await.unwrap();
+        let docs: Vec<_> = sources.iter().enumerate().map(|(i, (path, body))|
+            source_doc(3, 90 + i as u64, path, body)).collect();
+        fixture.search.index_docs(PID, &docs, &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        let target = declaration(TARGET, "Policy.CanEditZoom", 1, 3);
+        let mut nodes = vec![target.clone()];
+        for (path, body) in sources {
+            std::fs::write(fixture.root.join(path), body).unwrap();
+            nodes.push(file_node(path, body, 3));
+        }
+        fixture.engram.state.graph.upsert_nodes(PID, &nodes).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+        let edges_before = serde_json::to_value(fixture.engram.state.graph.list_edges(PID, None).unwrap()).unwrap();
+        let graph = impact_packet(&impact_target(&fixture, &target.node_id, Some(6)).await);
+        assert_eq!(graph["selected_dependents_observed"], 0);
+        assert_eq!(graph["target_revision_admitted"], true);
+        let inspection = &graph["terminal_member_inspection"];
+        let scope = inspection["scope"].as_str().unwrap();
+        assert!(scope.contains("project-wide") && scope.contains("exclude_path_prefixes"));
+        assert!(scope.contains("other overloads") && scope.contains("not Calls edges") && scope.contains("freshness"));
+        let action = &inspection["action"];
+        assert_eq!(action["tool"], "grep_project");
+        assert_eq!(action["arguments"]["pattern"], "CanEditZoom");
+        assert_eq!(action["arguments"]["max_results"], 20);
+        assert_eq!(action["arguments"]["context_before"], 0);
+        assert_eq!(action["arguments"]["context_after"], 0);
+        assert_eq!(action["arguments"]["freshness"], "strict");
+        assert_eq!(action["arguments"]["regex"], false);
+        assert_eq!(action["arguments"]["case_sensitive"], false);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let report = impact_packet(&summary_impact(&fixture, tool, &target.node_id, 6).await);
+            assert_eq!(report["terminal_member_inspection"], *inspection);
+            for field in ["target_revision_admitted", "selected_dependents_observed", "coverage", "source_generation"] {
+                assert_eq!(report[field], graph[field]);
+            }
+            assert_eq!(report["direct_dependents_observed"], 0);
+            assert_eq!(report["transitive_dependents_observed"], 0);
+            assert_eq!(report["exhaustive_codebase"], false);
+            assert_eq!(report["change_breakage_proven"], false);
+            assert_eq!(report["target"]["source_read"]["tool"], "get_full_method_body");
+        }
+        // Execute the offered action with the task's own excluded path. A
+        // differently cased real source use and a comment both remain leads.
+        let mut args = action["arguments"].clone();
+        args["exclude_path_prefixes"] = json!([EXCLUDED]);
+        let hits = fixture.engram.handle_grep_project(serde_json::from_value(args).unwrap()).await.unwrap();
+        assert!(!hits.is_error.unwrap_or(false));
+        let hits: Value = serde_json::from_str(&hits.content[0].as_text().unwrap().text).unwrap();
+        let matches = hits["matches"].as_array().unwrap();
+        assert!(!matches.iter().any(|hit| hit["file_path"] == EXCLUDED));
+        assert!(matches.iter().any(|hit| hit["file_path"] == CALLER && hit["line"] == 2));
+        let hit = matches.iter().find(|hit| hit["file_path"] == CALLER && hit["line"] == 1).unwrap();
+        let source = fixture.engram.handle_get_full_method_body(
+            serde_json::from_value(hit["current_source_recovery"]["arguments"].clone()).unwrap()).await.unwrap();
+        assert!(!source.is_error.unwrap_or(false));
+        let source: Value = serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+        assert!(source["source_code"].as_str().unwrap().contains("Policy.caneditzoom()"));
+        assert_eq!(source["source_file_hash"], ContentHash::compute(sources[1].1.as_bytes()).0);
+        assert_eq!(edges_before, serde_json::to_value(fixture.engram.state.graph.list_edges(PID, None).unwrap()).unwrap());
+        let after = impact_packet(&impact_target(&fixture, &target.node_id, Some(6)).await);
+        assert_eq!(after, graph, "Following lexical recovery must not invent graph callers or change evidence");
+
+        // The same public surface must not manufacture a search from invalid
+        // recorded names, unavailable admission, a file, or nonzero exposure.
+        for name in ["".to_owned(), "Policy.Bad(Name)".into(), "Policy.9bad".into(),
+            "Policy.bad\nname".into(), format!("Policy.{}", "x".repeat(129)), "Policy.".into()] {
+            let mut invalid = target.clone(); invalid.name = name;
+            fixture.engram.state.graph.upsert_nodes(PID, &[invalid]).unwrap();
+            for tool in ["impact_analysis", "compute_blast_radius"] {
+                let report = impact_packet(&summary_impact(&fixture, tool, &target.node_id, 6).await);
+                assert!(report.get("terminal_member_inspection").is_none());
+            }
+        }
+        let mut stale = target.clone(); stale.generation = 1;
+        fixture.engram.state.graph.upsert_nodes(PID, &[stale]).unwrap();
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let report = impact_packet(&summary_impact(&fixture, tool, &target.node_id, 6).await);
+            assert_eq!(report["target_revision_admitted"], false);
+            assert!(report.get("terminal_member_inspection").is_none());
+            let file = impact_packet(&summary_impact(&fixture, tool, &format!("file:{TARGET}"), 6).await);
+            assert!(file.get("terminal_member_inspection").is_none());
+            let nonzero = impact_packet(&summary_impact(&fixture, tool, &id(POLICY, "ClassifyAutomatic", 1), 6).await);
+            assert!(nonzero["selected_dependents_observed"].as_u64().unwrap() > 0);
+            assert!(nonzero.get("terminal_member_inspection").is_none());
+        }
+    });
+}
+
+#[test]
 fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_impact() {
     owned_case(|fixture|async move {
         async fn blast(fixture:&Fixture,args:Value)->String {
