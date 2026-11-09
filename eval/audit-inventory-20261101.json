@@ -9842,7 +9842,7 @@
       }
     ],
     "active_original_item": "Bounded same-file source recovery is deployed at74065a5 and verified on actual OciusX through candidate21checks and normal11reads. Exact CodeMap omitted-window action recovers the same50lines in1call rather than2. Fresh known-omission task: both4PASS, both3reads, candidate32036bytes versus baseline31549; complementary coverage, no overall quality/efficiency win. CodeMap/Blast agent usefulness assignment remains unfinished.",
-    "next_user_visible_deliverable": "Assess the changed range-reading capability against the original frozen eight-call classification task and its five criteria, especially editor/source-bridge recovery. Preserve original partial scores; do not substitute the four-criterion omission task for full-task completion. Reuse existing replay adapter and actual normal tools, no new broad audit/framework. Do not repeat unchanged cancellation work.",
+    "next_user_visible_deliverable": "Continue the existing impact source-recovery/witness gap using actual report and full-task evidence: assess exact QueryCache+Core+Resolve source action and both existing graph witnesses within4096route/12288summary caps by sharing only truly common metadata defaults. Preserve every existing source action, canonical identity, admission/coverage limit and witness; retain original fallback if expanded grouping cannot fit. Fresh fullclassification remains4PASS/1PARTIAL after8calls63958bytes; do not equate this one missing bridge with complete HTTP/JSON/editor tracing.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -11246,6 +11246,21 @@
         "sha256": "60dc3e075e4f6517fbbd17724704393af402c1e6ff624b08875c846ea71f384a"
       },
       "codex_host_restart_needed": false
+    },
+    "latest_source_ranges_full_classification": {
+      "path": "eval/core-source-ranges-full-classification-20261109.json",
+      "sha256": "9f7fcb485eee1ba7c225699cf4a94f3448417af365dcbf9af3545dbf3c4e3e03",
+      "status": "FRESH_ORIGINAL_CLASSIFICATION_REPLAY_REMAINS_PARTIAL",
+      "calls": 8,
+      "bytes": 63958,
+      "grades": [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PARTIAL",
+        "PASS"
+      ],
+      "goal_complete": false
     }
   }
 }

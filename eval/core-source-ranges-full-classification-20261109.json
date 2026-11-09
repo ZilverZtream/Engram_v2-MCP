@@ -1,0 +1,85 @@
+{
+  "status": "FRESH_ORIGINAL_CLASSIFICATION_REPLAY_REMAINS_PARTIAL",
+  "at_utc": "2026-11-09T07:03:58.612109+00:00",
+  "installed_implementation": "74065a56c9562545c0f8edb885d3488857c03077",
+  "task_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-classification-candidate-packet.json",
+    "sha256": "b072f68572b13bb4bc0d4c4690373c8a2cf1c99845d7d5badd93ff718235fb66"
+  },
+  "protocol": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-classification-protocol.json",
+    "sha256": "bf9865cfe28ec3a6b0f723bba3180e74b86fa0954cb142755aed401feea8832c"
+  },
+  "criteria": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-criteria.json",
+    "sha256": "8adbee9183ec67e4cf097f4ec7554fccad43da8d36ffcebee09a47ad3ba5be98"
+  },
+  "agent_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-classification-agent-binding.json",
+    "sha256": "d4efe9177e68a2170648c16a3bef136bf8f6172a55339a15c9bd42c47944836e"
+  },
+  "runtime_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-runtime-pins.json",
+    "sha256": "7d502d6b4a002c068a574c78f4974b5cac57bb7169d132890466e25007e2a5d3"
+  },
+  "source_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-source-pins.json",
+    "sha256": "d9dec4b42ef8855faac26b1ddfd1b6e9330f1f5cb728f51890c68320905e8b62"
+  },
+  "ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-classification-ledger.json",
+    "sha256": "50e47e9a01074176f2725d8fecc9c941c568ecc2ec7bc3cebe08f5357e120e33"
+  },
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-answer.txt",
+    "sha256": "d89d001b400746fa57d34e9403ea7c4e8de3d70d8c2698541620997f804b4b03"
+  },
+  "independent_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-full-classification-20261109-judgment.json",
+    "sha256": "5864219f61671e2a36cd39b502c83ee7e6d1e95b2ebb5a6c86de919995f44f8c"
+  },
+  "grades": [
+    "PASS",
+    "PASS",
+    "PASS",
+    "PARTIAL",
+    "PASS"
+  ],
+  "actual_cost": {
+    "calls": 8,
+    "returned_text_utf8_bytes": 63958,
+    "caps": {
+      "calls": 8,
+      "returned_text_utf8_bytes": 65536
+    },
+    "setup_outside_original_cap": true,
+    "free_initial_report": false,
+    "range_mode_calls": [
+      3,
+      7
+    ]
+  },
+  "previous_original_replay": {
+    "tracked_receipt": "eval/core-current-fixed-task-outcomes-20261108.json",
+    "classification_calls": 8,
+    "classification_bytes": 64037,
+    "grades_unchanged": true,
+    "comparison_limit": "Same five criteria remain partial; different source choices and age text. The79byte decrease is not credited as a tool-caused efficiency gain."
+  },
+  "independent_verification": {
+    "response_hashes": 8,
+    "source_pins": 11,
+    "returned_source_windows": 10,
+    "raw_file_blake3_hashes": 4
+  },
+  "remaining_evidence_gap": "For this same bounded task, obtain and explain current source at service QueryCache:2219-2222, the three AppendJson callers (2424-2427,2584-2593,2676-2686), BuildDescriptor:380-391, client _buildUrl:1136-1152, endpoint dispatch:28-36, discovery:300-310/324-377, and mapLayer editor:690-711/738-741/797-853 plus setZoomOverride:1471-1537. Show exact data joins and editor consequences, preserve override authority/save epochs, and leave actual LayerDownloadUrl/runtime/build binding explicitly unresolved unless separately verified.",
+  "interpretation": "The new mode was used successfully for separated backend/client source. It did not complete the original task: honest unknowns do not close missing HTTP/JSON/editor joins. No overall quality, productivity, full-task success or original31finding/19gate closure claimed.",
+  "next_selected_work": "Continue previously identified impact source-recovery/witness gap: actual report action omits QueryCache between QueryViewport and QueryCacheCore. Exact offline projection may add that admitted source and both witnesses while preserving existing actions/facts under current4096route/12288summary caps by sharing repeated edge metadata defaults. Feasibility is not implementation, deployment or completion of the broader editor trace.",
+  "resources": {
+    "all_observer_pipes_closed": true,
+    "pending_rpc": null,
+    "source_config_index_service_mutations": false,
+    "retention": "Retain setup, source attestation, requests, exact replies, ledger, answer and judgment under recorded diagnostics location; no temporary fixture tree created."
+  },
+  "goal_complete": false
+}
