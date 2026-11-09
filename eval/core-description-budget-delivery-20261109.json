@@ -1,0 +1,134 @@
+{
+  "status": "DEPLOYED_COMPACT_CORE_DESCRIPTIONS_ACTUAL_ORIGINAL_BUDGET_FAILURE_RECOVERED",
+  "at_utc": "2026-11-09T14:48:38.539783+00:00",
+  "source_commit": "e15d5724548d41d8a68479deb816c7e43318814e",
+  "problem": "Original complete-workflow assisted QA exhausted its setup-inclusive context budget at request3. Verbose core descriptions consumed context before source evidence. Separate latest classification omissions did not establish a new backend recovery defect.",
+  "delivered": "Shortened3core tool descriptions and19parameter descriptions, retaining modes, selectors, defaults, scope/freshness limits and recovery guidance; fixed stale include_source help. Detailed mechanisms remain in existing TOOL_CONTRACT.",
+  "actual_definitions": {
+    "five_before_utf8_bytes": 23325,
+    "five_after_utf8_bytes": 14667,
+    "saved_utf8_bytes": 8658,
+    "other_definitions_unchanged": 147,
+    "all_non_description_schema_fields_unchanged": true,
+    "tool_behavior_unchanged": true
+  },
+  "original_request_followthrough": {
+    "actual_original_requests": 3,
+    "current_setup_bytes": 19515,
+    "actual_response_bytes": 45433,
+    "total_bytes": 64948,
+    "original_cap": 65536,
+    "remaining_bytes": 588,
+    "old_setup_plus_same_actual_responses": 71812,
+    "formerly_withheld_third_read_bytes": 21146,
+    "third_source_matches_original_hash_and_current400lines": true,
+    "original_scores_changed": false,
+    "scope": "One informed fixed-request replay. It recovers the specific budget failure;588remaining bytes do not complete the full task."
+  },
+  "validation": {
+    "native_build_seconds": 1034.8652219000505,
+    "native_build_pass": true,
+    "historical_behavior_tests": 47,
+    "fresh_behavior_tests_run": false,
+    "historical_test_exceptions": [
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/models/requests.rs"
+    ],
+    "cold_public_reads": 10,
+    "normal_public_reads": 10,
+    "all_prior_replies_preserved_except_age_and_grep_elapsed": true,
+    "new_model_run_in_this_evidence": false
+  },
+  "evidence": {
+    "core-description-compact-bound-helpers-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-bound-helpers-20261109.json",
+      "sha256": "0e149959da6be5cb2abdbf8c402887d8e8cfe498001b9e3934e9bab2bd90ac5f"
+    },
+    "core-description-compact-shipping-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-shipping-20261109.json",
+      "sha256": "b9908802395da924c987a7481896be3b60d241571c7302ddb8bde85543c4f563"
+    },
+    "core-description-compact-build-artifact-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-build-artifact-20261109.json",
+      "sha256": "0c05e160dc93b475fdace25cf6d547fddf2353aadb6441b027b57d0c194474f0"
+    },
+    "core-description-compact-paired-package-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-paired-package-20261109.json",
+      "sha256": "6ffab8ae9e7fc6a6f240226c5952c7f3b6cddd804d2d2cdb91823cba4d4ac0ba"
+    },
+    "core-description-compact-cold-v1-20261109/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-cold-v1-20261109\\acceptance.json",
+      "sha256": "5bd72efc68bb0c40e8c7b2ef14e91341907096d6a46805fec77a1db2d8cbd27a"
+    },
+    "core-description-compact-release-gates-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-release-gates-20261109.json",
+      "sha256": "8330b1e05e6e09b7da416febbc698f7788255c1012cb2fbe9bc78aa12c635eca"
+    },
+    "core-description-compact-forward-applicability-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-forward-applicability-20261109.json",
+      "sha256": "2761f9fabd50080d19c6aeb0d0cd57af0e771c39f34eded34d47579bc770eb99"
+    },
+    "core-description-compact-installer-result-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-installer-result-20261109.json",
+      "sha256": "d7066bd898b1b513ff6c8e81280415821d0f8ac26f9781e0a3e97ef6c9c0d193"
+    },
+    "core-description-compact-normal-launch-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-normal-launch-20261109.json",
+      "sha256": "36cac0396292d0381e302b2015a7beff8977f2425a753427cdde8080c609df59"
+    },
+    "core-description-compact-normal-v1-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-normal-v1-20261109.json",
+      "sha256": "bee463b8993e815696305b6c83810133ab679fc5cc26e61fa1583d010ca0baa7"
+    },
+    "core-description-budget-followthrough-20261109.py": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-budget-followthrough-20261109.py",
+      "sha256": "81a3f93607462788d0420870134277615c9267552d0b8624f0182db343ba8acd"
+    },
+    "core-description-budget-followthrough-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-budget-followthrough-20261109.json",
+      "sha256": "af0ec8e1aeee5507bc3e0c35b2c3ee43370025b9a3f29a8c0c0eb1318f1d4bf9"
+    },
+    "core-description-compact-retained-review-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-retained-review-20261109.json",
+      "sha256": "62c724111ba6c242399bd855c0a8cc6efb97cec215bbbd95bd3c70ceffa60132"
+    }
+  },
+  "runtime": {
+    "daemon_pid": 11080,
+    "primary_started_at_ms": 1794235269190,
+    "launcher_pid": 25296,
+    "server_sha256": "127cac873fc9842894be4ff9c3681a84114b077bc119a65a9a167ff2cba40bad",
+    "manifest_sha256": "a1b4dc1aef977ab7c2f6cd65a70572fb81a68101d9ef085612eb738dccdb666c",
+    "generation": 3139,
+    "normal_config_unchanged": true,
+    "maintenance_hold_active": false,
+    "actual_upgrade_invocations": 1,
+    "old_daemon_exited_naturally": true,
+    "host_stopped": false
+  },
+  "resources": {
+    "build_and_cold_handles_closed_owned_tmp_removed": true,
+    "observers_closed": true,
+    "pending_rpc": null,
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ec0e9dd021af45f389382a08225b2e30",
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retention": "Keep helpers/drafts/source checks/package and prior pair for review. No preexisting deletion. Normal service intentionally active."
+  },
+  "followup_original_full_task": {
+    "status": "ONE_FRESH_ASSISTED_ATTEMPT_BOUND_IN_PROGRESS",
+    "candidate": "/root/compact_core_qa_birch",
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-readiness.json",
+      "sha256": "b8a8e039e18ab3f09aa0eb9cd6af6f26b0a0256bfc02d687c6641ca0b65e739e"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-bindings.json",
+      "sha256": "6a07df10bd08c3f87a5c586fde1f1b4929d1a0ea1ac98ed25ea1a0ed96c3a4ef"
+    },
+    "limits": "Original full QA task/fivecriteria/8requests/65536B INCLUDINGsetup. One attempt, no retries or favorable rescore. Historical source-only outcome remains a sequential reference, not a new matched pair."
+  },
+  "original19gates_closed": false,
+  "general_productivity_gain_proven": false,
+  "full_task_complete_in_this_receipt": false,
+  "goal_complete": false
+}
