@@ -1,0 +1,63 @@
+{
+  "status": "CONCRETE_NAMED_NAVIGATION_GAP_SELECTED_IMPLEMENTATION_IN_PROGRESS",
+  "at_utc": "2026-11-09T10:11:19.702295+00:00",
+  "task": "Assess a proposed compatibility change treating missing persisted featureCount or coordinateCount as zero in ReadMeta; identify behavior, callers, risk and checks without editing OciusX.",
+  "evaluation_scope": "Root-informed real-source planning observation; not a held-out/fresh-agent/matched-productivity trial or a rescore of prior capped tasks.",
+  "observations": {
+    "named": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-persisted-count-change-codemap-20261109.json",
+      "sha256": "35e5de9627773da4b4a39cce3463ca556e022cab4d71a05dd210434d16aaad85"
+    },
+    "literal_corrected": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-persisted-count-change-literal-v2-20261109.json",
+      "sha256": "487f0fcbedc5270e925c082d0ea567377c4e522b8efe0eff7a095a26c9c13fa3"
+    },
+    "failed_root_request": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-persisted-count-change-literal-20261109.json",
+      "sha256": "489d4a138e5667cc516b314186f5a49b117c1094220bb38d0df723223807d068"
+    },
+    "public_attempts": 3,
+    "successful_returned_text_utf8_bytes": 18024,
+    "total_returned_bytes": null,
+    "failure_limit": "Initial literal request incorrectly retained include_declarations=true. Server reported isError; root asserted before retaining the returned error body/bytes. Failed request and closed observer receipt retained. Exact total cost and error wording cannot be recovered and are not claimed."
+  },
+  "concrete_gap": "ReadMeta bare-name lookup in exact Spatial file exhausted64-key terminal fallback with zero admitted candidates. It returned unrelated opening120lines and generic file actions that dropped the requested name. Existing literal mode found current call2257/declaration2497 in5884bytes, but required manual construction of a valid mode request.",
+  "independent_source_check": {
+    "reviewer": "/root/core_task_clean_judge",
+    "file": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+    "sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+    "observed_literal_windows": [
+      [
+        2245,
+        2269
+      ],
+      [
+        2485,
+        2509
+      ]
+    ],
+    "validation_body_not_yet_recovered": true
+  },
+  "selected_change": "After original allocation, conditionally replace the generic CodeMap file action for an eligible bare-name lookup with zero admitted candidates by a valid exact-file literal-source action. Preserve all existing source/actions/coverage except this deliberately replaced discovery action and its scope wording. Final full response cap check must retain byte-identical baseline on pressure. No scan/parser/index/API expansion.",
+  "desired_behavior": [
+    "Execute the offered literal action to recover a declaration beyond first120lines and64-key name scan plus its caller.",
+    "Preserve exclusions/pathfilter and valid explicit literal mode; no repeated symbol selector.",
+    "Successful/ambiguous/long/qualified-name cases retain existing behavior.",
+    "Do not discard source or mandatory facts to fit optional action; rollback trial on cap pressure."
+  ],
+  "projection_only": {
+    "before_bytes": 12140,
+    "after_bytes": 12208,
+    "cap_bytes": 12288,
+    "not_a_built_or_deployed_result": true
+  },
+  "resources": "All three observer pipes closed, no pending RPC or fixture tree; no source/index/config/service changes. Retain evidence only under recorded V for review.",
+  "previous_recovery_disposition": {
+    "serializer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-classification-serializer-navigation-outcome-20261109.json",
+      "sha256": "8f0e4efdf65215847302b2e4437c0d2e459cf26f6db39e76571f851e8edd47ed"
+    },
+    "cancellation": "Independent retained-evidence check confirms old self-links already fixed by6fe7b36, collection recovery/provenance usable; do not reopen or repeat those paths."
+  },
+  "goal_complete": false
+}

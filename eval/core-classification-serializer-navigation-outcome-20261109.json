@@ -1,0 +1,58 @@
+{
+  "status": "EXISTING_SERIALIZER_NAVIGATION_SOURCE_VERIFIED_NO_PRODUCER_DEFECT_DEMONSTRATED",
+  "at_utc": "2026-11-09T10:02:58.082463+00:00",
+  "selected_original_work": "CodeMap/Blast navigation and witness usefulness for the unchanged automatic-classification task.",
+  "probes": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-serializer-navigation-probe-20261109.json",
+      "sha256": "1e4b9852c2b192aa437dddb74abe62e2a3a90c46a312d0f96933fabeeee8d77c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-policy-fields-navigation-probe-20261109.json",
+      "sha256": "8ac26b821cc221c15a25d29e17895afe6135ba86b8537a2bcff92a9aa5f70dd0"
+    }
+  ],
+  "separate_informed_cost": {
+    "calls": 2,
+    "returned_text_utf8_bytes": 20610,
+    "outside_all_original_capped_runs": true
+  },
+  "source_verified_chain": [
+    "Actual capped R3: ResolvePolicy(source,meta) at2262 supplies policy to BuildMetaOnlyJson at2265; returned metaJson assigned to ViewportResult.Json at2272.",
+    "First informed CodeMap: BuildMetaOnlyJson2521..2627 passes the same policy parameter to FileLayerZoomPolicy.AppendJson at2591 and returns sb.ToString at2608.",
+    "Second informed CodeMap: AppendJson361..416 writes zoomOverride,automaticZoom,effectiveMinZoom,policyPending at383..386. FormatNullable389..394 serializes absent values as literal null and integers with invariant formatting."
+  ],
+  "independent_review": {
+    "agent": "/root/core_task_clean_judge",
+    "checks": "Both receipt/text hashes, exact returned bytes, current raw source windows/full-file BLAKE3, cross-probe reference and installed runtime pair verified. Existing canonical symbols and source/impact/method-context actions were present.",
+    "limitations": "Method-context actions were not executed. These observations do not expose sidecar invocation/return-path evidence or establish compiler/runtime binding, client response application or editor joins."
+  },
+  "decision": "Existing exact-name CodeMap navigation recovers the selected serializer branch. Missing content in the capped candidate answer does not demonstrate a producer defect; no speculative API or production change selected.",
+  "original_task": {
+    "outcome": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-fixed-classification-20261109.json",
+      "sha256": "e78ae3ee3a0d5df32d16ec8be5443dd9b997ab92d6cb79db30aa69de477376c1"
+    },
+    "calls": 8,
+    "returned_text_utf8_bytes": 62770,
+    "grades": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PARTIAL",
+      "PASS"
+    ],
+    "rescored": false,
+    "full_task_complete": false
+  },
+  "resources": {
+    "observer_pipes_closed": true,
+    "pending_rpc": null,
+    "source_index_config_service_changes": false,
+    "new_fixture_tree": false,
+    "retained_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain receipts for review; remove only with approval of exact existing paths. No current temporary execution resources remain."
+  },
+  "next_selected_work": "Reuse retained original cancellation and classification evidence to select a concrete remaining CodeMap/Blast navigation or witness failure. No further classification replay or production change without demonstrated deficiency.",
+  "goal_complete": false
+}
