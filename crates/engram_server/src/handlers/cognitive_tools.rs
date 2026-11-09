@@ -39,11 +39,17 @@ fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
     }
 }
 
+struct LiteralSourceQuery {
+    literal: String,
+    start_line: u64,
+    continuation: serde_json::Value,
+}
+
 /// Supplement a selected-file orientation with one current snapshot. Indexed
 /// navigation remains untouched; complete context lines yield to the anchor.
 fn codemap_source_preview(
     mut navigation: serde_json::Value, directory: &std::path::Path, project: &str,
-    targeted: bool, source_contains: Option<&str>, header: &str, footer: &str,
+    targeted: bool, literal_query: Option<&LiteralSourceQuery>, header: &str, footer: &str,
 ) -> Result<String, String> {
     const REPLY_BYTES: usize = 12 * 1024;
     const PREVIEW_BYTES: usize = 8 * 1024;
@@ -86,8 +92,8 @@ fn codemap_source_preview(
             return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
         }
     };
-    if let Some(literal) = source_contains {
-        return codemap_literal_inspection(navigation, &file, &source, &hash, project, literal, header, footer);
+    if let Some(query) = literal_query {
+        return codemap_literal_inspection(navigation, &file, &source, &hash, project, query, header, footer);
     }
     let total = source.lines().count() as u64;
     // Preserve the surrounding page when it contains the observed declaration.
@@ -151,10 +157,11 @@ fn codemap_source_preview(
 /// or calls. The selected-file navigation and its coverage remain unchanged.
 fn codemap_literal_inspection(
     mut navigation: serde_json::Value, file: &str, source: &str, hash: &str,
-    project: &str, literal: &str, header: &str, footer: &str,
+    project: &str, query: &LiteralSourceQuery, header: &str, footer: &str,
 ) -> Result<String, String> {
     const MATCHES: usize = 8;
     const CONTEXT: u64 = 12;
+    let literal=query.literal.as_str();
     let render = |value: &serde_json::Value| -> Result<String, String> {
         Ok(format!("{header}\n## CodeMap Navigation\n\n```json\n{}\n```\n{footer}",
             serde_json::to_string(value).map_err(|e|e.to_string())?))
@@ -166,8 +173,11 @@ fn codemap_literal_inspection(
         serde_json::json!({"tool":"get_full_method_body","arguments":arguments})
     };
     let total=source.lines().count() as u64;
-    let mut hits=Vec::new();let mut lookahead=None;let mut scanned=0;
-    for (index,line) in source.lines().enumerate() {
+    if query.start_line==0 || query.start_line>total.saturating_add(1) {
+        return Err("source_start_line must be positive and no greater than current file line count plus1; restart from1 and compare source hashes after a file change".into());
+    }
+    let mut hits=Vec::new();let mut lookahead=None;let mut scanned=query.start_line-1;
+    for (index,line) in source.lines().enumerate().skip((query.start_line-1) as usize) {
         scanned=index as u64+1;
         if line.as_bytes().windows(literal.len()).any(|part|part.eq_ignore_ascii_case(literal.as_bytes())) {
             if hits.len()==MATCHES {lookahead=Some(scanned);break;}
@@ -207,6 +217,10 @@ fn codemap_literal_inspection(
         "sampled_matching_lines_source_omitted":hits.len(),
         "recovery":lookahead.map(|line|read(line,None)),
         "scope":"Current literal text and nearby lines, not declarations, calls, value flow, binding or project freshness. Context may contain unsampled matches; recovery reads fresh source, not a continued search."});
+    if query.start_line>1 {
+        preview["scan_start_line"]=serde_json::json!(query.start_line);
+        preview["scan_scope"]=serde_json::json!("Inclusive suffix only; scan_complete and not_observed concern this suffix, not earlier lines. Context may precede the scan. Fresh snapshot: compare source_file_hash before combining pages; changed bytes require restarting from1.");
+    }
     navigation["current_source"]=preview.clone();
     if !fits(&navigation)? {return Err("Literal-inspection metadata exceeds the source-preview budget; use a narrower scope or a separate source read".into());}
     let mut rows=Vec::new();let mut inline_matches=0;let mut inline_windows=0;let mut first_missing=None;
@@ -271,6 +285,17 @@ fn codemap_literal_inspection(
                 navigation["current_source"]["recovery"]=original.clone();
             }
         }
+    }
+    // Match continuation is independent of missing-source recovery. Allocate
+    // it last so no accepted source, action or omission fact is displaced.
+    if let Some(line)=lookahead {
+        let mut trial=navigation.clone();
+        let mut action=query.continuation.clone();
+        action["arguments"]["source_start_line"]=serde_json::json!(line);
+        trial["current_source"]["next_matches"]=action;
+        trial["current_source"]["next_matches_scope"]=serde_json::json!("Continue the same literal search inclusively at lookahead, even if it appeared in context. Fresh snapshot: compare source_file_hash; changed bytes require restarting from1. Existing recovery reads omitted source independently.");
+        if serde_json::to_vec(&trial["current_source"]).map_err(|e|e.to_string())?.len()<=8*1024
+            && render(&trial)?.len()<=12*1024 {navigation=trial;}
     }
     render(&navigation)
 }
@@ -1730,6 +1755,9 @@ impl Engram {
         req: crate::models::CodebaseOverviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if req.source_start_line.is_some_and(|line|line==0 || req.source_contains.is_none()) {
+            return Err(McpError::invalid_params("source_start_line requires source_contains and a positive inclusive line",None));
+        }
         if req.source_contains.as_deref().is_some_and(|term|term.is_empty() || term.len()>128
             || term.chars().any(char::is_control) || !req.include_source || req.include_declarations
             || req.symbol_name.is_some() || req.symbol_node_id.is_some()) {
@@ -2114,13 +2142,19 @@ impl Engram {
             let directory=std::path::PathBuf::from(&rec.directory);
             let project=req.project_id.clone();
             let targeted=req.symbol_node_id.is_some() || req.symbol_name.is_some();
-            let source_contains=req.source_contains.clone();
+            let literal_query=req.source_contains.as_ref().map(|literal|LiteralSourceQuery {
+                literal:literal.clone(),start_line:req.source_start_line.unwrap_or(1),
+                continuation:codemap_followup(serde_json::json!({"tool":"get_codebase_overview","arguments":{
+                    "project_id":req.project_id,"scope":req.scope,"exclude_paths":req.exclude_paths,
+                    "include_source":true,"include_declarations":false,"include_retained_context":false,
+                    "source_contains":literal,"limit":req.limit}}),req.path_contains.as_deref()),
+            });
             let header=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
             let footer=self.freshness_footer(&req.project_id,generation).await;
             let preview_hold=source_hold.clone();
             let text=tokio::task::spawn_blocking(move || {
                 let _held=preview_hold;
-                codemap_source_preview(navigation,&directory,&project,targeted,source_contains.as_deref(),&header,&footer)
+                codemap_source_preview(navigation,&directory,&project,targeted,literal_query.as_ref(),&header,&footer)
             }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
                 .map_err(|e|McpError::invalid_params(e,None))?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
