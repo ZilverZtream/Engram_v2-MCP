@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T11:41:03.492599+00:00",
-    "reason": "Finished the previously unexecuted eight-candidate frozen regression and separate blind judgment using the existing collector. Actual fresh model execution is complete; results show equal quality, fewer requested evidence IDs and more delivered input bytes. Historical-packet limits and remaining execution/current-producer gaps are explicit.",
+    "at_utc": "2026-11-09T12:21:27.992528+00:00",
+    "reason": "Delivered and actually executed the existing frozen collector through persistent Codex sessions. Eight candidates and separate judge complete without manual response relay. Both arms 19/20, zero false guidance, assisted input bytes +96.1%; no quality/productivity advantage established. Startup failure retained, not hidden.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original EG-24 regular accepted-task verification after delivered CodeMap/Blast fixes. Prepared model regression now complete; regular automatic execution and current-build producer coverage remain incomplete. No speculative core-tool fix selected from historical results.",
-    "next_user_visible_deliverable": "Complete the original regular-verification execution requirement by connecting actual isolated model execution to the existing frozen_task_run collector, using its unchanged four-category protocol and independent judge. Reuse the supported Codex execution interface; do not create a second evaluation framework. Demonstrate the executable path with a real run and keep historical-packet regression explicitly separate from the still-missing current-build producer replay coverage. Do not reopen completed CodeMap/Blast source probes or alter past task scores.",
+    "active_original_item": "Original EG-24 regular accepted-task verification after delivered CodeMap/Blast fixes. Automatic execution path is delivered and demonstrated. Current-build producer replay and matched real-task/QA benefit remain incomplete; historical model regressions do not close them.",
+    "next_user_visible_deliverable": "Continue the already-recorded original EG-24 current-build producer replay gap through existing producers and this collector. Reuse the recorded producer-recovery work; the scoped-policy patch is unapplied and does not cover all four categories or CodeMap/Blast. Establish actual current outputs before another model comparison. Do not create another evaluation framework, reopen completed core source probes, invent narrower tasks, alter prior scores, or expand EG14 instruction drafting.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
     "previous_goal_turn_classification": {
       "classification": "PROGRESS",
-      "reason": "Executed all eight previously prepared candidate runs and independent judgment; collector now complete and evidence independently verified. This is actual model-task completion, not an archive-only check or a new production improvement.",
+      "reason": "Implemented, tested, independently reviewed and executed the previously manual collector end to end. Actual run completed eight candidates and a separate judge; captured quality is 19/20 in both arms and input cost is higher. Executable verification is delivered; overall core-tool usefulness remains unfinished.",
       "permission_dependency": false,
       "goal_complete": false
     },
@@ -11375,6 +11375,10 @@
     "latest_completed_frozen_model_regression": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg24-collected-regression-outcome-20261109.json",
       "sha256": "d9c1f041f331bf1d20b1e039944015d6727c5367a2986cc3afefb8f1a085e182"
+    },
+    "latest_automated_frozen_model_execution": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg24-codex-execution-outcome-20261109.json",
+      "sha256": "1660e6cb89bf0bac371f1fe1b472d8b9993eec4fbe25da106e9830772c639794"
     }
   }
 }

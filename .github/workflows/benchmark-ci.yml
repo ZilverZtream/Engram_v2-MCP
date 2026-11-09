@@ -24,7 +24,7 @@ jobs:
         id: task_protocol
         run: |
           mkdir -p benchmark-artifacts
-          python3 -B -m unittest discover -s eval -p test_frozen_task_run.py -v 2>&1 | tee benchmark-artifacts/frozen-task-protocol.log
+          ENGRAM_TEST_TMPDIR="$PWD/benchmark-artifacts" python3 -B -m unittest discover -s eval -p 'test_frozen_task_*.py' -v 2>&1 | tee benchmark-artifacts/frozen-task-protocol.log
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@nightly

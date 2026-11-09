@@ -37,7 +37,8 @@ fresh agents supply a new model evaluation. Reported agent wall time includes
 coordinator handoff and requested-file waits, not pure inference latency. These
 review/plan tasks do not establish completed OciusX implementation or matched QA
 productivity. Private source packets remain outside Git in the recorded evidence
-directory. The collector examples open no index, database, server or model.
+directory. Manual collection and offline verification open no index, database,
+server or model. The explicit `execute` command below launches models.
 
 ### Collecting another run
 
@@ -78,6 +79,54 @@ synthetic protocol exercises. Benchmark CI runs these protocol tests only;
 it does not launch models or establish fresh task quality. A completed
 collection remains an evaluation of historical frozen context, not a new
 query against the current Engram build or matched implementation/QA benefit.
+
+### Executing the frozen comparison with Codex
+
+Use Python 3.11 or newer, an authenticated native Codex executable, and a new
+private run directory.
+The executor uses the existing four-task protocol, eight candidates, bounded
+requested reads, and separate opaque judge packet:
+
+```powershell
+python -B eval/frozen_task_run.py prepare <recorded-corpus> <new-private-run> --delivery-mode manual_packet_v1
+python -B eval/frozen_task_run.py execute <new-private-run> --codex-executable <absolute-native-codex-path>
+python -B eval/frozen_task_eval.py report <new-private-run>
+```
+
+Here `manual_packet_v1` names the existing direct-packet protocol: exact packet
+bytes go through stdin, so no file-opening instruction is counted as model
+input. Each candidate gets a fresh persistent session; requested reads resume
+that exact session ID. The judge gets a ninth fresh session. Execution inherits
+the configured model and records its configuration hash. It does not retry,
+repair answers, substitute models, or replace failed sessions.
+
+The executor disables known tools and configured MCP servers, suppresses project
+instructions and memory, and uses an otherwise empty working directory. It
+rejects runs with unexpected or tool events. This is contamination detection,
+not proof that platform context or every possible capability is absent. Raw
+events, final responses, process outcomes and session IDs remain private beside
+the collection. Persistent Codex sessions also remain in normal runtime storage;
+the executor does not delete them. Failed runs retain their evidence and cannot
+be silently restarted. The per-invocation deadline defaults to 900 seconds;
+ordinary observation waits do not restart a running invocation.
+
+Packet bytes and collector wall times remain the original metrics. Provider
+usage and subprocess timings are separate execution evidence. This command can
+run a fresh model comparison over the historical packets; it does not capture
+current Engram producer output or demonstrate completed implementation/QA benefit.
+CI checks the execution protocol with synthetic subprocesses, not paid model
+runs or private project evidence. For local protocol tests, set
+`ENGRAM_TEST_TMPDIR` to the recorded scratch directory before running
+`python -B -m unittest discover -s eval -p 'test_frozen_task_*.py' -v`.
+
+The [November 9 execution receipt](eg24-codex-execution-outcome-20261109.json)
+records a completed automatic run: eight candidates, eight exact-session
+continuations and a separate judge in about seven minutes. Both arms satisfied
+19/20 criteria with no false guidance identified; assisted packet bytes were
+96.1% higher and requested evidence IDs fell from eight to seven. Both arms
+missed the diagnosis task's bounded-next-test criterion. A startup-warning
+failure before any task turn is retained separately. These results do not
+replace the earlier pilot scores or demonstrate a quality/productivity gain.
 
 Separate instruction-maintenance examples cover a real reporting `no_change`,
 a present KML code/policy `conflict`, and a historical PR2077 marker API `change`.

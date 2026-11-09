@@ -134,6 +134,34 @@ class FrozenTaskRunTests(unittest.TestCase):
             collection.record(self.root, a, 'different', self.answer())
         self.assertEqual(collection.status(self.root)['completed_candidates'], 0)
 
+    def test_stdin_delivery_counts_only_exact_packets_including_requested_reads(self):
+        pending = collection.prepare(self.corpus, self.root, 'protocol_test', 'manual_packet_v1')
+        self.assertTrue(all('packet' in row and 'delivery_instruction' not in row
+                            for row in pending['pending_candidates']))
+        self.assertFalse((self.root / 'delivery-protocol-v2.json').exists())
+        state, _, _ = collection.load_state(self.root)
+        for n, run in enumerate(state['runs']):
+            actor = 'stdin-candidate-' + str(n)
+            collection.bind(self.root, run['opaque_id'], actor)
+            if n == 0:
+                collection.record(self.root, run['opaque_id'], actor, self.answer(['read0']))
+            collection.record(self.root, run['opaque_id'], actor, self.answer())
+        self.write(self.response, self.judgments())
+        collection.judge(self.root, 'stdin-judge', self.response)
+        state, manifest, oracle = collection.load_state(self.root)
+        metrics = evaluation.results(self.root, manifest, oracle)
+        for run, metric in zip(state['runs'], metrics):
+            self.assertTrue(all('delivery_instruction' not in turn for turn in run['turns']))
+            raw = [(self.root / turn['prompt']).read_bytes() for turn in run['turns']]
+            self.assertEqual(metric['input_bytes'], sum(len(value) for value in raw))
+            self.assertEqual(metric['input_characters'], sum(len(value.decode('utf-8')) for value in raw))
+        self.assertEqual(sum(m['additional_reads'] for m in metrics), 1)
+
+    def test_unknown_delivery_mode_rejected_without_preparation(self):
+        with self.assertRaisesRegex(ValueError, 'delivery mode'):
+            collection.prepare(self.corpus, self.root, 'protocol_test', 'guessed_mode')
+        self.assertFalse(self.root.exists())
+
     def test_read_caps_unknown_reads_and_canary_cannot_advance_state(self):
         candidate = self.prepare()['pending_candidates'][0]['candidate_id']
         collection.bind(self.root, candidate, 'one')
