@@ -1,0 +1,106 @@
+{
+  "status": "ONE_LIVE_KNOWN_TASK_PASS_NO_CAUSAL_FEATURE_OR_MATCHED_PRODUCTIVITY_CLAIM",
+  "at_utc": "2026-11-09T14:01:53.772124+00:00",
+  "source_commit": "641d54fa89bfe3daa4dcecc9f15aae248ab54db3",
+  "task": "Review the proposed original-project restriction on shared uploaded layer zoom saves; decide minimal action and preserve permission conditions. Do not implement.",
+  "judgment": {
+    "grade": "PASS",
+    "complete_under_original_criteria": true,
+    "passed": 5,
+    "partial": 0,
+    "failed": 0,
+    "reason": "The answer rejects the proposed restriction using accepted policy, proposes the minimal no-change action, preserves the original role/company and inherited-map exception plus separate caller checks, and clearly distinguishes those requirements from unverified runtime compliance. Honest inspection limits satisfy the fifth original criterion; they do not convert this bounded policy review into an incomplete exhaustive authorization audit."
+  },
+  "criteria": [
+    {
+      "id": "save_authorization_exception",
+      "grade": "PASS"
+    },
+    {
+      "id": "ui_roles_ownership",
+      "grade": "PASS"
+    },
+    {
+      "id": "caller_checks_separate",
+      "grade": "PASS"
+    },
+    {
+      "id": "no_unjustified_change",
+      "grade": "PASS"
+    },
+    {
+      "id": "evidence_limits",
+      "grade": "PASS"
+    }
+  ],
+  "unsupported_claims_count": 0,
+  "false_guidance_count": 0,
+  "usage": {
+    "calls": 8,
+    "successful_calls": 7,
+    "error_calls": 1,
+    "returned_utf8_bytes": 55317,
+    "raw_response_file_bytes": 55494,
+    "windows_crlf_display_delta_bytes": 177,
+    "setup_raw_file_bytes": 41233,
+    "setup_normalized_text_utf8_bytes": 40622
+  },
+  "setup_accounting_note": "40622 normalized UTF-8 bytes measured from unchanged candidate packet and schema files. A prior summary stated40657; that summary value is not used. Raw setup files41233 bytes. Returned text55317 bytes and delivered CRLF files55494 bytes are distinct.",
+  "feature_usage": {
+    "candidate_span_preview": false,
+    "impact_analysis": false,
+    "compute_blast_radius": false,
+    "codemap_literal_source_inspection": true
+  },
+  "attempts": 1,
+  "retries_or_replacement_attempts": 0,
+  "evidence": {
+    "-judgment.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-judgment.json",
+      "sha256": "88ecf94bae98f3e5867c08fa35548d773ca36aedfd79bbc68102c122da2ce6d0"
+    },
+    "-execution-verification.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-execution-verification.json",
+      "sha256": "907c87afe2cfe6c8876c35aeb7f2029c99da340177cb623feeb2706852150cc9"
+    },
+    "-scope-authorization-ledger.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-scope-authorization-ledger.json",
+      "sha256": "4d5177c6d2eb9e65193105cf9003cee14ec82239a161cb253cc83f8409d1a453"
+    },
+    "-final.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-final.json",
+      "sha256": "10bf970448c0d432959894d2b730a1930da4f37344cf03abef27010d51454764"
+    },
+    "-scope-authorization-agent-binding.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-scope-authorization-agent-binding.json",
+      "sha256": "96869f00e396b13914841f7cb3ae6944460279c69486e672be5531389d945df4"
+    },
+    "-runtime-pins.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-runtime-pins.json",
+      "sha256": "8d6640dd82db2c9aced39e87b3def965c307dcc7434abd2dcc0631be98043b9c"
+    },
+    "-scope-authorization-candidate-packet.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-scope-authorization-candidate-packet.json",
+      "sha256": "03d5c802060955cb00cead8185f566ebbce50b98a6c4a9b884db874006ad83e9"
+    },
+    "-tool-schemas.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\candidate-preview-scope-fresh01-20261109-tool-schemas.json",
+      "sha256": "94772ca713623a5d2df5557a2cb1737ccf1476a3975c1b05d0566427c739f698"
+    }
+  },
+  "limits": [
+    "One known-task bounded policy review, not held-out generalization or exhaustive runtime authorization.",
+    "Agent used CodeMap literal source inspection; candidate-span preview, impact_analysis and compute_blast_radius were not used.",
+    "Different protocol from the frozen comparison; historical19/20 versus19/20 and assisted input increase remain unchanged.",
+    "Fork-none constrained recorded workflow is not universal process/model isolation proof.",
+    "Initial overview error and unproductive literal probe charged; no model retry or favorable rescore."
+  ],
+  "resources": {
+    "observer_pipe_closed": true,
+    "pending_rpc": null,
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retention": "Keep exact packet, calls, returned files, ledger, answer and judgment for review. No application edits, new fixture or pending task."
+  },
+  "matched_productivity_advantage_proven": false,
+  "goal_complete": false
+}
