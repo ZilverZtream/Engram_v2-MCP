@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T19:22:03.579399+00:00",
-    "reason": "Installed source handoff fresh fullQA finished: PASS/PARTIAL/PARTIAL/FAIL/PARTIAL. Promoted action unused; diagnostic budget refusal and material setup transport difference preserved. No task-level win.",
+    "at_utc": "2026-11-09T20:01:42.169189+00:00",
+    "reason": "Source-focused CodeMap/impact display and nearer retained declaration-read alternative implemented/reviewed/behavior-checked. Actual proposed107line read verified on installed server; newselector notyetdeployed. PriorfullQA remains incomplete.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent usefulness remains unfinished. a18060d deployed and mechanically verified; fresh original task still lacks backend-to-UI evidence. Do not equate repeated local delivery with successful task completion.",
-    "next_user_visible_deliverable": "Substantive evidence/navigation improvement from the original core backlog, validated on actual task output. No further prefix-only tweak or unchanged-behavior retry selected by this result; the candidate budget mistake is not a backend defect.",
+    "active_original_item": "CodeMap/Blast usefulness: prepare one release containing compact source presentation and generic nearer-declaration read plan, preserving all prior actions/graph evidence.86unique behaviorcases pass after one documented test-only assertion correction; no task-level completion.",
+    "next_user_visible_deliverable": "Verify actual cold/normal output and literal107line source action for the reviewed release, install once, then one fresh original fullQA. No whole-task success inferred from byte savings, tests or controlled source proof.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Completed pending fresh task evaluation and independent source-based judgment; same grades as predecessor, promoted action not adopted. Recorded material setup-cost confound. No product source change or goal completion.",
+    "previous_goal_turn_classification": "Progress: previous turn completed independent originalQA with no taskwin; this turn changes source navigation and validates concrete controller/core/resolver source evidence. Source/deployment work remains active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11455,6 +11455,10 @@
     "latest_source_handoff_full_qa": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-handoff-full-qa-20261109.json",
       "sha256": "efe31da547e899e76698cf6ed830c9421ad110783ef75d68b4e6bbdded32639b"
+    },
+    "latest_source_view_implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-view-20261109.json",
+      "sha256": "b200e262f7e3a64a8826b5aeff015884ea7cb35de641cb14cf6f3ab276560583"
     }
   }
 }

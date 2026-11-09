@@ -77,16 +77,143 @@ fn named_literal_recovery(navigation: &serde_json::Value) -> Option<serde_json::
 fn render_named_literal_recovery(
     navigation: &serde_json::Value, limit: usize,
     render: impl Fn(&serde_json::Value) -> Result<String, String>,
-) -> Result<String, String> {
+) -> Result<serde_json::Value, String> {
     let baseline = render(navigation)?;
     if baseline.len() <= limit {
         if let Some(trial) = named_literal_recovery(navigation) {
             if let Ok(candidate) = render(&trial) {
-                if candidate.len() <= limit { return Ok(candidate); }
+                if candidate.len() <= limit { return Ok(trial); }
             }
         }
     }
-    Ok(baseline)
+    Ok(navigation.clone())
+}
+
+/// Source inspection keeps its allocated bytes and candidate actions verbatim.
+/// Detailed lookup work remains available through the metadata-only action.
+fn codemap_source_view(navigation: &serde_json::Value) -> Option<serde_json::Value> {
+    use serde_json::{Value, json};
+    let files = navigation["files"].as_array()?;
+    if files.len() != 1 || !navigation.get("current_source")?.is_object()
+        || navigation["current_source"]["file_path"] != files[0]["path"]
+        || navigation["areas"].as_array().is_some_and(|areas| !areas.is_empty()) { return None; }
+    let file = &files[0];
+    let actions = file["actions"].as_array()?;
+    let position = actions.iter().position(|action| action["tool"] == "get_codebase_overview")?;
+    let mut recovery = actions[position].clone();
+    let args = recovery["arguments"].as_object_mut()?;
+    for key in ["source_contains", "source_start_line", "symbol_name", "symbol_node_id"] { args.remove(key); }
+    args.insert("include_source".into(), json!(false));
+    args.insert("include_retained_context".into(), json!(false));
+    if let Some(name) = file["name_selection"].get("requested_name") {
+        args.insert("symbol_name".into(), name.clone());
+        args.insert("include_declarations".into(), json!(true));
+        if let Some(limit) = navigation["coverage"]["declarations"][0].get("candidate_limit") {
+            args.insert("limit".into(), limit.clone());
+        }
+    } else if let Some(id) = file["symbol_selection"].get("node_id") {
+        args.insert("symbol_node_id".into(), id.clone());
+        args.insert("include_declarations".into(), json!(true));
+    } else if navigation["include_declarations"] == false {
+        args.insert("include_declarations".into(), json!(false));
+    }
+    let mut view = navigation.clone();
+    let root = view.as_object_mut()?;
+    for key in ["files", "areas", "limitations", "exclude_paths"] { root.remove(key); }
+    if root.get("next_page") == Some(&Value::Null) { root.remove("next_page"); }
+    root.insert("format".into(), json!("engram-codemap-source-v1"));
+    root.insert("candidates".into(), file.get("symbols").cloned().unwrap_or(json!([])));
+    root.insert("file_generation".into(), file["physical_generation"].clone());
+    let normalized = |action: &Value| {
+        let mut action = action.clone();
+        if let Some(args) = action["arguments"].as_object_mut() {
+            for (key,default) in [("include_source",json!(false)),("include_retained_context",json!(false)),
+                ("include_declarations",json!(true)),("offset",json!(0))] {
+                if args.get(key) == Some(&default) { args.remove(key); }
+            }
+        }
+        action
+    };
+    let replaces_original = normalized(&recovery) == normalized(&actions[position]);
+    root.insert("metadata_recovery".into(), recovery);
+    let other_actions: Vec<_> = actions.iter().enumerate().filter(|(index,_)| *index != position || !replaces_original)
+        .map(|(_,action)| action.clone()).collect();
+    if !other_actions.is_empty() { root.insert("file_actions".into(), json!(other_actions)); }
+    let mut selection = file.clone();
+    let selection_object = selection.as_object_mut()?;
+    for key in ["symbols", "path", "area", "actions", "physical_generation"] { selection_object.remove(key); }
+    if let Some(name) = selection_object.get_mut("name_selection").and_then(Value::as_object_mut) { name.remove("scope"); }
+    let coverage = root.get_mut("coverage")?.as_object_mut()?;
+    coverage.remove("inspected_file_identities");
+    if let Some(lookups) = coverage.get_mut("declarations").and_then(Value::as_array_mut) {
+        for lookup in lookups {
+            let Some(fields) = lookup.as_object_mut() else { continue };
+            for key in ["deadline_ms", "decode_limit_bytes", "raw_key_limit", "raw_record_bytes_decoded",
+                "record_limit_bytes", "records_attempted", "records_decoded"] {
+                if fields.get(key).is_some_and(Value::is_u64) { fields.remove(key); }
+            }
+            fields.remove("deadline_scope"); fields.remove("kinds_started");
+            for (key, same) in [("requested_name", &file["name_selection"]["requested_name"]),
+                ("name_match", &file["name_selection"]["match"]),
+                ("candidate_identities_retained", &file["declarations_observed"])] {
+                if !same.is_null() && fields.get(key) == Some(same) { fields.remove(key); }
+            }
+            if fields.get("declaration_inventory") == selection.get("declaration_inventory") {
+                selection.as_object_mut()?.remove("declaration_inventory");
+            }
+            if fields.get("observation").and_then(Value::as_str).is_some_and(|kind|
+                matches!(kind,"bounded_exact_file_terminal_name_fallback" | "bounded_exact_name_lookup")) {
+                fields.remove("observation");
+            }
+            if let Some(admission) = fields.get_mut("declaration_admission").and_then(Value::as_object_mut) {
+                for key in ["cycles_or_revisits", "raw_rows", "internal_rows_skipped"] {
+                    if admission.get(key).is_some_and(Value::is_u64) { admission.remove(key); }
+                }
+            }
+            if let Some(fallback) = fields.get_mut("terminal_name_fallback").and_then(Value::as_object_mut) {
+                for key in ["kinds_started", "prefix_seeks", "scope"] { fallback.remove(key); }
+                if fallback.get("exact_extracted_name_priority") == file["name_selection"].get("exact_extracted_name_priority") {
+                    fallback.remove("exact_extracted_name_priority");
+                }
+            }
+        }
+    }
+    // Only schema-defined gap defaults are sparse. Completion/admission false,
+    // zero observed counts, nulls and unknown fields remain explicit.
+    fn sparse_gaps(value: &mut Value) {
+        if let Some(fields) = value.as_object_mut() {
+            if fields.contains_key("tool") && fields.contains_key("arguments") { return; }
+            fields.retain(|key,value| {
+                !(matches!(key.as_str(),"frontier_omitted" | "max_depth_reached" | "missing_nodes"
+                    | "non_selected_nodes" | "unknown_nodes" | "response_omitted_areas" | "response_omitted_files"
+                    | "symbols_omitted_from_display" | "symbol_offset") && value.as_u64() == Some(0)
+                    || matches!(key.as_str(),"scan_truncated" | "area_sample_truncated" | "representative_sample"
+                        | "truncated" | "symbol_display_limited") && value.as_bool() == Some(false)
+                    || key == "reasons" && value.as_array().is_some_and(Vec::is_empty))
+            });
+            for child in fields.values_mut() { sparse_gaps(child); }
+        } else if let Some(rows) = value.as_array_mut() { for row in rows { sparse_gaps(row); } }
+    }
+    sparse_gaps(root.get_mut("coverage")?);
+    sparse_gaps(&mut selection);
+    root.insert("selection".into(), selection);
+    let mut scope = "Within present coverage/selection records, omitted gap counts and truncation flags mean0/false; missing records remain unknown. Work telemetry is in metadata_recovery. Exact names precede terminal fallback under shared bounded work; candidates are not unique bindings. Actions observe fresh state: compare generation/hash, not atomic replay or runtime proof.".to_owned();
+    if file.get("name_selection").is_some() {
+        scope.push_str(" Zero named matches do not prove absence. Legacy/noncanonical identities, other kinds and aliases remain unassessed; no FQN/type binding.");
+    }
+    root.insert("source_view_scope".into(), json!(scope));
+    Some(view)
+}
+
+fn finish_codemap_source(
+    value: &serde_json::Value, render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
+) -> Result<String, String> {
+    let original = render(value)?;
+    if let Some(view) = codemap_source_view(value) {
+        let candidate = render(&view)?;
+        if candidate.len() <= original.len() { return Ok(candidate); }
+    }
+    Ok(original)
 }
 
 struct LiteralSourceQuery {
@@ -101,9 +228,10 @@ struct LiteralSourceQuery {
 fn render_codemap_properties(
     navigation: &serde_json::Value, properties: Option<&serde_json::Value>, project: &str,
     limit: usize, render: impl Fn(&serde_json::Value) -> Result<String, String>,
+    finish: impl Fn(&serde_json::Value) -> Result<String, String>,
 ) -> Result<String, String> {
     let baseline = render_named_literal_recovery(navigation, limit, &render)?;
-    let Some(properties) = properties else { return Ok(baseline) };
+    let Some(properties) = properties else { return finish(&baseline) };
     let mut properties = properties.clone();
     let preview = &navigation["current_source"];
     let mut visible = 0usize;
@@ -125,7 +253,7 @@ fn render_codemap_properties(
             !in_preview
         });
         if items.is_empty() && properties["coverage"]["truncated"] == false {
-            return Ok(baseline);
+            return finish(&baseline);
         }
     }
     properties["declarations_in_source_preview"] = serde_json::json!(visible);
@@ -143,7 +271,7 @@ fn render_codemap_properties(
         trial["property_references"] = properties.clone();
         loop {
             let text = render(&trial)?;
-            if text.len() <= limit { return Ok(text); }
+            if text.len() <= limit { return finish(&trial); }
             let Some((first,last)) = protected else { break };
             let source = &mut trial["current_source"];
             let Some(start) = source["line_start"].as_u64() else { break };
@@ -173,7 +301,7 @@ fn render_codemap_properties(
         omitted += 1;
         properties["display_omitted"] = serde_json::json!(omitted);
     }
-    Ok(baseline)
+    finish(&baseline)
 }
 
 /// Supplement a selected-file orientation with one current snapshot. Indexed
@@ -189,6 +317,7 @@ fn codemap_source_preview(
         let encoded = serde_json::to_string(value).map_err(|e| e.to_string())?;
         Ok(format!("{header}\n## CodeMap Navigation\n\n```json\n{encoded}\n```\n{footer}"))
     };
+    let finish = |value: &serde_json::Value| finish_codemap_source(value, &render);
     if render(&navigation)?.len() > REPLY_BYTES {
         return Err("CodeMap metadata exceeds the12KiB source-preview profile; narrow to a symbol_name/symbol_node_id or retry with include_source=false. No navigation facts were discarded.".into());
     }
@@ -220,7 +349,7 @@ fn codemap_source_preview(
         Err(error) => {
             navigation["current_source"] = unavailable(error.chars().take(240).collect(), 1);
             let out = render(&navigation)?;
-            return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
+            return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render, &finish) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
         }
     };
     if let Some(query) = literal_query {
@@ -228,7 +357,7 @@ fn codemap_source_preview(
     }
     if targeted && row["declarations_observed"].as_u64().is_some_and(|count| count > 1)
         && symbols.is_some_and(|nodes| !nodes.is_empty()) {
-        return codemap_candidate_preview(navigation, &file, &source, &hash, project, &render);
+        return codemap_candidate_preview(navigation, &file, &source, &hash, project, &render, &finish);
     }
     let total = source.lines().count() as u64;
     // Preserve the surrounding page when it contains the observed declaration.
@@ -243,7 +372,7 @@ fn codemap_source_preview(
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         navigation["current_source"] = unavailable("Indexed anchor page lies beyond current file; inspect from the beginning. Indexed method bounds are unverified.".into(), 1);
         let out = render(&navigation)?;
-        return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+        return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render, &finish) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
     }
     let mut lines: Vec<_> = source.lines().skip((start - 1) as usize).take(LINES as usize).collect();
     // Trim optional trailing context first, then preceding context, before
@@ -265,7 +394,7 @@ fn codemap_source_preview(
         if lines.is_empty() && total > 0 {
             navigation["current_source"] = unavailable("No complete source line fits the preview budget; no line was clipped or skipped.".into(), start);
             let out = render(&navigation)?;
-            return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+            return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render, &finish) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
         }
         let end = if total == 0 { 0 } else { start + lines.len() as u64 - 1 };
         navigation["current_source"] = serde_json::json!({"status":"available","file_path":file,
@@ -281,7 +410,7 @@ fn codemap_source_preview(
         let preview_bytes = serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len();
         let out = render(&navigation)?;
         if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES {
-            return render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render);
+            return render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render, &finish);
         }
         if lines.is_empty() {
             return Err("Source-preview metadata exceeds12KiB; narrow the selection or use include_source=false".into());
@@ -295,6 +424,7 @@ fn codemap_source_preview(
 fn codemap_candidate_preview(
     mut navigation: serde_json::Value, file: &str, source: &str, hash: &str, project: &str,
     render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
+    finish: &dyn Fn(&serde_json::Value) -> Result<String, String>,
 ) -> Result<String, String> {
     let candidates = navigation["files"][0]["symbols"].as_array().unwrap().clone();
     let observed = navigation["files"][0]["declarations_observed"].as_u64().unwrap();
@@ -364,7 +494,7 @@ fn codemap_candidate_preview(
     if let Some(line) = first_missing { preview["recovery"] = read(line); }
     navigation["current_source"] = preview;
     if !fits(&navigation)? { return Err("Candidate-preview recovery exceeds12KiB; use the existing candidate source actions or include_source=false. No navigation facts were discarded.".into()); }
-    render(&navigation)
+    finish(&navigation)
 }
 
 /// Current literal occurrences are inspection leads, never graph declarations
@@ -511,7 +641,7 @@ fn codemap_literal_inspection(
         if serde_json::to_vec(&trial["current_source"]).map_err(|e|e.to_string())?.len()<=8*1024
             && render(&trial)?.len()<=12*1024 {navigation=trial;}
     }
-    render(&navigation)
+    finish_codemap_source(&navigation, &render)
 }
 
 /// A directory/name lookup has its own compact profile. File pagination
@@ -2413,8 +2543,9 @@ impl Engram {
                 .map_err(|e|McpError::invalid_params(e,None))?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
-        let encoded=render_codemap_properties(&navigation,property_navigation.as_ref(),&req.project_id,64*1024,|value|
-            serde_json::to_string(value).map_err(|error|error.to_string()))
+        let render_metadata=|value:&serde_json::Value|serde_json::to_string(value).map_err(|error|error.to_string());
+        let encoded=render_codemap_properties(&navigation,property_navigation.as_ref(),&req.project_id,64*1024,
+            &render_metadata,&render_metadata)
             .map_err(|error|McpError::internal_error(error,None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);

@@ -531,6 +531,66 @@ async fn navigate(engram: &Engram, arguments: Value) -> Value {
     navigation(&navigation_text(engram, arguments).await)
 }
 
+// Source presentation can be sparse; inspected candidates and uncertainty
+// cannot change. Execute the offered metadata recovery to verify that detailed
+// lookup/admission/work evidence remains independently available to the agent.
+async fn assert_source_navigation(engram: &Engram, source: &Value, baseline: &Value) {
+    if source["format"] != "engram-codemap-source-v1" {
+        let mut metadata = source.clone(); metadata.as_object_mut().unwrap().remove("current_source");
+        assert_eq!(metadata,*baseline); return;
+    }
+    assert_eq!(source["source_generation"],baseline["source_generation"]);
+    assert_eq!(source["working_tree_checked"],false);
+    assert_eq!(source["candidates"],baseline["files"][0].get("symbols").cloned().unwrap_or(json!([])),
+        "Candidate identities, ranges, revisions and complete executable actions must survive source presentation");
+    assert_eq!(source["file_generation"],baseline["files"][0]["physical_generation"]);
+    assert_eq!(source["selection"]["declarations_observed"],baseline["files"][0]["declarations_observed"]);
+    for field in ["symbol_display_limited","symbols_omitted_from_display"] {
+        let expected=&baseline["files"][0][field];
+        if expected == true || expected.as_u64().is_some_and(|count|count>0) {
+            assert_eq!(&source["selection"][field],expected,"Display gaps cannot disappear");
+        }
+    }
+    fn check_gaps(expected: &Value, shown: &Value) {
+        if let Some(fields)=expected.as_object() {
+            for (key,value) in fields {
+                if matches!(key.as_str(),"truncated" | "scan_truncated" | "area_sample_truncated"
+                    | "canonical_file_admitted" | "bounded_procedure_completed" | "unassessed")
+                    && (value != false || matches!(key.as_str(),"canonical_file_admitted" | "bounded_procedure_completed")) {
+                    assert_eq!(&shown[key],value,"Admission, unfinished work and unassessed cases stay explicit: {key}");
+                }
+                if matches!(key.as_str(),"missing_nodes" | "unknown_nodes" | "non_selected_nodes"
+                    | "frontier_omitted" | "response_omitted_files" | "response_omitted_areas" | "max_depth_reached")
+                    && value.as_u64()!=Some(0) {
+                    assert_eq!(&shown[key],value,"Positive or unknown gap counts cannot be suppressed: {key}");
+                }
+                if key=="reasons" && value.as_array().is_some_and(|rows|!rows.is_empty()) {
+                    assert_eq!(&shown[key],value,"Boundedness reasons must remain usable inline");
+                }
+                if value.is_object() || value.is_array() { check_gaps(value,&shown[key]); }
+            }
+        } else if let Some(rows)=expected.as_array() {
+            for (index,row) in rows.iter().enumerate() { check_gaps(row,&shown[index]); }
+        }
+    }
+    check_gaps(&baseline["coverage"],&source["coverage"]);
+    let action=&source["metadata_recovery"];
+    assert_eq!(action["tool"],"get_codebase_overview");
+    assert_eq!(action["arguments"]["include_source"],false);
+    let recovered=navigate(engram,action["arguments"].clone()).await;
+    assert_eq!(recovered,*baseline,
+        "The agent must recover the original detailed metadata, including lookup work limits and admission, without repairing the action");
+    if baseline["include_declarations"] == false {
+        let browse=baseline["files"][0]["actions"].as_array().unwrap().iter()
+            .find(|action|action["tool"]=="get_codebase_overview" && action["arguments"]["include_declarations"]==true).unwrap();
+        assert!(source["file_actions"].as_array().unwrap().contains(browse),
+            "A source-only page must retain its original action to discover declarations");
+        let declarations=navigate(engram,browse["arguments"].clone()).await;
+        assert!(declarations["coverage"]["declarations"].is_array());
+        assert_ne!(declarations["coverage"]["declaration_lookup"],"not_requested");
+    }
+}
+
 #[test]
 fn filtered_codemap_preserves_search_and_explicitly_browses_neighboring_selected_files() {
     owned_case(true, |engram, search| async move {
@@ -2365,7 +2425,7 @@ fn codemap_literal_inspection_keeps_distant_callback_contexts_useful_under_sourc
         let mut args=base;args["include_source"]=json!(true);args["source_contains"]=json!("applyPolicy(");
         let text=navigation_text(&engram,args).await;assert!(text.len()<=12*1024);
         let mut result=navigation(&text);let field=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline);
+        assert_source_navigation(&engram,&result,&baseline).await;
         assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
         assert_eq!(field["matched_lines"],json!([20,100,190,300,400]));
         assert_eq!(field["scan_complete"],true);assert!(field["lookahead_line"].is_null());
@@ -2524,7 +2584,7 @@ fn codemap_literal_inspection_combines_current_normalization_and_guarded_applica
         let mut args=baseline_args;args["include_source"]=json!(true);args["source_contains"]=json!("gateValue");
         let text=navigation_text(&engram,args).await;assert!(text.len()<=12*1024);
         let mut result=navigation(&text);let field=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline);assert_eq!(field["mode"],"literal_inspection");
+        assert_source_navigation(&engram,&result,&baseline).await;assert_eq!(field["mode"],"literal_inspection");
         assert_eq!(field["matched_lines"],json!([20,23,40,41,175,176,180,181]));
         assert_eq!(field["matching_lines_observed"],9);assert_eq!(field["lookahead_line"],300);
         assert_eq!(field["scan_complete"],false);assert_eq!(field["scanned_through_line"],300);
@@ -2611,7 +2671,7 @@ fn codemap_literal_inspection_reports_source_omissions_and_recovers_a_whole_esca
         let text=navigation_text(&engram,json!({"project_id":PID,"scope":PATH,"include_declarations":false,
             "include_source":true,"source_contains":"gateValue"})).await;
         assert!(text.len()<=12*1024);let mut result=navigation(&text);
-        let field=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_eq!(result,baseline);
+        let field=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_source_navigation(&engram,&result,&baseline).await;
         assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
         assert_eq!(field["matched_lines"],json!([20,200]));assert_eq!(field["scan_complete"],true);
         assert_eq!(field["windows_omitted"],0);assert_eq!(field["sampled_matching_lines_source_omitted"],1);
@@ -2640,7 +2700,7 @@ fn codemap_literal_inspection_keeps_useful_source_and_recovery_when_later_window
         let text=navigation_text(&engram,args).await;
         assert!(text.len()<=12*1024);
         let mut result=navigation(&text);let field=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline,"Later source pressure must preserve useful navigation");
+        assert_source_navigation(&engram,&result,&baseline).await;
         assert!(serde_json::to_vec(&field).unwrap().len()<=8*1024);
         assert_eq!(field["matched_lines"],json!([20,300]));
         assert_eq!(field["scan_complete"],true);
@@ -2681,7 +2741,9 @@ fn codemap_source_preview_combines_current_policy_and_orientation_without_upgrad
         let text=navigation_text(&engram,with_source.clone()).await;
         assert!(text.len()<=12*1024);
         let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline,"Current source must not rescore or replace indexed navigation");
+        assert_source_navigation(&engram,&result,&baseline).await;
+        assert_eq!(result["format"],"engram-codemap-source-v1");
+        assert!(result.get("files").is_none(),"The source view exposes copyable candidates without the detailed discovery wrapper");
         assert_eq!(preview["status"],"available");
         assert_eq!(preview["source_file_hash"],blake3::hash(current.as_bytes()).to_hex().to_string());
         assert_ne!(preview["source_file_hash"],ContentHash::compute(current.as_bytes()).0,
@@ -2709,7 +2771,7 @@ fn codemap_source_preview_combines_current_policy_and_orientation_without_upgrad
         let missing=navigate(&engram,with_source).await;
         assert_eq!(missing["current_source"]["status"],"unavailable");
         assert!(missing["current_source"].get("source_code").is_none());
-        assert_eq!(missing["files"],baseline["files"]);
+        assert_source_navigation(&engram,&missing,&baseline).await;
         let mut explicit_default=request;explicit_default["include_source"]=json!(false);
         assert_eq!(navigate(&engram,explicit_default).await,baseline);
     });
@@ -2745,7 +2807,7 @@ fn codemap_source_preview_keeps_named_response_handling_across_a_page_boundary()
             let text = navigation_text(&engram, args).await;
             let mut result = navigation(&text);
             let preview = result.as_object_mut().unwrap().remove("current_source").unwrap();
-            assert_eq!(result, baseline, "Changing inspection context cannot change indexed navigation");
+            assert_source_navigation(&engram,&result,&baseline).await;
             assert!(text.len() <= 12 * 1024);
             assert!(serde_json::to_vec(&preview).unwrap().len() <= 8 * 1024);
             let start = preview["line_start"].as_u64().unwrap() as usize;
@@ -2837,7 +2899,7 @@ fn codemap_source_preview_inspects_one_observed_candidate_without_resolving_an_u
         assert!(text.len()<=12*1024);
         let mut result=navigation(&text);
         let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline,"Source inspection must preserve unfinished lookup coverage and every candidate/action");
+        assert_source_navigation(&engram,&result,&baseline).await;
         assert_eq!(preview["indexed_anchor_node_id"],declarations[0].node_id);
         assert_eq!(preview["line_start"],121);
         assert!(preview["source_code"].as_str().unwrap().contains("observed serializer handoff"),
@@ -2880,7 +2942,7 @@ fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundarie
         let mut with_source=request;with_source["include_source"]=json!(true);
         let text=navigation_text(&engram,with_source).await;assert!(text.len()<=12*1024);
         let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline);
+        assert_source_navigation(&engram,&result,&baseline).await;
         assert!(preview["indexed_anchor_node_id"].is_null(),"Source windows must not choose an overload");
         assert_eq!(preview["mode"],"candidate_spans");
         assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
@@ -2915,13 +2977,14 @@ fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundarie
         assert_eq!(later["current_source"]["indexed_anchor_node_id"],declarations[1].node_id);
         std::fs::write(root.join(PATH),"// current file was shortened\n").unwrap();
         let shortened=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_node_id":declarations[1].node_id,"include_source":true})).await;
-        assert_eq!(shortened["files"],later["files"]);
+        assert_eq!(shortened["candidates"],later["candidates"]);
+        assert_eq!(shortened["selection"],later["selection"]);
         assert_eq!(shortened["current_source"]["status"],"unavailable");
         assert!(shortened["current_source"]["reason"].as_str().unwrap().contains("beyond current file"));
         assert_eq!(shortened["current_source"]["recovery"]["arguments"]["line_start"],1);
         let mut ambiguous=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":"Run","include_source":true})).await;
         let current=ambiguous.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(ambiguous,baseline,"Current-file shrinkage must not erase admitted identities or their actions");
+        assert_source_navigation(&engram,&ambiguous,&baseline).await;
         assert_eq!(current["observed_candidates_without_complete_source"],2);
         assert!(current["windows"].as_array().unwrap().iter().all(|window|
             window["source_omitted"]==true && window["reason"].as_str().unwrap().contains("outside current file")));
@@ -2952,7 +3015,7 @@ fn codemap_candidate_spans_keep_nearby_overloads_and_recover_source_omitted_unde
         let baseline=navigate(&engram,request.clone()).await;
         let mut args=request;args["include_source"]=json!(true);
         let mut result=navigate(&engram,args.clone()).await;
-        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_eq!(result,baseline);
+        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_source_navigation(&engram,&result,&baseline).await;
         let windows=preview["windows"].as_array().unwrap();assert_eq!(windows.len(),2);
         for (window,start) in windows.iter().zip([170,180]) {
             assert_eq!(window["line_start"],start);
@@ -2967,7 +3030,7 @@ fn codemap_candidate_spans_keep_nearby_overloads_and_recover_source_omitted_unde
         std::fs::write(root.join(PATH),&current).unwrap();
         let text=navigation_text(&engram,args).await;assert!(text.len()<=12*1024);
         let mut result=navigation(&text);
-        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_eq!(result,baseline);
+        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_source_navigation(&engram,&result,&baseline).await;
         assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
         assert_eq!(preview["observed_candidates_without_complete_source"],1);
         let windows=preview["windows"].as_array().unwrap();
@@ -3002,8 +3065,8 @@ fn codemap_candidate_spans_bound_aggregate_source_without_hiding_candidates() {
             let text=navigation_text(&engram,request).await;assert!(text.len()<=12*1024);
             let mut result=navigation(&text);
             let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
-            assert_eq!(result,baseline,"A display cap cannot discard overload identities, actions or coverage");
-            assert_eq!(result["files"][0]["symbols"].as_array().unwrap().len(),4);
+            assert_source_navigation(&engram,&result,&baseline).await;
+            assert_eq!(result["candidates"].as_array().unwrap().len(),4);
             let windows=preview["windows"].as_array().unwrap();
             let inline:Vec<_>=windows.iter().filter(|window|window.get("source_code").is_some()).collect();
             assert_eq!(inline.len(),if long_first {1}else{3});
@@ -3036,7 +3099,7 @@ fn codemap_source_preview_bounds_whole_utf8_lines_and_preserves_orientation_when
         let text=navigation_text(&engram,with_source.clone()).await;
         assert!(text.len()<=12*1024,"Escaping and footer are inside the complete reply budget");
         let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
-        assert_eq!(result,baseline);assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
+        assert_source_navigation(&engram,&result,&baseline).await;assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
         let end=preview["line_end"].as_u64().unwrap() as usize;assert!(end>0 && end<120);
         assert_eq!(preview["source_code"],source.lines().take(end).collect::<Vec<_>>().join("\n"));
         assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
@@ -3055,7 +3118,7 @@ fn codemap_source_preview_bounds_whole_utf8_lines_and_preserves_orientation_when
             std::fs::write(root.join(PATH),bytes).unwrap();
             let mut result=navigate(&engram,with_source.clone()).await;
             let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
-            assert_eq!(result,baseline);assert_eq!(preview["status"],"unavailable");
+            assert_source_navigation(&engram,&result,&baseline).await;assert_eq!(preview["status"],"unavailable");
             assert!(preview.get("source_code").is_none());
             assert_eq!(preview["recovery"]["arguments"]["line_start"],1);
         }
@@ -3063,10 +3126,10 @@ fn codemap_source_preview_bounds_whole_utf8_lines_and_preserves_orientation_when
         let oversized=navigate(&engram,with_source.clone()).await;
         assert_eq!(oversized["current_source"]["status"],"unavailable");
         assert!(oversized["current_source"]["reason"].as_str().unwrap().contains("4MiB"));
-        assert_eq!(oversized["files"],baseline["files"]);
+        assert_source_navigation(&engram,&oversized,&baseline).await;
         std::fs::remove_file(root.join(PATH)).unwrap();
         let missing=navigate(&engram,with_source).await;
-        assert_eq!(missing["current_source"]["status"],"unavailable");assert_eq!(missing["files"],baseline["files"]);
+        assert_eq!(missing["current_source"]["status"],"unavailable");assert_source_navigation(&engram,&missing,&baseline).await;
     });
 }
 
@@ -3215,13 +3278,14 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
         let text = navigation_text(&engram, request.clone()).await;
         assert!(text.len() <= 12*1024);
         let page = navigation(&text);
-        assert_eq!(page["files"][0]["declarations_observed"], 0);
+        assert_eq!(page["selection"]["declarations_observed"], 0);
         let coverage = &page["coverage"]["declarations"][0];
-        assert!(coverage["declaration_admission"]["raw_rows"].as_u64().unwrap() <= 64);
+        let detailed=navigate(&engram,page["metadata_recovery"]["arguments"].clone()).await;
+        assert!(detailed["coverage"]["declarations"][0]["declaration_admission"]["raw_rows"].as_u64().unwrap() <= 64);
         assert_eq!(coverage["terminal_name_fallback"]["bounded_procedure_completed"], false);
         assert_eq!(page["current_source"]["line_end"], 120);
         assert_eq!(page["current_source"]["source_code"], lines[..120].join("\n"));
-        let recovery = &page["files"][0]["actions"][0];
+        let recovery = &page["file_actions"][0];
         assert_eq!(recovery["tool"], "get_codebase_overview");
         let args = &recovery["arguments"];
         assert_eq!(args["source_contains"], "ReadMeta");
@@ -3234,7 +3298,7 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
         for key in ["symbol_name", "symbol_node_id", "offset", "symbol_offset"] {
             assert!(args.get(key).is_none());
         }
-        assert!(page["files"][0]["actions"].as_array().unwrap().iter()
+        assert!(page["file_actions"].as_array().unwrap().iter()
             .any(|action| action["tool"] == "get_full_method_body"));
         let recovered = navigate(&engram, args.clone()).await;
         assert_eq!(recovered["current_source"]["matched_lines"], json!([181,201]));
@@ -3251,14 +3315,24 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
             exact.start_line = line; exact.end_line = line;
             engram.state.graph.upsert_nodes(PID, &[exact]).unwrap();
             let found = navigate(&engram, request.clone()).await;
-            assert_eq!(found["files"][0]["symbols"].as_array().unwrap().len(), if line == 201 {1} else {2});
-            assert!(found["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+            assert_eq!(found["candidates"].as_array().unwrap().len(), if line == 201 {1} else {2});
+            assert!(found["metadata_recovery"]["arguments"].get("source_contains").is_none());
         }
         for name in ["Unknown.ReadMeta".to_owned(), "x".repeat(129), "é".repeat(65)] {
             let miss = navigate(&engram, json!({"project_id":PID,"scope":PATH,"symbol_name":name})).await;
             assert_eq!(miss["files"][0]["declarations_observed"], 0);
             assert!(miss["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
         }
+        let source_miss=navigate(&engram,json!({"project_id":PID,"scope":PATH,
+            "symbol_name":"Unknown.ReadMeta","include_source":true})).await;
+        assert!(source_miss["candidates"].as_array().unwrap().is_empty());
+        let browse=source_miss["file_actions"].as_array().unwrap().iter()
+            .find(|action|action["tool"]=="get_codebase_overview").unwrap();
+        assert!(browse["arguments"].get("symbol_name").is_none());
+        assert!(browse["arguments"].get("source_contains").is_none());
+        let discovered=navigate(&engram,browse["arguments"].clone()).await;
+        assert!(discovered["files"][0].get("name_selection").is_none(),
+            "The original ordinary browse must not become another failed-name lookup");
         let ordinary = navigate(&engram, json!({"project_id":PID,"scope":PATH})).await;
         assert!(ordinary["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
     });
@@ -3272,23 +3346,32 @@ fn named_miss_literal_recovery_does_not_evict_source_under_reply_pressure() {
         publish_named_sources(&engram, &search, &[(PATH, &body)]).await;
         let request = json!({"project_id":PID,"scope":PATH,"symbol_name":"Missing","include_source":true});
         let roomy = navigation_text(&engram, request.clone()).await;
-        assert_eq!(navigation(&roomy)["files"][0]["actions"][0]["arguments"]["source_contains"], "Missing");
+        assert_eq!(navigation(&roomy)["file_actions"][0]["arguments"]["source_contains"], "Missing");
+        let negative=navigation(&roomy);
+        assert!(negative["candidates"].as_array().unwrap().is_empty());
+        assert_eq!(negative["coverage"]["declarations"][0]["terminal_name_fallback"]["bounded_procedure_completed"],true);
+        let scope=negative["source_view_scope"].as_str().unwrap();
+        assert!(scope.contains("Zero named matches do not prove absence")
+            && scope.contains("Legacy/noncanonical identities, other kinds and aliases remain unassessed")
+            && scope.contains("no FQN/type binding"),"A completed bounded negative lookup must carry its unresolved scope inline");
+        let mut metadata_request=request.clone();metadata_request["include_source"]=json!(false);
+        let metadata_text=navigation_text(&engram,metadata_request).await;
+        // Source selection still uses the original allocation, before compact presentation.
+        let allocation_bytes=metadata_text.len()+serde_json::to_vec(&navigation(&roomy)["current_source"]).unwrap().len()+18;
         let mut project = engram.state.registry.get_project(PID).unwrap().unwrap();
-        project.project_name.push_str(&"p".repeat(12*1024-roomy.len()+512));
+        project.project_name.push_str(&"p".repeat(12*1024-allocation_bytes+512));
         engram.state.registry.put_project(&project).unwrap();
         let crowded = navigation_text(&engram, request).await;
-        assert!(crowded.len() <= 12*1024 && crowded.len() > 12*1024-32,
-            "Existing source allocation must fill the reply before optional recovery");
+        assert!(crowded.len() <= 12*1024, "Final presentation cannot exceed the original reply cap");
         let page = navigation(&crowded);
-        assert!(page["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+        assert!(!page["file_actions"].as_array().unwrap().iter().any(|action|action["arguments"].get("source_contains").is_some()));
         let source = &page["current_source"];
         let end = source["line_end"].as_u64().unwrap() as usize;
         assert!(end > 0 && end < 120);
         assert_eq!(source["source_code"], body.lines().take(end).collect::<Vec<_>>().join("\n"));
         assert_eq!(source["next_page"]["arguments"]["line_start"], end+1);
         assert_eq!(source["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
-        assert!(page["limitations"].as_array().unwrap().iter().any(|limit|
-            limit.as_str().unwrap().contains("File action returns ordinary discovery")));
+        assert_eq!(page["metadata_recovery"]["arguments"]["include_source"],false);
     });
 }
 
@@ -3347,7 +3430,7 @@ fn named_contract_lookup_exposes_selected_type_source_and_impact_actions() {
                 "symbol_name":query,"include_source":true})).await;
             assert!(text.len() <= 12 * 1024);
             let page = navigation(&text);
-            let symbols = page["files"][0]["symbols"].as_array().unwrap();
+            let symbols = page["candidates"].as_array().unwrap();
             assert_eq!(symbols.len(), 1, "Only the selected contract should be navigable");
             assert_eq!(symbols[0]["node_id"], id);
             assert_eq!(symbols[0]["kind"], "class");
@@ -3403,7 +3486,7 @@ fn named_contract_lookup_keeps_constructor_collision_explicit() {
         engram.state.graph.upsert_nodes(PID, &[class, ctor, qualified]).unwrap();
         let page = navigate(&engram, json!({"project_id":PID,"scope":PATH,
             "symbol_name":"Packet","include_source":true})).await;
-        let symbols = page["files"][0]["symbols"].as_array().unwrap();
+        let symbols = page["candidates"].as_array().unwrap();
         assert_eq!(symbols.len(), 2, "Exact class and constructor remain distinct; terminal alternatives are not unioned");
         for id in [&class_id, &ctor_id] { assert!(symbols.iter().any(|s| s["node_id"] == *id)); }
         assert!(page["current_source"]["indexed_anchor_node_id"].is_null(),
@@ -3787,7 +3870,8 @@ fn codemap_property_navigation_connects_inspected_inputs_to_reference_source_wit
             metadata:Some(json!({"call_site_line":line,"via":mode})),updated_at_ms:1};
         engram.state.graph.upsert_edges(PID,&[edge(&id,&count,201,"property_get"),edge(&id,&coordinates,201,"property_get"),edge(&producer,&count,81,"property_set")]).unwrap();
         let text=navigation_text(&engram,request.clone()).await;assert!(text.len()<=12*1024);
-        let after=navigation(&text);assert_eq!(after["files"],before["files"]);
+        let after=navigation(&text);assert_eq!(after["candidates"],before["candidates"]);
+        assert_eq!(after["selection"],before["selection"]);
         assert_eq!(after["current_source"]["source_file_hash"],before["current_source"]["source_file_hash"]);
         let source=&after["current_source"];
         assert!(source["line_start"].as_u64().unwrap()<=200 && source["line_end"].as_u64().unwrap()>=202);
@@ -3828,7 +3912,7 @@ fn codemap_property_navigation_connects_inspected_inputs_to_reference_source_wit
         let mut overload=node(&format!("sym:function:{PATH}:ResolvePolicy:230"),"function","ResolvePolicy",PATH,1);
         overload.start_line=230;overload.end_line=232;engram.state.graph.upsert_nodes(PID,&[overload]).unwrap();
         let ambiguous=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":"ResolvePolicy","include_source":true})).await;
-        assert_eq!(ambiguous["files"][0]["symbols"].as_array().unwrap().len(),2);
+        assert_eq!(ambiguous["candidates"].as_array().unwrap().len(),2);
         assert!(ambiguous.get("property_references").is_none());
     });
 }
@@ -3868,6 +3952,7 @@ fn codemap_property_navigation_preserves_visible_declarations_and_crowded_reques
         let text=navigation_text(&engram,request(&long)).await;assert!(text.len()<=12*1024);
         let after=navigation(&text);
         assert_eq!(after["current_source"],before["current_source"],"Optional links cannot take even one previously supplied line from a crowded requested body");
-        assert_eq!(after["files"],before["files"]);
+        assert_eq!(after["candidates"],before["candidates"]);
+        assert_eq!(after["selection"],before["selection"]);
     });
 }
