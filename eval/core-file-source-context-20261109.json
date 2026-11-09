@@ -1,0 +1,104 @@
+{
+  "status": "SOURCE_TESTED_EXACT_RENDER_AND_LITERAL_ACTIONS_VERIFIED_NOT_DEPLOYED",
+  "baseline_commit": "9893f37533169849334b215c69b436c2a842cc40",
+  "problem": "Actual file-level Blast summary exposes four direct witnesses but drops the existing file declaration inventory and grouped downstream source routes. Original full task remains incomplete; ignored offered actions and budget refusals are not backend failure proof.",
+  "before": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-impact-before-20261109.json",
+    "sha256": "ea2a2f61544938b9622961bb482781024f9c461f3a9a978bbe964a97571787ea"
+  },
+  "original_task_outcome": {
+    "path": "eval\\core-property-navigation-full-qa-20261109.json",
+    "sha256": "29b5bc5846aa8fd84a885fd1c6cdeef08c96709885f4bc3a04ad9b61756218d1"
+  },
+  "rejected_allocation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-navigation-rejected-allocation-20261109.json",
+    "sha256": "f05055f2e66d320bfd30b79ea83d0151be3f4ba450c577a24963986d8f30ed93"
+  },
+  "change": [
+    "Preserve the original direct-consumer sample, witness fields and compact first-consumer introduction.",
+    "Reserve the existing declaration_inventory CodeMap action before optional dependent-file path rows.",
+    "Extend an existing direct source read with selected same-file, same-generation depth-two Calls caller spans when the whole read remains within120lines/3ranges and the whole output fits.",
+    "Expose added caller identities, indexed ranges and physical connection provenance nested under each owning immediate consumer; keep graph, counts, gaps and recovery unchanged.",
+    "Use the exact existing renderer/footer reserve for file summaries. Symbol summary allocation remains unchanged."
+  ],
+  "independent_source_witness": {
+    "source": {
+      "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\Site\\App_Code\\visualisering\\code\\FileLayerSpatialService.vb",
+      "sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576"
+    },
+    "caller_lines": [
+      346,
+      352
+    ],
+    "consumer_lines": [
+      371,
+      401
+    ],
+    "call_line": 351,
+    "finding": "BuildDescriptorIfEnabled checks viewport source/loading before calling BuildDescriptor; BuildDescriptor emits policy/discovery/editor descriptor fields with nullable counts. A combined38-line read can inspect both behaviors. This is source evidence, not a runtime or complete workflow proof."
+  },
+  "implementation": {
+    "path": "crates\\engram_server\\src\\services\\impact_walk_service.rs",
+    "sha256": "0e02049e8f646855f3263a8f9725f6700a8c24eb46c07f712a0f0a4feeff9bce"
+  },
+  "local_review": "Independent agent static review found no remaining major issue after preserving prefix and four witnesses. Remote CodeRabbit review was not run; prior trusted CLI auth was false.",
+  "verification_pending": [
+    "Release build and paired installed public-tool validation",
+    "Original full-task usefulness remains unproven; do not infer improvement from passing tests or this allocation tradeoff"
+  ],
+  "goal_complete": false,
+  "resources": "All new evidence/rejected drafts remain under V. All three focused batches and one fixture retry closed their Jobs/handles and removed their owned temporary directories. Pure-renderer driver retains its artifacts and reports owned teardown. Normal installed Engram unchanged.",
+  "tests": {
+    "cases_passed": 27,
+    "whole_batch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-navigation-behavior-v3-20261109.json",
+      "sha256": "356e3f0668df409e03bdd64be3c569067d37a15d3e8256200a50809007fd557e"
+    },
+    "whole_batch_outcome": "26 passed; one fixture failed before behavior assertions with Windows Access denied while committing its isolated lexical index.",
+    "single_case_retry": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-navigation-fixture-retry-20261109.json",
+      "sha256": "db558a4cc273549c3cd8ffef65f54c8de8ae52e4bcf45596ff77f106f320094e"
+    },
+    "retry_outcome": "The same failed case passed alone on unchanged source;26other cases filtered. Both runs closed ownedJobs/handles and removed their owned temporary directories.",
+    "earlier_failures": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-navigation-behavior-20261109.json",
+        "sha256": "a502c60a34fdd1b36e6f683fac1ac68d79d21e84ded74011c9d0d000f863bc3a"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-navigation-behavior-v2-20261109.json",
+        "sha256": "c99e565ca884c5b7938878350b268e336e32333a3bf30aef6247d892e61f30e8"
+      }
+    ]
+  },
+  "exact_render_replay": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-projection-v2-20261109.json",
+    "sha256": "9992b11d564eca2e5d1d5ad5bb956f5d3f71283a87225d2bd0f5cd323182c8a4"
+  },
+  "render_outcome": {
+    "baseline_text_bytes": 12115,
+    "candidate_text_bytes": 12096,
+    "source_read_lines": 38,
+    "immediate_witnesses_retained": 4,
+    "observed_file_count": 23,
+    "displayed_file_paths_before": 5,
+    "displayed_file_paths_after": 0,
+    "file_paths_omitted_after": 23,
+    "optional_direct_expansions_before": 1,
+    "optional_direct_expansions_after": 0,
+    "limitation": "Exact source-function replay on a frozen actual graph, with baseline byte equality and reconstructed full23-path inventory; not an installed new-summary observation or task-level win. Existing graph/source-generation coverage gaps remain."
+  },
+  "literal_actions": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-actions-20261109.json",
+    "sha256": "87368fd1b2c56557d35c7be01c179d12d625cf000dc7a8a02fc19aaf022048fb"
+  },
+  "literal_actions_outcome": {
+    "calls": 2,
+    "returned_utf8_bytes": 14349,
+    "source_lines_verified": 38,
+    "omitted_declaration_recovered": "ClassifyAutomatic:76-84",
+    "observer_closed": true,
+    "pending_rpc": null,
+    "limit": "Projected new summary actions executed on unchanged installed handlers; revised summary has not yet been deployed. No agent outcome or historical rescore."
+  }
+}
