@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_BEHAVIOR_VERIFIED_AWAITING_NATIVE_RELEASE",
-  "at_utc": "2026-11-09T21:43:54.857787+00:00",
+  "status": "DEPLOYED_NORMAL_VERIFIED_NAMED_SOURCE_RECOVERY",
+  "at_utc": "2026-11-09T22:06:07.452938+00:00",
   "basis": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-remaining-lookups.json",
     "sha256": "08d58ba4a552a79a87808f1729bae474cbede62b26e3e50e59b4ec155fa4d79f"
@@ -56,11 +56,16 @@
     "job_and_handles_closed": true,
     "source_inputs_unchanged": true
   },
-  "deployment": "Not built or installed yet. Installed release remains a85feb7.",
+  "deployment": "Installed paired release verified by37cold+37normal calls; same214sidecar assets and150definitions.",
   "goal_complete": false,
   "fresh_agent_task_win_proven": false,
   "resources": {
     "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
     "cleanup_condition": "Owned test fixtures clean on unwind; diagnostic evidence retained until exact-path cleanup authorized."
+  },
+  "source_commit": "29bb2f5e2a1dddd75cc3261bb02eaf708693b57f",
+  "build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-shipping-20261109.json",
+    "sha256": "b83f9b979f871b1361fdaef43d67dc7dbe14f0e509902e7a71416372300ba41d"
   }
 }

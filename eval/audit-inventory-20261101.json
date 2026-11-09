@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T21:43:54.857787+00:00",
-    "reason": "Fresh Elm and one controlled original-task path remain incomplete. Separate actual ReadMeta lookup proves named-miss source preview spends10525B on unrelatedfilehead before useful5796B literal recovery; fix reuses that existing recovery immediately without expanding graph/catalog work.",
+    "at_utc": "2026-11-09T22:06:07.452938+00:00",
+    "reason": "29bb2f5 is deployed. The actual named ReadMeta query now immediately returns both literal occurrences in 6,916 bytes, replacing 16,321 bytes and two requests for that targeted recovery. All 50 behavior tests, 37 cold calls and 37 normal calls passed. A separate 86-line current-source read verifies persisted-count validation. The original full QA task and controlled path remain incomplete.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast original agent-usefulness queue: finish and deploy automatic bounded literal source inspection for named CodeMap misses; preserve all original full-task failures.",
-    "next_user_visible_deliverable": "Build, install and verify actual named ReadMeta recovery after50 focusedbehavior tests passed. Preserve original full-task failure and scope of lexical recovery; no generic output claim or fresh retry.",
+    "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. Named-source miss recovery is delivered; the full backend-to-UI task and comparative usefulness remain unfinished.",
+    "next_user_visible_deliverable": "Continue the original unfinished backend-to-UI evidence path: use the actual setZoomOverride terminal-member inspection from remaining-lookups to reach the editor callback and check it against independent source. Fix only demonstrated navigation, witness or recovery gaps. No fresh retry or completion claim from this release.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Previous user-facing status turn: no progress. Current continuation: new original-task evaluation completed and independently judged; evidence rejects a speculative follow-up patch.",
+    "previous_goal_turn_classification": "Progress: completed a frozen full-task evaluation and controlled path, rejected an unsupported member-directory patch, then implemented and deployed an independently observed named-source recovery gap. Full-task failures remain preserved.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11482,7 +11482,11 @@
     },
     "latest_named_source_recovery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-named-source-recovery-20261109.json",
-      "sha256": "6adf4c0deeb11917b283766b6e17d347587bf4880892111b97867020ca7dd805"
+      "sha256": "9c56e74e4e42aa65a8479ad46421cc8896d0c289910200cf71185c45d4c467d6"
+    },
+    "latest_named_source_recovery_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-named-source-recovery-delivery-20261109.json",
+      "sha256": "5da7834681c0bde0fdc1096e0b56869cb27fde197f307a12504863ad7b5c8699"
     }
   }
 }

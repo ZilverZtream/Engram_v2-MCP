@@ -1,0 +1,142 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_NAMED_SOURCE_RECOVERY",
+  "at_utc": "2026-11-09T22:06:07.452938+00:00",
+  "source_commit": "29bb2f5e2a1dddd75cc3261bb02eaf708693b57f",
+  "server_sha256": "933110f9b06c67bd3aac6e61bef2d5a77f919c40cbc8203bf689a458240f9fad",
+  "manifest_sha256": "c41e74da403b2f7c4eeb00c6574a46d3a38eacf2d8f0736819b9d740572538e3",
+  "primary": {
+    "pid": "40616",
+    "started_at_ms": "1794261793763",
+    "protocol_version": "1",
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+    "version": "0.1.0"
+  },
+  "source_generation": 3139,
+  "implementation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-named-source-recovery-20261109.json",
+    "sha256": "9c56e74e4e42aa65a8479ad46421cc8896d0c289910200cf71185c45d4c467d6"
+  },
+  "evidence": {
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-tests-20261109.json",
+      "sha256": "37851a5817ef7073dfde42029615e3fa1ad0e2abe70f1e72b51036612667a6db"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-shipping-20261109.json",
+      "sha256": "b83f9b979f871b1361fdaef43d67dc7dbe14f0e509902e7a71416372300ba41d"
+    },
+    "build_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-build-artifact.json",
+      "sha256": "c2f0d988b3ae1f5bb73e0ed99caebed21118e003f2cd7163b2d227b91242972d"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-paired-package.json",
+      "sha256": "7e759e21687d10728c3cab97174343f61dadb178f6f723facaef5e3427e8ecd3"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-cold-v1\\acceptance.json",
+      "sha256": "eb128a4d2119a0c11a94273ff697d28ad8faab9eb097f3895d998cdda73d4640"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-normal-v1.json",
+      "sha256": "f582c7048dd6ec5e33e23aa528b81d50b7963f1482b3a9ed5343ebe29b9cbad1"
+    },
+    "validation_followup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-validation-followup.json",
+      "sha256": "63496b84210a865c098c35f47295bc9d7b7289bb89a35209a9a08043a8f22fb7"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-release-gates.json",
+      "sha256": "ca54ca86dd0fc715f44b9acd2e8099bff14f4052233e5e0b51759f44426aa707"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-upgrade.json",
+      "sha256": "bfdceac6ff07b8e14a61366ba6039c4cd5390d76aba3d49a90dc763aa77d3900"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-config-hold-20261109.json.released.json",
+      "sha256": "24a8b0c467b2deb87507a3c593c98bc5a6d7fb3a006da28b6e4bcf941d274acc"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-review-20261109.json",
+      "sha256": "545a6886426fe4866cee544f3c7b770e14c0da12a8bed92494e740ee55b91973"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-helpers-review-20261109.json",
+      "sha256": "b5c4ab3d81cff6d1ce304f5d33830364ace8941007530f55f47277aa916c5ed5"
+    },
+    "offline_helper_checks": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-20261109-offline-preparation.json",
+      "sha256": "69ebb00934b1ddc8852730ffb451ae9d7f3167bd5804b8902b90f5c047a00a74"
+    }
+  },
+  "delivered_behavior": {
+    "old_named_request_bytes": 10525,
+    "old_required_literal_followup_bytes": 5796,
+    "old_targeted_occurrence_route_calls": 2,
+    "old_targeted_occurrence_route_bytes": 16321,
+    "new_named_request_bytes": 6916,
+    "new_targeted_occurrence_route_calls": 1,
+    "targeted_occurrence_route_bytes_saved": 9405,
+    "literal_matches": [
+      2257,
+      2497
+    ],
+    "literal_windows": [
+      [
+        2245,
+        2269
+      ],
+      [
+        2485,
+        2509
+      ]
+    ],
+    "indexed_candidates_remain_empty": true,
+    "named_lookup_coverage_and_actions_unchanged": true,
+    "other36responses_unchanged": true,
+    "all150definitions_unchanged": true,
+    "all214sidecar_assets_unchanged": true,
+    "focused_behavior_tests_passed": 50,
+    "cold_calls": 37,
+    "normal_calls": 37
+  },
+  "required_validation_followup": {
+    "request": "Read explicit current range 2497..2582 from the recovered ReadMeta location. The range was adapted using independent source evidence; it is not a verbatim emitted whole-method action.",
+    "response_bytes": 6139,
+    "returned_source_equals_raw_snapshot": true,
+    "findings": [
+      "ReadMeta returns Nothing for an absent metadata layer or incompatible format.",
+      "Both persisted counts must pass TryParseCount before CacheMeta construction.",
+      "TryParseCount requires nonempty stored values, Int64 parsing with NumberStyles.None, and a nonnegative result; valid zero is retained."
+    ],
+    "not_candidate_evidence_or_rescore": true
+  },
+  "limits": [
+    "Lexical recovery does not resolve an indexed declaration, overload, receiver or call binding.",
+    "Immediate windows end at line 2509; full validation was inspected only in the separate administrative follow-up.",
+    "The previous unrelated file-head source is no longer included in a successful literal fallback; file-source recovery remains.",
+    "The prior full task remains PASS/PARTIAL/PARTIAL/FAIL/PARTIAL. One root-informed controlled eight-request path also remains incomplete; neither is rescored.",
+    "This proves a specific required-source recovery, not a fresh full-task win, comparative productivity, or closure of all 31 findings and 19 gates."
+  ],
+  "resources": {
+    "hold_released": true,
+    "config_unchanged": true,
+    "old_daemon_exited_naturally": true,
+    "no_processes_signaled": true,
+    "codex_host_signaled": false,
+    "test_build_and_cold_owned_temporaries_removed": true,
+    "jobs_and_handles_closed": true,
+    "normal_and_followup_observers_closed": true,
+    "normal_daemon_pid": 40616,
+    "normal_sidecar_pid": 42096,
+    "all16task_source_pins_rechecked": true,
+    "retained_old_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-a4b2cf4682d04df495d929453f72b4fa",
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, oldpair and evidence for review/recovery until exact-path cleanup authorized; no preexisting directory deletion."
+  },
+  "goal_complete": false,
+  "fresh_agent_task_win_proven": false,
+  "full_original_backlog_complete": false,
+  "original_full19gates_closed": false
+}
