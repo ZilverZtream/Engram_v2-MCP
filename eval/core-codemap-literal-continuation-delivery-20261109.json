@@ -1,0 +1,171 @@
+{
+  "status": "DEPLOYED_CODEMAP_LITERAL_CONTINUATION_NORMAL_IPC_VERIFIED",
+  "at_utc": "2026-11-09T09:16:37.208472+00:00",
+  "source_commit": "d14b2677711600eecefce56477063a83169d2e5f",
+  "selected_original_work": "CodeMap navigation/recovery for actual agent tasks; a continuation for the concrete first-eight-match stop in original classification replay R6.",
+  "development_record": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-20261109.json",
+    "sha256": "76c928e02ae444a8f4cb730138c088493d231405cf5f10f081a3053bc5e43e47"
+  },
+  "prior_full_task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-impact-source-routes-full-classification-20261109.json",
+    "sha256": "2860d194256398f64be6bc2640edfdd08b860dc99301650e940aab4cf290840a"
+  },
+  "implementation": "Optional positive source_start_line continues the same literal suffix inclusively. Separate next_matches action is allocated only after existing source and recovery under unchanged8KiB/12KiB caps, with explicit fresh hash/suffix scope. Absent/null/1 retain first-page semantics.",
+  "validation": {
+    "focused_full_suite": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-literal-continuation-focused-v1-20261109.json",
+      "sha256": "8a9d0c2ca636411d24584b95595b252bdecc49fdebc0bd2f4b52f070ed2683b4"
+    },
+    "additional_coexist_case": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-literal-continuation-coexist-v1-20261109.json",
+      "sha256": "c36cefa9fb4a459e3d16734a9d896670f80073143272c50b4b8209e905cf4f79"
+    },
+    "behavior_cases": 43,
+    "test_only_addition_between_runs": true,
+    "capability_matrix_entries_checked": 135,
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-literal-continuation-shipping-20261109.json",
+      "sha256": "cab4dadc9d7cbb5f192632b518fc90ebc644f6f7cf5ae2c42c5544a65c0150d3"
+    },
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-literal-continuation-build-artifact-20261109.json",
+      "sha256": "9961d50e2255e097188b48a62418281fec5cb7830ff5a4f7f5f0e7ed5cd82b13"
+    },
+    "independent_local_review": "Producer and helper source reviewed locally. Tightened candidate acceptance to require useful first3 inline groups, all5 observed groups, remaining2 recovered, and unchanged suffix navigation. Pre-drain snapshot assertion corrected before package execution. No CodeRabbit/remote review claimed."
+  },
+  "actual_recovery": {
+    "original_R6_bytes": 9366,
+    "new_R6_bytes": 10060,
+    "first_page_extra_bytes": 694,
+    "first_page_original_fields_preserved": true,
+    "continuation_start_line": 271,
+    "suffix_matched_lines": [
+      271,
+      272,
+      276,
+      305,
+      468,
+      1282,
+      1701,
+      1702
+    ],
+    "suffix_reply_bytes": 8846,
+    "inline_source_windows": [
+      [
+        259,
+        288
+      ],
+      [
+        293,
+        317
+      ],
+      [
+        456,
+        480
+      ]
+    ],
+    "separate_source_recovery_windows": [
+      [
+        1270,
+        1294
+      ],
+      [
+        1689,
+        1714
+      ]
+    ],
+    "separate_recovered_lines": 51,
+    "all_current_source_and_raw_blake3_verified": true,
+    "old_read_recovery_preserved_and_executed": true,
+    "meaning": "Makes later discovery/viewport/camera/public-policy source navigable with the same literal. Does not itself close fetch/JSON/editor joins or prove a full-task efficiency win."
+  },
+  "deployment": {
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-paired-package-20261109.json",
+      "sha256": "a8d531ca3f87906e514c9a41309892b0be213ee4952640f450485076a66f4a2b"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-cold-v1-20261109\\acceptance.json",
+      "sha256": "9e4f33d3cff122fd8cff1f838525582ed083285591be5281c31a2a87deea1d87"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-normal-v1-20261109.json",
+      "sha256": "1838cc61e8c0af7e3e23488c8a04ffd21f631586b7de3cbf00ac632c1ec3eac6"
+    },
+    "candidate_calls": 11,
+    "candidate_returned_bytes": 63961,
+    "normal_calls": 11,
+    "normal_returned_bytes": 63961,
+    "all150_schemas_checked_only_expected_codemap_delta": true,
+    "sidecar_native_assets_unchanged": 214,
+    "installed_exe_sha256": "9a83f9a729cb8242a0202c8705b0671f45049f217aa4dc1d33fc8075b0f10e24",
+    "installed_manifest_sha256": "0762e43faa1c49a23a953c03b210750b9ee8d7030dbe2fb6ed50fcbd3fdca246",
+    "daemon_pid": 10664,
+    "launcher_pid": 16072,
+    "generation": 3139,
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-installer-result-20261109.json",
+      "sha256": "088ca93e2609d75464aa4e05e4cbe13ce26e637d6cb023913c73caea4ad473a9"
+    },
+    "actual_upgrade_invocations": 1,
+    "gate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-release-gates-20261109.json",
+      "sha256": "9f3bbbba2ec560c874134df73dd3d26a53052549f52dfe4f1363809177eaff52"
+    },
+    "forward_applicability": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-forward-applicability-20261109.json",
+      "sha256": "920311916931b89e5a80b2b77b2a69f6d8657dfa1f74b3af224bc07ea29cc7b3"
+    },
+    "exact_gate_input_snapshot": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-gate-inventory-snapshot-20261109.json",
+      "sha256": "d272f3a82713796a90b8dd9fb77527adc17d59041e7e401ad3aba222eced651c"
+    }
+  },
+  "maintenance": {
+    "standing_authorization_reused": true,
+    "no_permission_question": true,
+    "preflight": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-preflight-20261109.json",
+      "sha256": "10aeda3976b343f0d83afa48e741deb5b303b4f8f4a8bdfe1d4bb1ef4c02f55f"
+    },
+    "proxy_close": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-proxy-close-intent-20261109.json",
+      "sha256": "a1cd955166f0fb07ac5f41e6f2071839ce7552ff4314814acbeafffb79abee85"
+    },
+    "quiescence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-quiescence-20261109.json",
+      "sha256": "7d1c4fd5de0e021f4ab52d3ec4676b569dba21197264128c852c0f1f50e6e008"
+    },
+    "hold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-config-hold-20261109.json",
+      "sha256": "e74c94ddd1b1a58e63c397550e73ebf0caba58b7371c69c340fc0a4ba24e365e"
+    },
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-config-hold-20261109.json.released.json",
+      "sha256": "2ce10a471386382ebea7195c080d6f4352d58fdc0ffaf3d3cb5c45493bd2b136"
+    },
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-normal-launch-20261109.json",
+      "sha256": "6434cd21e503d2a7786451865eb31b030f5c2ea20cd9b4b7ae7d20f2b3623f62"
+    },
+    "old_daemon_exited_naturally_after_idle_grace": true,
+    "codex_host_stopped": false,
+    "configuration_unchanged": true,
+    "hold_active": false
+  },
+  "resources": {
+    "all_test_build_candidate_handles_closed_and_owned_tmp_removed": true,
+    "normal_observer_pipe_closed": true,
+    "pending_rpc": null,
+    "normal_daemon_owns_idle_lifetime": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-cb9b55e8ad194cc2b42bafd2bddfe807",
+    "retention": "Retain exact receipts, transcripts, scripts/diffs, package and gate snapshot only under recorded diagnostics V for review. Previous complete installed pair retained at exact path; no preexisting deletion.",
+    "prepared_helper_versions": "Development receipt initial prepared verifier hash is superseded by the executed verifier hash pinned in candidate acceptance; no executed proof was rewritten."
+  },
+  "full_task_status": "Latest original full classification remains3PASS/2PARTIAL at8calls/64315B; fresh replay of this deployed continuation is next.",
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false,
+  "next_selected_work": "Run unchanged original classification task with fresh candidate and independent source-based judge under8calls/65536B; preserve every prior partial outcome and report actual adoption/remaining gaps without causal productivity claims."
+}

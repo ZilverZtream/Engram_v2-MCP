@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T08:41:34.339708+00:00",
+    "at_utc": "2026-11-09T09:16:37.208472+00:00",
     "reason": "Followed actual offered setter impact recovery to editor source and checked full native sidecar participation. Existing recovery works; original capped task remains partial.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius usefulness for agents. Connected impact source recovery deployed at9b36634; full classification replay remains3PASS/2PARTIAL,8calls/64315B. Continue original literal navigation/recovery gap exposed by that actual output.",
-    "next_user_visible_deliverable": "Validate bounded same-literal CodeMap continuation against actual source and existing8KiB/12KiB budgets while preserving current evidence. No complete HTTP/editor trace, overall productivity win or broader goal completion claimed.",
+    "active_original_item": "CodeMap and Blast Radius usefulness for agents. CodeMap literal continuation deployed atd14b267 and verified on actual OciusX; unchanged original fulltask replay is next. Existing3PASS/2PARTIAL fulltask outcome remains partial.",
+    "next_user_visible_deliverable": "Run unchanged original classification task with fresh candidate and independent source-based judge under8calls/65536B; preserve every prior partial outcome and report actual adoption/remaining gaps without causal productivity claims.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9921,18 +9921,18 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "IMPLEMENTED_FOCUSED_VERIFIED_REAL_CANDIDATE_VALIDATION_PENDING",
+      "state": "DEPLOYED_LITERAL_CONTINUATION_FRESH_ORIGINAL_TASK_REPLAY_NEXT",
       "tracked_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-20261109.json",
-        "sha256": "76c928e02ae444a8f4cb730138c088493d231405cf5f10f081a3053bc5e43e47"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-delivery-20261109.json",
+        "sha256": "b78112e98a9fe27b5009c246bfda6f3fa1489c7511b91a8ccb74c405cfea039e"
       },
       "implementation_started": true,
       "focused_pass_proven": true,
-      "deployed": false,
-      "full_task_pass_proven": false,
-      "no_new_supporting_project": true,
       "focused_cases": 43,
-      "native_build_pass_proven": false
+      "native_build_pass_proven": true,
+      "deployed": true,
+      "full_task_pass_proven": false,
+      "no_new_supporting_project": true
     },
     "latest_delivery_preparation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-directory-name-delivery-outcome-20261106.json",
@@ -11291,6 +11291,14 @@
       ],
       "calls": 8,
       "bytes": 64315,
+      "goal_complete": false
+    },
+    "latest_codemap_literal_continuation_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-delivery-20261109.json",
+      "sha256": "b78112e98a9fe27b5009c246bfda6f3fa1489c7511b91a8ccb74c405cfea039e",
+      "status": "DEPLOYED_CODEMAP_LITERAL_CONTINUATION_NORMAL_IPC_VERIFIED",
+      "source_commit": "d14b2677711600eecefce56477063a83169d2e5f",
+      "maintenance_hold_released": true,
       "goal_complete": false
     }
   }
