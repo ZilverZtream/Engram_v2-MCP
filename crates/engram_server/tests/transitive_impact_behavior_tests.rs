@@ -462,6 +462,29 @@ fn impact_packet(text: &str) -> Value {
     serde_json::from_str(json).unwrap()
 }
 
+// Public compact objects are overlays: explicit row values win over defaults.
+// Compare their meaning rather than requiring one particular wire encoding.
+fn decoded_connection(defaults: &Value, row: &Value) -> Value {
+    let mut decoded = defaults.as_object().unwrap().clone();
+    decoded.extend(row.as_object().unwrap().clone());
+    decoded.remove("recovery_ref");
+    Value::Object(decoded)
+}
+
+fn assert_source_route_connections(sources: &Value, graph: &Value) {
+    let defaults = &sources["connection_defaults"];
+    assert!(defaults.is_object(), "A compact route must disclose its overlay defaults");
+    for row in sources["connections"].as_array().unwrap() {
+        assert!(row["edge_generation"].is_u64(),
+            "Each connection keeps its explicit admitted edge generation");
+        let original = graph["edges"].as_array().unwrap().iter()
+            .find(|old| old["ref"] == row["ref"]).unwrap();
+        assert_eq!(decoded_connection(defaults, row),
+            decoded_connection(&graph["omitted_defaults"]["edges"], original),
+            "Overlay decoding must preserve every connection field, including absent positions and mixed overrides");
+    }
+}
+
 // Resolve the compact public tables to the semantic identities/paths asserted
 // by the older behavior cases. This does not manufacture additional paths.
 fn selected_impact(text: &str) -> Value {
@@ -1237,8 +1260,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(immediate[0]["source_read_scope"], "explicit_source_range");
             let sources = &summary["source_routes"];
             assert_eq!(sources["admission"], "selected");
-            assert_eq!(sources["connection_defaults"], graph["omitted_defaults"]["edges"],
-                "Missing position metadata must retain its original unverified defaults");
+            assert_source_route_connections(sources, &graph);
             assert!(serde_json::to_vec(sources).unwrap().len() <= 4 * 1024);
             let source_nodes: std::collections::BTreeMap<_, _> = sources["nodes"].as_array().unwrap().iter()
                 .map(|node| (node["ref"].as_str().unwrap(), node)).collect();
@@ -1254,10 +1276,6 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 assert!(source_nodes.contains_key(edge["source_ref"].as_str().unwrap())
                     && source_nodes.contains_key(edge["target_ref"].as_str().unwrap()),
                     "An agent must not resolve dangling local graph references");
-                let mut original = graph["edges"].as_array().unwrap().iter()
-                    .find(|old| old["ref"] == edge["ref"]).unwrap().clone();
-                original.as_object_mut().unwrap().remove("recovery_ref");
-                assert_eq!(*edge, original, "Source leads retain original connection/position provenance");
             }
             let reads = sources["reads"].as_array().unwrap();
             assert_eq!(reads.len() + sources["windows_omitted"].as_u64().unwrap() as usize,
@@ -1425,6 +1443,182 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                             && node["admission"] == "selected")
                 );
             }
+        }
+    });
+}
+
+#[test]
+fn a_separated_cache_bridge_upgrades_the_existing_read_without_losing_other_evidence() {
+    owned_case(|fixture| async move {
+        // The original connected Core/ResolvePolicy read is 38..136 (99 lines).
+        // QueryCache is 10..30 (21 lines): together 120, but its enclosing span
+        // would be 127. Preserve the original intervening preparation context.
+        let mut lines = vec!["// prepared-file context"; 150];
+        lines[9] = "pub fn QueryCache() -> i32 {";
+        lines[10] = "    let result = QueryCacheCore();";
+        lines[28] = "    result";
+        lines[29] = "}";
+        lines[30] = "// outside the bridge's requested window";
+        lines[37] = "pub fn QueryCacheCore() -> i32 {";
+        lines[38] = "    let policy = ResolvePolicy();";
+        lines[78] = "    policy";
+        lines[79] = "}";
+        lines[100] = "// retain this context between the original declarations";
+        lines[133] = "pub fn ResolvePolicy() -> i32 {";
+        lines[134] = "    crate::policy::Resolve()";
+        lines[135] = "}";
+        let spatial = lines.join("\n") + "\n";
+        let viewport = "pub fn QueryViewport(prepared: bool) -> i32 { if prepared { crate::spatial::QueryCache() } else { crate::spatial::ResolvePolicy() } }\n";
+        let endpoint = "pub fn GetFileLayerViewport() -> i32 { crate::http::QueryViewport(true) }\n";
+        let cancel = CancellationToken::new();
+        let head = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID, 2, 3,
+            &[RelPath::new(SPATIAL), RelPath::new(HTTP), RelPath::new(COMPANION)],
+            &[], &cancel).await.unwrap();
+        for (chunk, (path, body)) in [(SPATIAL, spatial.as_str()), (HTTP, viewport),
+            (COMPANION, endpoint)].into_iter().enumerate() {
+            std::fs::write(fixture.root.join(path), body).unwrap();
+            fixture.search.index_docs(PID, &[source_doc(3, 500 + chunk as u64, path, body)],
+                &cancel).await.unwrap();
+            fixture.engram.state.graph.upsert_nodes(PID, &[file_node(path, body, 3)]).unwrap();
+        }
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        let target = id(POLICY, "ClassifyAutomatic", 1);
+        let resolve = id(POLICY, "Resolve", 2);
+        let policy = id(SPATIAL, "ResolvePolicy", 134);
+        let core = id(SPATIAL, "QueryCacheCore", 38);
+        let bridge = id(SPATIAL, "QueryCache", 10);
+        let view = id(HTTP, "QueryViewport", 1);
+        let http = id(COMPANION, "GetFileLayerViewport", 1);
+        let mut bridge_node = declaration(SPATIAL, "QueryCache", 10, 3);
+        // One extra indexed context line crosses the 120-line union boundary.
+        // Source-range recovery does not certify complete method boundaries.
+        bridge_node.end_line = 31;
+        let mut core_node = declaration(SPATIAL, "QueryCacheCore", 38, 3);
+        core_node.end_line = 80;
+        let mut policy_node = declaration(SPATIAL, "ResolvePolicy", 134, 3);
+        policy_node.end_line = 136;
+        fixture.engram.state.graph.upsert_nodes(PID, &[
+            bridge_node.clone(), core_node, policy_node,
+            declaration(HTTP, "QueryViewport", 1, 3),
+            declaration(COMPANION, "GetFileLayerViewport", 1, 3),
+        ]).unwrap();
+        fixture.engram.state.graph.delete_edges_of_kind(PID, &EdgeKind::Calls).unwrap();
+        let mut policy_call = edge(policy.clone(), resolve.clone(), EdgeKind::Calls, 3);
+        policy_call.metadata = Some(json!({"src_line":134,"call_site_line":135}));
+        let mut core_call = edge(core.clone(), policy.clone(), EdgeKind::Calls, 3);
+        core_call.metadata = Some(json!({"src_line":38}));
+        let mut bridge_call = edge(bridge.clone(), core.clone(), EdgeKind::Calls, 3);
+        bridge_call.metadata = Some(json!({"src_line":10,"call_site_line":11,"call_site_lines":[11]}));
+        fixture.engram.state.graph.upsert_edges(PID, &[
+            edge(resolve, target.clone(), EdgeKind::Calls, 2),
+            policy_call, core_call, bridge_call,
+            edge(view.clone(), bridge.clone(), EdgeKind::Calls, 3),
+            edge(view.clone(), policy.clone(), EdgeKind::Calls, 3),
+            edge(http, view, EdgeKind::Calls, 3),
+            // File-only evidence stays a hint, not an invented callable route.
+            edge(format!("file:{FUTURE_FILE}"), target.clone(), EdgeKind::Calls, 1),
+        ]).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&head, 3).unwrap());
+
+        let before_graph = impact_packet(&impact_target(&fixture, &target, Some(6)).await);
+        let mut baselines = std::collections::BTreeMap::new();
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let baseline = impact_packet(&summary_impact(&fixture, tool, &target, 6).await);
+            let routes = &baseline["source_routes"];
+            assert_source_route_connections(routes, &before_graph);
+            let reads = routes["reads"].as_array().unwrap();
+            assert_eq!(reads.len(), 3, "Allocate all original reads before attempting an upgrade");
+            let prepared = reads.iter().find(|read| read["arguments"]["file_path"] == SPATIAL).unwrap();
+            assert_eq!(prepared["arguments"]["line_start"], 38);
+            assert_eq!(prepared["arguments"]["line_end"], 136);
+            assert!(prepared["arguments"].get("source_ranges").is_none(),
+                "A 121-line union must preserve the complete original contiguous action");
+            assert!(reads.iter().any(|read| read["arguments"]["file_path"] == HTTP));
+            assert!(reads.iter().any(|read| read["arguments"]["file_path"] == COMPANION));
+            assert!(routes["file_hints"].as_array().unwrap().iter().any(|path| path == FUTURE_FILE));
+            assert_eq!(routes["eligible_windows"], 4);
+            assert_eq!(routes["windows_omitted"], 1);
+            baselines.insert(tool, baseline);
+        }
+
+        bridge_node.end_line = 30;
+        fixture.engram.state.graph.upsert_nodes(PID, &[bridge_node]).unwrap();
+        let graph = impact_packet(&impact_target(&fixture, &target, Some(6)).await);
+        assert_eq!(graph["edges"], before_graph["edges"],
+            "Changing an indexed read bound must not alter the admitted causal connections");
+        assert_eq!(graph["coverage"], before_graph["coverage"]);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let summary = impact_packet(&summary_impact(&fixture, tool, &target, 6).await);
+            let baseline = &baselines[tool];
+            let mut unchanged = summary.clone();
+            let mut previous = baseline.clone();
+            unchanged.as_object_mut().unwrap().remove("source_routes");
+            previous.as_object_mut().unwrap().remove("source_routes");
+            assert_eq!(unchanged, previous,
+                "Read upgrading cannot evict earlier hints, navigation, counts, or uncertainty disclosures");
+            let routes = &summary["source_routes"];
+            let old = &baseline["source_routes"];
+            assert!(serde_json::to_vec(routes).unwrap().len() <= 4 * 1024);
+            assert_source_route_connections(routes, &graph);
+            assert_eq!(routes["file_hints"], old["file_hints"]);
+            assert_eq!(routes["file_hints_omitted"], old["file_hints_omitted"]);
+            assert_eq!(routes["ineligible_retained_callables"], old["ineligible_retained_callables"]);
+            for node in old["nodes"].as_array().unwrap() {
+                assert!(routes["nodes"].as_array().unwrap().contains(node),
+                    "An added bridge cannot drop or rewrite an already displayed node");
+            }
+            for connection in old["connections"].as_array().unwrap() {
+                let retained = routes["connections"].as_array().unwrap().iter()
+                    .find(|row| row["ref"] == connection["ref"]).unwrap();
+                assert_eq!(decoded_connection(&routes["connection_defaults"], retained),
+                    decoded_connection(&old["connection_defaults"], connection));
+            }
+            let reads = routes["reads"].as_array().unwrap();
+            assert_eq!(reads.len(), 3);
+            assert_eq!(routes["eligible_windows"], 3);
+            assert_eq!(routes["windows_omitted"], 0);
+            for other in old["reads"].as_array().unwrap().iter()
+                .filter(|read| read["arguments"]["file_path"] != SPATIAL) {
+                assert!(reads.contains(other), "Other fully allocated reads remain byte-for-byte equivalent");
+            }
+            let read = reads.iter().find(|read| read["arguments"]["file_path"] == SPATIAL).unwrap();
+            assert_eq!(read["tool"], "get_full_method_body");
+            let arguments = &read["arguments"];
+            assert!(arguments.get("line_start").is_none() && arguments.get("line_end").is_none());
+            assert_eq!(arguments["source_ranges"], json!([
+                {"line_start":10,"line_end":30}, {"line_start":38,"line_end":136}
+            ]), "Keep both original envelopes, including context between Core and ResolvePolicy");
+            let windows = arguments["source_ranges"].as_array().unwrap();
+            assert!(windows.len() <= 3);
+            assert!(windows.windows(2).all(|pair|
+                pair[0]["line_end"].as_u64().unwrap() < pair[1]["line_start"].as_u64().unwrap()));
+            assert_eq!(windows.iter().map(|window|
+                window["line_end"].as_u64().unwrap() - window["line_start"].as_u64().unwrap() + 1)
+                .sum::<u64>(), 120);
+            let covered: Vec<_> = read["covered_refs"].as_array().unwrap().iter().map(|reference|
+                routes["nodes"].as_array().unwrap().iter()
+                    .find(|node| node["ref"] == *reference).unwrap()).collect();
+            for expected in [&bridge, &core, &policy] {
+                assert!(covered.iter().any(|node| node["node_id"] == expected.as_str()));
+            }
+            assert!(covered.iter().all(|node| node["generation"] == 3));
+
+            let result = fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(arguments.clone()).expect("The returned action must execute without repair")
+            ).await.unwrap();
+            assert!(!result.is_error.unwrap_or(false));
+            let current: Value = serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(current["source_file_hash"], ContentHash::compute(spatial.as_bytes()).0);
+            assert_eq!(current["source_verification"], "explicit_ranges_current_file_snapshot");
+            assert_eq!(current["total_returned_lines"], 120);
+            assert_eq!(current["ranges_complete"], true);
+            let returned = current["windows"].as_array().unwrap();
+            assert_eq!(returned.len(), 2);
+            assert_eq!(returned[0]["source_code"], lines[9..30].join("\n"));
+            assert_eq!(returned[1]["source_code"], lines[37..136].join("\n"));
+            assert!(returned[1]["source_code"].as_str().unwrap()
+                .contains("retain this context between the original declarations"));
         }
     });
 }

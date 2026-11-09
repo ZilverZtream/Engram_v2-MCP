@@ -616,15 +616,27 @@ fn append_terminal_inspection(value: &mut Value, inspection: &Value, fits: &dyn 
 /// Recover useful current-file windows from this frame only. A window can
 /// combine connected indexed declaration spans, never infer value flow or pull
 /// an input producer into reverse impact. No database/source/HEAD query occurs.
-fn append_source_routes(value: &mut Value, full: &Value, project: &str, fits: &dyn Fn(&Value) -> bool) {
-    if value["target_revision_admitted"] != true { return; }
+struct SourceRouteFrame<'a> {
+    nodes: HashMap<&'a str, &'a Value>,
+    files: HashMap<&'a str, &'a Value>,
+    edges: Vec<&'a Value>,
+    target: &'a Value,
+    eligible: Vec<&'a Value>,
+    traces: HashMap<&'a str, Vec<String>>,
+    groups: Vec<Vec<usize>>,
+    ineligible: usize,
+}
+
+// The original contiguous groups are shared by initial allocation and the
+// optional final upgrade. Eligibility/admission and group counts cannot drift.
+fn source_route_frame(full: &Value) -> Option<SourceRouteFrame<'_>> {
     let nodes: HashMap<_, _> = full["nodes"].as_array().into_iter().flatten()
         .filter_map(|node| Some((node["ref"].as_str()?, node))).collect();
     let files: HashMap<_, _> = full["files"].as_array().into_iter().flatten()
         .filter_map(|file| Some((file["ref"].as_str()?, file))).collect();
     let recoveries: HashMap<_, _> = full["recoveries"].as_array().into_iter().flatten()
         .filter_map(|row| Some((row["ref"].as_str()?, row))).collect();
-    let Some(target) = full["target_ref"].as_str().and_then(|reference| nodes.get(reference)).copied() else { return };
+    let target = full["target_ref"].as_str().and_then(|reference| nodes.get(reference)).copied()?;
     let callable = |node: &Value| node["admission"] == "selected"
         && matches!(node["kind"].as_str(), Some("function" | "method" | "constructor"));
     let edges: Vec<_> = full["edges"].as_array().into_iter().flatten().filter(|edge| {
@@ -672,7 +684,7 @@ fn append_source_routes(value: &mut Value, full: &Value, project: &str, fits: &d
         traces.insert(reference, path); eligible.push(node);
     }
     eligible.sort_by(|a, b| a["node_id"].as_str().cmp(&b["node_id"].as_str()));
-    if eligible.is_empty() { return; }
+    if eligible.is_empty() { return None; }
     let indices: HashMap<_, _> = eligible.iter().enumerate().map(|(i, node)| (node["ref"].as_str().unwrap(), i)).collect();
     let mut owners: Vec<_> = (0..eligible.len()).collect();
     let mut lows: Vec<_> = eligible.iter().map(|node| node["start_line"].as_u64().unwrap()).collect();
@@ -702,6 +714,13 @@ fn append_source_routes(value: &mut Value, full: &Value, project: &str, fits: &d
     let mut groups: BTreeMap<usize, Vec<usize>> = BTreeMap::new();
     for i in 0..eligible.len() { groups.entry(owner(&mut owners, i)).or_default().push(i); }
     let groups: Vec<_> = groups.into_values().collect();
+    Some(SourceRouteFrame { nodes, files, edges, target, eligible, traces, groups, ineligible })
+}
+
+fn append_source_routes(value: &mut Value, full: &Value, project: &str, fits: &dyn Fn(&Value) -> bool) {
+    if value["target_revision_admitted"] != true { return; }
+    let Some(SourceRouteFrame { nodes, files, edges, target, eligible, traces, groups, ineligible })
+        = source_route_frame(full) else { return };
     let score = |group: &Vec<usize>| {
         let refs: BTreeSet<_> = group.iter().map(|i| eligible[*i]["ref"].as_str().unwrap()).collect();
         let incoming: BTreeSet<_> = edges.iter().filter_map(|edge| {
@@ -799,6 +818,337 @@ fn append_source_routes(value: &mut Value, full: &Value, project: &str, fits: &d
             shown.pop(); value["source_routes"]["file_hints"] = json!(&shown);
             value["source_routes"]["file_hints_omitted"] = json!(hints.len() - shown.len());
         }
+    }
+}
+
+fn source_range_union(mut ranges: Vec<(u64, u64)>) -> Option<Vec<(u64, u64)>> {
+    ranges.sort_unstable();
+    let mut merged: Vec<(u64, u64)> = Vec::new();
+    for (start, end) in ranges {
+        if start == 0 || end < start || end > u32::MAX as u64 { return None; }
+        if let Some(last) = merged.last_mut().filter(|last| start <= last.1 + 1) {
+            last.1 = last.1.max(end);
+        } else {
+            merged.push((start, end));
+        }
+    }
+    (merged.len() <= 3 && merged.iter().map(|(start, end)| end - start + 1).sum::<u64>() <= 120)
+        .then_some(merged)
+}
+
+fn decoded_route_connections(routes: &Value) -> Option<Vec<Value>> {
+    let defaults = routes["connection_defaults"].as_object()?;
+    routes["connections"].as_array()?.iter().map(|edge| {
+        let mut decoded = defaults.clone();
+        decoded.extend(edge.as_object()?.clone());
+        Some(Value::Object(decoded))
+    }).collect()
+}
+
+// A row's explicit fields override shared defaults, including null and false.
+// Never infer a common fact from an absent field, even if its inherited value
+// happens to equal the other rows. Physical edge generations stay explicit.
+fn compact_route_connections(routes: &mut Value) -> bool {
+    let Some(before) = decoded_route_connections(routes) else { return false };
+    let Some(rows) = routes["connections"].as_array() else { return false };
+    if rows.is_empty() { return false; }
+    let mut defaults = routes["connection_defaults"].as_object().unwrap().clone();
+    let mut rows = rows.clone();
+    for key in ["kind", "source_position_kind", "source_position_scope"] {
+        let Some(common) = rows[0].get(key).cloned() else { continue };
+        if rows.iter().all(|row| row.get(key) == Some(&common)) {
+            defaults.insert(key.to_owned(), common);
+            for row in &mut rows { row.as_object_mut().unwrap().remove(key); }
+        }
+    }
+    // These defaults are unused, not unknown values being promoted to facts:
+    // every row still explicitly supplies its own value for a removed key.
+    defaults.retain(|key, _| !rows.iter().all(|row| row.get(key).is_some()));
+    let mut candidate = routes.clone();
+    candidate["connection_defaults"] = json!(defaults);
+    candidate["connections"] = json!(rows);
+    if decoded_route_connections(&candidate).as_ref() != Some(&before) { return false; }
+    *routes = candidate;
+    true
+}
+
+// Upgrade only after all old final-summary allocations. Every attempted merge
+// clones the complete accepted output, so a failed route/envelope fit retains
+// its old actions, hints, navigation, witnesses and coverage byte-for-byte.
+fn upgrade_source_routes(value: &mut Value, full: &Value, fits: &dyn Fn(&Value) -> bool) {
+    if value["target_revision_admitted"] != true { return; }
+    let Some(frame) = source_route_frame(full) else { return };
+    let original = value.clone();
+    let routes = &original["source_routes"];
+    let Some(reads) = routes["reads"].as_array().filter(|reads| !reads.is_empty()) else { return };
+    if routes["eligible_windows"].as_u64() != Some(frame.groups.len() as u64)
+        || routes["windows_omitted"].as_u64().and_then(|n| n.checked_add(reads.len() as u64))
+            != Some(frame.groups.len() as u64) { return; }
+    let indices: HashMap<_, _> = frame.eligible.iter().enumerate()
+        .map(|(i, node)| (node["ref"].as_str().unwrap(), i)).collect();
+    let mut members = Vec::new();
+    let mut ranges = Vec::new();
+    let mut represented = BTreeSet::new();
+    for read in reads {
+        let Some(references) = read["covered_refs"].as_array() else { return };
+        let Some(covered): Option<BTreeSet<usize>> = references.iter()
+            .map(|r| r.as_str().and_then(|r| indices.get(r)).copied()).collect() else { return };
+        let Some(group) = frame.groups.iter().position(|group|
+            group.iter().copied().collect::<BTreeSet<_>>() == covered) else { return };
+        if !represented.insert(group) { return; }
+        let first = frame.eligible[frame.groups[group][0]];
+        let start = frame.groups[group].iter().map(|i| frame.eligible[*i]["start_line"].as_u64().unwrap()).min().unwrap();
+        let end = frame.groups[group].iter().map(|i| frame.eligible[*i]["end_line"].as_u64().unwrap()).max().unwrap();
+        if read["tool"] != "get_full_method_body"
+            || read["arguments"]["file_path"] != frame.files[first["file_ref"].as_str().unwrap()]["path"]
+            || read["arguments"]["line_start"].as_u64() != Some(start)
+            || read["arguments"]["line_end"].as_u64() != Some(end) { return; }
+        let Some(span) = source_range_union(vec![(start, end)]) else { return };
+        members.push(covered); ranges.push(span);
+    }
+    let mut ordered: Vec<_> = (0..frame.groups.len()).collect();
+    ordered.sort_by_key(|i| (
+        frame.groups[*i].iter().map(|n| frame.eligible[*n]["depth"].as_u64().unwrap()).min().unwrap(),
+        frame.eligible[frame.groups[*i][0]]["node_id"].as_str().unwrap()));
+    let mut joins = 0usize;
+    for read_index in 0..reads.len() {
+        loop {
+            let mut accepted = false;
+            for &group in &ordered {
+                if represented.contains(&group) { continue; }
+                let first = frame.eligible[*members[read_index].first().unwrap()];
+                let next = frame.eligible[frame.groups[group][0]];
+                if first["file_ref"] != next["file_ref"] || first["generation"] != next["generation"] { continue; }
+                let extra: BTreeSet<_> = frame.groups[group].iter().copied().collect();
+                let connected = frame.edges.iter().any(|edge| {
+                    let Some((&a, &b)) = indices.get(edge["source_ref"].as_str().unwrap())
+                        .zip(indices.get(edge["target_ref"].as_str().unwrap())) else { return false };
+                    (members[read_index].contains(&a) && extra.contains(&b))
+                        || (members[read_index].contains(&b) && extra.contains(&a))
+                });
+                if !connected { continue; }
+                let start = extra.iter().map(|i| frame.eligible[*i]["start_line"].as_u64().unwrap()).min().unwrap();
+                let end = extra.iter().map(|i| frame.eligible[*i]["end_line"].as_u64().unwrap()).max().unwrap();
+                let Some(union) = source_range_union(ranges[read_index].iter().copied()
+                    .chain(std::iter::once((start, end))).collect()) else { continue };
+                let mut candidate = value.clone();
+                let source_routes = &mut candidate["source_routes"];
+                let mut covered = members[read_index].clone(); covered.extend(&extra);
+                let mut references: BTreeSet<String> = source_routes["nodes"].as_array().unwrap().iter()
+                    .map(|node| node["ref"].as_str().unwrap().to_owned()).collect();
+                let mut seeds: BTreeSet<String> = source_routes["seed_refs"].as_array().unwrap().iter()
+                    .map(|r| r.as_str().unwrap().to_owned()).collect();
+                for index in &extra {
+                    let path = &frame.traces[frame.eligible[*index]["ref"].as_str().unwrap()];
+                    seeds.insert(path[0].clone()); references.extend(path.iter().cloned());
+                }
+                let shown: BTreeSet<_> = source_routes["nodes"].as_array().unwrap().iter()
+                    .map(|node| node["ref"].as_str().unwrap().to_owned()).collect();
+                for reference in references.difference(&shown) {
+                    let node = frame.nodes[reference.as_str()];
+                    source_routes["nodes"].as_array_mut().unwrap().push(json!({
+                        "ref":node["ref"],"node_id":node["node_id"],"generation":node["generation"],
+                        "file_ref":node["file_ref"],"indexed_lines":[node["start_line"],node["end_line"]]}));
+                }
+                source_routes["nodes"].as_array_mut().unwrap().sort_by(|a,b| a["ref"].as_str().cmp(&b["ref"].as_str()));
+                let shown_files: BTreeSet<_> = source_routes["files"].as_array().unwrap().iter()
+                    .map(|file| file["ref"].as_str().unwrap().to_owned()).collect();
+                let needed_files: BTreeSet<_> = source_routes["nodes"].as_array().unwrap().iter()
+                    .map(|node| node["file_ref"].as_str().unwrap().to_owned()).collect();
+                for reference in needed_files.difference(&shown_files) {
+                    source_routes["files"].as_array_mut().unwrap().push(frame.files[reference.as_str()].clone());
+                }
+                source_routes["files"].as_array_mut().unwrap().sort_by(|a,b| a["ref"].as_str().cmp(&b["ref"].as_str()));
+                source_routes["seed_refs"] = json!(seeds);
+                let connections: Vec<_> = frame.edges.iter().filter(|edge|
+                    references.contains(edge["source_ref"].as_str().unwrap())
+                        && references.contains(edge["target_ref"].as_str().unwrap())).map(|edge| {
+                    let mut edge = (*edge).clone(); edge.as_object_mut().unwrap().remove("recovery_ref"); edge
+                }).collect();
+                source_routes["connections"] = json!(connections);
+                source_routes["connection_defaults"] = full["omitted_defaults"]["edges"].clone();
+                source_routes["reads"][read_index]["covered_refs"] = json!(covered.iter()
+                    .map(|i| frame.eligible[*i]["ref"].clone()).collect::<Vec<_>>());
+                let arguments = source_routes["reads"][read_index]["arguments"].as_object_mut().unwrap();
+                arguments.remove("line_start"); arguments.remove("line_end");
+                arguments.insert("source_ranges".into(), json!(union.iter().map(|(start,end)|
+                    json!({"line_start":start,"line_end":end})).collect::<Vec<_>>()));
+                let eligible = frame.groups.len() - joins - 1;
+                source_routes["eligible_windows"] = json!(eligible);
+                source_routes["windows_omitted"] = json!(eligible - reads.len());
+                if !compact_route_connections(source_routes) { continue; }
+                source_routes["scope"] = json!("Edge fields override connection_defaults; summary limitations apply. Graph retains other branches/position reads. Input producers may lie outside reverse impact.");
+                let Some(previous_edges) = decoded_route_connections(&value["source_routes"]) else { continue };
+                let Some(candidate_edges) = decoded_route_connections(source_routes) else { continue };
+                if !previous_edges.iter().all(|edge| candidate_edges.contains(edge))
+                    || serde_json::to_vec(source_routes).unwrap().len() > SOURCE_ROUTE_BYTES
+                    || !fits(&candidate) { continue; }
+                *value = candidate;
+                members[read_index] = covered; ranges[read_index] = union;
+                represented.insert(group); joins += 1; accepted = true;
+                break;
+            }
+            if !accepted { break; }
+        }
+    }
+}
+
+#[cfg(test)]
+mod source_route_upgrade_behavior {
+    use super::*;
+
+    fn bridge_frame() -> Value {
+        let declarations = [
+            ("n0", "f0", "Policy", 1, 1, 0), ("n1", "f0", "Resolve", 2, 2, 1),
+            ("n2", "f1", "QueryCacheCore", 40, 80, 3),
+            ("n3", "f1", "ResolvePolicy", 136, 138, 2),
+            ("n4", "f1", "QueryCache", 10, 30, 4),
+            ("n5", "f2", "Http", 1, 4, 2), ("n6", "f3", "Endpoint", 1, 4, 3),
+        ];
+        let files = BTreeMap::from([("f0", "src/policy.rs"), ("f1", "src/cache.rs"),
+            ("f2", "src/http.rs"), ("f3", "src/endpoint.rs")]);
+        let nodes: Vec<_> = declarations.iter().map(|(r, f, name, start, end, depth)| json!({
+            "ref":r,"node_id":format!("sym:function:{}:{name}:{start}",files[f]),
+            "name":name,"kind":"function","file_ref":f,"generation":7,
+            "admission":"selected","is_seed":*depth==0,"depth":depth,
+            "start_line":start,"end_line":end,"recovery_ref":format!("r{r}")})).collect();
+        let recoveries: Vec<_> = declarations.iter().map(|(r, f, _, start, end, _)| json!({
+            "ref":format!("r{r}"),"tool":"get_full_method_body","scope_ref":"range",
+            "arguments":{"project_id":"p","file_path":files[f],"line_start":start,
+                "line_end":end,"output_json":true,"context_lines":0}})).collect();
+        let edges: Vec<_> = [("n1","n0"),("n3","n1"),("n2","n3"),
+            ("n4","n2"),("n5","n1"),("n6","n5")].iter().enumerate().map(|(i,(a,b))|
+            json!({"ref":format!("e{i}"),"source_ref":a,"target_ref":b,"kind":"calls","edge_generation":7})).collect();
+        json!({"target_ref":"n0","target_revision_admitted":true,"source_generation":7,
+            "source_layout":"managed","status":"bounded_indexed_exposure","requested_max_depth":6,
+            "selected_dependents_observed":6,"coverage":ImpactWalkCoverage::default(),
+            "nodes":nodes,"edges":edges,"recoveries":recoveries,
+            "files":files.iter().map(|(r,p)|json!({"ref":r,"path":p})).collect::<Vec<_>>(),
+            "omitted_defaults":{"edges":{"connection_role":"shortest_predecessor",
+                "source_position_kind":"not_recorded","source_position_scope":"not_recorded",
+                "source_line":null,"reference_lines":[],"reference_lines_truncated":false}},
+            "frontier":[],"recovery_scopes":{"range":"Current range; indexed bounds unverified."}})
+    }
+
+    #[test]
+    fn shared_defaults_preserve_absence_null_false_and_explicit_generations() {
+        let mut routes = json!({"connection_defaults":{"source_position_kind":"not_recorded",
+            "source_position_scope":"not_recorded","source_line":null,
+            "reference_lines":[],"reference_lines_truncated":false},"connections":[
+            {"ref":"a","kind":"calls","edge_generation":7,"source_position_kind":"not_recorded",
+             "source_position_scope":"indexed_metadata_only","source_line":12,
+             "reference_lines":[12],"reference_lines_truncated":true},
+            {"ref":"b","kind":"calls","edge_generation":7,
+             "source_position_scope":"indexed_metadata_only","source_line":null,
+             "reference_lines":[],"reference_lines_truncated":false},
+            {"ref":"c","kind":"calls","edge_generation":7,"source_position_kind":null,
+             "source_position_scope":"indexed_metadata_only","reference_lines":[]}]});
+        let before = decoded_route_connections(&routes).unwrap();
+        assert!(compact_route_connections(&mut routes));
+        assert_eq!(decoded_route_connections(&routes).unwrap(), before);
+        assert!(routes["connections"][1].get("source_position_kind").is_none(),
+            "A missing field must not acquire an inferred recorded-position fact");
+        assert_eq!(routes["connections"][2]["source_position_kind"], Value::Null);
+        assert_eq!(routes["connections"][1]["reference_lines_truncated"], false);
+        assert_eq!(routes["connection_defaults"]["source_position_kind"], "not_recorded");
+        assert!(routes["connection_defaults"].get("source_line").is_some(),
+            "An absent row field still needs its unknown default");
+        assert!(routes["connection_defaults"].get("reference_lines").is_none(),
+            "All explicit per-row samples remain; their unused default can be omitted");
+        assert!(routes["connections"].as_array().unwrap().iter().all(|edge| edge["edge_generation"]==7));
+    }
+
+    #[test]
+    fn a_crowded_final_envelope_retains_the_entire_existing_projection() {
+        let frame = bridge_frame();
+        let mut original = summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
+        original["hinted_file_declarations"] = json!({"declarations":[{"node_id":"retained-hint"}]});
+        original["consumer_navigation"] = json!({"expansions":[{"tool":"impact_analysis","arguments":{"project_id":"p","symbol_fqn":"retained"}}]});
+        let mut roomy = original.clone();
+        upgrade_source_routes(&mut roomy,&frame,&|_|true);
+        assert!(roomy["source_routes"]["reads"].as_array().unwrap().iter()
+            .any(|read|read["arguments"]["source_ranges"].is_array()), "Fixture must admit the bridge");
+        let cap = serde_json::to_vec(&original).unwrap().len();
+        assert!(serde_json::to_vec(&roomy).unwrap().len()>cap,
+            "Fixture must exercise the final envelope, not just the route cap");
+        let mut crowded = original.clone();
+        upgrade_source_routes(&mut crowded,&frame,&|candidate|serde_json::to_vec(candidate).unwrap().len()<=cap);
+        assert_eq!(crowded,original,"Failure cannot evict hints/navigation or compress the baseline alone");
+        assert_eq!(roomy["hinted_file_declarations"],original["hinted_file_declarations"]);
+        assert_eq!(roomy["consumer_navigation"],original["consumer_navigation"]);
+    }
+
+    #[test]
+    fn repeated_joins_stop_at_three_windows_and_respect_physical_generation() {
+        let mut frame = bridge_frame();
+        for (reference,start,end) in [("n2",140,150),("n3",160,162)] {
+            let node = frame["nodes"].as_array_mut().unwrap().iter_mut()
+                .find(|node|node["ref"]==reference).unwrap();
+            node["start_line"]=json!(start); node["end_line"]=json!(end);
+            node["node_id"]=json!(format!("sym:function:src/cache.rs:{}:{start}",node["name"].as_str().unwrap()));
+            let recovery = frame["recoveries"].as_array_mut().unwrap().iter_mut()
+                .find(|row|row["ref"]==format!("r{reference}")).unwrap();
+            recovery["arguments"]["line_start"]=json!(start);
+            recovery["arguments"]["line_end"]=json!(end);
+        }
+        for (reference,parent,start,depth) in [("n7","n4",300,5),("n8","n7",450,6)] {
+            frame["nodes"].as_array_mut().unwrap().push(json!({"ref":reference,
+                "node_id":format!("sym:function:src/cache.rs:Wrapper{reference}:{start}"),
+                "name":format!("Wrapper{reference}"),"kind":"function","file_ref":"f1",
+                "generation":7,"admission":"selected","is_seed":false,"depth":depth,
+                "start_line":start,"end_line":start+2,"recovery_ref":format!("r{reference}")}));
+            frame["recoveries"].as_array_mut().unwrap().push(json!({"ref":format!("r{reference}"),
+                "tool":"get_full_method_body","scope_ref":"range","arguments":{
+                    "file_path":"src/cache.rs","line_start":start,"line_end":start+2}}));
+            frame["edges"].as_array_mut().unwrap().push(json!({"ref":format!("e{reference}"),
+                "source_ref":reference,"target_ref":parent,"kind":"calls","edge_generation":7}));
+        }
+        let project = |frame: &Value| {
+            let mut summary = summary_value(frame,"p",None,None,8,Some(1),Some(7),None);
+            upgrade_source_routes(&mut summary,frame,&|_|true);
+            summary
+        };
+        let summary = project(&frame);
+        let read = summary["source_routes"]["reads"].as_array().unwrap().iter()
+            .find(|read|read["arguments"]["file_path"]=="src/cache.rs").unwrap();
+        assert_eq!(read["arguments"]["source_ranges"],json!([
+            {"line_start":10,"line_end":30},{"line_start":140,"line_end":162},
+            {"line_start":300,"line_end":302}]));
+        assert!(!read["covered_refs"].as_array().unwrap().contains(&json!("n8")),
+            "A fourth disjoint window must not discard earlier source spans");
+        assert_eq!(summary["source_routes"]["eligible_windows"],4);
+        assert_eq!(summary["source_routes"]["windows_omitted"],1);
+        frame["nodes"].as_array_mut().unwrap().iter_mut()
+            .find(|node|node["ref"]=="n7").unwrap()["generation"]=json!(8);
+        let mixed = project(&frame);
+        let read = mixed["source_routes"]["reads"].as_array().unwrap().iter()
+            .find(|read|read["arguments"]["file_path"]=="src/cache.rs").unwrap();
+        assert_eq!(read["arguments"]["source_ranges"].as_array().unwrap().len(),2);
+        assert!(!read["covered_refs"].as_array().unwrap().contains(&json!("n7")),
+            "Connected selected nodes from a different physical generation cannot share the read");
+        assert_eq!(mixed["source_routes"]["eligible_windows"],5);
+        assert_eq!(mixed["source_routes"]["windows_omitted"],2);
+    }
+
+    #[test]
+    fn assessment_summary_upgrades_reads_without_changing_typed_exposure() {
+        let assessment = ImpactAssessment { source_generation:Some(7),source_layout:"managed".into(),
+            requested_max_depth:6,target_revision_admitted:true,status:"bounded_indexed_exposure".into(),
+            coverage:ImpactWalkCoverage::default(),selected_dependents_observed:Some(6),
+            direct_dependents_observed:Some(1),transitive_dependents_observed:Some(5),evidence:bridge_frame() };
+        let summary = assessment_summary(&assessment,"p","sym:function:src/policy.rs:Policy:1",8).unwrap();
+        assert_eq!(summary["selected_dependents_observed"],6);
+        assert_eq!(summary["direct_dependents_observed"],1);
+        assert_eq!(summary["transitive_dependents_observed"],5);
+        assert_eq!(summary["coverage"],serde_json::to_value(&assessment.coverage).unwrap());
+        assert_eq!(summary["change_breakage_proven"],false);
+        let reads = summary["source_routes"]["reads"].as_array().unwrap();
+        assert_eq!(reads.len(),3);
+        let read = reads.iter().find(|read|read["arguments"]["file_path"]=="src/cache.rs").unwrap();
+        assert_eq!(read["arguments"]["source_ranges"],json!([
+            {"line_start":10,"line_end":30},{"line_start":40,"line_end":138}]));
+        assert_eq!(summary["source_routes"]["eligible_windows"],3);
+        assert_eq!(summary["source_routes"]["windows_omitted"],0);
     }
 }
 
@@ -1043,6 +1393,7 @@ fn summary_section(
     recover_capped_member_search(&mut value, full, &fits);
     append_hinted_file_declarations(&mut value,full,&fits);
     append_consumer_navigation(&mut value,full,project,&fits);
+    upgrade_source_routes(&mut value,full,&fits);
     render_summary(&value,&immediate_prefix)
 }
 
@@ -1070,6 +1421,7 @@ pub(crate) fn assessment_summary(
     recover_capped_member_search(&mut value, &assessment.evidence, &fits);
     append_hinted_file_declarations(&mut value,&assessment.evidence,&fits);
     append_consumer_navigation(&mut value,&assessment.evidence,project,&fits);
+    upgrade_source_routes(&mut value,&assessment.evidence,&fits);
     anyhow::ensure!(serde_json::to_vec(&value)?.len()<=SUMMARY_BYTES,
         "Required downstream summary facts exceed the 12KiB display bound");
     Ok(value)
