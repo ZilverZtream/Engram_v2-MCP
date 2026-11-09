@@ -163,9 +163,19 @@
     "retention": "Retain exact receipts, transcripts, scripts/diffs, package and gate snapshot only under recorded diagnostics V for review. Previous complete installed pair retained at exact path; no preexisting deletion.",
     "prepared_helper_versions": "Development receipt initial prepared verifier hash is superseded by the executed verifier hash pinned in candidate acceptance; no executed proof was rewritten."
   },
-  "full_task_status": "Latest original full classification remains3PASS/2PARTIAL at8calls/64315B; fresh replay of this deployed continuation is next.",
+  "full_task_status": "Two fresh replays retained: initial3PASS/2PARTIAL with undisclosed coordinator restriction; corrected8successful-call run4PASS/1PARTIAL at62770B. No overall task or continuation-specific win.",
   "fresh_agent_task_win_proven": false,
   "original_full19gates_closed": false,
   "goal_complete": false,
-  "next_selected_work": "Run unchanged original classification task with fresh candidate and independent source-based judge under8calls/65536B; preserve every prior partial outcome and report actual adoption/remaining gaps without causal productivity claims."
+  "next_selected_work": "Continue original CodeMap/Blast witness-navigation work: inspect the actual method context for the selected backend policy-serializer branch against existing sidecar invocation/return-path evidence and independent source. Reuse retained recovery evidence first; at most a bounded targeted observation if missing. Select no new implementation unless it demonstrates a concrete navigation/witness failure. Do not repeat broad sidecar/catalog/ownership audits or instruction drafting.",
+  "full_task_replays": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-full-classification-20261109.json",
+      "sha256": "d20c1cb09f752c1d15fbebc3a4b407bdccbb8ea7f966232a68be28a32487c8b1"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-fixed-classification-20261109.json",
+      "sha256": "e78ae3ee3a0d5df32d16ec8be5443dd9b997ab92d6cb79db30aa69de477376c1"
+    }
+  ]
 }
