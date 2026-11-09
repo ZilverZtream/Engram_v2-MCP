@@ -1,0 +1,245 @@
+{
+  "status": "ORIGINAL_FULL_QA_PARTIAL_WITH_ATTRIBUTED_VERIFIER_ERROR_NO_PRODUCT_BENEFIT_ESTABLISHED",
+  "at_utc": "2026-11-09T18:22:20.245209+00:00",
+  "source_commit": "95b60af2700055c4e35df4c0e260df90bb8f606e",
+  "installed_server_sha256": "83ccd0fde760a6dca1eef23bccf8873ddb834fe937f0fcb5f445921ce6cf35e2",
+  "candidate": "/root/full_qa_cedar",
+  "judge": "/root/qa_judge_d",
+  "task": "Review the CURRENT automatic zoom and manual-override workflow in OciusX for QA coverage. Decide whether tests of ClassifyAutomatic alone are sufficient to sign off that workflow, and give the minimum backend-to-UI regression matrix you can justify from inspected code. Starting point: Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb, ClassifyAutomatic. No threshold change or application patch is proposed; do not invent one or edit application code. Distinguish direct calls, data dependencies and unresolved leads. Return concrete test setups and expected results, source path/line citations, and explicit uninspected/deployment limits. Keep the final answer at most1200words.",
+  "original_acceptance_criteria": [
+    "Identify the actual classifier and explain exact inclusive BOTH-count bands, first-fit ordering and fallback from current code.",
+    "Explain where prepared whole-file counts come from, how persistence/validation affects classification, and why viewport-sized counts must not substitute for them.",
+    "Explain nullable-count and manual-override precedence, pending policy, and metadata/discovery versus geometry gating, with expected boundary behavior.",
+    "Trace a representative backend JSON to client/editor path: policy consumption, editor constraints and save acknowledgment, stale-response handling. Separate inspected source linkage from deployment/runtime assumptions.",
+    "Produce a concrete expected-result regression matrix and a justified classifier-only sign-off decision. Cite inspected evidence for expectations, expose missing boundaries and avoid unsupported safety/completeness claims."
+  ],
+  "grades": [
+    "pass",
+    "partial",
+    "partial",
+    "fail",
+    "partial"
+  ],
+  "overall": "Classifier and prepared-cache expectations are useful but count production/validation and full client/editor/save/stale-response coverage remain incomplete. No complete task or comparative improvement established.",
+  "costs": {
+    "setup_utf8_bytes": 20704,
+    "response_utf8_bytes": 43623,
+    "aggregate_relay_utf8_bytes": 64327,
+    "readiness_notification": "Binding published.",
+    "readiness_notification_utf8_bytes": 18,
+    "aggregate_including_readiness_utf8_bytes": 64345,
+    "cap": 65536,
+    "requests": 5,
+    "request_cap": 8,
+    "delivered_by_request": [
+      12216,
+      12071,
+      19093,
+      91,
+      152
+    ],
+    "remaining_relay_bytes": 1209,
+    "withheld_last_response": {
+      "utf8_bytes": 15286,
+      "sha256": "e0c1c80330e4268038bc7eb0f71a4ac414b9cf178f61bf9ab5b6528ea22c5655"
+    },
+    "external_refusals_after_answer_freeze": 0,
+    "external_accounting_limit": "Candidate administrative self-report: no extra refusals, out-of-scope reads or pending shell/RPC. Root verified ledger hashes and closure; cannot independently inspect complete candidate history."
+  },
+  "actual_use": {
+    "requests": [
+      {
+        "kind": "tool",
+        "tool": "get_codebase_overview",
+        "arguments": {
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+          "scope": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "include_declarations": true,
+          "include_retained_context": false,
+          "include_source": true,
+          "symbol_name": "ClassifyAutomatic",
+          "limit": 8,
+          "exclude_paths": [
+            "Site/Q",
+            ".audit-20261104",
+            ".audit-20261105-dev",
+            ".audit-20261105-browser-background"
+          ]
+        }
+      },
+      {
+        "kind": "tool",
+        "tool": "compute_blast_radius",
+        "arguments": {
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+          "symbol_fqn": "sym:function:Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:_vs.FileLayerZoomPolicy.ClassifyAutomatic:76",
+          "detail": "summary",
+          "max_depth": 6,
+          "include_guidance": false
+        }
+      },
+      {
+        "kind": "source_read",
+        "arguments": {
+          "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+          "line_start": 2140,
+          "line_end": 2499
+        }
+      },
+      {
+        "kind": "tool",
+        "tool": "get_codebase_overview",
+        "arguments": {
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+          "scope": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+          "include_declarations": false,
+          "include_retained_context": false,
+          "include_source": true,
+          "source_contains": "meta.FeatureCount",
+          "limit": 1,
+          "exclude_paths": [
+            "Site/Q",
+            ".audit-20261104",
+            ".audit-20261105-dev",
+            ".audit-20261105-browser-background"
+          ]
+        }
+      },
+      {
+        "kind": "source_read",
+        "arguments": {
+          "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "line_start": 113,
+          "line_end": 416
+        }
+      }
+    ],
+    "get_codebase_overview": 2,
+    "compute_blast_radius": 1,
+    "impact_analysis": 0,
+    "get_full_method_body": 0,
+    "source_read": 2,
+    "new_file_source_context_selected": false,
+    "observation": "Candidate used symbol-level Blast, so this attempt did not exercise the newly deployed file-only caller source context. First CodeMap12216B includes5880B serialized source_code; Blast12071B. Candidate then chose a360-line ordinary source read19093B. No source_routes action was executed."
+  },
+  "verifier_failure": {
+    "request": 4,
+    "received_utf8_bytes": 6637,
+    "received_sha256": "abbb3104712d18b9edece8a393f0b2364d56f42b2defa132999f0d9e1bd5ea1d",
+    "delivered_refusal_utf8_bytes": 91,
+    "attribution": "Relay splitlines dropped the final empty line of an otherwise exact25-line source window2332..2356; CodeMap output was correct. Independent single call reproduced exact withheld text and hashes.",
+    "diagnosis": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-request4-verification-receipt.json",
+      "sha256": "935ae67cac216adc30d98ab1dddbbef0b41cd3c76bc75c5e11d6a746c33bcd79"
+    },
+    "future_only_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-request4-verifier-v3-correction.json",
+      "sha256": "53f665b6bd1937485540f4f3ddc953a6f3bda96bdea70273d34b0dbb0761b5bf"
+    },
+    "future_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_core_matched_qa_v3_20261109.py",
+      "sha256": "02a4ccc3e8abb6ce1787f8e9d699d528744caaab4b79d542a22f75b29dd04a02"
+    },
+    "frozen_driver_unchanged": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_core_matched_qa_v2_20261108.py",
+      "sha256": "086ff642d2323856b2723c5b578863712acf2d1a7f42f4922595ee123aaea71e"
+    },
+    "checks": "Actual trailing-blank window accepted, deliberately missing final blank rejected, ordinary nonblank window accepted. No new model attempt or rescore.",
+    "budget_context": "Before request4 only1452B remained; its correct6637B response would also exceed the original byte cap. This arithmetic does not replace the actual refused evidence or authorize a counterfactual regrade."
+  },
+  "quality": {
+    "judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-d-20261109-judgment.json",
+      "sha256": "e0763e935a1fe205c3b1ed729b672b3769bd6dcd1164f8480e87dc7a0a1d1ccd"
+    },
+    "material_concerns": [
+      {
+        "id": "D1",
+        "severity": "medium if used as a UI acceptance expectation",
+        "classification": "Unsupported/contradicted prospective editor guidance, explicitly qualified as uninspected",
+        "answer_lines": "57",
+        "answer_quote": "editor acceptance of Automatic, 0, and 17 and rejection boundaries",
+        "source_path": "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts",
+        "source_lines": "694-711,743-775,832-844",
+        "finding": "0 is accepted by the backend parser but is not offered/accepted by the current normal editor when automatic is unknown (threshold17) or classified by current bands (minimum10). The phrase should not become an unconditional editor-accepts-0 test. Because the answer immediately says expected UI outcomes cannot be specified, this is a risky proposed test framing, not a confidently asserted observed runtime defect.",
+        "related_source": {
+          "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "lines": "121-156"
+        }
+      },
+      {
+        "id": "D2",
+        "severity": "medium if interpreted as public endpoint expected result",
+        "classification": "Correct internal state with omitted caller recovery boundary",
+        "answer_lines": "41",
+        "answer_quote": "Incomplete-cache error ... allowing a subsequent request to rebuild",
+        "source_path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+        "source_lines": "2219-2244,2257-2259,519-540",
+        "finding": "QueryCacheCore/QueryCache return an internal Error with IncompleteCache. After successful removal, QueryViewport does not necessarily expose that error or wait for the next request: the same call can start a rebuild and answer preparing. The row needs an explicit unit boundary; its internal claim is supported, while an endpoint-error interpretation is contradicted. Deletion/build availability remains integration-dependent."
+      }
+    ],
+    "limits": "Judgment is source-based, not an executed test result. All 16 file hashes matched but only relevant bodies/ranges were inspected; a hash match is not full-file behavioral inspection. No source outside the pinned list was used. No HTTP, browser, deployment, GDAL preparation, database write, or end-to-end runtime behavior verified. Findings do not close broader core-tool or previous task backlog. No comparative or cost conclusion.",
+    "application_tests_executed": false,
+    "answer_revised": false
+  },
+  "exposure": {
+    "candidate_fork_turns": "none",
+    "judge_fork_turns": "none",
+    "automatic_context": "Workspace AGENTS/environment/system instructions may expose prior deployment context; neither candidate nor judge is claimed history-blind or held-out.",
+    "initial_delivery_deviations": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-delivery-deviation.json",
+      "sha256": "869cfe2e8b35e7a0c9c690c60a1bd1bfa73cb064a7b31bffa8224d3a9115ae27"
+    },
+    "initial_message_limit": "Original setup20700B manually delivered with literal backslash-n inside one JSON description plus final CRLF; reconstructed actual20704B charged. Original artifacts preserved before pre-evidence correction. Exact initial-message retrieval unavailable; attestation by root.",
+    "live_definition_bytes_exact_in_delivered_setup": false,
+    "task_criteria_limits_unchanged": true
+  },
+  "evidence": {
+    "public_ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-cedar-ledger.json",
+      "sha256": "23b733bd75bb4eedfe4a1dfbf70318788f09ac3f55d2f689868c862aae3a5d62"
+    },
+    "private_ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-cedar-private-ledger.json",
+      "sha256": "b7ebea853e0ab7d91a46491701364f90c8162b1c0872fdc78c42277fad2cdbbd"
+    },
+    "answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-d-20261109.txt",
+      "sha256": "ea97e7f3695e3a37f03193def8baee1dee94a70fae86cbe3a0bc54a7969db43b"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-contract.json",
+      "sha256": "690cc652c1ba92389a194fd256f8806cbf626cc59e04fa01cde6dfa7dd5544c9"
+    },
+    "manifest": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-manifest.json",
+      "sha256": "b5668fb5e52b094ae6016b54a91bb937412d0a441766495c21d9a1918ee120eb"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-bindings.json",
+      "sha256": "c8ce528318d483538f5cf8aabaa01ab4d3aedbe1e1f2a8aa39ac9e95ab2596f5"
+    },
+    "publication": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-full-qa-20261109-binding-publication.json",
+      "sha256": "61a5f03985cb62c6106d1cea60aa6c90b63d0d5856662bbc0e54a258513030b8"
+    }
+  },
+  "integrity": {
+    "all_delivered_hashes_and_batch_hashes_verified": true,
+    "all16_source_pins_match_after_completion": true,
+    "all_tool_observers_closed": true,
+    "no_pending_rpc": true,
+    "request4_has_no_relay_after_snapshot": "Exception occurred before its normal after-source check; independent diagnostic verified all16pins and installedpair stable.",
+    "original31_and19_and_task_outcomes_unchanged": true,
+    "frozen_answer_and_ledger_preserved": true
+  },
+  "comparison_limits": [
+    "One known-task attempt; no new source-only control or causal quality gain/regression claim.",
+    "One correct public response was falsely withheld by our verifier; grade describes delivered answer, not clean product quality.",
+    "File-only deployed change was not selected. Narrow installed-action verification remains separate from agent adoption.",
+    "All earlier partial/unfavorable results and parked work remain unfinished and unchanged."
+  ],
+  "next_action": "Do not rerun this frozen task or launch another model attempt solely for the verifier correction. Continue the selected original CodeMap/Blast delivery using the observed 24287-byte initial navigation cost and source handoff: identify a substantive reduction that preserves required witnesses, source evidence and executable recovery before another build or model trial. Previously rejected summary-v3 draft remains rejected; no automatic revival, coaching, new broad audit, parser expansion or parked work.",
+  "goal_complete": false,
+  "resources": "All attempt requests, ledgers, setup revisions, opaque answer/judgment and diagnostic/future-verifier artifacts retained in V. All observers closed; no app source edits, service restarts, databases or temporary fixtures. Retained evidence cleanup requires exact-path review/approval under standing instructions."
+}
