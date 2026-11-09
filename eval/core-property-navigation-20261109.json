@@ -1,0 +1,82 @@
+{
+  "status": "IMPLEMENTED_TESTED_NOT_YET_DEPLOYED",
+  "at_utc": "2026-11-09T16:17:40.417502+00:00",
+  "source_parent": "a2539c23e8a6087b4eec933ef7f82bc74fa561c1",
+  "implementation_files": {
+    "crates/engram_graph/src/store.rs": "fe87ab88364ab58aebd71825919d7828fa06ba512d24d39c05b03b2b143a29f3",
+    "crates/engram_graph/src/store/impact_walk.rs": "be619bffcdb88d055feff334e23ba9793bb76ccfac60f5c0da9a8a6e4beb59c1",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "239eedb97d88a14db55f344946c1b65875db4ec94007d76b333f939f573880b3",
+    "crates/engram_server/tests/overview_selected_source_tests.rs": "72bafd58c0ec843f3743e930481898a09223dad25184b9d0a915200de8ba8d39",
+    "docs/TOOL_CONTRACT.md": "50ed909c1eab0bf9f2f73d9c85dee4140ebac9727d80b0b579b85405f65bd6b3"
+  },
+  "selected_gap": "A known selected callable exposes source/impact/context actions but no outgoing property identities, requiring separate graph tools or qualified-name discovery to inspect inputs. Actual ResolvePolicy reads both prepared counts and OverrideZoom. Existing selected property references lead to accumulation, persistence and validation methods.",
+  "behavior": "CodeMap exact or single observed callable exposes bounded revision-admitted property-reference inspection actions. No new parser, graph scan, property-mode or value-flow inference. Preview preserves previously displayed requested body and already visible property declarations; optional context can yield. Limits and display omissions remain separate.",
+  "actual_before": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-before-20261109.json",
+      "sha256": "d2e5029c6cae13fd8c5afe06415f3c9c2c6798bab315e886137ec33fe23b917b"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-codemap-before-20261109.json",
+      "sha256": "28345c4c57ca1d7a26a2832ce1542b4c2fd0156e37c6124afe8d476279611400"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-codemap-exact-before-20261109.json",
+      "sha256": "f1cfc243d7cd7db885e372354aef8d3cc8bae01acd8c6c0d8c19f3a2c0685afd"
+    }
+  ],
+  "source_witness": {
+    "agent": "/root/property_source_witness",
+    "spatial_sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+    "selected_method_lines": [
+      2343,
+      2345
+    ],
+    "properties": {
+      "FeatureCount": 219,
+      "CoordinateCount": 221,
+      "OverrideZoom": 176
+    },
+    "independently_checked_links": {
+      "WriteFeature_compound_updates": [
+        1464,
+        1465
+      ],
+      "WriteMeta_reads": [
+        1999,
+        2000
+      ],
+      "ReadMeta_initializer_assignments": [
+        2532,
+        2533
+      ]
+    },
+    "limitations": "Initializer ReadMeta is mislabeled property_get in existing sidecar output; merged via metadata may represent only first access. New navigation does not interpret via or establish alias/value flow. Bare ResolvePolicy lookup hits existing64-key cap; exact known identity was separately observed, without claiming name resolution."
+  },
+  "validation": {
+    "graph_cases": 6,
+    "overview_cases": 49,
+    "graph": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-graph-20261109.json",
+      "sha256": "4179bc8097351cc1e5111dcde0ee2185b6b9b433a9f59f2c759fe1e6c81a646c"
+    },
+    "overview": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-overview-20261109.json",
+      "sha256": "fcfe089859d72e12aa05c017efc2c13688154c653bb311a31a0d86fbf579998f"
+    },
+    "graph_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-graph-20261109.log",
+      "sha256": "080a06a514e4f0c07f779aa4da6a5902aa598b285a96cd336be08fec863fc59c"
+    },
+    "overview_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-overview-20261109.log",
+      "sha256": "3e7cf9b8bba07a05e61ccdc1e2a4f5044ff965720ec24b17766aa6cc81e94c20"
+    },
+    "independent_review": "/root/summary_v3_review: visible-property context loss fixed; public oracle parses report section and executes emitted source_read. No remaining confirmed production blocker. Static review only.",
+    "coderabbit": "Current trusted host auth reports authenticated:false; no remote review executed."
+  },
+  "runtime": "Installed e15d572 remains unchanged; no build/package/deployment or fresh model result claimed yet.",
+  "original_full_task": "Latest full QA remains2PASS/3PARTIAL; historical source-only preference preserved. This is not goal completion or comparative productivity proof.",
+  "next": "Build once, validate exact property navigation and emitted action on current OciusX through candidate and normal installed IPC; then assess original task scope without rescoring frozen attempts.",
+  "resources": "All new scripts, raw observations and test receipts retained in V for delivery review; both test fixtures/Jobs/relay handles closed and owned temp directories removed. No preexisting deletion or application source/index edits."
+}

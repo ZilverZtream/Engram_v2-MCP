@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T15:27:10.475715+00:00",
-    "reason": "Persist rejected paths so subsequent continuation does not restart completed investigations or infer a backend defect from unselected recovery actions.",
+    "at_utc": "2026-11-09T16:17:40.417502+00:00",
+    "reason": "Move from property relationship investigation to implemented and tested CodeMap navigation; runtime/task delivery remains pending.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast whole-task usefulness remains unfinished. Two-reply investigation and proposed external v3 redesign are complete/rejected: conservative prototype only estimated18percent Blast savings with a versioned compatibility cost. No build/runtime/model change; draft retained outside checkout. Preserve original2PASS/3PARTIAL fullQA and prior source-only preference.",
-    "next_user_visible_deliverable": "Substantive original full-task navigation/witness/recovery delivery remains required. Stop repeated byte micro-tuning and v3 summary migration from this evidence. The missing prepared-count producer and JSON/editor links lie beyond reverse-impact evidence; next inspect whether existing selected outgoing/property relationships can expose useful upstream inspection leads, before choosing any code change. Do not infer value flow, expand parser/global scans, reorder toward known answers, rerun the model task, or resume parked EG24 producer reconstruction.",
+    "active_original_item": "Original CodeMap/Blast whole-task usefulness remains unfinished. Selected property navigation is implemented and tested (6 graph and49 CodeMap cases), not yet deployed. Preserve original2PASS/3PARTIAL fullQA and source-only preference.",
+    "next_user_visible_deliverable": "Build and deploy the selected CodeMap property-reference navigation, verify actual ResolvePolicy property leads and literal impact/source recovery against independent OciusX evidence. No v3 summary migration, parser expansion, known-answer sample reorder or parked EG24 producer reconstruction; original full-task completion remains required.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,11 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": {
-      "classification": "NO_PROGRESS_STATUS_RESTATEMENT",
-      "permission_dependency": false,
-      "goal_complete": false
-    },
+    "previous_goal_turn_classification": "Previous status-response turn: no implementation progress. Current turn: selected property navigation source/tests changed;6graph+49CodeMap tests passed and independent review completed; runtime validation pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11408,6 +11404,10 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-summary-v3-rejected-draft-20261109.json",
       "sha256": "cbd327e1d4eef761a30627d918965ae5fd771848786c51c546cde7465d62435b",
       "status": "REJECTED_BEFORE_BUILD_PRESERVED_FOR_REVIEW"
+    },
+    "selected_property_navigation": {
+      "path": "eval\\core-property-navigation-20261109.json",
+      "sha256": "22727a1128b209ba8fc153be3a46a21bd999ea89762274b99062d25a2b5fd06b"
     }
   }
 }

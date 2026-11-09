@@ -95,11 +95,92 @@ struct LiteralSourceQuery {
     continuation: serde_json::Value,
 }
 
+/// Optional outgoing property inspection must not displace indexed navigation
+/// or any already displayed line of the requested declaration. A property
+/// reference does not identify a producer, a receiver instance or value flow.
+fn render_codemap_properties(
+    navigation: &serde_json::Value, properties: Option<&serde_json::Value>, project: &str,
+    limit: usize, render: impl Fn(&serde_json::Value) -> Result<String, String>,
+) -> Result<String, String> {
+    let baseline = render_named_literal_recovery(navigation, limit, &render)?;
+    let Some(properties) = properties else { return Ok(baseline) };
+    let mut properties = properties.clone();
+    let preview = &navigation["current_source"];
+    let mut visible = 0usize;
+    let mut visible_bounds: Option<(u64,u64)> = None;
+    if let Some(items) = properties["items"].as_array_mut() {
+        items.retain(|item| {
+            let in_preview = preview["status"] == "available"
+                && item["file_path"] == preview["file_path"]
+                && item["line_start"].as_u64().zip(item["line_end"].as_u64())
+                    .is_some_and(|(start,end)| start > 0 && end >= start
+                        && preview["line_start"].as_u64().is_some_and(|first| first <= start)
+                        && preview["line_end"].as_u64().is_some_and(|last| last >= end));
+            if in_preview {
+                visible += 1;
+                let start=item["line_start"].as_u64().unwrap();
+                let end=item["line_end"].as_u64().unwrap();
+                visible_bounds=Some(visible_bounds.map_or((start,end),|(first,last)|(first.min(start),last.max(end))));
+            }
+            !in_preview
+        });
+        if items.is_empty() && properties["coverage"]["truncated"] == false {
+            return Ok(baseline);
+        }
+    }
+    properties["declarations_in_source_preview"] = serde_json::json!(visible);
+    properties["display_omitted"] = serde_json::json!(0);
+    // Only an actual displayed single identity can protect a source interval.
+    let symbol = &navigation["files"][0]["symbols"][0];
+    let protected = if preview["status"] == "available"
+        && preview["indexed_anchor_node_id"] == symbol["node_id"] {
+        symbol["start_line"].as_u64().zip(symbol["end_line"].as_u64())
+            .filter(|(start,end)| *start > 0 && end >= start)
+    } else { None }.map(|(first,last)| visible_bounds.map_or((first,last),|(start,end)|(first.min(start),last.max(end))));
+    let mut omitted = 0usize;
+    loop {
+        let mut trial = navigation.clone();
+        trial["property_references"] = properties.clone();
+        loop {
+            let text = render(&trial)?;
+            if text.len() <= limit { return Ok(text); }
+            let Some((first,last)) = protected else { break };
+            let source = &mut trial["current_source"];
+            let Some(start) = source["line_start"].as_u64() else { break };
+            let Some(end) = source["line_end"].as_u64() else { break };
+            let Some(body) = source["source_code"].as_str() else { break };
+            let mut lines: Vec<_> = body.split('\n').collect();
+            if lines.len() <= 1 { break; }
+            if end > last {
+                lines.pop();
+                let body = lines.join("\n");
+                source["source_code"] = serde_json::json!(body);
+                source["line_end"] = serde_json::json!(end-1);
+                source["next_page"] = serde_json::json!({"tool":"get_full_method_body","arguments":{
+                    "project_id":project,"file_path":source["file_path"],
+                    "line_start":end,"context_lines":0,"include_caller_bodies":false,"output_json":true}});
+            } else if start < first {
+                lines.remove(0);
+                let body = lines.join("\n");
+                source["source_code"] = serde_json::json!(body);
+                source["line_start"] = serde_json::json!(start+1);
+            } else { break; }
+        }
+        // Retry from the original source page so fewer hints cannot leave
+        // unnecessary context loss. The display cap is separate from scanning.
+        let Some(items) = properties["items"].as_array_mut() else { break };
+        if items.pop().is_none() { break; }
+        omitted += 1;
+        properties["display_omitted"] = serde_json::json!(omitted);
+    }
+    Ok(baseline)
+}
+
 /// Supplement a selected-file orientation with one current snapshot. Indexed
 /// navigation remains untouched; complete context lines yield to the anchor.
 fn codemap_source_preview(
     mut navigation: serde_json::Value, directory: &std::path::Path, project: &str,
-    targeted: bool, literal_query: Option<&LiteralSourceQuery>, header: &str, footer: &str,
+    targeted: bool, literal_query: Option<&LiteralSourceQuery>, properties: Option<&serde_json::Value>, header: &str, footer: &str,
 ) -> Result<String, String> {
     const REPLY_BYTES: usize = 12 * 1024;
     const PREVIEW_BYTES: usize = 8 * 1024;
@@ -139,7 +220,7 @@ fn codemap_source_preview(
         Err(error) => {
             navigation["current_source"] = unavailable(error.chars().take(240).collect(), 1);
             let out = render(&navigation)?;
-            return if out.len() <= REPLY_BYTES { render_named_literal_recovery(&navigation, REPLY_BYTES, &render) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
+            return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
         }
     };
     if let Some(query) = literal_query {
@@ -162,7 +243,7 @@ fn codemap_source_preview(
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         navigation["current_source"] = unavailable("Indexed anchor page lies beyond current file; inspect from the beginning. Indexed method bounds are unverified.".into(), 1);
         let out = render(&navigation)?;
-        return if out.len() <= REPLY_BYTES { render_named_literal_recovery(&navigation, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+        return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
     }
     let mut lines: Vec<_> = source.lines().skip((start - 1) as usize).take(LINES as usize).collect();
     // Trim optional trailing context first, then preceding context, before
@@ -184,7 +265,7 @@ fn codemap_source_preview(
         if lines.is_empty() && total > 0 {
             navigation["current_source"] = unavailable("No complete source line fits the preview budget; no line was clipped or skipped.".into(), start);
             let out = render(&navigation)?;
-            return if out.len() <= REPLY_BYTES { render_named_literal_recovery(&navigation, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+            return if out.len() <= REPLY_BYTES { render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
         }
         let end = if total == 0 { 0 } else { start + lines.len() as u64 - 1 };
         navigation["current_source"] = serde_json::json!({"status":"available","file_path":file,
@@ -200,7 +281,7 @@ fn codemap_source_preview(
         let preview_bytes = serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len();
         let out = render(&navigation)?;
         if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES {
-            return render_named_literal_recovery(&navigation, REPLY_BYTES, &render);
+            return render_codemap_properties(&navigation, properties, project, REPLY_BYTES, &render);
         }
         if lines.is_empty() {
             return Err("Source-preview metadata exceeds12KiB; narrow the selection or use include_source=false".into());
@@ -1927,7 +2008,7 @@ impl Engram {
         let graph=self.state.graph.clone();
         let worker_view=source_hold.clone();
         let worker_request=req.clone();
-        let (summary,paths,file_rows,discovery,retained,compact_navigation,exact_file,directory_named)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let (summary,paths,file_rows,discovery,retained,compact_navigation,exact_file,directory_named,property_navigation)=tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let pid=&worker_request.project_id;
             let membership=search.selected_source_revision_lookup(pid,generation,worker_view.clone())?;
             let paths=membership.navigation_paths(worker_request.scope.as_deref(),&worker_request.exclude_paths,
@@ -1941,7 +2022,7 @@ impl Engram {
                 && if cfg!(windows){scope_paths.files[0].0.eq_ignore_ascii_case(scope)}else{scope_paths.files[0].0==scope});
             if worker_request.include_source && !exact_file {
                 return Ok((None,paths,Vec::new(),Vec::new(),None,true,false,
-                    Some(Err(McpError::invalid_params("include_source requires an exact selected file surviving scope, filter and exclusions",None)))));
+                    Some(Err(McpError::invalid_params("include_source requires an exact selected file surviving scope, filter and exclusions",None))),None));
             }
             anyhow::ensure!(worker_request.symbol_offset==0 || exact_file,
                 "symbol_offset requires an exact selected-file scope and offset0");
@@ -1951,7 +2032,7 @@ impl Engram {
                 if exact_file {
                     if worker_request.offset!=0 {
                         return Ok((None,paths,Vec::new(),Vec::new(),None,true,true,
-                            Some(Err(McpError::invalid_params("Exact-file symbol_name requires offset0",None)))));
+                            Some(Err(McpError::invalid_params("Exact-file symbol_name requires offset0",None))),None));
                     }
                 }else{
                     anyhow::ensure!(!paths.files.is_empty() || paths.matching_files.is_some_and(|count|count>0),
@@ -1964,7 +2045,7 @@ impl Engram {
                     let (nodes,coverage)=graph.bounded_files_named_nodes(pid,&files,
                         worker_request.symbol_name.as_deref().unwrap(),&admit)?;
                     let navigation=directory_named_navigation(&worker_request,&paths,nodes,coverage,generation,worker_view.is_managed())?;
-                    return Ok((None,paths,Vec::new(),Vec::new(),None,true,false,Some(Ok(navigation))));
+                    return Ok((None,paths,Vec::new(),Vec::new(),None,true,false,Some(Ok(navigation)),None));
                 }
             }
             let compact_navigation=(!worker_request.include_declarations || exact_file || worker_request.path_contains.is_some()) && !worker_request.include_retained_context;
@@ -1973,6 +2054,7 @@ impl Engram {
                 else { Some(search.selected_source_summary(pid,generation,worker_view)?) };
             let mut rows=Vec::new();
             let mut discovery=Vec::new();
+            let mut property_navigation=None;
             for batch in paths.files.chunks(8) {
                 if !worker_request.include_declarations {
                     for (path,revision,_) in batch {
@@ -2089,13 +2171,52 @@ impl Engram {
                         anyhow::ensure!(serde_json::to_vec(&row)?.len()<=48*1024,
                             "Named candidate metadata exceeds response bound; narrow name/path");
                     }
+                    if exact_file && targeted && nodes.len()==1
+                        && row["symbols"].as_array().is_some_and(|items|items.len()==1)
+                        && matches!(nodes[0].node_type.as_str(),"function"|"method"|"constructor"|"sub"|"procedure") {
+                        let excluded=|node:&engram_graph::Node| worker_request.exclude_paths.iter().any(|boundary| {
+                            let path=node.file_path.as_str();
+                            let boundary=boundary.as_str();
+                            #[cfg(windows)]
+                            let (path,boundary)=(path.to_lowercase(),boundary.to_lowercase());
+                            #[cfg(windows)]
+                            let (path,boundary)=(path.as_str(),boundary.as_str());
+                            path==boundary || path.strip_prefix(boundary).is_some_and(|tail|tail.starts_with('/'))
+                        });
+                        let result=graph.bounded_property_references(pid,&nodes[0].node_id,&admit,&excluded);
+                        let scope="Indexed property references from this observed declaration, not read/write modes, producers, receiver binding or value flow. Targets may cross navigation scope/path filters; target exclusions apply. Impact actions inspect project dependents in a fresh observation; compare generations and verify source.";
+                        property_navigation=match result {
+                            Ok(result) if !result.references.is_empty() || result.coverage.truncated => {
+                                let items:Vec<_>=result.references.iter().map(|reference| {
+                                    let target=&reference.target;
+                                    serde_json::json!({"name":target.name,"file_path":target.file_path,
+                                        "line_start":target.start_line,"line_end":target.end_line,
+                                        "generation":target.generation,"edge_generation":reference.edge_generation,
+                                        "source_line":reference.source_line,"source_position_kind":reference.source_position_kind,
+                                        "extractor_anchor_line":reference.extractor_anchor_line,
+                                        "reference_lines":reference.reference_lines,
+                                        "reference_lines_truncated":reference.reference_lines_truncated,
+                                        "inspect_references":{"tool":"impact_analysis","arguments":{
+                                            "project_id":pid,"symbol_fqn":target.node_id,"max_depth":1,
+                                            "limit":8,"detail":"summary"}}})
+                                }).collect();
+                                Some(serde_json::json!({"source_node_id":nodes[0].node_id,"scope":scope,
+                                    "items":items,"coverage":result.coverage,
+                                    "excluded_targets":result.excluded_nodes,"non_property_targets":result.non_property_nodes}))
+                            },
+                            Ok(_) => None,
+                            Err(_) => Some(serde_json::json!({"source_node_id":nodes[0].node_id,"scope":scope,
+                                "items":[],"status":"unavailable","coverage":{"truncated":true,
+                                    "reasons":["property_graph_or_admission_unavailable"]}})),
+                        };
+                    }
                     rows.push(row);
                 }
             }
             let retained=if worker_request.include_retained_context {
                 Some((search.count_docs(pid)?,search.count_docs_by_namespace(pid)?,graph.insight_title_sample(pid,8)))
             }else{None};
-            Ok((summary,paths,rows,discovery,retained,compact_navigation,exact_file,None))
+            Ok((summary,paths,rows,discovery,retained,compact_navigation,exact_file,None,property_navigation))
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(format!("CodeMap navigation unavailable: {e:#}"),None))?;
         if let Some(navigation)=directory_named {
@@ -2287,12 +2408,12 @@ impl Engram {
             let preview_hold=source_hold.clone();
             let text=tokio::task::spawn_blocking(move || {
                 let _held=preview_hold;
-                codemap_source_preview(navigation,&directory,&project,targeted,literal_query.as_ref(),&header,&footer)
+                codemap_source_preview(navigation,&directory,&project,targeted,literal_query.as_ref(),property_navigation.as_ref(),&header,&footer)
             }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
                 .map_err(|e|McpError::invalid_params(e,None))?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
-        let encoded=render_named_literal_recovery(&navigation,64*1024,|value|
+        let encoded=render_codemap_properties(&navigation,property_navigation.as_ref(),&req.project_id,64*1024,|value|
             serde_json::to_string(value).map_err(|error|error.to_string()))
             .map_err(|error|McpError::internal_error(error,None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}

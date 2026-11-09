@@ -191,6 +191,92 @@ pub struct ImpactWalkCoverage {
     pub frontier_omitted: usize,
 }
 
+/// Selected property identity reached by an indexed Calls edge. This does not
+/// classify a property access as a read/write or establish runtime value flow.
+#[derive(Debug, Clone, Serialize)]
+pub struct PropertyReference {
+    /// Admitted identity only; arbitrary graph metadata is not retained.
+    pub target: Node,
+    pub edge_generation: u64,
+    pub source_line: Option<u32>,
+    pub source_position_kind: &'static str,
+    pub extractor_anchor_line: Option<u32>,
+    pub reference_lines: Vec<u32>,
+    pub reference_lines_truncated: bool,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct PropertyReferences {
+    /// Present only after source and canonical file admission. Metadata removed.
+    pub source: Option<Node>,
+    pub references: Vec<PropertyReference>,
+    /// raw_rows includes at most 64 examined rows plus one undecoded lookahead
+    /// key. nodes_observed counts source/target declarations, not file lookups.
+    pub coverage: ImpactWalkCoverage,
+    pub excluded_nodes: usize,
+    pub non_property_nodes: usize,
+}
+
+const PROPERTY_RAW_ROWS: usize = 64;
+const PROPERTY_LEADS: usize = 8;
+const PROPERTY_RECORD_BYTES: usize = 64 * 1024;
+const PROPERTY_DECODE_BYTES: usize = 2 * 1024 * 1024;
+const PROPERTY_STRING_BYTES: usize = 64 * 1024;
+const PROPERTY_TIME: Duration = Duration::from_millis(500);
+
+struct PropertyBudget {
+    started: Instant,
+    decode_bytes: usize,
+    retained_bytes: usize,
+    halted: bool,
+}
+
+impl PropertyBudget {
+    fn live(&mut self, coverage: &mut ImpactWalkCoverage) -> bool {
+        if self.started.elapsed() >= PROPERTY_TIME {
+            gap(coverage, "property_reference_cooperative_deadline");
+            self.halted = true;
+        }
+        !self.halted
+    }
+
+    fn record(&mut self, bytes: usize, coverage: &mut ImpactWalkCoverage) -> bool {
+        if !self.live(coverage) { return false; }
+        if bytes > PROPERTY_RECORD_BYTES {
+            coverage.unknown_nodes += 1;
+            gap(coverage, "property_reference_record_byte_limit");
+            return false;
+        }
+        if self.decode_bytes.checked_add(bytes).is_none_or(|total| total > PROPERTY_DECODE_BYTES) {
+            gap(coverage, "property_reference_decode_byte_limit");
+            self.halted = true;
+            return false;
+        }
+        self.decode_bytes += bytes;
+        true
+    }
+
+    fn retain(&mut self, node: &Node, coverage: &mut ImpactWalkCoverage) -> bool {
+        if !self.live(coverage) { return false; }
+        if self.retained_bytes.checked_add(identity_bytes(node)).is_none_or(|total| total > PROPERTY_STRING_BYTES) {
+            gap(coverage, "property_reference_retained_string_limit");
+            self.halted = true;
+            return false;
+        }
+        self.retained_bytes += identity_bytes(node);
+        true
+    }
+}
+
+fn property_identity_bounded(node: &Node) -> bool {
+    let text = |value: &str, max: usize| value.len() <= max && !value.chars().any(char::is_control);
+    let path = node.file_path.as_str();
+    !node.node_id.is_empty() && text(&node.node_id, 2048) && text(&node.name, 2048)
+        && text(&node.node_type, 64) && text(&node.language, 64) && text(&node.namespace, 64)
+        && !path.is_empty() && text(path, 2048) && !path.contains(['\\', ':'])
+        && path.split('/').all(|part| !matches!(part, "" | "." | ".."))
+}
+
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct IncomingImpactWalk {
     /// Selected and unknown identities only; excluded revisions are counted.
@@ -665,6 +751,144 @@ fn remember(
 }
 
 impl GraphStore {
+    /// Inspect one exact source's outgoing Calls adjacency under one graph
+    /// transaction. At most 64 rows are decoded and one further key establishes
+    /// a boundary; non-property/rejected rows consume the same allowance.
+    /// Selection is supplied by the caller's held source capability. Exclusions
+    /// are explicit policy filters, never navigation-scope or same-file filters.
+    pub fn bounded_property_references(
+        &self,
+        project_id: &str,
+        source_id: &str,
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        excluded: &dyn Fn(&Node) -> bool,
+    ) -> anyhow::Result<PropertyReferences> {
+        anyhow::ensure!(!project_id.is_empty() && project_id.len() <= 1024
+            && !project_id.chars().any(char::is_control), "Invalid property-reference project identity");
+        anyhow::ensure!(!source_id.is_empty() && source_id.len() <= 2048
+            && !source_id.chars().any(char::is_control), "Invalid property-reference source identity");
+        let mut output = PropertyReferences::default();
+        let mut budget = PropertyBudget { started: Instant::now(), decode_bytes: 0, retained_bytes: 0, halted: false };
+        let tx = self.db.begin_read()?;
+        let nodes = tx.open_table(NODES)?;
+        let edges = tx.open_table(EDGES)?;
+        let outgoing = tx.open_table(ADJ_OUT)?;
+        let read = |id: &str, budget: &mut PropertyBudget, coverage: &mut ImpactWalkCoverage| -> anyhow::Result<Option<Node>> {
+            if !budget.live(coverage) { return Ok(None); }
+            let key = format!("{project_id}\0{id}");
+            let Some(raw) = nodes.get(key.as_str())? else {
+                coverage.missing_nodes += 1;
+                gap(coverage, "property_reference_node_or_file_missing");
+                return Ok(None);
+            };
+            if !budget.record(raw.value().len(), coverage) { return Ok(None); }
+            let node: Node = bincode::DefaultOptions::new().with_fixint_encoding()
+                .with_limit(PROPERTY_RECORD_BYTES as u64).reject_trailing_bytes().deserialize(raw.value())?;
+            anyhow::ensure!(node.node_id == id, "Property-reference node identity disagrees with its key");
+            if !property_identity_bounded(&node) || node.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                coverage.unknown_nodes += 1;
+                gap(coverage, "property_reference_identity_or_namespace_unavailable");
+                return Ok(None);
+            }
+            Ok(Some(node))
+        };
+        let selected = |node: &Node, budget: &mut PropertyBudget, coverage: &mut ImpactWalkCoverage| -> anyhow::Result<bool> {
+            let file_id = format!("file:{}", node.file_path.as_str());
+            let Some(file) = read(&file_id, budget, coverage)? else { return Ok(false) };
+            if file.node_type != "file" || file.file_path != node.file_path {
+                coverage.unknown_nodes += 1;
+                gap(coverage, "property_reference_canonical_file_unavailable");
+                return Ok(false);
+            }
+            if !budget.live(coverage) { return Ok(false); }
+            let node_admission = admit(node, Some(&file))?;
+            if !budget.live(coverage) { return Ok(false); }
+            let file_admission = admit(&file, Some(&file))?;
+            if !budget.live(coverage) { return Ok(false); }
+            match (node_admission, file_admission) {
+                (ImpactAdmission::Selected, ImpactAdmission::Selected) => Ok(true),
+                (ImpactAdmission::NonSelectedRevision, _) | (_, ImpactAdmission::NonSelectedRevision) => {
+                    coverage.non_selected_nodes += 1;
+                    gap(coverage, "property_reference_non_selected_revision");
+                    Ok(false)
+                }
+                _ => {
+                    coverage.unknown_nodes += 1;
+                    gap(coverage, "property_reference_admission_unknown");
+                    Ok(false)
+                }
+            }
+        };
+        let Some(source) = read(source_id, &mut budget, &mut output.coverage)? else { return Ok(output) };
+        output.coverage.nodes_observed += 1;
+        if excluded(&source) {
+            output.excluded_nodes += 1;
+            gap(&mut output.coverage, "property_reference_source_excluded");
+            return Ok(output);
+        }
+        if !selected(&source, &mut budget, &mut output.coverage)? || !budget.retain(&source, &mut output.coverage) {
+            return Ok(output);
+        }
+        output.source = Some(identity_clone(&source));
+        let prefix = adj_key(project_id, &EdgeKind::Calls, source_id);
+        let mut rows = outgoing.range((prefix.as_str(), "")..)?;
+        loop {
+            if !budget.live(&mut output.coverage) { break; }
+            let Some(entry) = rows.next() else { break };
+            let (key, adjacency) = entry?;
+            let (observed_prefix, target_id) = key.value();
+            if observed_prefix != prefix { break; }
+            // Charge before property/type/exclusion/admission checks. The extra
+            // key is never decoded or used to discover another target.
+            output.coverage.raw_rows += 1;
+            if output.coverage.raw_rows > PROPERTY_RAW_ROWS {
+                gap(&mut output.coverage, "property_reference_raw_row_limit");
+                break;
+            }
+            if output.references.len() == PROPERTY_LEADS {
+                gap(&mut output.coverage, "property_reference_lead_limit");
+                break;
+            }
+            anyhow::ensure!(!target_id.is_empty() && target_id.len() <= 2048
+                && !target_id.chars().any(char::is_control), "Invalid property-reference adjacency target");
+            let _ = decode_adj_value(adjacency.value())?;
+            if !budget.live(&mut output.coverage) { break; }
+            let edge_id = edge_key(project_id, &EdgeKind::Calls, source_id, target_id);
+            let Some(raw) = edges.get(edge_id.as_str())? else {
+                output.coverage.unknown_nodes += 1;
+                gap(&mut output.coverage, "property_reference_edge_missing");
+                continue;
+            };
+            if !budget.record(raw.value().len(), &mut output.coverage) { continue; }
+            let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
+                .with_limit(PROPERTY_RECORD_BYTES as u64).reject_trailing_bytes().deserialize(raw.value())?;
+            anyhow::ensure!(edge.source_id == source_id && edge.target_id == target_id && edge.edge_kind == EdgeKind::Calls,
+                "Property-reference edge identity disagrees with its adjacency key");
+            if edge.namespace != engram_core::namespaces::NAMESPACE_MEMORY || !edge_source_revision_matches(&edge, &source) {
+                output.coverage.unknown_nodes += 1;
+                gap(&mut output.coverage, "property_reference_edge_source_unverified");
+                continue;
+            }
+            let Some(target) = read(target_id, &mut budget, &mut output.coverage)? else { continue };
+            if target.node_id != source.node_id { output.coverage.nodes_observed += 1; }
+            if target.node_type != "property" { output.non_property_nodes += 1; continue; }
+            if excluded(&target) {
+                output.excluded_nodes += 1;
+                gap(&mut output.coverage, "property_reference_target_excluded");
+                continue;
+            }
+            if !selected(&target, &mut budget, &mut output.coverage)? || !budget.retain(&target, &mut output.coverage) {
+                continue;
+            }
+            let (source_line, source_position_kind, reference_lines, reference_lines_truncated) = recorded_positions(&edge);
+            let extractor_anchor_line = edge.metadata.as_ref().and_then(|m| m.get("src_line")).and_then(positive_line);
+            output.references.push(PropertyReference { target: identity_clone(&target), edge_generation: edge.generation,
+                source_line, source_position_kind, extractor_anchor_line, reference_lines, reference_lines_truncated });
+        }
+        output.coverage.reasons.sort();
+        Ok(output)
+    }
+
     /// Impact seeds for exact selected files, with native callable-prefix
     /// seeks before structural Contains discovery. A bounded legacy scan runs
     /// only when both produce no seeds. Unlinked noncanonical supplemental
@@ -1864,6 +2088,178 @@ mod tests {
 
     fn causal(kind: &EdgeKind) -> bool {
         matches!(kind, EdgeKind::Calls | EdgeKind::Dependency)
+    }
+
+    fn property(id: &str, path: &str, generation: u64) -> Node {
+        let mut value = node(id, path, generation);
+        value.node_type = "property".into();
+        value
+    }
+
+    #[test]
+    fn property_references_admit_selected_cross_file_and_inherited_source_edges() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let source = node("source", "src/producer.vb", 1);
+            let first = property("property:first", "src/model.vb", 2);
+            let second = property("property:second", "src/other.vb", 4);
+            let mut direct = edge(&source.node_id, &first.node_id, EdgeKind::Calls, 1);
+            direct.metadata = Some(serde_json::json!({"src_line":10,"call_site_lines":[15,12,15],"via":"getter"}));
+            let mut inherited = edge(&source.node_id, &second.node_id, EdgeKind::Calls, 4);
+            inherited.metadata = Some(serde_json::json!({"src_line":10,"call_site_line":17,
+                "_engram_source_origin":{"version":1,"source_id":"source","source_generation":1}}));
+            store.upsert_nodes_and_edges(PROJECT, &[source,first,second,file("src/producer.vb",1),file("src/model.vb",2),file("src/other.vb",4)], &[direct,inherited])?;
+            let output = store.bounded_property_references(PROJECT,"source",&|n,f| selected(&[("src/producer.vb",1),("src/model.vb",2),("src/other.vb",4)],n,f),&|_| false)?;
+            assert_eq!(output.references.len(),2);
+            assert_eq!(output.coverage.raw_rows,2);
+            assert!(!output.coverage.truncated);
+            assert!(output.source.as_ref().unwrap().metadata.is_none());
+            assert!(output.references.iter().all(|r| r.target.metadata.is_none()));
+            let first = output.references.iter().find(|r| r.target.node_id=="property:first").unwrap();
+            assert_eq!(first.target.generation,2);
+            assert_eq!(first.edge_generation,1);
+            assert_eq!(first.reference_lines,[12,15]);
+            assert_eq!(first.source_line,Some(12));
+            assert_eq!(first.extractor_anchor_line,Some(10));
+            assert_eq!(first.source_position_kind,"call_reference_syntax_metadata");
+            let inherited = output.references.iter().find(|r| r.target.node_id=="property:second").unwrap();
+            assert_eq!(inherited.edge_generation,4);
+            assert_eq!(inherited.target.generation,4);
+            assert_eq!(inherited.source_line,Some(17));
+            // The misleading extractor `via` is neither copied nor interpreted.
+            assert!(serde_json::to_value(&output)?.to_string().find("getter").is_none());
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn property_references_reject_stale_origins_nonselected_missing_and_excluded_targets() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut nodes = vec![node("source","src/source.vb",2),file("src/source.vb",2),file("src/model.vb",2)];
+            let mut edges = Vec::new();
+            for (id,generation) in [("accepted",2),("stale-origin",2),("old-property",1),("excluded",2)] {
+                nodes.push(property(id,"src/model.vb",generation));
+                let mut connection=edge("source",id,EdgeKind::Calls,2);
+                if id=="stale-origin" { connection.metadata=Some(serde_json::json!({
+                    "_engram_source_origin":{"version":1,"source_id":"source","source_generation":1}})); }
+                edges.push(connection);
+            }
+            nodes.push(property("no-file","src/absent.vb",2));
+            edges.push(edge("source","no-file",EdgeKind::Calls,2));
+            edges.push(edge("source","missing-node",EdgeKind::Calls,2));
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let output=store.bounded_property_references(PROJECT,"source",&|n,f| selected(&[("src/source.vb",2),("src/model.vb",2),("src/absent.vb",2)],n,f),&|n| n.node_id=="excluded")?;
+            assert_eq!(output.references.iter().map(|r|r.target.node_id.as_str()).collect::<Vec<_>>(),["accepted"]);
+            assert_eq!(output.coverage.non_selected_nodes,1);
+            assert_eq!(output.coverage.missing_nodes,2);
+            assert_eq!(output.coverage.unknown_nodes,1);
+            assert_eq!(output.excluded_nodes,1);
+            assert!(output.coverage.truncated);
+            for reason in ["property_reference_edge_source_unverified","property_reference_non_selected_revision",
+                "property_reference_node_or_file_missing","property_reference_target_excluded"] {
+                assert!(output.coverage.reasons.iter().any(|r|r==reason),"{reason}");
+            }
+            assert_eq!(output.references[0].source_line,None);
+            assert_eq!(output.references[0].source_position_kind,"not_recorded");
+            let unavailable=store.bounded_property_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",3)],n,f),&|_|false)?;
+            assert!(unavailable.source.is_none() && unavailable.references.is_empty());
+            assert_eq!(unavailable.coverage.raw_rows,0);
+            assert_eq!(unavailable.coverage.non_selected_nodes,1);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn property_references_raw_limit_includes_nonproperty_rejections() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut nodes=vec![node("source","src/source.vb",1),file("src/source.vb",1),property("z-property","src/source.vb",1)];
+            let mut edges=vec![edge("source","z-property",EdgeKind::Calls,1)];
+            for index in 0..70 {
+                let id=format!("a-function-{index:03}");
+                nodes.push(node(&id,"src/source.vb",1));edges.push(edge("source",&id,EdgeKind::Calls,1));
+            }
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let output=store.bounded_property_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",1)],n,f),&|_|false)?;
+            assert!(output.references.is_empty());
+            assert_eq!(output.coverage.raw_rows,65,"64 examined rows plus one undecoded lookahead");
+            assert_eq!(output.non_property_nodes,64);
+            assert!(output.coverage.reasons.iter().any(|r|r=="property_reference_raw_row_limit"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn property_references_lead_limit_preserves_recorded_position_gaps() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut nodes=vec![node("source","src/source.vb",1),file("src/source.vb",1)];
+            let mut edges=Vec::new();
+            for index in 0..9 {
+                let id=format!("property-{index}");nodes.push(property(&id,"src/source.vb",1));
+                let mut connection=edge("source",&id,EdgeKind::Calls,1);
+                connection.metadata=Some(serde_json::json!({"call_site_lines":(1..=12).collect::<Vec<u32>>()}));
+                edges.push(connection);
+            }
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let output=store.bounded_property_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",1)],n,f),&|_|false)?;
+            assert_eq!(output.references.len(),8);
+            assert_eq!(output.coverage.raw_rows,9);
+            assert!(output.references.iter().all(|r|r.reference_lines==[1,2,3,4,5,6,7,8] && r.reference_lines_truncated));
+            assert!(output.coverage.reasons.iter().any(|r|r=="property_reference_lead_limit"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn property_references_bound_record_and_shared_decode_work() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut oversized=property("a-oversized","src/source.vb",1);
+            oversized.metadata=Some(serde_json::json!({"source_identity":"fixture","payload":"x".repeat(70*1024)}));
+            store.upsert_nodes_and_edges(PROJECT,&[node("source","src/source.vb",1),file("src/source.vb",1),
+                oversized,property("b-valid","src/source.vb",1)],
+                &[edge("source","a-oversized",EdgeKind::Calls,1),edge("source","b-valid",EdgeKind::Calls,1)])?;
+            let output=store.bounded_property_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",1)],n,f),&|_|false)?;
+            assert_eq!(output.references.len(),1);
+            assert_eq!(output.references[0].target.node_id,"b-valid");
+            assert_eq!(output.coverage.unknown_nodes,1);
+            assert!(output.coverage.reasons.iter().any(|r|r=="property_reference_record_byte_limit"));
+            Ok(())
+        })?;
+        owned_case(|store| {
+            let mut nodes=vec![node("source","src/source.vb",1),file("src/source.vb",1),property("z-property","src/source.vb",1)];
+            let mut edges=vec![edge("source","z-property",EdgeKind::Calls,1)];
+            for index in 0..60 {
+                let id=format!("a-large-function-{index:03}");let mut target=node(&id,"src/source.vb",1);
+                target.metadata=Some(serde_json::json!({"source_identity":"fixture","payload":"x".repeat(50*1024)}));
+                nodes.push(target);edges.push(edge("source",&id,EdgeKind::Calls,1));
+            }
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let output=store.bounded_property_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",1)],n,f),&|_|false)?;
+            assert!(output.references.is_empty());
+            assert!(output.coverage.raw_rows<64,"shared decoding stops before adjacency capacity");
+            assert!(output.coverage.reasons.iter().any(|r|r=="property_reference_decode_byte_limit"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn property_references_require_exact_source_and_canonical_memory_file() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut wrong_file=file("src/source.vb",1);wrong_file.node_type="class".into();
+            store.upsert_nodes_and_edges(PROJECT,&[node("source","src/source.vb",1),wrong_file,
+                property("property","src/source.vb",1)],&[edge("source","property",EdgeKind::Calls,1)])?;
+            let no_fallback=store.bounded_property_references(PROJECT,"source-not-present",&|_,_|Ok(ImpactAdmission::Selected),&|_|false)?;
+            assert!(no_fallback.source.is_none() && no_fallback.references.is_empty());
+            assert_eq!(no_fallback.coverage.missing_nodes,1);
+            let wrong_kind=store.bounded_property_references(PROJECT,"source",&|_,_|Ok(ImpactAdmission::Selected),&|_|false)?;
+            assert!(wrong_kind.source.is_none() && wrong_kind.references.is_empty());
+            assert_eq!(wrong_kind.coverage.raw_rows,0);
+            assert!(wrong_kind.coverage.reasons.iter().any(|r|r=="property_reference_canonical_file_unavailable"));
+            let mut foreign=file("src/source.vb",1);foreign.namespace="history".into();
+            store.upsert_nodes_and_edges(PROJECT,&[foreign],&[])?;
+            let nonmemory=store.bounded_property_references(PROJECT,"source",&|_,_|Ok(ImpactAdmission::Selected),&|_|false)?;
+            assert!(nonmemory.source.is_none() && nonmemory.references.is_empty());
+            assert!(nonmemory.coverage.reasons.iter().any(|r|r=="property_reference_identity_or_namespace_unavailable"));
+            Ok(())
+        })
     }
 
     // An independent source-selection oracle: the caller owns the selected
