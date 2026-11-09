@@ -1,0 +1,54 @@
+{
+  "status": "TESTED_REVIEWED_NATIVE_BUILD_PENDING",
+  "at_utc": "2026-11-09T22:49:24.544413+00:00",
+  "base_commit": "7787b2c",
+  "selected_gap": "Actual named endpoint source calls UpdateZoomOverride but CodeMap discards callable targets from its existing outgoing Calls scan. Existing AST tool supplies identities; impact independently admits the persistence target and endpoint edge at source393. No indexed edge or binding inferred from names.",
+  "evidence": {
+    "actual_navigation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-endpoint-client-20261109.json",
+      "sha256": "8718a9e87490fbae4ef3ef88938b269770a59f93f436123df6081e78032c86a9"
+    },
+    "existing_ast_tool": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-endpoint-outgoing-existing-tool-20261109.json",
+      "sha256": "34634a7dcc72709d795f9f9ed2e1a3105db1a3112a90c025a643fd39302ce56c"
+    },
+    "graph_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-graph-tests-20261109.json",
+      "sha256": "d3947b9aabaea1a2f4bb888c8a31c590018d67509af78ebdeb13dab6866e1e1b"
+    },
+    "server_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-server-tests-20261109.json",
+      "sha256": "ca60c9c9e9ab81f9c8773c0408876eab94c12e80dcfa8729943d83594a8f4323"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-review-20261109.json",
+      "sha256": "ace1a88344e7d63d591b1685592a10e62e2a0c4d0910bf4bcce9ee480b04bc45"
+    }
+  },
+  "implementation": [
+    "Same adjacency pass; up to16 metadata-free candidates,64KiB pending identities; original property processing retains priority.",
+    "Callable target/file admission uses the remaining original shared work budgets. Optional-phase failures preserve completed property evidence.",
+    "Metadata adds admitted physical identities, recorded positions and literal bounded source actions; response pressure drops only new rows with explicit omissions.",
+    "Source view preserves existing body/navigation/property evidence and adds only an optional cue to existing metadata_recovery after baseline allocation. No new tool parameters."
+  ],
+  "preimplementation_projection": {
+    "kind": "Conservative sizing using actual14identities and maximum-width numeric fields, not admission proof for13other targets",
+    "metadata_complete_bytes": 22301,
+    "metadata_cap_bytes": 65536,
+    "source_complete_bytes": 10667,
+    "source_cap_bytes": 12288,
+    "existing_objects_preserved": true
+  },
+  "runtime_acceptance_pending": "Existing37calls preserve all prior source/metadata/property facts after removing only newcalled_declarations. Endpoint metadata exposes admitted UpdateZoomOverride action; execute it and compare current source/hash306..348, plus endpoint source view. Normal and cold runtimes must pass; not yet built/deployed.",
+  "full_task_status": "Original PASS/PARTIAL/PARTIAL/FAIL/PARTIAL frozen. No retry, rescore, comparative benefit or overall goal completion claimed.",
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "preexisting_deletions": false,
+    "retention": "Keep evidence/helpers for delivery review until exact-path cleanup authorized; runner-owned fixtures removed on terminal completion."
+  },
+  "tests": {
+    "graph": 11,
+    "server": 52,
+    "runtime_acceptance_pending": true
+  }
+}

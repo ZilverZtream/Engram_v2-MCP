@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T22:26:18.845454+00:00",
-    "reason": "Installed 29bb2f5 remains current. Administrative editor navigation reached typed save callback, selection validation and draft preservation through actual Engram output verified against independent source. No new product defect established by this path. Combined impact/source profile rejected before implementation: complete required evidence exceeds 12KiB. Full original task remains PASS/PARTIAL/PARTIAL/FAIL/PARTIAL; no new task win or release.",
+    "at_utc": "2026-11-09T22:49:24.544413+00:00",
+    "reason": "Bounded CodeMap callable recovery implemented and independently reviewed. Graph11 and server52 behavior tests passed with unchanged compiled inputs and owned resources removed. Native build, cold/normal acceptance and deployment remain pending; full-task failures unchanged.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9842,7 +9842,7 @@
       }
     ],
     "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. Named-source miss recovery is delivered; the full backend-to-UI task and comparative usefulness remain unfinished.",
-    "next_user_visible_deliverable": "Finish the remaining endpoint JSON and client stale-response portions of the existing administrative backend-to-UI evidence path, using actual Engram output against independent source. Preserve original task failures and caps; do not restart or rescore frozen candidates. Select implementation only for a demonstrated core navigation, witness or recovery gap. Do not reopen compact-summary or combined-source-profile tuning without materially new evidence.",
+    "next_user_visible_deliverable": "Finish callable-navigation server behavior tests, native build and cold/normal acceptance. Execute actual metadata-returned UpdateZoomOverride source action; preserve existing37responses and full-task failures. Do not reopen rejected source-profile/schema tuning.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Continuation only: completed editor source navigation and rejected an over-budget impact/source design. No new production code, tests, build, deployment or full-task success. These activities are not counted as delivery of the core goal.",
+    "previous_goal_turn_classification": "Progress: actual endpoint/client source acquired, indexed persistence edge independently admitted, selected CodeMap callable recovery implemented and graph11tests passed. Overall agent task remains incomplete.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11503,6 +11503,10 @@
       "original_capped_outcome_unchanged": true,
       "production_change_selected": false,
       "goal_complete": false
+    },
+    "selected_callable_navigation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-callable-navigation-20261109.json",
+      "sha256": "a6c7c1f44c23aac2a3bc6640d7aac231a05521697bc35f96025efa6810aed288"
     }
   }
 }

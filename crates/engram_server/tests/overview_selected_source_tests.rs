@@ -4021,3 +4021,89 @@ fn codemap_property_navigation_preserves_visible_declarations_and_crowded_reques
         assert_eq!(after["selection"],before["selection"]);
     });
 }
+
+#[test]
+fn codemap_metadata_recovers_late_callee_without_file_search_or_source_displacement() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/Endpoint.vb";
+        const PROPERTY:&str="src/State.vb";
+        let body=format!("Sub Save()\n{}\nState.Total += 1\nEnd Sub",
+            (0..14).map(|i|format!("Helper{i:02}()")).collect::<Vec<_>>().join("\n"));
+        let helpers:Vec<_>=(0..14).map(|i|(format!("src/helpers/Part{i:02}.vb"),
+            format!("Sub Helper{i:02}()\nPersist{i:02}()\nEnd Sub"))).collect();
+        let mut sources=vec![(PATH,body.as_str()),(PROPERTY,"Property Total As Long")];
+        sources.extend(helpers.iter().map(|(path,body)|(path.as_str(),body.as_str())));
+        publish_named_sources(&engram,&search,&sources).await;
+        let source_id=format!("sym:function:{PATH}:Save:1");
+        let property_id=format!("sym:property:{PROPERTY}:Total:1");
+        let mut source=node(&source_id,"function","Save",PATH,1);source.start_line=1;source.end_line=17;
+        let mut property=node(&property_id,"property","Total",PROPERTY,1);property.start_line=1;property.end_line=1;
+        engram.state.graph.upsert_nodes(PID,&[source,property]).unwrap();
+        let edge=|target:&str,line|Edge {source_id:source_id.clone(),target_id:target.into(),namespace:"memory".into(),
+            language:"vb".into(),edge_kind:EdgeKind::Calls,weight:1,generation:1,
+            metadata:Some(json!({"call_site_line":line})),updated_at_ms:1};
+        engram.state.graph.upsert_edges(PID,&[edge(&property_id,16)]).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_node_id":source_id,"include_source":true});
+        let before=navigate(&engram,request.clone()).await;
+        let mut nodes=Vec::new();let mut edges=Vec::new();
+        for (i,(path,_)) in helpers.iter().enumerate() {
+            let name=format!("Helper{i:02}");let id=format!("sym:function:{path}:{name}:1");
+            let mut helper=node(&id,"function",&name,path,1);helper.start_line=1;helper.end_line=3;
+            nodes.push(helper);edges.push(edge(&id,i as u32+2));
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        let text=navigation_text(&engram,request).await;assert!(text.len()<=12*1024);
+        let after=navigation(&text);
+        assert_eq!(after["current_source"],before["current_source"]);
+        assert_eq!(after["candidates"],before["candidates"]);
+        assert_eq!(after["property_references"]["items"],before["property_references"]["items"]);
+        assert_eq!(after["called_declarations"]["admitted_observed"],14);
+        assert_eq!(after["called_declarations"]["metadata_recovery_ref"],"metadata_recovery");
+        let metadata=navigate(&engram,after["metadata_recovery"]["arguments"].clone()).await;
+        let calls=&metadata["called_declarations"];
+        assert_eq!(calls["items"].as_array().unwrap().len(),14);
+        assert_eq!(calls["display_omitted"],0);
+        let last=calls["items"].as_array().unwrap().iter().find(|row|row["name"]=="Helper13").unwrap();
+        assert_eq!(last["reference_lines"],json!([15]));
+        assert_eq!(last["generation"],1);assert_eq!(last["edge_generation"],1);
+        let (_,read)=excerpt(&engram,last["source_read"]["arguments"].clone()).await;
+        assert_eq!(read["source_code"],helpers[13].1);
+        assert_eq!(read["source_file_hash"],ContentHash::compute(helpers[13].1.as_bytes()).0);
+    });
+}
+
+#[test]
+fn codemap_callable_metadata_pressure_drops_only_new_rows() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/Endpoint.vb";
+        let helpers:Vec<_>=(0..16).map(|i|(format!("src/P{i:02}.vb"),
+            format!("Sub H{i:02}{}()\nEnd Sub","x".repeat(1880)))).collect();
+        let mut sources=vec![(PATH,"Sub Save()\nEnd Sub")];
+        sources.extend(helpers.iter().map(|(path,body)|(path.as_str(),body.as_str())));
+        publish_named_sources(&engram,&search,&sources).await;
+        let source_id=format!("sym:function:{PATH}:Save:1");
+        let mut source=node(&source_id,"function","Save",PATH,1);source.start_line=1;source.end_line=2;
+        engram.state.graph.upsert_nodes(PID,&[source]).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_node_id":source_id});
+        let before=navigate(&engram,request.clone()).await;
+        let mut nodes=Vec::new();let mut edges=Vec::new();
+        for (i,(path,_)) in helpers.iter().enumerate() {
+            let name=format!("H{i:02}{}","x".repeat(1880));
+            let id=format!("sym:function:{path}:{name}:1");
+            let mut target=node(&id,"function",&name,path,1);target.start_line=1;target.end_line=2;
+            nodes.push(target);
+            edges.push(Edge {source_id:source_id.clone(),target_id:id,namespace:"memory".into(),language:"vb".into(),
+                edge_kind:EdgeKind::Calls,weight:1,generation:1,metadata:Some(json!({"call_site_line":1})),updated_at_ms:1});
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        let text=navigation_text(&engram,request).await;
+        let mut after=navigation(&text);
+        assert!(serde_json::to_vec(&after).unwrap().len()<=64*1024);
+        let calls=after.as_object_mut().unwrap().remove("called_declarations").unwrap();
+        assert!(calls["display_omitted"].as_u64().unwrap()>0);
+        assert!(!calls["items"].as_array().unwrap().is_empty());
+        assert_eq!(after,before,"New metadata rows must not displace existing navigation");
+    });
+}

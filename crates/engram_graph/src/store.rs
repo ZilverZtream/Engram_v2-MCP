@@ -22,7 +22,7 @@ mod named_navigation;
 mod edge_scan_tests;
 pub use interface_dispatch::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS, interface_bindings, merge_interface_bindings};
 pub use impact_walk::{
-    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, PropertyReference, PropertyReferences, event_producer, event_owner_matches,
+    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, PropertyReference, PropertyReferences, CallableReference, CallableReferences, event_producer, event_owner_matches,
 };
 pub use source_stat::{FileStatPatch, FileStatPatchReport, VerifiedFileStat, file_metadata_digest};
 

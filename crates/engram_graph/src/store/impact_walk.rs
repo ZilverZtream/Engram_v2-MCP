@@ -217,6 +217,31 @@ pub struct PropertyReferences {
     pub non_property_nodes: usize,
 }
 
+/// A revision-checked indexed Calls target with the same identity/position
+/// representation as a property reference; this does not establish dispatch,
+/// value flow, or runtime execution.
+pub type CallableReference = PropertyReference;
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct CallableReferences {
+    pub references: Vec<CallableReference>,
+    /// Additional callable admission work only. The shared scan's omissions
+    /// and unknown observations are retained separately, without double counts.
+    pub coverage: ImpactWalkCoverage,
+    pub scan_coverage: ImpactWalkCoverage,
+    /// Callable identities encountered after edge/source verification, before
+    /// target/file admission. This is not an exhaustive callable inventory.
+    pub candidates_observed: usize,
+    /// Observed candidates not admitted/retained, including pending capacity.
+    pub candidates_omitted: usize,
+    pub excluded_nodes: usize,
+    /// Peak separately bounded metadata-free pending identity/position bytes.
+    pub pending_bytes: usize,
+}
+
+const CALLABLE_PENDING_LEADS: usize = 16;
+const CALLABLE_PENDING_BYTES: usize = 64 * 1024;
+
 const PROPERTY_RAW_ROWS: usize = 64;
 const PROPERTY_LEADS: usize = 8;
 const PROPERTY_RECORD_BYTES: usize = 64 * 1024;
@@ -763,6 +788,44 @@ impl GraphStore {
         admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
         excluded: &dyn Fn(&Node) -> bool,
     ) -> anyhow::Result<PropertyReferences> {
+        self.bounded_declaration_references_inner(project_id, source_id, admit, excluded, None)
+    }
+
+    /// Opt-in callable leads from the same bounded outgoing Calls scan.
+    /// Properties retain their original work/capacity priority. At most sixteen
+    /// metadata-free callable candidates wait for admission after that pass;
+    /// their target/file reads spend only its remaining budget and transaction.
+    pub fn bounded_declaration_references(
+        &self,
+        project_id: &str,
+        source_id: &str,
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        excluded: &dyn Fn(&Node) -> bool,
+    ) -> anyhow::Result<(PropertyReferences, CallableReferences)> {
+        let mut callables = CallableReferences::default();
+        let properties = self.bounded_declaration_references_inner(
+            project_id, source_id, admit, excluded, Some(&mut callables))?;
+        callables.scan_coverage = properties.coverage.clone();
+        if properties.coverage.truncated {
+            gap(&mut callables.coverage, "callable_reference_shared_scan_incomplete");
+        }
+        callables.candidates_omitted = callables.candidates_observed - callables.references.len();
+        for reason in &mut callables.coverage.reasons {
+            *reason = reason.replace("property_reference_", "callable_reference_");
+        }
+        callables.coverage.reasons.sort();
+        Ok((properties, callables))
+    }
+
+    fn bounded_declaration_references_inner(
+        &self,
+        project_id: &str,
+        source_id: &str,
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        excluded: &dyn Fn(&Node) -> bool,
+        mut callables: Option<&mut CallableReferences>,
+    ) -> anyhow::Result<PropertyReferences> {
+        let mut pending: Vec<CallableReference> = Vec::new();
         anyhow::ensure!(!project_id.is_empty() && project_id.len() <= 1024
             && !project_id.chars().any(char::is_control), "Invalid property-reference project identity");
         anyhow::ensure!(!source_id.is_empty() && source_id.len() <= 2048
@@ -792,13 +855,21 @@ impl GraphStore {
             }
             Ok(Some(node))
         };
-        let selected = |node: &Node, budget: &mut PropertyBudget, coverage: &mut ImpactWalkCoverage| -> anyhow::Result<bool> {
+        let selected = |node: &Node, budget: &mut PropertyBudget, coverage: &mut ImpactWalkCoverage,
+                        excluded_files: Option<&mut usize>| -> anyhow::Result<bool> {
             let file_id = format!("file:{}", node.file_path.as_str());
             let Some(file) = read(&file_id, budget, coverage)? else { return Ok(false) };
             if file.node_type != "file" || file.file_path != node.file_path {
                 coverage.unknown_nodes += 1;
                 gap(coverage, "property_reference_canonical_file_unavailable");
                 return Ok(false);
+            }
+            if let Some(count) = excluded_files {
+                if excluded(&file) {
+                    *count += 1;
+                    gap(coverage, "property_reference_canonical_file_excluded");
+                    return Ok(false);
+                }
             }
             if !budget.live(coverage) { return Ok(false); }
             let node_admission = admit(node, Some(&file))?;
@@ -826,7 +897,7 @@ impl GraphStore {
             gap(&mut output.coverage, "property_reference_source_excluded");
             return Ok(output);
         }
-        if !selected(&source, &mut budget, &mut output.coverage)? || !budget.retain(&source, &mut output.coverage) {
+        if !selected(&source, &mut budget, &mut output.coverage, None)? || !budget.retain(&source, &mut output.coverage) {
             return Ok(output);
         }
         output.source = Some(identity_clone(&source));
@@ -871,13 +942,35 @@ impl GraphStore {
             }
             let Some(target) = read(target_id, &mut budget, &mut output.coverage)? else { continue };
             if target.node_id != source.node_id { output.coverage.nodes_observed += 1; }
-            if target.node_type != "property" { output.non_property_nodes += 1; continue; }
+            if target.node_type != "property" {
+                output.non_property_nodes += 1;
+                if let Some(observed) = callables.as_deref_mut() {
+                    if matches!(target.node_type.as_str(), "function" | "method" | "constructor" | "sub" | "procedure") {
+                        observed.candidates_observed += 1;
+                        if pending.len() == CALLABLE_PENDING_LEADS {
+                            gap(&mut observed.coverage, "callable_reference_pending_lead_limit");
+                        } else {
+                            let (source_line, source_position_kind, reference_lines, reference_lines_truncated) = recorded_positions(&edge);
+                            let bytes = identity_bytes(&target) + reference_lines.len() * std::mem::size_of::<u32>();
+                            if observed.pending_bytes.checked_add(bytes).is_none_or(|n| n > CALLABLE_PENDING_BYTES) {
+                                gap(&mut observed.coverage, "callable_reference_pending_byte_limit");
+                            } else {
+                                observed.pending_bytes += bytes;
+                                let extractor_anchor_line = edge.metadata.as_ref().and_then(|m| m.get("src_line")).and_then(positive_line);
+                                pending.push(CallableReference { target: identity_clone(&target), edge_generation: edge.generation,
+                                    source_line, source_position_kind, extractor_anchor_line, reference_lines, reference_lines_truncated });
+                            }
+                        }
+                    }
+                }
+                continue;
+            }
             if excluded(&target) {
                 output.excluded_nodes += 1;
                 gap(&mut output.coverage, "property_reference_target_excluded");
                 continue;
             }
-            if !selected(&target, &mut budget, &mut output.coverage)? || !budget.retain(&target, &mut output.coverage) {
+            if !selected(&target, &mut budget, &mut output.coverage, None)? || !budget.retain(&target, &mut output.coverage) {
                 continue;
             }
             let (source_line, source_position_kind, reference_lines, reference_lines_truncated) = recorded_positions(&edge);
@@ -886,6 +979,39 @@ impl GraphStore {
                 source_line, source_position_kind, extractor_anchor_line, reference_lines, reference_lines_truncated });
         }
         output.coverage.reasons.sort();
+        if let Some(observed) = callables {
+            for mut candidate in pending {
+                if !budget.live(&mut observed.coverage) { break; }
+                // Re-read only a known identity in this same transaction. Its
+                // arbitrary metadata was never retained alongside properties.
+                let target = match read(&candidate.target.node_id, &mut budget, &mut observed.coverage) {
+                    Ok(Some(target)) => target,
+                    Ok(None) => continue,
+                    Err(_) => {
+                        observed.coverage.unknown_nodes += 1;
+                        gap(&mut observed.coverage, "callable_reference_target_read_failed");
+                        continue;
+                    }
+                };
+                observed.coverage.nodes_observed += 1;
+                if excluded(&target) {
+                    observed.excluded_nodes += 1;
+                    gap(&mut observed.coverage, "callable_reference_target_excluded");
+                    continue;
+                }
+                let admitted = match selected(&target, &mut budget, &mut observed.coverage, Some(&mut observed.excluded_nodes)) {
+                    Ok(admitted) => admitted,
+                    Err(_) => {
+                        observed.coverage.unknown_nodes += 1;
+                        gap(&mut observed.coverage, "callable_reference_file_read_or_admission_failed");
+                        false
+                    }
+                };
+                if !admitted || !budget.retain(&target, &mut observed.coverage) { continue; }
+                candidate.target = identity_clone(&target);
+                observed.references.push(candidate);
+            }
+        }
         Ok(output)
     }
 
@@ -2183,6 +2309,13 @@ mod tests {
             assert_eq!(output.coverage.raw_rows,65,"64 examined rows plus one undecoded lookahead");
             assert_eq!(output.non_property_nodes,64);
             assert!(output.coverage.reasons.iter().any(|r|r=="property_reference_raw_row_limit"));
+            let (properties,callables)=store.bounded_declaration_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",1)],n,f),&|_|false)?;
+            assert_eq!(serde_json::to_value(&properties)?,serde_json::to_value(&output)?);
+            assert_eq!(callables.scan_coverage.raw_rows,65);
+            assert_eq!(callables.candidates_observed,64);
+            assert_eq!(callables.references.len(),16);
+            assert_eq!(callables.candidates_omitted,48);
+            assert!(callables.coverage.truncated,"Raw lookahead must remain a callable coverage gap");
             Ok(())
         })
     }
@@ -2236,6 +2369,13 @@ mod tests {
             assert!(output.references.is_empty());
             assert!(output.coverage.raw_rows<64,"shared decoding stops before adjacency capacity");
             assert!(output.coverage.reasons.iter().any(|r|r=="property_reference_decode_byte_limit"));
+            let (properties,callables)=store.bounded_declaration_references(PROJECT,"source",&|n,f|selected(&[("src/source.vb",1)],n,f),&|_|false)?;
+            assert_eq!(serde_json::to_value(&properties)?,serde_json::to_value(&output)?);
+            assert!(callables.candidates_observed>0 && callables.references.is_empty(),
+                "Callable admission must not reset a decode budget exhausted by the property pass");
+            assert_eq!(callables.candidates_omitted,callables.candidates_observed);
+            assert!(callables.scan_coverage.reasons.iter().any(|r|r=="property_reference_decode_byte_limit"));
+            assert!(callables.coverage.truncated);
             Ok(())
         })
     }
@@ -2258,6 +2398,179 @@ mod tests {
             let nonmemory=store.bounded_property_references(PROJECT,"source",&|_,_|Ok(ImpactAdmission::Selected),&|_|false)?;
             assert!(nonmemory.source.is_none() && nonmemory.references.is_empty());
             assert!(nonmemory.coverage.reasons.iter().any(|r|r=="property_reference_identity_or_namespace_unavailable"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn declaration_references_reach_fourteenth_callee_with_revision_checked_positions() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut nodes = vec![node("source", "src/controller.vb", 1), file("src/controller.vb", 1), file("src/service.vb", 3)];
+            let mut edges = Vec::new();
+            for index in 0..14 {
+                let id = format!("callee-{index:02}");
+                let mut target = node(&id, "src/service.vb", 3);
+                target.node_type = ["function", "method", "constructor", "sub", "procedure"][index % 5].into();
+                target.metadata.as_mut().unwrap()["unrelated_payload"] = serde_json::json!("x".repeat(1024));
+                nodes.push(target);
+                let mut call = edge("source", &id, EdgeKind::Calls, 3);
+                call.metadata = Some(serde_json::json!({"src_line":10,"call_site_lines":[27,25,27],
+                    "_engram_source_origin":{"version":1,"source_id":"source","source_generation":1}}));
+                edges.push(call);
+            }
+            store.upsert_nodes_and_edges(PROJECT, &nodes, &edges)?;
+            let admit = |n: &Node, f: Option<&Node>| selected(&[("src/controller.vb",1),("src/service.vb",3)], n, f);
+            let baseline = store.bounded_property_references(PROJECT, "source", &admit, &|_| false)?;
+            let (properties, callables) = store.bounded_declaration_references(PROJECT, "source", &admit, &|_| false)?;
+            assert_eq!(serde_json::to_value(&properties)?, serde_json::to_value(&baseline)?);
+            assert_eq!(callables.references.len(), 14);
+            assert_eq!(callables.candidates_omitted, 0);
+            assert!(!callables.coverage.truncated && !callables.scan_coverage.truncated);
+            let last = callables.references.iter().find(|r| r.target.node_id == "callee-13").unwrap();
+            assert_eq!(last.target.generation, 3);
+            assert_eq!(last.edge_generation, 3);
+            assert_eq!(properties.source.unwrap().generation, 1);
+            assert_eq!(last.reference_lines, [25,27]);
+            assert_eq!(last.source_line, Some(25));
+            assert_eq!(last.extractor_anchor_line, Some(10));
+            assert_eq!(last.source_position_kind, "call_reference_syntax_metadata");
+            assert!(callables.references.iter().all(|r| r.target.metadata.is_none()));
+            assert!(!serde_json::to_string(&callables)?.contains("unrelated_payload"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn declaration_references_reject_unadmitted_callees_and_preserve_shared_scan_gaps() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut nodes = vec![node("source", "src/source.vb", 2), file("src/source.vb", 2), file("src/model.vb", 2),
+                file("src/excluded-file.vb",2)];
+            let mut edges = Vec::new();
+            for (id,path,generation) in [("accepted","src/model.vb",2), ("old-target","src/model.vb",1),
+                ("excluded","src/model.vb",2), ("excluded-file","src/excluded-file.vb",2),
+                ("no-file","src/absent.vb",2), ("stale-edge","src/model.vb",2), ("foreign","src/model.vb",2)] {
+                let mut target = node(id,path,generation);
+                if id == "foreign" { target.namespace = "history".into(); }
+                nodes.push(target);
+                edges.push(edge("source",id,EdgeKind::Calls,if id == "stale-edge" {1} else {2}));
+            }
+            edges.push(edge("source","missing-target",EdgeKind::Calls,2));
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let admit = |n: &Node, f: Option<&Node>| selected(&[("src/source.vb",2),("src/model.vb",2),
+                ("src/absent.vb",2),("src/excluded-file.vb",2)],n,f);
+            let excluded = |n: &Node| n.node_id == "excluded" || n.node_id == "file:src/excluded-file.vb";
+            let baseline = store.bounded_property_references(PROJECT,"source",&admit,&excluded)?;
+            let (properties, callables) = store.bounded_declaration_references(PROJECT,"source",&admit,&excluded)?;
+            assert_eq!(serde_json::to_value(&properties)?,serde_json::to_value(&baseline)?);
+            assert_eq!(callables.references.iter().map(|r|r.target.node_id.as_str()).collect::<Vec<_>>(),["accepted"]);
+            assert_eq!(callables.candidates_observed,5);
+            assert_eq!(callables.candidates_omitted,4);
+            assert_eq!(callables.coverage.non_selected_nodes,1);
+            assert_eq!(callables.coverage.missing_nodes,1);
+            assert_eq!(callables.excluded_nodes,2);
+            assert!(callables.coverage.truncated && callables.scan_coverage.truncated);
+            assert_eq!(serde_json::to_value(&callables.scan_coverage)?,serde_json::to_value(&properties.coverage)?);
+            for reason in ["property_reference_edge_source_unverified", "property_reference_identity_or_namespace_unavailable", "property_reference_node_or_file_missing"] {
+                assert!(callables.scan_coverage.reasons.iter().any(|r|r==reason),"{reason}");
+            }
+            let (_, unavailable) = store.bounded_declaration_references(PROJECT,"source",
+                &|n,f| selected(&[("src/source.vb",3)],n,f),&|_|false)?;
+            assert!(unavailable.references.is_empty() && unavailable.scan_coverage.truncated);
+            assert_eq!(unavailable.scan_coverage.raw_rows,0);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn declaration_references_callable_crowding_never_displaces_later_properties() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let mut nodes=vec![node("source","src/source.vb",1),file("src/source.vb",1)];
+            let mut edges=Vec::new();
+            for index in 0..30 {
+                let id=format!("a-callee-{index:02}");
+                nodes.push(node(&id,"src/source.vb",1));edges.push(edge("source",&id,EdgeKind::Calls,1));
+            }
+            for index in 0..8 {
+                let id=format!("z-property-{index}");
+                nodes.push(property(&id,"src/source.vb",1));edges.push(edge("source",&id,EdgeKind::Calls,1));
+            }
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let admit=|n: &Node,f: Option<&Node>|selected(&[("src/source.vb",1)],n,f);
+            let baseline=store.bounded_property_references(PROJECT,"source",&admit,&|_|false)?;
+            let (properties,callables)=store.bounded_declaration_references(PROJECT,"source",&admit,&|_|false)?;
+            assert_eq!(properties.references.len(),8);
+            assert_eq!(serde_json::to_value(&properties)?,serde_json::to_value(&baseline)?);
+            assert_eq!(callables.references.len(),16);
+            assert_eq!(callables.candidates_observed,30);
+            assert_eq!(callables.candidates_omitted,14);
+            assert!(callables.coverage.reasons.iter().any(|r|r=="callable_reference_pending_lead_limit"));
+            assert!(!properties.coverage.truncated,"Pending callable overflow is not a lost property scan");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn declaration_references_optional_admission_errors_preserve_properties_and_other_callees() -> anyhow::Result<()> {
+        for corrupt_file in [false,true] {
+            owned_case(|store| {
+                let nodes=[node("source","src/source.vb",1),file("src/source.vb",1),
+                    node("a-broken","src/broken.vb",1),file("src/broken.vb",1),
+                    node("b-good","src/source.vb",1),property("z-property","src/source.vb",1)];
+                let edges=[edge("source","a-broken",EdgeKind::Calls,1),
+                    edge("source","b-good",EdgeKind::Calls,1),edge("source","z-property",EdgeKind::Calls,1)];
+                store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+                if corrupt_file {
+                    let tx=store.db.begin_write()?;
+                    {
+                        let mut table=tx.open_table(NODES)?;
+                        let key=format!("{PROJECT}\0file:src/broken.vb");
+                        table.insert(key.as_str(), b"invalid node record".as_slice())?;
+                    }
+                    tx.commit()?;
+                }
+                let admit=|n: &Node,f: Option<&Node>| {
+                    if !corrupt_file && n.node_id=="file:src/broken.vb" {
+                        anyhow::bail!("fixture callable-file admission failed");
+                    }
+                    selected(&[("src/source.vb",1),("src/broken.vb",1)],n,f)
+                };
+                let baseline=store.bounded_property_references(PROJECT,"source",&admit,&|_|false)?;
+                let (properties,callables)=store.bounded_declaration_references(PROJECT,"source",&admit,&|_|false)?;
+                assert_eq!(properties.references.len(),1);
+                assert_eq!(serde_json::to_value(&properties)?,serde_json::to_value(&baseline)?);
+                assert_eq!(callables.references.iter().map(|r|r.target.node_id.as_str()).collect::<Vec<_>>(),["b-good"]);
+                assert_eq!(callables.candidates_observed,2);
+                assert_eq!(callables.candidates_omitted,1);
+                assert!(callables.coverage.truncated && !callables.scan_coverage.truncated);
+                assert!(callables.coverage.reasons.iter().any(|r|r=="callable_reference_file_read_or_admission_failed"));
+                Ok(())
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn declaration_references_bound_pending_identity_bytes_without_hiding_property_output() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let path=format!("src/{}.vb","p".repeat(1900));
+            let mut nodes=vec![node("source","src/source.vb",1),file("src/source.vb",1),file(&path,1),property("z-property","src/source.vb",1)];
+            let mut edges=vec![edge("source","z-property",EdgeKind::Calls,1)];
+            for index in 0..14 {
+                let id=format!("a-{index:02}-{}","i".repeat(1900));
+                let mut target=node(&id,&path,1);target.name="n".repeat(1900);
+                nodes.push(target);edges.push(edge("source",&id,EdgeKind::Calls,1));
+            }
+            store.upsert_nodes_and_edges(PROJECT,&nodes,&edges)?;
+            let admit=|n: &Node,f: Option<&Node>|selected(&[("src/source.vb",1),(&path,1)],n,f);
+            let baseline=store.bounded_property_references(PROJECT,"source",&admit,&|_|false)?;
+            let (properties,callables)=store.bounded_declaration_references(PROJECT,"source",&admit,&|_|false)?;
+            assert_eq!(serde_json::to_value(&properties)?,serde_json::to_value(&baseline)?);
+            assert_eq!(properties.references.len(),1);
+            assert_eq!(callables.candidates_observed,14);
+            assert!(callables.pending_bytes<=64*1024 && callables.candidates_omitted>0);
+            assert!(!callables.references.is_empty());
+            assert!(callables.coverage.reasons.iter().any(|r|r=="callable_reference_pending_byte_limit"));
+            assert!(callables.references.iter().all(|r|r.target.metadata.is_none()));
             Ok(())
         })
     }
