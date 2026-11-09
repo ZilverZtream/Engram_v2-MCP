@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Bounded same-file source recovery for CodeMap omitted literal windows is committed at74065a5. All42 focused tests and the release build passed; package preserves214 native sidecar assets. Impact grouping remains unchanged after its proposed expansion exceeded existing budgets. Installed runtime is unchanged; core agent usefulness remains unfinished.",
-    "next_user_visible_deliverable": "Validate actual candidate OciusX reports and source recovery, compare against the frozen fresh-agent baseline, then complete paired installation and normal-runtime verification. Baseline passed all four frozen source-support criteria using3 reads/31549 bytes including setup; candidate comparison pending. Live Codex-owned Engram connections remain running and restart question unanswered. Normal observer is prepared and statically reviewed. Preserve original task scores,31 findings and19 open release gates.",
+    "active_original_item": "Bounded same-file source recovery is deployed at74065a5 and verified on actual OciusX through candidate21checks and normal11reads. Exact CodeMap omitted-window action recovers the same50lines in1call rather than2. Fresh known-omission task: both4PASS, both3reads, candidate32036bytes versus baseline31549; complementary coverage, no overall quality/efficiency win. CodeMap/Blast agent usefulness assignment remains unfinished.",
+    "next_user_visible_deliverable": "Assess the changed range-reading capability against the original frozen eight-call classification task and its five criteria, especially editor/source-bridge recovery. Preserve original partial scores; do not substitute the four-criterion omission task for full-task completion. Reuse existing replay adapter and actual normal tools, no new broad audit/framework. Do not repeat unchanged cancellation work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -11229,10 +11229,23 @@
     },
     "selected_source_ranges_recovery": {
       "path": "eval/core-source-ranges-delivery-20261108.json",
-      "sha256": "a7fe6cf2a10e58ed3e250ae70f1e3d6cff2e10b182a006fd3ce37b6c6c583806",
-      "status": "SOURCE_COMMITTED_FOCUSED42_AND_RELEASE_BUILD_PASS_PACKAGE_PREPARED_NOT_INSTALLED",
-      "installed_runtime_unchanged": true,
+      "sha256": "ffe3e5860d54d84803729fbc732cd656ed5c5aa40d06b65b59716ecf00a9a5d8",
+      "status": "DEPLOYED_NORMAL_VERIFIED_BOUNDED_SOURCE_RECOVERY",
+      "installed_runtime_unchanged": false,
+      "agent_outcome": {
+        "path": "eval/core-source-ranges-agent-outcome-20261109.json",
+        "sha256": "cf5c99e2b6ccdff228eceaa126b0615dcc14ec4b57f5e0c6bb7529f6eea031d7"
+      },
       "goal_complete": false
+    },
+    "maintenance_restart_authorization": {
+      "date": "2026-11-09",
+      "instruction": "User confirms Engram is not used by others while this work runs and reiterates existing permission for routine maintenance restarts, including live Codex-owned Engram proxy connections. Do not request that permission again.",
+      "record": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-standing-authorization-20261109.json",
+        "sha256": "60dc3e075e4f6517fbbd17724704393af402c1e6ff624b08875c846ea71f384a"
+      },
+      "codex_host_restart_needed": false
     }
   }
 }

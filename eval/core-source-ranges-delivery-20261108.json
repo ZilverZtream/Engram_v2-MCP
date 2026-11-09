@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMMITTED_FOCUSED42_AND_RELEASE_BUILD_PASS_PACKAGE_PREPARED_NOT_INSTALLED",
-  "at_utc": "2026-11-08T18:36:00.251269+00:00",
+  "status": "DEPLOYED_NORMAL_VERIFIED_BOUNDED_SOURCE_RECOVERY",
+  "at_utc": "2026-11-09T06:30:22.547302+00:00",
   "selected_original_need": "Reduce demonstrated CodeMap/Blast source-recovery calls while preserving current-source evidence and original task caps. Existing single-file literal windows and grouped impact reads can require separate hops for separated source.",
   "evidence": {
     "editor_threshold_read": {
@@ -86,9 +86,21 @@
       "owned_resources_closed_and_removed": true,
       "source_inputs_unchanged": true
     },
-    "installed": "UNCHANGED",
+    "installed": {
+      "status": "NORMAL_RUNTIME_VERIFIED",
+      "daemon_pid": 33780,
+      "launcher_pid": 29676,
+      "server_sha256": "ef729dd87fbf056bec034dedc1c260f691f9e4642be63e667229494635e392d0",
+      "manifest_sha256": "ac67a2f91bb8e0f5628e6423e608464279181d4cd0361f6d0e8aacc91687991c",
+      "normal_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-normal-v1-20261108.json",
+        "sha256": "25f39271ae7596abd607f645443af440bd327be50bfb18e7d1a37840ab09bb78"
+      },
+      "read_calls": 11,
+      "observer_pipe_closed": true
+    },
     "fresh_task": {
-      "status": "BASELINE_FOUR_CRITERIA_PASS_CANDIDATE_NOT_RUN",
+      "status": "PAIRED_TASK_BOTH_FOUR_PASS_NO_OVERALL_QUALITY_OR_EFFICIENCY_WIN",
       "baseline_capture": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-baseline-capture-20261108.json",
         "sha256": "816380f817159e65cf77b45533df67ee6f8a2fc61a184eb444b9557ad4bf6ba0"
@@ -118,7 +130,15 @@
         "PASS",
         "PASS"
       ],
-      "assessment_limits": "Source-based assessment by reader author, condition known. No blind external review, runtime test, original-task rescore or comparative usefulness claim."
+      "assessment_limits": "Source-based assessment by reader author, condition known. No blind external review, runtime test, original-task rescore or comparative usefulness claim.",
+      "paired_outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-outcome-20261109.json",
+        "sha256": "1e2ae3b2f455f9a3097bfb5bd37f4fd0714410036aa9b01f95432b97083b2a7b"
+      },
+      "independent_paired_judgment": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-paired-judgment-20261109.json",
+        "sha256": "85e318016febd3b9c90b81e9a770df3a676d35a0dd514b9bca2192a6a35e0452"
+      }
     },
     "capabilities_matrix": "PASS135",
     "build_artifact": {
@@ -138,18 +158,34 @@
     "candidate_verifier": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_source_ranges_recovery_candidate_20261108.py",
       "sha256": "681d4a41425479d921d35735ccfbf5579cf9242a3ab509657bc62103462f98d3",
-      "status": "REVIEWED_NOT_EXECUTED"
+      "status": "EXECUTED_PASS21_READ_ONLY_CHECKS"
     },
     "maintenance": {
-      "status": "AWAITING_ANSWER_FOR_NEWLY_OBSERVED_LIVE_CONNECTIONS",
-      "reason": "Two additional Engram proxies are owned by a live Codex host. Proxy source returns on daemon EOF; installer requires those connections stopped. Async confirmation pending; no service or host process stopped, no configuration hold acquired. Independent work continues.",
-      "goal_status": "active",
-      "installed_runtime": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542",
-      "latest_live_check": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-maintenance-wait-check-2-20261108.json",
-        "sha256": "00e3057a3a82f63ca1459b5cb3419ee76c53a1086195be5d4ab0c7b4d6ee458b"
+      "status": "COMPLETED_NORMAL_RUNTIME_RESTORED",
+      "authorization": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-standing-authorization-20261109.json",
+        "sha256": "60dc3e075e4f6517fbbd17724704393af402c1e6ff624b08875c846ea71f384a"
       },
-      "consecutive_goal_turns_with_pending_decision": 2
+      "authorization_scope": "User reaffirms routine Engram maintenance restarts, including Codex-owned Engram proxies, are already authorized while this work runs. Do not ask again for the same maintenance.",
+      "preflight": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-preflight-20261109.json",
+        "sha256": "ebb7eb9b1dcf2c86872ad6b576b696babbbe1da1e6d42c4d98c93c8bf8de8ce4"
+      },
+      "hold": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-config-hold-20261109.json",
+        "sha256": "3d5db57d0ebcc6ddba81a26883828f89a15590d082d0795f3550bc522a82e8ec"
+      },
+      "hold_release": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-config-hold-20261109.json.released.json",
+        "sha256": "277cabaab38fe26dfce9b4eff1ec4c821fc98aac854a9337912fdc0d3c51761d"
+      },
+      "config_unchanged_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "normal_launch": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-normal-launch-20261109.json",
+        "sha256": "7234a690c56f9a357d8e6e2d303b85118f83ed8c6ed298f9769e4d780dd28b30"
+      },
+      "codex_host_stopped": false,
+      "goal_status": "active"
     },
     "normal_observer": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_source_ranges_recovery_normal_20261108.py",
@@ -158,15 +194,66 @@
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-normal-observer-review-20261108.json",
         "sha256": "1caa310ddd3b32eb6ab0f46ca498d31ed695b19ce8f5e6e1edad33f36998f922"
       },
-      "status": "STATICALLY_REVIEWED_NOT_EXECUTED"
+      "status": "EXECUTED_PASS11_NORMAL_READ_CHECKS"
+    },
+    "candidate_actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-cold-v1-20261108\\acceptance.json",
+      "sha256": "2be61979fbb4be53d716a126ceaa68ee4395d8671321fe05e80f879b706ea08a"
+    },
+    "installation": {
+      "scoped_gate": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-release-gates-v2-20261109.json",
+        "sha256": "13c3c4fb729fd962a0e36ea86ad5f4236897788666fa070e7f56c95449e61112"
+      },
+      "scoped_forward_applicability": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-forward-applicability-v2-20261109.json",
+        "sha256": "a0a50ea02a8df82b36433ff2c8cd4f94bc0534fc031d38ab4a2f3e8c228a4c57"
+      },
+      "validated": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-installer-validation-v2-20261109.json",
+        "sha256": "cebf8726921b7c60a43e3bb556f4f86000d2b2639fcc75761e3795e49a38d580"
+      },
+      "actual_swap": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-installer-result-reconciled-20261109.json",
+        "sha256": "55a14c7c7e92bca791da80e1bc21c675364c58bbd6919422b30cdcf36f222633"
+      },
+      "post_qa_data": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-post-qa-data-20261109\\preservation.json",
+        "sha256": "1cc503c64c4d03902276c4189db9a51f44c156107072d8504fe6a760d0879f27"
+      },
+      "original_full19gates_closed": false
     }
   },
   "resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
     "new_observers_closed": true,
     "pending_rpc": null,
-    "retention": "Retain package, build and test receipts, bounded task evidence and helper corrections in the recorded diagnostics location until delivery review. Build/test temporary fixtures removed with handles closed; no preexisting folder deletion."
+    "retention": "Retain package, tests/build, candidate/private-QA/normal receipts, helper corrections and old complete installed pair/journals until delivery/recovery review. Owned build/test/private candidate temporary directories removed after handles closed; maintenance hold released. Normal daemon33780 and launcher29676 intentionally running.",
+    "retained_old_package": {
+      "kind": "backup",
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-6fbbdaa17d1b4901a0a173d433f1885e",
+      "files": 218,
+      "bytes": 336782122,
+      "manifest_sha256": "81cd87c9109ddc9afa6a4eee03d074211ade3361199c3b2843e02e56ff37c4d7",
+      "server_sha256": "887d2b622043ecef6cafbacaf716c982bc059f24ad12d6bdcad6474100f8b542"
+    }
   },
   "goal_complete": false,
-  "implementation_commit": "74065a56c9562545c0f8edb885d3488857c03077"
+  "implementation_commit": "74065a56c9562545c0f8edb885d3488857c03077",
+  "operational_corrections": {
+    "relay_schema_order": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-qa-relay-v2-correction-20261109.json",
+      "sha256": "b60c6ba984b8c19b0c1b64746f69c907e9c662296a97ba1cfa640bbf7960081c"
+    },
+    "gate_duplicate_key": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-release-gate-v2-correction-20261109.json",
+      "sha256": "cad3c9371ec42d151085fdfe2faf6d2a711ff7bd45101805ac227ce3f37a9bb7"
+    },
+    "validation_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-installer-validation-refusal-20261109.json",
+      "sha256": "47def66326323b496b2e86d69b5db294b9a10669372da14a60e2edec941e7b68"
+    },
+    "installer_reporting": "Caller single-result assertion failed after installer emitted multiple journal/status objects. Committed journal and all218active/218backup file identities verified; installer was not repeated. Hash hex case normalized during read-only reconciliation. These helper/reporting issues did not alter compiled product inputs."
+  },
+  "limits": "Exact two-window recovery needs one call rather than two. Fresh task used range mode successfully but required the same3calls and487more total bytes; both answers4PASS with complementary source coverage. No overall quality, efficiency, original-task completion or general usefulness claim."
 }
