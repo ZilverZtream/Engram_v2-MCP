@@ -464,87 +464,43 @@ pub struct ProjectIdRequest {
 #[serde(deny_unknown_fields)]
 pub struct CodebaseOverviewRequest {
     pub project_id: String,
-    /// Literal project-relative file or directory boundary, never a glob.
-    /// Directory area actions descend to the next child directory or direct
-    /// selected file; scoped file pages retain lexical order independently.
+    /// Slash-separated project-relative file/directory boundary; no absolute paths, backslashes, . or .. segments. Not a glob.
     #[serde(default)]
     pub scope: Option<String>,
-    /// Literal boundaries omitted before declaration lookup or source recovery.
+    /// Literal boundaries in the same path format as scope; excluded before lookup or source recovery.
     #[serde(default)]
     pub exclude_paths: Vec<String>,
-    /// Optional literal, case-insensitive path substring (1..128 UTF-8 bytes),
-    /// never a glob, regex or source-body search. Filters the held selected
-    /// file identities before declaration discovery. Results page lexically,
-    /// including project-wide searches, and omit global tables by default.
+    /// Case-insensitive literal path substring,1..128 UTF-8 bytes. Not a glob, regex or body search.
     #[serde(default)]
     pub path_contains: Option<String>,
-    /// False gives compact selected-file/area discovery without graph
-    /// declaration lookup. Follow a file's declaration-inspection action,
-    /// or request an exact extracted symbol_name with this true, for source
-    /// and impact navigation. Skipped declarations are unknown, never absent.
+    /// False skips declaration lookup for compact file discovery. True enables symbol selection and source/impact actions. Skipped declarations remain unknown.
     #[serde(default = "default_true")]
     pub include_declarations: bool,
-    /// Exact selected-file and filtered-path pages omit global tables by
-    /// default. Unfiltered root/area overviews retain project distributions.
-    /// True also includes retained
-    /// history/memory context and keeps the full overview rendering.
+    /// Include retained history/memory and project tables. Must be false for directory-name lookup or current-source preview.
     #[serde(default)]
     pub include_retained_context: bool,
-    /// Opt-in current source preview for one exact selected file, with both
-    /// offsets zero and retained context off. At most120 complete lines from
-    /// a sole fully displayed named/ID candidate's page (otherwise file start), trimmed
-    /// to an8KiB preview and12KiB complete reply. Current bytes/hash do not
-    /// certify indexed method bounds, binding or project-wide freshness.
+    /// Preview current bytes in one exact selected file; offsets must be0 and retained context off. Uses a named/ID anchor, separate candidate spans, or file start. Bounded omissions/recovery stay explicit.
     #[serde(default)]
     pub include_source: bool,
-    /// Optional literal current-file text (1..128 UTF-8 bytes, no controls),
-    /// ASCII-case-insensitive with all other bytes exact. Requires include_source
-    /// true and include_declarations false; no symbol selectors. Samples eight
-    /// distinct matching lines plus lookahead from the same bounded snapshot,
-    /// with nearby current source and literal recovery. Not owner/Calls/value
-    /// flow resolution or a project-wide search; omitted matches stay unknown.
+    /// Literal current-file text,1..128 UTF-8 bytes without controls; ASCII-case-insensitive, other bytes exact. Requires source preview, declarations off and no symbol selectors. Samples8matching lines with lookahead and up to3source windows.
     #[serde(default)]
     pub source_contains: Option<String>,
-    /// Optional inclusive current-file line at which to continue literal
-    /// inspection. Requires source_contains; positive, defaults to1. A
-    /// completed suffix scan does not establish whole-file absence. Each call
-    /// reads a fresh snapshot: compare source hashes before combining pages.
+    /// Inclusive literal-scan start,1..file line count+1, default1; requires source_contains. Compare hashes and restart from1 after changes. Suffix completion is not whole-file absence. next_matches continues search; source recovery reads omitted text.
     #[serde(default)]
     pub source_start_line: Option<u64>,
-    /// Scoped/filtered results page all matching file identities; unfiltered
-    /// project-wide results page a diverse representative sample.
+    /// File-page offset. Scoped/filtered results page lexically; unfiltered root pages a representative sample.
     #[serde(default)]
     pub offset: usize,
-    /// Exact-file declaration page offset, 0..128. Use returned next_symbols;
-    /// native/Contains discovery and extraction gaps remain separately bounded.
+    /// Exact-file declaration offset,0..128. Follow next_symbols; lookup/extraction gaps remain.
     #[serde(default)]
     pub symbol_offset: usize,
-    /// Expand one known exact declaration identity independently of discovery
-    /// limits. Requires exact-file scope and both offsets zero. Bounded reads
-    /// of the target and canonical file (64KiB each) must admit both under the
-    /// held source selection. No name fallback or declaration inventory scan.
-    /// An unobserved target does not establish absence. Default discovery pages
-    /// retain source-range actions when indexed line bounds are usable.
+    /// Expand a known exact declaration ID. Requires exact-file scope, declarations on, offsets0 and no symbol_name. An unobserved ID is not absence.
     #[serde(default)]
     pub symbol_node_id: Option<String>,
-    /// Exact, case-sensitive extracted declaration name (1..256 UTF-8 bytes).
-    /// Includes callable and class records (some extractors use class for interfaces).
-    /// Exact-file scope tries exact names first; only after no admitted match,
-    /// a bare name matches the final dot-separated name segment within that
-    /// same file and shared work budget. Qualified/overload identities stay
-    /// separate candidates, not resolved class/FQN bindings. No symbol_node_id
-    /// and symbol_offset0. Directory lookup remains exact-extracted-name only.
-    /// Exact-file scope requires offset0 and retains full candidate actions.
-    /// Directory scope searches at most8 selected files per lexical page with
-    /// ONE shared lookup budget; offset/returned next_page advance by attempted
-    /// files, not matches. Directory pages require no retained context and show
-    /// only matched candidates with source/impact actions. Exact-file/ID expansion
-    /// restores method context. Skipped/legacy/other kinds/other aliases stay unassessed;
-    /// no match is not absence. Display-omitted retained IDs remain explicit.
+    /// Case-sensitive extracted name,1..256 UTF-8 bytes without controls; callable/class candidates. Requires file/directory scope, declarations on, symbol_offset0 and no symbol_node_id. Exact-file scope needs offset0 and permits bare terminal-name fallback only after no exact match. Directory scope stays exact, searches at most8files/page and requires retained context off. Follow next_page even after no matches; candidates are not resolved bindings.
     #[serde(default)]
     pub symbol_name: Option<String>,
-    /// Selected files per page, 1..64 (default8); directory symbol_name uses1..8.
-    /// Matching candidates, lookup work and response bounds are independent.
+    /// Files/page,1..64 (default8); directory name lookup1..8. Separate candidate/work/output limits apply.
     #[serde(default = "default_codemap_limit")]
     pub limit: usize,
 }
@@ -1806,17 +1762,13 @@ pub struct ImpactAnalysisRequest {
     pub project_id: String,
     pub file_path: Option<String>,
     pub symbol_fqn: Option<String>,
-    /// Maximum displayed shortest paths in graph mode; does not cap retained
-    /// nodes, edges, recovery actions, walk work or response bytes. Summary
-    /// stays within 12KiB and offers direct-dependent expansion actions.
+    /// Displayed shortest-path limit (clamped1..25), not traversal, nodes, edges or byte budget; summary stays within12KiB.
     #[serde(default = "default_limit_50")]
     pub limit: usize,
-    /// Maximum incoming causal depth in the revision-admitted path walk.
-    /// Default six; one requests direct callers only. Valid range 1..8.
+    /// Incoming dependency depth,1..8; default6. Use1 for direct dependents.
     #[serde(default = "default_impact_depth")]
     pub max_depth: usize,
-    /// Summary gives bounded source-navigation actions and an explicit graph
-    /// expansion call. Graph preserves the complete existing report (default).
+    /// summary: bounded navigation and graph expansion. graph: full report with separate historical context.
     #[serde(default)]
     pub detail: ImpactDetail,
 }
@@ -2798,19 +2750,13 @@ pub struct ComputeBlastRadiusRequest {
     /// Fully qualified symbol name to analyze. Mutually exclusive with file_path.
     #[serde(default)]
     pub symbol_fqn: Option<String>,
-    /// Include the separate unverified one-hop advisory profile and migration
-    /// guidance in graph responses. False skips that worker entirely.
-    /// Default true. Uses only already retained same-generation centrality;
-    /// missing centrality makes the composite score/band null. File advice
-    /// requires complete admitted members from the held walk. Summary omits it.
+    /// Graph only: unverified one-hop advice (defaulttrue). False skips its worker. Missing retained centrality leaves score/band null; incomplete file membership makes advice unavailable. No ranking runs. Summary omits it.
     #[serde(default = "default_true")]
     pub include_guidance: bool,
-    /// Incoming causal walk depth, separate from the advisory one-hop score.
-    /// Default six; valid range 1..8.
+    /// Incoming dependency depth,1..8; default6. Independent of one-hop advice.
     #[serde(default = "default_impact_depth")]
     pub max_depth: usize,
-    /// Summary uses revision-admitted facts only and omits the separate live
-    /// heuristic/history workers. Graph preserves the existing report (default).
+    /// summary: bounded revision-admitted navigation without advice/history workers. graph: full report.
     #[serde(default)]
     pub detail: ImpactDetail,
 }
