@@ -14,6 +14,7 @@ const RESPONSE_BYTES: usize = 64 * 1024;
 const IMMEDIATE_BYTES: usize = 2 * 1024;
 pub const SUMMARY_BYTES: usize = 12 * 1024;
 const SOURCE_ROUTE_BYTES: usize = 4 * 1024;
+const FILE_MEMBER_NAVIGATION_BYTES: usize = 5 * 1024;
 
 /// Apply one already-held source selection to both graph endpoints' physical
 /// node/file revisions. This helper never pins or observes a newer HEAD.
@@ -254,6 +255,59 @@ fn describe_summary_node(
     })})
 }
 
+/// Name distinct reached file members before a few representative callers hide
+/// their branches. This projects retained admitted edges, not the complete walk.
+fn append_file_member_navigation(
+    value: &mut Value,
+    full: &Value,
+    project: &str,
+    target: &Value,
+    nodes: &HashMap<&str, &Value>,
+    fits: &dyn Fn(&Value) -> bool,
+) {
+    let mut members: BTreeMap<&str, (&Value, BTreeSet<&str>)> = BTreeMap::new();
+    for edge in full["edges"].as_array().into_iter().flatten() {
+        let Some(source) = edge["source_ref"].as_str().and_then(|reference| nodes.get(reference)) else { continue; };
+        let Some(member) = edge["target_ref"].as_str().and_then(|reference| nodes.get(reference)) else { continue; };
+        if source["admission"] != "selected" || source["depth"] != 1
+            || source["file_ref"] == target["file_ref"]
+            || member["admission"] != "selected" || member["is_seed"] != true
+            || member["kind"] == "file" || member["file_ref"] != target["file_ref"]
+        { continue; }
+        let (Some(member_id), Some(source_id)) = (member["node_id"].as_str(), source["node_id"].as_str()) else { continue; };
+        members.entry(member_id).or_insert_with(|| (member, BTreeSet::new())).1.insert(source_id);
+    }
+    // With no alternative member branch, the existing consumer/source routes
+    // are the useful navigation. Do not spend their budget repeating one seed.
+    if members.len() < 2 { return; }
+    value["file_member_navigation"] = json!({
+        "members_observed":members.len(),"members_omitted":members.len(),"members":[],
+        "scope":"Retained selected direct witnesses, not complete per-member totals. Counts are lower bounds within this file-query observation and overlap across members. Up to16 members/5KiB; omitted graph edges remain unassessed. Actions are fresh depth1 symbol lookups that may include same-file callers excluded here; compare generation/coverage, do not add counts."
+    });
+    if !fits(value) {
+        value.as_object_mut().unwrap().remove("file_member_navigation");
+        value["file_member_navigation_omitted"] = json!(true);
+        if !fits(value) { value.as_object_mut().unwrap().remove("file_member_navigation_omitted"); }
+        return;
+    }
+    let mut rows = Vec::new();
+    for (id, (member, dependents)) in &members {
+        if rows.len() == 16 { break; }
+        if id.is_empty() || id.len() > 2048 || id.chars().any(char::is_control) { continue; }
+        rows.push(json!({"name":member["name"],"generation":member["generation"],
+            "retained_direct_dependents":dependents.len(),"impact":{"tool":"impact_analysis","arguments":{
+                "project_id":project,"symbol_fqn":id,"detail":"summary","max_depth":1,"limit":4
+            }}}));
+        value["file_member_navigation"]["members"] = json!(&rows);
+        value["file_member_navigation"]["members_omitted"] = json!(members.len()-rows.len());
+        if serde_json::to_vec(&value["file_member_navigation"]).expect("JSON value serialization").len() > FILE_MEMBER_NAVIGATION_BYTES || !fits(value) {
+            rows.pop();
+            value["file_member_navigation"]["members"] = json!(&rows);
+            value["file_member_navigation"]["members_omitted"] = json!(members.len()-rows.len());
+        }
+    }
+}
+
 /// Project the already-collected facts. No graph/source/model query is made.
 fn summary_value(
     full: &Value,
@@ -414,6 +468,9 @@ fn summary_value(
             if !fits(&value) { routes.pop(); value["potential_interface_callers"]["routes"]=json!(&routes); break; }
         }
         value["potential_interface_callers"]["routes_omitted"]=json!(dispatch["routes_observed"].as_u64().unwrap_or(0).saturating_sub(routes.len() as u64));
+    }
+    if file_component && admitted {
+        append_file_member_navigation(&mut value, full, project, target.unwrap(), &nodes, &fits);
     }
     let mut immediate = Vec::new();
     if admitted {

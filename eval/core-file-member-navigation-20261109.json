@@ -1,0 +1,68 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_30_CASES_PASS_NOT_YET_BUILT_OR_INSTALLED",
+  "at_utc": "2026-11-09T20:43:57.275214+00:00",
+  "base_commit": "10ee7dc",
+  "scope": "Original file-level CodeMap/Blast navigation gap, selected from frozen original agent task and independently checked against actual retained graph/current source.",
+  "observed_problem": "Frozen file Blast showed four immediate callers for three members, repeating StripOptions, while omitting17of21direct and allsource_routes. Actual retained graph has11 distinct members including Resolve,AppendJson,override validation and EffectiveMinZoom. Four-row reranking alone cannot expose these choices.",
+  "implementation": "For admitted file summaries with at least two retained member choices, reserve a5KiB/max16member directory before optional full caller samples. Group selected external depth1sources by actual selected same-file seed targets; distinctsource IDs per member; exactname/physicalgeneration/literaldepth1summarylookup. Requiredcoverage/counts/graphrecovery remain. Symbol andgraph outputs unchanged.",
+  "limits": [
+    "Counts are lower bounds over retained witnesses, not complete member totals; edges and identities are omitted from actualgraph.",
+    "Member counts overlap; fresh symbol queries may include same-file callers excluded by filequery.",
+    "No source/graph traversal/index/catalog/storage/sidecar changes.",
+    "No fresh-agent task success, comparative advantage, full31findings or19gates closure. PriorfullQA remains frozen and incomplete."
+  ],
+  "actual_graph": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-sample-graph-20261109.json",
+    "sha256": "58ce39f51d0f31a4c3750c718a7e624f100b557587ffe6e68f5d89652913ec80"
+  },
+  "actual_member_actions": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-current-actions-20261109.json",
+    "sha256": "e0512ef6e096e31209bb8b1593b9e1b63f13a248773a032351dba49c8113c7f4"
+  },
+  "expected_actual_directory": {
+    "members": 11,
+    "bytes_projection": 4508,
+    "scope": "Projection and source-reviewed action capabilities; newformatter not yet deployed."
+  },
+  "validation": {
+    "cases_passed": 30,
+    "full_suite_rerun": true,
+    "initial_status": "29PASS1FAIL: redundant single-member directory displaced existing consumer file hints.",
+    "production_fix": "Skip directory before any mutation when fewer than2retainedmembers; existing test unmodified.",
+    "initial_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-tests-20261109.json",
+      "sha256": "cf69f4b942e755bbb1c35a26a218fa973155fad8ccc541f0032c2a224f8a2093"
+    },
+    "initial_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-tests-20261109.log",
+      "sha256": "216b8cccc2c30100e626b259e08b750acf72341a2da76d1c0b33855ac4f35a64"
+    },
+    "pass_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-tests-v2-20261109.json",
+      "sha256": "e3c20b419bb65b7e4ab068d46f4872c5fc726303ce24a6bf8762c0728b6ab433"
+    },
+    "pass_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-tests-v2-20261109.log",
+      "sha256": "f9e1a1b5864789f8ec0c6c6e676253cf0c28ebde23ce4ede7343e60407c366de"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-member-navigation-review-20261109-v2.json",
+      "sha256": "a77d1c8857bf839b5112613c521a5c6b2d54b76557a1c0587d50538102e58253"
+    },
+    "production_input_hashes": {
+      "crates/engram_server/src/services/impact_walk_service.rs": "428b728ed8c1300dfd19bd311c620504b9ca8087f157b8a4515c834cde311abd",
+      "crates/engram_server/tests/transitive_impact_behavior_tests.rs": "8f595c8bb0e0ba5b02fc91760ec03307413f729e2930e51b17b6c1676dab887e",
+      "docs/TOOL_CONTRACT.md": "bf587c60b00bc7cb115f8515bb5853b74153442d9227ec69cad33b47c84a9365"
+    }
+  },
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "both_test_owned_temporaries_removed": true,
+    "both_test_jobs_and_handles_closed": true,
+    "four_actual_tool_observers_closed": true,
+    "all16_ociusx_sources_unchanged": true,
+    "cleanup_condition": "Retain receipts and evidence under existing V until exact-path cleanup is authorized; no preexisting removals."
+  },
+  "next": "Build reviewedsource once, checknew actualdirectory/literalactions andunchangedgraph on cold/normal runtime, installpairedrelease. Do not rerun or regrade frozenAsh.",
+  "goal_complete": false
+}

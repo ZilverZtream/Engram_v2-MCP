@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T20:27:37.878781+00:00",
-    "reason": "Installed2213aae verified in cold/normal actual calls; fresh originalQA again incomplete with PASS/PARTIAL/PARTIAL/FAIL/PARTIAL. No whole-task improvement demonstrated.",
+    "at_utc": "2026-11-09T20:43:57.275214+00:00",
+    "reason": "Actual file Blast hid member branches retained in graph. Generic bounded memberdirectory implemented/reviewed;30behaviorcases pass after fixing real allocation regression.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast agent usefulness remains active and unfinished. New source-view delivery is installed; full task evidence remains incomplete.",
-    "next_user_visible_deliverable": "Demonstrated completion of original agent work; no further audit/pilot expansion, coached retry or task-win claim from byte savings.",
+    "active_original_item": "Deliver file-member navigation in core impact tools against actual11-member OciusX graph and unchanged source evidence.",
+    "next_user_visible_deliverable": "Installed file summary exposes retained distinctmember choices and working exactactions; preserve prior fulltask failure and avoid task-win claims from this bounded proof.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: previous turn completed independent originalQA with no taskwin; this turn changes source navigation and validates concrete controller/core/resolver source evidence. Source/deployment work remains active.",
+    "previous_goal_turn_classification": "Progress: deployed2213aae and froze independently judged incomplete originaltask; subsequentactualfilegraph identified distinct branch-navigation gap.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11467,6 +11467,10 @@
     "latest_source_view_full_qa": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-view-full-qa-20261109.json",
       "sha256": "b8d3dafbd23ac136440dfd319bafcee685fc058dcc9f811538a1d899cd5ba1c0"
+    },
+    "latest_file_member_navigation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-file-member-navigation-20261109.json",
+      "sha256": "ede237d1b18a826ee82485a72e2deb76f771af1f57482c15947540b2bee231ac"
     }
   }
 }
