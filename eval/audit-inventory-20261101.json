@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T13:15:25.147760+00:00",
-    "reason": "Existing exact candidate source actions work. The first include_source response shows unrelated file-head context despite available admitted source spans. Improve first-response candidate comparison while retaining ambiguity, provenance, complete navigation and budgets; do not add another duplicate action.",
+    "at_utc": "2026-11-09T14:01:53.772124+00:00",
+    "reason": "Candidate preview is deployed and a separate live known task passed, but that task did not use the new preview and no overall productivity advantage is established. Finish the same-change public description without treating it as a new usefulness win.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast agent usefulness: show ambiguous admitted candidate source spans in the first exact-name CodeMap preview, retaining identities and all coverage/budget limits.",
-    "next_user_visible_deliverable": "Build and deploy reviewed candidate-span preview, then verify actual first CodeMap output includes both current overload bodies without changing navigation, source provenance or other impact output.47 public behavior tests passed; actual runtime check remains.",
+    "active_original_item": "Original CodeMap/Blast agent usefulness; candidate-preview public description correction is implemented in source and pending compiled tools/list verification/deployment.",
+    "next_user_visible_deliverable": "Deploy and verify the corrected CodeMap public description, then continue the original task-level usefulness assignment. Do not repeat this passed task or start another audit to manufacture a favorable result.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9854,11 +9854,10 @@
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
-    "latest_user_correction": "Original request required trying core tools before claiming highest ROI. Source inspection, tests and code volume do not establish useful codemaps or change impact.",
-    "latest_completed_core_batch": "815ae04 deployed.25 public behavior tests PASS; native build905.48s; cold and normal10reads65189B each. Both impact summaries and Blast add817B optional lexical action while preserving old facts; actual search19hits includes API369/Zoom176/194, exact source action365..410 verified.150schemas/214nativeassets unchanged, candidate metadata preserved. Normal v1 verifier age-comparison failure retained; v2 only normalizes exact elapsed seconds preserving epoch and passes. Prior19/20 vs19/20 model comparison and higher assisted cost unchanged.",
+    "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
+    "latest_completed_core_batch": "641d54f candidate-span preview deployed: both overload bodies in1call8773B cold/8772B normal versus3calls17028B previously.47 public behaviors passed. Separate live known task5/5PASS in8calls55317B, but it used literal CodeMap, not the new preview or Blast. No matched productivity win.",
     "previous_goal_turn_classification": {
-      "classification": "PROGRESS",
-      "reason": "Delivered one source-confirmed core recovery gap through installed tools; broader task quality/productivity advantage remains unproved. No historical task rescore or model rerun.",
+      "classification": "NARROW_DELIVERY_AND_KNOWN_TASK_PASS_BROADER_ADVANTAGE_UNPROVED",
       "permission_dependency": false,
       "goal_complete": false
     },
@@ -9886,8 +9885,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-impact-recovery-delivery-20261109.json",
-      "sha256": "d5a03d47bb166a1fcb9eb17e5279ced4cadf6ddeac03719549cecab61aa0bd35"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-candidate-preview-delivery-20261109.json",
+      "sha256": "5e7b562aea3b975d1993505126aa2b7f33316c461d83a9584f0dd51bc4438e51"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -9921,15 +9920,13 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "DEPLOYED_MISSING_NAME_RECOVERY_FRESH_SCOPED_AGENT_USE_NEXT",
+      "state": "PUBLIC_DESCRIPTION_CORRECTED_IN_SOURCE_PENDING_BUILD_AND_DEPLOYMENT",
       "tracked_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-delivery-20261109.json",
-        "sha256": "b482f1f78ac95cc7fd873476be5bcb88bf0e745ecff7c12333d4db3a0272fa1c"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-candidate-preview-delivery-20261109.json",
+        "sha256": "5e7b562aea3b975d1993505126aa2b7f33316c461d83a9584f0dd51bc4438e51"
       },
-      "deployed": true,
-      "focused_cases": 45,
-      "full_task_pass_proven": false,
-      "next_production_change_selected": false,
+      "feature_deployed": true,
+      "description_deployed": false,
       "no_new_supporting_project": true
     },
     "latest_delivery_preparation": {
@@ -10544,15 +10541,12 @@
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
     "current_owned_resource_state": {
-      "at_utc": "2026-11-09T13:10:57.051839+00:00",
-      "daemon_pid": 59384,
-      "launcher_pid": 49296,
+      "daemon_pid": 49472,
+      "launcher_pid": 54036,
       "maintenance_hold_active": false,
       "pending_rpc": null,
-      "build_test_candidate_resources_closed": true,
-      "normal_observer_closed": true,
-      "retained_prior_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-fe141c710bc64649a43f1c9cd4c8b824",
-      "cleanup_condition": "Retain delivery evidence and prior complete pair for review; no preexisting deletion."
+      "pending_build_or_test": false,
+      "source_description_correction_unbuilt": true
     },
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
@@ -11393,6 +11387,10 @@
     "selected_candidate_preview_gap": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-candidate-preview-20261109.json",
       "sha256": "d7bd7ec3140fd9ec9fa31637e3125266b17fb3015b4d33b9b8c0d1012b5e0619"
+    },
+    "latest_candidate_preview_agent_outcome": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-candidate-preview-scope-agent-outcome-20261109.json",
+      "sha256": "e83ffed2a173b5621d6a15cfcd71d54e329c2e6a3ba4eb9e4eb4ba45a409a204"
     }
   }
 }

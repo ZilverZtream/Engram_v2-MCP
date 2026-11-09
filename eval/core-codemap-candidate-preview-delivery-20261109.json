@@ -1,0 +1,115 @@
+{
+  "status": "CANDIDATE_SPAN_PREVIEW_DEPLOYED_PUBLIC_DESCRIPTION_CORRECTION_PENDING_DEPLOYMENT",
+  "at_utc": "2026-11-09T14:01:53.772124+00:00",
+  "source_commit": "641d54fa89bfe3daa4dcecc9f15aae248ab54db3",
+  "problem": "Ambiguous exact-name lookup showed unrelated file-head source while both candidate source actions required follow-up reads.",
+  "delivered_behavior": "First targeted CodeMap response previews displayed candidates at their indexed spans with separate identities, bounded complete source lines, explicit omissions and recovery. No overload resolution or binding claim.",
+  "measured_navigation": {
+    "before_calls": 3,
+    "before_utf8_bytes": 17028,
+    "cold_after_calls": 1,
+    "cold_after_utf8_bytes": 8773,
+    "normal_after_utf8_bytes": 8772,
+    "candidate_ranges": [
+      [
+        170,
+        177
+      ],
+      [
+        180,
+        184
+      ]
+    ],
+    "complete_source_lines": 13,
+    "scope": "One measured navigation step, not whole-task productivity."
+  },
+  "validation": {
+    "public_behavior_tests_passed": 47,
+    "failed": 0,
+    "cold_calls": 10,
+    "normal_calls": 10,
+    "original_navigation_and_other_nine_responses_preserved": true,
+    "all150_definitions_unchanged_in_deployed_build": true,
+    "native214_assets_unchanged": true
+  },
+  "verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-candidate-preview-delivery-verification-20261109.json",
+    "sha256": "9090b5f4bb67dcd5d6c7c5f34432c4bc45b5389edd88069f2540d49ed4a3bf1a"
+  },
+  "development": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-candidate-preview-20261109.json",
+    "sha256": "d7bd7ec3140fd9ec9fa31637e3125266b17fb3015b4d33b9b8c0d1012b5e0619"
+  },
+  "runtime_at_delivery": {
+    "public_calls": 10,
+    "returned_text_utf8_bytes": 61705,
+    "initial_preview_bytes": 8772,
+    "all_calls_match_accepted_candidate_except_documented_age_and_grep_elapsed": true,
+    "all150_definitions_unchanged": true,
+    "all_source_windows_raw_text_BLAKE3_verified": true,
+    "observer_pipe_closed": true,
+    "pending_rpc": null,
+    "primary_pid": 49472,
+    "primary_started_at_ms": "1794231726803",
+    "launcher_pid": 54036,
+    "current_primary_matches_receipt": true,
+    "normal_database_preservation_not_independently_claimed": true
+  },
+  "installed": {
+    "server_sha256": "db5dc67177807dc93286b6ff8c7b871a038bb678210191ad791957c27ce118d3",
+    "manifest_sha256": "8a4d3a4ff6662a24d1c006d50096bd4579e1c6d9a602334f8937493badff4298",
+    "all215_manifest_file_hashes_verified": true,
+    "native214_assets_equal_retained_old_pair": true,
+    "installer_journals": [
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-d42d8900b5ea4a328fd20be43b2dac78.00-prepared.json",
+        "sha256": "cef1fda403096d8932a3d84ddf7e7aed76bc1427e27b3579d9d0fc4ac4e9a65c",
+        "phase": "prepared"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-d42d8900b5ea4a328fd20be43b2dac78.01-stage-verified.json",
+        "sha256": "99ea0e3689205b057639b5e3e35c17eab16d751ae82fce0c9852881e24ba661f",
+        "phase": "stage-verified"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-d42d8900b5ea4a328fd20be43b2dac78.02-old-retired.json",
+        "sha256": "ebc91fc4ac94ae61630899179b36d60dbc264bed9cf5ce27901bf5014dccc256",
+        "phase": "old-retired"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-d42d8900b5ea4a328fd20be43b2dac78.03-candidate-active.json",
+        "sha256": "4a73a2f397d433aa1a03cf52a165e71dcfb7ab25a44302fd6a22127e9602b0f0",
+        "phase": "candidate-active"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-d42d8900b5ea4a328fd20be43b2dac78.04-committed-no-start.json",
+        "sha256": "8640a6f7401aae523598bbb377c78c5b6940e1e570851bd3f4875aae48dc2dcf",
+        "phase": "committed-no-start"
+      }
+    ],
+    "one_upgrade_invocation": true,
+    "hold_released_by_matching_owned_nonce": true,
+    "configuration_hash_unchanged": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "normal_process_intentionally_active": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-d42d8900b5ea4a328fd20be43b2dac78"
+  },
+  "remaining_same_change_work": {
+    "file": "crates/engram_server/src/tools.rs",
+    "description_corrected_in_source": true,
+    "source_sha256": "987f9a14a201f42ecaf13a641ae1db76159c87be358f5e4389b72d6c2dbdeb2b",
+    "compiled_or_deployed_description_correction": false,
+    "reason": "Installed description still says ambiguous candidates use file start. Source wording now matches the reviewed implementation; compiled tools/list verification remains."
+  },
+  "resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "maintenance_hold_active": false,
+    "pending_rpc": null,
+    "build_test_candidate_handles_closed": true,
+    "owned_test_build_candidate_tmp_removed": true,
+    "normal_service_intentionally_active": true,
+    "retention": "Keep evidence, package and prior pair for delivery review; no preexisting deletion."
+  },
+  "original19gates_closed": false,
+  "matched_productivity_advantage_proven": false,
+  "goal_complete": false
+}
