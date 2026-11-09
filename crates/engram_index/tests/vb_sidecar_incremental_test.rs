@@ -101,6 +101,108 @@ impl Drop for Harness {
 const SOURCE_V1: &str = "Class Widget\n  Public Sub Alpha()\n  End Sub\nEnd Class\n";
 const SOURCE_V2: &str = "Class Widget\n  Public Sub Beta()\n  End Sub\nEnd Class\n";
 
+/// Invocation syntax retains its ordinary call evidence without inventing a
+/// dependency on an unrelated, uniquely named source property.
+#[test]
+fn unresolved_invocation_names_do_not_bind_unrelated_source_properties() {
+    let Some(bin) = sidecar_path() else { return; };
+    let owned = tempfile::TempDir::new().unwrap();
+    let path = owned.path().join("invocation_property_collision.vb");
+    let source = r#"Imports System
+Imports System.Collections.Generic
+Imports System.Linq
+Public Class LayerScaleHint
+    Public Property max As String
+    Public Property Transform As String
+End Class
+Public Class CacheMeta
+    Public Property CoordinateCount As Long
+End Class
+Public Class IndexedValues
+    Default Public Property Item(index As Integer) As Long
+        Get
+            Return index
+        End Get
+        Set(value As Long)
+        End Set
+    End Property
+End Class
+Public Class OtherIndexedValues
+    Default Public ReadOnly Property Item(index As Integer) As Long
+        Get
+            Return index
+        End Get
+    End Property
+End Class
+Public Class Consumers
+    Public Function Numeric(a As Integer, b As Integer) As Integer
+        Return Math.Max(1, Math.Max(a, b))
+    End Function
+    Public Function Latest(updates As List(Of DateTime)) As DateTime
+        Return updates.Max()
+    End Function
+    Public Function MissingCall() As Object
+        Return missing.Transform(1)
+    End Function
+    Public Function MissingIndexedCall() As Object
+        Return missing.Item(0)
+    End Function
+    Public Function ReadBound(meta As CacheMeta) As Long
+        Return meta.CoordinateCount
+    End Function
+    Public Function ReadIndexed(values As IndexedValues) As Long
+        Return values.Item(0)
+    End Function
+    Public Sub WriteIndexed(values As IndexedValues, value As Long)
+        values.Item(0) = value
+    End Sub
+    Public Function ReadUnresolved() As Long
+        Return missing.CoordinateCount
+    End Function
+End Class
+"#;
+    std::fs::write(&path, source).unwrap();
+    let mut harness = Harness::start(&bin);
+    let response = harness.send(serde_json::json!({
+        "cmd":"parse", "path":path, "source":source, "standalone":true,
+    }));
+    assert!(response.get("error").is_none(), "native parse failed: {response}");
+    let edges = response["edges"].as_array().unwrap();
+    for (caller, spelling, statement) in [
+        ("Consumers.Numeric", "Math.Max", "Return Math.Max(1, Math.Max(a, b))"),
+        ("Consumers.Latest", "updates.Max", "Return updates.Max()"),
+        ("Consumers.MissingCall", "missing.Transform", "Return missing.Transform(1)"),
+        ("Consumers.MissingIndexedCall", "missing.Item", "Return missing.Item(0)"),
+    ] {
+        assert!(!edges.iter().any(|edge| edge["source_name"] == caller
+            && edge["kind"] == "calls" && edge["target_kind"] == "property"),
+            "Invocation must not borrow a source property identity: {caller}: {edges:?}");
+        let line = source.lines().position(|line| line.trim() == statement).unwrap() + 1;
+        assert!(edges.iter().any(|edge| edge["source_name"] == caller
+            && edge["kind"] == "calls" && edge["target_kind"] == "function"
+            && edge["target_name"] == spelling && edge["metadata"]["unresolved"] == "true"
+            && edge["metadata"]["call_site_line"] == line.to_string()),
+            "The incomplete compilation must retain honest ordinary invocation text and position: {caller}");
+    }
+    for (caller, target, via, statement) in [
+        ("Consumers.ReadBound", "CacheMeta.CoordinateCount", "property_get", "Return meta.CoordinateCount"),
+        ("Consumers.ReadIndexed", "IndexedValues.Item", "property_get", "Return values.Item(0)"),
+        ("Consumers.WriteIndexed", "IndexedValues.Item", "property_set", "values.Item(0) = value"),
+        ("Consumers.ReadUnresolved", "CacheMeta.CoordinateCount", "property_get", "Return missing.CoordinateCount"),
+    ] {
+        let line = source.lines().position(|line| line.trim() == statement).unwrap() + 1;
+        assert!(edges.iter().any(|edge| edge["source_name"] == caller
+            && edge["kind"] == "calls" && edge["target_kind"] == "property"
+            && edge["target_name"] == target && edge["metadata"]["via"] == via
+            && edge["metadata"]["call_site_line"] == line.to_string()),
+            "Bound property/indexer and existing noninvocation fallback must survive: {caller}: {edges:?}");
+    }
+    harness.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness);
+    owned.close().unwrap();
+}
+
 /// A scalar with the same spelling as a source property must not become a
 /// property reader/writer in the native producer's dependency graph.
 #[test]
