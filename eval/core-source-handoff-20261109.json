@@ -1,0 +1,68 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_FOCUSED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-09T18:43:55.433834+00:00",
+  "base_commit": "e274b87",
+  "production_source": {
+    "path": "crates\\engram_server\\src\\services\\impact_walk_service.rs",
+    "sha256": "9fd00bef38313d34461aff7796020c856b3c5e2d7747d6de9eb49f582bf8a4ba"
+  },
+  "integration_tests": {
+    "path": "crates\\engram_server\\tests\\transitive_impact_behavior_tests.rs",
+    "sha256": "44deaa9ae5343b07cf299fecab2d982fb8156e5c443c0ad1c4ddcc14f627b862"
+  },
+  "problem": "Actual CodeMap already returned ZoomPolicy1..112. Subsequent symbol Blast prominently offered Resolve92..106 again while existing cross-file source reads were nested deeper. Frozen agent chose360ordinary source lines19093B and stopped incomplete. This demonstrates navigation cost, not a backend binding defect.",
+  "selected_change": "After unchanged summary allocation, promote the first retained cross-file source_routes.reads action into the first2KiB. Require the original first immediate caller identity, exact source read and complete witness to remain below. Keep original introduction for missing/changed recovery, malformed/unbounded action, absent cross-file route or insufficient complete12KiB envelope room. No prior conversation history is assumed.",
+  "preserved": [
+    "Summary JSON selection, source actions and graph unchanged",
+    "Counts, provenance, direct consumer witnesses, explicit coverage gaps and existing recovery unchanged",
+    "Tool definitions, schema, parser, index and runtime data unchanged by this source edit"
+  ],
+  "bounds": {
+    "max_source_lines": 120,
+    "max_windows": 3,
+    "max_prefix_utf8_bytes": 2048,
+    "max_complete_summary_utf8_bytes": 12288,
+    "footer_reserve_bytes": 256
+  },
+  "actual_source_proof": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-action-proof-20261109.json",
+    "sha256": "056c7e199c69028652646f63b74dc742fdd85c570b49936695e75d205f3a8417"
+  },
+  "actual_existing_action_utf8_bytes": 7507,
+  "actual_existing_action_lines": 120,
+  "actual_ranges": [
+    [
+      2219,
+      2239
+    ],
+    [
+      2247,
+      2345
+    ]
+  ],
+  "scope_limit": "Independent execution of an already offered action, before new binary. Its120line scope differs from the candidate360line read; no equivalent coverage, adoption or full-task quality gain claimed.",
+  "presentation_projection": {
+    "old_prefix_bytes": 754,
+    "new_prefix_bytes": 696,
+    "estimated_total_bytes": 12014,
+    "underlying_json_unchanged": true,
+    "native_new_prefix_not_yet_verified": true
+  },
+  "rejected_alternative": "Payload-only Markdown/raw-source/dedup rewrite measured at most2107B gross saving across24287B (8.7percent), overlapping rejected earlier draft. Not implemented.",
+  "local_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-local-review-20261109.json",
+    "sha256": "7d82814bd4c126750ee72d9e7b2484b5842e69da320f47374847e99bcc9abdd6"
+  },
+  "focused_tests": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-focused-20261109.json",
+    "sha256": "2cd9619185dba2810c7610b79fbb6945cfeec710e87b5ecdd43924e477805e6c"
+  },
+  "focused_passed": 34,
+  "prior_frozen_outcomes_preserved": true,
+  "cold_runtime_checked": false,
+  "installed": false,
+  "agent_usefulness_proven": false,
+  "goal_complete": false,
+  "next_action": "Commit source and build existing shared release target. Bind reviewed test/build hashes, verify paired native assets, perform cold/normal18call validation including the promoted action. No unchanged-state model retry.",
+  "resources": "Unit and integration ownedJobs/handles closed; ownedtemp directories removed. Actual source observer closed. Retain proof/review/focused logs and future helpers under V; no preexisting directory deletions."
+}

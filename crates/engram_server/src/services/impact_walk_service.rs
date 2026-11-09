@@ -1262,6 +1262,91 @@ mod source_route_upgrade_behavior {
         assert_eq!(summary["source_routes"]["eligible_windows"],3);
         assert_eq!(summary["source_routes"]["windows_omitted"],0);
     }
+
+    #[test]
+    fn source_handoff_keeps_direct_recovery_when_routes_are_unusable_or_consumers_omitted() {
+        let frame = bridge_frame();
+        let mut summary = summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        let immediate = immediate_section(&frame,false).unwrap();
+        assert!(source_handoff_section(&summary,&frame).is_some());
+        let mut variants = Vec::new();
+        let mut absent = summary.clone(); absent.as_object_mut().unwrap().remove("source_routes"); variants.push(absent);
+        let mut same_file = summary.clone();
+        for read in same_file["source_routes"]["reads"].as_array_mut().unwrap() {
+            read["arguments"]["file_path"]=json!("src/policy.rs");
+        }
+        variants.push(same_file);
+        let mut omitted = summary.clone(); omitted["immediate_consumers"]=json!([]);
+        omitted["immediate_consumers_omitted_from_summary"]=json!(1); variants.push(omitted);
+        for arguments in [
+            json!({"line_start":0,"line_end":3}),
+            json!({"line_start":1,"line_end":121}),
+            json!({"source_ranges":[{"line_start":1,"line_end":2},{"line_start":2,"line_end":3}]}),
+            json!({"source_ranges":[{"line_start":1,"line_end":1},{"line_start":3,"line_end":3},
+                {"line_start":5,"line_end":5},{"line_start":7,"line_end":7}]}),
+            json!({"source_ranges":[],"line_start":1,"line_end":2}),
+            json!({"line_start":u32::MAX as u64+1,"line_end":u32::MAX as u64+2}),
+            json!({"source_ranges":[{"line_start":u32::MAX as u64,"line_end":u32::MAX as u64+1}]}),
+            json!({"source_ranges":[{"line_start":1,"line_end":2,"unexpected":true}]}),
+        ] {
+            let mut invalid = summary.clone();
+            invalid["source_routes"]["reads"][0]["arguments"] = arguments;
+            let args = invalid["source_routes"]["reads"][0]["arguments"].as_object_mut().unwrap();
+            args.extend(json!({"project_id":"p","file_path":"src/cache.rs","context_lines":0,
+                "include_caller_bodies":false,"output_json":true}).as_object().unwrap().clone());
+            variants.push(invalid);
+        }
+        for variant in variants {
+            assert_eq!(render_summary_handoff(&variant,&frame,&immediate),render_summary(&variant,&immediate),
+                "An unusable handoff cannot hide the existing direct-consumer read or alter its report");
+        }
+    }
+
+    #[test]
+    fn source_handoff_preserves_first_caller_recovery_when_only_a_later_caller_fits() {
+        let mut frame = bridge_frame();
+        let later = frame["nodes"].as_array_mut().unwrap().iter_mut().find(|node|node["ref"] == "n5").unwrap();
+        later["depth"] = json!(1);
+        frame["edges"].as_array_mut().unwrap().iter_mut().find(|edge|edge["source_ref"] == "n5").unwrap()["target_ref"] = json!("n0");
+        let mut summary = summary_value(&frame,"p",None,None,8,Some(2),Some(4),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        let immediate = immediate_section(&frame,false).unwrap();
+        assert!(source_handoff_section(&summary,&frame).is_some());
+        let first = summary["immediate_consumers"].as_array().unwrap().iter()
+            .find(|row|row["name"] == "Resolve").unwrap().clone();
+        summary["immediate_consumers"].as_array_mut().unwrap().retain(|row|row["node_id"] != first["node_id"]);
+        summary["immediate_consumers_omitted_from_summary"] = json!(1);
+        assert!(!summary["immediate_consumers"].as_array().unwrap().is_empty(),
+            "A later caller still fits while the first caller depends on its prefix recovery");
+        assert_eq!(render_summary_handoff(&summary,&frame,&immediate),render_summary(&summary,&immediate));
+        for field in ["source_read","sample_connection_to_target"] {
+            let mut incomplete = summary.clone();
+            let mut row = first.clone(); row[field] = Value::Null;
+            incomplete["immediate_consumers"].as_array_mut().unwrap().push(row);
+            assert_eq!(render_summary_handoff(&incomplete,&frame,&immediate),render_summary(&incomplete,&immediate),
+                "The original first caller's identity alone cannot replace its recovery and witness");
+        }
+    }
+
+    #[test]
+    fn source_handoff_cannot_evict_evidence_to_fit_the_final_envelope() {
+        let frame = bridge_frame();
+        let mut summary = summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        summary["source_routes"]["reads"][0]["arguments"]["file_path"] = json!(format!("src/{}.rs","long".repeat(100)));
+        let immediate = immediate_section(&frame,false).unwrap();
+        let preferred = source_handoff_section(&summary,&frame).unwrap();
+        assert!(preferred.len()>immediate.len());
+        summary["retained_evidence"] = json!("");
+        let remaining = SUMMARY_BYTES-256-render_summary(&summary,&immediate).len();
+        summary["retained_evidence"] = json!("x".repeat(remaining));
+        let before = summary.clone();
+        let rendered = render_summary_handoff(&summary,&frame,&immediate);
+        assert_eq!(rendered,render_summary(&before,&immediate));
+        assert_eq!(summary,before,"A preferred action never buys space by editing evidence");
+        assert_eq!(rendered.len()+256,SUMMARY_BYTES);
+    }
 }
 
 /// Optional navigation consumes only spare display space after all existing
@@ -1407,6 +1492,76 @@ fn render_summary(value: &Value, immediate_prefix: &str) -> String {
     )
 }
 
+// Presentation only, after the complete summary is allocated. Do not use
+// conversation history or trade an existing witness/recovery for this handoff.
+fn source_handoff_section(value: &Value, full: &Value) -> Option<String> {
+    if value["target_revision_admitted"] != true || value["source_routes"]["admission"] != "selected"
+        || value["immediate_consumers"].as_array()?.is_empty()
+    { return None; }
+    let target = full["nodes"].as_array()?.iter().find(|node| node["ref"] == full["target_ref"])?;
+    // The first full-graph caller can be omitted while later summary rows fit.
+    // Promote only when its exact read and complete witness remain available.
+    // Expanded reads conservatively retain the old introduction here.
+    let first = full["nodes"].as_array()?.iter()
+        .find(|node| node["admission"] == "selected" && node["depth"] == 1)?;
+    let nodes = full["nodes"].as_array()?.iter()
+        .filter_map(|node| Some((node["ref"].as_str()?,node))).collect();
+    let files = full["files"].as_array()?.iter()
+        .filter_map(|file| Some((file["ref"].as_str()?,&file["path"]))).collect();
+    let recoveries = full["recoveries"].as_array()?.iter()
+        .filter_map(|recovery| Some((recovery["ref"].as_str()?,recovery))).collect();
+    let original = describe_summary_node(full,first,&nodes,&files,&recoveries,Some(target),target["kind"] == "file");
+    if original["source_read"].is_null() || original["sample_connection_to_target"].is_null()
+        || !value["immediate_consumers"].as_array()?.iter().any(|row|
+            row["node_id"] == first["node_id"] && row["source_read"] == original["source_read"]
+                && row["sample_connection_to_target"] == original["sample_connection_to_target"])
+    { return None; }
+    let target_file = full["files"].as_array()?.iter()
+        .find(|file| file["ref"] == target["file_ref"])?["path"].as_str()?;
+    let read = value["source_routes"]["reads"].as_array()?.iter().find(|read|
+        read["arguments"]["file_path"].as_str().is_some_and(|path| path != target_file))?;
+    let arguments = read["arguments"].as_object()?;
+    let bounded_text = |value: &Value| value.as_str()
+        .is_some_and(|text| !text.is_empty() && text.len() <= 2048 && !text.chars().any(char::is_control));
+    if read["tool"] != "get_full_method_body" || !bounded_text(&read["arguments"]["file_path"])
+        || !bounded_text(&read["arguments"]["project_id"])
+        || read["arguments"]["context_lines"] != 0 || read["arguments"]["output_json"] != true
+        || read["arguments"]["include_caller_bodies"] != false
+        || arguments.keys().any(|key| !matches!(key.as_str(), "project_id" | "file_path"
+            | "context_lines" | "output_json" | "include_caller_bodies" | "line_start" | "line_end" | "source_ranges"))
+    { return None; }
+    let ranges: Vec<&Value> = if let Some(ranges) = arguments.get("source_ranges") {
+        if arguments.contains_key("line_start") || arguments.contains_key("line_end") { return None; }
+        let ranges = ranges.as_array()?;
+        if ranges.is_empty() || ranges.len() > 3 { return None; }
+        if ranges.iter().any(|range| range.as_object().is_none_or(|fields|
+            fields.keys().any(|key| !matches!(key.as_str(),"line_start" | "line_end")))) { return None; }
+        ranges.iter().collect()
+    } else { vec![&read["arguments"]] };
+    let mut total = 0u64;
+    let mut previous = 0u64;
+    for range in ranges {
+        let (start,end) = (range["line_start"].as_u64()?,range["line_end"].as_u64()?);
+        if start == 0 || start <= previous || end < start || end > u32::MAX as u64 { return None; }
+        total = total.checked_add(end.checked_sub(start)?.checked_add(1)?)?;
+        if total > 120 { return None; }
+        previous = end;
+    }
+    let call = json!({"tool":read["tool"],"arguments":read["arguments"]});
+    let prefix = format!("\n## Next indexed source read\n\nRead indexed declaration ranges in another file along the retained dependency routes. Action unexecuted; inspect its returned hash and verification. Complete-method boundaries and invocation location are unverified. Direct consumers, witnesses and unknown branches remain below. No value-flow, runtime or safe-change proof.\n\n```json\n{}\n```\n",
+        serde_json::to_string(&call).expect("JSON value serialization"));
+    (prefix.len() <= IMMEDIATE_BYTES).then_some(prefix)
+}
+
+fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -> String {
+    if let Some(prefix) = source_handoff_section(value, full) {
+        let candidate = render_summary(value, &prefix);
+        // Same conservative footer reserve as the existing final allocation.
+        if candidate.len() <= SUMMARY_BYTES.saturating_sub(256) { return candidate; }
+    }
+    render_summary(value, immediate_prefix)
+}
+
 // The first projection reserves conservative framing space. Once the actual
 // envelope is known, use spare bytes to recover a search for an empty capped
 // scan before adding optional consumer-expansion shortcuts. Keep every fact,
@@ -1506,7 +1661,7 @@ fn summary_section(
     append_hinted_file_declarations(&mut value,full,&fits);
     append_consumer_navigation(&mut value,full,project,&fits);
     upgrade_source_routes(&mut value,full,&fits);
-    render_summary(&value,&immediate_prefix)
+    render_summary_handoff(&value,full,&immediate_prefix)
 }
 
 /// Display projection of an existing assessment, after its safety decision.
