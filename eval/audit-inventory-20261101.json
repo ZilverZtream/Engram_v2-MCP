@@ -11266,7 +11266,7 @@
       "status": "DEPLOYED_CONNECTED_IMPACT_SOURCE_RECOVERY_NORMAL_IPC_VERIFIED",
       "source_commit": "9b366345b3bc0f7f5f34ecc6c138351ceff2c311",
       "path": "eval/core-impact-source-routes-delivery-20261109.json",
-      "sha256": "561126c856773dbd215a20800ed5430af5cda51cb566b445c85c5f928fbf7593",
+      "sha256": "7f48f8790de4ffef1bf1148c2c94b5d9449d377e9e1b109e1904fd12a5f9bdfd",
       "tests_passed": 28,
       "normal_ipc": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-normal-v1-20261109.json",
@@ -11274,7 +11274,26 @@
       },
       "maintenance_hold_released": true,
       "goal_complete": false,
-      "original_full_task_status": "PARTIAL"
+      "original_full_task_status": "PARTIAL",
+      "fresh_full_task_replay": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-impact-source-routes-full-classification-20261109.json",
+        "sha256": "2860d194256398f64be6bc2640edfdd08b860dc99301650e940aab4cf290840a"
+      }
+    },
+    "latest_impact_source_routes_full_classification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-impact-source-routes-full-classification-20261109.json",
+      "sha256": "2860d194256398f64be6bc2640edfdd08b860dc99301650e940aab4cf290840a",
+      "status": "FRESH_ORIGINAL_CLASSIFICATION_REPLAY_PARTIAL_NO_OVERALL_WIN",
+      "grades": [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PARTIAL",
+        "PARTIAL"
+      ],
+      "calls": 8,
+      "bytes": 64315,
+      "goal_complete": false
     }
   }
 }
