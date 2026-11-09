@@ -1,0 +1,139 @@
+{
+  "status": "DEPLOYED_NORMAL_FILE_SOURCE_CONTEXT_AND_MEMBER_RECOVERY_VERIFIED",
+  "at_utc": "2026-11-09T18:05:28.394516+00:00",
+  "source_commit": "95b60af2700055c4e35df4c0e260df90bb8f606e",
+  "server_sha256": "83ccd0fde760a6dca1eef23bccf8873ddb834fe937f0fcb5f445921ce6cf35e2",
+  "manifest_sha256": "1673ec7f0db93972d73c350c9b4f50d498994aaf072f78aa5d4ac490f2fdf9c8",
+  "normal_primary": {
+    "pid": 9176,
+    "started_at_ms": 1794247338745,
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43"
+  },
+  "source_generation": 3139,
+  "implementation_and_test_evidence": {
+    "path": "eval\\core-file-source-context-20261109.json",
+    "sha256": "a6a48fe7185ef93355bf458920e1cbb3f25af57c3f11b2c6dfed637aaba18de1"
+  },
+  "actual_calls": [
+    {
+      "tool": "compute_blast_radius",
+      "arguments": {
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "file_path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+        "detail": "summary",
+        "max_depth": 4,
+        "include_guidance": false
+      },
+      "utf8_bytes": 12096
+    },
+    {
+      "tool": "get_full_method_body",
+      "arguments": {
+        "context_lines": 0,
+        "file_path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+        "output_json": true,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "source_ranges": [
+          {
+            "line_end": 352,
+            "line_start": 346
+          },
+          {
+            "line_end": 401,
+            "line_start": 371
+          }
+        ]
+      },
+      "utf8_bytes": 3676
+    },
+    {
+      "tool": "get_codebase_overview",
+      "arguments": {
+        "limit": 1,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "scope": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb"
+      },
+      "utf8_bytes": 10673
+    }
+  ],
+  "actual_observation": {
+    "file_summary_bytes": 12096,
+    "combined_call_bytes": 26445,
+    "direct_witnesses_retained": 4,
+    "new_source_read_ranges": [
+      [
+        346,
+        352
+      ],
+      [
+        371,
+        401
+      ]
+    ],
+    "new_source_read_lines": 38,
+    "member_inventory_recovered": "ClassifyAutomatic:76-84",
+    "original13responses_preserved": true,
+    "all150definitions_unchanged": true,
+    "selected_data_preserved": true,
+    "current_sources_unchanged": true
+  },
+  "tradeoffs": {
+    "observed_external_files": 23,
+    "displayed_external_paths_before": 5,
+    "displayed_external_paths_after": 0,
+    "omitted_external_paths_after": 23,
+    "optional_direct_expansions_before": 1,
+    "optional_direct_expansions_after": 0,
+    "graph_recovery_preserved": true,
+    "source_routes_still_omitted": true
+  },
+  "evidence": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-shipping-20261109.json",
+      "sha256": "94556e7f36b287e5ae1e97339b1a63df0b714ab845b0ddaeabfa38f3d42d0cb6"
+    },
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-build-artifact-20261109.json",
+      "sha256": "db3bc40328f91302c86c62f52e8df204612199a2cf0e9f0166be0b0ca0d07820"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-paired-package-20261109.json",
+      "sha256": "e667e7aa1a63cb96a248fc72ee0daf182887416dc9ea72932da97efe2bd408f9"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-cold-v1-20261109\\acceptance.json",
+      "sha256": "4a8043fb85314f060102e981546f52b719efcec0772225b480427606e7df815a"
+    },
+    "gate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-release-gates-20261109.json",
+      "sha256": "56b02d240c87734edc72b29c7adb88fd402ac8fc93b9ebc1c8ff30e0e994f24b"
+    },
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-installer-result-20261109.json",
+      "sha256": "d0c6aa78d9ef9d9e1ed0296dcd6ef150d69725ae991a8d5b7b5c5e560db646fd"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-normal-v1-20261109.json",
+      "sha256": "dcf53e3a7fec32d9c4a73bba20a7a370481f75b04f67d64082d9ea3b60afc19b"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-config-hold-20261109.json.released.json",
+      "sha256": "fdaa64102a1376f9c8b91cba8be09e23768c3366000fbf9d4272837c021fb4c3"
+    },
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-file-source-context-normal-launch-20261109.json",
+      "sha256": "5265fe024bd429df450981fd03eeb69562040862682952ae2a7b749d9e04aaa8"
+    }
+  },
+  "resources": {
+    "build_and_cold_owned_resources_closed": true,
+    "normal_observer_closed": true,
+    "pending_rpc": null,
+    "maintenance_hold_released": true,
+    "config_sha256_unchanged": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "old_pair_retained": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-f7175cb903be4fab8807998b6b7c4de7",
+    "cleanup_condition": "All named evidence/package retained in V; old installed pair retained at exact installer path for reviewed recovery. No preexisting deletion. Normal runtime intentionally running."
+  },
+  "scope": "Actual installed public-tool and literal-action validation against independent current source. Not a fresh-agent task, original outcome rescore or comparative usefulness proof. All31findings/19gates remain unchanged.",
+  "goal_complete": false
+}
