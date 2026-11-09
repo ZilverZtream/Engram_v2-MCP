@@ -3754,3 +3754,120 @@ fn codemap_and_both_impact_tools_recover_selected_sql_with_zero_declaration_boun
         assert!(excluded["files"].as_array().unwrap().is_empty());
     });
 }
+
+
+#[test]
+fn codemap_property_navigation_connects_inspected_inputs_to_reference_source_without_losing_body() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/Preparation.vb";
+        const OTHER:&str="src/persistence/Metadata.vb";
+        let mut lines:Vec<_>=(1..=260).map(|i|format!("' context {i} {}", "?".repeat(32))).collect();
+        lines[9]="Public Property FeatureCount As Long".into();
+        lines[79]="Sub Accumulate()".into();
+        lines[80]="FeatureCount += 1".into();
+        lines[81]="End Sub".into();
+        lines[199]="Function ResolvePolicy() As Integer".into();
+        lines[200]="Return Choose(FeatureCount, Metadata.CoordinateCount)".into();
+        lines[201]="End Function".into();
+        let body=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&body),(OTHER,"Public Class Metadata\nPublic Property CoordinateCount As Long\nEnd Class")]).await;
+        let id=format!("sym:function:{PATH}:ResolvePolicy:200");
+        let count=format!("sym:property:{PATH}:FeatureCount:10");
+        let coordinates=format!("sym:property:{OTHER}:Metadata.CoordinateCount:2");
+        let producer=format!("sym:function:{PATH}:Accumulate:80");
+        let mut selected=node(&id,"function","ResolvePolicy",PATH,1);selected.start_line=200;selected.end_line=202;
+        let mut feature=node(&count,"property","FeatureCount",PATH,1);feature.start_line=10;feature.end_line=10;
+        let mut coordinate=node(&coordinates,"property","Metadata.CoordinateCount",OTHER,1);coordinate.start_line=2;coordinate.end_line=2;
+        let mut accumulation=node(&producer,"function","Accumulate",PATH,1);accumulation.start_line=80;accumulation.end_line=82;
+        engram.state.graph.upsert_nodes(PID,&[selected,feature,coordinate,accumulation]).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_node_id":id,"include_source":true});
+        let before=navigate(&engram,request.clone()).await;
+        let edge=|source:&str,target:&str,line,mode:&str|Edge {source_id:source.into(),target_id:target.into(),
+            namespace:"memory".into(),language:"vb".into(),edge_kind:EdgeKind::Calls,weight:1,generation:1,
+            metadata:Some(json!({"call_site_line":line,"via":mode})),updated_at_ms:1};
+        engram.state.graph.upsert_edges(PID,&[edge(&id,&count,201,"property_get"),edge(&id,&coordinates,201,"property_get"),edge(&producer,&count,81,"property_set")]).unwrap();
+        let text=navigation_text(&engram,request.clone()).await;assert!(text.len()<=12*1024);
+        let after=navigation(&text);assert_eq!(after["files"],before["files"]);
+        assert_eq!(after["current_source"]["source_file_hash"],before["current_source"]["source_file_hash"]);
+        let source=&after["current_source"];
+        assert!(source["line_start"].as_u64().unwrap()<=200 && source["line_end"].as_u64().unwrap()>=202);
+        assert!(source["source_code"].as_str().unwrap().contains(&lines[199..202].join("\n")));
+        let first=source["line_start"].as_u64().unwrap() as usize;
+        let last=source["line_end"].as_u64().unwrap() as usize;
+        assert_eq!(source["source_code"],lines[first-1..last].join("\n"));
+        assert_eq!(source["next_page"]["arguments"]["project_id"],PID);
+        assert_eq!(source["next_page"]["arguments"]["line_start"],last+1);
+        let refs=after["property_references"]["items"].as_array().unwrap();assert_eq!(refs.len(),2);
+        assert!(after["property_references"]["scope"].as_str().unwrap().contains("not read/write"));
+        assert!(!text.contains("property_get") && !text.contains("property_set"));
+        let action=&refs.iter().find(|r|r["name"]=="FeatureCount").unwrap()["inspect_references"];
+        assert_eq!(action["arguments"]["symbol_fqn"],count);
+        let response=engram.handle_impact_analysis(serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+        assert!(!response.is_error.unwrap_or(false));
+        let text=response.content[0].as_text().unwrap().text.as_str();
+        let impact:Value=serde_json::from_str(text.split_once("## Revision-admitted change impact").unwrap().1.split_once("```json").unwrap().1.split_once("```").unwrap().0).unwrap();
+        assert_eq!(impact["direct_dependents_observed"],2);
+        let producer_row=impact["immediate_consumers"].as_array().unwrap().iter().find(|r|r["node_id"]==producer).unwrap();
+        assert_eq!(producer_row["sample_connection_to_target"]["source_line"],81);
+        // A literal follow-up can inspect accumulation without guessing a qualified property identity.
+        let read=&producer_row["source_read"];
+        assert_eq!(read["tool"],"get_full_method_body");
+        assert_eq!(read["arguments"]["file_path"],PATH);
+        assert_eq!(read["arguments"]["line_start"],80);
+        assert_eq!(read["arguments"]["line_end"],82);
+        let (_,actual)=excerpt(&engram,read["arguments"].clone()).await;
+        assert_eq!(actual["source_code"],lines[79..82].join("\n"));
+        // References may cross the selected file/path filter, but explicit exclusions still apply.
+        let mut excluded=request.clone();excluded["exclude_paths"]=json!(["src/persistence"]);
+        excluded["path_contains"]=json!("Preparation");
+        let page=navigate(&engram,excluded).await;
+        assert_eq!(page["property_references"]["items"].as_array().unwrap().len(),1);
+        assert_eq!(page["property_references"]["excluded_targets"],1);
+        assert!(!page["property_references"].to_string().contains("Metadata.CoordinateCount"),"Excluded identity must not leak through reference navigation");
+        // Do not attach one candidate's references to ambiguous name inspection.
+        let mut overload=node(&format!("sym:function:{PATH}:ResolvePolicy:230"),"function","ResolvePolicy",PATH,1);
+        overload.start_line=230;overload.end_line=232;engram.state.graph.upsert_nodes(PID,&[overload]).unwrap();
+        let ambiguous=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":"ResolvePolicy","include_source":true})).await;
+        assert_eq!(ambiguous["files"][0]["symbols"].as_array().unwrap().len(),2);
+        assert!(ambiguous.get("property_references").is_none());
+    });
+}
+
+
+#[test]
+fn codemap_property_navigation_preserves_visible_declarations_and_crowded_requested_bodies() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/Policy.vb";const OTHER:&str="src/Counts.vb";
+        let mut lines:Vec<_>=(1..=260).map(|i|format!("' context {i} {}","x".repeat(90))).collect();
+        lines[29]="Function Resolve() As Long".into();lines[30]="Return Value + Counts.Total".into();lines[34]="End Function".into();
+        lines[39]="Property Value As Long".into();
+        lines[59]="Function LongMethod() As Long".into();lines[219]="End Function".into();
+        let body=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&body),(OTHER,"Property Total As Long")]).await;
+        let short=format!("sym:function:{PATH}:Resolve:30");let long=format!("sym:function:{PATH}:LongMethod:60");
+        let local=format!("sym:property:{PATH}:Value:40");let external=format!("sym:property:{OTHER}:Total:1");
+        let mut nodes=Vec::new();
+        for (id,kind,name,file,start,end) in [(&short,"function","Resolve",PATH,30,35),(&long,"function","LongMethod",PATH,60,220),
+            (&local,"property","Value",PATH,40,40),(&external,"property","Total",OTHER,1,1)] {
+            let mut item=node(id,kind,name,file,1);item.start_line=start;item.end_line=end;nodes.push(item);
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();
+        let request=|id:&str|json!({"project_id":PID,"scope":PATH,"symbol_node_id":id,"include_source":true});
+        let before=navigate(&engram,request(&long)).await;
+        let edge=|source:&str,target:&str,line|Edge {source_id:source.into(),target_id:target.into(),namespace:"memory".into(),
+            language:"vb".into(),edge_kind:EdgeKind::Calls,weight:1,generation:1,metadata:Some(json!({"call_site_line":line})),updated_at_ms:1};
+        engram.state.graph.upsert_edges(PID,&[edge(&short,&local,31),edge(&short,&external,31),edge(&long,&external,61)]).unwrap();
+        let text=navigation_text(&engram,request(&short)).await;assert!(text.len()<=12*1024);
+        let page=navigation(&text);let preview=&page["current_source"];
+        assert_eq!(page["property_references"]["declarations_in_source_preview"],1);
+        assert_eq!(page["property_references"]["items"].as_array().unwrap().len(),1);
+        assert_eq!(page["property_references"]["items"][0]["name"],"Total");
+        assert!(preview["line_start"].as_u64().unwrap()<=30 && preview["line_end"].as_u64().unwrap()>=40);
+        assert!(preview["source_code"].as_str().unwrap().contains("Property Value As Long"));
+        assert!(preview["source_code"].as_str().unwrap().contains(&lines[29..35].join("\n")));
+        let text=navigation_text(&engram,request(&long)).await;assert!(text.len()<=12*1024);
+        let after=navigation(&text);
+        assert_eq!(after["current_source"],before["current_source"],"Optional links cannot take even one previously supplied line from a crowded requested body");
+        assert_eq!(after["files"],before["files"]);
+    });
+}
