@@ -1,0 +1,102 @@
+{
+  "status": "CORE_DESCRIPTION_COST_REDUCTION_IMPLEMENTED_PENDING_COMPILED_VALIDATION",
+  "at_utc": "2026-11-09T14:19:10.776356+00:00",
+  "source_parent": "e84c4120557a07f18947965cbbe9cc406fc6d403",
+  "installed_source": "641d54fa89bfe3daa4dcecc9f15aae248ab54db3",
+  "selected_original_problem": "Original full-workflow comparison favored basic source tools. Five Engram definitions consumed substantial setup budget; source request3was withheld. New backend navigation defects were not established, so reduce duplicate core contract text rather than run another favorable comparison.",
+  "baseline_live": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-cost-preflight-20261109.json",
+    "sha256": "36ca614b62d209be7d3467e9ce2ae0f8e2722da26514c8bef2538193590ac745"
+  },
+  "prior_full_comparison": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-matched-qa-clean-outcome-20261108.json",
+    "sha256": "e42e7d762373dd81a972fbca1c6fe09486a8218a4a0d274daa9c0c6d8cd15373"
+  },
+  "independent_cost_and_source_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\classification-next-evidence-20261109.json",
+    "sha256": "1bad39ae5d149041f971ec5c3e4a1351ef0a0720ff061ef70c11aeb66dace650"
+  },
+  "changes": {
+    "top_level_descriptions": [
+      "get_codebase_overview",
+      "impact_analysis",
+      "compute_blast_radius"
+    ],
+    "parameter_descriptions": {
+      "get_codebase_overview": [
+        "scope",
+        "exclude_paths",
+        "path_contains",
+        "include_declarations",
+        "include_retained_context",
+        "include_source",
+        "source_contains",
+        "source_start_line",
+        "offset",
+        "symbol_offset",
+        "symbol_node_id",
+        "symbol_name",
+        "limit"
+      ],
+      "impact_analysis": [
+        "limit",
+        "max_depth",
+        "detail"
+      ],
+      "compute_blast_radius": [
+        "include_guidance",
+        "max_depth",
+        "detail"
+      ]
+    },
+    "stale_include_source_claim_corrected": true,
+    "behavior_and_non_description_schema_fields_changed": false,
+    "existing_detailed_contract": "docs/TOOL_CONTRACT.md"
+  },
+  "projected_cost": {
+    "installed_five_definitions_compact_utf8_bytes": 23325,
+    "projected_five_definitions_compact_utf8_bytes": 14667,
+    "saved_bytes": 8658,
+    "historical_setup_including_definitions": 26379,
+    "historical_definition_payload_bytes": 21538,
+    "historical_prefix_bytes": 4841,
+    "historical_first_two_responses": 24327,
+    "historical_withheld_third_response": 21146,
+    "original_setup_inclusive_cap": 65536,
+    "projected_same_setup_and_three_responses": 64988,
+    "projection_only_not_runtime_or_agent_success": true
+  },
+  "validation": {
+    "rust_code_unchanged_after_removing_only_docs_and_tool_description_strings": true,
+    "independent_usage_review": "Preserved selector/path/mode combinations, source snapshot and continuation distinction, incoming-dependency limits and separate unverified advice. Corrected draft errors before build. No remote review claimed.",
+    "new_behavior_tests": "Not added for description-only change; prior47remain historical. Native compiled tools/list must match exact final descriptions and all unchanged schema properties."
+  },
+  "final_description_spec": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-final-20261109.json",
+    "sha256": "1b0e333a366616b671bd0545da37200f8b93e429996438d74c9d40f76a184387"
+  },
+  "superseded_intermediate_build": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-preview-description-shipping-20261109.json",
+      "sha256": "055657d885884916ff2a3b881a1936bf41878d1b337eb8ae15436a9a05a2395b"
+    },
+    "artifact_snapshot": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-preview-description-build-artifact-20261109.json",
+      "sha256": "f00cd5f25fdcd5c35c39a279289a2cd3cfc5b0844c53268e83c213393a8366e6"
+    },
+    "status": "PASS_NOT_INSTALLED_SUPERSEDED",
+    "reason": "Top description fixed but include_source parameter still contradicted candidate_spans. Consolidated complete public help correction and measured cost reduction before another installation.",
+    "compiled_binary_retention": "Shared target may be overwritten by next owned build; snapshot is historical provenance, not a deployable preserved pair.",
+    "owned_resources_closed_and_tmp_removed": true
+  },
+  "resources": {
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "maintenance_hold_active": false,
+    "pending_rpc": null,
+    "pending_build_or_test": false,
+    "retention": "Keep all drafts, reviews, build records and original outcomes. No prior deletion."
+  },
+  "task_scores_changed": false,
+  "full_task_or_productivity_win_claimed": false,
+  "goal_complete": false
+}
