@@ -1,0 +1,100 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_TASK_OUTCOME_PENDING",
+  "at_utc": "2026-11-09T20:19:26.449943+00:00",
+  "source_commit": "2213aaeab69826cf678138cee12a3a8abb107a6c",
+  "server_sha256": "4d6de5be2cfa8375886ef33716e4411cfc733ea9a345007aff522584221b6a43",
+  "manifest_sha256": "56b768755ebae2163a80ba1add7ecb88cb557c0fc4bf84ff214e52539006065c",
+  "primary": {
+    "pid": "37980",
+    "started_at_ms": "1794255476065",
+    "protocol_version": "1",
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+    "version": "0.1.0"
+  },
+  "source_generation": 3139,
+  "implementation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-view-20261109.json",
+    "sha256": "b200e262f7e3a64a8826b5aeff015884ea7cb35de641cb14cf6f3ab276560583"
+  },
+  "evidence": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-shipping-20261109.json",
+      "sha256": "0ba1bf8a44421f0dde5c818148b4f100933b1f7fe9006347bc02784f6859dd70"
+    },
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-20261109-build-artifact.json",
+      "sha256": "5e8f4752d4f1012dd0555b5df724467fd6e6060e462b47b5338c6edd1ecd969f"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-20261109-paired-package.json",
+      "sha256": "e79048dd00f6e93a577c6f1196372d8cfc9b95f32ac64f8f2c2f70c921b9238b"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-20261109-cold-v1\\acceptance.json",
+      "sha256": "26711cd0ebf9e2cb52b5b48fb43adf94de1751c7f0f1c6b95a672ff692243162"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-20261109-normal-v1.json",
+      "sha256": "97442d068c6fb8f24fd48c90332812cb1f5f730f89c847fde370653d73e12cea"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-20261109-release-gates.json",
+      "sha256": "dfc101a05cac7d9e7d27bd0629e83ba01bb29fe15f86b47513aa0df1b5217035"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-20261109-upgrade.json",
+      "sha256": "907d29415db75084a95db1e12f00bdb8ed2aa847957c596dbb457ccf1d27ebb3"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-config-hold-20261109.json.released.json",
+      "sha256": "fa151a619c42932d547387044b59426f54a9ecc7410d318a6db3458a8f3e3c1a"
+    }
+  },
+  "actual_checks": {
+    "cold_calls": 28,
+    "normal_calls": 28,
+    "all150_definitions_unchanged": true,
+    "original_actions_and_graph_preserved": true,
+    "literal_alternative_source_ranges": [
+      [
+        486,
+        546
+      ],
+      [
+        2247,
+        2289
+      ],
+      [
+        2343,
+        2345
+      ]
+    ],
+    "literal_alternative_lines": 107,
+    "literal_alternative_utf8_bytes": 7542,
+    "codemap_sample_previous_bytes": 12216,
+    "codemap_sample_current_bytes": 10364,
+    "current_source_bytes_unchanged": true
+  },
+  "fresh_agent_task_win_proven": false,
+  "full_original_backlog_complete": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false,
+  "next": "One fresh original full QA using already prepared Ash protocol; preserve previous outcomes and disclose source_ranges wording clarification.",
+  "administrative_wrapper_errors": [
+    "Gate invocation initially used nonexistent cold receipt filename; no gate helper or runtime invoked; corrected to cold-v1/acceptance.json.",
+    "Normal invocation initially treated .engram.primary key=value format as JSON; no observer/RPC invoked; corrected parser before the single normal check."
+  ],
+  "resources": {
+    "build_owned_temp_removed": true,
+    "candidate_owned_tmp_removed": true,
+    "build_and_candidate_handles_closed": true,
+    "normal_observer_closed": true,
+    "maintenance_hold_released": true,
+    "config_unchanged": true,
+    "old_daemon_and_sidecar_drained_naturally": true,
+    "codex_host_signaled": false,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-681bcacb952b44ee9597e1f2dc761bfd",
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain evidence/package and old pair for review and recovery; no preexisting directory deletion authorized."
+  }
+}
