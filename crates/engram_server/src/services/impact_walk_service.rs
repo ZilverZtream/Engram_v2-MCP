@@ -374,11 +374,16 @@ fn summary_value(
     // Charge the actual bounded prefix, plus framing/freshness reserve. Its
     // 2KiB ceiling is not its usual cost; over-reserving it hides useful rows.
     let immediate_prefix=immediate_section(full,false).unwrap_or_default();
+    let reserve = if file_component {
+        render_summary(&Value::Null, &immediate_prefix).len() - 4 + 256
+    } else {
+        immediate_prefix.len() + 1024
+    };
     let fits = |value: &Value| {
         serde_json::to_vec(value)
             .expect("JSON value serialization")
             .len()
-            <= SUMMARY_BYTES.saturating_sub(immediate_prefix.len()+1024)
+            <= SUMMARY_BYTES.saturating_sub(reserve)
     };
     if let Some(resolution) = full.get("target_resolution") {
         value["target_resolution"] = resolution.clone();
@@ -444,10 +449,22 @@ fn summary_value(
     }
     value["immediate_consumers_omitted_from_summary"] =
         json!(direct.map(|count| count.saturating_sub(immediate.len())));
+    if file_component {
+        if let Some(files) = dependent_files {
+            append_dependent_files(&mut value, files, 0, &fits);
+        }
+        if let Some(inventory) = full.get("declaration_inventory") {
+            value["declaration_inventory"] = inventory.clone();
+            if !fits(&value) {
+                value.as_object_mut().unwrap().remove("declaration_inventory");
+            }
+        }
+        append_file_consumer_source_context(&mut value, full, &fits);
+    }
     // File inventory is established independently of declaration display
     // clipping. Keep its counts/paths before optional route/inspection detail.
     if let Some(files) = dependent_files {
-        append_dependent_files(&mut value, files, &fits);
+        append_dependent_files(&mut value, files, 32, &fits);
     }
     // Admitted source routes outrank optional inspection-detail rows. Required
     // counts, gaps, target/direct witnesses and graph recovery are already fixed.
@@ -854,6 +871,81 @@ fn source_range_union(mut ranges: Vec<(u64, u64)>) -> Option<Vec<(u64, u64)>> {
     }
     (merged.len() <= 3 && merged.iter().map(|(start, end)| end - start + 1).sum::<u64>() <= 120)
         .then_some(merged)
+}
+
+// Reuse a direct consumer's source read to inspect bounded same-file callers.
+// Every added span and edge comes from the held admitted graph. Keep the
+// original direct witnesses, and commit action/context additions atomically.
+fn append_file_consumer_source_context(value: &mut Value, full: &Value, fits: &dyn Fn(&Value) -> bool) {
+    if value["target_revision_admitted"] != true { return; }
+    let nodes: HashMap<_, _> = full["nodes"].as_array().into_iter().flatten()
+        .filter_map(|node| Some((node["ref"].as_str()?, node))).collect();
+    let recoveries: HashMap<_, _> = full["recoveries"].as_array().into_iter().flatten()
+        .filter_map(|row| Some((row["ref"].as_str()?, row))).collect();
+    let count = value["immediate_consumers"].as_array().map_or(0, Vec::len);
+    for index in 0..count {
+        let consumer = &value["immediate_consumers"][index];
+        let Some(parent) = nodes.values().copied().find(|node| node["node_id"] == consumer["node_id"])
+            else { continue };
+        let arguments = &consumer["source_read"]["arguments"];
+        if consumer["source_read"]["tool"] != "get_full_method_body"
+            || consumer["source_read_scope"] != "explicit_source_range" { continue; }
+        let Some((start, end)) = arguments["line_start"].as_u64().zip(arguments["line_end"].as_u64())
+            else { continue };
+        let Some(mut ranges) = source_range_union(vec![(start, end)]) else { continue };
+        let mut candidates = Vec::new();
+        for edge in full["edges"].as_array().into_iter().flatten().filter(|edge|
+            edge["target_ref"] == parent["ref"] && edge["kind"] == "calls") {
+            let Some(caller) = edge["source_ref"].as_str().and_then(|r| nodes.get(r)).copied()
+                else { continue };
+            if caller["admission"] != "selected" || caller["depth"] != 2
+                || caller["file_ref"] != parent["file_ref"] || caller["generation"] != parent["generation"]
+                || !matches!(caller["kind"].as_str(), Some("function" | "method" | "constructor")) { continue; }
+            let Some(recovery) = caller["recovery_ref"].as_str().and_then(|r| recoveries.get(r)) else { continue };
+            let Some((lo, hi)) = caller["start_line"].as_u64().zip(caller["end_line"].as_u64()) else { continue };
+            if recovery["tool"] != "get_full_method_body" || recovery["scope_ref"] != "range"
+                || recovery["arguments"]["file_path"] != arguments["file_path"]
+                || recovery["arguments"]["line_start"].as_u64() != Some(lo)
+                || !recovery["arguments"]["line_end"].as_u64().is_some_and(|end| end >= hi) { continue; }
+            let Some(union) = source_range_union(vec![(start, end), (lo, hi)]) else { continue };
+            candidates.push((union.iter().map(|(lo,hi)| hi-lo+1).sum::<u64>(), caller, edge, lo, hi));
+        }
+        candidates.sort_by(|a,b| a.0.cmp(&b.0)
+            .then_with(|| a.1["node_id"].as_str().cmp(&b.1["node_id"].as_str())));
+        let mut seen = BTreeSet::new();
+        for (_, caller, edge, lo, hi) in candidates {
+            if seen.len() == 2 { break; }
+            let Some(id) = caller["node_id"].as_str() else { continue };
+            if seen.contains(id) { continue; }
+            let Some(union) = source_range_union(ranges.iter().copied().chain([(lo,hi)]).collect()) else { continue };
+            if union == ranges { continue; }
+            let mut candidate = value.clone();
+            let read = candidate["immediate_consumers"][index]["source_read"]["arguments"].as_object_mut().unwrap();
+            if union.len() == 1 {
+                read.remove("source_ranges");
+                read.insert("line_start".into(), json!(union[0].0));
+                read.insert("line_end".into(), json!(union[0].1));
+            } else {
+                read.remove("line_start"); read.remove("line_end");
+                read.insert("source_ranges".into(), json!(union.iter().map(|(start,end)|
+                    json!({"line_start":start,"line_end":end})).collect::<Vec<_>>()));
+            }
+            let mut connection = full["omitted_defaults"]["edges"].as_object().cloned().unwrap_or_default();
+            connection.extend(edge.as_object().unwrap().clone());
+            for key in ["ref","source_ref","target_ref","recovery_ref","connection_role"] { connection.remove(key); }
+            let consumer = &mut candidate["immediate_consumers"][index];
+            if consumer.get("source_read_caller_samples").is_none() {
+                consumer["source_read_caller_samples"] = json!([]);
+            }
+            consumer["source_read_caller_samples"].as_array_mut().unwrap().push(json!({
+                "node_id":caller["node_id"],"generation":caller["generation"],
+                "indexed_lines":[lo,hi],"connection_to_consumer":connection}));
+            if serde_json::to_vec(&candidate["immediate_consumers"][index]).unwrap().len() > 2048 || !fits(&candidate) { continue; }
+            *value = candidate;
+            ranges = union;
+            seen.insert(id);
+        }
+    }
 }
 
 fn decoded_route_connections(routes: &Value) -> Option<Vec<Value>> {
@@ -1452,6 +1544,7 @@ pub(crate) fn assessment_summary(
 fn append_dependent_files(
     value: &mut Value,
     files: &BTreeMap<String, usize>,
+    limit: usize,
     fits: &dyn Fn(&Value) -> bool,
 ) {
     value["observed_dependent_files"] = json!({
@@ -1471,7 +1564,7 @@ fn append_dependent_files(
         a_depth.cmp(b_depth).then_with(||a_path.cmp(b_path)));
     let mut rows = Vec::new();
     for (path, depth) in ranked {
-        if rows.len() == 32 { break; }
+        if rows.len() == limit { break; }
         rows.push(json!({"file_path":path,"min_depth":depth}));
         value["observed_dependent_files"]["files"] = json!(&rows);
         value["observed_dependent_files"]["files_omitted"] = json!(files.len()-rows.len());
@@ -1519,7 +1612,7 @@ mod dependent_file_navigation_behavior {
         for extra_bytes in [0,50,350,500,4096] {
             let mut report = original.clone();
             let limit = serde_json::to_vec(&report).unwrap().len()+extra_bytes;
-            append_dependent_files(&mut report,&files,&|v|serde_json::to_vec(v).unwrap().len()<=limit);
+            append_dependent_files(&mut report,&files,32,&|v|serde_json::to_vec(v).unwrap().len()<=limit);
             assert!(serde_json::to_vec(&report).unwrap().len()<=limit);
             if let Some(inventory) = report.get("observed_dependent_files") {
                 let rows = inventory["files"].as_array().unwrap();

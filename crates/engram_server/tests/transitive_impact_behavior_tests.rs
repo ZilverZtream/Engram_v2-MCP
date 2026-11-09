@@ -3090,6 +3090,179 @@ fn file_impact_summary_exposes_distinct_consumer_files_and_actual_member_connect
 }
 
 #[test]
+fn crowded_file_summary_recovers_downstream_source_and_omitted_declarations_without_graph_query() {
+    owned_case(|fixture| async move {
+        const SEEDS: &str = "src/crowded_seeds.rs";
+        let mut seed_lines: Vec<_> = (0..24).map(|n| format!("pub fn Unused{n:02}() {{}}" )).collect();
+        seed_lines.push("pub fn Used() -> i32 { 1 }".into());
+        let source = seed_lines.join("\n") + "\n";
+        let paths: Vec<_> = (0..4).map(|n| format!("src/crowded_consumer_{n}.rs")).collect();
+        // Realistic verbose canonical identities make four standalone witness
+        // rows compete with the actions needed to continue an agent's task.
+        let names: Vec<_> = (0..4).map(|n| format!("Read{n}{}", "Policy".repeat(16))).collect();
+        let bodies: Vec<_> = names.iter().map(|name| format!(
+            "pub fn {name}() -> i32 {{ crate::crowded_seeds::Used() }}\npub fn Downstream() -> i32 {{ {name}() }}\n"
+        )).collect();
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        let revisions: Vec<_> = std::iter::once(RelPath::new(SEEDS))
+            .chain(paths.iter().map(|path| RelPath::new(path))).collect();
+        fixture.search.prepare_source_snapshot(PID, 2, 3, &revisions, &[], &cancel).await.unwrap();
+        let mut docs = vec![source_doc(3, 600, SEEDS, &source)];
+        docs.extend(paths.iter().enumerate().map(|(n, path)| source_doc(3, 601+n as u64, path, &bodies[n])));
+        fixture.search.index_docs(PID, &docs, &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        std::fs::write(fixture.root.join(SEEDS), &source).unwrap();
+        let mut nodes = vec![file_node(SEEDS, &source, 3), declaration(SEEDS, "Used", 25, 3)];
+        nodes.extend((0..24).map(|n| declaration(SEEDS, &format!("Unused{n:02}"), n+1, 3)));
+        let mut edges = Vec::new();
+        for (n, path) in paths.iter().enumerate() {
+            std::fs::write(fixture.root.join(path), &bodies[n]).unwrap();
+            nodes.extend([file_node(path, &bodies[n], 3), declaration(path, &names[n], 1, 3),
+                declaration(path, "Downstream", 2, 3)]);
+            edges.extend([
+                edge(id(path, &names[n], 1), id(SEEDS, "Used", 25), EdgeKind::Calls, 3),
+                edge(id(path, "Downstream", 2), id(path, &names[n], 1), EdgeKind::Calls, 3),
+            ]);
+        }
+        fixture.engram.state.graph.upsert_nodes(PID, &nodes).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID, &edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+        let target = format!("file:{SEEDS}");
+        // Independent evidence oracle only: every task continuation below is
+        // taken directly from SUMMARY, never from this graph response.
+        let graph = impact_packet(&impact_target(&fixture, &target, Some(6)).await);
+        assert_eq!(graph["selected_dependents_observed"], 8);
+        assert_eq!(graph["unconnected_file_seeds_omitted"], 24);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let text = summary_impact(&fixture, tool, &target, 6).await;
+            assert!(text.len() <= 12 * 1024, "The complete crowded file reply must fit the public budget");
+            let report = impact_packet(&text);
+            for field in ["source_generation", "target_revision_admitted", "selected_dependents_observed",
+                "coverage", "working_tree_checked", "change_breakage_proven"] {
+                assert_eq!(report[field], graph[field], "Navigation allocation changed {field}");
+            }
+            assert_eq!(report["direct_dependents_observed"], 4);
+            assert_eq!(report["transitive_dependents_observed"], 4);
+            assert_eq!(report["graph_omissions"]["unconnected_file_seeds"], 24);
+            assert_eq!(report["verified_connections_returned_in_graph"], graph["edges"].as_array().unwrap().len());
+            let immediate = report["immediate_consumers"].as_array().unwrap();
+            assert_eq!(immediate.len(), 4, "Source context must preserve the existing four direct witnesses");
+            assert_eq!(report["immediate_consumers_omitted_from_summary"], 4-immediate.len());
+            let distinct: std::collections::BTreeSet<_> = immediate.iter()
+                .map(|row| row["file_path"].as_str().unwrap()).collect();
+            assert_eq!(distinct.len(), immediate.len());
+            for consumer in immediate {
+                let witness = &consumer["sample_connection_to_target"];
+                assert_eq!(witness["source_node_id"], consumer["node_id"]);
+                assert_eq!(witness["target_node_id"], id(SEEDS, "Used", 25));
+                assert_eq!(witness["target_scope"], "file_member");
+            }
+            let consumer = immediate.iter().find(|row| row["source_read_caller_samples"].as_array()
+                .is_some_and(|samples| !samples.is_empty()))
+                .expect("Crowded file SUMMARY must expose the admitted caller behind an expanded read");
+            let lead = &consumer["source_read_caller_samples"][0];
+            let index = paths.iter().position(|path| consumer["file_path"] == *path).unwrap();
+            assert_eq!(lead["node_id"], id(&paths[index], "Downstream", 2));
+            assert_eq!(lead["generation"], 3);
+            assert_eq!(lead["indexed_lines"], json!([2, 2]));
+            let graph_nodes: std::collections::BTreeMap<_, _> = graph["nodes"].as_array().unwrap().iter()
+                .map(|row| (row["ref"].as_str().unwrap(), &row["node_id"])).collect();
+            let edge = graph["edges"].as_array().unwrap().iter().find(|edge|
+                graph_nodes[edge["source_ref"].as_str().unwrap()] == &lead["node_id"]
+                    && graph_nodes[edge["target_ref"].as_str().unwrap()] == &consumer["node_id"]).unwrap();
+            let mut connection = decoded_connection(&graph["omitted_defaults"]["edges"], edge);
+            for key in ["ref", "source_ref", "target_ref", "connection_role"] { connection.as_object_mut().unwrap().remove(key); }
+            assert_eq!(lead["connection_to_consumer"], connection, "Expanded reads must retain actual admitted edge provenance");
+            let read = &consumer["source_read"];
+            assert_eq!(read["tool"], "get_full_method_body");
+            assert_eq!(read["arguments"]["line_start"], 1);
+            assert_eq!(read["arguments"]["line_end"], 2);
+            let result = fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+            let body: Value = serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(body["source_code"], bodies[index].trim_end());
+            assert_eq!(body["source_file_hash"], ContentHash::compute(bodies[index].as_bytes()).0);
+
+            let mut action = report["declaration_inventory"].clone();
+            assert_eq!(action["tool"], "get_codebase_overview",
+                "The agent must recover omitted file members without paying for a graph re-query");
+            let mut recovered = false;
+            for _ in 0..4 {
+                let result = fixture.engram.handle_get_codebase_overview(
+                    serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+                let text = &result.content[0].as_text().unwrap().text;
+                let page: Value = serde_json::from_str(text.split("## CodeMap Navigation").nth(1).unwrap()
+                    .split("```json\n").nth(1).unwrap().split("```").next().unwrap()).unwrap();
+                assert_eq!(page["source_generation"], 3);
+                let file = &page["files"][0];
+                assert_eq!(file["path"], SEEDS);
+                if let Some(symbol) = file["symbols"].as_array().unwrap().iter().find(|row| row["name"] == "Unused23") {
+                    let read = &symbol["actions"][0];
+                    assert_eq!(read["tool"], "get_full_method_body");
+                    let result = fixture.engram.handle_get_full_method_body(
+                        serde_json::from_value(read["arguments"].clone()).unwrap()).await.unwrap();
+                    let body: Value = serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+                    assert_eq!(body["source_code"], seed_lines[23]);
+                    assert_eq!(body["source_file_hash"], ContentHash::compute(source.as_bytes()).0);
+                    recovered = true;
+                    break;
+                }
+                if file["next_symbols"].is_null() { break; }
+                action = file["next_symbols"].clone();
+            }
+            assert!(recovered, "Follow the emitted inventory pages to an omitted declaration and read its current source");
+        }
+    });
+}
+
+#[test]
+fn file_summary_keeps_executable_prefix_when_every_direct_row_is_oversized() {
+    owned_case(|fixture| async move {
+        const SEED: &str = "src/prefix_seed.rs";
+        const CALLER: &str = "src/prefix_caller.rs";
+        let seed = "pub fn Used() -> i32 { 1 }\n";
+        let name = "LongConsumer".repeat(100);
+        let caller = format!("pub fn {name}() -> i32 {{ crate::prefix_seed::Used() }}\n");
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID, 2, 3,
+            &[RelPath::new(SEED), RelPath::new(CALLER)], &[], &cancel).await.unwrap();
+        fixture.search.index_docs(PID, &[source_doc(3, 700, SEED, seed), source_doc(3, 701, CALLER, &caller)],
+            &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        std::fs::write(fixture.root.join(SEED), seed).unwrap();
+        std::fs::write(fixture.root.join(CALLER), &caller).unwrap();
+        fixture.engram.state.graph.upsert_nodes(PID, &[
+            file_node(SEED, seed, 3), declaration(SEED, "Used", 1, 3),
+            file_node(CALLER, &caller, 3), declaration(CALLER, &name, 1, 3),
+        ]).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID, &[
+            edge(id(CALLER, &name, 1), id(SEED, "Used", 1), EdgeKind::Calls, 3),
+        ]).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let text = summary_impact(&fixture, tool, &format!("file:{SEED}"), 6).await;
+            let report = impact_packet(&text);
+            assert_eq!(report["direct_dependents_observed"], 1);
+            assert_eq!(report["immediate_consumers"], json!([]));
+            assert_eq!(report["immediate_consumers_omitted_from_summary"], 1);
+            let prefix = text.split("## Revision-admitted change impact").next().unwrap();
+            assert!(prefix.contains("## First immediate indexed consumer"));
+            let action: Value = serde_json::from_str(prefix.split("```json\n").nth(1).unwrap()
+                .split("```").next().unwrap()).unwrap();
+            assert_eq!(action["tool"], "get_full_method_body");
+            assert_eq!(action["arguments"]["file_path"], CALLER);
+            let result = fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+            let body: Value = serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(body["source_code"], caller.trim_end());
+            assert_eq!(body["source_file_hash"], ContentHash::compute(caller.as_bytes()).0);
+        }
+    });
+}
+
+#[test]
 fn file_impact_summary_reveals_files_beyond_samples_without_counting_unadmitted_references() {
     owned_case(|fixture| async move {
         let paths: Vec<_> = (0..6).map(|i|format!("src/consumer_{i}.rs")).collect();
