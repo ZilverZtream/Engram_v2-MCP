@@ -3283,8 +3283,18 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
         let detailed=navigate(&engram,page["metadata_recovery"]["arguments"].clone()).await;
         assert!(detailed["coverage"]["declarations"][0]["declaration_admission"]["raw_rows"].as_u64().unwrap() <= 64);
         assert_eq!(coverage["terminal_name_fallback"]["bounded_procedure_completed"], false);
-        assert_eq!(page["current_source"]["line_end"], 120);
-        assert_eq!(page["current_source"]["source_code"], lines[..120].join("\n"));
+        assert!(page["candidates"].as_array().unwrap().is_empty());
+        let initial = &page["current_source"];
+        assert_eq!(initial["matched_lines"], json!([181,201]));
+        assert_eq!(initial["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
+        let fallback_scope = initial["name_selection_fallback"].as_str().unwrap();
+        assert!(fallback_scope.contains("literal text") && fallback_scope.contains("no declaration or binding inference"));
+        for window in initial["windows"].as_array().unwrap() {
+            let start = window["line_start"].as_u64().unwrap() as usize;
+            let end = window["line_end"].as_u64().unwrap() as usize;
+            assert_eq!(window["source_code"], lines[start-1..end].join("\n"));
+            assert!(start > 120, "A named miss must immediately inspect its distant occurrences, not unrelated file-head source");
+        }
         let recovery = &page["file_actions"][0];
         assert_eq!(recovery["tool"], "get_codebase_overview");
         let args = &recovery["arguments"];
@@ -3301,7 +3311,10 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
         assert!(page["file_actions"].as_array().unwrap().iter()
             .any(|action| action["tool"] == "get_full_method_body"));
         let recovered = navigate(&engram, args.clone()).await;
-        assert_eq!(recovered["current_source"]["matched_lines"], json!([181,201]));
+        assert_eq!(recovered["current_source"]["matched_lines"], initial["matched_lines"]);
+        assert_eq!(recovered["current_source"]["windows"], initial["windows"]);
+        assert!(recovered["current_source"].get("name_selection_fallback").is_none(),
+            "Explicit literal inspection must not claim a preceding named lookup");
         assert_eq!(recovered["current_source"]["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
         let windows = recovered["current_source"]["windows"].as_array().unwrap();
         assert!(windows.iter().any(|window| window["source_code"].as_str().unwrap().contains("Dim meta As CacheMeta = ReadMeta(ds)")));
@@ -3317,12 +3330,25 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
             let found = navigate(&engram, request.clone()).await;
             assert_eq!(found["candidates"].as_array().unwrap().len(), if line == 201 {1} else {2});
             assert!(found["metadata_recovery"]["arguments"].get("source_contains").is_none());
+            assert!(found["current_source"].get("name_selection_fallback").is_none());
+            assert!(found["current_source"].get("matched_lines").is_none(),
+                "Successful and ambiguous declaration lookups keep their indexed source selection");
         }
         for name in ["Unknown.ReadMeta".to_owned(), "x".repeat(129), "é".repeat(65)] {
             let miss = navigate(&engram, json!({"project_id":PID,"scope":PATH,"symbol_name":name})).await;
             assert_eq!(miss["files"][0]["declarations_observed"], 0);
             assert!(miss["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+            let source = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+                "symbol_name":name,"include_source":true})).await;
+            assert!(source["current_source"].get("name_selection_fallback").is_none());
+            assert!(source["current_source"].get("matched_lines").is_none());
         }
+        let missing_id = format!("sym:function:{PATH}:Missing:220");
+        let by_id = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+            "symbol_node_id":missing_id,"include_source":true})).await;
+        assert!(by_id["current_source"].get("name_selection_fallback").is_none());
+        assert!(by_id["current_source"].get("matched_lines").is_none(),
+            "An exact identity miss is not a request to search the identity as literal text");
         let source_miss=navigate(&engram,json!({"project_id":PID,"scope":PATH,
             "symbol_name":"Unknown.ReadMeta","include_source":true})).await;
         assert!(source_miss["candidates"].as_array().unwrap().is_empty());
@@ -3339,39 +3365,78 @@ fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan
 }
 
 #[test]
+fn named_miss_automatically_inspects_a_clean_literal_negative_without_claiming_absence() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/negative.vb";
+        let body = "' ordinary source\n".repeat(200);
+        publish_named_sources(&engram, &search, &[(PATH, &body)]).await;
+        let negative = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+            "symbol_name":"Missing","include_source":true})).await;
+        assert!(negative["candidates"].as_array().unwrap().is_empty());
+        assert_eq!(negative["coverage"]["declarations"][0]["terminal_name_fallback"]["bounded_procedure_completed"], true);
+        let current = &negative["current_source"];
+        assert_eq!(current["status"], "not_observed");
+        assert_eq!(current["matched_lines"], json!([]));
+        assert_eq!(current["scan_complete"], true);
+        assert_eq!(current["scanned_through_line"], 200);
+        assert_eq!(current["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
+        assert!(current["name_selection_fallback"].as_str().unwrap().contains("no declaration or binding inference"));
+        let scope = negative["source_view_scope"].as_str().unwrap();
+        assert!(scope.contains("Zero named matches do not prove absence")
+            && scope.contains("Legacy/noncanonical identities, other kinds and aliases remain unassessed")
+            && scope.contains("no FQN/type binding"),
+            "A completed lexical negative must retain the unresolved indexed-identity scope");
+        let literal = negative["file_actions"].as_array().unwrap().iter()
+            .find(|action| action["arguments"]["source_contains"] == "Missing").unwrap();
+        let recovered = navigate(&engram, literal["arguments"].clone()).await;
+        assert_eq!(recovered["current_source"]["status"], "not_observed");
+        assert_eq!(recovered["current_source"]["source_file_hash"], current["source_file_hash"]);
+    });
+}
+
+#[test]
 fn named_miss_literal_recovery_does_not_evict_source_under_reply_pressure() {
     owned_case(true, |engram, search| async move {
         const PATH: &str = "src/pressure.vb";
-        let body = "' ordinary source\n".repeat(200);
+        let mut lines = vec!["' ordinary source".to_owned(); 200];
+        lines[180] = "Missing(value)".into();
+        let body = format!("{}\n", lines.join("\n"));
         publish_named_sources(&engram, &search, &[(PATH, &body)]).await;
         let request = json!({"project_id":PID,"scope":PATH,"symbol_name":"Missing","include_source":true});
-        let roomy = navigation_text(&engram, request.clone()).await;
-        assert_eq!(navigation(&roomy)["file_actions"][0]["arguments"]["source_contains"], "Missing");
-        let negative=navigation(&roomy);
-        assert!(negative["candidates"].as_array().unwrap().is_empty());
-        assert_eq!(negative["coverage"]["declarations"][0]["terminal_name_fallback"]["bounded_procedure_completed"],true);
-        let scope=negative["source_view_scope"].as_str().unwrap();
-        assert!(scope.contains("Zero named matches do not prove absence")
-            && scope.contains("Legacy/noncanonical identities, other kinds and aliases remain unassessed")
-            && scope.contains("no FQN/type binding"),"A completed bounded negative lookup must carry its unresolved scope inline");
-        let mut metadata_request=request.clone();metadata_request["include_source"]=json!(false);
-        let metadata_text=navigation_text(&engram,metadata_request).await;
-        // Source selection still uses the original allocation, before compact presentation.
-        let allocation_bytes=metadata_text.len()+serde_json::to_vec(&navigation(&roomy)["current_source"]).unwrap().len()+18;
+        let roomy = navigate(&engram, request.clone()).await;
+        assert_eq!(roomy["current_source"]["matched_lines"], json!([181]));
         let mut project = engram.state.registry.get_project(PID).unwrap().unwrap();
-        project.project_name.push_str(&"p".repeat(12*1024-allocation_bytes+512));
-        engram.state.registry.put_project(&project).unwrap();
-        let crowded = navigation_text(&engram, request).await;
-        assert!(crowded.len() <= 12*1024, "Final presentation cannot exceed the original reply cap");
-        let page = navigation(&crowded);
-        assert!(!page["file_actions"].as_array().unwrap().iter().any(|action|action["arguments"].get("source_contains").is_some()));
+        let name = project.project_name.clone();
+        let mut fallback = None;
+        // Exercise increasing externally visible header pressure, without deriving
+        // an allocation from internal render fields. The optional lexical view
+        // must yield to a successful ordinary bounded source read before erroring.
+        for padding in (6*1024..=10*1024).step_by(128) {
+            project.project_name = format!("{name}{}", "p".repeat(padding));
+            engram.state.registry.put_project(&project).unwrap();
+            let crowded = navigation_text(&engram, request.clone()).await;
+            assert!(crowded.len() <= 12*1024, "The complete reply must retain the original cap");
+            let page = navigation(&crowded);
+            if page["current_source"].get("matched_lines").is_none()
+                && page["current_source"]["status"] == "available" {
+                fallback = Some(page);
+                break;
+            }
+        }
+        let page = fallback.expect("Pressure must preserve a readable ordinary preview when literal metadata cannot fit");
         let source = &page["current_source"];
+        assert!(source.get("name_selection_fallback").is_none());
         let end = source["line_end"].as_u64().unwrap() as usize;
-        assert!(end > 0 && end < 120);
-        assert_eq!(source["source_code"], body.lines().take(end).collect::<Vec<_>>().join("\n"));
+        assert_eq!(source["line_start"], 1);
+        assert!(end > 0 && end <= 120);
+        assert_eq!(source["source_code"], lines[..end].join("\n"));
         assert_eq!(source["next_page"]["arguments"]["line_start"], end+1);
         assert_eq!(source["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
-        assert_eq!(page["metadata_recovery"]["arguments"]["include_source"],false);
+        assert!(page["candidates"].as_array().unwrap().is_empty());
+        assert_eq!(page["metadata_recovery"]["arguments"]["include_source"], false);
+        let (_, next) = excerpt(&engram, source["next_page"]["arguments"].clone()).await;
+        assert_eq!(next["line_start"], end+1);
+        assert_eq!(next["source_file_hash"], source["source_file_hash"]);
     });
 }
 

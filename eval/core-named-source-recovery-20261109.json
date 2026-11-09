@@ -1,0 +1,66 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_BEHAVIOR_VERIFIED_AWAITING_NATIVE_RELEASE",
+  "at_utc": "2026-11-09T21:43:54.857787+00:00",
+  "basis": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-remaining-lookups.json",
+    "sha256": "08d58ba4a552a79a87808f1729bae474cbede62b26e3e50e59b4ec155fa4d79f"
+  },
+  "real_task": "Original automatic zoom/manual override QA requires persisted-count validation through ReadMeta. Full task remains incomplete.",
+  "measured_before": {
+    "named_source_bytes": 10525,
+    "named_candidates_observed": 0,
+    "indexed_limit_reason": "named_raw_key_limit",
+    "current_lines": [
+      1,
+      120
+    ],
+    "literal_followup_bytes": 5796,
+    "literal_matches": [
+      2257,
+      2497
+    ],
+    "literal_windows": [
+      [
+        2245,
+        2269
+      ],
+      [
+        2485,
+        2509
+      ]
+    ],
+    "validation_lines_still_unread": [
+      2516,
+      2528
+    ]
+  },
+  "change": "For an eligible exact-file unqualified named miss with include_source, execute existing literal inspection from the already-read snapshot. Preserve empty candidates/indexed selection/coverage, source hash and exclusion/continuation actions; mark lexical fallback explicitly. Same8KiB source/12KiB total/8match/3window caps. Literal metadata fit failure retains old bounded preview.",
+  "unaffected": "Explicit literal requests, qualified/opaque IDs, successful or ambiguous indexed candidates and source-unavailable behavior retain existing selection. No new index traversal, parser query or file read.",
+  "source_review": "Independent source_handoff_review found no remaining source or contract issues; compilation and behavior tests pending.",
+  "tests": {
+    "label": "core-named-source-recovery-tests-20261109",
+    "session_id": 82705,
+    "command": "cargo test --offline --locked -j1 -p engram_server --test overview_selected_source_tests",
+    "runner": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_focused_owned_resource-v4_20261104.py",
+      "sha256": "30c85dfa8051c41d857cca5520891a307f0a4625531f306424c68b1a978ef7b7"
+    },
+    "status": "PASS",
+    "passed": 50,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-named-source-recovery-tests-20261109.json",
+      "sha256": "37851a5817ef7073dfde42029615e3fa1ad0e2abe70f1e72b51036612667a6db"
+    },
+    "seconds": 158.62901279999642,
+    "owned_temp_removed": true,
+    "job_and_handles_closed": true,
+    "source_inputs_unchanged": true
+  },
+  "deployment": "Not built or installed yet. Installed release remains a85feb7.",
+  "goal_complete": false,
+  "fresh_agent_task_win_proven": false,
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Owned test fixtures clean on unwind; diagnostic evidence retained until exact-path cleanup authorized."
+  }
+}

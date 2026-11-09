@@ -1,0 +1,110 @@
+{
+  "status": "FROZEN_ORIGINAL_FULL_QA_INCOMPLETE_NO_TASK_WIN",
+  "at_utc": "2026-11-09T21:32:07.917792+00:00",
+  "source_commit": "a85feb756416356cca9162fca44323e745385150",
+  "delivery_commit": "2ee4c07",
+  "grades": [
+    "PASS",
+    "PARTIAL",
+    "PARTIAL",
+    "FAIL",
+    "PARTIAL"
+  ],
+  "candidate": "/root/member_task_elm",
+  "judge": "/root/member_task_judge",
+  "artifacts": {
+    "answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-answer-g.txt",
+      "sha256": "6652fde1b85335eac6b74fe0ad91713bbb340447ccbe6b77504008a04beb6df5"
+    },
+    "judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-judgment.json",
+      "sha256": "14ff6259e690aa7cbf5bff684e5d38ba96e3d6eb5e41d2ea9b17313ef1efef9c"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-contract.json",
+      "sha256": "9b11919767c7295c96d2ed40023f602c4f1b06c25236bc3581b0e15431bfc1ea"
+    },
+    "bindings": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-bindings.json",
+      "sha256": "b86abcae47d4ad9b15b1072b8736faf800440b920d60ade6b7b72228fe46f8a6"
+    },
+    "ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-elm-private-ledger.json",
+      "sha256": "e6a05add6852f844c91acba8e0238ab7915948ff4b9e47ed25f3b44cebc3bb63"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-readiness.json",
+      "sha256": "ed01cffee61cc4a1c47708b51335a9d5f504e4c129d729e30c9487bfc532ef84"
+    }
+  },
+  "attempt": {
+    "requests": 4,
+    "successful_evidence_responses": 3,
+    "setup_bytes": 21554,
+    "delivered_bytes": 62646,
+    "response_bytes": 41092,
+    "request_bytes": [
+      10364,
+      10114,
+      20462,
+      152
+    ],
+    "byte_refusal": "Fourth request meta.FeatureCount search required4624B with3042B remaining;152B refusal delivered; no further request.",
+    "symbol_blast_used": true,
+    "file_member_directory_exercised": false
+  },
+  "finding": "Required count lifecycle, unprepared gates and client/editor/save/stale-response evidence remains incomplete. Matrix numeric/state expectations supported; direct-call sequence incorrectly implies ReadMeta calls ResolvePolicy, while QueryCacheCore calls both and passes metadata.",
+  "retrospective": {
+    "source": "Frozen candidate subsequent retrospective, no new source reads or answer revision.",
+    "candidate_saw_bounded_actions": true,
+    "candidate_claims_actions_unusable": false,
+    "planning_error": "Guessed nearby400lines would cover producer/persistence/gating/JSON; read unrelated eviction code and stopped asReadMeta began. Not enough weight to next_source_read_ref or byte budget. TS98lineaction noticed and not executed.",
+    "tool_defect_demonstrated": false
+  },
+  "independent_trace_review": {
+    "reviewer": "/root/source_handoff_review",
+    "declaration_action_lines": 107,
+    "actual_normal_response_bytes": 7542,
+    "candidate_broad_read_bytes": 20462,
+    "avoidable_read_bytes": 12920,
+    "readmeta_producer_lead_present": true,
+    "ts_save_action_present": true,
+    "full_task_success_with_alternative_proven": false,
+    "conclusion": "No new product patch justified solely by this trace."
+  },
+  "decision": "No extra member-directory patch or fresh retry from Elm. Separate controlled trace and administrative missing-evidence lookups found a named CodeMap source-miss acquisition cost: ReadMeta returns unrelated1..120 then requires literal recovery. Implement immediate existing bounded literal recovery in same snapshot, preserving indexed miss; no new catalog/parser/graph scan. This is not attributed to Elm or claimed whole-task success.",
+  "comparison_limits": [
+    "One known-task attempt after installed change; neither matched nor history-blind. Automatic AGENTS/history exposure disclosed.",
+    "Directory change not exercised; no causal improvement/regression inference.",
+    "Prior outcomes unchanged. No fresh retry or favorable rescore.",
+    "Independent source judgment frozen before ledger/cost exposure. Executable checks not run."
+  ],
+  "resources": {
+    "all16_source_pins_verified": true,
+    "two_tool_observers_closed": true,
+    "pending_rpc": null,
+    "temporary_fixtures_created": false,
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain original candidate/evaluation evidence for review until exact-path cleanup is authorized."
+  },
+  "goal_complete": false,
+  "fresh_agent_task_win_proven": false,
+  "full_original_backlog_complete": false,
+  "original_full19gates_closed": false,
+  "controlled_navigation": {
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-controlled-navigation.json",
+      "sha256": "d99360af72127b4805f977b37af2e9efe220c01ed8b7a58554148163b8283803"
+    },
+    "requests": 8,
+    "delivered_bytes": 65365,
+    "complete": false,
+    "scope": "Known-history controlled action-following path; not fresh adoption, replacement or rescore.",
+    "unread": "Persisted-count validation, endpoint JSON/persistence, client policy parser/viewport stale guard and actual editor callback chain."
+  },
+  "additional_administrative_lookups": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-member-task-20261109-remaining-lookups.json",
+    "sha256": "08d58ba4a552a79a87808f1729bae474cbede62b26e3e50e59b4ec155fa4d79f"
+  }
+}

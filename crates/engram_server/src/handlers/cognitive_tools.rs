@@ -220,6 +220,7 @@ struct LiteralSourceQuery {
     literal: String,
     start_line: u64,
     continuation: serde_json::Value,
+    named_fallback: bool,
 }
 
 /// Optional outgoing property inspection must not displace indexed navigation
@@ -354,6 +355,26 @@ fn codemap_source_preview(
     };
     if let Some(query) = literal_query {
         return codemap_literal_inspection(navigation, &file, &source, &hash, project, query, header, footer);
+    }
+    // A bounded name miss has no indexed source anchor. Inspect the existing
+    // literal recovery in this same snapshot before spending a page on the
+    // unrelated file header. The indexed lookup and its gaps stay unresolved.
+    if let Some(fallback) = named_literal_recovery(&navigation) {
+        if let Some(action) = fallback["files"][0]["actions"].as_array().and_then(|actions|
+            actions.iter().find(|action| action["arguments"]["source_contains"].is_string())) {
+            let query = LiteralSourceQuery {
+                literal: action["arguments"]["source_contains"].as_str().unwrap().to_owned(),
+                start_line: 1,
+                continuation: action.clone(),
+                named_fallback: true,
+            };
+            if let Ok(text) = codemap_literal_inspection(fallback, &file, &source, &hash,
+                project, &query, header, footer) {
+                return Ok(text);
+            }
+            // Optional literal metadata must not turn an otherwise successful
+            // bounded source preview into an error under display pressure.
+        }
     }
     if targeted && row["declarations_observed"].as_u64().is_some_and(|count| count > 1)
         && symbols.is_some_and(|nodes| !nodes.is_empty()) {
@@ -561,6 +582,10 @@ fn codemap_literal_inspection(
         "sampled_matching_lines_source_omitted":hits.len(),
         "recovery":lookahead.map(|line|read(line,None)),
         "scope":"Current literal text and nearby lines, not declarations, calls, value flow, binding or project freshness. Context may contain unsampled matches; recovery reads fresh source, not a continued search."});
+    if query.named_fallback {
+        preview["name_selection_fallback"] = serde_json::json!(
+            "No named candidate observed within indexed lookup limits. Inspecting the requested name as literal text; no declaration or binding inference.");
+    }
     if query.start_line>1 {
         preview["scan_start_line"]=serde_json::json!(query.start_line);
         preview["scan_scope"]=serde_json::json!("Inclusive suffix only; scan_complete and not_observed concern this suffix, not earlier lines. Context may precede the scan. Fresh snapshot: compare source_file_hash before combining pages; changed bytes require restarting from1.");
@@ -2528,6 +2553,7 @@ impl Engram {
             let targeted=req.symbol_node_id.is_some() || req.symbol_name.is_some();
             let literal_query=req.source_contains.as_ref().map(|literal|LiteralSourceQuery {
                 literal:literal.clone(),start_line:req.source_start_line.unwrap_or(1),
+                named_fallback:false,
                 continuation:codemap_followup(serde_json::json!({"tool":"get_codebase_overview","arguments":{
                     "project_id":req.project_id,"scope":req.scope,"exclude_paths":req.exclude_paths,
                     "include_source":true,"include_declarations":false,"include_retained_context":false,
