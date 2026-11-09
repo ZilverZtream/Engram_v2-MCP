@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T16:17:40.417502+00:00",
-    "reason": "Move from property relationship investigation to implemented and tested CodeMap navigation; runtime/task delivery remains pending.",
+    "at_utc": "2026-11-09T16:46:35.370018+00:00",
+    "reason": "Selected property navigation deployed and actual emitted property/impact/source chain checked on OciusX; full-task usefulness remains unproved.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast whole-task usefulness remains unfinished. Selected property navigation is implemented and tested (6 graph and49 CodeMap cases), not yet deployed. Preserve original2PASS/3PARTIAL fullQA and source-only preference.",
-    "next_user_visible_deliverable": "Build and deploy the selected CodeMap property-reference navigation, verify actual ResolvePolicy property leads and literal impact/source recovery against independent OciusX evidence. No v3 summary migration, parser expansion, known-answer sample reorder or parked EG24 producer reconstruction; original full-task completion remains required.",
+    "active_original_item": "Original CodeMap/Blast whole-task usefulness remains unfinished.561ecf1 property navigation now deployed and normal13-call validation passed; actual3-call ResolvePolicy/property/WriteFeature chain30733B. Preserve prior2PASS/3PARTIAL fullQA and source-only preference.",
+    "next_user_visible_deliverable": "Run one fresh original full-QA task with identical task/criteria,8attempts/65536UTF8bytes including setup; preserve terminal attempts and assess actual evidence without claiming matched causal benefit. Keep v3 summary migration, parser/global scan expansion, known-answer reordering and parked EG24 producer reconstruction out of scope.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Previous status-response turn: no implementation progress. Current turn: selected property navigation source/tests changed;6graph+49CodeMap tests passed and independent review completed; runtime validation pending.",
+    "previous_goal_turn_classification": "Previous turn: progress via implementation/tests and pushed561ecf1. Current turn: release built, installed and actual normal navigation/source chain verified; one checker contract-label mistake preserved/corrected with no production change.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11408,6 +11408,10 @@
     "selected_property_navigation": {
       "path": "eval\\core-property-navigation-20261109.json",
       "sha256": "22727a1128b209ba8fc153be3a46a21bd999ea89762274b99062d25a2b5fd06b"
+    },
+    "latest_property_navigation_delivery": {
+      "path": "eval\\core-property-navigation-delivery-20261109.json",
+      "sha256": "ee72ccdf9e23cf63e7d9d01237d5fd1d890f9059a646bf9163ecf3ce131b4976"
     }
   }
 }
