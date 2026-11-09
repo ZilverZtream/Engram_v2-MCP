@@ -2861,7 +2861,12 @@ fn codemap_source_preview_inspects_one_observed_candidate_without_resolving_an_u
 fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundaries() {
     owned_case(true, |engram, search| async move {
         const PATH: &str = "src/client.ts";
-        let source=(1..=245).map(|i|format!("// client source line {i}\n")).collect::<String>();
+        let mut lines:Vec<_>=(1..=245).map(|i|format!("// client source line {i}")).collect();
+        lines[13]="function Run(row) { if (!row) return false;".into();
+        lines[18]="return Run(row.company); }".into();
+        lines[144]="function Run(company) {".into();
+        lines[149]="return manager && company === userCompany; }".into();
+        let source=lines.join("\n");
         publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
         let mut declarations=Vec::new();
         for (name,line,generation) in [("First.Run",14,1),("Second.Run",145,1),("Future.Run",33,2)] {
@@ -2876,8 +2881,24 @@ fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundarie
         let text=navigation_text(&engram,with_source).await;assert!(text.len()<=12*1024);
         let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
         assert_eq!(result,baseline);
-        assert!(preview["indexed_anchor_node_id"].is_null(),"A shared excerpt must not choose an overload");
-        assert_eq!(preview["line_start"],1);
+        assert!(preview["indexed_anchor_node_id"].is_null(),"Source windows must not choose an overload");
+        assert_eq!(preview["mode"],"candidate_spans");
+        assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
+        assert_eq!(preview["source_verification"],"current_file_snapshot_not_index_verified");
+        assert_eq!(preview["observed_candidates_without_complete_source"],0);
+        assert_eq!(preview["windows_omitted"],0);
+        let windows=preview["windows"].as_array().unwrap();assert_eq!(windows.len(),2);
+        for (window,candidate) in windows.iter().zip(baseline["files"][0]["symbols"].as_array().unwrap()) {
+            assert_eq!(window["node_id"],candidate["node_id"]);
+            assert_eq!(window["line_start"],candidate["start_line"]);
+            assert_eq!(window["line_end"],candidate["end_line"]);
+            let action=candidate["actions"].as_array().unwrap().iter().find(|action|action["tool"]=="get_full_method_body").unwrap();
+            let (_,read)=excerpt(&engram,action["arguments"].clone()).await;
+            assert_eq!(read["source_code"],window["source_code"]);
+            assert_eq!(read["source_file_hash"],preview["source_file_hash"]);
+        }
+        assert!(windows[0]["source_code"].as_str().unwrap().contains("if (!row) return false"));
+        assert!(windows[1]["source_code"].as_str().unwrap().contains("manager && company === userCompany"));
         let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
         std::fs::write(root.join("outside.ts"),"unselected private source").unwrap();
         for arguments in [json!({"scope":"src"}),json!({"scope":"outside.ts"}),
@@ -2888,7 +2909,7 @@ fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundarie
             assert!(error.message.contains("include_source"));
         }
         // A late exact identity anchors its own indexed page, independently of
-        // the default file-start preview used for ambiguous names.
+        // the independent span windows used for ambiguous names.
         let later=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_node_id":declarations[1].node_id,"include_source":true})).await;
         assert_eq!(later["current_source"]["line_start"],121);
         assert_eq!(later["current_source"]["indexed_anchor_node_id"],declarations[1].node_id);
@@ -2898,6 +2919,107 @@ fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundarie
         assert_eq!(shortened["current_source"]["status"],"unavailable");
         assert!(shortened["current_source"]["reason"].as_str().unwrap().contains("beyond current file"));
         assert_eq!(shortened["current_source"]["recovery"]["arguments"]["line_start"],1);
+        let mut ambiguous=navigate(&engram,json!({"project_id":PID,"scope":PATH,"symbol_name":"Run","include_source":true})).await;
+        let current=ambiguous.as_object_mut().unwrap().remove("current_source").unwrap();
+        assert_eq!(ambiguous,baseline,"Current-file shrinkage must not erase admitted identities or their actions");
+        assert_eq!(current["observed_candidates_without_complete_source"],2);
+        assert!(current["windows"].as_array().unwrap().iter().all(|window|
+            window["source_omitted"]==true && window["reason"].as_str().unwrap().contains("outside current file")));
+        assert_eq!(current["source_file_hash"],blake3::hash(b"// current file was shortened\n").to_hex().to_string());
+        let (_,read)=excerpt(&engram,current["recovery"]["arguments"].clone()).await;
+        assert_eq!(read["source_code"],"// current file was shortened");
+        assert_eq!(read["source_file_hash"],current["source_file_hash"]);
+    });
+}
+
+#[test]
+fn codemap_candidate_spans_keep_nearby_overloads_and_recover_source_omitted_under_pressure() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/overloads.vb";
+        let mut lines:Vec<_>=(1..=220).map(|i|format!("' current line {i}")).collect();
+        for (start,body) in [(170,"Return Nothing ' row guard"),(180,"Return manager AndAlso ownCompany")] {
+            lines[start-1]="Function CanEditZoom() As Boolean".into();
+            lines[start]=body.into();lines[start+1]="End Function".into();
+        }
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let declarations:Vec<_>=[170,180].into_iter().map(|line|{
+            let mut declaration=node(&format!("sym:function:{PATH}:CanEditZoom:{line}"),"function","CanEditZoom",PATH,1);
+            declaration.start_line=line;declaration.end_line=line+2;declaration
+        }).collect();
+        engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_name":"CanEditZoom"});
+        let baseline=navigate(&engram,request.clone()).await;
+        let mut args=request;args["include_source"]=json!(true);
+        let mut result=navigate(&engram,args.clone()).await;
+        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_eq!(result,baseline);
+        let windows=preview["windows"].as_array().unwrap();assert_eq!(windows.len(),2);
+        for (window,start) in windows.iter().zip([170,180]) {
+            assert_eq!(window["line_start"],start);
+            assert_eq!(window["source_code"],lines[start-1..start+2].join("\n"));
+        }
+        assert_eq!(preview["observed_candidates_without_complete_source"],0);
+        // A whole current line cannot fit after JSON escaping. Keep the other
+        // overload useful, retain every original action, and recover the first.
+        lines[170]=format!("' {}", "\\\"".repeat(2500));
+        let current=lines.join("\n");
+        let root=std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(PATH),&current).unwrap();
+        let text=navigation_text(&engram,args).await;assert!(text.len()<=12*1024);
+        let mut result=navigation(&text);
+        let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();assert_eq!(result,baseline);
+        assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
+        assert_eq!(preview["observed_candidates_without_complete_source"],1);
+        let windows=preview["windows"].as_array().unwrap();
+        assert_eq!(windows[0]["source_omitted"],true);
+        assert!(windows[0].get("source_code").is_none(),"Never clip or skip a line inside a candidate span");
+        assert_eq!(windows[1]["source_code"],lines[179..182].join("\n"));
+        assert_eq!(preview["source_file_hash"],blake3::hash(current.as_bytes()).to_hex().to_string());
+        assert_eq!(preview["recovery"]["arguments"]["line_start"],170);
+        let (_,read)=excerpt(&engram,preview["recovery"]["arguments"].clone()).await;
+        assert!(read["source_code"].as_str().unwrap().contains(lines[170].as_str()));
+        assert_eq!(read["source_file_hash"],preview["source_file_hash"]);
+    });
+}
+
+#[test]
+fn codemap_candidate_spans_bound_aggregate_source_without_hiding_candidates() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str="src/many-overloads.vb";
+        let lines:Vec<_>=(1..=245).map(|i|format!("' whole source line {i}")).collect();
+        let source=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&source)]).await;
+        let mut declarations:Vec<_>=[1,160,180,200].into_iter().map(|line|{
+            let mut declaration=node(&format!("sym:function:{PATH}:Save:{line}"),"function","Save",PATH,1);
+            declaration.start_line=line;declaration.end_line=line+2;declaration
+        }).collect();
+        let args=json!({"project_id":PID,"scope":PATH,"symbol_name":"Save"});
+        for long_first in [false,true] {
+            declarations[0].end_line=if long_first {140}else{3};
+            engram.state.graph.upsert_nodes(PID,&declarations).unwrap();
+            let baseline=navigate(&engram,args.clone()).await;
+            let mut request=args.clone();request["include_source"]=json!(true);
+            let text=navigation_text(&engram,request).await;assert!(text.len()<=12*1024);
+            let mut result=navigation(&text);
+            let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
+            assert_eq!(result,baseline,"A display cap cannot discard overload identities, actions or coverage");
+            assert_eq!(result["files"][0]["symbols"].as_array().unwrap().len(),4);
+            let windows=preview["windows"].as_array().unwrap();
+            let inline:Vec<_>=windows.iter().filter(|window|window.get("source_code").is_some()).collect();
+            assert_eq!(inline.len(),if long_first {1}else{3});
+            let count:usize=inline.iter().map(|window|window["source_code"].as_str().unwrap().lines().count()).sum();
+            assert_eq!(count,if long_first {120}else{9});
+            assert_eq!(preview["observed_candidates_without_complete_source"],if long_first {4}else{1});
+            assert_eq!(preview["windows_omitted"],0,"Omitted source and omitted metadata are distinct");
+            assert_eq!(preview["recovery"]["arguments"]["line_start"],if long_first {121}else{200});
+            if long_first {
+                assert_eq!(windows[0]["indexed_span_truncated"],true);
+                assert_eq!(windows[0]["source_code"],lines[..120].join("\n"));
+            }
+            let (_,read)=excerpt(&engram,preview["recovery"]["arguments"].clone()).await;
+            assert_eq!(read["source_file_hash"],preview["source_file_hash"]);
+            assert!(read["source_code"].as_str().unwrap().contains("whole source line 200"));
+        }
     });
 }
 

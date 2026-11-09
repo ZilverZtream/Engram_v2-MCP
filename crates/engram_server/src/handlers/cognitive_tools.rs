@@ -117,8 +117,8 @@ fn codemap_source_preview(
     let file = row["path"].as_str().ok_or("Missing selected file path")?.to_string();
     let symbols = row["symbols"].as_array();
     // A source-page anchor is inspection context, never overload resolution.
-    // Ambiguous and display-clipped inventories use the file start. One observed
-    // candidate can orient an unfinished scan without claiming name uniqueness.
+    // One observed candidate can orient an unfinished scan without claiming
+    // name uniqueness. Multiple candidates use separate span windows below.
     let anchor = symbols.filter(|nodes| targeted && nodes.len() == 1
         && row["declarations_observed"] == 1
         && (row["symbol_display_limited"] == false || row["symbols_omitted_from_display"] == 0))
@@ -144,6 +144,10 @@ fn codemap_source_preview(
     };
     if let Some(query) = literal_query {
         return codemap_literal_inspection(navigation, &file, &source, &hash, project, query, header, footer);
+    }
+    if targeted && row["declarations_observed"].as_u64().is_some_and(|count| count > 1)
+        && symbols.is_some_and(|nodes| !nodes.is_empty()) {
+        return codemap_candidate_preview(navigation, &file, &source, &hash, project, &render);
     }
     let total = source.lines().count() as u64;
     // Preserve the surrounding page when it contains the observed declaration.
@@ -203,6 +207,83 @@ fn codemap_source_preview(
         }
         trim(&mut lines, &mut start);
     }
+}
+
+/// Inspect each displayed candidate independently. Indexed spans remain hints;
+/// source windows neither select an overload nor change navigation coverage.
+fn codemap_candidate_preview(
+    mut navigation: serde_json::Value, file: &str, source: &str, hash: &str, project: &str,
+    render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
+) -> Result<String, String> {
+    let candidates = navigation["files"][0]["symbols"].as_array().unwrap().clone();
+    let observed = navigation["files"][0]["declarations_observed"].as_u64().unwrap();
+    let total = source.lines().count() as u64;
+    let read = |line| serde_json::json!({"tool":"get_full_method_body","arguments":{
+        "project_id":project,"file_path":file,"line_start":line,"context_lines":0,
+        "include_caller_bodies":false,"output_json":true}});
+    // Reserve a later missing-source action before accepting any source, as
+    // literal inspection does. An omission cannot evict an accepted window.
+    let reserve = serde_json::to_vec(&read(total.max(1))).map_err(|e|e.to_string())?.len();
+    let fits = |value: &serde_json::Value| -> Result<bool, String> {
+        let actual = serde_json::to_vec(&value["current_source"]["recovery"]).map_err(|e|e.to_string())?.len();
+        let spare = reserve.saturating_sub(actual);
+        Ok(serde_json::to_vec(&value["current_source"]).map_err(|e|e.to_string())?.len()+spare <= 8*1024
+            && render(value)?.len()+spare <= 12*1024)
+    };
+    let mut preview = serde_json::json!({"status":"available","mode":"candidate_spans",
+        "file_path":file,"total_lines":total,"source_file_hash":hash,"source_file_hash_algorithm":"blake3",
+        "source_verification":"current_file_snapshot_not_index_verified","indexed_anchor_node_id":null,
+        "candidates_observed":observed,"windows":[],"windows_omitted":candidates.len(),
+        "observed_candidates_without_complete_source":observed,"inline_line_limit":120,"inline_window_limit":3,
+        "recovery":null,
+        "scope":"Independent current-source windows at displayed candidates' indexed spans; not verified method bounds, overload selection, binding or project freshness. Navigation identities/actions and lookup/display gaps stay unchanged. At most three windows and120 whole lines total; omitted or shortened spans remain unassessed. Use candidate source actions for their indexed ranges or recovery for the first missing source; compare hashes across fresh reads."});
+    navigation["current_source"] = preview.clone();
+    if !fits(&navigation)? { return Err("Candidate-preview metadata exceeds12KiB; use the existing candidate source actions or include_source=false. No navigation facts were discarded.".into()); }
+    let mut rows = Vec::new();
+    let mut inline_lines = 0u64; let mut inline_windows = 0; let mut complete = 0u64;
+    let mut first_missing = None;
+    for candidate in &candidates {
+        let start = candidate["start_line"].as_u64().unwrap_or(0);
+        let end = candidate["end_line"].as_u64().unwrap_or(0);
+        let valid = start > 0 && end >= start && end <= total;
+        let last = end.min(start.saturating_add(119));
+        let mut row = serde_json::json!({"node_id":candidate["node_id"],"source_omitted":true});
+        if valid {
+            row["line_start"] = serde_json::json!(start); row["line_end"] = serde_json::json!(last);
+            if last < end { row["indexed_span_truncated"] = serde_json::json!(true); }
+        } else {
+            row["reason"] = serde_json::json!("Indexed span invalid or outside current file; current method bounds unverified.");
+        }
+        let may_inline = valid && inline_windows < 3 && inline_lines + last-start+1 <= 120;
+        if may_inline {
+            let code = source.lines().skip((start-1) as usize).take((last-start+1) as usize).collect::<Vec<_>>().join("\n");
+            if code.len() <= 8*1024 {
+                row.as_object_mut().unwrap().remove("source_omitted");
+                row["source_code"] = serde_json::json!(code);
+            }
+        }
+        rows.push(row);
+        preview["windows"] = serde_json::json!(&rows);
+        navigation["current_source"] = preview.clone();
+        if rows.last().unwrap().get("source_code").is_some() && fits(&navigation)? {
+            inline_lines += last-start+1; inline_windows += 1;
+            if last == end { complete += 1; } else { first_missing.get_or_insert(last+1); }
+        } else {
+            first_missing.get_or_insert(if start > 0 && start <= total { start } else { 1 });
+            let row = rows.last_mut().unwrap().as_object_mut().unwrap();
+            row.remove("source_code"); row.insert("source_omitted".into(),serde_json::json!(true));
+            preview["windows"] = serde_json::json!(&rows);
+            navigation["current_source"] = preview.clone();
+            if !fits(&navigation)? { rows.pop(); }
+        }
+    }
+    preview["windows_omitted"] = serde_json::json!(candidates.len()-rows.len());
+    preview["observed_candidates_without_complete_source"] = serde_json::json!(observed.saturating_sub(complete));
+    preview["windows"] = serde_json::json!(rows);
+    if let Some(line) = first_missing { preview["recovery"] = read(line); }
+    navigation["current_source"] = preview;
+    if !fits(&navigation)? { return Err("Candidate-preview recovery exceeds12KiB; use the existing candidate source actions or include_source=false. No navigation facts were discarded.".into()); }
+    render(&navigation)
 }
 
 /// Current literal occurrences are inspection leads, never graph declarations

@@ -1,0 +1,130 @@
+{
+  "status": "CANDIDATE_PREVIEW_IMPLEMENTED_REVIEWED_47_PUBLIC_BEHAVIORS_PASS_PENDING_DEPLOYMENT",
+  "at_utc": "2026-11-09T13:15:25.147760+00:00",
+  "source_head": "c13f9eb",
+  "installed_source": "815ae04d8715439b0941a1aee3b727d63cfabe73",
+  "task": "Unchanged original scope authorization proposal; retain all five original criteria.",
+  "baseline": {
+    "current_normal_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-normal-v2-20261109.json",
+      "sha256": "28fecd5194924b9a1f0fa600e319ab241835d6aa9bdbc3fd050208211d547ff0"
+    },
+    "overview_bytes": 12252,
+    "preview_range": [
+      1,
+      91
+    ],
+    "candidate_ranges": [
+      [
+        170,
+        177
+      ],
+      [
+        180,
+        184
+      ]
+    ],
+    "both_candidate_bodies_absent_from_first_preview": true
+  },
+  "existing_actions": [
+    {
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-overload-1-20261109.json",
+        "sha256": "ea8a83241e32c5f5753b3a1cb1b06797787b9cf74ba28f583829f8ebaeddbad8"
+      },
+      "node_id": "sym:function:Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:_vs.FileLayerZoomPolicy.CanEditZoom:170",
+      "exact_offered_action": {
+        "arguments": {
+          "context_lines": 0,
+          "file_path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "line_end": 177,
+          "line_start": 170,
+          "output_json": true,
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+        },
+        "tool": "get_full_method_body"
+      },
+      "bytes": 2405,
+      "current_source_range": [
+        170,
+        177
+      ],
+      "raw_source_and_blake3_match": true
+    },
+    {
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-overload-2-20261109.json",
+        "sha256": "b06c22d238a451fdaca3a837a8b7a90209f84723e17f462a378af7334892d913"
+      },
+      "node_id": "sym:function:Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:_vs.FileLayerZoomPolicy.CanEditZoom:180",
+      "exact_offered_action": {
+        "arguments": {
+          "context_lines": 0,
+          "file_path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "line_end": 184,
+          "line_start": 180,
+          "output_json": true,
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+        },
+        "tool": "get_full_method_body"
+      },
+      "bytes": 2371,
+      "current_source_range": [
+        180,
+        184
+      ],
+      "raw_source_and_blake3_match": true
+    }
+  ],
+  "followthrough_cost": {
+    "additional_calls": 2,
+    "additional_utf8_bytes": 4776,
+    "combined_overview_and_two_reads_bytes": 17028
+  },
+  "conclusion": "Existing exact candidate source actions work. The first include_source response shows unrelated file-head context despite available admitted source spans. Improve first-response candidate comparison while retaining ambiguity, provenance, complete navigation and budgets; do not add another duplicate action.",
+  "selected_change": "Use existing current snapshot to preview admitted candidate source spans with explicit bounds/omissions and no overload resolution. Existing8KiB preview/12KiB response/120line limits and actions remain.",
+  "independent_expectations": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-source-expectations-20261109.json",
+    "sha256": "5bd87621e2cdd1f47663bd4742baf3aca0d716ab752d6fb488a83dfdaaba27a5"
+  },
+  "resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "observer_pipes_closed": true,
+    "pending_rpc": null,
+    "retention": "Retain exact requests/driver/responses for review; no fixture tree/source/index/config/service mutation."
+  },
+  "fresh_agent_task_success": false,
+  "historical_results_revised": false,
+  "goal_complete": false,
+  "implementation": {
+    "crates/engram_server/src/handlers/cognitive_tools.rs": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\cognitive_tools.rs",
+      "sha256": "2cb59849e31ff354860df9bd386f5f5cded6b379f5c007f279d0f9c9aeb53491"
+    },
+    "crates/engram_server/tests/overview_selected_source_tests.rs": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\tests\\overview_selected_source_tests.rs",
+      "sha256": "4430d2e339c013be2a497b385f1428274cf52c859eda3b6a83b95b026b8ee302"
+    },
+    "docs/TOOL_CONTRACT.md": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\docs\\TOOL_CONTRACT.md",
+      "sha256": "92a4300e1203427dce7c4ffae55f2888036a9570a2e4315a2fc8a9319dc8957f"
+    }
+  },
+  "local_validation": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-candidate-preview-focused-v1-20261109.json",
+      "sha256": "f63311a33ce6dd50dbdc8e904e1c679e9a7df4673e4984ea9a3d0fac3e8a369c"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-candidate-preview-focused-v1-20261109.log",
+      "sha256": "7233ca18fabd8576639e55a7e9299304df6bf9673fb3c1c0992901d3a476b94c"
+    },
+    "passed": 47,
+    "failed": 0,
+    "filtered": 0,
+    "test_seconds": 29.8,
+    "total_seconds": 162.25403570002527,
+    "owned_resources_closed": true,
+    "independent_source_review": "No actionable blocker; reserved recovery budget, omission/truncation, whole lines, navigation preservation and meaningful behavior tests checked. No CodeRabbit remote review claimed."
+  }
+}
