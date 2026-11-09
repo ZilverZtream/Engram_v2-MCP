@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-08T17:34:27.043130+00:00",
+    "at_utc": "2026-11-09T08:41:34.339708+00:00",
     "reason": "Followed actual offered setter impact recovery to editor source and checked full native sidecar participation. Existing recovery works; original capped task remains partial.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Bounded same-file source recovery is deployed at74065a5 and verified on actual OciusX through candidate21checks and normal11reads. Exact CodeMap omitted-window action recovers the same50lines in1call rather than2. Fresh known-omission task: both4PASS, both3reads, candidate32036bytes versus baseline31549; complementary coverage, no overall quality/efficiency win. CodeMap/Blast agent usefulness assignment remains unfinished.",
-    "next_user_visible_deliverable": "Connected QueryCache impact recovery is deployed at9b36634 and checked through normal OciusX IPC with all original reads/hints/effective witnesses preserved. Replay the unchanged original classification task under its original eight-call/65536-byte cap; then continue the concrete HTTP/JSON/editor navigation gaps. Prior five-criterion score remains4 PASS/1 PARTIAL. Routine maintenance remains authorized; broader core-tool goal is unfinished.",
+    "active_original_item": "CodeMap and Blast Radius usefulness for agents. Connected impact source recovery deployed at9b36634; full classification replay remains3PASS/2PARTIAL,8calls/64315B. Continue original literal navigation/recovery gap exposed by that actual output.",
+    "next_user_visible_deliverable": "Validate bounded same-literal CodeMap continuation against actual source and existing8KiB/12KiB budgets while preserving current evidence. No complete HTTP/editor trace, overall productivity win or broader goal completion claimed.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9921,20 +9921,18 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "LOCAL_FILE_INVENTORY_PRIORITY_FIXED_SEVEN_CASE_RERUN_LIVE",
-      "checkpoint": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\admitted-source-routes-rerun-checkpoint-20261107.json",
-        "sha256": "5cd911138c488fa747017c8525fa2587ac6f70b110980fc9e0fd60fc8f65e5d6"
+      "state": "IMPLEMENTED_FOCUSED_VERIFIED_REAL_CANDIDATE_VALIDATION_PENDING",
+      "tracked_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-20261109.json",
+        "sha256": "76c928e02ae444a8f4cb730138c088493d231405cf5f10f081a3053bc5e43e47"
       },
       "implementation_started": true,
-      "initial_focused_pass_proven": false,
-      "initial_failure_fixed_recheck_pending": true,
-      "focused_v2_owned_session_id": 24807,
-      "focused_v2_pass_proven": false,
-      "native_build_pass_proven": false,
+      "focused_pass_proven": true,
       "deployed": false,
-      "fresh_task_pass_proven": false,
-      "no_new_supporting_project": true
+      "full_task_pass_proven": false,
+      "no_new_supporting_project": true,
+      "focused_cases": 43,
+      "native_build_pass_proven": false
     },
     "latest_delivery_preparation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-directory-name-delivery-outcome-20261106.json",

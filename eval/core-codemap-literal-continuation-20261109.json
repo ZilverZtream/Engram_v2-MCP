@@ -1,0 +1,76 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_VERIFIED_REAL_CANDIDATE_VALIDATION_PENDING",
+  "at_utc": "2026-11-09T08:50:17.760908+00:00",
+  "original_work": "CodeMap navigation/recovery for actual agent tasks, following completed connected impact source recovery; not a catalog, ownership or infrastructure task.",
+  "actual_response": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-response-6.txt",
+    "sha256": "8019d8e73d4353bc50e8f469b4077442698431b37bc2258fe5aaae1e0349080d"
+  },
+  "actual_response_bytes": 9366,
+  "source": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\Site\\modules\\dashboard\\ts\\map\\vsMap\\vsFileLayerLazyLoaded.ts",
+    "sha256": "71dfd6f1d9f320331910950a01da05c3da4acfa177e848337301c39badf87f21"
+  },
+  "old_sampled_lines": [
+    97,
+    201,
+    224,
+    240,
+    245,
+    246,
+    251,
+    265
+  ],
+  "lookahead": 271,
+  "later_lines": [
+    271,
+    272,
+    276,
+    305,
+    468,
+    1282,
+    1701,
+    1702
+  ],
+  "old_recovery": {
+    "arguments": {
+      "context_lines": 0,
+      "file_path": "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts",
+      "include_caller_bodies": false,
+      "line_start": 271,
+      "output_json": true,
+      "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+    },
+    "tool": "get_full_method_body"
+  },
+  "observed_gap": "First page stops scan at271 and source recovery begins inside already inline context through277. No same-literal continuation exists; later discovery/viewport/camera/public-policy consumers remain unscanned.",
+  "bounded_design": "Positive optional source_start_line only in existing literal mode; same-file/filter next_matches at inclusive lookahead, added only after all original evidence/recovery allocation. Preserve limits, rows, source and read recovery. Each request fresh snapshot with hash comparison and explicit suffix scope.",
+  "alternatives": "Existing source-read pagination, known explicit source ranges, different literal/declaration query and indexed grep leads remain usable. No claim that existing tools cannot recover these facts.",
+  "limits": "Later matching context468 starts456, so fetch/JSON442..449 remain absent. Continuation does not prove HTTP/editor joins or any productivity gain. Actual full-task three PASS/two PARTIAL remains unchanged.",
+  "validation_status": "42 selected-source suite tests passed, then added independent omitted-source/continuation coexistence case passed separately; only test addition between runs. Capability matrix135 entries and git diff --check passed. Real candidate output and deployment pending.",
+  "resources": "No new fixture/service/index mutations. Retain this evidence in tracked eval plus existing diagnostics root.",
+  "goal_complete": false,
+  "focused_validation": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-literal-continuation-focused-v1-20261109.json",
+      "sha256": "8a9d0c2ca636411d24584b95595b252bdecc49fdebc0bd2f4b52f070ed2683b4",
+      "passed": 42,
+      "inputs_unchanged": true,
+      "owned_resources_closed_and_removed": true
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-literal-continuation-coexist-v1-20261109.json",
+      "sha256": "c36cefa9fb4a459e3d16734a9d896670f80073143272c50b4b8209e905cf4f79",
+      "passed": 1,
+      "inputs_unchanged": true,
+      "owned_resources_closed_and_removed": true
+    }
+  ],
+  "local_review": "Root and /root/core_task_clean_judge reviewed producer/model/tool description/docs. /root/impact_route_full_judge reviewed tests/producer and requested coexistence case, now passing. CodeRabbit not run (existing unavailable authentication); no remote review claimed.",
+  "runner_preflight_note": "Initial invocation redundantly supplied cargo executable to helper that supplies it internally. Rejected before Cargo/output/owned fixture creation; corrected invocation is recorded in focused proof.",
+  "prepared_candidate_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\verify_codemap_literal_continuation_candidate_20261109.py",
+    "sha256": "c9310cf87baf9e4530207cba811d41d52eb1d64b1664d96f829a6dbd394863d8"
+  },
+  "deployed": false
+}

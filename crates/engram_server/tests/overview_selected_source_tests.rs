@@ -2080,6 +2080,270 @@ fn directory_name_recovery_does_not_broaden_path_filters_or_replace_found_candid
 }
 
 #[test]
+fn codemap_literal_continuation_coexists_with_recovery_of_earlier_omitted_source() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/coexisting-policy-actions.ts";
+        let mut lines = vec!["// context".to_owned(); 700];
+        for line in [20, 100, 180, 260, 340, 420, 500, 580, 660] {
+            lines[line - 1] = format!("applyPolicy(payload{line});");
+        }
+        let source = lines.join("\n");
+        publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+        let args = json!({"project_id":PID,"scope":PATH,"include_source":true,
+            "include_declarations":false,"source_contains":"applyPolicy("});
+        let text = navigation_text(&engram, args.clone()).await;
+        assert!(text.len() <= 12 * 1024);
+        let first = navigation(&text);
+        let field = &first["current_source"];
+        assert!(serde_json::to_vec(field).unwrap().len() <= 8 * 1024);
+        assert_eq!(field["matched_lines"], json!([20,100,180,260,340,420,500,580]));
+        assert_eq!(field["lookahead_line"], 660);
+        assert_eq!(field["scan_complete"], false);
+        let inline: Vec<_> = field["windows"].as_array().unwrap().iter()
+            .filter(|window| window.get("source_code").is_some())
+            .map(|window| window["matched_lines"].clone()).collect();
+        assert_eq!(inline, vec![json!([20]), json!([100]), json!([180])]);
+        assert_eq!(field["sampled_matching_lines_source_omitted"], 5);
+
+        // Source recovery must still inspect the earliest missing sampled
+        // evidence. It must not be replaced by the ninth-match continuation.
+        let recovery = &field["recovery"];
+        assert_eq!(recovery["tool"], "get_full_method_body");
+        assert_eq!(recovery["arguments"]["file_path"], PATH);
+        assert_eq!(recovery["arguments"]["source_ranges"], json!([
+            {"line_start":248,"line_end":272},
+            {"line_start":328,"line_end":352},
+            {"line_start":408,"line_end":432}
+        ]));
+        assert!(recovery["arguments"].get("line_start").is_none());
+        let next = &field["next_matches"];
+        assert_eq!(next["tool"], "get_codebase_overview");
+        assert_eq!(next["arguments"]["source_start_line"], 660);
+        for (key, value) in args.as_object().unwrap() {
+            assert_eq!(&next["arguments"][key], value, "Continuation changed request field {key}");
+        }
+
+        let (_, recovered) = excerpt(&engram, recovery["arguments"].clone()).await;
+        assert_eq!(recovered["total_returned_lines"], 75);
+        assert_eq!(recovered["source_file_hash"], field["source_file_hash"]);
+        for (window, (start, end)) in recovered["windows"].as_array().unwrap().iter()
+            .zip([(248,272),(328,352),(408,432)]) {
+            assert_eq!(window["source_code"], source.lines().skip(start - 1)
+                .take(end - start + 1).collect::<Vec<_>>().join("\n"));
+        }
+
+        // Running a source read does not consume or advance the search action.
+        let continued = navigate(&engram, next["arguments"].clone()).await;
+        let suffix = &continued["current_source"];
+        assert_eq!(suffix["scan_start_line"], 660);
+        assert_eq!(suffix["matched_lines"], json!([660]));
+        assert_eq!(suffix["scan_complete"], true);
+        assert!(suffix.get("next_matches").is_none());
+        assert_eq!(suffix["source_file_hash"], field["source_file_hash"]);
+        assert_eq!(suffix["source_file_hash"], blake3::hash(source.as_bytes()).to_hex().to_string());
+        assert!(suffix["windows"].as_array().unwrap().iter().any(|window| {
+            window["source_code"].as_str().is_some_and(|code| code.contains("payload660"))
+        }));
+    });
+}
+#[test]
+fn codemap_literal_continuations_sample_each_hit_once_even_when_lookahead_was_inline_context() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/paged-policy.ts";
+        let mut lines = vec!["// context".to_owned(); 80];
+        for line in 20..=44 {
+            lines[line - 1] = format!("applyPolicy(payload{line});");
+        }
+        let source = lines.join("\n");
+        publish_named_sources(&engram, &search, &[(PATH, &source),
+            ("src/private/hidden.ts", "applyPolicy(hidden);"),
+            ("src/sibling.ts", "applyPolicy(sibling);")]).await;
+        let original = json!({"project_id":PID,"scope":PATH,"path_contains":"paged-policy",
+            "exclude_paths":["src/private","src/sibling.ts"],"limit":3,"offset":0,"symbol_offset":0,
+            "include_source":true,"include_declarations":false,"include_retained_context":false,
+            "source_contains":"applyPolicy("});
+        let mut arguments = original.clone();
+        let mut observed = Vec::new();
+        let mut starts = Vec::new();
+        for page_number in 0..4 {
+            let text = navigation_text(&engram, arguments.clone()).await;
+            assert!(text.len() <= 12 * 1024);
+            let page = navigation(&text);
+            let field = &page["current_source"];
+            assert!(serde_json::to_vec(field).unwrap().len() <= 8 * 1024);
+            assert_eq!(field["source_file_hash"], blake3::hash(source.as_bytes()).to_hex().to_string());
+            let start = field["scan_start_line"].as_u64().unwrap_or(1);
+            starts.push(start);
+            if start > 1 {
+                assert!(field["scan_scope"].as_str().unwrap().to_ascii_lowercase().contains("suffix"),
+                    "Completing a suffix must not assert a whole-file negative search");
+            }
+            observed.extend(field["matched_lines"].as_array().unwrap().iter().map(|line| line.as_u64().unwrap()));
+            if page_number == 3 {
+                assert_eq!(field["scan_complete"], true);
+                assert!(field.get("next_matches").is_none());
+                break;
+            }
+            assert_eq!(field["scan_complete"], false);
+            let lookahead = field["lookahead_line"].as_u64().unwrap();
+            assert!(field["windows"].as_array().unwrap().iter().any(|window| {
+                window["source_code"].as_str().is_some_and(|code| code.contains(&format!("payload{lookahead}")))
+            }), "The next sampled hit can already appear in the previous page's nearby context");
+            let next = &field["next_matches"];
+            assert_eq!(next["tool"], "get_codebase_overview");
+            assert_eq!(next["arguments"]["source_start_line"], lookahead,
+                "Continuation must include the unsampled lookahead rather than skip it");
+            for (key, value) in original.as_object().unwrap() {
+                if key == "offset" || key == "symbol_offset" {
+                    assert_eq!(next["arguments"][key].as_u64().unwrap_or(0), value.as_u64().unwrap(),
+                        "Continuation changed request field {key}");
+                } else {
+                    assert_eq!(&next["arguments"][key], value, "Continuation changed request field {key}");
+                }
+            }
+            let scope = field["next_matches_scope"].as_str().unwrap().to_ascii_lowercase();
+            assert!(scope.contains("fresh") && scope.contains("hash"));
+            assert_eq!(field["recovery"]["tool"], "get_full_method_body");
+            assert_eq!(field["recovery"]["arguments"]["line_start"], lookahead,
+                "Literal continuation supplements the existing current-source read");
+            arguments = next["arguments"].clone();
+        }
+        assert_eq!(starts, vec![1, 28, 36, 44]);
+        assert_eq!(observed, (20..=44).collect::<Vec<u64>>(),
+            "Following continuation actions must neither repeat sampled hits nor lose lookahead matches");
+    });
+}
+
+#[test]
+fn codemap_literal_continuation_reads_changed_current_source_instead_of_resuming_old_matches() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/changing-policy.ts";
+        let mut lines = vec!["// context".to_owned(); 70];
+        for line in 10..=34 {
+            lines[line - 1] = format!("applyPolicy(payload{line});");
+        }
+        let indexed = lines.join("\n");
+        publish_named_sources(&engram, &search, &[(PATH, &indexed)]).await;
+        let first = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+            "include_source":true,"include_declarations":false,"source_contains":"applyPolicy("})).await;
+        let action = &first["current_source"]["next_matches"];
+        assert_eq!(action["arguments"]["source_start_line"], 18);
+        lines[17] = "// removed since the first response".into();
+        lines[18] = "applyPolicy(updatedPayload);".into();
+        lines[59] = "applyPolicy(newLaterPayload);".into();
+        let current = lines.join("\n");
+        let root = std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(PATH), &current).unwrap();
+        let second = navigate(&engram, action["arguments"].clone()).await;
+        let field = &second["current_source"];
+        assert_eq!(field["scan_start_line"], 18);
+        assert_eq!(field["matched_lines"], json!([19,20,21,22,23,24,25,26]));
+        assert_ne!(field["source_file_hash"], first["current_source"]["source_file_hash"]);
+        assert_eq!(field["source_file_hash"], blake3::hash(current.as_bytes()).to_hex().to_string());
+        assert!(field["windows"].as_array().unwrap().iter().any(|window| {
+            window["source_code"].as_str().is_some_and(|code| code.contains("updatedPayload"))
+        }));
+        let third = navigate(&engram, field["next_matches"]["arguments"].clone()).await;
+        let last = navigate(&engram, third["current_source"]["next_matches"]["arguments"].clone()).await;
+        assert_eq!(last["current_source"]["matched_lines"], json!([60]));
+        assert_eq!(last["current_source"]["scan_complete"], true);
+        assert_eq!(last["current_source"]["source_file_hash"], field["source_file_hash"]);
+    });
+}
+
+#[test]
+fn codemap_literal_start_line_defaults_validation_and_empty_suffix_are_explicit() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/start-line.ts";
+        let source = "applyPolicy(first);\n// context\napplyPolicy(last);\n";
+        publish_named_sources(&engram, &search, &[(PATH, source)]).await;
+        let args = json!({"project_id":PID,"scope":PATH,"include_source":true,
+            "include_declarations":false,"source_contains":"applyPolicy("});
+        let missing = navigate(&engram, args.clone()).await;
+        for start in [Value::Null, json!(1)] {
+            let mut explicit = args.clone();
+            explicit["source_start_line"] = start;
+            assert_eq!(navigate(&engram, explicit).await, missing);
+        }
+        assert_eq!(missing["current_source"]["scan_start_line"].as_u64().unwrap_or(1), 1);
+        let mut suffix = args.clone();
+        suffix["source_start_line"] = json!(2);
+        let page = navigate(&engram, suffix.clone()).await;
+        assert_eq!(page["current_source"]["scan_start_line"], 2);
+        assert_eq!(page["current_source"]["matched_lines"], json!([3]));
+        assert_eq!(page["current_source"]["scan_complete"], true);
+        assert!(page["current_source"]["scan_scope"].as_str().unwrap().to_ascii_lowercase().contains("suffix"));
+        suffix["source_start_line"] = json!(4);
+        let eof = navigate(&engram, suffix).await;
+        assert_eq!(eof["current_source"]["scan_start_line"], 4);
+        assert_eq!(eof["current_source"]["status"], "not_observed");
+        assert_eq!(eof["current_source"]["matched_lines"], json!([]));
+        assert_eq!(eof["current_source"]["scan_complete"], true);
+        assert!(eof["current_source"].get("next_matches").is_none());
+        assert_eq!(eof["current_source"]["source_file_hash"], blake3::hash(source.as_bytes()).to_hex().to_string());
+        for start in [0, 5, u64::MAX] {
+            let mut invalid = args.clone();
+            invalid["source_start_line"] = json!(start);
+            assert!(engram.handle_get_codebase_overview(serde_json::from_value(invalid).unwrap()).await.is_err(),
+                "Start {start} must not be accepted for this three-line file");
+        }
+        for literal in [None, Some(Value::Null)] {
+            let mut invalid = args.clone();
+            invalid["source_start_line"] = json!(1);
+            if let Some(value) = literal {
+                invalid["source_contains"] = value;
+            } else {
+                invalid.as_object_mut().unwrap().remove("source_contains");
+            }
+            assert!(engram.handle_get_codebase_overview(serde_json::from_value(invalid).unwrap()).await.is_err(),
+                "A source start is meaningful only for literal inspection");
+        }
+    });
+}
+
+#[test]
+fn codemap_literal_next_matches_never_displaces_existing_source_or_read_recovery() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/continuation-pressure.ts";
+        const ANCHOR: &str = "applyPolicy(first); // padding";
+        let mut lines = vec!["// context".to_owned(); 60];
+        for line in 20..=28 {
+            lines[line - 1] = "applyPolicy(payload);".into();
+        }
+        lines[19] = ANCHOR.into();
+        let source = lines.join("\n");
+        publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+        let args = json!({"project_id":PID,"scope":PATH,"include_source":true,
+            "include_declarations":false,"source_contains":"applyPolicy("});
+        let initial = navigate(&engram, args.clone()).await;
+        let mut expected = initial["current_source"].clone();
+        assert_eq!(expected["next_matches"]["arguments"]["source_start_line"], 28);
+        expected.as_object_mut().unwrap().remove("next_matches");
+        expected.as_object_mut().unwrap().remove("next_matches_scope");
+        assert_eq!(expected["recovery"]["tool"], "get_full_method_body");
+        assert_eq!(expected["recovery"]["arguments"]["line_start"], 28);
+        // Fill the public source field with useful text, leaving insufficient
+        // room for an optional search action. Existing evidence owns its space.
+        let padding = 8120 - serde_json::to_vec(&expected).unwrap().len();
+        let padded_anchor = format!("{ANCHOR}{}", "x".repeat(padding));
+        let current = source.replacen(ANCHOR, &padded_anchor, 1);
+        let code = expected["windows"][0]["source_code"].as_str().unwrap().replacen(ANCHOR, &padded_anchor, 1);
+        expected["windows"][0]["source_code"] = json!(code);
+        expected["source_file_hash"] = json!(blake3::hash(current.as_bytes()).to_hex().to_string());
+        let root = std::path::PathBuf::from(engram.state.registry.get_project(PID).unwrap().unwrap().directory);
+        std::fs::write(root.join(PATH), &current).unwrap();
+        let text = navigation_text(&engram, args).await;
+        let actual = navigation(&text);
+        assert!(text.len() <= 12 * 1024);
+        assert_eq!(actual["current_source"], expected,
+            "An optional continuation must not replace existing inline text, rows, coverage or read recovery");
+        let (_, recovered) = excerpt(&engram, actual["current_source"]["recovery"]["arguments"].clone()).await;
+        assert_eq!(recovered["source_file_hash"], expected["source_file_hash"]);
+        assert!(recovered["source_code"].as_str().unwrap().starts_with("applyPolicy(payload);"));
+    });
+}
+
+#[test]
 fn codemap_literal_inspection_keeps_distant_callback_contexts_useful_under_source_pressure() {
     owned_case(true, |engram, search| async move {
         const PATH: &str="src/policy-responses.ts";

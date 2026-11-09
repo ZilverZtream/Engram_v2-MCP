@@ -505,6 +505,12 @@ pub struct CodebaseOverviewRequest {
     /// flow resolution or a project-wide search; omitted matches stay unknown.
     #[serde(default)]
     pub source_contains: Option<String>,
+    /// Optional inclusive current-file line at which to continue literal
+    /// inspection. Requires source_contains; positive, defaults to1. A
+    /// completed suffix scan does not establish whole-file absence. Each call
+    /// reads a fresh snapshot: compare source hashes before combining pages.
+    #[serde(default)]
+    pub source_start_line: Option<u64>,
     /// Scoped/filtered results page all matching file identities; unfiltered
     /// project-wide results page a diverse representative sample.
     #[serde(default)]
@@ -548,7 +554,7 @@ fn default_codemap_limit() -> usize { 8 }
 impl From<ProjectIdRequest> for CodebaseOverviewRequest {
     fn from(request: ProjectIdRequest) -> Self {
         Self { project_id: request.project_id, scope: None, exclude_paths: Vec::new(),
-            path_contains: None, include_declarations: true, include_retained_context: false, include_source: false, source_contains: None, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
+            path_contains: None, include_declarations: true, include_retained_context: false, include_source: false, source_contains: None, source_start_line: None, offset: 0, symbol_offset: 0, symbol_node_id: None, symbol_name: None, limit: default_codemap_limit() }
     }
 }
 
