@@ -1,0 +1,120 @@
+{
+  "status": "SINGLE_ORIGINAL_FULL_QA_ATTEMPT_PARTIAL_AFTER_DEPLOYED_METADATA_REDUCTION",
+  "at_utc": "2026-11-09T15:02:23.210488+00:00",
+  "source_commit": "e15d5724548d41d8a68479deb816c7e43318814e",
+  "candidate": "/root/compact_core_qa_birch",
+  "judge": "/root/compact_core_qa_judge",
+  "task": "Review the CURRENT automatic zoom and manual-override workflow in OciusX for QA coverage. Decide whether tests of ClassifyAutomatic alone are sufficient to sign off that workflow, and give the minimum backend-to-UI regression matrix you can justify from inspected code. Starting point: Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb, ClassifyAutomatic. No threshold change or application patch is proposed; do not invent one or edit application code. Distinguish direct calls, data dependencies and unresolved leads. Return concrete test setups and expected results, source path/line citations, and explicit uninspected/deployment limits. Keep the final answer at most1200words.",
+  "original_acceptance_criteria": [
+    "Identify the actual classifier and explain exact inclusive BOTH-count bands, first-fit ordering and fallback from current code.",
+    "Explain where prepared whole-file counts come from, how persistence/validation affects classification, and why viewport-sized counts must not substitute for them.",
+    "Explain nullable-count and manual-override precedence, pending policy, and metadata/discovery versus geometry gating, with expected boundary behavior.",
+    "Trace a representative backend JSON to client/editor path: policy consumption, editor constraints and save acknowledgment, stale-response handling. Separate inspected source linkage from deployment/runtime assumptions.",
+    "Produce a concrete expected-result regression matrix and a justified classifier-only sign-off decision. Cite inspected evidence for expectations, expose missing boundaries and avoid unsupported safety/completeness claims."
+  ],
+  "grades": [
+    "pass",
+    "partial",
+    "partial",
+    "partial",
+    "pass"
+  ],
+  "overall": "Partial completion of the requested workflow review. Correct classifier-only rejection and useful bounded tests; producer/persistence, discovery and backend JSON-to-editor coverage remain incomplete.",
+  "false_guidance": {
+    "material_contradictions_found": [],
+    "severity": "No material false numeric/state guidance found; minor qualification and citation-scope issues are listed per criterion.",
+    "citation_precision": [
+      "Client parameter serialization in the reset/string row is at C:1490, one line beyond its cited C:1442-1489 range. It was actually delivered in request 4, so this is a minor citation-range error, not withheld evidence."
+    ]
+  },
+  "costs": {
+    "setup_bytes": 19515,
+    "six_delivered_responses": 44183,
+    "external_refusal_bytes": 1181,
+    "aggregate_bytes": 64879,
+    "byte_cap": 65536,
+    "remaining_bytes": 657,
+    "relay_requests": 6,
+    "external_pre_dispatch_attempts": 1,
+    "aggregate_attempts": 7,
+    "request_cap": 8,
+    "remaining_attempts": 1,
+    "candidate_stopped_voluntarily": true,
+    "external_refusal_reason": "Candidate mistyped contract path; unchanged relay refused before task dispatch. Counted without resetting/replacing attempt.",
+    "source_current_checks": "All six delivered text lengths/hashes and request-file hashes verified; every recorded16source pre/post pin list identical. Judge independently checked exact relevant current source and credited delivered evidence only."
+  },
+  "terminal_state": {
+    "candidate_and_judge_complete": true,
+    "no_more_requests_authorized_for_this_attempt": true,
+    "raw_ledger_status_preserved": "READY",
+    "status_explanation": "Relay remains READY because candidate stopped before8requests; this external terminal receipt marks the completed attempt. Do not resume or alter the raw ledger.",
+    "pending_rpc": null,
+    "all_observers_closed": true,
+    "owned_relay_lock_present": false
+  },
+  "core_use": {
+    "get_codebase_overview_calls": 1,
+    "compute_blast_radius_calls": 1,
+    "impact_analysis_calls": 0,
+    "source_reads": 3,
+    "source_searches": 1,
+    "core_response_bytes": 24287,
+    "remaining_four_response_bytes": 19896,
+    "offered_120line_disjoint_source_read_accepted_by_unchanged_relay_guard": true,
+    "offered_read_not_executed_by_candidate": true,
+    "no_backend_defect_inferred_from_unselected_actions": true
+  },
+  "comparison_limits": [
+    "One known-task fresh assisted attempt with a changed setup; preserved source-only run is historical and sequential, not a new matched control.",
+    "Historical source-only preference and all previous results unchanged. No general or causal productivity advantage claimed.",
+    "Full workflow remains incomplete: count production/persistence, discovery enforcement, JSON-to-editor linkage and viewport stale-response behavior.",
+    "Candidate and judge historical AGENTS exposure recorded; judge incidentally saw contract metadata. No history-blind/universal-isolation claim.",
+    "Proposed regression cases were judged, not newly executed. No application edits or runtime workflow sign-off."
+  ],
+  "evidence": {
+    "-contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-contract.json",
+      "sha256": "20833fa42c89934465ad82d5ba66bee2dd92f7e1e22293075053fb09d28fede5"
+    },
+    "-bindings.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-bindings.json",
+      "sha256": "6a07df10bd08c3f87a5c586fde1f1b4929d1a0ea1ac98ed25ea1a0ed96c3a4ef"
+    },
+    "-readiness.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-readiness.json",
+      "sha256": "b8a8e039e18ab3f09aa0eb9cd6af6f26b0a0256bfc02d687c6641ca0b65e739e"
+    },
+    "-birch-setup.txt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-birch-setup.txt",
+      "sha256": "cc53cb98ead43204ea70d5fede0432dc20ee27c560e3ebe4900ac0926e123a14"
+    },
+    "-birch-private-ledger.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-birch-private-ledger.json",
+      "sha256": "1988560c2d76441e1a5606113e4971509347a346539a311dfb9274d72b6d0910"
+    },
+    "-birch-ledger.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-birch-ledger.json",
+      "sha256": "75c264d628a1a4b36aa2937e41e6e2b058f20a536d06365c78ef6a02297643f1"
+    },
+    "-birch-answer.txt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-birch-answer.txt",
+      "sha256": "f54db62b7aa7aea0da5decc24fc48fc4e34ae443cae0445e0d4d87126f1a4158"
+    },
+    "-birch-external-refusal.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-birch-external-refusal.json",
+      "sha256": "0ff32f43dd21c171ad6629add28f2f76ec842b5d5b0af8462fac7adb1161cc37"
+    },
+    "-quality-judgment.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-description-compact-qa-20261109-quality-judgment.json",
+      "sha256": "0084672e5dc84bc8bdcdaaf1fbe53bc7cf0c7edb9b0b432331991e722d95ce99"
+    }
+  },
+  "resources": {
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "no_new_fixtures_or_service_changes": true,
+    "retention": "Keep exact setup, requests, delivered responses, external refusal and independent answer/judgment. No preexisting deletion."
+  },
+  "original_scores_revised": false,
+  "full_task_complete": false,
+  "goal_complete": false
+}
