@@ -1,0 +1,79 @@
+{
+  "status": "FROZEN_ORIGINAL_FULL_QA_INCOMPLETE_NO_TASK_WIN",
+  "at_utc": "2026-11-09T20:27:37.878781+00:00",
+  "source_commit": "2213aaeab69826cf678138cee12a3a8abb107a6c",
+  "delivery_commit": "6418897",
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-view-delivery-20261109.json",
+    "sha256": "2b8bd712525be86762a327a746d548fd2b5077a3935303429e8bd94aabdc5e56"
+  },
+  "candidate": "/root/source_view_qa_ash",
+  "judge": "/root/source_view_independent_judge",
+  "fork_turns": "none",
+  "grades": [
+    "PASS",
+    "PARTIAL",
+    "PARTIAL",
+    "FAIL",
+    "PARTIAL"
+  ],
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-f-20261109.txt",
+    "sha256": "2a979d57ffed982ec383d0648c8f107f3289528fec338040e55f8929f93f2596"
+  },
+  "judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-full-qa-20261109-judgment.json",
+    "sha256": "491c576cad26ca861a4201bca1141fe3ac8bd03d123ee56cb678e8c079cd700c"
+  },
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-full-qa-20261109-contract.json",
+    "sha256": "888dcda6c65dccac1dadccd447d384fea6b30892ab1e76c798cfa625e97eca1f"
+  },
+  "publication": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-full-qa-20261109-publication.json",
+    "sha256": "df09ab79b835b630460081bfa6cc09878b0d51c8b192c5ef1b3477e580b36bf1"
+  },
+  "private_ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-full-qa-20261109-ash-private-ledger.json",
+    "sha256": "34e17e26a9cd73655885697cbbb108e13a7ae1b3d429fe87aafeaf4106cf0c75"
+  },
+  "retrospective": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-full-qa-20261109-retrospective.json",
+    "sha256": "9347f5ee3f803fb89224050cb40c518feb1910e67c714739640c87efa5b28904"
+  },
+  "actual_attempt": {
+    "requests": 3,
+    "successful_tool_responses": 2,
+    "delivered_utf8_bytes": 43481,
+    "setup_utf8_bytes": 21586,
+    "withheld_response_utf8_bytes": 22972,
+    "remaining_before_withheld_response": 22207,
+    "overflow_bytes": 765,
+    "third_request": "Ordinary source_read Spatial1..400; withheld in full by diagnostic byte cap.",
+    "selected_literal_actions_adopted": false,
+    "no_retry": true,
+    "original_requests_cap": 8,
+    "original_delivered_utf8_cap": 65536
+  },
+  "finding": "CodeMap/classifier/Resolve evidence correct, but whole-file count production and persistence, actual gating, backend JSON/editor/save/stale-response trace remain incomplete. Source/body navigation was offered; frozen candidate reports choosing a broader400line excerpt and underestimating bytes. No public tool defect or whole-task improvement established by this attempt.",
+  "comparison_limits": [
+    "Original task/rubric/caps preserved.",
+    "Setup wording clarified existing source_ranges capability; not a matched or causal comparison.",
+    "Previous outcomes frozen, not regraded.",
+    "Automatic AGENTS/environment exposure possible; no history-blind claim.",
+    "Independent judge found no false numeric expectations; selected executable source-slice checks NOT RUN after automatic approval review rejected action before execution with blocked by policy. No fixture created."
+  ],
+  "resources": {
+    "all16_sources_unchanged": true,
+    "two_observers_closed": true,
+    "pending_rpc": null,
+    "evaluation_owned_temp_created": false,
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain evidence with original release artifacts until exact-path cleanup is authorized."
+  },
+  "goal_complete": false,
+  "full_original_backlog_complete": false,
+  "original_full19gates_closed": false,
+  "fresh_agent_task_win_proven": false,
+  "next_scope": "Original CodeMap/Blast agent-usefulness queue remains active. Do not substitute another broad audit, supporting infrastructure, coached rerun or byte-count claim for delivery; this diagnostic alone does not justify another tool change."
+}
