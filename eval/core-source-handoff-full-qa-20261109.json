@@ -1,0 +1,135 @@
+{
+  "status": "FROZEN_ORIGINAL_FULL_QA_INCOMPLETE_NO_TASK_WIN",
+  "at_utc": "2026-11-09T19:22:03.579399+00:00",
+  "source_commit": "a18060d906d6235065c729c8fc2db61f18c149c5",
+  "installed_server_sha256": "9874cd9c8ffd01f53ff109ad0d7e68909b275ccea5c950a516512ff953ff7042",
+  "candidate": "/root/handoff_qa_spruce",
+  "judge": "/root/handoff_qa_judge",
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-e-20261109.txt",
+    "sha256": "0525bf1b7f63eed837ace628e8a2d024dbc8977c1d11d8adb233cf449c98d19c"
+  },
+  "judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-e-20261109-judgment.json",
+    "sha256": "2946ecb0ca792bd09968f3732a403662224c38b0e8a751467b783e72c5e66973"
+  },
+  "grades": [
+    "pass",
+    "partial",
+    "partial",
+    "fail",
+    "partial"
+  ],
+  "factual_errors": [],
+  "result": "Correct classifier/resolver matrix and candid limitations; required count persistence, geometry gating, JSON/client/editor, save acknowledgment and stale-response evidence still uninspected. Same five grades as the previous frozen attempt; not a matched comparison.",
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-full-qa-20261109-contract.json",
+    "sha256": "06336962623b402c075aa672bfda08166f9e3e0da7690721c39284e880a1be37"
+  },
+  "binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-full-qa-20261109-bindings.json",
+    "sha256": "0553a9c0d024f1c6c16230f4c9454d722c1258eb1aeccab5ee89e8dc16771dc3"
+  },
+  "publication": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-full-qa-20261109-publication.json",
+    "sha256": "2ec79df610980255ab0f808c007ddcbad6ec172ab2e8ae7c208a3307cda75a72"
+  },
+  "ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-full-qa-20261109-spruce-private-ledger.json",
+    "sha256": "8cf9c99cefae79d9080b35ec79f9bd56256f7f55f6eeeab2b862af0f5477daa0"
+  },
+  "public_ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-full-qa-20261109-spruce-ledger.json",
+    "sha256": "bd7dc2c7e1c4658c564e7eb7af652f5206cef8847f77af64321ed380c5f3c2ae"
+  },
+  "retrospective": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-full-qa-20261109-retrospective.json",
+    "sha256": "3bcc4e24d207407fc76150bbee8344da6f6ffc863efcfb6b779bcd796991af7d"
+  },
+  "execution": {
+    "requests": 3,
+    "request_cap": 8,
+    "setup_bytes": 21458,
+    "response_bytes": 24382,
+    "total_bytes": 45840,
+    "total_cap": 65536,
+    "terminal_status": "STOPPED_BYTE_BUDGET",
+    "requests_summary": [
+      {
+        "number": 1,
+        "request": {
+          "kind": "tool",
+          "tool": "get_codebase_overview",
+          "arguments": {
+            "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+            "scope": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+            "symbol_name": "ClassifyAutomatic",
+            "include_source": true,
+            "include_declarations": true,
+            "include_retained_context": false,
+            "limit": 1,
+            "exclude_paths": [
+              "Site/Q",
+              ".audit-20261104",
+              ".audit-20261105-dev",
+              ".audit-20261105-browser-background"
+            ]
+          }
+        },
+        "delivered_bytes": 12216,
+        "status": "RETURNED"
+      },
+      {
+        "number": 2,
+        "request": {
+          "kind": "tool",
+          "tool": "impact_analysis",
+          "arguments": {
+            "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+            "symbol_fqn": "sym:function:Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb:_vs.FileLayerZoomPolicy.ClassifyAutomatic:76",
+            "detail": "summary",
+            "max_depth": 6,
+            "limit": 12
+          }
+        },
+        "delivered_bytes": 12014,
+        "status": "RETURNED"
+      },
+      {
+        "number": 3,
+        "request": {
+          "kind": "source_read",
+          "arguments": {
+            "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+            "line_start": 1946,
+            "line_end": 2345
+          }
+        },
+        "delivered_bytes": 152,
+        "status": "RETURNED"
+      }
+    ],
+    "withheld_read_bytes": 20362,
+    "remaining_before_withheld_read": 19848,
+    "excess_bytes": 514,
+    "pending_rpc": false,
+    "tool_observers_closed": true,
+    "all16_source_pins_unchanged": true
+  },
+  "adoption": {
+    "promoted_cross_file_action_present_in_actual_impact": true,
+    "promoted_action_executed": false,
+    "actual_followup": "Ordinary400line Spatial1946..2345 read, withheld in full. Candidate retrospectively reports speculative backward expansion to cover count preparation/persistence and inadequately considering remaining bytes.",
+    "limits": "Post-answer recollection is not causal evidence. Diagnostic cap exhaustion is not a public tool malfunction."
+  },
+  "comparison_limits": [
+    "Known task; fresh fork-none agents can receive automatic workspace AGENTS/environment. No held-out/history-blind claim.",
+    "Preregistered two-step bootstrap+setup transport differs from previous inline delivery. Both charged;21458B setup is754B above previous20704B. The514B overflow is smaller than this deviation: old setup charge with these exact responses would leave20602B and admit20362B. This arithmetic is not a counterfactual task result.",
+    "Original task/rubric/8requests/65536B unchanged. Relay v3 corrects prior trailing-blank verification; previous outcomes remain frozen.",
+    "No retry, replacement candidate, changed rubric or favorable rescore. No release regression, comparative superiority or whole-task advantage inferred."
+  ],
+  "delivery_scope": "Installed source handoff remains verified; this attempt adds no task-level success and establishes no new backend defect. Do not present source/tests/prefix placement as completion.",
+  "goal_complete": false,
+  "next_work_constraint": "Continue original CodeMap/Blast navigation/witness/recovery priority. The same task remains incomplete; do not launch another prefix-only change or unchanged-behavior retry based on this result. Select substantive output/navigation work using actual source evidence and the original backlog.",
+  "resources": "Two live-tool observers closed, no pending RPC or active lock. No service restart, build, source mutation or temporary fixture during this evaluation. Evaluation artifacts retained only in the recorded diagnostics directory for reproducibility; prior artifacts and installed rollback pair retained."
+}
