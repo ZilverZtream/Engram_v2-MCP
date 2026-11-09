@@ -1,0 +1,110 @@
+{
+  "status": "FRESH_ORIGINAL_CLASSIFICATION_REPLAY_PARTIAL_NO_OVERALL_WIN",
+  "at_utc": "2026-11-09T08:36:09.930570+00:00",
+  "installed_implementation": "9b366345b3bc0f7f5f34ecc6c138351ceff2c311",
+  "task_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-classification-candidate-packet.json",
+    "sha256": "b072f68572b13bb4bc0d4c4690373c8a2cf1c99845d7d5badd93ff718235fb66"
+  },
+  "protocol": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-classification-protocol.json",
+    "sha256": "bf9865cfe28ec3a6b0f723bba3180e74b86fa0954cb142755aed401feea8832c"
+  },
+  "criteria": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-criteria.json",
+    "sha256": "8adbee9183ec67e4cf097f4ec7554fccad43da8d36ffcebee09a47ad3ba5be98"
+  },
+  "agent_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-classification-agent-binding.json",
+    "sha256": "73a6d406bd05be357b4c16a1e57f0678c330de8c4c32a9e577fae114177ababa"
+  },
+  "runtime_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-runtime-pins.json",
+    "sha256": "aec60a1227849f914ae9a1a532f726ac903ac4d9ed530ab18c03d02a0e4790a5"
+  },
+  "source_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-source-pins.json",
+    "sha256": "1068139467a9d87ff6c854cbac8d7f51124b475405ce944f6c4d273e11147013"
+  },
+  "ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-classification-ledger.json",
+    "sha256": "c19260458c29613443cfad41b10f1d911ca2bf47027ba1ef0dda5bfcac648348"
+  },
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-answer.txt",
+    "sha256": "d5546f5b1cfd7c8cf9645d3cc51e949b9785c0f6aa452289b60bbb1c7b598473"
+  },
+  "independent_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-full-classification-20261109-judgment.json",
+    "sha256": "d36e4ec9e7fe40958b435a0ce50d83b70d2b2c846dd3059607d1b23cad352eca"
+  },
+  "grades": [
+    "PASS",
+    "PASS",
+    "PASS",
+    "PARTIAL",
+    "PARTIAL"
+  ],
+  "actual_cost": {
+    "calls": 8,
+    "returned_text_utf8_bytes": 64315,
+    "caps": {
+      "calls": 8,
+      "returned_text_utf8_bytes": 65536
+    },
+    "setup_outside_original_cap": true,
+    "free_initial_report": false,
+    "exact_offered_actions_selected": [
+      3,
+      5
+    ]
+  },
+  "previous_replay": {
+    "tracked_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-ranges-full-classification-20261109.json",
+      "sha256": "9f7fcb485eee1ba7c225699cf4a94f3448417af365dcbf9af3545dbf3c4e3e03"
+    },
+    "grades": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PARTIAL",
+      "PASS"
+    ],
+    "calls": 8,
+    "returned_text_utf8_bytes": 63958,
+    "new_minus_previous_bytes": 357,
+    "comparison_limit": "Different query/source choices; neither causal tool improvement nor causal regression established. New observed answer has one additional PARTIAL. Original outcomes remain unchanged."
+  },
+  "remaining_gaps": [
+    {
+      "criterion": 4,
+      "reason": "Substantial backend and TS segments are source-backed, including override-first effective zoom and stale-policy guards, but no representative HTTP/JSON-to-TS route is fully closed and actual editor effects are not explained from returned source.",
+      "gaps": [
+        "Missing BuildDescriptor URL -> _buildUrl -> viewport=1 dispatch join.",
+        "Missing Resolved -> AppendJson -> viewport/MetaOnly/simple-result JSON field join.",
+        "Discovery helper execution/metadata completion was not inspected; only invocation, gate helpers and indexed lead were returned.",
+        "No current mapLayer.ts editor source: automatic band controls selectable minimum, pending state, labels and unavailable saved/draft values.",
+        "No current setZoomOverride save/reset/rollback/acknowledgement path; preserving override precedence is established, full editor-save behavior is not."
+      ]
+    },
+    {
+      "criterion": 5,
+      "reason": "The bounded threshold-only plan and proposed checks cover every named behavior family, with good omitted-caller and runtime caveats. Configuration and build-output uncertainty are only implicit; no explicit statement establishes that configured endpoint/loading mode and deployed/generated JavaScript correspondence remain unknown.",
+      "gaps": [
+        "Naming an uninspected map.js lead and saying builds were not run does not explicitly address whether generated/deployed assets correspond to the inspected TypeScript.",
+        "Configured LayerDownloadUrl, actual viewport-loading setting and live runtime mode are not identified as separately unverified configuration dependencies.",
+        "Editor-specific checks cannot be concrete without the missing editor path; generic labels/override-save checks remain useful proposals, not established coverage."
+      ]
+    }
+  ],
+  "interpretation": "The new connected source action was used and QueryCache bridge recovered. Overall task remains partial; no quality, efficiency or general productivity win. Known-task replay, not held-out or strict-blind. No original finding/gate closure.",
+  "next_selected_work": "Continue original CodeMap/Blast navigation and recovery queue. Inspect the actual incomplete literal-source scan and its offered recovery against independent source before choosing a further implementation. Do not expand caps or launch broad sidecar/catalog/performance work.",
+  "resources": {
+    "all_observer_pipes_closed": true,
+    "pending_rpc": null,
+    "source_config_index_service_mutations": false,
+    "retention": "Retain exact requests/replies, ledger, binding, pins, answer, judgment and relay in the single recorded diagnostics directory for review. No new fixture tree; no preexisting deletion."
+  },
+  "goal_complete": false
+}

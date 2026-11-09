@@ -171,9 +171,13 @@
     "retained_candidate_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-cold-v1-20261109",
     "cleanup_condition": "Retain package/evidence and exact installer backup/journals for review; no preexisting folders removed or authorized for deletion."
   },
-  "full_task_status": "PARTIAL_UNCHANGED_PENDING_FRESH_REPLAY",
+  "full_task_status": "Fresh replay remains PARTIAL: three PASS/two PARTIAL, eight calls/64315 returned UTF-8 bytes; no overall win.",
   "fresh_agent_task_win_proven": false,
   "original_full19gates_closed": false,
   "goal_complete": false,
-  "next_selected_work": "Replay the unchanged original classification task with the same eight-call/65536-byte cap, then address the remaining concrete HTTP/JSON/editor recovery gaps from actual outputs."
+  "next_selected_work": "Continue original CodeMap/Blast navigation and recovery queue. Inspect the actual incomplete literal-source scan and its offered recovery against independent source before choosing a further implementation. Do not expand caps or launch broad sidecar/catalog/performance work.",
+  "full_task_replay": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-impact-source-routes-full-classification-20261109.json",
+    "sha256": "2860d194256398f64be6bc2640edfdd08b860dc99301650e940aab4cf290840a"
+  }
 }
