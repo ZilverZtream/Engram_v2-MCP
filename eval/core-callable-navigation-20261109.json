@@ -1,5 +1,5 @@
 {
-  "status": "TESTED_REVIEWED_NATIVE_BUILD_PENDING",
+  "status": "DEPLOYED_NORMAL_VERIFIED_CALLABLE_NAVIGATION",
   "at_utc": "2026-11-09T22:49:24.544413+00:00",
   "base_commit": "7787b2c",
   "selected_gap": "Actual named endpoint source calls UpdateZoomOverride but CodeMap discards callable targets from its existing outgoing Calls scan. Existing AST tool supplies identities; impact independently admits the persistence target and endpoint edge at source393. No indexed edge or binding inferred from names.",
@@ -23,6 +23,14 @@
     "review": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-review-20261109.json",
       "sha256": "ace1a88344e7d63d591b1685592a10e62e2a0c4d0910bf4bcce9ee480b04bc45"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-normal-v1.json",
+      "sha256": "1d56baf4e0d4ce07071136bbc50c12c003a5cc1aa1d4ada97f4746d64e012248"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-cold-v1\\acceptance.json",
+      "sha256": "8fa5b42a29d76addd709078c05bce19a6328b9f6b5a532e7a0ef6f0df7c87bca"
     }
   },
   "implementation": [
@@ -39,7 +47,6 @@
     "source_cap_bytes": 12288,
     "existing_objects_preserved": true
   },
-  "runtime_acceptance_pending": "Existing37calls preserve all prior source/metadata/property facts after removing only newcalled_declarations. Endpoint metadata exposes admitted UpdateZoomOverride action; execute it and compare current source/hash306..348, plus endpoint source view. Normal and cold runtimes must pass; not yet built/deployed.",
   "full_task_status": "Original PASS/PARTIAL/PARTIAL/FAIL/PARTIAL frozen. No retry, rescore, comparative benefit or overall goal completion claimed.",
   "resources": {
     "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
@@ -49,6 +56,8 @@
   "tests": {
     "graph": 11,
     "server": 52,
-    "runtime_acceptance_pending": true
-  }
+    "runtime_acceptance_pending": false
+  },
+  "source_commit": "27ee2e54b6bdeecb89dbdbd9d8c5cea420edbb85",
+  "runtime_acceptance": "Cold40 and installed normal40 passed: prior37fields exact after removing only new top-level called_declarations, all150definitions unchanged, actual endpoint metadata includes admitted persistence target/action and returned306..348source hash.17sourcepins unchanged. Not a full-task win."
 }

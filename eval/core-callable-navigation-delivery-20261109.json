@@ -1,0 +1,135 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_CALLABLE_NAVIGATION",
+  "at_utc": "2026-11-09T23:15:04.023136+00:00",
+  "source_commit": "27ee2e54b6bdeecb89dbdbd9d8c5cea420edbb85",
+  "server_sha256": "8c2951a7acf91bd96759d65876d9e9ae208d7ccc00285d9569649c5dce2fc84a",
+  "manifest_sha256": "e887f77dfc8d7e4dbf7df3d05fb986b50d7b58a312b117a6f628cdc57d82c19f",
+  "source_generation": 3139,
+  "primary": {
+    "pid": "51552",
+    "started_at_ms": "1794265849968",
+    "protocol_version": "1",
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+    "version": "0.1.0"
+  },
+  "implementation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-callable-navigation-20261109.json",
+    "sha256": "4f1536c2e84cd203affc487d41e4bb286eacd1e9e01c97baf65ab15a5a9ac5e5"
+  },
+  "evidence": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-shipping-20261109.json",
+      "sha256": "4c572c961ef4589be0552dee07d40af46dbdfe6c038a10876a6589fe7db3d0f7"
+    },
+    "build_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-build-artifact.json",
+      "sha256": "1b367a29ed6e2db3d97d89545b53cc2b7d5124525cdaa22e7e48844703c8d9ab"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-paired-package.json",
+      "sha256": "aeee6d0725a0ce2e35e079553d3a86afee9cf60cd006c5eb75f47950cbc90c82"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-cold-v1\\acceptance.json",
+      "sha256": "8fa5b42a29d76addd709078c05bce19a6328b9f6b5a532e7a0ef6f0df7c87bca"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-normal-v1.json",
+      "sha256": "1d56baf4e0d4ce07071136bbc50c12c003a5cc1aa1d4ada97f4746d64e012248"
+    },
+    "graph_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-graph-tests-20261109.json",
+      "sha256": "d3947b9aabaea1a2f4bb888c8a31c590018d67509af78ebdeb13dab6866e1e1b"
+    },
+    "server_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-server-tests-20261109.json",
+      "sha256": "ca60c9c9e9ab81f9c8773c0408876eab94c12e80dcfa8729943d83594a8f4323"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-review-20261109.json",
+      "sha256": "ace1a88344e7d63d591b1685592a10e62e2a0c4d0910bf4bcce9ee480b04bc45"
+    },
+    "helpers_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-helpers-review-20261109.json",
+      "sha256": "ae4929f9766880e3dd0975f917194a8ea1fa2ff0a554b09a592a06fc9841ab1f"
+    },
+    "normal_preflight_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-normal-preflight-correction.json",
+      "sha256": "4e9e10bbc715ec1a4045a6e1f439c0a20b288d4f7f9433e4ecfdfff20ba68913"
+    },
+    "normal_preflight_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-helpers-review-20261109-normal-preflight-addendum.json",
+      "sha256": "21e79de7c8b995cd09ca80775bfd93a0d79e3d16bb8f12e5bca2c284e934c594"
+    },
+    "gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-release-gates.json",
+      "sha256": "e348cda4ceea5156570bbb9e2e34b81870d86c26ab6539e1d39e956e32a6f8f8"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-upgrade.json",
+      "sha256": "4caba2d5967b17c225849b8429dbd7ec2bd8420cc1d135d24ff558801b763de6"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-config-hold-20261109.json.released.json",
+      "sha256": "59facc7e26c3268c2e148bc92c6c4007e4f1e9834e8fa70bf31253d6509a0922"
+    },
+    "normal_drain": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-callable-navigation-20261109-normal-drain.json",
+      "sha256": "1dfde60b0c3c76864794694a68e531fd31e3c48dccbd9f1d16b368046827a07e"
+    }
+  },
+  "actual_behavior": {
+    "endpoint_metadata_bytes": 19071,
+    "admitted_callees": 14,
+    "omitted_observed_candidates": 0,
+    "omitted_display_rows": 0,
+    "target": "sym:function:Site/App_Code/visualisering/code/visualisering-kml-filer.vb:_vs.kmlfiler.UpdateZoomOverride:306",
+    "source_reference_line": 393,
+    "physical_source_target_edge_generation": 3139,
+    "returned_source_range": [
+      306,
+      348
+    ],
+    "returned_source_bytes": 3952,
+    "endpoint_source_view_bytes": 10645,
+    "source_view_prior_bytes": 10372,
+    "navigation_route": "Existing source metadata_recovery -> admitted callee literal source_read -> actual current persistence body. No file search or extra AST tool required for this offered recovery.",
+    "limits": "Coverage remains partial. Indexed Calls do not prove receiver binding/value flow/runtime. This administrative sequence is not a fresh task retry or evidence that the original8request/65536byte task succeeds."
+  },
+  "verification": {
+    "graph_tests_passed": 11,
+    "server_tests_passed": 52,
+    "cold_calls_passed": 40,
+    "normal_calls_passed": 40,
+    "original37_response_facts_preserved": true,
+    "all150_tool_definitions_unchanged": true,
+    "all17_current_source_pins_root_rechecked": true,
+    "normal_preflight_failure_preserved": "Old observer helper required4sourcefiles; failed before RPC. Exact pinned17mapping correction reviewed; same service and no candidate/task retry."
+  },
+  "resources": {
+    "native214_assets_unchanged": true,
+    "configuration_unchanged": true,
+    "build_and_test_fixtures_removed": true,
+    "cold_fixture_removed": true,
+    "observer_closed": true,
+    "pending_rpc": null,
+    "hold_released": true,
+    "daemon_was_not_signaled": true,
+    "codex_host_was_not_signaled": true,
+    "proxy_processes_stopped": [
+      58596,
+      58040
+    ],
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-bf13ec6a66e541039e5a564085d33359",
+    "retention": "Retain package, acceptance, helpers, rejected preflight helper and old installed pair until exact-path cleanup authorized. No preexisting folder deleted."
+  },
+  "original_full_task_grades": [
+    "PASS",
+    "PARTIAL",
+    "PARTIAL",
+    "FAIL",
+    "PARTIAL"
+  ],
+  "original_outcomes_unchanged": true,
+  "goal_complete": false
+}

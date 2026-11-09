@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T22:49:24.544413+00:00",
-    "reason": "Bounded CodeMap callable recovery implemented and independently reviewed. Graph11 and server52 behavior tests passed with unchanged compiled inputs and owned resources removed. Native build, cold/normal acceptance and deployment remain pending; full-task failures unchanged.",
+    "at_utc": "2026-11-09T23:15:04.023136+00:00",
+    "reason": "27ee2e5 is deployed and normal-verified. CodeMap endpoint metadata exposes14admitted callable identities including UpdateZoomOverride; its literal action returned exact persistence306..348. Graph11/server52tests and cold40/normal40calls passed; original37facts and150definitions preserved. Full original task outcome remains incomplete.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. Named-source miss recovery is delivered; the full backend-to-UI task and comparative usefulness remain unfinished.",
-    "next_user_visible_deliverable": "Finish callable-navigation server behavior tests, native build and cold/normal acceptance. Execute actual metadata-returned UpdateZoomOverride source action; preserve existing37responses and full-task failures. Do not reopen rejected source-profile/schema tuning.",
+    "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. Named-source and callable navigation are delivered; full backend-to-UI task and comparative usefulness remain unfinished.",
+    "next_user_visible_deliverable": "Continue remaining original workflow evidence, using delivered callable links rather than new presentation work. Resolve uninspected viewport HTTP delivery and stale-response predicates/cleanup using actual tool-returned actions checked against source. Preserve frozen task failures/caps; no fresh retry or favorable rescore. Select further code only for a demonstrated core navigation, witness or recovery gap.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: actual endpoint/client source acquired, indexed persistence edge independently admitted, selected CodeMap callable recovery implemented and graph11tests passed. Overall agent task remains incomplete.",
+    "previous_goal_turn_classification": "Progress: actual endpoint/client source and indexed persistence witness established a missing CodeMap callee recovery; implemented, tested, built and deployed it, then executed the offered persistence read in cold and normal runtimes. Original task failures remain preserved.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11506,7 +11506,11 @@
     },
     "selected_callable_navigation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-callable-navigation-20261109.json",
-      "sha256": "a6c7c1f44c23aac2a3bc6640d7aac231a05521697bc35f96025efa6810aed288"
+      "sha256": "4f1536c2e84cd203affc487d41e4bb286eacd1e9e01c97baf65ab15a5a9ac5e5"
+    },
+    "latest_callable_navigation_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-callable-navigation-delivery-20261109.json",
+      "sha256": "c65a1842f9693b7c371eece7ceb5b7c14cd0247bc3abd98c17933696cb763917"
     }
   }
 }
