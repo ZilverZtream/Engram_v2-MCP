@@ -1,0 +1,270 @@
+{
+  "status": "SELECTED_RESPONSE_APPLICATION_SOURCE_FOLLOWTHROUGH_VERIFIED_NO_NEW_PRODUCER_DEFECT",
+  "at_utc": "2026-11-09T11:10:38.280101+00:00",
+  "selected_original_work": "CodeMap/Blast navigation for the original automatic-classification backend-to-client consumption requirement.",
+  "independent_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-verification-20261109.json",
+    "sha256": "a592006cd671f2fe5bb0b0a1856fef8fc405f6b636a2d5d593ce74adb3c58cfe"
+  },
+  "new_observation_cost": {
+    "calls": 3,
+    "returned_utf8_bytes": 32243,
+    "separately_informed_outside_all_original_capped_runs": true
+  },
+  "frozen_observation_caps": {
+    "calls": 4,
+    "returned_utf8_bytes": 32768,
+    "completed_at": {
+      "calls": 3,
+      "returned_utf8_bytes": 32243
+    }
+  },
+  "probes": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-probe-1-20261109.json",
+      "sha256": "1428906419a222bce0d8b743ba1b9085f815ea2007922cbe4b6573f68527662d"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-probe-2-20261109.json",
+      "sha256": "a9a45faabf17863e4ef92365f4f18aa4ba4e3e3a1e51d9d29735402ca8b37f0f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-probe-3-20261109.json",
+      "sha256": "d43d875df6a263d35567f80596035006831cf2cf0b74e497380e8a3a3b42638e"
+    }
+  ],
+  "observer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-observer-20261109.py",
+    "sha256": "26a043a1699c4b2a9da90b56a8fc423b34d2656893b1310ee006e2bcd4d2564e"
+  },
+  "request_files": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-request-1-20261109.json",
+      "sha256": "c9e5a2b9a1888ad27e81a8ea42ac53b74619046c75e8a686dcdd2fa4c94ba88b"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-request-2-20261109.json",
+      "sha256": "77f0f0dd369c1d910eccf69804f88c6140d7a5876e7f770fca3c68849876726c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-request-3-20261109.json",
+      "sha256": "002b4dd022c5f8c5227e1e6256ff9c2ee9e05dbe2ac90c988685f6186b1cf62b"
+    }
+  ],
+  "navigation_adoption": {
+    "probe1_exactly_executes_original_R5_next_matches": true,
+    "probe2_source_derived_name": "_applyResponse observed at TS475 in probe1",
+    "named_lookup_result": {
+      "canonical_node_id": "sym:function:Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts:_applyResponse:523",
+      "indexed_bounds": [
+        523,
+        558
+      ],
+      "physical_generation": 3138,
+      "observed_candidates": 1,
+      "independent_source_declaration_and_closing_brace_match": true,
+      "complete_body_present_in_current_excerpt": true,
+      "source_action": {
+        "arguments": {
+          "context_lines": 0,
+          "file_path": "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts",
+          "line_end": 558,
+          "line_start": 523,
+          "output_json": true,
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+        },
+        "tool": "get_full_method_body"
+      }
+    },
+    "next_current_source_page": {
+      "arguments": {
+        "context_lines": 0,
+        "file_path": "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts",
+        "include_caller_bodies": false,
+        "line_start": 601,
+        "output_json": true,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      },
+      "tool": "get_full_method_body"
+    },
+    "symbol_actions_not_executed": [
+      "get_full_method_body523..558",
+      "impact_analysis",
+      "get_method_edit_context"
+    ]
+  },
+  "source_verified_chain": [
+    {
+      "stage": "Serializer",
+      "anchors": [
+        "Spatial2262..2272",
+        "Spatial2584..2608",
+        "ZoomPolicy383..394"
+      ],
+      "evidence": "Retained source: resolved policy forwarded into metadata JSON, serialized policy fields and resulting text assigned to ViewportResult.Json."
+    },
+    {
+      "stage": "HTTP",
+      "anchors": [
+        "kmlquery.aspx.vb228..240"
+      ],
+      "evidence": "Retained executed source read: QueryViewport result.Json -> UTF8 bytes -> application/json -> OutputStream.Write; network/runtime success not claimed."
+    },
+    {
+      "stage": "Client policy",
+      "anchors": [
+        "TS442..475",
+        "TS259..277"
+      ],
+      "evidence": "Retained viewport fetch and JSON parse plus current continuation: typed payload undergoes disabled/current-generation checks, policy version/save checks and gate update before _applyResponse."
+    },
+    {
+      "stage": "Response state application",
+      "anchors": [
+        "TS523..558"
+      ],
+      "evidence": "New named CodeMap includes complete state switch: ready delegates to _applyReadyResponse, preparing clears/schedules retry, zoomRequired clears, tooMuchDetail marks overflow, disabled latches, default clears and reports error."
+    },
+    {
+      "stage": "Ready handling boundary",
+      "anchors": [
+        "TS573..600"
+      ],
+      "evidence": "Only beginning returned: ready-payload validation, sublayer preparation and insertion-plan caps; remaining renderer uninspected/unclaimed."
+    }
+  ],
+  "prior_evidence_and_separate_costs": [
+    {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-classification-ledger.json",
+        "sha256": "b8c56951d735e7a3ec0dc3dda27caf0d74ee93dfa23612a661ad92ad0ebe228f"
+      },
+      "calls": [
+        {
+          "number": 2,
+          "bytes": 12072,
+          "scope": "Existing impact source_routes offers exact HTTP195..256 read."
+        },
+        {
+          "number": 3,
+          "bytes": 7543,
+          "scope": "Spatial QueryViewport/QueryCacheCore/ResolvePolicy current ranges."
+        },
+        {
+          "number": 4,
+          "bytes": 5008,
+          "scope": "Executes exact HTTP195..256 source read; result.Json to UTF8 OutputStream.Write."
+        },
+        {
+          "number": 5,
+          "bytes": 10060,
+          "scope": "Original effectiveMinZoom literal page offers next_matches now executed in probe1."
+        },
+        {
+          "number": 8,
+          "bytes": 5157,
+          "scope": "TS278..357 includes metadata fetch327 and response.json332."
+        }
+      ],
+      "accounting": "Already charged within frozen8-call62770-byte classification run; not rescored."
+    },
+    {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-serializer-navigation-probe-20261109.json",
+        "sha256": "1e4b9852c2b192aa437dddb74abe62e2a3a90c46a312d0f96933fabeeee8d77c"
+      },
+      "returned_utf8_bytes": 12241,
+      "scope": "Spatial2521..2627: BuildMetaOnlyJson policy forwarding and returned serialized text.",
+      "accounting": "Prior separately informed observation, outside original capped run; not newly incurred."
+    },
+    {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-policy-fields-navigation-probe-20261109.json",
+        "sha256": "8ac26b821cc221c15a25d29e17895afe6135ba86b8537a2bcff92a9aa5f70dd0"
+      },
+      "returned_utf8_bytes": 8369,
+      "scope": "ZoomPolicy361..416: policy fields and null serialization.",
+      "accounting": "Prior separately informed observation, outside original capped run; not newly incurred."
+    },
+    {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-editor-budget-probe-20261108-reply-2.json",
+        "sha256": "150bde004fd070a1d677723c227bbac042278dc322cc49e6fd7cc8513a1d98dd"
+      },
+      "returned_utf8_bytes": 5286,
+      "scope": "TS400..473: viewport fetch442,response.json447 and policy application461.",
+      "accounting": "Prior separately informed observation, outside original capped run; not newly incurred."
+    },
+    {
+      "artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-classification-config-build-guided-20261108.json",
+        "sha256": "51cd3f57fa0be706daf3ee5e23d3ab7115799b61ec521716fd06e45cdf04d381"
+      },
+      "call": 1,
+      "returned_utf8_bytes": 2872,
+      "scope": "TS1136..1152 URL construction; existing configuration/descriptor/dispatch linkage in tracked config-build outcome.",
+      "accounting": "Prior oracle-guided read; not autonomous discovery or new capped-run credit."
+    }
+  ],
+  "related_tracked_outcomes": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-classification-config-build-outcome-20261108.json",
+      "sha256": "f8ad4a8a94e5e443568ecafc04e76392b61f4dd9fdfc43071c0dedf3fcafcfc3"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-classification-serializer-navigation-outcome-20261109.json",
+      "sha256": "8f0e4efdf65215847302b2e4437c0d2e459cf26f6db39e76571f851e8edd47ed"
+    }
+  ],
+  "decision": {
+    "selected_representative_source_followthrough_complete": true,
+    "concrete_unavailable_or_misleading_bridge_demonstrated": false,
+    "new_producer_fix_justified": false,
+    "original_task_rescored": false,
+    "full_renderer_audit_performed": false,
+    "goal_complete": false
+  },
+  "limits": [
+    "Combines separately retained original, informed and guided observations; not one budgeted agent run or comparative productivity evidence.",
+    "Current raw hashes and text agree, but source/index/generation metadata do not establish compiler binding, runtime HTTP delivery, emitted JavaScript identity or browser execution.",
+    "Published source_generation3139 admits inherited TS physical_generation3138; these are distinct facts, not a source freshness contradiction.",
+    "Probe1 scans an inclusive suffix and preserves explicit omitted source windows1270..1294 and1689..1714; those were not read by these two observations.",
+    "The named current excerpt481..600 contains the complete target523..558 but only partial ready-handler573..600. No full renderer, editor, dynamic-consumer or complete value-flow claim.",
+    "Existing original classification partial outcomes and all broader original gates remain unchanged."
+  ],
+  "observer_print_error": {
+    "reported_by_root": "Probe1 display code accessed source_code on an explicitly omitted window and raised KeyError after successful raw response retention.",
+    "classification": "Observer presentation error, not public tool failure.",
+    "independent_evidence": "Raw response and text/hash/bytes are complete and consistent; both public probes have isError=false, errors=[], closed observer and no pending RPC. Omitted windows remain omitted and carry recovery actions."
+  },
+  "resources": {
+    "new_fixture_tree": false,
+    "rpc_by_this_verifier": 0,
+    "source_index_config_service_changes_by_this_verifier": false,
+    "both_probe_observers_closed": true,
+    "pending_requests": 0,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain probes and this verification for review; no existing files deleted or runtime resources acquired.",
+    "normal_daemon_pid": 13256,
+    "normal_service_restart_performed": false,
+    "new_public_calls": 3,
+    "all_observers_closed": true,
+    "normal_daemon_owns_lifetime": true
+  },
+  "goal_complete": false,
+  "impact_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-impact-verification-20261109.json",
+    "sha256": "6aa3981fc79847874204e2f8674c75dee0c7f803044deb910a2060c32c2bcd94"
+  },
+  "impact_observer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-response-application-observer-v2-20261109.py",
+    "sha256": "42663b282d049a9c2e857f0a3f97ce91021c8c2b2fc3a821f1eee70180d2a6f2"
+  },
+  "impact_result": "Exact offered impact action identifies _fetchViewport432..487 as immediate caller; current source confirms _applyResponse invocation475. Coverage gaps remain explicit; broader transitive binding was not verified. No producer defect demonstrated.",
+  "delivery_boundary": {
+    "core_fixes": "Delivered for the demonstrated defects; no further implementation selected from these successful recovery receipts.",
+    "next_original_requirement": "EG-24 regular actual accepted-task verification, already named in the November8 core-delivery checkpoint.",
+    "next_action": "Close repeated static classification/cancellation followthroughs. Resume original EG-24 accepted-task verification using the existing frozen_task_run collector and original four-category protocol; distinguish actual current-tool/model execution from saved-run checks. Deliver an executable regular verification path and its real result, without a new evaluation framework, altered acceptance criteria or replaying the same narrow cases. Keep EG-25 comparative limitations and parked work explicit.",
+    "not_progress_claim": "This branch supplies verification evidence, not a new production fix or a demonstrated general productivity improvement."
+  }
+}
