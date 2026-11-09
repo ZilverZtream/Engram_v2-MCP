@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T21:11:20.447777+00:00",
-    "reason": "File-member navigation a85feb7 deployed. ActualfileBlast exposes11retainedmembers/0directoryomissions within11379B; literalResolve/AppendJson/TryParseOverride actions checked. Cold33+normal33PASS after narrowversionedverifiercorrection; priorfullQA unchanged.",
+    "at_utc": "2026-11-09T21:43:54.857787+00:00",
+    "reason": "Fresh Elm and one controlled original-task path remain incomplete. Separate actual ReadMeta lookup proves named-miss source preview spends10525B on unrelatedfilehead before useful5796B literal recovery; fix reuses that existing recovery immediately without expanding graph/catalog work.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. File-member branch discovery gap delivered; original full-task and comparative-usefulness requirements remain incomplete.",
-    "next_user_visible_deliverable": "Continue original agent-work completion requirements without another broad audit, coached retry, or task-win claim from directory counts.",
+    "active_original_item": "CodeMap/Blast original agent-usefulness queue: finish and deploy automatic bounded literal source inspection for named CodeMap misses; preserve all original full-task failures.",
+    "next_user_visible_deliverable": "Build, install and verify actual named ReadMeta recovery after50 focusedbehavior tests passed. Preserve original full-task failure and scope of lexical recovery; no generic output claim or fresh retry.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: deployed2213aae and froze independently judged incomplete originaltask; subsequentactualfilegraph identified distinct branch-navigation gap.",
+    "previous_goal_turn_classification": "Previous user-facing status turn: no progress. Current continuation: new original-task evaluation completed and independently judged; evidence rejects a speculative follow-up patch.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11475,6 +11475,14 @@
     "latest_file_member_navigation_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-file-member-navigation-delivery-20261109.json",
       "sha256": "79d3ae53111d504ab348e355d203a73ae09a4054e4ac4be2530305b19da12e13"
+    },
+    "latest_member_task_full_qa": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-member-task-20261109.json",
+      "sha256": "b5c314d580e4cc5a4b6cf29a3afc0eae1825509ab0caa05cc8cfa9c806d2f658"
+    },
+    "latest_named_source_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-named-source-recovery-20261109.json",
+      "sha256": "6adf4c0deeb11917b283766b6e17d347587bf4880892111b97867020ca7dd805"
     }
   }
 }
