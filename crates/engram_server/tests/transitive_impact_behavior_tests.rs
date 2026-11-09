@@ -3736,3 +3736,192 @@ fn file_impact_deeper_inventory_cannot_erase_first_hop_connections() {
         }
     });
 }
+
+
+#[test]
+fn file_member_navigation_opens_distinct_branches_and_counts_admitted_callers_once() {
+    owned_case(|fixture| async move {
+        const MEMBERS: &str = "src/member_directory.rs";
+        const READERS: &str = "src/member_readers.rs";
+        const OTHER: &str = "src/other_member_readers.rs";
+        let members = "pub fn Fetch() {}\npub fn Format() {}\npub fn Validate() {}\npub fn Unused() {}\n";
+        let readers = "pub fn Shared() { Fetch(); Format(); }\npub fn FetchOnly() { Fetch(); }\npub fn ThroughExternal() { External(); }\n";
+        let other = "pub fn FormatAndValidate() { Format(); Validate(); }\npub fn External() { Fetch(); }\n";
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID, 2, 3,
+            &[RelPath::new(MEMBERS), RelPath::new(READERS), RelPath::new(OTHER)], &[], &cancel).await.unwrap();
+        fixture.search.index_docs(PID, &[
+            source_doc(3, 710, MEMBERS, members), source_doc(3, 711, READERS, readers),
+            source_doc(3, 712, OTHER, other),
+        ], &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        for (path, body) in [(MEMBERS, members), (READERS, readers), (OTHER, other)] {
+            std::fs::write(fixture.root.join(path), body).unwrap();
+        }
+        let mut nodes = vec![file_node(MEMBERS, members, 3), file_node(READERS, readers, 3), file_node(OTHER, other, 3)];
+        for (path, name, line) in [(MEMBERS, "Fetch", 1), (MEMBERS, "Format", 2),
+            (MEMBERS, "Validate", 3), (MEMBERS, "Unused", 4), (READERS, "Shared", 1),
+            (READERS, "FetchOnly", 2), (READERS, "ThroughExternal", 3),
+            (OTHER, "FormatAndValidate", 1), (OTHER, "External", 2)] {
+            nodes.push(declaration(path, name, line, 3));
+        }
+        // These graph rows exist but do not belong to the selected physical revision.
+        nodes.extend([declaration(MEMBERS, "Retired", 1, 2), declaration(MEMBERS, "Future", 1, 4),
+            declaration(POLICY, "ObsoletePolicyCaller", 3, 1),
+            declaration(FUTURE_FILE, "FutureFileBinding", 1, 2),
+            declaration(UNBOUND, "MissingFileBinding", 1, 1)]);
+        fixture.engram.state.graph.upsert_nodes(PID, &nodes).unwrap();
+        let fetch = id(MEMBERS, "Fetch", 1);
+        let format = id(MEMBERS, "Format", 2);
+        let validate = id(MEMBERS, "Validate", 3);
+        let shared = id(READERS, "Shared", 1);
+        let other_reader = id(OTHER, "FormatAndValidate", 1);
+        let external = id(OTHER, "External", 2);
+        let mut edges = vec![
+            edge(shared.clone(), fetch.clone(), EdgeKind::Calls, 3),
+            edge(shared.clone(), fetch.clone(), EdgeKind::Dependency, 3),
+            edge(shared.clone(), format.clone(), EdgeKind::Calls, 3),
+            edge(id(READERS, "FetchOnly", 2), fetch.clone(), EdgeKind::Calls, 3),
+            edge(other_reader.clone(), format.clone(), EdgeKind::Calls, 3),
+            edge(other_reader.clone(), validate.clone(), EdgeKind::Calls, 3),
+            edge(external.clone(), fetch.clone(), EdgeKind::Calls, 3),
+            edge(id(READERS, "ThroughExternal", 3), external.clone(), EdgeKind::Calls, 3),
+            // A file seed calling another seed is not an outside direct dependent.
+            edge(fetch.clone(), format.clone(), EdgeKind::Calls, 3),
+            edge(shared.clone(), id(MEMBERS, "Retired", 1), EdgeKind::Calls, 3),
+            edge(shared.clone(), id(MEMBERS, "Future", 1), EdgeKind::Calls, 3),
+        ];
+        for (source, generation) in [(id(POLICY, "ObsoletePolicyCaller", 3), 1),
+            (id(FUTURE_FILE, "FutureFileBinding", 1), 2),
+            (id(UNBOUND, "MissingFileBinding", 1), 1),
+            (id("src/not_recorded.rs", "Absent", 1), 1)] {
+            edges.push(edge(source, validate.clone(), EdgeKind::Calls, generation));
+        }
+        fixture.engram.state.graph.upsert_edges(PID, &edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+        let target = format!("file:{MEMBERS}");
+        let graph = impact_packet(&impact_target(&fixture, &target, Some(4)).await);
+        assert!(graph.get("file_member_navigation").is_none(), "Graph presentation must remain unchanged");
+        let expected = std::collections::BTreeMap::from([
+            (fetch.clone(), ("Fetch", 3u64)), (format.clone(), ("Format", 2)),
+            (validate.clone(), ("Validate", 1)),
+        ]);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let report = impact_packet(&summary_impact(&fixture, tool, &target, 4).await);
+            let directory = &report["file_member_navigation"];
+            let rows = directory["members"].as_array().expect("File agents need target-member choices beyond the direct witness sample");
+            assert_eq!(directory["members_observed"], expected.len());
+            assert_eq!(directory["members_omitted"], 0);
+            let choices: std::collections::BTreeMap<_, _> = rows.iter()
+                .map(|row| (row["impact"]["arguments"]["symbol_fqn"].as_str().unwrap().to_owned(), row)).collect();
+            assert_eq!(choices.len(), rows.len(), "One member must not be repeated for multiple incoming witnesses");
+            assert_eq!(choices.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>());
+            for (member, (name, callers)) in &expected {
+                let row = choices[member];
+                assert_eq!(row["name"], *name);
+                assert_eq!(row["generation"], 3);
+                assert_eq!(row["retained_direct_dependents"], *callers,
+                    "Shared branches and different edge kinds must count each selected source identity only once per member");
+                assert_eq!(row["impact"]["tool"], "impact_analysis");
+                assert_eq!(row["impact"]["arguments"]["project_id"], PID);
+                assert_eq!(row["impact"]["arguments"]["detail"], "summary");
+                assert_eq!(row["impact"]["arguments"]["max_depth"], 1);
+                assert_eq!(row["impact"]["arguments"]["limit"], 4);
+            }
+            assert!(rows.iter().map(|row| row["retained_direct_dependents"].as_u64().unwrap()).sum::<u64>()
+                > report["direct_dependents_observed"].as_u64().unwrap(),
+                "Per-member memberships overlap and cannot be added to a file's unique caller count");
+            let scope = directory["scope"].as_str().unwrap().to_ascii_lowercase();
+            assert!(scope.contains("retained") && scope.contains("fresh")
+                && scope.contains("lower bound") && scope.contains("overlap")
+                && scope.contains("same-file"), "A fresh member query can differ from this retained file-query sample");
+            assert_eq!(report["coverage"], graph["coverage"]);
+            assert!(report["coverage"]["missing_nodes"].as_u64().unwrap() > 0);
+            assert!(report["coverage"]["non_selected_nodes"].as_u64().unwrap() > 0
+                || report["coverage"]["unknown_nodes"].as_u64().unwrap() > 0);
+            // Copying this choice must open the Format branch, not whichever
+            // member happened to own the first file-level caller witness.
+            let response = fixture.engram.handle_impact_analysis(
+                serde_json::from_value(choices[&format]["impact"]["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!response.is_error.unwrap_or(false));
+            let text: String = response.content.iter().filter_map(|c| c.as_text())
+                .map(|c| c.text.as_str()).collect();
+            let branch = impact_packet(&text);
+            assert_eq!(branch["target"]["node_id"], format);
+            assert!(branch.get("file_member_navigation").is_none(), "A symbol lookup must not masquerade as a file directory");
+            let caller_ids: std::collections::BTreeSet<_> = branch["immediate_consumers"].as_array().unwrap()
+                .iter().map(|row| row["node_id"].as_str().unwrap()).collect();
+            assert!(caller_ids.contains(shared.as_str()) && caller_ids.contains(other_reader.as_str()));
+            assert!(!caller_ids.contains(id(READERS, "FetchOnly", 2).as_str()));
+            let expanded = expand_summary_graph(&fixture, &report, &target, 4).await;
+            assert_eq!(expanded, graph, "Adding summary choices must not change the graph report or its gaps");
+        }
+    });
+}
+
+#[test]
+fn crowded_file_member_navigation_reports_omissions_and_keeps_literal_branch_recovery() {
+    owned_case(|fixture| async move {
+        const MEMBERS: &str = "src/crowded_members.rs";
+        const READER: &str = "src/crowded_reader.rs";
+        // Long, valid distinct declaration identities exhaust the directory's
+        // byte allowance before its row allowance. They are not truncated IDs.
+        let names: Vec<_> = (0..24).map(|n| format!("Member{n:02}_{}", "part_".repeat(36))).collect();
+        let body = names.iter().map(|name| format!("pub fn {name}() {{}}\n")).collect::<String>();
+        let reader = format!("pub fn ReadAll() {{ {} }}\n", names.iter().map(|name| format!("{name}();")).collect::<String>());
+        let cancel = CancellationToken::new();
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID, 2, 3,
+            &[RelPath::new(MEMBERS), RelPath::new(READER)], &[], &cancel).await.unwrap();
+        fixture.search.index_docs(PID, &[source_doc(3, 720, MEMBERS, &body), source_doc(3, 721, READER, &reader)], &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        std::fs::write(fixture.root.join(MEMBERS), &body).unwrap();
+        std::fs::write(fixture.root.join(READER), &reader).unwrap();
+        let mut nodes = vec![file_node(MEMBERS, &body, 3), file_node(READER, &reader, 3), declaration(READER, "ReadAll", 1, 3)];
+        let mut edges = Vec::new();
+        for (n, name) in names.iter().enumerate() {
+            let member = declaration(MEMBERS, name, n as u32 + 1, 3);
+            edges.push(edge(id(READER, "ReadAll", 1), member.node_id.clone(), EdgeKind::Calls, 3));
+            nodes.push(member);
+        }
+        fixture.engram.state.graph.upsert_nodes(PID, &nodes).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID, &edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+        let target = format!("file:{MEMBERS}");
+        let graph = impact_packet(&impact_target(&fixture, &target, Some(2)).await);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let report = impact_packet(&summary_impact(&fixture, tool, &target, 2).await);
+            let directory = &report["file_member_navigation"];
+            let shown = directory["members"].as_array().unwrap();
+            assert!(!shown.is_empty() && shown.len() < 16,
+                "Byte pressure must retain useful exact choices without overrunning the5KiB directory allowance");
+            assert!(serde_json::to_vec(directory).unwrap().len() <= 5 * 1024);
+            assert_eq!(directory["members_observed"], names.len());
+            assert_eq!(shown.len() as u64 + directory["members_omitted"].as_u64().unwrap(), names.len() as u64);
+            assert!(directory["members_omitted"].as_u64().unwrap() > 0);
+            assert_eq!(report["coverage"], graph["coverage"], "Display omissions must not rewrite traversal coverage");
+            assert_eq!(report["selected_dependents_observed"], graph["selected_dependents_observed"]);
+            assert_eq!(report["immediate_consumers_omitted_from_summary"].as_u64().unwrap()
+                + report["immediate_consumers"].as_array().unwrap().len() as u64,
+                report["direct_dependents_observed"].as_u64().unwrap());
+            let mut distinct = std::collections::BTreeSet::new();
+            for row in shown {
+                let name = row["name"].as_str().unwrap();
+                let index = names.iter().position(|candidate| candidate == name).expect("Names remain exact");
+                assert_eq!(row["impact"]["arguments"]["symbol_fqn"], id(MEMBERS, name, index as u32 + 1));
+                assert!(distinct.insert(row["impact"]["arguments"]["symbol_fqn"].as_str().unwrap()));
+                assert_eq!(row["retained_direct_dependents"], 1);
+            }
+            let response = fixture.engram.handle_impact_analysis(
+                serde_json::from_value(shown[0]["impact"]["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!response.is_error.unwrap_or(false));
+            let text: String = response.content.iter().filter_map(|c| c.as_text()).map(|c| c.text.as_str()).collect();
+            let branch = impact_packet(&text);
+            assert!(branch["immediate_consumers"].as_array().unwrap().iter()
+                .any(|row| row["node_id"] == id(READER, "ReadAll", 1)), "A displayed choice must remain executable under byte pressure");
+            let expanded = expand_summary_graph(&fixture, &report, &target, 2).await;
+            assert_eq!(expanded, graph, "Omitted directory choices remain recoverable in the unchanged graph");
+        }
+    });
+}
