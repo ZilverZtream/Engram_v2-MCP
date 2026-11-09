@@ -1,0 +1,171 @@
+{
+  "status": "DEPLOYED_NORMAL_PROPERTY_NAVIGATION_AND_SOURCE_FOLLOWTHROUGH_VERIFIED",
+  "at_utc": "2026-11-09T16:46:35.370018+00:00",
+  "source_commit": "561ecf18aea11b25825b2545601bff6b57727a04",
+  "server_sha256": "042cfd1341774b9bfa0c3cb3756091aa63a7ba75a69e8030736db660de1866aa",
+  "manifest_sha256": "ced8bd376911a92d78c9344540ac731319d78b2b02175fc8e30df771fb22daaa",
+  "normal_primary": {
+    "pid": "47644",
+    "started_at_ms": "1794242566726",
+    "protocol_version": "1",
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+    "version": "0.1.0"
+  },
+  "source_generation": 3139,
+  "before_after": {
+    "request": {
+      "scope": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+      "symbol_node_id": "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.ResolvePolicy:2343",
+      "include_source": true,
+      "include_retained_context": false,
+      "exclude_paths": [
+        "Site/Q",
+        ".audit-20261104",
+        ".audit-20261105-dev",
+        ".audit-20261105-browser-background"
+      ],
+      "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+    },
+    "before_reply_bytes": 11822,
+    "after_reply_bytes": 12253,
+    "before_property_navigation_present": false,
+    "after_property_targets": [
+      {
+        "name": "_vs.FileLayerSpatialService.CacheMeta.CoordinateCount",
+        "line": 221
+      },
+      {
+        "name": "_vs.FileLayerSpatialService.CacheMeta.FeatureCount",
+        "line": 219
+      },
+      {
+        "name": "_vs.FileLayerSpatialService.LayerSource.OverrideZoom",
+        "line": 176
+      }
+    ],
+    "before_source_range": [
+      2281,
+      2400
+    ],
+    "after_source_range": [
+      2281,
+      2365
+    ],
+    "requested_method_range_retained": [
+      2343,
+      2345
+    ],
+    "current_source_hash_unchanged": true,
+    "tradeoff": "35 optional trailing context lines yield to3 indexed property identities and executable actions; requested method retained. No overall cost/quality win inferred."
+  },
+  "actual_chain": {
+    "calls": 3,
+    "returned_utf8_bytes": 30733,
+    "individual_bytes": [
+      12253,
+      12027,
+      6453
+    ],
+    "observed_incoming": 5,
+    "displayed_incoming": 4,
+    "omitted_incoming": 1,
+    "literal_property_action": {
+      "arguments": {
+        "detail": "summary",
+        "limit": 8,
+        "max_depth": 1,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "symbol_fqn": "sym:property:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.CacheMeta.CoordinateCount:221"
+      },
+      "tool": "impact_analysis"
+    },
+    "literal_source_action": {
+      "arguments": {
+        "context_lines": 0,
+        "file_path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+        "line_end": 1472,
+        "line_start": 1386,
+        "output_json": true,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      },
+      "tool": "get_full_method_body"
+    },
+    "verified_source_lines": [
+      1386,
+      1472
+    ],
+    "independent_source_agreement": "WriteFeature increments prepared FeatureCount/CoordinateCount at1464/1465 after successful CreateFeature. Actual emitted source_read executed and exact87lines/raw BLAKE3 verified. Indexed property links alone do not establish receiver identity, value flow or read/write mode.",
+    "scope": "Informed coordinator/runtime acceptance against independent source, not a fresh model task or rescore."
+  },
+  "validation": {
+    "graph_tests_passed": 6,
+    "graph_tests_filtered": 115,
+    "overview_tests_passed": 49,
+    "overview_tests_filtered": 0,
+    "normal_read_calls": 13,
+    "native_assets_unchanged": 214,
+    "definitions_unchanged": 150,
+    "old_ten_read_checks_preserved": true,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-shipping-20261109.json",
+      "sha256": "43e737b973e23d0acedc74703c2963aad6318f021b84b6da1ec0c28318247a6b"
+    },
+    "artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-build-artifact-20261109.json",
+      "sha256": "0a5d32b13412e101b91115ee4411d2b3051e218ef1505606d7b49a49f5e1cf7f"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-paired-package-20261109.json",
+      "sha256": "2f020f7d74bf22107142621af88aa99ef40be3ee7927bd58c784056e97a51ce2"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-cold-v2-20261109\\acceptance.json",
+      "sha256": "a50500ddfdf2d5fb9d4937d587bb7c85b26d1495aa5a2e0b956e1e193449d949"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-normal-v1-20261109.json",
+      "sha256": "74173e480f833a58738bf0d1c419a9a5a3f1ade862606e5e027357b78492f671"
+    },
+    "original_failed_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-cold-v1-20261109\\acceptance.json",
+      "sha256": "4f0f87edb5017bf3def79eb6b1fafa442bfb57a8647cbb1415c84d03e31720e0"
+    },
+    "checker_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-contract-correction-20261109.json",
+      "sha256": "f5e232d35b51e5a7ff72213fdc4dc06916463b5dcc074c7cbf90bf5857a2f139"
+    },
+    "checker_correction_reason": "First candidate executed all13calls with unchanged data/source and matching hashes; validator incorrectly required CodeMap verification label on an explicit-range read. Corrected to existing explicit_range_current_file_snapshot contract, retained originals, validated retained replies, then repeated candidate once. No binary/response edits or model retries."
+  },
+  "deployment": {
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-installer-result-20261109.json",
+      "sha256": "92fe22ac146d52cefac86086407283f86e92894cf9887adc0f010a7bee0a9581"
+    },
+    "upgrade_invocations": 1,
+    "gate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-release-gates-20261109.json",
+      "sha256": "82383d60d98005da99c74a170845e0f0e3796c44ff3914ddd13a6da06e394dbf"
+    },
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-normal-launch-20261109.json",
+      "sha256": "2c4bad86b190ab812a2277d9ba3de84bcfc5ca00ec7914fb5829e77c1b198a5b"
+    },
+    "hold_released": true,
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-config-hold-20261109.json.released.json",
+      "sha256": "d724d834449a2db9b30f72e5fce71a741c51de5c3fd89081953d0e27f08aff6c"
+    },
+    "old_pair_retained": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-ae566edac5d74f77a8d301c019715b8a",
+    "codex_host_stopped": false
+  },
+  "limits": [
+    "Original full-QA result remains2PASS/3PARTIAL and historical source-only preference unchanged. New full-task evaluation not yet run.",
+    "Known exact ResolvePolicy identity was supplied for acceptance; bare-name64-key miss and its existing recovery are not rescored.",
+    "Property relationship is source/index evidence, not proven runtime alias or value flow. ReadMeta existing initializer getter label remains uncorrected and unused.",
+    "WriteMeta is omitted from four-row summary; omitted count and existing graph expansion remain explicit. No reordering toward known answers.",
+    "All31 original findings/19gates retained; scoped forward release evidence does not close full original gates."
+  ],
+  "resources": "Build and test Jobs/relay handles closed and owned temp directories removed. Both candidate runs exited0 with handles closed and own tmp removed. Normal observer closed, no pending RPC. Installed service remains running intentionally. Retain V package, raw replies, recipes, preserved pre-correction helpers and receipts for review; retain installer old pair for rollback evidence. No preexisting deletion.",
+  "goal_complete": false,
+  "next": "Run one fresh original full-QA task with identical task/criteria,8attempts/65536UTF8bytes including setup; preserve terminal attempts and assess actual evidence without claiming matched causal benefit."
+}
