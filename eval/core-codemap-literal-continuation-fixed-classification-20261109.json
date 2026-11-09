@@ -1,0 +1,84 @@
+{
+  "status": "FRESH_CORRECTED_PROTOCOL_CLASSIFICATION_REMAINS_PARTIAL_NO_OVERALL_WIN",
+  "at_utc": "2026-11-09T09:48:53.673018+00:00",
+  "installed_implementation": "d14b2677711600eecefce56477063a83169d2e5f",
+  "grades": [
+    "PASS",
+    "PASS",
+    "PASS",
+    "PARTIAL",
+    "PASS"
+  ],
+  "actual_cost": {
+    "calls": 8,
+    "actual_tool_rpcs": 8,
+    "returned_text_utf8_bytes": 62770,
+    "caps": {
+      "calls": 8,
+      "returned_text_utf8_bytes": 65536
+    },
+    "errors_or_refusals": 0,
+    "setup_outside_original_cap": true,
+    "free_initial_report": false
+  },
+  "protocol_limited_previous_run": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-literal-continuation-full-classification-20261109.json",
+    "sha256": "d20c1cb09f752c1d15fbebc3a4b407bdccbb8ea7f966232a68be28a32487c8b1"
+  },
+  "remaining_delivery_gaps": [
+    "Viewport policy serializers and actual TS response application were not joined by returned source evidence.",
+    "Editor threshold/options/summary impact was not covered.",
+    "Prepared-count producer and malformed/missing metadata validation remain candidate-declared inspection work; no producer verification credit awarded."
+  ],
+  "offered_action_usage": "The new next_matches action was offered in response5 but not selected; response8 reads adjacent source. Other existing source recovery and independently chosen ranges were used.",
+  "independent_verification": "26 directly referenced artifact hashes,11 source pins,10 source windows,four raw-file BLAKE3 hashes and all8call charges verified. Qualified missing joins are not unsupported assertions.",
+  "protocol_change": "Only the undisclosed grep output_json=True coordinator restriction was removed. Public requested/default format is forwarded exactly; original task, five criteria, tool definitions, scope boundaries, errors/refusal charging and caps remain unchanged.",
+  "interpretation": "Overall task still partial. No continuation-specific benefit demonstrated in this corrected run. Different source choices and corrected public-format handling prevent causal quality/efficiency attribution. Original and earlier outcome scores remain untouched.",
+  "next_selected_work": "Continue original CodeMap/Blast witness-navigation work: inspect the actual method context for the selected backend policy-serializer branch against existing sidecar invocation/return-path evidence and independent source. Reuse retained recovery evidence first; at most a bounded targeted observation if missing. Select no new implementation unless it demonstrates a concrete navigation/witness failure. Do not repeat broad sidecar/catalog/ownership audits or instruction drafting.",
+  "resources": "All eight observer batches closed, no pending RPC or source/index/config/service mutations; no fixture tree. Evidence retained only in recorded diagnostics directory.",
+  "goal_complete": false,
+  "task_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-classification-candidate-packet.json",
+    "sha256": "b072f68572b13bb4bc0d4c4690373c8a2cf1c99845d7d5badd93ff718235fb66"
+  },
+  "protocol": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-classification-protocol.json",
+    "sha256": "629aa844db949ec449657d7a87ad968459f2c904ee397cae74d8f1b787666a4e"
+  },
+  "criteria": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-criteria.json",
+    "sha256": "8adbee9183ec67e4cf097f4ec7554fccad43da8d36ffcebee09a47ad3ba5be98"
+  },
+  "agent_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-classification-agent-binding.json",
+    "sha256": "7d9543c951251e923874c3b06d3d7d7abf3f5bf4de6f1cee20a643856852e7a7"
+  },
+  "runtime_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-runtime-pins.json",
+    "sha256": "80ab30df108437f949a71a7eff0becb1c2f355abe7dd07922e4eb753b2c539c7"
+  },
+  "source_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-source-pins.json",
+    "sha256": "55e5644c79bc95c7995264a6783b15e4f08f490c1115f1bb0e3ec70dc4d79ad3"
+  },
+  "ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-classification-ledger.json",
+    "sha256": "b8c56951d735e7a3ec0dc3dda27caf0d74ee93dfa23612a661ad92ad0ebe228f"
+  },
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-answer.txt",
+    "sha256": "55d2b9957b7ba8d8766add80a56337754aa60589e306e1ee5fe1d14bf7e4323b"
+  },
+  "judge_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-judge-packet.json",
+    "sha256": "5fb6c37ea60e966d041df76841b9defe37041830f01613020c870bc6eb2dc479"
+  },
+  "independent_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-judgment.json",
+    "sha256": "f008df14fdde0fa0e157097f4be07ca991c98d50ea85b461a6bd0b3020901296"
+  },
+  "preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-preparation.json",
+    "sha256": "6d89257bfa1131c3d311dac776f63f93637bb3ba6bcfd878bfd8e6445c804ec2"
+  }
+}

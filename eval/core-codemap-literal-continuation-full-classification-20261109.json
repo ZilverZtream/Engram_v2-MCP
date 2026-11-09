@@ -1,0 +1,80 @@
+{
+  "status": "FRESH_CLASSIFICATION_PARTIAL_WITH_UNDISCLOSED_COORDINATOR_RESTRICTION",
+  "at_utc": "2026-11-09T09:36:25.180969+00:00",
+  "installed_implementation": "d14b2677711600eecefce56477063a83169d2e5f",
+  "grades": [
+    "PASS",
+    "PASS",
+    "PASS",
+    "PARTIAL",
+    "PARTIAL"
+  ],
+  "accounting": {
+    "attempts": 8,
+    "actual_tool_rpcs": 7,
+    "returned_utf8_bytes": 61361,
+    "caps": {
+      "attempts": 8,
+      "returned_utf8_bytes": 65536
+    },
+    "setup_outside_original_cap": true,
+    "free_initial_report": false
+  },
+  "judge_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-judge-packet.json",
+    "sha256": "582be4aadcad9234dc6f1168f05e91032042ba13ed29b590c6f1efc76809b0bf"
+  },
+  "independent_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-judgment.json",
+    "sha256": "0a4b9e69dd790fd5e09bdd2e534e6b6c97cf2afc261db3404462363023e2fdfc"
+  },
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-answer.txt",
+    "sha256": "24cec10ab2a205a2d53fd40446ff8cc36e48b7a8022a9a3bb3359af9c4f00bc1"
+  },
+  "ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-classification-ledger.json",
+    "sha256": "469dbbcc515e52cc2889b429a2e6a75357d9f2e7e529963650120888cdaec3a3"
+  },
+  "protocol": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-classification-protocol.json",
+    "sha256": "654f075e83452059b62ad17a63169025e4f817e686bd1c193957ae6e2c4d54e8"
+  },
+  "source_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-source-pins.json",
+    "sha256": "9ca454c5781cfc8f849a0634cbeacd132609c8da3f60f7597de9d5f826fd9cf3"
+  },
+  "runtime_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-runtime-pins.json",
+    "sha256": "0b627a3d8a5aaee904531751fd2fb999d5327bb5d909cf8b951a766d2c804b04"
+  },
+  "action_adoption": {
+    "request6_exact_offered_next_matches": true,
+    "request8_recovers_both_omitted_suffix_windows": true,
+    "request8_adds_other_source_range": true
+  },
+  "remaining_gaps": "HTTP serialization/URL/editor source joins and explicit configuration/build-output uncertainty remain missing from candidate evidence.",
+  "coordinator_discrepancy": {
+    "request7": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-request-7.json",
+      "sha256": "783e94b35d5d48a230728a7a0139285f7aa9c602eb11e3f01a9eef508e32af98"
+    },
+    "refusal7": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-full-classification-20261109-response-7.txt",
+      "sha256": "1a3b9f8ea61be2a539f6a3f0cad8a9f900d399963b5f57a92662026e0c171aef"
+    },
+    "cause": "Inherited relay required grep output_json=true although supplied public schema defaults false and supplied grep protocol did not require JSON. The request satisfied stated source scope/exclusion/freshness/count/context limits; no tool RPC was sent.",
+    "scope": "Harness refusal, not an Engram failure. Preserved full attempt charge and returned answer. This run cannot support full-task product-performance comparison."
+  },
+  "next_validation": {
+    "prepared_corrected_protocol": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-preparation.json",
+      "sha256": "6d89257bfa1131c3d311dac776f63f93637bb3ba6bcfd878bfd8e6445c804ec2"
+    },
+    "correction": "Remove only hidden grep output_json guard from a new relay; forward public requested/default format. No changes to tool implementation, original task, five criteria, eight-attempt/65536-byte cap, exclusions or old outcomes. Fresh candidate underway.",
+    "previous_run_rewritten_or_rescored": false
+  },
+  "interpretation": "New continuation was independently selected and later source recovered. Overall task remains partial; no efficiency, quality, general productivity or completion claim from this protocol-limited run.",
+  "resources": "Every actual observer batch closed; refused attempt sent no RPC; no pending requests or source/index/config/service mutations. All evidence retained in single diagnostics directory; no fixture tree created.",
+  "goal_complete": false
+}
