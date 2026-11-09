@@ -1,0 +1,72 @@
+{
+  "status": "PAIRED_TASK_BOTH_FOUR_PASS_NO_OVERALL_QUALITY_OR_EFFICIENCY_WIN",
+  "at_utc": "2026-11-09T06:30:22.543889+00:00",
+  "implementation_commit": "74065a56c9562545c0f8edb885d3488857c03077",
+  "task": "Frozen two-omitted-callback current-source inspection; distinct from original five-criterion full classification task.",
+  "actual_candidate": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-cold-v1-20261108\\acceptance.json",
+    "sha256": "2be61979fbb4be53d716a126ceaa68ee4395d8671321fe05e80f879b706ea08a"
+  },
+  "task_outcome": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-outcome-20261109.json",
+    "sha256": "1e2ae3b2f455f9a3097bfb5bd37f4fd0714410036aa9b01f95432b97083b2a7b"
+  },
+  "independent_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-ranges-qa-paired-judgment-20261109.json",
+    "sha256": "85e318016febd3b9c90b81e9a770df3a676d35a0dd514b9bca2192a6a35e0452"
+  },
+  "metrics": {
+    "baseline": {
+      "followup_calls": 3,
+      "total_bytes_including_setup": 31549,
+      "setup_bytes": 14594,
+      "grades": [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PASS"
+      ]
+    },
+    "candidate": {
+      "followup_calls": 3,
+      "total_bytes_including_setup": 32036,
+      "setup_bytes": 16217,
+      "grades": [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PASS"
+      ],
+      "range_mode_calls": 3,
+      "exact_offered_action_copied": false
+    }
+  },
+  "observations": [
+    "Independent source assessment found complementary coverage: candidate inspected acknowledgement Automatic preservation; baseline inspected camera/fallback behavior. Neither answer was materially superior.",
+    "Candidate total context was487 bytes higher including schema/setup; no call-count or total-byte improvement.",
+    "Exact offered recovery separately returns the same50 current lines in1call/3949bytes versus2calls/6439bytes. This informed comparison is not a full-task efficiency result."
+  ],
+  "limits": [
+    "Known omission-recovery task; sequentialNov8/Nov9 same-source runs and different selected windows.",
+    "Opaque judgment labels with visible workflow cues and inheritedAGENTS; no strict doubleblind claim.",
+    "Proposed application checks were not executed. Original full-task partial scores remain unchanged."
+  ],
+  "decision": "Ship bounded range reads and CodeMap omitted-source recovery after source-verified actual output, successful bounded agent use, unchanged evidence and normal-runtime validation. Broader agent usefulness remains open; no quality/productivity win claimed.",
+  "resources": {
+    "private_relay": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-qa-oak-v2-20261109\\receipt.json",
+      "sha256": "32269a43135fb641282d13cc265e197351b0fd49da2ae52a8309cd2a0cebb4be"
+    },
+    "failed_initial_relay": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-qa-oak-20261109\\receipt.json",
+      "sha256": "934d2fb6ff5a6b0cc86390b226cc694e2caba882818750f37029bc8c3378c34e"
+    },
+    "post_qa_data_preservation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\source-ranges-recovery-post-qa-data-20261109\\preservation.json",
+      "sha256": "1cc503c64c4d03902276c4189db9a51f44c156107072d8504fe6a760d0879f27"
+    },
+    "owned_children_and_temporary_directories_closed": true,
+    "retention": "Keep task packets, requests/replies, raw answers, judgments and failed/corrected helper evidence in the recorded diagnostics directory for delivery review."
+  },
+  "goal_complete": false
+}
