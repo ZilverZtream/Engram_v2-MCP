@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T10:40:19.036841+00:00",
-    "reason": "Missing bare-name CodeMap recovery deployed and independently checked on actual ReadMeta; normal13RPC passed,45behavior tests passed, all owned maintenance resources closed. Broader original core-tool goal remains active.",
+    "at_utc": "2026-11-09T11:00:16.365341+00:00",
+    "reason": "Deployed missing-name recovery independently adopted by fresh candidate; separate bounded count-plan task passed all five frozen criteria in seven calls/65050 bytes. Original broader core-tool outcomes remain unfinished.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast usefulness for agents: missing-name literal recovery deployed at e0d6e3a. Actual offered ReadMeta recovery works while preserving prior source; separate informed count-change plan recorded. Original capped classification remains4PASS/1PARTIAL; no overall or fresh-agent win.",
-    "next_user_visible_deliverable": "Evaluate a fresh agent on this separately scoped persisted-count change proposal using the now-deployed CodeMap recovery, with criteria and costs frozen before its attempt. Keep original classification/cancellation outcomes untouched; no new production change unless actual output/source evidence demonstrates a concrete gap.",
+    "active_original_item": "CodeMap/Blast usefulness for agents. Missing-name recovery deployed at e0d6e3a and its bounded persisted-count planning task now passes5/5 with actual action adoption. Original full classification remains partial; no comparative/general productivity claim.",
+    "next_user_visible_deliverable": "Return to the remaining original classification chain: inspect actual current serializer-to-client response-application navigation against ordinary endpoint/TypeScript source, reusing retained evidence first. Select a production change only if an unavailable or misleading witness/recovery is demonstrated. Do not replay the completed ReadMeta task, expand the catalog, draft instructions, or rescore earlier capped outcomes.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
     "previous_goal_turn_classification": {
       "classification": "PROGRESS",
-      "reason": "Delivered and verified the selected concrete no-candidate navigation fix, preserved source and prior behaviors, restored normal service, and recorded a bounded source-grounded change plan without rescoring old partials.",
+      "reason": "Finished the authorized fresh-agent task, verified actual recovery adoption and all source evidence, and retained independent five-criterion judgment. No new producer defect or maintenance need demonstrated.",
       "permission_dependency": false,
       "goal_complete": false
     },
@@ -10543,7 +10543,18 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "All release/test/candidate/installer runners terminal and fixtures closed/removed as recorded. New omitted-caller task made4read-only calls through existing normal daemon; observer pipes closed/no pending RPC, no new fixture dirs. Scripts/ledger/plan/raw-source judgment retained only in existing diagnostics root. Normal daemon owns idle lifetime; no config/source/index writes or preexisting deletion.",
+    "current_owned_resource_state": {
+      "observer_pipe_closed": true,
+      "pending_rpc": null,
+      "service_restart_for_this_task": false,
+      "normal_daemon_pid": 13256,
+      "normal_daemon_owns_lifetime": true,
+      "new_fixture_directories": [],
+      "retained_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+      "cleanup_condition": "Retain request/response/ledger/answer/judgment and verification artifacts for review in the existing diagnostics directory. No preexisting deletion; no build, hold, fixture or observer remains from this task.",
+      "ledger_finalization": "Relay retains WAITING_NEXT_RECORDED_BATCH as its last batch status; candidate final answer and this outcome seal the completed seven-call task. No pending request or eighth call.",
+      "task_wrote_application_source_index_or_config": false
+    },
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -11330,6 +11341,22 @@
     "latest_missing_name_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-delivery-20261109.json",
       "sha256": "b482f1f78ac95cc7fd873476be5bcb88bf0e745ecff7c12333d4db3a0272fa1c"
+    },
+    "latest_missing_name_agent_outcome": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-agent-outcome-20261109.json",
+      "sha256": "bec923c021c615d72513af782dabb11d6581f8d916c67b436b0ee85adf57a33b",
+      "status": "FRESH_BOUNDED_COUNT_PLAN_PASS_WITH_OBSERVED_CODEMAP_RECOVERY_ADOPTION",
+      "grades": [
+        "PASS",
+        "PASS",
+        "PASS",
+        "PASS",
+        "PASS"
+      ],
+      "calls": 7,
+      "returned_utf8_bytes": 65050,
+      "original_tasks_rescored": false,
+      "goal_complete": false
     }
   }
 }

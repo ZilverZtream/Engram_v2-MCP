@@ -1,0 +1,253 @@
+{
+  "status": "FRESH_BOUNDED_COUNT_PLAN_PASS_WITH_OBSERVED_CODEMAP_RECOVERY_ADOPTION",
+  "at_utc": "2026-11-09T11:00:16.365341+00:00",
+  "installed_implementation": "e0d6e3ad2cad7f95d8fae8ae7e474cc238a591bf",
+  "scope": "Separate known-source persisted-count compatibility proposal; assessment and proposed checks, no OciusX edit or application test execution.",
+  "task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-persisted-count-candidate-packet.json",
+    "sha256": "924a93eaac8e7130f550edbe98d01ba2350ca6a4bd1ecccca493a5c3b7f7b34c"
+  },
+  "protocol": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-persisted-count-protocol.json",
+    "sha256": "c25bfc6f862f45c8dabd54768ebd8e6a2aa52cd11728563d7212ece07b828280"
+  },
+  "criteria": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-criteria.json",
+    "sha256": "4090608b4b6a83549a104d7058b89de811c56d38264d936909e1b52d428a32ec"
+  },
+  "agent_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-persisted-count-agent-binding.json",
+    "sha256": "ee0c9e51611b8d83459a20184a1cf187f20a9b50f03c5d3ef1a0497fe62746a8"
+  },
+  "runtime_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-runtime-pins.json",
+    "sha256": "f2db682cbdf25489d2bf6a6e29ef61e82cb803d69711799a94f54546a0d9d6a1"
+  },
+  "source_pins": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-source-pins.json",
+    "sha256": "64fcc5f031e8c5c08100e9bd59b94aff0a0fafa6dbeba48259374ae4e31579d1"
+  },
+  "preparation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-preparation.json",
+    "sha256": "d4d39f635b10da3892f4b3e568755cae176ccfb6a42c4d3c41379ed181cfb831"
+  },
+  "relay": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-relay.py",
+    "sha256": "39d117ce2cfdf1248f92f3b369841b8832de2fa5218d1ec290a4a2f71c4cc8fb"
+  },
+  "protocol_guard_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-preexecution-protocol-review.diff",
+    "sha256": "95c9fa118045de071cd780c569809a3586c1d62e24e9427e26242ddb091f637a"
+  },
+  "ledger": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-persisted-count-ledger.json",
+    "sha256": "1612d2bada97ee0b3491ae1ba46e8db81bc48b70c8bc09bc152a10fd1377ae7b"
+  },
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-candidate-answer.txt",
+    "sha256": "de93538a1220c9ae580ad8a1987003ab58f3a636425aae63e4af1731e1b7c87e"
+  },
+  "independent_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-independent-judgment.json",
+    "sha256": "15a74f1089b03be3907a46665cd70c1df37fa4ae0f577ab209893931c28d7473"
+  },
+  "source_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-source-verification-final.json",
+    "sha256": "c05f118183417c6cae624d60bd74b10f9a8f8ad607f28e87174591ce3f2723b3"
+  },
+  "grades": [
+    {
+      "number": 1,
+      "name": "Recommendation and conditional risk",
+      "rating": "PASS",
+      "reason": "Rejects silent zero defaults, distinguishes real zero from unknown counts and gives a valid two-dimensional example. Explicitly says a single missing dimension need not produce the lightest band; override and other validation/recovery conditions qualify the risk."
+    },
+    {
+      "number": 2,
+      "name": "Current validation",
+      "rating": "PASS",
+      "reason": "Accurately explains required counts, format check and strict parsing, including missing/empty, malformed, negative/overflow and accepted zero. Distinguishes permissive ParseLong and leaves old-format writer/compatibility assumptions unproved."
+    },
+    {
+      "number": 3,
+      "name": "Representative caller and cache handling",
+      "rating": "PASS",
+      "reason": "Source-supported QueryViewport -> QueryCache -> QueryCacheCore -> ReadMeta path explains incomplete result, post-handle deletion attempt and conditional rebuild scheduling. Correctly describes remaining-file and recent failed-build branches; deletion/build helper implementations are explicitly uninspected."
+    },
+    {
+      "number": 4,
+      "name": "Automatic zoom data flow",
+      "rating": "PASS",
+      "reason": "Connects accepted counts through ResolvePolicy to Resolve and ClassifyAutomatic using inspected source, gives correct inclusive two-count bands and fallback17, and separates AutomaticZoom from override-controlled EffectiveMinZoom. Metadata consequences are supported by inspected serializer lines."
+    },
+    {
+      "number": 5,
+      "name": "Focused checks and evidence limits",
+      "rating": "PASS",
+      "reason": "Proposes missing-either/both, valid-zero and invalid-count cases plus classification boundary, override, cache handling and metadata/geometry checks. Separates indexed endpoint dependencies from inspected service/value-flow source, exposes missing graph/method semantics and uninspected helpers/writers, and explicitly states tests were not run."
+    }
+  ],
+  "cost": {
+    "status": "PASS",
+    "attempts": 7,
+    "attempt_cap": 8,
+    "returned_utf8_bytes": 65050,
+    "byte_cap": 65536,
+    "remaining_bytes": 486,
+    "all_calls_successful": true,
+    "no_withheld_responses": true,
+    "ledger_status": "WAITING_NEXT_RECORDED_BATCH",
+    "candidate_stopped_with_final_answer": true
+  },
+  "calls": [
+    {
+      "number": 1,
+      "tool": "get_codebase_overview",
+      "returned_utf8_bytes": 12255,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-1.json",
+        "sha256": "d80559a77f43dd7d5bbc20b4979a764bff5f94d1e3e79eb99c01ef4929953086"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-1.txt",
+        "sha256": "cee8f6cd15bc57ea726ae6d044fde99dffcadb2ce81b5ba6fae7613e2f64cada"
+      }
+    },
+    {
+      "number": 2,
+      "tool": "get_codebase_overview",
+      "returned_utf8_bytes": 5884,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-2.json",
+        "sha256": "324f120f8196f63d8049ab47e2c82d7eba0032d745d4d8c95dd6a6722f8a32c8"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-2.txt",
+        "sha256": "c714fa8b13be031583b4653c11670a117f135e39228e1ade98fb6fdf751b7c3d"
+      }
+    },
+    {
+      "number": 3,
+      "tool": "get_full_method_body",
+      "returned_utf8_bytes": 7976,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-3.json",
+        "sha256": "455447acd673a2465be681ea1a6dd64d6adc52136a706152b27d98d5b618df06"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-3.txt",
+        "sha256": "c39b5fe22b3a052313470773ad105e21477b72589413d3e4116081097b122324"
+      }
+    },
+    {
+      "number": 4,
+      "tool": "get_method_edit_context",
+      "returned_utf8_bytes": 19057,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-4.json",
+        "sha256": "feff34b2f12a437731b5f652a586e0a582abc7bcac913e21b79842efa6eef33f"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-4.txt",
+        "sha256": "eeced498be9bdd9f695c078a9eb4a0e0b8622a6e6e6f4c5baf8310dbc0e25cbf"
+      }
+    },
+    {
+      "number": 5,
+      "tool": "grep_project",
+      "returned_utf8_bytes": 5093,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-5.json",
+        "sha256": "9df0b604065abf6725d82f3ab2233428a56637158df38e9f991891380ae9b4cc"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-5.txt",
+        "sha256": "1bfd0d79164266e377b14bc923f1ca6d7f44243e96894df6072847153822e284"
+      }
+    },
+    {
+      "number": 6,
+      "tool": "get_full_method_body",
+      "returned_utf8_bytes": 7974,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-6.json",
+        "sha256": "8cf031449ff2f4f71b785f1289330b9c42eb0a5eeb32e07f0dc03a27d7a8c22d"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-6.txt",
+        "sha256": "cecb14006cb0ef90464ec998a0dd984a7d8fb02c5c66d8a006b12ba24951a83f"
+      }
+    },
+    {
+      "number": 7,
+      "tool": "get_full_method_body",
+      "returned_utf8_bytes": 6811,
+      "is_error": false,
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-request-7.json",
+        "sha256": "6802e130875827e5ed6565845b7bb3a75b2ce3a6ef60f76390e231a21739f431"
+      },
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-fresh-plan-20261109-response-7.txt",
+        "sha256": "be912651f490d665fcfaaf21a2b4dbecfc79a3f1200122be2a4bd9311a9e6a8e"
+      }
+    }
+  ],
+  "actual_action_adoption": {
+    "observed": true,
+    "offered_in": "call1 files[0].actions[0]",
+    "executed_as": "call2 tool+arguments structurally identical",
+    "literal_matches": [
+      2257,
+      2497
+    ],
+    "effect_observed": "The capped name miss supplied an executable exact-file literal action that the candidate used to locate the caller and declaration before targeted reads.",
+    "comparative_or_general_benefit_proven": false
+  },
+  "candidate_conclusion": "Preserve strict persisted-count validation. Missing is unknown rather than valid zero; accepting fabricated counts can bypass incomplete-cache handling and understate automatic classification. The other count or manual override can still determine the effective gate. Caller/cache/policy source supports the recommendation; endpoint edges, writers and helper internals remain explicitly qualified.",
+  "independent_source_result": {
+    "checks": 19,
+    "mismatches": 0,
+    "returned_hashes_match_current_raw_source": true,
+    "ordinary_file_sha_pins_verified": 3,
+    "indexed_hints_remain_indexed_evidence": true
+  },
+  "interpretation": {
+    "bounded_task_completed": true,
+    "concrete_unresolved_producer_defect_demonstrated": false,
+    "new_production_change_selected": false,
+    "comparative_or_causal_productivity_gain_proven": false,
+    "original_classification_and_cancellation_rescored": false,
+    "original_classification_remains_partial": true,
+    "no_strict_blind_or_held_out_claim": true,
+    "judge_context": "Judge authored these five criteria before the candidate, reviewed relay guards, and previously inspected informed task/tool/source evidence and deployment receipts. Inherited context; no strict-blind or held-out claim. Candidate binding records fork_turns=none; judge did not communicate candidate hints.",
+    "limits": [
+      "All5 PASS is task-specific plan adequacy, not proof that any application change was implemented or tested.",
+      "No matched baseline, counterfactual, causal improvement, general productivity or fresh-agent comparison claim.",
+      "Successful offered-action adoption is observed; it does not establish that alternatives would fail or cost more.",
+      "Original task outcomes, original19 gate states and unfinished core-tool backlog remain unchanged.",
+      "No mandatory UI/editor/config/build/complete producer/runtime requirements were added.",
+      "The opening rebuild/zoom risk is read with the explicit conditional handling and uninspected-helper qualifications later in the answer."
+    ]
+  },
+  "resources": {
+    "observer_pipe_closed": true,
+    "pending_rpc": null,
+    "service_restart_for_this_task": false,
+    "normal_daemon_pid": 13256,
+    "normal_daemon_owns_lifetime": true,
+    "new_fixture_directories": [],
+    "retained_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain request/response/ledger/answer/judgment and verification artifacts for review in the existing diagnostics directory. No preexisting deletion; no build, hold, fixture or observer remains from this task.",
+    "ledger_finalization": "Relay retains WAITING_NEXT_RECORDED_BATCH as its last batch status; candidate final answer and this outcome seal the completed seven-call task. No pending request or eighth call.",
+    "task_wrote_application_source_index_or_config": false
+  },
+  "next_selected_work": "Return to the remaining original classification chain: inspect actual current serializer-to-client response-application navigation against ordinary endpoint/TypeScript source, reusing retained evidence first. Select a production change only if an unavailable or misleading witness/recovery is demonstrated. Do not replay the completed ReadMeta task, expand the catalog, draft instructions, or rescore earlier capped outcomes.",
+  "goal_complete": false
+}
