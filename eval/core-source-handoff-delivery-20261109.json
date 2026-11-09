@@ -1,0 +1,153 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_CONNECTED_SOURCE_HANDOFF",
+  "at_utc": "2026-11-09T19:12:13.866338+00:00",
+  "source_commit": "a18060d906d6235065c729c8fc2db61f18c149c5",
+  "implementation": {
+    "path": "eval\\core-source-handoff-20261109.json",
+    "sha256": "5819d83f3bc2bc0d352f550cc299472cc98584b5c580c2201d0f82df4e13d1df"
+  },
+  "installed_binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+  "server_sha256": "9874cd9c8ffd01f53ff109ad0d7e68909b275ccea5c950a516512ff953ff7042",
+  "manifest_sha256": "e5ce6453485215152394bb1bc07bcf1da9ba4c378fadd6c8ac87bcca618f56ca",
+  "normal_primary": {
+    "pid": "53028",
+    "started_at_ms": "1794251248416",
+    "protocol_version": "1",
+    "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+    "version": "0.1.0"
+  },
+  "normal_launcher_pid": 35412,
+  "actual_change": "The first2KiB of the real ClassifyAutomatic symbol summary now offers its existing cross-file120line source action. Underlying summary JSON, source routes, direct witnesses and graph facts remain unchanged. The exact original caller recovery/witness must survive or the old introduction remains.",
+  "actual_output": {
+    "summary_utf8_bytes": 12014,
+    "old_summary_utf8_bytes": 12071,
+    "new_prefix_utf8_bytes": 696,
+    "old_prefix_utf8_bytes": 754,
+    "literal_source_read_utf8_bytes": 7507,
+    "literal_source_lines": 120,
+    "ranges": [
+      [
+        2219,
+        2239
+      ],
+      [
+        2247,
+        2345
+      ]
+    ],
+    "summary_json_unchanged": true,
+    "original16response_json_and_bodies_preserved": true,
+    "all150definitions_unchanged": true,
+    "new_source_actions_added": false,
+    "api_and_index_changes": false
+  },
+  "tradeoff": "Cross-file route read takes prominence over the immediate same-file caller; original direct evidence/recovery remains in JSON. No prior inspected-source history is assumed. This is a navigation priority change, not a substantive reply-size reduction.",
+  "validation": {
+    "focused_34cases": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-focused-20261109.json",
+      "sha256": "2cd9619185dba2810c7610b79fbb6945cfeec710e87b5ecdd43924e477805e6c"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-shipping-20261109.json",
+      "sha256": "0dc9ad7fd30a8d7cf36fb53c230ca57260a603a5fccabc06c3211a846124a6da"
+    },
+    "build_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-build-artifact.json",
+      "sha256": "a6f8174ced78bd59863b91a069460eaf35c3e7f7c1be1fa9d0b2c1094addfa87"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-paired-package.json",
+      "sha256": "97ea8a6c4872fd157f490754748687aba9c731a247cdba14903ca69b89a40d30"
+    },
+    "cold18calls": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-cold-v1\\acceptance.json",
+      "sha256": "dfa0c25d8170e168dce84ca727803731f4adab7c3622474505303c8e8b2c31fd"
+    },
+    "normal18calls": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-normal-v1.json",
+      "sha256": "9f8be82ebcb4e75b3f87ca7feef9b723b8f0c998779c4bc530e533828c0d570a"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-local-review-20261109.json",
+      "sha256": "7d82814bd4c126750ee72d9e7b2484b5842e69da320f47374847e99bcc9abdd6"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-helper-review-20261109.json",
+      "sha256": "a1f22e25ccb934685f1793692fe1006755e24bb6eb98c28b9bc82dfa1f609345"
+    },
+    "exact_shared_test_build_inputs": 657,
+    "release_only_inputs": 8,
+    "unchanged_native_assets": 214
+  },
+  "maintenance": {
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-config-hold-20261109.json.released.json",
+      "sha256": "25fdaa50d78d35fb868cfb98ab1908c599780fe5d3c70616d5313bfeef5395e4"
+    },
+    "config_unchanged_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "proxy_close": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-proxy-close-20261109.json",
+      "sha256": "6a32d2082201a299fd56a8a9e9985a56ca4d333ff3a8a0e36324ed313533ab0b"
+    },
+    "old_daemon9176_and_sidecar56384_exited_without_signal": true,
+    "codex_host_signaled": false,
+    "installer_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-installer-validation-20261109.json",
+      "sha256": "fcd16a3d0309067d3dda7d5705c72360c1d78b032406dafca5ef9f62fb2dbd5c"
+    },
+    "installer_result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-installer-result-20261109.json",
+      "sha256": "7d1bdab337bcea4be78ea33bc8a434db9e54185b982ee5d62876687de0a0b6f7"
+    },
+    "upgrade_invocations": 1,
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-normal-launch-20261109.json",
+      "sha256": "45eed5a4a44c3def5116123f1a6197525503edd38e1bb1b7ce01ba05f7f68cb9"
+    },
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-55ab612a3499464f911cea938270ab8f",
+    "hold_active": false
+  },
+  "failures_preserved": [
+    {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-build-pin-failure-20261109.json",
+        "sha256": "ee87c72258d5bfb6ee8b220c44ae18285bf5a08812ba3ef222c116e6dd4a620f"
+      },
+      "correction": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-encoding-fix.json",
+        "sha256": "ee7bebc0d5557c038e6900358d764779db9f1f740235b14354bf502a4e2c77a1"
+      },
+      "scope": "Helper codec typo corrected; same native build retained and raw binary hash/mtime matched. No second Cargo build."
+    },
+    {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-validation-wrapper-failure-20261109.json",
+        "sha256": "82aaa5a92e866b0f0c82d714ceee647b0210a4d0eeb64ac46b5264d9f6ca26ba"
+      },
+      "scope": "Root incorrectly parsed typed PowerShell installer objects as JSON. Read-only validation rerun with direct object capture; two ValidateUpgrade invocations and exactlyoneUpgrade."
+    }
+  ],
+  "release_scope": {
+    "gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-release-gates.json",
+      "sha256": "18dc1a2cd0fe47e92983945314c48ed3a6e2ae0fc6c319160efb90103828a269"
+    },
+    "forward_proof": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-handoff-20261109-forward-applicability.json",
+      "sha256": "bb9887ddf0a1a24d5c8d140bfadcf9eb1f0bbbffd6ae97c3f6cb34730b29f822"
+    },
+    "all19originalgates_closed": false,
+    "all31findings_preserved": true
+  },
+  "task_usefulness": {
+    "status": "UNPROVEN_AFTER_NEW_DEPLOYMENT",
+    "prior_original_full_qa": {
+      "path": "eval\\core-file-source-context-full-qa-20261109.json",
+      "sha256": "2dc5591471f6426a59b7ad1bf76a919d11a62b58e25ae18179cacd5c180df819"
+    },
+    "source_read_comparison_limit": "The7507B/120line action is narrower than the prior19093B/360line ordinary read; their coverage is not equivalent. No agent adoption or task-level win inferred.",
+    "next_action": "One preregistered fresh original fullQA on changed installed behavior, same five criteria/8requests/65536B. Charge exact bootstrap+setup bytes and disclose delivery difference; independently judge frozen answer. No coaching, retry or favorable regrade."
+  },
+  "goal_complete": false,
+  "resource_accounting": "Both focused jobs and release job/handles closed; own temp directories removed. Cold child exited0 with ownedresourcesclosed and tempremoved. Normal observer closed with no pendingRPC. Maintenance hold released with original config bytes; normal launcher/daemon retained intentionally. Package, receipts, failures and old installed pair retained at exact recorded paths; no preexisting directories deleted."
+}
