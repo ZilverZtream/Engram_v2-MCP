@@ -1,0 +1,102 @@
+{
+  "status": "ZERO_DEPENDENT_RECOVERY_IMPLEMENTED_SOURCE_REVIEWED_PUBLIC_BEHAVIORS_PASS_PENDING_DEPLOYMENT",
+  "at_utc": "2026-11-09T12:39:08.637868+00:00",
+  "original_task": "Unchanged EG24 scope authorization proposal, five original criteria; no candidate score revised.",
+  "baseline": {
+    "calls": 4,
+    "returned_utf8_bytes": 25941,
+    "receipts": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-overview-20261109.json",
+        "sha256": "92eac615bbdad911723112c0a4df82268c06aacba3afffd701c7f798a1816a33"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-impact-1-20261109.json",
+        "sha256": "7a96c06f94a1d24761df7561c110a873f8ec523ededeff2021bd1ba2c3d63c9d"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-impact-2-20261109.json",
+        "sha256": "51c1663357af7287cdc92666b47a10f36c594c5f0f383ddfd78e7f51f22217c6"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-blast-20261109.json",
+        "sha256": "700e53c809ab91878f6be98ac5fc3499ea6eedfa8b1495bd7bedde8840d6ee04"
+      }
+    ],
+    "observation": "CanEditZoom overloads170/180 are selected; both impact summaries and Blast170 report0indexeddependents and offer only the same empty graph continuation plus target source. No false completeness claimed."
+  },
+  "independent_source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-source-expectations-20261109.json",
+    "sha256": "5bd87621e2cdd1f47663bd4742baf3aca0d716ab752d6fb488a83dfdaaba27a5"
+  },
+  "lexical_followthrough": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-lexical-20261109.json",
+      "sha256": "6e21a33b56695ea7c8688d20c1a45269f8048fb29669adc041ebc0ed8ba7e4f0"
+    },
+    "separate_observation_not_a_candidate_replay": true,
+    "calls": 1,
+    "returned_utf8_bytes": 23305,
+    "matches": 19,
+    "source_confirmed_call_lines": {
+      "Site/App_Code/visualisering/api-json/api-visualisering-kml.vb": [
+        369
+      ],
+      "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb": [
+        176,
+        194
+      ]
+    },
+    "limits": "Other matches include declarations, comments, properties, unrelated terminal names and generated output. No binding or complete reference claim. Prototype used previous named task exclusions; shipping followthrough will use Site/Q and .audit prefixes."
+  },
+  "selected_change": "Reuse optional terminal_member_inspection for an admitted callable with zero observed dependents and no existing terminal inspection. Emit bounded lexical recovery from admitted name; preserve graph facts, counts, caps and existing TypeScript behavior. No extraction/index/schema/query expansion.",
+  "parked_observation": "Ambiguous named CodeMap preview starts at unrelated filehead; candidate source/impact actions exist. No second fix selected.",
+  "policy_replay_patch": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\frozen-task-current-producer-recovery-20261108.json",
+      "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
+    },
+    "patch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-policy-producer-replay-next-batch-v4.patch",
+      "sha256": "e77d0d2e37728b332dab824a0804635b8e2aa986b5a29be10ed017f958a9c740"
+    },
+    "disposition": "Preserved unapplied; adds policy filesystem replay infrastructure, not current core-tool coverage. Existing policy examples already expose policy producers. Historical diagnosis runtime cannot be regenerated from saved JSON."
+  },
+  "resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "observer_pipes_closed": true,
+    "retention": "Keep driver/request/raw response/source expectation evidence for review; no preexisting deletion. No OciusX/source/index/config/service mutation."
+  },
+  "goal_complete": false,
+  "implementation": {
+    "service": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\services\\impact_walk_service.rs",
+      "sha256": "f68107367ccd7a8b8968bd788e524bb7fa2c2312451fd592ec795880549a10c6"
+    },
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\tests\\transitive_impact_behavior_tests.rs",
+      "sha256": "ebbe5893bebfcc070eeab2f90a4959d156ddb9d3f4eb0bbacd218d58f952da9d"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\docs\\TOOL_CONTRACT.md",
+      "sha256": "ef2e06bbd371340185380c1ab802870ef6ae28161698462ecca11e95f5fb2a71"
+    },
+    "review": "Independent local review verified explicit zero selected-dependent count, strict freshness and preservation of preexisting TypeScript recovery under budget pressure. No remaining concrete blocker. No remote CodeRabbit review claimed."
+  },
+  "local_validation": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-lexical-recovery-focused-v1-20261109.json",
+      "sha256": "177ef1dcbb3424de8a2aa193d81a886a576c7efb020b98b3b17b3f1ca14d0751"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-lexical-recovery-focused-v1-20261109.log",
+      "sha256": "90c31afa466f5bc8ca5a9c3634a9c11e6d99ef4d99ac36a606587a6863be644d"
+    },
+    "tests_passed": 25,
+    "tests_failed": 0,
+    "test_seconds": 28.43,
+    "total_seconds": 142.2440360999899,
+    "owned_resources_closed": true,
+    "wanted_behavior": "Actual public recovery executes grep with task exclusions and reads current source/hash; both summaries preserve counts/coverage, following search leaves graph unchanged, invalid/stale/file/nonzero targets refuse generic fallback."
+  }
+}

@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T12:21:27.992528+00:00",
-    "reason": "Delivered and actually executed the existing frozen collector through persistent Codex sessions. Eight candidates and separate judge complete without manual response relay. Both arms 19/20, zero false guidance, assisted input bytes +96.1%; no quality/productivity advantage established. Startup failure retained, not hidden.",
+    "at_utc": "2026-11-09T12:39:08.637868+00:00",
+    "reason": "Current-output comparison on the unchanged original authorization task found zero indexed dependents for both CanEditZoom overloads despite source-confirmed callers. Existing lexical search recovers the source. Select the missing recovery action, not policy replay infrastructure.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original EG-24 regular accepted-task verification after delivered CodeMap/Blast fixes. Automatic execution path is delivered and demonstrated. Current-build producer replay and matched real-task/QA benefit remain incomplete; historical model regressions do not close them.",
-    "next_user_visible_deliverable": "Continue the already-recorded original EG-24 current-build producer replay gap through existing producers and this collector. Reuse the recorded producer-recovery work; the scoped-policy patch is unapplied and does not cover all four categories or CodeMap/Blast. Establish actual current outputs before another model comparison. Do not create another evaluation framework, reopen completed core source probes, invent narrower tasks, alter prior scores, or expand EG14 instruction drafting.",
+    "active_original_item": "Original CodeMap/Blast agent usefulness: deliver bounded lexical recovery from zero-dependent admitted callables through the existing inspection mechanism. Preserve truthful unresolved overloads and all original task criteria.",
+    "next_user_visible_deliverable": "Finish shared recovery action, focused behavior checks, source review and existing paired native build/deployment; execute actual offered action against the original authorization task and independent source. Do not apply policy replay patch or add another framework. Keep current-producer/EG24 and matched QA limitations explicit.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -11379,6 +11379,10 @@
     "latest_automated_frozen_model_execution": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\eg24-codex-execution-outcome-20261109.json",
       "sha256": "1660e6cb89bf0bac371f1fe1b472d8b9993eec4fbe25da106e9830772c639794"
+    },
+    "selected_zero_dependents_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-impact-recovery-20261109.json",
+      "sha256": "1f7fa5ba06541aca27baa1f950a1737f5d3d38cb123ee78033f4196efa0adb62"
     }
   }
 }
