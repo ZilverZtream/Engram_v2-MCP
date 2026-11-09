@@ -1,8 +1,8 @@
 """Collect a new private task run using the existing frozen packet protocol.
 
-This coordinator does not launch agents or call a model. The caller supplies
-isolated candidate/judge identities and their actual responses. A protocol test
-or an archive replay is not a fresh model evaluation.
+Collect manually supplied responses or execute isolated Codex sessions against
+the same frozen packets. A protocol test or an archive replay is not a fresh
+model evaluation.
 """
 import argparse
 from contextlib import contextmanager
@@ -92,11 +92,15 @@ def exclusive(root):
 def deliver(root, state, manifest, run, read_ids):
     value = evaluation.packet(root, manifest, run['case_id'], run['arm'], read_ids)
     relative = artifact(root, state, 'deliveries-new/' + secrets.token_hex(12) + '.json', value)
-    return dict(prompt=relative, read_ids=read_ids,
-                delivery_instruction=evaluation.delivery_instruction(root, relative))
+    turn = dict(prompt=relative, read_ids=read_ids)
+    if run['delivery_mode'] == 'readonly_packet_v2':
+        turn['delivery_instruction'] = evaluation.delivery_instruction(root, relative)
+    return turn
 
 
-def prepare(corpus, destination, kind):
+def prepare(corpus, destination, kind, delivery_mode='readonly_packet_v2'):
+    if delivery_mode not in {'readonly_packet_v2', 'manual_packet_v1'}:
+        raise ValueError('Unknown packet delivery mode')
     corpus = corpus.resolve(strict=True)
     destination = destination.resolve()
     if destination.is_relative_to(corpus):
@@ -125,17 +129,18 @@ def prepare(corpus, destination, kind):
         with path.open('xb') as stream:
             stream.write(raw)
     evaluation.load(destination)
-    protocol = dict(version=2, delivery_mode='readonly_packet_v2',
-                    source_manifest_sha256=state['manifest_sha256'], kind=kind,
-                    limits='Three read IDs per turn; eight per candidate. Wall time includes coordinator waits.')
-    artifact(destination, state, 'delivery-protocol-v2.json', protocol)
-    anchor = destination / 'delivery-protocol-v2.sha256'
-    anchor.write_text(state['artifacts']['delivery-protocol-v2.json'] + '\n', encoding='utf-8')
-    state['artifacts'][anchor.name] = digest(anchor.read_bytes())
+    if delivery_mode == 'readonly_packet_v2':
+        protocol = dict(version=2, delivery_mode=delivery_mode,
+                        source_manifest_sha256=state['manifest_sha256'], kind=kind,
+                        limits='Three read IDs per turn; eight per candidate. Wall time includes coordinator waits.')
+        artifact(destination, state, 'delivery-protocol-v2.json', protocol)
+        anchor = destination / 'delivery-protocol-v2.sha256'
+        anchor.write_text(state['artifacts']['delivery-protocol-v2.json'] + '\n', encoding='utf-8')
+        state['artifacts'][anchor.name] = digest(anchor.read_bytes())
     for case in manifest['cases']:
         for arm in case['arms']:
             run = dict(case_id=case['id'], arm=arm, opaque_id=secrets.token_hex(12),
-                       delivery_mode='readonly_packet_v2', turns=[], intermediate_responses=[])
+                       delivery_mode=delivery_mode, turns=[], intermediate_responses=[])
             run['turns'].append(deliver(destination, state, manifest, run, []))
             state['runs'].append(run)
     secrets.SystemRandom().shuffle(state['runs'])
@@ -233,7 +238,9 @@ def status(root):
     result = dict(status=state['status'], kind=state['kind'], directory=str(root),
                   completed_candidates=sum('response' in r for r in state['runs']),
                   pending_candidates=[dict(candidate_id=r['opaque_id'], agent=r.get('agent'),
-                       delivery_instruction=r['turns'][-1]['delivery_instruction'])
+                       **({'delivery_instruction': r['turns'][-1]['delivery_instruction']}
+                          if 'delivery_instruction' in r['turns'][-1]
+                          else {'packet': str(evaluation.bounded(root, r['turns'][-1]['prompt']))}))
                        for r in state['runs'] if 'response' not in r])
     if state['status'] == 'awaiting_judge':
         result['judge_packet'] = str(evaluation.bounded(root, 'judge/prompt.json'))
@@ -247,6 +254,13 @@ def main():
     p.add_argument('corpus', type=Path)
     p.add_argument('destination', type=Path)
     p.add_argument('--kind', choices=['evaluation', 'protocol_test'], default='evaluation')
+    p.add_argument('--delivery-mode', choices=['readonly_packet_v2', 'manual_packet_v1'],
+                   default='readonly_packet_v2')
+    p = commands.add_parser('execute', help='Run eight Codex candidates and a separate judge using stdin packets')
+    p.add_argument('directory', type=Path)
+    p.add_argument('--codex-executable', type=Path, required=True)
+    p.add_argument('--timeout-seconds', type=float, default=900,
+                   help='Execution deadline per invocation, not an observation timeout')
     for name in ['status', 'bind', 'record', 'judge']:
         p = commands.add_parser(name)
         p.add_argument('directory', type=Path)
@@ -258,10 +272,13 @@ def main():
             p.add_argument('--response', type=Path, required=True)
     args = parser.parse_args()
     if args.command == 'prepare':
-        value = prepare(args.corpus, args.destination, args.kind)
+        value = prepare(args.corpus, args.destination, args.kind, args.delivery_mode)
     else:
         root = args.directory.resolve(strict=True)
-        if args.command == 'status':
+        if args.command == 'execute':
+            from frozen_task_codex import execute
+            value = execute(root, args.codex_executable, args.timeout_seconds)
+        elif args.command == 'status':
             value = status(root)
         elif args.command == 'bind':
             value = bind(root, args.candidate, args.agent_id)

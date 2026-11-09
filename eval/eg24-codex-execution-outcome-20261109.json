@@ -1,0 +1,184 @@
+{
+  "status": "AUTOMATED_FROZEN_MODEL_EXECUTION_COMPLETE_NO_QUALITY_UPLIFT",
+  "at_utc": "2026-11-09T12:21:27.992528+00:00",
+  "original_requirement": "EG-24 regular accepted-task execution through the existing frozen-task collector; historical context regression only.",
+  "source_parent_commit": "a54ca3b20797d2099f9ffe9602efe94ea397afd4",
+  "source_files": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\frozen_task_run.py",
+      "sha256": "1bd6c37496f91667ba0eed28a088ca5bb58fb93efcea18de990e92ff38300912"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\frozen_task_codex.py",
+      "sha256": "230a0510771f67bbe77e0be6eb52a5bae4a1e878947a68c3a0b1b339e416688a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\frozen_task_eval.py",
+      "sha256": "352f35b8456ffa69326e591d2ea5cd37af2c6e07536101e3798685418923c6ee"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\test_frozen_task_run.py",
+      "sha256": "71d977abe65bde720bb36e082c7481bcdd2100b3ef651eb0d2d31a9641ac7140"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\test_frozen_task_codex.py",
+      "sha256": "9f31713b21f5965c992b655446c73095c4a641e3a9279a092a27690fabf87f33"
+    }
+  ],
+  "collector_state": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\collection-state.json",
+    "sha256": "b018c40f280fe324f01693f2546cfd5620b8c961ad8c3308dac365389870253b"
+  },
+  "execution": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\execution\\state.json",
+    "sha256": "a18df49141fe30ee86b67c8a2da76a89628ff27ac3f47315f99292b1f38526c4"
+  },
+  "independent_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-verification-20261109.json",
+    "sha256": "a9b289c29f1988372d4555381d6df9dbb8ff1b7a36b16a4091f937990c603839"
+  },
+  "report": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\report.json",
+    "sha256": "75d7141e766ca9397db74e5e1497f11d7603cf109eccb1cc9741f730c1742ed3"
+  },
+  "judgments": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\judgments.json",
+    "sha256": "033bbf926d94d088771d9198959d6ed602853944d7db73b7c740dc83bf42f31f"
+  },
+  "runs": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\runs.json",
+    "sha256": "e355f2731d4cdb8ed2da88313957f2cac3c1ca06c99df81cb151845b5f0b0c84"
+  },
+  "manifest": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\manifest.json",
+    "sha256": "4dcaf126b99ea9df96aa1ac08675da6e0375bb621715a306570e55de34cf923c"
+  },
+  "judge_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\judge\\prompt.json",
+    "sha256": "58ce769a433a8ae953e6229f7dd419e009da9709100fbd156d394a87b81da2bb"
+  },
+  "judge_mapping": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\judge\\mapping.json",
+    "sha256": "bf302374127ccb240ed28da88ed4288df9ac710441e31d78cda59afab9771473"
+  },
+  "driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109\\driver.log",
+    "sha256": "bfbf5ad5f7ffa446595374244be13d326bde44dde84845449720b7f3292e8e79"
+  },
+  "summary": {
+    "baseline": {
+      "input_bytes": 137178,
+      "additional_reads": 8,
+      "satisfied": 19,
+      "justified_withholding": 0,
+      "total_criteria": 20,
+      "false_guidance": 0
+    },
+    "assisted": {
+      "input_bytes": 269011,
+      "additional_reads": 7,
+      "satisfied": 19,
+      "justified_withholding": 0,
+      "total_criteria": 20,
+      "false_guidance": 0
+    }
+  },
+  "delivered_input_increase_percent": 96.10360261849569,
+  "captured_unmet_criterion": {
+    "case_id": "diagnosis",
+    "criterion": "bounded_next_test",
+    "arms": [
+      "baseline",
+      "assisted"
+    ]
+  },
+  "execution_summary": {
+    "distinct_sessions": 9,
+    "accepted_turns": 17,
+    "candidate_turns": 16,
+    "judge_turns": 1,
+    "observed_model": {
+      "model": "gpt-6-astra",
+      "effort": "high"
+    },
+    "elapsed_seconds": 427.9603,
+    "adapter_retries": 0,
+    "answer_repairs": 0,
+    "model_substitutions": 0,
+    "manual_answer_relays": 0
+  },
+  "preserved_startup_failure": {
+    "execution": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-20261109\\execution\\state.json",
+      "sha256": "76c8834d08d1f30c4f6b9bfc943d063bd9029ae198f4cffc5acf82cf639ba0e2"
+    },
+    "collector": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-20261109\\collection-state.json",
+      "sha256": "95a1a53b531755cd8f69fc7d62e8fb6821374a458ed51b4bac4ab3db7aed0b5e"
+    },
+    "driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-20261109\\driver.log",
+      "sha256": "669f8a163cd8580981d725b706ef385753b4162bbdc75a83239b6bf20d939230"
+    },
+    "rollout": {
+      "path": "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\09\\rollout-2026-11-09T13-09-04-01a1c036-4347-7011-99c3-c5fedebd77e6.jsonl",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "reason": "CLI emitted an under-development feature warning as an error item before turn.started. Run rejected, no candidate response accepted, owned process reaped. Per-invocation warning suppression fixed; errors remain rejected. A separate new run was then prepared; failed evidence was not overwritten or rescored."
+  },
+  "validation": {
+    "collector_and_initial_adapter_suite": {
+      "tests": 16,
+      "seconds": 20.969,
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-adapter-tests-20261109.log",
+        "sha256": "46ccb8cd0beafcf4f31ba4ead5252933b86d13fc6d3520f8d57519235ec543d4"
+      }
+    },
+    "final_adapter_suite_after_stdin_fix": {
+      "tests": 7,
+      "seconds": 17.431,
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-adapter-final-tests-20261109.log",
+        "sha256": "455107424f4d58860422688c57f582640f7dd55c8b5e6af9815aa76b77cdfd2f"
+      }
+    },
+    "final_startup_override_full_fake_run": {
+      "tests": 1,
+      "seconds": 5.463,
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-startup-warning-regression-20261109.log",
+        "sha256": "4e9cd6026910aac22ae22c5405a4bb43a834584058dca8b7f8e3d17f18f6f6f4"
+      }
+    },
+    "independent_source_review": "No remaining concrete blocker on final adapter SHA 230a0510771f67bbe77e0be6eb52a5bae4a1e878947a68c3a0b1b339e416688a. Local independent review; no CodeRabbit execution claimed.",
+    "actual_model_execution": "17 accepted turns, nine distinct sessions; exact stdin/event/response hashes, full stdin, zero exits, closed threads, final rollouts and frozen inputs independently checked."
+  },
+  "regular_verification": {
+    "executable_path_delivered": true,
+    "benchmark_ci_checks": "Synthetic collector and subprocess protocol only; no remote CI outcome claimed.",
+    "current_build_producer_replay_complete": false,
+    "matched_implementation_qa_benefit_established": false
+  },
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_run_directories": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-20261109",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-execution-v2-20261109"
+    ],
+    "interface_smoke_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-exec-smoke-20261109",
+    "interface_smoke_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-codex-exec-smoke-20261109.py",
+      "sha256": "93b1e94d1ec4fa123dffdc1e1dff6f560d65373b5282f94b41c8597c1d9ec4f3"
+    },
+    "persistent_sessions": "Nine completed session paths/final hashes recorded in execution turns; one failed-startup rollout referenced above. Earlier per-turn rollout hashes are snapshots before expected resume appends.",
+    "cleanup": "Owned subprocesses, pipes, threads and test fixtures closed/cleaned. Private run evidence, logs, smoke evidence and persistent sessions retained for review; removal requires approval of exact retained paths. No preexisting directories removed."
+  },
+  "limits": [
+    "Historical frozen packets are an inspected regression set, not a fresh holdout or current Engram producer replay.",
+    "Equal captured quality with more packet bytes does not establish productivity or lower provider cost; packet bytes differ from provider usage.",
+    "Known tools/hooks/plugins/MCP servers are disabled and tool events rejected. This is bounded contamination detection, not proof of absent platform context or whole-process-tree isolation.",
+    "Prior pilot/full-task scores, original 31 findings/19 gates and partial EG-14 remain unchanged. No Engram production deployment in this slice."
+  ],
+  "goal_complete": false
+}
