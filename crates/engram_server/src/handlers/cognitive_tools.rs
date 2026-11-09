@@ -39,6 +39,56 @@ fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
     }
 }
 
+/// Spend only remaining display room on a literal recovery for a named miss.
+/// The candidate count, rather than the displayed symbols, determines a miss.
+fn named_literal_recovery(navigation: &serde_json::Value) -> Option<serde_json::Value> {
+    if navigation["detail"] != "exact_name_candidates" { return None; }
+    let files = navigation["files"].as_array()?;
+    if files.len() != 1 { return None; }
+    let file = &files[0];
+    if file["declarations_observed"] != 0 || file["name_selection"]["observed"] != false
+        || !file["symbols"].as_array()?.is_empty() { return None; }
+    let name = file["name_selection"]["requested_name"].as_str()?;
+    if name.is_empty() || name.len() > 128 || name.contains('.') || name.chars().any(char::is_control) {
+        return None;
+    }
+    let action_index = file["actions"].as_array()?.iter().position(|action|
+        action["tool"] == "get_codebase_overview" && action["arguments"]["scope"] == file["path"])?;
+    let mut trial = navigation.clone();
+    let args = trial["files"][0]["actions"][action_index]["arguments"].as_object_mut()?;
+    for key in ["offset", "symbol_offset", "symbol_name", "symbol_node_id", "source_start_line"] {
+        args.remove(key);
+    }
+    args.insert("source_contains".into(), serde_json::json!(name));
+    args.insert("include_source".into(), serde_json::json!(true));
+    args.insert("include_declarations".into(), serde_json::json!(false));
+    args.insert("include_retained_context".into(), serde_json::json!(false));
+    if let Some(limits) = trial["limitations"].as_array_mut() {
+        for limit in limits {
+            if let Some(text) = limit.as_str() {
+                *limit = serde_json::json!(text.replace("File action returns ordinary discovery;",
+                    "File action inspects literal name text, not binding;"));
+            }
+        }
+    }
+    Some(trial)
+}
+
+fn render_named_literal_recovery(
+    navigation: &serde_json::Value, limit: usize,
+    render: impl Fn(&serde_json::Value) -> Result<String, String>,
+) -> Result<String, String> {
+    let baseline = render(navigation)?;
+    if baseline.len() <= limit {
+        if let Some(trial) = named_literal_recovery(navigation) {
+            if let Ok(candidate) = render(&trial) {
+                if candidate.len() <= limit { return Ok(candidate); }
+            }
+        }
+    }
+    Ok(baseline)
+}
+
 struct LiteralSourceQuery {
     literal: String,
     start_line: u64,
@@ -89,7 +139,7 @@ fn codemap_source_preview(
         Err(error) => {
             navigation["current_source"] = unavailable(error.chars().take(240).collect(), 1);
             let out = render(&navigation)?;
-            return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
+            return if out.len() <= REPLY_BYTES { render_named_literal_recovery(&navigation, REPLY_BYTES, &render) } else { Err("Source-preview unavailability metadata exceeds12KiB; narrow the symbol selection or use include_source=false".into()) };
         }
     };
     if let Some(query) = literal_query {
@@ -108,7 +158,7 @@ fn codemap_source_preview(
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         navigation["current_source"] = unavailable("Indexed anchor page lies beyond current file; inspect from the beginning. Indexed method bounds are unverified.".into(), 1);
         let out = render(&navigation)?;
-        return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+        return if out.len() <= REPLY_BYTES { render_named_literal_recovery(&navigation, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
     }
     let mut lines: Vec<_> = source.lines().skip((start - 1) as usize).take(LINES as usize).collect();
     // Trim optional trailing context first, then preceding context, before
@@ -130,7 +180,7 @@ fn codemap_source_preview(
         if lines.is_empty() && total > 0 {
             navigation["current_source"] = unavailable("No complete source line fits the preview budget; no line was clipped or skipped.".into(), start);
             let out = render(&navigation)?;
-            return if out.len() <= REPLY_BYTES { Ok(out) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
+            return if out.len() <= REPLY_BYTES { render_named_literal_recovery(&navigation, REPLY_BYTES, &render) } else { Err("Source-preview metadata exceeds12KiB; narrow the selection".into()) };
         }
         let end = if total == 0 { 0 } else { start + lines.len() as u64 - 1 };
         navigation["current_source"] = serde_json::json!({"status":"available","file_path":file,
@@ -145,7 +195,9 @@ fn codemap_source_preview(
         }
         let preview_bytes = serde_json::to_vec(&navigation["current_source"]).map_err(|e|e.to_string())?.len();
         let out = render(&navigation)?;
-        if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES { return Ok(out); }
+        if preview_bytes <= PREVIEW_BYTES && out.len() <= REPLY_BYTES {
+            return render_named_literal_recovery(&navigation, REPLY_BYTES, &render);
+        }
         if lines.is_empty() {
             return Err("Source-preview metadata exceeds12KiB; narrow the selection or use include_source=false".into());
         }
@@ -2159,7 +2211,9 @@ impl Engram {
                 .map_err(|e|McpError::invalid_params(e,None))?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
-        let encoded=serde_json::to_string(&navigation).map_err(|e|McpError::internal_error(e.to_string(),None))?;
+        let encoded=render_named_literal_recovery(&navigation,64*1024,|value|
+            serde_json::to_string(value).map_err(|error|error.to_string()))
+            .map_err(|error|McpError::internal_error(error,None))?;
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
         if !compact_navigation {

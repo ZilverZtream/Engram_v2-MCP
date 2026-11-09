@@ -3070,6 +3070,107 @@ fn named_terminal_lookup_preserves_ambiguity_and_exact_name_priority() {
 }
 
 #[test]
+fn named_miss_recovers_distant_literal_source_without_expanding_declaration_scan() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/counts.vb";
+        let mut lines = vec!["' unrelated source".to_owned(); 240];
+        lines[180] = "Dim meta As CacheMeta = ReadMeta(ds)".into();
+        lines[200] = "Private Shared Function ReadMeta(ds As DataSource) As CacheMeta".into();
+        lines[201] = "    If ds Is Nothing Then Return Nothing".into();
+        lines[202] = "End Function".into();
+        let body = format!("{}\n", lines.join("\n"));
+        publish_named_sources(&engram, &search, &[(PATH, &body)]).await;
+        let mut declarations: Vec<_> = (0..80).map(|i| {
+            let name = format!("A.Filler{i:02}");
+            node(&format!("sym:function:{PATH}:{name}:1"), "function", &name, PATH, 1)
+        }).collect();
+        let mut target = node(&format!("sym:function:{PATH}:Zed.ReadMeta:201"),
+            "function", "Zed.ReadMeta", PATH, 1);
+        target.start_line = 201; target.end_line = 203; declarations.push(target);
+        engram.state.graph.upsert_nodes(PID, &declarations).unwrap();
+        let request = json!({"project_id":PID,"scope":PATH,"symbol_name":"ReadMeta",
+            "path_contains":"counts","exclude_paths":["src/private"],"include_source":true});
+        let text = navigation_text(&engram, request.clone()).await;
+        assert!(text.len() <= 12*1024);
+        let page = navigation(&text);
+        assert_eq!(page["files"][0]["declarations_observed"], 0);
+        let coverage = &page["coverage"]["declarations"][0];
+        assert!(coverage["declaration_admission"]["raw_rows"].as_u64().unwrap() <= 64);
+        assert_eq!(coverage["terminal_name_fallback"]["bounded_procedure_completed"], false);
+        assert_eq!(page["current_source"]["line_end"], 120);
+        assert_eq!(page["current_source"]["source_code"], lines[..120].join("\n"));
+        let recovery = &page["files"][0]["actions"][0];
+        assert_eq!(recovery["tool"], "get_codebase_overview");
+        let args = &recovery["arguments"];
+        assert_eq!(args["source_contains"], "ReadMeta");
+        assert_eq!(args["scope"], PATH);
+        assert_eq!(args["path_contains"], "counts");
+        assert_eq!(args["exclude_paths"], json!(["src/private"]));
+        assert_eq!(args["include_declarations"], false);
+        assert_eq!(args["include_source"], true);
+        assert_eq!(args["include_retained_context"], false);
+        for key in ["symbol_name", "symbol_node_id", "offset", "symbol_offset"] {
+            assert!(args.get(key).is_none());
+        }
+        assert!(page["files"][0]["actions"].as_array().unwrap().iter()
+            .any(|action| action["tool"] == "get_full_method_body"));
+        let recovered = navigate(&engram, args.clone()).await;
+        assert_eq!(recovered["current_source"]["matched_lines"], json!([181,201]));
+        assert_eq!(recovered["current_source"]["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
+        let windows = recovered["current_source"]["windows"].as_array().unwrap();
+        assert!(windows.iter().any(|window| window["source_code"].as_str().unwrap().contains("Dim meta As CacheMeta = ReadMeta(ds)")));
+        assert!(windows.iter().any(|window| window["source_code"].as_str().unwrap().contains("Private Shared Function ReadMeta")));
+        assert!(recovered["current_source"]["scope"].as_str().unwrap().contains("not declarations"));
+
+        // A real exact match or ambiguity retains declaration navigation. An
+        // unsupported literal name must not be shortened or reinterpreted.
+        for line in [201, 221] {
+            let mut exact = node(&format!("sym:function:{PATH}:ReadMeta:{line}"), "function", "ReadMeta", PATH, 1);
+            exact.start_line = line; exact.end_line = line;
+            engram.state.graph.upsert_nodes(PID, &[exact]).unwrap();
+            let found = navigate(&engram, request.clone()).await;
+            assert_eq!(found["files"][0]["symbols"].as_array().unwrap().len(), if line == 201 {1} else {2});
+            assert!(found["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+        }
+        for name in ["Unknown.ReadMeta".to_owned(), "x".repeat(129), "é".repeat(65)] {
+            let miss = navigate(&engram, json!({"project_id":PID,"scope":PATH,"symbol_name":name})).await;
+            assert_eq!(miss["files"][0]["declarations_observed"], 0);
+            assert!(miss["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+        }
+        let ordinary = navigate(&engram, json!({"project_id":PID,"scope":PATH})).await;
+        assert!(ordinary["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+    });
+}
+
+#[test]
+fn named_miss_literal_recovery_does_not_evict_source_under_reply_pressure() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/pressure.vb";
+        let body = "' ordinary source\n".repeat(200);
+        publish_named_sources(&engram, &search, &[(PATH, &body)]).await;
+        let request = json!({"project_id":PID,"scope":PATH,"symbol_name":"Missing","include_source":true});
+        let roomy = navigation_text(&engram, request.clone()).await;
+        assert_eq!(navigation(&roomy)["files"][0]["actions"][0]["arguments"]["source_contains"], "Missing");
+        let mut project = engram.state.registry.get_project(PID).unwrap().unwrap();
+        project.project_name.push_str(&"p".repeat(12*1024-roomy.len()+512));
+        engram.state.registry.put_project(&project).unwrap();
+        let crowded = navigation_text(&engram, request).await;
+        assert!(crowded.len() <= 12*1024 && crowded.len() > 12*1024-32,
+            "Existing source allocation must fill the reply before optional recovery");
+        let page = navigation(&crowded);
+        assert!(page["files"][0]["actions"][0]["arguments"].get("source_contains").is_none());
+        let source = &page["current_source"];
+        let end = source["line_end"].as_u64().unwrap() as usize;
+        assert!(end > 0 && end < 120);
+        assert_eq!(source["source_code"], body.lines().take(end).collect::<Vec<_>>().join("\n"));
+        assert_eq!(source["next_page"]["arguments"]["line_start"], end+1);
+        assert_eq!(source["source_file_hash"], ContentHash::compute(body.as_bytes()).0);
+        assert!(page["limitations"].as_array().unwrap().iter().any(|limit|
+            limit.as_str().unwrap().contains("File action returns ordinary discovery")));
+    });
+}
+
+#[test]
 fn named_terminal_lookup_shares_remaining_key_and_decode_budgets() {
     owned_case(true,|engram,search| async move {
         let body="Public Function Run() As Integer : Return 1 : End Function\n";
