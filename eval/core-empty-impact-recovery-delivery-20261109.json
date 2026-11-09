@@ -1,0 +1,208 @@
+{
+  "status": "DEPLOYED_ZERO_DEPENDENT_LEXICAL_RECOVERY_NORMAL_IPC_VERIFIED",
+  "at_utc": "2026-11-09T13:10:28.706739+00:00",
+  "source_commit": "815ae04d8715439b0941a1aee3b727d63cfabe73",
+  "development": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-impact-recovery-20261109.json",
+    "sha256": "1f7fa5ba06541aca27baa1f950a1737f5d3d38cb123ee78033f4196efa0adb62"
+  },
+  "problem": "Both selected CanEditZoom overloads had zero indexed dependents despite source-confirmed API and policy references. Their only impact continuation repeated empty graph evidence.",
+  "implemented_behavior": "An admitted function/method with zero observed dependents can offer a bounded strict-freshness literal-name search through the existing optional inspection slot. Existing focused TypeScript recovery, counts, graph evidence and response caps are preserved. The action is lazy; callers retain task exclusions. Lexical leads do not become bound graph callers.",
+  "actual_delivery": {
+    "codemap_bytes_before_and_after": 12252,
+    "impact_or_blast_summary_bytes_before": 4563,
+    "impact_or_blast_summary_bytes_after": 5380,
+    "delta_per_summary_bytes": 817,
+    "original_four_core_output_facts_preserved": true,
+    "all_three_recovery_actions_equal": true,
+    "search_executed": {
+      "arguments": {
+        "case_sensitive": false,
+        "context_after": 0,
+        "context_before": 0,
+        "freshness": "strict",
+        "max_results": 20,
+        "output_json": true,
+        "pattern": "CanEditZoom",
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "regex": false,
+        "exclude_path_prefixes": [
+          "Site/Q",
+          ".audit"
+        ]
+      },
+      "tool": "grep_project"
+    },
+    "lexical_matches": 19,
+    "lexical_reply_bytes": 23304,
+    "source_action_executed": {
+      "tool": "get_full_method_body",
+      "arguments": {
+        "context_lines": 0,
+        "file_path": "Site/App_Code/visualisering/api-json/api-visualisering-kml.vb",
+        "line_start": 365,
+        "output_json": true,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      }
+    },
+    "source_reply_bytes": 4645,
+    "source_range": [
+      365,
+      410
+    ],
+    "source_confirmed_reference_lines": {
+      "api-visualisering-kml.vb": [
+        369
+      ],
+      "FileLayerZoomPolicy.vb": [
+        176,
+        194
+      ]
+    },
+    "candidate_calls": 10,
+    "candidate_bytes": 65189,
+    "normal_calls": 10,
+    "normal_bytes": 65189,
+    "current_source_checks_per_run": 5,
+    "all150_definitions_unchanged": true,
+    "native214_assets_unchanged": true,
+    "candidate_selected_registry_selection_and_other14_metadata_unchanged": true,
+    "normal_database_preservation_not_claimed": true
+  },
+  "validation": {
+    "public_behavior_tests_passed": 25,
+    "public_behavior_tests_failed": 0,
+    "test_seconds": 28.43,
+    "release_build_seconds": 905.4813776999945,
+    "producer_source_review": "Independent local review; no remaining blocker. No remote CodeRabbit review claimed.",
+    "normal_v1_retained_failure": "First freshness read succeeded, but verifier compared last_index_completed elapsed seconds literally. Epoch1794145180929 and all other fields identical; pipe closed, no pending request. V2 changes only anchored seconds-age comparison for this field and keeps epoch unchanged. No producer/source change or model retry.",
+    "independent_actual_review": "PASS: exact output delta, executed actions/current source,150definitions,214installedassets, candidate metadata, journal hashes, hold release and process/resource closure verified. V1 age-comparator failure preserved separately."
+  },
+  "original_task_direct_source_answer": {
+    "task": "Review a proposed change: require an Administrator/Foreman saving a shared uploaded layer zoom setting to be on the original project map, so save authorization matches zoom-control visibility. Decide whether to apply it, propose the minimal action, and identify permission conditions that must survive. Do not implement anything.",
+    "criteria_unchanged": [
+      "save_authorization_exception",
+      "ui_roles_ownership",
+      "caller_checks_separate",
+      "no_unjustified_change",
+      "evidence_limits"
+    ],
+    "decision": "Reject the proposed original-project save restriction. Explain the existing intentional UI/save distinction and retain the separate server checks. No application edit is warranted by the stated proposal.",
+    "permission_conditions": "Company ownership and allowed manager roles remain required. Original-project condition is UI-only for Administrator/Foreman; retain subcontractor-admin inherited-map UI exception. Server input, requested-map access, visible row, source-project access, supported type and feature-flag checks remain separate. Do not authorize from the client descriptor.",
+    "evidence": "Retained independent seven-file source windows revalidated against current SHA256; actual new recovery independently reaches API365..410. This is informed source review, not a fresh agent task result or historical rescore.",
+    "limits": "Access-control helpers, visibility-query internals, routing, transactions, all callers and runtime role behavior were not exhaustively inspected/executed. No OciusX edit warranted or made."
+  },
+  "evidence": {
+    "core-impact-lexical-recovery-focused-v1-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-lexical-recovery-focused-v1-20261109.json",
+      "sha256": "177ef1dcbb3424de8a2aa193d81a886a576c7efb020b98b3b17b3f1ca14d0751"
+    },
+    "core-impact-lexical-recovery-shipping-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-lexical-recovery-shipping-20261109.json",
+      "sha256": "2adc8d0d5fb06593eb21246153e13cc57000b660af2920dec818ae9bee2a6e11"
+    },
+    "core-impact-lexical-recovery-build-artifact-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-lexical-recovery-build-artifact-20261109.json",
+      "sha256": "ae6d5e97da13eb678a0398abb2c9c99171cd692dcd1cbe0430b22e9cd20971ac"
+    },
+    "impact-lexical-recovery-helper-pinning-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-helper-pinning-20261109.json",
+      "sha256": "35d3d71ee668fee2db6d107ca5171dced087b652dbef858de8699f5924e7f955"
+    },
+    "impact-lexical-recovery-paired-package-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-paired-package-20261109.json",
+      "sha256": "9baa4d2127857e7ed6370187d8275e2ab4cc3a0c285553980a9bfc5c951675b1"
+    },
+    "impact-lexical-recovery-cold-v1-20261109/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-cold-v1-20261109\\acceptance.json",
+      "sha256": "1365af511b46ef581ad843add4b0956cdf7788feea2e47bb533cadaeecebebd5"
+    },
+    "impact-lexical-recovery-normal-v1-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-normal-v1-20261109.json",
+      "sha256": "bc58ba594ecf3d354f72616a4969564a55f1007c360990d48538810f52bb64de"
+    },
+    "impact-lexical-recovery-normal-v2-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-normal-v2-20261109.json",
+      "sha256": "28fecd5194924b9a1f0fa600e319ab241835d6aa9bdbc3fd050208211d547ff0"
+    },
+    "impact-lexical-recovery-normal-20261109.py": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-normal-20261109.py",
+      "sha256": "c126306736db5bd7594c8e1ddc34bde1bc68c2a4edb73957496afab8407ec59d"
+    },
+    "impact-lexical-recovery-normal-v2-20261109.py": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-normal-v2-20261109.py",
+      "sha256": "f6df038e0c56959fa28bfc2392fde50b5bf1df9a9b53661269890f2bab0064a6"
+    },
+    "impact-lexical-recovery-preflight-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-preflight-20261109.json",
+      "sha256": "79a41ff6ec5479fd56d2fbfce56f472ab85a394953dd6e5b1d2a3caabcddeb84"
+    },
+    "impact-lexical-recovery-drain-intent-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-drain-intent-20261109.json",
+      "sha256": "1efe4b78fce44d52380949373a048e48301d004208e73402a2703d1ee30fab4b"
+    },
+    "impact-lexical-recovery-release-gates-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-release-gates-20261109.json",
+      "sha256": "9e13bc98378e4896053a81efc1870e044138d5e9095b77eb6482ebb109683edf"
+    },
+    "impact-lexical-recovery-forward-applicability-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-forward-applicability-20261109.json",
+      "sha256": "2ddfb4660c1980f8c63ef2ed5f4d0288a7f2c514907b729ad9a016d9df1ced4e"
+    },
+    "impact-lexical-recovery-gate-inventory-snapshot-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-gate-inventory-snapshot-20261109.json",
+      "sha256": "0003191a0737779c706b30a2e7697bd4a5a7c22e6b06e07310e20a8e8f110b08"
+    },
+    "impact-lexical-recovery-installer-result-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-installer-result-20261109.json",
+      "sha256": "f88e802629445cccda07b985e933d6fbde451a220d489a7aa7059a4071e2cae5"
+    },
+    "impact-lexical-recovery-config-hold-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-config-hold-20261109.json",
+      "sha256": "1ec3e3e219dfc556423c2f631edaa6e14b0f4cb2160e65ca8f3f0de728f2178b"
+    },
+    "impact-lexical-recovery-config-hold-20261109.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-config-hold-20261109.json.released.json",
+      "sha256": "a50b87361d887eedc8069871073b51f5e11c5ab26c052d1420aba8dfe439f2b7"
+    },
+    "impact-lexical-recovery-normal-launch-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-normal-launch-20261109.json",
+      "sha256": "00ec411529e239d47aff6fd8398f33cef2f7b294cdf65e59e3e203ca964c739d"
+    },
+    "core-original-scope-source-expectations-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-original-scope-source-expectations-20261109.json",
+      "sha256": "5bd87621e2cdd1f47663bd4742baf3aca0d716ab752d6fb488a83dfdaaba27a5"
+    },
+    "impact-lexical-recovery-delivery-verification-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-lexical-recovery-delivery-verification-20261109.json",
+      "sha256": "ec8e165ea17e7a86ae1c7962a17389090ef2fd6e00edee90d4b75f1ec3d82476"
+    }
+  },
+  "runtime": {
+    "daemon_pid": 59384,
+    "primary_started_at_ms": 1794229663220,
+    "launcher_pid": 49296,
+    "server_sha256": "875f7d1817a9a38f9dd4f300ae26ee432274f273270839ef5c3ba677da3ef5da",
+    "manifest_sha256": "b60055b04a487dacb510abb153c1c3727ddde49b6a2a3ad8a4e2264f5ac18cff",
+    "generation": 3139,
+    "normal_config_unchanged": true,
+    "maintenance_hold_active": false,
+    "actual_upgrade_invocations": 1,
+    "old_daemon_exited_naturally": true,
+    "codex_host_stopped": false
+  },
+  "resources": {
+    "test_build_candidate_handles_closed_and_owned_tmp_removed": true,
+    "normal_observer_pipe_closed": true,
+    "pending_rpc": null,
+    "normal_daemon_owns_lifetime": true,
+    "retained_old_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-fe141c710bc64649a43f1c9cd4c8b824",
+    "evidence_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, helpers, source/task/output evidence, failed normal v1 and prior complete pair for delivery review. No preexisting deletion. New test/build/candidate temporary directories removed after handles closed; normal service is intentional."
+  },
+  "next_selected_work": "Continue the original CodeMap/Blast usefulness queue. The observed ambiguous named CodeMap preview spends12252bytes on filehead while exposing two overload IDs; first follow its existing candidate source action on the unchanged authorization task. Fix only a demonstrated navigation/cost gap, and preserve all five criteria. No policy replay framework, new broad audit or favorable model rerun.",
+  "fresh_agent_task_win_proven": false,
+  "matched_productivity_advantage_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}
