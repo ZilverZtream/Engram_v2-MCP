@@ -1,0 +1,179 @@
+{
+  "status": "DEPLOYED_CONNECTED_IMPACT_SOURCE_RECOVERY_NORMAL_IPC_VERIFIED",
+  "at_utc": "2026-11-09T08:10:19.190931+00:00",
+  "source_commit": "9b366345b3bc0f7f5f34ecc6c138351ceff2c311",
+  "selected_original_work": "CodeMap and Blast Radius usefulness: recover the missing QueryCache bridge without displacing existing evidence",
+  "evidence_origin": "Actual original classification replay exposed the missing bridge; retained graph and independent current source established the available connection and source bounds.",
+  "previous_full_task": {
+    "path": "eval/core-source-ranges-full-classification-20261109.json",
+    "sha256": "9f7fcb485eee1ba7c225699cf4a94f3448417af365dcbf9af3545dbf3c4e3e03",
+    "grades": [
+      "PASS",
+      "PASS",
+      "PASS",
+      "PARTIAL",
+      "PASS"
+    ],
+    "unchanged": true
+  },
+  "implementation": {
+    "final_allocation_upgrade": true,
+    "original_full_contiguous_reads_preserved": true,
+    "same_file_physical_generation_only": true,
+    "max_ranges_per_read": 3,
+    "max_total_lines_per_read": 120,
+    "route_bytes_cap": 4096,
+    "summary_bytes_cap": 12288,
+    "fallback": "Keep the complete existing summary when any additional group cannot fit, including existing framing/footer reserve.",
+    "metadata": "Explicit edge values override disclosed defaults; only explicitly present identical fields are factored. All effective connection metadata and explicit edge generations are retained.",
+    "graph_and_safety_decisions_unchanged": true
+  },
+  "validation": {
+    "unit_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-route-units-v1-20261109.json",
+      "sha256": "d7081efa87b6ea1c6ed1e33e061d1a212c4c89e41a1afdd8dcd526c0e9531ade"
+    },
+    "unit_passed": 4,
+    "public_tool_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-route-focused-v1-20261109.json",
+      "sha256": "ee18911126b15eb4c459a42b039aebb9d7908effbff0356d351f47c946f6804f"
+    },
+    "public_tool_passed": 24,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-route-shipping-20261109.json",
+      "sha256": "1264c7e6e82d5195cde8aa4349604fc79c7fe3e8f79c4ba4ab00537df31a61cf"
+    },
+    "build_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-route-build-artifact-20261109.json",
+      "sha256": "34c3e99a7d4e5b0d44c7bd9d4959197ead22afa82c67394f8ef4aa9a1458f08c"
+    },
+    "independent_source_review": "Separate agent reviewed the producer, public fixture, four unit cases and documentation without edits; no concrete defects found. CodeRabbit was unavailable in this session; this is independent local inspection.",
+    "cold_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-cold-v1-20261109\\acceptance.json",
+      "sha256": "5704ca7a2535f7e43bcf88c2a9e5b496c8882cdfc4a5596bdf69f431b07e42c9"
+    },
+    "normal_ipc": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-normal-v1-20261109.json",
+      "sha256": "f0a703f48709e0c6842ac41135a75426a288f5627d2776a024ce4bd5b44cd0a1"
+    },
+    "actual_read_only_calls_each": 12,
+    "actual_candidate_text_bytes": 131448,
+    "all150_definitions_unchanged": true,
+    "all_three_existing_codemaps_unchanged": true,
+    "full_admitted_graph_unchanged": true,
+    "selected_registry_selection_other14_metadata_preserved_in_exclusive_candidate": true,
+    "normal_verification_scope": "Normal public pipe/PID/package, complete generation, terminal jobs and three current source files; candidate metadata preservation is separate."
+  },
+  "actual_recovery": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation": 3139,
+    "tools": [
+      "impact_analysis",
+      "compute_blast_radius"
+    ],
+    "file_path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+    "source_ranges": [
+      {
+        "line_start": 2219,
+        "line_end": 2239
+      },
+      {
+        "line_start": 2247,
+        "line_end": 2345
+      }
+    ],
+    "original99_lines_preserved": true,
+    "added_querycache_lines": 21,
+    "total_lines": 120,
+    "exact_current_raw_source_and_blake3_verified": true,
+    "added_graph_node": "n15",
+    "added_graph_connections": [
+      "e18",
+      "e48"
+    ],
+    "all7_effective_connections_equal_graph": true,
+    "summary_bytes_before": 12110,
+    "summary_bytes_after": 12072,
+    "route_bytes_before": 4040,
+    "route_bytes_after": 4002,
+    "interpretation": "An executable missing-bridge recovery is verified. Byte counts and source lines alone do not establish end-to-end agent usefulness."
+  },
+  "deployment": {
+    "package": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-paired-package-20261109.json",
+      "sha256": "5005a3bcf2696115621160fda912d0b7f95a4eff9b6bd5836b1b5f4c7fbf2580"
+    },
+    "forward_gate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-release-gates-20261109.json",
+      "sha256": "e1086b0e850ec54e3a5a5f4dfb3b547d28ad9cee1fbe287cdc83a04712bbfc54"
+    },
+    "forward_applicability": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-forward-applicability-20261109.json",
+      "sha256": "7767bcf8bff4958fdaaab34d36b54fc7fa0c7f8018d8919fca2c3bb3c2937a70"
+    },
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-installer-result-20261109.json",
+      "sha256": "6ef291622bacdfa06e369935845b4407656d16444c1b65f45209616c1e9d7f0d"
+    },
+    "server_sha256": "8088c201edb1b0f090ddc4b7e73ace2f4ed7c868b8ef48f5860b6200b9373c4d",
+    "manifest_sha256": "ef2e965da30474cd0e36b0ce6671a6dedffa3df2c1ac60b135c3a4ed15c98b9f",
+    "unchanged_native_assets": 214,
+    "daemon_pid": 45956,
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-normal-launch-20261109.json",
+      "sha256": "3dc5662157738b56a48cbb8209b82715d529b8364b9073ac649c1dcc676c9fa7"
+    },
+    "transaction_id": "9669d2ae3868479bac25b5480b4a95ce",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9669d2ae3868479bac25b5480b4a95ce",
+    "committed_journal": {
+      "sha256": "1eb6e847ccd9f542de14dd5a6fafbeecbb307ebf466e5a7e25d6d5bb067e21df",
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9669d2ae3868479bac25b5480b4a95ce.04-committed-no-start.json"
+    },
+    "upgrade_invocations": 1,
+    "gate_inventory_snapshot": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-gate-inventory-snapshot-20261109.json",
+      "sha256": "34961aa8c69374022931b605ffa945bfa4f3d663d52192668e8f1e4df2c17b64",
+      "scope": "Exact bytes of the interim backlog checkpoint pinned by the executed gate; reconstructed from its committed predecessor and recorded checkpoint update with original Windows newlines, then matched to the executed proof SHA256. Original findings and gates are unchanged."
+    }
+  },
+  "maintenance": {
+    "authorization": "Standing user permission for routine Engram maintenance and Codex-owned Engram proxy closure; no repeated permission question.",
+    "preflight": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-preflight-20261109.json",
+      "sha256": "c6554a0d862e81b4082c164ae1721736947a482328af0ee1772de2594a7b8899"
+    },
+    "proxy_close_intent": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-proxy-close-intent-20261109.json",
+      "sha256": "9400b823532469d355b12c0e8c46dbd32734d5397f3a8cd529c067f0547107f2"
+    },
+    "quiescence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-quiescence-20261109.json",
+      "sha256": "692fe25f1e77a03f3bca7ffb754574e7b7c3e75e54079886878a8ad6a7cc64ef"
+    },
+    "hold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-config-hold-20261109.json",
+      "sha256": "300bac1fff46521c6ff13fc4441688207c10ff55a9bc7e2acdb8d668845cd744"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-config-hold-20261109.json.released.json",
+      "sha256": "0e6ed5047ed5be4ba773e8450aad858d5cac6975219b7fdaebec184811dafd67"
+    },
+    "configuration_unchanged": true,
+    "daemon_exited_naturally": true
+  },
+  "resources": {
+    "test_and_build_owned_temporary_directories_removed": true,
+    "candidate_owned_tmp_removed": true,
+    "candidate_and_observer_handles_closed": true,
+    "maintenance_hold_closed": true,
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-package-20261109",
+    "retained_candidate_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-cold-v1-20261109",
+    "cleanup_condition": "Retain package/evidence and exact installer backup/journals for review; no preexisting folders removed or authorized for deletion."
+  },
+  "full_task_status": "PARTIAL_UNCHANGED_PENDING_FRESH_REPLAY",
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false,
+  "next_selected_work": "Replay the unchanged original classification task with the same eight-call/65536-byte cap, then address the remaining concrete HTTP/JSON/editor recovery gaps from actual outputs."
+}
