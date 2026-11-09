@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T16:46:35.370018+00:00",
-    "reason": "Selected property navigation deployed and actual emitted property/impact/source chain checked on OciusX; full-task usefulness remains unproved.",
+    "at_utc": "2026-11-09T17:02:38.388781+00:00",
+    "reason": "Freeze the single original full-QA attempt after deployed property navigation; negative/partial result remains visible and cannot be retried into a pass.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast whole-task usefulness remains unfinished.561ecf1 property navigation now deployed and normal13-call validation passed; actual3-call ResolvePolicy/property/WriteFeature chain30733B. Preserve prior2PASS/3PARTIAL fullQA and source-only preference.",
-    "next_user_visible_deliverable": "Run one fresh original full-QA task with identical task/criteria,8attempts/65536UTF8bytes including setup; preserve terminal attempts and assess actual evidence without claiming matched causal benefit. Keep v3 summary migration, parser/global scan expansion, known-answer reordering and parked EG24 producer reconstruction out of scope.",
+    "active_original_item": "Original CodeMap/Blast whole-task usefulness remains unfinished.561ecf1 property navigation deployed and actual chain verified, but fresh originalfullQA PASS/PARTIAL/PARTIAL/FAIL/PARTIAL; newlinks unused, third oversized ordinaryread withheld. No comparative benefit established.",
+    "next_user_visible_deliverable": "No further model replay from this unchanged state. The core delivery remains insufficient for the original workflow. Work on an agent-facing impact/source handoff that reduces navigation overhead and helps narrow a whole-file request, using the frozen actual file-level report and independent source evidence. Preserve counts, witnesses, gaps and executable recovery; do not reorder toward known answers, reopen this ledger, infer a public defect from the refused ordinary read, or resume parked catalog/performance/ownership/instruction work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Previous turn: progress via implementation/tests and pushed561ecf1. Current turn: release built, installed and actual normal navigation/source chain verified; one checker contract-label mistake preserved/corrected with no production change.",
+    "previous_goal_turn_classification": "Progress: source release installed, actual property/impact/source chain verified, and one fresh original fullQA frozen with independent negative/partial assessment. No goal completion or matched win.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11392,8 +11392,8 @@
       "sha256": "f47d3d54006e840ef0d49a9c1579c1e4e3af01bde3a28aeccc2cc98435e0b073"
     },
     "latest_original_full_qa": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-description-budget-full-qa-20261109.json",
-      "sha256": "cbd1d4c8407e11e8245e40451cd0ab05ba4795e4eb22b97cd2b8d6c9f5cea89e"
+      "path": "eval\\core-property-navigation-full-qa-20261109.json",
+      "sha256": "29b5bc5846aa8fd84a885fd1c6cdeef08c96709885f4bc3a04ad9b61756218d1"
     },
     "latest_rejected_delivery_candidates": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-delivery-selection-20261109.json",

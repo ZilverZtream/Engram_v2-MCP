@@ -1,0 +1,166 @@
+{
+  "status": "SINGLE_ORIGINAL_FULL_QA_TERMINAL_PARTIAL_NO_BENEFIT_ESTABLISHED",
+  "at_utc": "2026-11-09T17:02:38.388781+00:00",
+  "source_commit": "561ecf18aea11b25825b2545601bff6b57727a04",
+  "candidate": "/root/blast_reply_budget/full_qa_birch",
+  "judge": "/root/qa_judge_c",
+  "task": "Review the CURRENT automatic zoom and manual-override workflow in OciusX for QA coverage. Decide whether tests of ClassifyAutomatic alone are sufficient to sign off that workflow, and give the minimum backend-to-UI regression matrix you can justify from inspected code. Starting point: Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb, ClassifyAutomatic. No threshold change or application patch is proposed; do not invent one or edit application code. Distinguish direct calls, data dependencies and unresolved leads. Return concrete test setups and expected results, source path/line citations, and explicit uninspected/deployment limits. Keep the final answer at most1200words.",
+  "original_acceptance_criteria": [
+    "Identify the actual classifier and explain exact inclusive BOTH-count bands, first-fit ordering and fallback from current code.",
+    "Explain where prepared whole-file counts come from, how persistence/validation affects classification, and why viewport-sized counts must not substitute for them.",
+    "Explain nullable-count and manual-override precedence, pending policy, and metadata/discovery versus geometry gating, with expected boundary behavior.",
+    "Trace a representative backend JSON to client/editor path: policy consumption, editor constraints and save acknowledgment, stale-response handling. Separate inspected source linkage from deployment/runtime assumptions.",
+    "Produce a concrete expected-result regression matrix and a justified classifier-only sign-off decision. Cite inspected evidence for expectations, expose missing boundaries and avoid unsupported safety/completeness claims."
+  ],
+  "grades": [
+    "pass",
+    "partial",
+    "partial",
+    "fail",
+    "partial"
+  ],
+  "overall": "Correct classifier-only rejection and policy expectations; full preparation/persistence, metadata/geometry gating and client/editor/save/stale-response coverage incomplete. New property navigation was not used.",
+  "costs": {
+    "setup_utf8_bytes": 20700,
+    "response_utf8_bytes": 33190,
+    "aggregate_utf8_bytes": 53890,
+    "byte_cap": 65536,
+    "requests": 3,
+    "request_cap": 8,
+    "external_refusals_reported_after_answer_freeze": 0,
+    "external_accounting_limit": "External refusals assessed from candidate post-answer administrative statement; relay result bytes/hashes independently verified. No new task evidence was supplied and the answer was not revised.",
+    "remaining_bytes": 11646,
+    "terminal_reason": "Third requested response22972B exceeded remaining11798B;152B refusal delivered, response withheld in full. Original relay terminal rule prevents further requests; request cap was not reached.",
+    "individual_delivered_bytes": [
+      20923,
+      12115,
+      152
+    ],
+    "withheld": {
+      "utf8_bytes": 22972,
+      "sha256": "35874ccfcfe91a8c350f5967c3a90f3b9f5d329685060255faa82743227ff1c2"
+    },
+    "prior_setup_bytes": 19515,
+    "setup_difference": "1185B added for explicit transport CLI and binding instructions, charged in full. This is not a matched causal comparison."
+  },
+  "actual_use": {
+    "source_read": 2,
+    "get_codebase_overview": 0,
+    "compute_blast_radius": 1,
+    "impact_analysis": 0,
+    "get_full_method_body": 0,
+    "new_property_links_exercised": false,
+    "requests": [
+      {
+        "kind": "source_read",
+        "arguments": {
+          "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "line_start": 1,
+          "line_end": 400
+        }
+      },
+      {
+        "kind": "tool",
+        "tool": "compute_blast_radius",
+        "arguments": {
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+          "file_path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "detail": "summary",
+          "max_depth": 4,
+          "include_guidance": false
+        }
+      },
+      {
+        "kind": "source_read",
+        "arguments": {
+          "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+          "line_start": 1,
+          "line_end": 400
+        }
+      }
+    ],
+    "existing_actions": "File-level Blast returned literal source reads including BuildDescriptor371..401. Candidate instead requested Spatial1..400. Unselected existing recovery and diagnostic budget refusal do not demonstrate a backend failure.",
+    "file_blast_observation": "12115B summary supplies four diverse immediate consumers; source_routes omitted and no inline method focus. This is retained navigation/cost evidence, not proof of complete graph or an identified binding defect."
+  },
+  "quality": {
+    "judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-c-20261109-judgment.json",
+      "sha256": "f33fe7b4da39a453ed637f9c68444d27ae48e6271c52036f8fcd35ac5c28ddbc"
+    },
+    "unsupported_or_contradicted_claims": {
+      "contradicted_concrete_results": [],
+      "false_guidance_severity": "No material false numeric/state guidance found in the supplied policy-unit expectations.",
+      "unsupported_claims": [
+        "The provenance/content of the dependency report and unnamed conversion/API consumers cannot be checked from allowed inputs; candidate labels them unresolved."
+      ],
+      "citation_limits": [
+        "The answer's broad ranges mostly encompass the supporting code. Its style/persistence helper range ends at line 376, before PreserveOverride's successful return at 378; behavior was independently verified through 378. Discovery-floor sentence omits a precise line anchor. These are minor citation issues, not invented results."
+      ],
+      "main_risk": "Coverage insufficiency, not demonstrated false guidance: unit policy checks cannot sign off the full workflow."
+    },
+    "exposure": {
+      "automatically_visible": "System/developer instructions, skill catalog, environment context, and the user-injected workspace AGENTS instructions were visible. The AGENTS text mentions the original tool-improvement queue, prior deployed improvements/checks and commit IDs, a same33 downstream-node result, partial EG-14 work, preservation rules and origin/master. This is therefore not history-blind or held out.",
+      "deliberate_reads": "Only the designated rubric, frozen answer, and pinned current source files. No previous answers/outcomes, ledgers, costs, root contracts/readiness, other artifacts, excluded source directories, or other-agent results were retrieved.",
+      "tool_access_inference": "None. The answer's dependency-report mention is evaluated as supplied prose, not evidence of its condition or tool access.",
+      "execution": "Read-only file/hash inspection only; no application edits, services, databases, model/tool-runtime execution, harness, tests, browser activity or delegation. One new judgment artifact is the sole write.",
+      "practical_limits": "Source establishes static behavior only. Hash checks do not establish deployed versions or execution. Not every pinned file was read in full; content inspection focused on the cited policy and relevant count/gating/client/editor paths. The production persistence implementation called by the endpoint is outside the inspected excerpts. The candidate's self-report of no edits/tests was not independently audited."
+    },
+    "no_application_tests_executed": true,
+    "no_answer_revision_or_retry": true
+  },
+  "integrity": {
+    "all16_source_pins_unchanged_every_request": true,
+    "all_delivered_and_batch_hashes_verified": true,
+    "observer_closed": true,
+    "no_pending_rpc": true,
+    "canonical_answer_unchanged": true,
+    "terminal_ledger_preserved": true
+  },
+  "evidence": {
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-candidate-receipt.json",
+      "sha256": "c077995b6ca7905f939f17604a337f388c8b0538fca826ea4b8e87f23dc052c3"
+    },
+    "private_ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-birch-private-ledger.json",
+      "sha256": "e9027b33c0a1009b48ef002d49edad27bd2527b857c7d1ae5746de205bb6c654"
+    },
+    "public_ledger": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-birch-ledger.json",
+      "sha256": "97b5ddd3830f9da6c926a3b5416cfdbbae46f5fb2fab8d3ae53c84faebfd9d52"
+    },
+    "answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-birch-answer.txt",
+      "sha256": "d390dae9cd74e10db9031925b05a008b334c86ea7c64a24c86f58a664d936d4d"
+    },
+    "opaque_judge_answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-qa-answer-c-20261109.txt",
+      "sha256": "d390dae9cd74e10db9031925b05a008b334c86ea7c64a24c86f58a664d936d4d"
+    },
+    "setup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-birch-setup.txt",
+      "sha256": "6dc3f89ce54f066625ef9612e682dcea8dc375d7989941231921fac06f050343"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-contract.json",
+      "sha256": "4b07c604f42056a72e7c901e1f49031b6e124db2c11555f688cab598b36045f4"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-bindings.json",
+      "sha256": "c829832e45beeee3b493708fec796caad5f1538c8cbabe46d705cf514439d4db"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-property-navigation-full-qa-20261109-readiness.json",
+      "sha256": "0f8f16a68d2cce4d8a9247b3e2d9b5e4e8e77d933dcdcf405ba0d27995ec2ac1"
+    }
+  },
+  "comparison_limits": [
+    "One known-task attempt after a real behavior change. No new source-only control, no causal quality gain or regression claimed.",
+    "Candidate and judge workspace AGENTS exposure disclosed; not history-blind.",
+    "Prior2PASS/3PARTIAL and historical source-only preference remain unchanged.",
+    "Informed runtime property navigation checks remain valid narrow evidence, not this agent task result."
+  ],
+  "next_action": "No further model replay from this unchanged state. The core delivery remains insufficient for the original workflow. Work on an agent-facing impact/source handoff that reduces navigation overhead and helps narrow a whole-file request, using the frozen actual file-level report and independent source evidence. Preserve counts, witnesses, gaps and executable recovery; do not reorder toward known answers, reopen this ledger, infer a public defect from the refused ordinary read, or resume parked catalog/performance/ownership/instruction work.",
+  "goal_complete": false,
+  "resources": "Retain this single attempt under V, including own birch-qa-request-01..03 files, raw ledgers, exact answer and opaque judge copy. Observer closed, no pending request; no application writes, service restarts, database ownership or cleanup by candidate/judge."
+}
