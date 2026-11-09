@@ -1298,8 +1298,9 @@ mod source_route_upgrade_behavior {
             variants.push(invalid);
         }
         for variant in variants {
-            assert_eq!(render_summary_handoff(&variant,&frame,&immediate),render_summary(&variant,&immediate),
-                "An unusable handoff cannot hide the existing direct-consumer read or alter its report");
+            assert!(source_handoff_section(&variant,&frame).is_none());
+            assert!(render_summary_handoff(&variant,&frame,&immediate).starts_with(&immediate),
+                "An unusable shared handoff must retain the standalone direct-consumer read");
         }
     }
 
@@ -1319,12 +1320,12 @@ mod source_route_upgrade_behavior {
         summary["immediate_consumers_omitted_from_summary"] = json!(1);
         assert!(!summary["immediate_consumers"].as_array().unwrap().is_empty(),
             "A later caller still fits while the first caller depends on its prefix recovery");
-        assert_eq!(render_summary_handoff(&summary,&frame,&immediate),render_summary(&summary,&immediate));
+        assert!(render_summary_handoff(&summary,&frame,&immediate).starts_with(&immediate));
         for field in ["source_read","sample_connection_to_target"] {
             let mut incomplete = summary.clone();
             let mut row = first.clone(); row[field] = Value::Null;
             incomplete["immediate_consumers"].as_array_mut().unwrap().push(row);
-            assert_eq!(render_summary_handoff(&incomplete,&frame,&immediate),render_summary(&incomplete,&immediate),
+            assert!(render_summary_handoff(&incomplete,&frame,&immediate).starts_with(&immediate),
                 "The original first caller's identity alone cannot replace its recovery and witness");
         }
     }
@@ -1336,16 +1337,95 @@ mod source_route_upgrade_behavior {
         upgrade_source_routes(&mut summary,&frame,&|_|true);
         summary["source_routes"]["reads"][0]["arguments"]["file_path"] = json!(format!("src/{}.rs","long".repeat(100)));
         let immediate = immediate_section(&frame,false).unwrap();
-        let preferred = source_handoff_section(&summary,&frame).unwrap();
+        let preferred = source_handoff_section(&summary,&frame).unwrap().1;
         assert!(preferred.len()>immediate.len());
         summary["retained_evidence"] = json!("");
         let remaining = SUMMARY_BYTES-256-render_summary(&summary,&immediate).len();
         summary["retained_evidence"] = json!("x".repeat(remaining));
         let before = summary.clone();
         let rendered = render_summary_handoff(&summary,&frame,&immediate);
-        assert_eq!(rendered,render_summary(&before,&immediate));
         assert_eq!(summary,before,"A preferred action never buys space by editing evidence");
-        assert_eq!(rendered.len()+256,SUMMARY_BYTES);
+        assert!(rendered.len()+256<=SUMMARY_BYTES);
+        let body: Value = serde_json::from_str(rendered.split("## Revision-admitted change impact")
+            .nth(1).unwrap().split("```json\n").nth(1).unwrap().split("```").next().unwrap()).unwrap();
+        assert_eq!(body["retained_evidence"],before["retained_evidence"]);
+        assert_eq!(body["source_routes"]["reads"],before["source_routes"]["reads"]);
+    }
+
+    #[test]
+    fn shared_summary_facts_preserve_actions_unknowns_and_mismatching_witnesses() {
+        let frame = bridge_frame();
+        let mut summary = summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        let compact = compact_summary_display(&summary);
+        assert_eq!(compact["schema_version"],3);
+        assert!(compact.get("potential_interface_callers").is_none(),
+            "Presentation cannot invent an interface assessment when none was performed");
+        assert_eq!(compact["coverage"],summary["coverage"]);
+        assert_eq!(compact["frontier"],summary["frontier"]);
+        assert_eq!(compact["target"]["node_ref"],"n0");
+        assert_eq!(compact["target"]["source_read"],summary["target"]["source_read"]);
+        assert_eq!(compact["immediate_consumers"][0]["node_ref"],"n1");
+        assert_eq!(compact["immediate_consumers"][0]["source_read"],summary["immediate_consumers"][0]["source_read"]);
+        assert_eq!(compact["immediate_consumers"][0]["sample_connection_to_target"]["connection_ref"],"e0");
+        assert_eq!(compact["source_routes"]["connections"],summary["source_routes"]["connections"]);
+        assert_eq!(compact["source_routes"]["reads"],summary["source_routes"]["reads"]);
+        for (field, value) in [("edge_generation",json!(99)), ("source_generation",json!(98)),
+            ("source_line",json!(432)), ("kind",json!("implements_interface"))] {
+            let mut different = summary.clone();
+            different["immediate_consumers"][0]["sample_connection_to_target"][field] = value;
+            let compact = compact_summary_display(&different);
+            assert_eq!(compact["immediate_consumers"][0]["sample_connection_to_target"],
+                different["immediate_consumers"][0]["sample_connection_to_target"],
+                "Different recorded witnesses must remain standalone, not refer to another observation");
+        }
+    }
+
+    #[test]
+    fn declaration_bundle_exposes_nearer_branch_without_spending_lines_on_gaps() {
+        let mut frame = bridge_frame();
+        let nearer = frame["nodes"].as_array_mut().unwrap().iter_mut().find(|n|n["ref"]=="n5").unwrap();
+        nearer["file_ref"] = json!("f1"); nearer["start_line"] = json!(300); nearer["end_line"] = json!(360);
+        nearer["node_id"] = json!("sym:function:src/cache.rs:Http:300");
+        let recovery = frame["recoveries"].as_array_mut().unwrap().iter_mut().find(|r|r["ref"]=="rn5").unwrap();
+        recovery["arguments"]["file_path"] = json!("src/cache.rs");
+        recovery["arguments"]["line_start"] = json!(300); recovery["arguments"]["line_end"] = json!(360);
+        let mut summary = summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        // The nearer caller can be retained as route context without its own
+        // body action fitting. Preserve that held context while reproducing it.
+        let reads = summary["source_routes"]["reads"].as_array_mut().unwrap();
+        let before_count = reads.len();
+        reads.retain(|read| !read["covered_refs"].as_array().unwrap().contains(&json!("n5")));
+        let removed = before_count-reads.len();
+        summary["source_routes"]["windows_omitted"] = json!(summary["source_routes"]["windows_omitted"].as_u64().unwrap()+removed as u64);
+        let index = summary["source_routes"]["reads"].as_array().unwrap().iter()
+            .position(|read|read["covered_refs"].as_array().unwrap().contains(&json!("n2"))).unwrap();
+        let before = summary.clone();
+        let plan = declaration_read_plan(&summary,&frame,index).expect("Retained shallow branches should have a bounded declaration read");
+        assert_eq!(plan["covered_refs"],json!(["n2","n3","n5"]));
+        assert_eq!(plan["arguments"]["source_ranges"],json!([
+            {"line_start":40,"line_end":80},{"line_start":136,"line_end":138},{"line_start":300,"line_end":360}]));
+        assert_eq!(plan["original_body_refs_not_in_this_read"],json!(["n4"]));
+        assert_eq!(plan["alternative_to_read_index"],index);
+        assert_eq!(summary,before,"The old read, body context, graph witnesses and omissions remain available");
+        let mut different_generation = frame.clone();
+        different_generation["nodes"].as_array_mut().unwrap().iter_mut()
+            .find(|node|node["ref"]=="n5").unwrap()["generation"] = json!(8);
+        assert!(declaration_read_plan(&summary,&different_generation,index).is_none());
+        let mut unrelated = frame.clone();
+        let mut ancestor = unrelated["nodes"].as_array().unwrap().iter().find(|n|n["ref"]=="n1").unwrap().clone();
+        ancestor["ref"] = json!("n7"); ancestor["node_id"] = json!("other-ancestor");
+        unrelated["nodes"].as_array_mut().unwrap().push(ancestor);
+        unrelated["edges"].as_array_mut().unwrap().iter_mut()
+            .find(|edge|edge["source_ref"]=="n5").unwrap()["target_ref"] = json!("n7");
+        unrelated["edges"].as_array_mut().unwrap().push(json!({"ref":"e7","source_ref":"n7",
+            "target_ref":"n0","kind":"calls","edge_generation":7}));
+        let mut unrelated_summary = summary.clone();
+        unrelated_summary["source_routes"]["nodes"].as_array_mut().unwrap().push(json!({
+            "ref":"n7","node_id":"other-ancestor","file_ref":"f0","generation":7,"indexed_lines":[2,2]}));
+        assert!(declaration_read_plan(&unrelated_summary,&unrelated,index).is_none(),
+            "Sharing only the seed cannot join otherwise distinct retained inspection branches");
     }
 }
 
@@ -1494,7 +1574,7 @@ fn render_summary(value: &Value, immediate_prefix: &str) -> String {
 
 // Presentation only, after the complete summary is allocated. Do not use
 // conversation history or trade an existing witness/recovery for this handoff.
-fn source_handoff_section(value: &Value, full: &Value) -> Option<String> {
+fn source_handoff_section(value: &Value, full: &Value) -> Option<(usize, String)> {
     if value["target_revision_admitted"] != true || value["source_routes"]["admission"] != "selected"
         || value["immediate_consumers"].as_array()?.is_empty()
     { return None; }
@@ -1518,7 +1598,7 @@ fn source_handoff_section(value: &Value, full: &Value) -> Option<String> {
     { return None; }
     let target_file = full["files"].as_array()?.iter()
         .find(|file| file["ref"] == target["file_ref"])?["path"].as_str()?;
-    let read = value["source_routes"]["reads"].as_array()?.iter().find(|read|
+    let (index, read) = value["source_routes"]["reads"].as_array()?.iter().enumerate().find(|(_, read)|
         read["arguments"]["file_path"].as_str().is_some_and(|path| path != target_file))?;
     let arguments = read["arguments"].as_object()?;
     let bounded_text = |value: &Value| value.as_str()
@@ -1550,16 +1630,185 @@ fn source_handoff_section(value: &Value, full: &Value) -> Option<String> {
     let call = json!({"tool":read["tool"],"arguments":read["arguments"]});
     let prefix = format!("\n## Next indexed source read\n\nRead indexed declaration ranges in another file along the retained dependency routes. Action unexecuted; inspect its returned hash and verification. Complete-method boundaries and invocation location are unverified. Direct consumers, witnesses and unknown branches remain below. No value-flow, runtime or safe-change proof.\n\n```json\n{}\n```\n",
         serde_json::to_string(&call).expect("JSON value serialization"));
-    (prefix.len() <= IMMEDIATE_BYTES).then_some(prefix)
+    (prefix.len() <= IMMEDIATE_BYTES).then_some((index, prefix))
 }
 
 fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -> String {
-    if let Some(prefix) = source_handoff_section(value, full) {
-        let candidate = render_summary(value, &prefix);
-        // Same conservative footer reserve as the existing final allocation.
-        if candidate.len() <= SUMMARY_BYTES.saturating_sub(256) { return candidate; }
+    let original = render_summary(value, immediate_prefix);
+    let mut compact = compact_summary_display(value);
+    let handoff = source_handoff_section(value, full);
+    let shared_first_read = handoff.is_some();
+    if let Some((index, _)) = handoff {
+        compact["next_source_read_index"] = json!(index);
+        if let Some(plan) = declaration_read_plan(value, full, index) {
+            let mut candidate = compact.clone();
+            candidate.as_object_mut().unwrap().remove("next_source_read_index");
+            candidate["next_source_read_ref"] = json!("declaration_read");
+            candidate["declaration_read"] = plan;
+            let candidate_bytes = render_summary(&candidate, "").len();
+            if candidate_bytes <= SUMMARY_BYTES.saturating_sub(256) && candidate_bytes <= original.len() {
+                compact = candidate;
+            }
+        }
     }
-    render_summary(value, immediate_prefix)
+    let rendered = render_summary(&compact, if shared_first_read { "" } else { immediate_prefix });
+    // Compaction must never sacrifice an already allocated witness or action.
+    // Unusual metadata can make reference notation larger; retain the original.
+    if rendered.len() <= original.len()
+        && rendered.len() <= SUMMARY_BYTES.saturating_sub(256)
+    { rendered } else { original }
+}
+
+/// Offer a declaration-only alternative when a contiguous route read obscures
+/// nearer retained callers. Keep the original read and all its context available.
+/// Shared ancestors explain the bundle; they do not create direct Calls edges.
+fn declaration_read_plan(value: &Value, full: &Value, read_index: usize) -> Option<Value> {
+    let frame = source_route_frame(full)?;
+    let routes = &value["source_routes"];
+    let read = routes["reads"].as_array()?.get(read_index)?;
+    let original: BTreeSet<_> = read["covered_refs"].as_array()?.iter()
+        .map(Value::as_str).collect::<Option<_>>()?;
+    let first = frame.eligible.iter().find(|node| original.contains(node["ref"].as_str().unwrap()))?;
+    let file_ref = first["file_ref"].as_str()?;
+    let file = frame.files.get(file_ref)?["path"].as_str()?;
+    if read["arguments"]["file_path"] != file || first["file_ref"] == frame.target["file_ref"] {
+        return None;
+    }
+    let retained: BTreeSet<_> = routes["nodes"].as_array()?.iter()
+        .filter_map(|node| node["ref"].as_str()).collect();
+    let mut candidates: Vec<_> = frame.eligible.iter().copied().filter(|node|
+        node["file_ref"] == first["file_ref"] && node["generation"] == first["generation"]
+            && node["end_line"].as_u64().is_some_and(|end| end <= u32::MAX as u64)
+            && node["ref"].as_str().is_some_and(|r| retained.contains(r))).collect();
+    candidates.sort_by(|a,b| a["depth"].as_u64().cmp(&b["depth"].as_u64())
+        .then_with(|| a["node_id"].as_str().cmp(&b["node_id"].as_str())));
+    let original_depths: Option<Vec<_>> = original.iter().map(|reference|
+        frame.nodes.get(reference).and_then(|node| node["depth"].as_u64())).collect();
+    let mut original_depths = original_depths?;
+    original_depths.sort_unstable();
+    let mut common_ancestors: Option<BTreeSet<&str>> = None;
+    let mut chosen = Vec::new();
+    let mut ranges = Vec::new();
+    for node in candidates {
+        let reference = node["ref"].as_str()?;
+        let trace = frame.traces.get(reference)?;
+        let ancestors: BTreeSet<_> = trace.iter().filter_map(|r|
+            (r != reference && retained.contains(r.as_str())
+                && frame.nodes[r.as_str()]["is_seed"] == false).then_some(r.as_str())).collect();
+        let shared = match &common_ancestors {
+            Some(previous) => previous.intersection(&ancestors).copied().collect(),
+            None => ancestors,
+        };
+        if shared.is_empty() { continue; }
+        let Some(union) = source_range_union(ranges.iter().copied().chain([(
+            node["start_line"].as_u64()?, node["end_line"].as_u64()?)]).collect()) else { continue; };
+        chosen.push(node); ranges = union; common_ancestors = Some(shared);
+    }
+    let chosen_refs: BTreeSet<_> = chosen.iter().filter_map(|node| node["ref"].as_str()).collect();
+    let depths: Vec<_> = chosen.iter().filter_map(|node| node["depth"].as_u64()).collect();
+    if chosen.len() < original.len() || depths >= original_depths || chosen_refs.is_subset(&original) {
+        return None;
+    }
+    let mut arguments = read["arguments"].clone();
+    let fields = arguments.as_object_mut()?;
+    fields.remove("line_start"); fields.remove("line_end"); fields.remove("source_ranges");
+    if ranges.len() == 1 {
+        fields.insert("line_start".into(), json!(ranges[0].0));
+        fields.insert("line_end".into(), json!(ranges[0].1));
+    } else {
+        fields.insert("source_ranges".into(), json!(ranges.iter().map(|(start,end)|
+            json!({"line_start":start,"line_end":end})).collect::<Vec<_>>()));
+    }
+    Some(json!({"tool":read["tool"],"arguments":arguments,"covered_refs":chosen_refs,
+        "alternative_to_read_index":read_index,
+        "original_body_refs_not_in_this_read":original.difference(&chosen_refs).collect::<Vec<_>>(),
+        "scope":"Nearer retained declarations sharing a nonseed ancestor, not an uninterrupted call chain. Only their indexed spans are read; connectors and intervening context may be unread. Original source_routes.reads action remains available. No additional graph evidence or method-boundary proof."}))
+}
+
+/// Source-oriented display of the already allocated summary. All action objects,
+/// named unknowns and selected route tables survive. Work telemetry is available
+/// from graph mode; neither traversal nor safety assessment runs again here.
+fn compact_summary_display(value: &Value) -> Value {
+    let mut compact = value.clone();
+    let routes = &value["source_routes"];
+    let nodes: HashMap<_, _> = routes["nodes"].as_array().into_iter().flatten()
+        .filter_map(|node| Some((node["ref"].as_str()?, node))).collect();
+    let files: HashMap<_, _> = routes["files"].as_array().into_iter().flatten()
+        .filter_map(|file| Some((file["ref"].as_str()?, &file["path"]))).collect();
+    let describe = |row: &Value| -> Value {
+        let mut described = row.clone();
+        let Some(fields) = described.as_object_mut() else { return described; };
+        if let Some(node) = nodes.values().find(|node| node["node_id"] == row["node_id"]
+            && node["node_id"].is_string())
+        {
+            let facts = json!({"node_id":node["node_id"],"generation":node["generation"],
+                "admission":routes["admission"],
+                "file_path":node["file_ref"].as_str().and_then(|r|files.get(r)).copied(),
+                "start_line":node["indexed_lines"][0],"end_line":node["indexed_lines"][1]});
+            let mut replaced = false;
+            for (key, fact) in facts.as_object().unwrap() {
+                if !fact.is_null() && fields.get(key) == Some(fact) {
+                    fields.remove(key); replaced = true;
+                }
+            }
+            if replaced { fields.insert("node_ref".into(), node["ref"].clone()); }
+        }
+        if let Some(witness) = row["sample_connection_to_target"].as_object() {
+            for edge in routes["connections"].as_array().into_iter().flatten() {
+                let Some(source) = edge["source_ref"].as_str().and_then(|r|nodes.get(r)) else { continue; };
+                let Some(target) = edge["target_ref"].as_str().and_then(|r|nodes.get(r)) else { continue; };
+                if row["sample_connection_to_target"]["source_node_id"] != source["node_id"]
+                    || row["sample_connection_to_target"]["target_node_id"] != target["node_id"]
+                    || !edge["ref"].is_string() { continue; }
+                let mut decoded = routes["connection_defaults"].as_object().cloned().unwrap_or_default();
+                decoded.extend(edge.as_object().unwrap().clone());
+                decoded.insert("source_node_id".into(), source["node_id"].clone());
+                decoded.insert("target_node_id".into(), target["node_id"].clone());
+                decoded.insert("source_generation".into(), source["generation"].clone());
+                // Reuse only an exact recorded connection. Never turn differing
+                // positions, generations or kinds into a reference to another edge.
+                if witness.iter().any(|(key, val)| decoded.get(key).is_some_and(|fact|fact != val)) {
+                    continue;
+                }
+                let mut shared = witness.clone();
+                shared.retain(|key, val| decoded.get(key) != Some(val));
+                shared.insert("connection_ref".into(), edge["ref"].clone());
+                if serde_json::to_vec(&shared).unwrap().len() < serde_json::to_vec(witness).unwrap().len() {
+                    fields.insert("sample_connection_to_target".into(), json!(shared));
+                }
+                break;
+            }
+        }
+        described
+    };
+    compact["target"] = describe(&value["target"]);
+    if let Some(consumers) = value["immediate_consumers"].as_array() {
+        compact["immediate_consumers"] = json!(consumers.iter().map(describe).collect::<Vec<_>>());
+    }
+    compact["schema_version"] = json!(3);
+    let fields = compact.as_object_mut().unwrap();
+    for key in ["coverage_counter_semantics", "immediate_selection_scope", "continuation_scope",
+        "separate_context", "immediate_consumer_detail_limit_bytes", "enclosing_declaration_scope"] {
+        fields.remove(key);
+    }
+    if let Some(dispatch) = compact.get_mut("potential_interface_callers").and_then(Value::as_object_mut) {
+        dispatch.remove("implementations_checked");
+        dispatch.insert("scope".into(), json!("Separate non-additive observations of one explicit VB source-interface hop. Other dispatch forms and rejected/unresolved locators are unassessed; zero routes does not prove absence."));
+    }
+    if let Some(routes) = compact.get_mut("source_routes").and_then(Value::as_object_mut) {
+        routes.insert("scope".into(), json!("Connection fields override connection_defaults. Input producers may lie outside reverse impact."));
+    }
+    if let Some(hints) = compact.get_mut("hinted_file_declarations").and_then(Value::as_object_mut) {
+        hints.insert("scope".into(), json!("Selected declarations in hinted files, not connected routes or runtime bindings."));
+    }
+    compact["reference_semantics"] = json!("Refs use source_routes: nodes/files/admission/indexed_lines; connections/defaults plus endpoint IDs/source generation. Inline fields override refs. next_source_read_index selects reads; next_source_read_ref names a top-level action. Actions are literal tool/arguments.");
+    compact["diagnostics_in_graph"] = json!(["interface implementations checked", "detailed scope explanations"]);
+    compact["limitations"] = json!([
+        "Indexed exposure, not breakage or safety. Missing/unknown observations can repeat; zero leaves other gaps unresolved. Beyond-depth frontiers are untraversed.",
+        "Direct sample: up to four, file-diverse then repeats, canonical order per round; byte caps omit rows. recorded_position_uses_source_read reuses the owning read.",
+        "Actions are unexecuted, fresh bounded observations, not replay. Compare generation/coverage/hash. Indexed ranges do not prove method bounds, callsites, value flow or runtime. Enclosing recovery leaves receiver/edge unresolved."
+    ]);
+    compact
 }
 
 // The first projection reserves conservative framing space. Once the actual

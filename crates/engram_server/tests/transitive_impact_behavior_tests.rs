@@ -550,7 +550,7 @@ fn graph_connections(report: &Value) -> std::collections::BTreeSet<(String, Stri
         .collect()
 }
 
-fn impact_packet(text: &str) -> Value {
+fn raw_impact_packet(text: &str) -> Value {
     let section = text
         .split_once("## Revision-admitted change impact")
         .expect("Public impact output needs a distinct revision-admitted section")
@@ -563,6 +563,110 @@ fn impact_packet(text: &str) -> Value {
         .expect("Impact evidence must be complete JSON")
         .0;
     serde_json::from_str(json).unwrap()
+}
+
+fn route_row<'a>(routes: &'a Value, table: &str, reference: &Value) -> &'a Value {
+    let reference = reference.as_str().expect("A summary reference must be a string");
+    let rows: Vec<_> = routes[table].as_array().expect("References require a local table")
+        .iter().filter(|row| row["ref"] == reference).collect();
+    assert_eq!(rows.len(), 1, "Summary {table} reference {reference} must resolve uniquely without another query");
+    rows[0]
+}
+
+// Independent consumer of the documented v3 wire protocol. These tables only
+// supply defaults: an explicit row value, including null/false, always wins.
+// Literal actions are never reconstructed from IDs, positions or generations.
+fn resolve_summary_references(mut report: Value) -> Value {
+    if report["schema_version"] != 3 || report["detail"] != "summary" {
+        return report;
+    }
+    let routes = report["source_routes"].clone();
+    let describe = |row: &Value| {
+        let Some(mut fields) = row.as_object().cloned() else { return row.clone(); };
+        if let Some(reference) = fields.remove("node_ref") {
+            let node = route_row(&routes, "nodes", &reference);
+            let file = route_row(&routes, "files", &node["file_ref"]);
+            for (key, value) in [
+                ("node_id", &node["node_id"]), ("generation", &node["generation"]),
+                ("admission", &routes["admission"]), ("file_path", &file["path"]),
+                ("start_line", &node["indexed_lines"][0]), ("end_line", &node["indexed_lines"][1]),
+            ] {
+                fields.entry(key.to_owned()).or_insert_with(|| value.clone());
+            }
+        }
+        if let Some(witness) = fields.get("sample_connection_to_target").and_then(Value::as_object) {
+            if let Some(reference) = witness.get("connection_ref") {
+                let connection = route_row(&routes, "connections", reference);
+                let source = route_row(&routes, "nodes", &connection["source_ref"]);
+                let target = route_row(&routes, "nodes", &connection["target_ref"]);
+                let mut decoded = routes["connection_defaults"].as_object().cloned().unwrap_or_default();
+                decoded.extend(connection.as_object().unwrap().clone());
+                decoded.insert("source_node_id".into(), source["node_id"].clone());
+                decoded.insert("target_node_id".into(), target["node_id"].clone());
+                decoded.insert("source_generation".into(), source["generation"].clone());
+                for key in ["ref", "source_ref", "target_ref", "connection_role", "recovery_ref"] {
+                    decoded.remove(key);
+                }
+                decoded.extend(witness.clone());
+                decoded.remove("connection_ref");
+                fields.insert("sample_connection_to_target".into(), Value::Object(decoded));
+            }
+        }
+        Value::Object(fields)
+    };
+    report["target"] = describe(&report["target"]);
+    if let Some(consumers) = report["immediate_consumers"].as_array() {
+        report["immediate_consumers"] = json!(consumers.iter().map(describe).collect::<Vec<_>>());
+    }
+    report
+}
+
+fn impact_packet(text: &str) -> Value {
+    resolve_summary_references(raw_impact_packet(text))
+}
+
+fn summary_has_warning(summary: &Value, phrase: &str) -> bool {
+    summary["limitations"].as_array().is_some_and(|warnings|
+        warnings.iter().any(|warning| warning.as_str().is_some_and(|text| text.contains(phrase))))
+}
+
+#[test]
+fn summary_wire_references_keep_explicit_generation_position_and_action_overrides() {
+    let action = json!({"tool":"get_full_method_body","arguments":{
+        "project_id":PID,"file_path":POLICY,"line_start":96,"line_end":96,
+        "context_lines":0,"output_json":true}});
+    let raw = json!({"schema_version":3,"detail":"summary",
+        "source_routes":{"admission":"selected",
+            "files":[{"ref":"f0","path":POLICY}],
+            "nodes":[{"ref":"n0","node_id":"target","file_ref":"f0","generation":2,"indexed_lines":[76,84]},
+                {"ref":"n1","node_id":"caller","file_ref":"f0","generation":3,"indexed_lines":[92,106]}],
+            "connection_defaults":{"kind":"calls","source_line":92,"source_position_scope":"indexed_metadata_only",
+                "reference_lines_truncated":true},
+            "connections":[{"ref":"e0","source_ref":"n1","target_ref":"n0","edge_generation":2}]},
+        "target":{"node_ref":"n0","generation":4,"source_read":action},
+        "immediate_consumers":[{"node_ref":"n1","source_read":action,
+            "sample_connection_to_target":{"connection_ref":"e0","source_generation":5,"edge_generation":1,
+                "source_line":null,"source_position_scope":"unattributed_extractor_anchor",
+                "reference_lines":[],"reference_lines_truncated":false,"recorded_position_uses_source_read":false,
+                "recorded_position_read":action}}]});
+    let decoded = resolve_summary_references(raw.clone());
+    assert_eq!(decoded["target"]["node_id"], "target");
+    assert_eq!(decoded["target"]["generation"], 4);
+    assert_eq!(decoded["target"]["source_read"], raw["target"]["source_read"]);
+    let consumer = &decoded["immediate_consumers"][0];
+    assert_eq!(consumer["generation"], 3);
+    assert_eq!(consumer["file_path"], POLICY);
+    assert_eq!(consumer["start_line"], 92);
+    assert_eq!(consumer["source_read"], raw["immediate_consumers"][0]["source_read"]);
+    let connection = &consumer["sample_connection_to_target"];
+    assert_eq!(connection["source_node_id"], "caller");
+    assert_eq!(connection["target_node_id"], "target");
+    assert_eq!(connection["kind"], "calls");
+    for (key, value) in raw["immediate_consumers"][0]["sample_connection_to_target"].as_object().unwrap() {
+        if key != "connection_ref" {
+            assert_eq!(&connection[key], value, "Inline witness {key} must override the local reference, including null/false");
+        }
+    }
 }
 
 // Public compact objects are overlays: explicit row values win over defaults.
@@ -781,7 +885,9 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
                 );
                 assert_eq!(witness["reference_lines"], positions);
             }
-            let summary = impact_packet(&summary_impact(&fixture, tool, &root, 6).await);
+            let summary_text = summary_impact(&fixture, tool, &root, 6).await;
+            let wire = raw_impact_packet(&summary_text);
+            let summary = impact_packet(&summary_text);
             assert_eq!(summary["coverage"], graph["coverage"]);
             let consumer = summary["immediate_consumers"]
                 .as_array()
@@ -795,6 +901,14 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
             assert_eq!(connection["extractor_anchor_line"], 92);
             assert_eq!(connection["reference_lines"], json!([96, 101]));
             assert_eq!(connection["recorded_position_uses_source_read"], true);
+            let raw_consumer = wire["immediate_consumers"].as_array().unwrap().iter().find(|row|
+                row["node_id"] == first || row["node_ref"].is_string()
+                    && route_row(&wire["source_routes"], "nodes", &row["node_ref"])["node_id"] == first).unwrap();
+            assert_eq!(raw_consumer["sample_connection_to_target"]["recorded_position_uses_source_read"], true,
+                "The owning-read reuse marker is not provided by route defaults and must stay inline on the wire");
+            assert_eq!(raw_consumer["source_read"], consumer["source_read"]);
+            assert_eq!(connection["source_generation"], 3);
+            assert_eq!(connection["edge_generation"], 3);
             assert!(connection.get("recorded_position_read").is_none(),
                 "An identical executable read should appear once, with an explicit reuse marker");
             let recovered = fixture
@@ -1318,6 +1432,26 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
         let graph = impact_packet(&impact_text);
         for tool in ["impact_analysis", "compute_blast_radius"] {
             let text = summary_impact(&fixture, tool, &root, 6).await;
+            let wire = raw_impact_packet(&text);
+            assert_eq!(wire["schema_version"], 3);
+            assert!(wire["reference_semantics"].as_str().unwrap().contains("Inline fields override refs"));
+            assert!(wire["target"]["node_ref"].is_string(), "The real wire must share the retained target identity");
+            assert!(wire["target"].get("node_id").is_none(), "A node reference must replace actual duplicate bytes");
+            let wire_consumer = &wire["immediate_consumers"][0];
+            assert!(wire_consumer["node_ref"].is_string());
+            assert!(wire_consumer["sample_connection_to_target"]["connection_ref"].is_string(),
+                "The real wire must reuse the retained direct-call witness");
+            assert!(wire_consumer["sample_connection_to_target"].get("source_node_id").is_none());
+            let wire_node = route_row(&wire["source_routes"], "nodes", &wire_consumer["node_ref"]);
+            let wire_edge = route_row(&wire["source_routes"], "connections",
+                &wire_consumer["sample_connection_to_target"]["connection_ref"]);
+            assert_eq!(wire_node["node_id"], resolve);
+            assert_eq!(wire_node["generation"], 2, "Physical node generation must not become the selected generation 3");
+            assert_eq!(wire_edge["edge_generation"], 2);
+            assert_eq!(wire_consumer["sample_connection_to_target"]["recorded_position_uses_source_read"], true,
+                "Even an unrecorded position can reuse its caller read without gaining callsite proof");
+            assert_eq!(route_row(&wire["source_routes"], "nodes", &wire_edge["source_ref"])["node_id"], resolve);
+            assert_eq!(route_row(&wire["source_routes"], "nodes", &wire_edge["target_ref"])["node_id"], root);
             let summary = impact_packet(&text);
             assert_eq!(summary["detail"], "summary");
             for field in [
@@ -1361,6 +1495,9 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(immediate[0]["file_path"], POLICY);
             assert_eq!(immediate[0]["admission"], "selected");
             assert_eq!(immediate[0]["source_read_scope"], "explicit_source_range");
+            assert_eq!(immediate[0]["source_read"], wire_consumer["source_read"],
+                "Executable actions remain literal; decoding must not manufacture arguments");
+            assert_eq!(summary["target"]["source_read"], wire["target"]["source_read"]);
             let sources = &summary["source_routes"];
             assert_eq!(sources["admission"], "selected");
             assert_source_route_connections(sources, &graph);
@@ -1432,6 +1569,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             assert_eq!(connection["target_node_id"], root);
             assert_eq!(connection["kind"], "calls");
             assert_eq!(connection["edge_generation"], 2);
+            assert_eq!(connection["source_generation"], 2);
             assert!(connection["source_line"].is_null());
             assert_eq!(
                 connection["source_position_scope"], "not_recorded",
@@ -1439,36 +1577,31 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             );
             let call = &immediate[0]["source_read"];
             assert_eq!(call["tool"], "get_full_method_body");
-            let prefix = &text[..text.floor_char_boundary(2048)];
-            assert!(
-                !prefix.contains("(node ")
-                    && !prefix.contains("; edge ")
-                    && !prefix.contains("; recovery "),
-                "A standalone summary cannot require registries available only after graph expansion"
-            );
-            assert!(
-                prefix.contains("indexed declaration range")
-                    && prefix.contains("boundaries and invocation location are unverified"),
-                "An agent must know the action inspects current source lines without certifying method or callsite boundaries"
-            );
-            let prefix_call: Value = serde_json::from_str(
-                prefix
-                    .split_once("## Next indexed source read")
-                    .unwrap()
-                    .1
-                    .split_once("```json")
-                    .unwrap()
-                    .1
-                    .split_once("```")
-                    .expect("The first2KiB must retain a complete source read in summary mode")
-                    .0,
-            )
-            .unwrap();
+            assert!(!text.contains("## Next indexed source read"),
+                "A valid shared handoff must not duplicate the literal action in a prefix");
+            assert!(summary_has_warning(&summary, "Actions are unexecuted, fresh bounded observations, not replay"));
+            assert!(summary_has_warning(&summary, "Indexed ranges do not prove method bounds, callsites, value flow or runtime"));
+            assert!(summary_has_warning(&summary, "recorded_position_uses_source_read reuses the owning read"));
+            let index = wire["next_source_read_index"].as_u64().expect(
+                "The summary must select a locally available executable next read") as usize;
+            let indexed_read = wire["source_routes"]["reads"].as_array().unwrap().get(index)
+                .expect("The next source-read index must resolve in this same packet");
+            let next_call = json!({"tool":indexed_read["tool"],"arguments":indexed_read["arguments"]});
             let first_route = summary["source_routes"]["reads"].as_array().unwrap().iter()
                 .find(|read|read["arguments"]["file_path"] != POLICY).unwrap();
-            assert_eq!(prefix_call,json!({"tool":first_route["tool"],"arguments":first_route["arguments"]}));
-            assert_ne!(prefix_call["arguments"]["file_path"],POLICY,
+            assert_eq!(next_call,json!({"tool":first_route["tool"],"arguments":first_route["arguments"]}));
+            assert_ne!(next_call["arguments"]["file_path"],POLICY,
                 "The prominent handoff leaves the target file while retaining the direct-consumer read below");
+            assert_eq!(next_call["tool"], "get_full_method_body");
+            let next_result = fixture.engram.handle_get_full_method_body(
+                serde_json::from_value(next_call["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!next_result.is_error.unwrap_or(false));
+            let next_body: Value = serde_json::from_str(&next_result.content[0].as_text().unwrap().text).unwrap();
+            let next_path = next_call["arguments"]["file_path"].as_str().unwrap();
+            assert_eq!(next_body["source_file_hash"],
+                ContentHash::compute(&std::fs::read(fixture.root.join(next_path)).unwrap()).0);
+            assert_eq!(next_body["source_verification"], "explicit_range_current_file_snapshot");
+            assert!(next_body["source_code"].as_str().unwrap().contains("QueryCacheCore"));
             let read = fixture
                 .engram
                 .handle_get_full_method_body(
@@ -1517,18 +1650,9 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                 missing["admission"], "unresolved",
                 "A parsed declaration hint must never promote a missing endpoint into admitted evidence"
             );
-            assert!(
-                summary["coverage_counter_semantics"]["missing_nodes"]
-                    .as_str()
-                    .unwrap()
-                    .contains("more than once")
-            );
-            assert!(
-                summary["coverage_counter_semantics"]["unknown_nodes"]
-                    .as_str()
-                    .unwrap()
-                    .contains("Zero does not resolve")
-            );
+            assert!(summary_has_warning(&summary, "Missing/unknown observations can repeat"));
+            assert!(summary_has_warning(&summary, "zero leaves other gaps unresolved"));
+            assert!(summary_has_warning(&summary, "Beyond-depth frontiers are untraversed"));
             let expanded = expand_summary_graph(&fixture, &summary, &root, 6).await;
             assert_eq!(expanded["coverage"], graph["coverage"]);
             assert_eq!(
@@ -1692,13 +1816,14 @@ fn a_separated_cache_bridge_upgrades_the_existing_read_without_losing_other_evid
             }
             let read = reads.iter().find(|read| read["arguments"]["file_path"] == SPATIAL).unwrap();
             assert_eq!(read["tool"], "get_full_method_body");
-            let prefix = text.split_once("## Revision-admitted change impact").unwrap().0;
-            assert!(prefix.contains("## Next indexed source read"));
-            assert!(prefix.contains("Action unexecuted") && prefix.contains("unknown branches remain below"));
-            let prominent:Value=serde_json::from_str(prefix.split_once("```json\n").unwrap().1
-                .split_once("\n```").unwrap().0).unwrap();
+            let wire = raw_impact_packet(&text);
+            assert_eq!(wire["schema_version"],3);
+            assert!(summary_has_warning(&wire,"Actions are unexecuted"));
+            let next = wire["next_source_read_index"].as_u64().unwrap() as usize;
+            let selected = &wire["source_routes"]["reads"][next];
+            let prominent = json!({"tool":selected["tool"],"arguments":selected["arguments"]});
             assert_eq!(prominent,json!({"tool":read["tool"],"arguments":read["arguments"]}),
-                "An agent can copy the prominent cross-file action without searching nested route arrays");
+                "The next-read index must name the retained complete executable cross-file action");
             let arguments = &prominent["arguments"];
             assert!(arguments.get("line_start").is_none() && arguments.get("line_end").is_none());
             assert_eq!(arguments["source_ranges"], json!([
@@ -2810,7 +2935,11 @@ fn unresolved_receiver_navigation_opens_its_enclosing_declaration_without_resolv
             let text = summary_impact(&fixture, tool, &target, 6).await;
             assert!(text.len() <= 12*1024);
             let summary = impact_packet(&text);
-            assert!(summary["enclosing_declaration_scope"].as_str().unwrap().contains("unresolved"));
+            if summary["schema_version"] == 3 {
+                assert!(summary_has_warning(&summary, "Enclosing recovery leaves receiver/edge unresolved"));
+            } else {
+                assert!(summary["enclosing_declaration_scope"].as_str().unwrap().contains("unresolved"));
+            }
             let report = expand_summary_graph(&fixture, &summary, &target, 6).await;
             assert_eq!(report["selected_dependents_observed"], before["selected_dependents_observed"]);
             assert_eq!(graph_connections(&report), graph_connections(&before));
@@ -3515,7 +3644,12 @@ fn hinted_file_declarations_recover_current_source_across_a_non_callable_boundar
             let lead=leads["declarations"].as_array().unwrap().iter()
                 .find(|row|row["node_id"]==id(UI,"save_override",3)).unwrap();
             assert_eq!(lead["generation"],3);
-            assert!(leads["scope"].as_str().unwrap().contains("not value-flow routes or runtime binding"));
+            if report["schema_version"] == 3 {
+                assert!(leads["scope"].as_str().unwrap().contains("not connected routes or runtime bindings"));
+                assert!(summary_has_warning(&report, "Indexed ranges do not prove method bounds, callsites, value flow or runtime"));
+            } else {
+                assert!(leads["scope"].as_str().unwrap().contains("not value-flow routes or runtime binding"));
+            }
             let read=&lead["source_read"];
             assert_eq!(read["tool"],"get_full_method_body");
             let response=fixture.engram.handle_get_full_method_body(

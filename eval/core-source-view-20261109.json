@@ -1,0 +1,124 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_BEHAVIOR_CHECKED_NOT_YET_BUILT_OR_INSTALLED",
+  "at_utc": "2026-11-09T20:01:42.169189+00:00",
+  "base_commit": "24a31b8db9bcc4b27fbef1e838272161f6a0d687",
+  "scope": "Original CodeMap/Blast navigation, witness and recovery usefulness. No parser, catalog, storage, ownership, indexing or application-source change.",
+  "implementation": {
+    "crates/engram_server/src/services/impact_walk_service.rs": "ad4c807527d4d76df6e21cc074b44cc3d57e1696a540ad8caa74518ee5e48710",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "d21f6cef1ec7ff72f9d192bd31dca3022c1f032f640e934c7b192f5bb21d870c",
+    "crates/engram_server/tests/transitive_impact_behavior_tests.rs": "aa4dc8f853b2d3be800c099d9407ffa366ada5f9950ac77a3974a1aeed93910a",
+    "crates/engram_server/tests/overview_selected_source_tests.rs": "49e7cfe9eaf0ad280c9948fb05d8846b21586fc773cb2c005a9b86b06ee84150",
+    "docs/TOOL_CONTRACT.md": "8014856a9e8edeb3d04402ef8f04a8c695c45f819eead5999094e87f8882867d"
+  },
+  "changes": [
+    "Source-enabled CodeMap returns candidates/current source with compact coverage and explicit metadata/browse recovery; metadata-only view and source allocation unchanged.",
+    "Standalone impact displayv3 shares exact retained node/connection facts through local references; mismatching fields remain explicit, absent assessments stay absent, all source actions and original first-caller fallback preserved. Nested assessments and graph remain v2/unchanged.",
+    "Optional declaration_read selects nearer retained same-file/same-generation callable spans sharing a retained nonseed ancestor, up to3ranges/120lines. It explicitly identifies original bodies not included and retains the entire original read/witness/context/counters as an alternative. No new graph observation is added."
+  ],
+  "selected_task_evidence": {
+    "actual_old_action": "Spatial2219..2239 plus2247..2345:120lines,67lines in the three named declarations and53lines of intervening helper/comment context.",
+    "proposed_action": "Spatial486..546 plus2247..2289 plus2343..2345:107lines, exposing pre-source manual/discovery gates, metadata bypass, rebuild/preparing, prepared effective gate and whole-file-count resolution in one read.",
+    "tradeoff": "The alternative omits QueryCache body and intervening header helpers. Their old120line action remains available; do not infer cleanup/handle lifecycle from the new controller comment.",
+    "literal_live_proof": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-alternative-read-proof-20261109-v2.json",
+      "sha256": "24d09da2240cf43c3e5048705d1cc41dcdac7dfe6eaa77fb7e04d79e807689b4"
+    },
+    "literal_source_utf8_bytes": 7542,
+    "new_selector_deployed": false,
+    "task_win_proven": false
+  },
+  "validation": {
+    "unit_cases": 9,
+    "overview_cases": 49,
+    "impact_cases_initial_pass": 27,
+    "impact_cases_initial_fail": 1,
+    "impact_exact_corrected_case_pass": 1,
+    "unique_cases_eventually_passed": 86,
+    "clean_full_suite_rerun_claimed": false,
+    "initial_failure": "a_separated_cache_bridge_upgrades_the_existing_read_without_losing_other_evidence retained obsolete duplicate-prefix assertion; updated only presentation selection to executable next-read index, preserving range/body/hash/witness checks.",
+    "test_assertion_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-test-assertion-correction-20261109.json",
+      "sha256": "0372b743b04eea9fd1d050fcdaff8ae2d1cedf9cfee587228166176e86a92358"
+    },
+    "runs": {
+      "core-source-view-unit-20261109": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-unit-20261109.json",
+          "sha256": "47aeb6be1962d073213b2d83c85625f58f09ed77bcb3a0060b3e98c24e821d03"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-unit-20261109.log",
+          "sha256": "ecd2afb70a5f188fcd4f9c2b4111dbb81b7f72d5b21e83da31c32d33f4e7e1b5"
+        }
+      },
+      "core-source-view-integration-20261109": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-integration-20261109.json",
+          "sha256": "71148f22b76bd1cb019a31c11880c671a06100c0150f3fbbd6817e6d6a928131"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-integration-20261109.log",
+          "sha256": "ba4b27c78e64ceec7362b0712078b9fc8473b349aadf49dd462cb5375dec2711"
+        }
+      },
+      "core-source-view-bridge-assertion-20261109": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-bridge-assertion-20261109.json",
+          "sha256": "9ded68b5f9b5e2d1104ebd9f26a05d621cf757d55fadc611a9e4858f274be64c"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-bridge-assertion-20261109.log",
+          "sha256": "6e2b7e1e3c25ca32a7ba3b1edd1e48a541ae971a226dc3574046ca031012366d"
+        }
+      }
+    },
+    "production_inputs_unchanged_between_runs": true,
+    "input_map_difference": "657-entry input map: only the reviewed integration-test assertion file differs; exact reverse reconstruction matches its initial raw hash and all other entries are unchanged.",
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-local-review-20261109.json",
+      "sha256": "b5a36072a6ec966381c2ca9d78e6be52c1a00e80e03ab58f9755f31e4941f432"
+    }
+  },
+  "preinstall_graph_baselines": {
+    "impact": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-preinstall-graph-20261109-v2.json",
+        "sha256": "8525f3313fc25b35ce3fa683a606966b7e7c613304fdbf8ea2d055193329fcb3"
+      },
+      "valid_call_index": 0
+    },
+    "blast": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-preinstall-blast-graph-20261109.json",
+      "sha256": "3c7abb9fa0563a4e1142ad169c4c868397da38026025e925b4b0390f519eb1a0"
+    }
+  },
+  "failures_preserved": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-alternative-read-proof-20261109.json",
+      "sha256": "502c7283d310a3b9886b4f6481e52e13af19df98c15497d52313722bc2e6c588"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-preinstall-graph-20261109.json",
+      "sha256": "88e47112050da217a868258d9140d83bba23b2c2fcad56f092b3632f6b9d69bd"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-view-preinstall-graph-20261109-v2.json",
+      "sha256": "8525f3313fc25b35ce3fa683a606966b7e7c613304fdbf8ea2d055193329fcb3"
+    }
+  ],
+  "failure_explanation": "First literal proof wrapper failed unpacking a (text,checks) tuple after completed RPC; corrected run returns identical source hash. Graph baseline wrapper sent unsupported limit to Blast twice; server parameter refusals retained, corrected exact Blast schema call captured separately. No task candidate/regrade or source mutation.",
+  "offline_projections": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-source-view-projection-20261109.json",
+      "sha256": "b74210675587492aa4ba25616b02ebf29729092d9bf006d9b977f91c6313df60"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-impact-v3-current-projection-review-20261109.json",
+      "sha256": "b20442e40c867ba150859ab561011710e1d8919ebf1f14d12108b4a068431354"
+    }
+  ],
+  "projection_limits": "Experimental output calculations only. Impact projection precedes the added declaration-read alternative; actual final output sizes and cold/normal equivalence still need runtime verification.",
+  "resources": "All three focused runner Jobs/handles closed and owned temporary directories removed. Administrative tool observers closed with no pending RPC. New validation/evidence artifacts retained only in V. Normal installed a180 server retained unchanged; no service restart yet.",
+  "next": "Build one native release from these reviewed final inputs; use existing paired cold/normal lifecycle to verify actual new source/graph/action outputs before installation. Then one fresh original task evaluation, unchanged criteria/caps; preserve earlier unfavorable outcomes.",
+  "goal_complete": false
+}
