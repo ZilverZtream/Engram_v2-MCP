@@ -1,0 +1,193 @@
+{
+  "status": "DEPLOYED_MISSING_NAME_LITERAL_RECOVERY_NORMAL_IPC_VERIFIED",
+  "at_utc": "2026-11-09T10:40:19.036841+00:00",
+  "source_commit": "e0d6e3ad2cad7f95d8fae8ae7e474cc238a591bf",
+  "development": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-recovery-20261109.json",
+    "sha256": "7b763d0041bdaa28da9d40771ae0326f5a965054975272bb25a7cd30607f4027"
+  },
+  "implemented_behavior": "A genuine zero-candidate exact-file bare-name lookup can replace its generic discovery action with an explicit valid literal-source action. Eligible names are1..128UTF8bytes without dot/control; no qualified-name guessing. Trial occurs after existing allocation; failed size check preserves baseline. No parser/index/schema/scan expansion.",
+  "actual_delivery": {
+    "before_named_bytes": 12140,
+    "after_named_bytes": 12255,
+    "delta_bytes": 115,
+    "cap_bytes": 12288,
+    "all_original_source_120_lines_and_other_navigation_preserved": true,
+    "only_replaced_generic_action_and_updated_scope_phrase": true,
+    "offered_action_executed": true,
+    "literal_reply_bytes": 5884,
+    "actual_matched_lines": [
+      2257,
+      2497
+    ],
+    "actual_source_windows": [
+      [
+        2245,
+        2269
+      ],
+      [
+        2485,
+        2509
+      ]
+    ],
+    "projection_correction": "Earlier12208B/+68 was an explicitly unbuilt projection with different scope wording. Actual built result is12255B/+115; no executed evidence rewritten.",
+    "all150_tool_definitions_unchanged": true,
+    "all214_sidecar_assets_unchanged": true,
+    "prior_seven_classifier_literal_continuation_and_source_recovery_outputs_unchanged_except_age": true,
+    "candidate_calls": 13,
+    "candidate_returned_bytes": 82100,
+    "normal_calls": 13,
+    "normal_returned_bytes": 82100,
+    "current_source_windows_checked_per_run": 17,
+    "candidate_selected_registry_selection_and_other14_metadata_unchanged": true,
+    "normal_database_preservation_not_claimed": true
+  },
+  "validation": {
+    "full_selected_source_suite": {
+      "passed": 45,
+      "failed": 0,
+      "filtered": 0,
+      "total_seconds": 136.3465475999983,
+      "test_seconds": 28.22
+    },
+    "release_build_seconds": 736.674207700009,
+    "capability_matrix_entries_checked": 135,
+    "source_review": "Independent local producer/test/doc review found no actionable defects; root and peer reviewed delivery helpers. One normal helper uppercase SHA comparison corrected before execution. No CodeRabbit/remote review claimed.",
+    "independent_actual_review": "core_task_clean_judge verified exact new/old named packets, actual offered recovery, all17 source windows/rawBLAKE3, source pins,150schemas, prior7outputs, candidate metadata preservation/closure; independently checked normal214nativeassets,13calls, journals and hold release."
+  },
+  "evidence": {
+    "core-codemap-missing-name-focused-v1-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-missing-name-focused-v1-20261109.json",
+      "sha256": "cbcc56f97c6813d7c99a99e9a5188b9cc961c278952c2720c35fba7801e1130d"
+    },
+    "core-codemap-missing-name-shipping-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-missing-name-shipping-20261109.json",
+      "sha256": "83d74d0206a858336d3aafa2e9dda4c6efd9ce2bcc31621ee6ad4b2d91995922"
+    },
+    "core-codemap-missing-name-build-artifact-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-missing-name-build-artifact-20261109.json",
+      "sha256": "fe5a4ea0b775d86e0862e8fa5d40dba40b77d4cbedbd8a96f021eb23d23cad2c"
+    },
+    "codemap-missing-name-paired-package-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-paired-package-20261109.json",
+      "sha256": "e149fb2cbae832c7c2a7588c8a23668fbb5db5a58e27e17bad02f27cc61fa5bc"
+    },
+    "missing-name-recovery-cold-v1-20261109/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-recovery-cold-v1-20261109\\acceptance.json",
+      "sha256": "c29f125809e6c7a3ca7f778d0eb63d251af559f8235078810c065d1d41fec9e0"
+    },
+    "missing-name-recovery-normal-v1-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\missing-name-recovery-normal-v1-20261109.json",
+      "sha256": "c0f6d895873f5a97323930e7d1edeec80fac31d00702300f9c8ab4f3ebd3605c"
+    },
+    "codemap-missing-name-release-gates-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-release-gates-20261109.json",
+      "sha256": "d952d078a1782ee62d09d3c74448eaf33febf09a4cb1ab0efabc3e0e6ba10070"
+    },
+    "codemap-missing-name-forward-applicability-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-forward-applicability-20261109.json",
+      "sha256": "f827559f621fd113aeea4a3ab60f5317c3671df739c7379098742894574cc6d2"
+    },
+    "codemap-missing-name-gate-inventory-snapshot-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-gate-inventory-snapshot-20261109.json",
+      "sha256": "b634883720ca0b38de7f32dd152be1d2cf7789a9d1b97ea6f01913c97cb6d313"
+    },
+    "codemap-missing-name-prepared-helper-review-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-prepared-helper-review-20261109.json",
+      "sha256": "7d75b07786447dc8c908b87f6f53dc9d81a8e99521736a9e0f054355874561c3"
+    },
+    "codemap-missing-name-installer-result-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-installer-result-20261109.json",
+      "sha256": "0da68e55ca51110a034f09ac22660abc7e64649505f822d246b06650cbc61bcd"
+    },
+    "codemap-missing-name-config-hold-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-config-hold-20261109.json",
+      "sha256": "d65411ac9201d332a7f53307a0668aa98e3a97ded083143dc2c905f901254558"
+    },
+    "codemap-missing-name-config-hold-20261109.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-config-hold-20261109.json.released.json",
+      "sha256": "1ca2ef00e161c2d9544e21a16fca80529b8c3d561efeb17a91b8e051e1d1b6b7"
+    },
+    "codemap-missing-name-normal-launch-20261109.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-normal-launch-20261109.json",
+      "sha256": "14bc4477b9cc43c77357540d8a7af3afc5d2ed8bffe458a7fe8baa3217868b30"
+    }
+  },
+  "runtime": {
+    "daemon_pid": 13256,
+    "primary_started_at_ms": 1794220530066,
+    "launcher_pid": 11600,
+    "server_sha256": "fc399794bc38559d0f1526eff1b87bc23733035b85403c228a54145fc036d9e4",
+    "manifest_sha256": "e497017033c46d3f82b5c876d255d0d459af7da27413708ca75c8b0c154ccff0",
+    "generation": 3139,
+    "normal_configuration_unchanged": true,
+    "maintenance_hold_active": false,
+    "actual_upgrade_invocations": 1,
+    "old_daemon_exited_naturally": true,
+    "codex_host_stopped": false
+  },
+  "informed_count_change_plan": {
+    "recommendation": "Do not silently substitute zero for absent persisted whole-file counts. Retain unknown/incomplete handling; any legacy compatibility migration should establish actual counts before admitting them as prepared metadata. This is a proposed source-grounded plan, not an OciusX edit.",
+    "current_contract": "ReadMeta requires the expected format version and both strict counts. TryParseCount rejects absent/empty strings and values that fail invariant Int64 parsing with NumberStyles.None; parsed counts must be nonnegative. Stored zero is valid and distinct from missing.",
+    "representative_path": "ReadMeta returns Nothing on invalid counts; QueryCacheCore returns IncompleteCacheResult before ResolvePolicy. QueryCache removes cache files only for error results marked incomplete after its read scope unwinds. QueryViewport falls through toward build/preparing only when the incomplete cache file is absent; source/setting/zoom/failure-cache guards still apply. ResolvePolicy supplies the prepared counts and override to FileLayerZoomPolicy.Resolve.",
+    "proposed_change_risk": "Defaulting missing counts can bypass the metadata rejection when remaining metadata is valid, understate automatic classification and avoid the intended incomplete-cache recovery. The lightest band is not guaranteed: the other count can still force a heavier band. Manual override semantics must remain separate.",
+    "behavior_checks_proposed_not_executed": [
+      "Independently omit each count and both; invalid format or absent metadata layer must retain incomplete handling.",
+      "Distinguish valid0 from empty, signed/negative, whitespace, separators, nonnumeric and Int64-overflow values; exercise upper accepted integer boundary.",
+      "Use asymmetric count pressures so one valid high count prevents an unjustified lightest-band expectation.",
+      "For invalid persisted counts, check read handles unwind before attempted deletion; deletion failure must not be described as successful rebuild.",
+      "Check QueryViewport incomplete-file fallthrough, existing-file return, setting/zoom guards and memoized current-generation failure behavior.",
+      "Verify valid prepared counts and explicit override preserve existing effective zoom and automatic-policy reporting."
+    ],
+    "new_validation_helper_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-persisted-count-change-parse-count-20261109.json",
+      "sha256": "733519636f139c25b53507bac52e4379bf7a496db3f7d3a137bbe1eb3d048bf6"
+    },
+    "method_context": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-persisted-count-change-method-context-20261109.json",
+      "sha256": "dca7b1c49b54a0d68671eb6f6942146130ff00e14fbb1a3dacb93c16c5fbe688"
+    },
+    "blast": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-persisted-count-change-blast-v2-20261109.json",
+      "sha256": "5c2fd6704981e6c8e3000e39ea0725f09c235cc1478498cb5ce77ec311d99ae3"
+    },
+    "reused_source_evidence": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\impact-source-route-normal-v1-20261109.json",
+        "sha256": "f0a703f48709e0c6842ac41135a75426a288f5627d2776a024ce4bd5b44cd0a1"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-literal-continuation-fixed-protocol-20261109-response-3.txt",
+        "sha256": "18f5e8e5c459d06c129df017c36a5314d2a2b68ecf5b3944e3230e28917dc6f4"
+      }
+    ],
+    "reused_windows_reverified_against_current_source_and_blake3": true,
+    "limits": "Root-informed planning with retained source evidence; no fresh candidate, matched productivity, runtime/GDAL execution or original capped-task rescore. IncompleteCacheResult construction, SafeDeleteFile implementation and full TryStartBuild lifecycle were not returned in this bounded observation; downstream5 is partial indexed exposure with missing_graph_node, not complete binding. Business analysis is unpopulated and empty effects/calls metadata is explicitly unassessed.",
+    "new_observation_accounting": {
+      "attempts": 7,
+      "successful_calls": 5,
+      "successful_returned_bytes": 57458,
+      "root_request_errors": 2,
+      "exact_total_bytes": null,
+      "reason": "Initial literal request retained invalid declarations flag and its error body was not saved before assertion; initial Blast request used unsupported limit, whose rawerror was retained. Neither is a backend defect. Release/candidate verification calls are separate."
+    }
+  },
+  "resources": {
+    "test_build_candidate_handles_closed_and_owned_tmp_removed": true,
+    "normal_observer_pipe_closed": true,
+    "pending_rpc": null,
+    "normal_daemon_owns_lifetime": true,
+    "hold_released_normally": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-955a8b2a6b324c17a2ff11881ef41b82",
+    "retained_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain exact package/scripts/proofs and prior complete pair for review; no preexisting deletion. Running normal service is intentional; no build/test/hold/RPC remains.",
+    "historical_running_checkpoint_superseded": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\codemap-missing-name-active-checkpoint-20261109.json",
+      "sha256": "5e143a3e3aa06c8187e6bb5ceaa17f424b75740d10b3d7244654e972cc7ead0c"
+    }
+  },
+  "next_selected_work": "Evaluate a fresh agent on this separately scoped persisted-count change proposal using the now-deployed CodeMap recovery, with criteria and costs frozen before its attempt. Keep original classification/cancellation outcomes untouched; no new production change unless actual output/source evidence demonstrates a concrete gap.",
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}

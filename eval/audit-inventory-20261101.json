@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T10:11:19.702295+00:00",
-    "reason": "New informed ReadMeta planning observation demonstrates a no-candidate name-navigation gap after serializer and cancellation recovery were confirmed usable.",
+    "at_utc": "2026-11-09T10:40:19.036841+00:00",
+    "reason": "Missing bare-name CodeMap recovery deployed and independently checked on actual ReadMeta; normal13RPC passed,45behavior tests passed, all owned maintenance resources closed. Broader original core-tool goal remains active.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast usefulness for agents: literal continuation deployed atd14b267; corrected fresh classification remains4PASS/1PARTIAL,8calls/62770B. Serialization/client/editor joins remain incomplete; no overall gain or goal completion.",
-    "next_user_visible_deliverable": "Deliver and verify the selected no-candidate bare-name CodeMap literal recovery against actual ReadMeta output; preserve all original source/facts and response caps. Finish source-grounded persisted-count change planning after recovery. No broad audit or speculative API.",
+    "active_original_item": "CodeMap/Blast usefulness for agents: missing-name literal recovery deployed at e0d6e3a. Actual offered ReadMeta recovery works while preserving prior source; separate informed count-change plan recorded. Original capped classification remains4PASS/1PARTIAL; no overall or fresh-agent win.",
+    "next_user_visible_deliverable": "Evaluate a fresh agent on this separately scoped persisted-count change proposal using the now-deployed CodeMap recovery, with criteria and costs frozen before its attempt. Keep original classification/cancellation outcomes untouched; no new production change unless actual output/source evidence demonstrates a concrete gap.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
     "previous_goal_turn_classification": {
       "classification": "PROGRESS",
-      "reason": "Verified the selected serializer witness chain through actual CodeMap outputs and independent current source; ruled out an unsupported new producer change while preserving capped partial outcomes.",
+      "reason": "Delivered and verified the selected concrete no-candidate navigation fix, preserved source and prior behaviors, restored normal service, and recorded a bounded source-grounded change plan without rescoring old partials.",
       "permission_dependency": false,
       "goal_complete": false
     },
@@ -9921,14 +9921,15 @@
     },
     "last_session_control_correction": "User had already rebooted8hours before the delayed reply was misread. Existing goal isactive. No new reboot or pause authorized; old checkpoint is historical. Normal runtime was changed only for the reviewed upgrade and restored with one hidden normal launcher.",
     "latest_in_progress_core_batch": {
-      "state": "IMPLEMENTING_MISSING_BARE_NAME_LITERAL_RECOVERY",
+      "state": "DEPLOYED_MISSING_NAME_RECOVERY_FRESH_SCOPED_AGENT_USE_NEXT",
       "tracked_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-recovery-20261109.json",
-        "sha256": "7b763d0041bdaa28da9d40771ae0326f5a965054975272bb25a7cd30607f4027"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-delivery-20261109.json",
+        "sha256": "b482f1f78ac95cc7fd873476be5bcb88bf0e745ecff7c12333d4db3a0272fa1c"
       },
-      "deployed": false,
+      "deployed": true,
+      "focused_cases": 45,
       "full_task_pass_proven": false,
-      "next_production_change_selected": true,
+      "next_production_change_selected": false,
       "no_new_supporting_project": true
     },
     "latest_delivery_preparation": {
@@ -11325,6 +11326,10 @@
     "latest_missing_name_navigation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-recovery-20261109.json",
       "sha256": "7b763d0041bdaa28da9d40771ae0326f5a965054975272bb25a7cd30607f4027"
+    },
+    "latest_missing_name_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-codemap-missing-name-delivery-20261109.json",
+      "sha256": "b482f1f78ac95cc7fd873476be5bcb88bf0e745ecff7c12333d4db3a0272fa1c"
     }
   }
 }
