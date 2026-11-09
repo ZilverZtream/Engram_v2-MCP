@@ -1,0 +1,65 @@
+{
+  "status": "ORIGINAL_SOURCE_QA_ANSWER_COMPLETED_ADMINISTRATIVELY_NOT_CAPPED_TASK_WIN",
+  "at_utc": "2026-11-09T23:37:38.123288+00:00",
+  "source_commit": "27ee2e54b6bdeecb89dbdbd9d8c5cea420edbb85",
+  "installed_runtime_changed": false,
+  "final_answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-workflow-administrative-final-20261110.json",
+    "sha256": "4ddcc2e57cfd8b7359455075a5f0ff951de1c51cc5ded514a4cfa27cd2efac3c"
+  },
+  "independent_source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-workflow-administrative-final-review-20261110.json",
+    "sha256": "66e8960054b8ea6411a1b759d13330928331deebc9e33278466aafada3347a7e"
+  },
+  "actual_tail": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-workflow-tail-20261110.json",
+    "sha256": "b460a9dfda9be68e22284d2e4b7f3a911b72586aa60853894ef0ebab2f7115d2"
+  },
+  "answer_markdown": "**ClassifyAutomatic tests alone cannot sign off the workflow.** The returned source now connects whole-file count production and persistence to classification, metadata JSON, client policy, editor saving and stale-response handling. This administrative synthesis does not establish application runtime behavior or a fresh task win.\n\nCitation aliases identify these exact source files:\n\n- P: `Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb`\n- S: `Site/App_Code/visualisering/code/FileLayerSpatialService.vb`\n- C: `Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts`\n- E: `Site/modules/dashboard/ts/map/vsMap/mapLayer.ts`\n- M: `Site/modules/dashboard/ts/map/vsMap/vsMap.ts`\n- A: `Site/App_Code/visualisering/api-json/api-visualisering-kml.vb`\n- K: `Site/App_Code/visualisering/code/visualisering-kml-filer.vb`\n- H: `Site/kmlquery.aspx.vb`\n\nThe actual classifier is `_vs.FileLayerZoomPolicy.ClassifyAutomatic(Long,Long)`. In order, inclusive **BOTH-count** maxima are **(100,2500)\u219210; (500,10000)\u219212; (1000,25000)\u219214; (2000,50000)\u219215**; otherwise17. The first fitting band wins. It does not validate nonnegative inputs. `Resolve` classifies only when both counts exist; an override wins independently, and pending means effective zoom absent. [P:44\u2013106]\n\nOne fresh stats object flows through `WriteFeatures \u2192 WriteAllDocuments`, reading the GeoJSON file or every converted row. Document parsing streams the feature array into `WriteFeature` with those shared stats. Empty geometry contributes nothing; valid stored features increment totals only after successful storage. Coordinate counting recursively sums child point counts. `BuildCache` verifies the stored feature count, then passes the same stats to `WriteMeta`, which writes both totals and reports write failures. [S:944\u2013985,1069\u20131141,1185\u20131194,1269\u20131307,1425\u20131465,1965\u20132021]\n\n`ReadMeta` requires the correct format and explicit nonnegative Int64 counts: missing, malformed, negative or overflowing values invalidate metadata; zero is valid. [S:2497\u20132568] `QueryCacheCore` calls `ReadMeta` and then separately `ResolvePolicy`, which supplies these whole-file counts to `Resolve`. Geometry collection follows; its separate viewport counters cannot substitute for classification inputs. [S:2257\u20132286,2343\u20132345,2372\u20132373]\n\nThe representative **metadata** path is direct: `QueryCacheCore \u2192 BuildMetaOnlyJson \u2192 AppendJson`; returned Ready JSON includes policy and source counts. `GetFileLayerViewport \u2192 QueryViewport` writes the result as UTF-8 `application/json`. Client metadata discovery parses JSON, applies policy and reevaluates geometry eligibility; `_readPolicy` derives effective/pending from override and Automatic. [S:2262\u20132273,2584\u20132608; P:382\u2013393; H:195\u2013249; C:324\u2013375,237\u2013247]\n\nThe map attaches the editor to a `vsFileLayerLazyLoaded` instance with edit permission. Its Save click calls `_saveZoomOverride \u2192 layer.setZoomOverride`, which sends `vskSetZoomOverride`. The endpoint persists through `UpdateZoomOverride` and serializes a lightweight descriptor into the ACK; client handling merges it and calls the editor callback. [M:1423\u20131427; E:470\u2013473,594\u2013596,827\u2013873; C:1490\u20131511; A:393\u2013400] These are source-level calls and matching fields, not proof of deployed routing or served assets.\n\n| Concrete setup | Expected result |\n|---|---|\n| Classify each exact maximum pair above; then increase features alone by1 and coordinates alone by1 | Exact pairs yield10/12/14/15; each isolated-overflow series yields12/14/15/17. `(0,0)\u219210`, `(101,10001)\u219214`, `(Long.MaxValue,Long.MaxValue)\u219217`. [P:44\u201384] |\n| Resolve Automatic with neither count or either count missing; then override0/17 with missing counts | Automatic/effective absent and pendingtrue for Automatic; manual effective0/17, automatic absent, pendingfalse. Override0 with `(2001,50001)` keeps automatic17 but effective0. [P:53\u2013106] |\n| Two converted documents contain60 and41 valid single-point features, plus empty geometry; query a viewport seeing one feature | Shared prepared totals are101 features/101 coordinates, persisted as counts; Automatic12 remains independent of the one-feature viewport. Empty geometry adds nothing; validation/storage or metadata-write failures propagate. [S:971\u2013985,1090\u20131126,1293\u20131302,1425\u20131465,1965\u20132021] |\n| Prepared metadata counts `\"0\",\"0\"`; separately omit either key or use `\"-1\"`, `\"x\"`, or Int64 overflow | Zero remains valid and classifies10; invalid metadata returns Nothing, leading to incomplete-cache handling, never light-band zero substitution. If the cache has been removed and no current failure memo blocks rebuilding, QueryViewport starts preparation and returns Preparing. Actual deletion/publication remain unverified. [S:2516\u20132568,2257\u20132259,519\u2013540] |\n| Validated geometry request: unprepared Automatic at9/10; stored manual14 at13/14 | At9/13 respectively, ZoomRequired before source resolution/preparation. At10/14 preparation may start; equality is eligibility, not guaranteed Ready. [S:498\u2013540] |\n| Prepared Automatic14: geometry13/14 and validated metadata-only below14 | Geometry13 is ZoomRequired;14 proceeds to collection. Metadata bypasses the geometry gate, returning Ready subject to metadata response-size checks. [S:2262\u20132286] |\n| Serialize pending Automatic; then request prepared metadata for Automatic `(100,2500)` | Fields `zoomOverride,automaticZoom,effectiveMinZoom,policyPending` are respectively `null,null,null,true` then `null,10,10,false`. Metadata also reports source counts100/2500 and effective minZoom10. Client pending policy is outside render range; known10 admits map zoom10. [P:92\u2013105,382\u2013393; S:2584\u20132593; C:199\u2013247] |\n| Editor max17 with Automatic14, then unknown Automatic; saved/draft12; no native selection | Offer Automatic plus14..17, then Automatic plus17. Out-of-range12 stays visible but disabled; no-selection must not reset Automatic. Fractional, negative and18 selections fail. Background refresh preserves the draft and disables Save when invalid. [E:694\u2013735,743\u2013813,827\u2013844] |\n| Missing save key; authorization/type/feature-enable failure; otherwise changed valid options | Missing key rejects. Failed guards return before mutation. Persistence applies options, audits and submits; unchanged policy is a no-op; exceptions return Nothing. Exact override-parser/style-helper behavior remains uninspected. [A:343\u2013400; K:306\u2013346] |\n| Save17 with Automatic14 already known; ACK descriptor has automaticZoom:null; separately return an ordinary failure while active, not disabled, and in the current save epoch | Saving blocks requests/policy updates and advances epoch. Successful ACK preserves known14, accepts override17 and closes editor after settlement. Only that ordinary failure restores prior policy and leaves attempted selection available for correction/retry; disabled refusals/concurrent disable follow the disabled branch. [C:259\u2013276,405\u2013408,1471\u20131568; E:853\u2013872] |\n| Old viewport arrives after bounds change/new policy; current response explicitly nulls Automatic | Bounds change aborts and advances generation; ordinary stale responses cannot apply. Current explicit null can restore pending and trigger eligible discovery; omitted Automatic preserves prior knowledge. [C:162\u2013174,259\u2013276,449\u2013490,1088\u20131104] |\n| A superseded response says disabled; HTTP identifiers/access invalid | Disabled is intentionally processed before stale-generation rejection: latch disabled, cancel work and clear features. HTTP invalid IDs produce400; failed project/visibility checks produce403. Do not assert every stale response is ignored. [C:449\u2013457,489\u2013520; H:197\u2013225] |\n\nLimits: exact request-parser/corrupt stored-style behavior (`TryParseOverride`, `ExtractOverride`, `ApplyOverride`) was not inspected, so no strict textual parser cases are asserted. Null-geometry exclusion is documented at P:73\u201375; its guard body was not returned. Complete scanner/GDAL internals, publication/retirement races and all response variants remain outside this bounded review. No application tests, browser, database/HTTP execution, configured deployment URL or compiled assets were verified. These observations accumulated across calls, not one atomic project snapshot.",
+  "actual_tail_summary": {
+    "actual_calls": 12,
+    "returned_text_utf8_bytes": 88341,
+    "pre_rpc_refusals": 1,
+    "refusal_cause": "Root used incorrect argument names; diagnostic guard refused before public RPC. Original attempt retained at row4.",
+    "newly_inspected_links": [
+      "HTTP response delivery",
+      "ordinary stale response predicate and disabled cleanup",
+      "BuildMetaOnlyJson -> AppendJson",
+      "editor attachment and Save click -> setter",
+      "shared whole-document accumulator -> actual metadata writes"
+    ],
+    "count_range_origin": "Independent reviewer supplied final producer/write ranges; these are actual tool-returned source but not graph-discovered navigation.",
+    "original_source_pins_rechecked": 17,
+    "no_application_source_edits": true,
+    "new_application_test_execution": false
+  },
+  "original_evaluation_preserved": {
+    "grades": [
+      "PASS",
+      "PARTIAL",
+      "PARTIAL",
+      "FAIL",
+      "PARTIAL"
+    ],
+    "fresh_task_win": false,
+    "capped_task_win": false,
+    "rescore": false,
+    "original_8request_65536byte_requirement_unchanged": true
+  },
+  "separate_next_core_gap": {
+    "evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-math-max-witness-20261110.json",
+      "sha256": "bab0e18de931542776167bc4809bb14f06eabd0fdd450ec2fe71d261894a6a00"
+    },
+    "trigger": "CodeMap BuildMetaOnlyJson property reference at Math.Max source2598 targets unrelated WMS String property max. Both impact tools report61directdependents; emitted RelationHelper.BuildPair witness331 is LINQ updates.Max().",
+    "decision": "Repair invocation-position unresolved property fallback after preserving completed original source answer. No audit/catalog/performance/instruction expansion.",
+    "all61_edges_checked": false
+  },
+  "resources": {
+    "observers_closed": true,
+    "pending_rpc": null,
+    "new_fixtures": [],
+    "retention": "Retain all evidence and small runners under existing diagnostics root until exact-path cleanup approved. No preexisting resources removed."
+  },
+  "goal_complete": false
+}
