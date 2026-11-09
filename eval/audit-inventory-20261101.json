@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T11:00:16.365341+00:00",
-    "reason": "Deployed missing-name recovery independently adopted by fresh candidate; separate bounded count-plan task passed all five frozen criteria in seven calls/65050 bytes. Original broader core-tool outcomes remain unfinished.",
+    "at_utc": "2026-11-09T11:16:20.135394+00:00",
+    "reason": "Representative serializer-to-client source and immediate-caller followthrough verified; no producer defect found. User explicitly identifies repeated circular work over four weeks. Stop treating another successful narrow probe as the next delivery milestone.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast usefulness for agents. Missing-name recovery deployed at e0d6e3a and its bounded persisted-count planning task now passes5/5 with actual action adoption. Original full classification remains partial; no comparative/general productivity claim.",
-    "next_user_visible_deliverable": "Return to the remaining original classification chain: inspect actual current serializer-to-client response-application navigation against ordinary endpoint/TypeScript source, reusing retained evidence first. Select a production change only if an unavailable or misleading witness/recovery is demonstrated. Do not replay the completed ReadMeta task, expand the catalog, draft instructions, or rescore earlier capped outcomes.",
+    "active_original_item": "Original accepted-task verification after delivered CodeMap/Blast fixes. Original broad classification remains partial and general comparative productivity is unproven. No new CodeMap/Blast implementation is justified by the completed recovery followthroughs.",
+    "next_user_visible_deliverable": "Close repeated static classification/cancellation followthroughs. Resume original EG-24 accepted-task verification using the existing frozen_task_run collector and original four-category protocol; distinguish actual current-tool/model execution from saved-run checks. Deliver an executable regular verification path and its real result, without a new evaluation framework, altered acceptance criteria or replaying the same narrow cases. Keep EG-25 comparative limitations and parked work explicit.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "adb4fa6 pushed origin/master, full native sidecar pair installed and normal13RPC PASS at generation3139. One ordinary update refreshed1016VB files by new entry MVID; both impact tools retain exactly5 source-confirmed CoordinateCount consumers and remove false resolved scalar bindings. Native14 and actual old/new two-file comparison passed.300memory sections/14other metadata/two inspected sources preserved. All owned test/maintenance/observer resources closed; config released unchanged. Exact new publish tmp retained after automatic cleanup denial; previous218-file runtime retained. Frozen task partials/full31/full19 unchanged.",
     "previous_goal_turn_classification": {
       "classification": "PROGRESS",
-      "reason": "Finished the authorized fresh-agent task, verified actual recovery adoption and all source evidence, and retained independent five-criterion judgment. No new producer defect or maintenance need demonstrated.",
+      "reason": "Completed and source-verified the selected response-application followthrough; no new production improvement. Evidence rules out another speculative fix and ends this narrow loop. This is limited verification progress, not broader delivery completion.",
       "permission_dependency": false,
       "goal_complete": false
     },
@@ -10544,16 +10544,18 @@
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
     "current_owned_resource_state": {
-      "observer_pipe_closed": true,
-      "pending_rpc": null,
-      "service_restart_for_this_task": false,
+      "new_fixture_tree": false,
+      "rpc_by_this_verifier": 0,
+      "source_index_config_service_changes_by_this_verifier": false,
+      "both_probe_observers_closed": true,
+      "pending_requests": 0,
+      "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+      "cleanup_condition": "Retain probes and this verification for review; no existing files deleted or runtime resources acquired.",
       "normal_daemon_pid": 13256,
-      "normal_daemon_owns_lifetime": true,
-      "new_fixture_directories": [],
-      "retained_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
-      "cleanup_condition": "Retain request/response/ledger/answer/judgment and verification artifacts for review in the existing diagnostics directory. No preexisting deletion; no build, hold, fixture or observer remains from this task.",
-      "ledger_finalization": "Relay retains WAITING_NEXT_RECORDED_BATCH as its last batch status; candidate final answer and this outcome seal the completed seven-call task. No pending request or eighth call.",
-      "task_wrote_application_source_index_or_config": false
+      "normal_service_restart_performed": false,
+      "new_public_calls": 3,
+      "all_observers_closed": true,
+      "normal_daemon_owns_lifetime": true
     },
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
@@ -11356,6 +11358,23 @@
       "calls": 7,
       "returned_utf8_bytes": 65050,
       "original_tasks_rescored": false,
+      "goal_complete": false
+    },
+    "latest_response_application_navigation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-response-application-navigation-outcome-20261109.json",
+      "sha256": "1982b9be93e12992691da73d7679a6b46369024b0ed0b1360d41512e5757a1af"
+    },
+    "user_delivery_correction_20261109": {
+      "instruction": "User reports that circular-work acknowledgments have repeated for four weeks without reliable completion. Another acknowledgment/report/replay is not a correction.",
+      "recorded_boundary": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-delivery-requirements-check-20261108.json",
+        "sha256": "8f9f31d4cca5650c0ac3eadc3d64263c7ca8defd8bd7835bc3c736ec4b1f3313"
+      },
+      "remaining_original_requirements": [
+        "EG-24 regular actual task verification",
+        "EG-25 comparative real-task evidence remains limited"
+      ],
+      "permission_dependency": false,
       "goal_complete": false
     }
   }
