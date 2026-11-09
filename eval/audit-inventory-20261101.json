@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T23:15:04.023136+00:00",
-    "reason": "27ee2e5 is deployed and normal-verified. CodeMap endpoint metadata exposes14admitted callable identities including UpdateZoomOverride; its literal action returned exact persistence306..348. Graph11/server52tests and cold40/normal40calls passed; original37facts and150definitions preserved. Full original task outcome remains incomplete.",
+    "at_utc": "2026-11-09T23:37:38.123288+00:00",
+    "reason": "Original source-QA answer now includes producer/storage, HTTP/JSON, client/editor/save/stale links and independent source review. Frozen capped failure unchanged. Actual new core witness check demonstrates Math.Max and LINQ Max falsely promoted to unrelated WMS property Calls.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original CodeMap/Blast agent-usefulness queue remains active. Named-source and callable navigation are delivered; full backend-to-UI task and comparative usefulness remain unfinished.",
-    "next_user_visible_deliverable": "Continue remaining original workflow evidence, using delivered callable links rather than new presentation work. Resolve uninspected viewport HTTP delivery and stale-response predicates/cleanup using actual tool-returned actions checked against source. Preserve frozen task failures/caps; no fresh retry or favorable rescore. Select further code only for a demonstrated core navigation, witness or recovery gap.",
+    "active_original_item": "CodeMap/Blast agent-usefulness queue: correct demonstrated false property witness identities from invocation-position lexical fallback. Source-QA evidence acquisition is finished; do not resume all-helper crawling.",
+    "next_user_visible_deliverable": "Prevent unresolved invocation-position names from becoming unrelated exact property Calls, retaining real semantic property/indexer bindings and ordinary unresolved-call recovery. Validate native wanted behavior, actual OciusX Math.Max/LINQ examples and genuine CacheMeta witnesses before deployment; preserve original task failures.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: actual endpoint/client source and indexed persistence witness established a missing CodeMap callee recovery; implemented, tested, built and deployed it, then executed the offered persistence read in cold and normal runtimes. Original task failures remain preserved.",
+    "previous_goal_turn_classification": "Previous user-facing status turn: no progress. Current continuation: completed original administrative source-QA answer and independently verified required links; actual CodeMap/Blast/impact source checks identify the next concrete false-witness defect. No new capped-task win.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11511,6 +11511,19 @@
     "latest_callable_navigation_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-callable-navigation-delivery-20261109.json",
       "sha256": "c65a1842f9693b7c371eece7ceb5b7c14cd0247bc3abd98c17933696cb763917"
+    },
+    "latest_completed_source_workflow": {
+      "path": "eval\\core-workflow-evidence-outcome-20261110.json",
+      "sha256": "1f3af016d506bfd46d6d06d2e48194af2d6ca49de1fe901c3feed2c8e6a72fdd"
+    },
+    "selected_false_property_witness": {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-math-max-witness-20261110.json",
+        "sha256": "bab0e18de931542776167bc4809bb14f06eabd0fdd450ec2fe71d261894a6a00"
+      },
+      "trigger": "CodeMap BuildMetaOnlyJson property reference at Math.Max source2598 targets unrelated WMS String property max. Both impact tools report61directdependents; emitted RelationHelper.BuildPair witness331 is LINQ updates.Max().",
+      "decision": "Repair invocation-position unresolved property fallback after preserving completed original source answer. No audit/catalog/performance/instruction expansion.",
+      "all61_edges_checked": false
     }
   }
 }
