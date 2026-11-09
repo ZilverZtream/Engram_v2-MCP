@@ -1312,7 +1312,44 @@ internal sealed class AstEmitter
         {
             try
             {
-                var symbol = model.GetSymbolInfo(reference).Symbol;
+                var referenceInfo = model.GetSymbolInfo(reference);
+                var symbol = referenceInfo.Symbol;
+                if (symbol is null && reference.Parent is InvocationExpressionSyntax invocation
+                    && invocation.Expression == reference)
+                {
+                    // An unresolved invocation name (including an overload
+                    // group) must not borrow a same-named source property.
+                    // Missing framework types can also prevent an indexed
+                    // source property from binding. Preserve only a unique
+                    // property candidate from this expression's semantic scope,
+                    // never the global lexical property-name inventory.
+                    var invocationInfo = model.GetSymbolInfo(invocation);
+                    symbol = invocationInfo.Symbol;
+                    if (symbol is null)
+                    {
+                        var candidates = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+                        var examined = 0;
+                        foreach (var candidate in referenceInfo.CandidateSymbols
+                            .Concat(invocationInfo.CandidateSymbols)
+                            .Concat(model.GetMemberGroup(reference)))
+                        {
+                            if (++examined > 16)
+                            {
+                                return null;
+                            }
+                            candidates.Add(candidate);
+                        }
+                        if (candidates.Count != 1 || candidates.Single() is not IPropertySymbol indexed
+                            || indexed.Parameters.Length == 0
+                            || !indexed.Locations.Any(location => location.IsInSource))
+                        {
+                            // Ordinary invocation emission independently keeps
+                            // unresolved call text and source positions.
+                            return null;
+                        }
+                        symbol = indexed;
+                    }
+                }
                 var property = symbol as IPropertySymbol;
                 // A resolved parameter/local/field/method, or a metadata-only
                 // property, cannot denote a same-named source property. Reserve

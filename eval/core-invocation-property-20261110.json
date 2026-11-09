@@ -1,0 +1,76 @@
+{
+  "status": "NATIVE_FIX_VERIFIED_RUNTIME_REEXTRACTION_PENDING",
+  "at_utc": "2026-11-09T23:52:22.801680+00:00",
+  "source_parent_commit": "0be7e771aa69dba9ffabd219e60838b86a0e5973",
+  "source_files": {
+    "tools/vb_roslyn_sidecar/AstEmitter.cs": "222e0b0f79df0dc5bae4bf6399a46f9f8f6caeafab032be0b83f71c5e0526aca",
+    "crates/engram_index/tests/vb_sidecar_incremental_test.rs": "a7c69da655cee05f641e3881552b45b5043200bc1742ed961e5dc236dcf47b0c",
+    "docs/TOOL_CONTRACT.md": "b7e95f8448954cd61ecee06d915fe23d9bdc9e8fcca47c6d32568fc8edd13d1f"
+  },
+  "problem": "CodeMap offers unrelated WMS LayerScaleHint.max for numeric Math.Max. Both impact tools report61directdependents; an offered RelationHelper.BuildPair witness is LINQ updates.Max. Independent current-source evidence disproves these two identities, not all61.",
+  "wanted_behavior": "Invocation expressions must not borrow exact property identities from global lexical name fallback. Keep ordinary unresolved invocation text/positions and genuine source property/indexer navigation.",
+  "implementation": "Use resolved property symbols, or one unique source indexed-property candidate from expression-scoped Roslyn semantic candidates/member group, inspecting at most16entries. Mixed/ambiguous candidates remain unresolved. Noninvocation fallback and ordinary invocation emission remain unchanged.",
+  "evidence": {
+    "before": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-before-20261110.json",
+      "sha256": "5ea8d8d0701b59d1b90a3907d1b7d41266c4d769566d84fe9eb7dea25849cd5f"
+    },
+    "rejected_v1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-v1-rejected-20261110.json",
+      "sha256": "05423c8d5c9d5d62d0dde47e2bb65e7e9c1377fb2570b49c8d67c18246e68d31"
+    },
+    "native_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-native-v2-20261110.json",
+      "sha256": "c0f08b659a47b90e4f362b81203cbf967f331fe222eefb8dc9f72380c93fb0d5"
+    },
+    "native_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-after-v2-20261110.json",
+      "sha256": "6368eaf3f8858600bc9287099ddb79b4e02cbd57fbe73413d8932a7b497d24b1"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-source-review-v2-20261110.json",
+      "sha256": "eb9cd50c2aa10f89639c5d2d724e1e200be071f325045f46386559ee40ffcc68"
+    },
+    "raw_source_comparison": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-actual-20261110.json",
+      "sha256": "0775ae5344da606d1e3492d4b4ebe923e2562bc2a436ca5c606e1ffd6be7cea4"
+    },
+    "corrected_raw_analysis": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-actual-20261110-corrected-analysis.json",
+      "sha256": "c2d54d1b4ac349579f4887741c2459acf18eb412c2735c6e5998a22fa7be53e9"
+    },
+    "actual_tool_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-math-max-witness-20261110.json",
+      "sha256": "bab0e18de931542776167bc4809bb14f06eabd0fdd450ec2fe71d261894a6a00"
+    }
+  },
+  "verification": {
+    "expected_before": "Installed old nativeproducer fails new regression at Math.Max falsepropertyidentity.",
+    "v1_rejection": "First nativecandidate removed falseedges but lost indexedgetter/setter; fullnative14PASS/1FAIL retained. Productioncorrected, preservationexpectationsnotweakened.",
+    "native_suite": "Final15PASS, including Math.Max, LINQ, unrelated Transform, missing.Item and competing sourceindexer controls, genuinegetter/setter and noninvocationfallback.",
+    "actual_source": "One old/new explicit four-file nativecomparison. Root independently rechecked rawoutput: both selectedfalsepropertyedgesremoved; ordinary invocationmultisets exactlysame; allfiveCoordinateCount callwitnesses andseparatecontainsedge preserved.",
+    "helper_failure": "Original comparisonFAIL preserved: helper erroneously counted contains withfivecalls. Corrected offlineanalysis useskind=calls andcheckscontainmentseparately; no native rerun.",
+    "native_build_source_unchanged": true,
+    "rust_shipping_server_rebuilt": false
+  },
+  "runtime": {
+    "installed_runtime_changed": false,
+    "ordinary_vb_reextraction_required": true,
+    "cold_and_normal_verification_pending": true,
+    "old_selected_generation": 3139,
+    "server_sha256": "8c2951a7acf91bd96759d65876d9e9ae208d7ccc00285d9569649c5dce2fc84a",
+    "native_candidate_exe_sha256": "a7505232fe0663a67774fb22f9f118edc3e67bb14d4890d624c582c0a079a573",
+    "native_candidate_dll_sha256": "25d88d20f117f46f681eb210439c0c84ecb8643f94077acbafdfe52a5a6bf633"
+  },
+  "limits": [
+    "Four-file nativecompilation is not full-project/indexed runtimeproof.",
+    "No claim all61olddependentsfalse or allunresolvedpropertyfallbackrepaired.",
+    "Original capped QA failure,31findings,19gates and parkedwork remain unchanged."
+  ],
+  "resources": {
+    "test_and_build_owned_temp_removed": true,
+    "native_comparison_processes_pipes_threads_handles_closed": true,
+    "retention": "Retain small runners, raw native outputs, rejected receipts and build/test logs under existing V until exact-path cleanup approved. No preexisting deletion."
+  },
+  "goal_complete": false
+}

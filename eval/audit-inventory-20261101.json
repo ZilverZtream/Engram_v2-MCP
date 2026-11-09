@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-09T23:37:38.123288+00:00",
-    "reason": "Original source-QA answer now includes producer/storage, HTTP/JSON, client/editor/save/stale links and independent source review. Frozen capped failure unchanged. Actual new core witness check demonstrates Math.Max and LINQ Max falsely promoted to unrelated WMS property Calls.",
+    "at_utc": "2026-11-09T23:52:22.801680+00:00",
+    "reason": "Invocation-property falsewitness correction passes15native tests and actualfourfile producercomparison; firstindexerregression and comparisonhelpercontains-edgefailure preserved. Shipping Rust unchanged; nativepair/coldmigration/normalruntime verification remain.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9842,7 +9842,7 @@
       }
     ],
     "active_original_item": "CodeMap/Blast agent-usefulness queue: correct demonstrated false property witness identities from invocation-position lexical fallback. Source-QA evidence acquisition is finished; do not resume all-helper crawling.",
-    "next_user_visible_deliverable": "Prevent unresolved invocation-position names from becoming unrelated exact property Calls, retaining real semantic property/indexer bindings and ordinary unresolved-call recovery. Validate native wanted behavior, actual OciusX Math.Max/LINQ examples and genuine CacheMeta witnesses before deployment; preserve original task failures.",
+    "next_user_visible_deliverable": "Package the verified sidecar with unchanged installed Rust server, verify ordinary VB re-extraction on cold candidate, then deploy and check actual CodeMap/impact/blast outputs plus genuine property witnesses in normal runtime. No further QA-source leaf crawling or fresh capped task retries.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -11524,6 +11524,10 @@
       "trigger": "CodeMap BuildMetaOnlyJson property reference at Math.Max source2598 targets unrelated WMS String property max. Both impact tools report61directdependents; emitted RelationHelper.BuildPair witness331 is LINQ updates.Max().",
       "decision": "Repair invocation-position unresolved property fallback after preserving completed original source answer. No audit/catalog/performance/instruction expansion.",
       "all61_edges_checked": false
+    },
+    "selected_invocation_property_fix": {
+      "path": "eval\\core-invocation-property-20261110.json",
+      "sha256": "c5b9817630a90da9eb33058f730dd625e13d78a154a20b3756c7e75fb9b3b0d5"
     }
   }
 }
