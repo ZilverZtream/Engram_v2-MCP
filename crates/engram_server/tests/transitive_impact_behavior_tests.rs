@@ -1453,7 +1453,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             );
             let prefix_call: Value = serde_json::from_str(
                 prefix
-                    .split_once("## First immediate indexed consumer")
+                    .split_once("## Next indexed source read")
                     .unwrap()
                     .1
                     .split_once("```json")
@@ -1464,7 +1464,11 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
                     .0,
             )
             .unwrap();
-            assert_eq!(prefix_call, *call);
+            let first_route = summary["source_routes"]["reads"].as_array().unwrap().iter()
+                .find(|read|read["arguments"]["file_path"] != POLICY).unwrap();
+            assert_eq!(prefix_call,json!({"tool":first_route["tool"],"arguments":first_route["arguments"]}));
+            assert_ne!(prefix_call["arguments"]["file_path"],POLICY,
+                "The prominent handoff leaves the target file while retaining the direct-consumer read below");
             let read = fixture
                 .engram
                 .handle_get_full_method_body(
@@ -1652,7 +1656,8 @@ fn a_separated_cache_bridge_upgrades_the_existing_read_without_losing_other_evid
             "Changing an indexed read bound must not alter the admitted causal connections");
         assert_eq!(graph["coverage"], before_graph["coverage"]);
         for tool in ["impact_analysis", "compute_blast_radius"] {
-            let summary = impact_packet(&summary_impact(&fixture, tool, &target, 6).await);
+            let text = summary_impact(&fixture, tool, &target, 6).await;
+            let summary = impact_packet(&text);
             let baseline = &baselines[tool];
             let mut unchanged = summary.clone();
             let mut previous = baseline.clone();
@@ -1687,7 +1692,14 @@ fn a_separated_cache_bridge_upgrades_the_existing_read_without_losing_other_evid
             }
             let read = reads.iter().find(|read| read["arguments"]["file_path"] == SPATIAL).unwrap();
             assert_eq!(read["tool"], "get_full_method_body");
-            let arguments = &read["arguments"];
+            let prefix = text.split_once("## Revision-admitted change impact").unwrap().0;
+            assert!(prefix.contains("## Next indexed source read"));
+            assert!(prefix.contains("Action unexecuted") && prefix.contains("unknown branches remain below"));
+            let prominent:Value=serde_json::from_str(prefix.split_once("```json\n").unwrap().1
+                .split_once("\n```").unwrap().0).unwrap();
+            assert_eq!(prominent,json!({"tool":read["tool"],"arguments":read["arguments"]}),
+                "An agent can copy the prominent cross-file action without searching nested route arrays");
+            let arguments = &prominent["arguments"];
             assert!(arguments.get("line_start").is_none() && arguments.get("line_end").is_none());
             assert_eq!(arguments["source_ranges"], json!([
                 {"line_start":10,"line_end":30}, {"line_start":38,"line_end":136}
