@@ -1,0 +1,209 @@
+{
+  "status": "FRESH_FOUR_CATEGORY_MODEL_RUN_COMPLETE_NO_QUALITY_UPLIFT_HISTORICAL_CONTEXT",
+  "at_utc": "2026-11-09T11:41:03.492599+00:00",
+  "original_requirement": "EG-24 actual accepted-task execution; completion of the eight-candidate run prepared on November8.",
+  "execution": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-execution-20261109.json",
+    "sha256": "102f986cab2d1298caec8e9bf9ff032da594a0cd48f7c4ff2dd147fee681664b"
+  },
+  "independent_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-verification-20261109.json",
+    "sha256": "fe8c886f328bfb2eb827e1b3c4ad67c7095515bd20434cb6125ed234e723c0c0"
+  },
+  "collector_state": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\collection-state.json",
+    "sha256": "e5a4120ac62b49ee7a1aea09d4254fd09e1ccf85960676f1f69c7ac4e928370b"
+  },
+  "report": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\report.json",
+    "sha256": "99d86a9a5c03151a359f220ffc48240e0897fa4aeef3ea96c527df88ad26f154"
+  },
+  "judgments": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\judgments.json",
+    "sha256": "33f55d908b875327e66c4261e30398010c2d1be0c261e5219cea9d706e37d66c"
+  },
+  "runs": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\runs.json",
+    "sha256": "bdcc0cbe53a58f25a57e1c74a981f85bee18bc935122bdc41e9e0da341ae6474"
+  },
+  "manifest": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\manifest.json",
+    "sha256": "4dcaf126b99ea9df96aa1ac08675da6e0375bb621715a306570e55de34cf923c"
+  },
+  "judge_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\judge\\prompt.json",
+    "sha256": "893383050149f15a2c866ac4d61b6c20804ee607e734380c7a9c9a77df0d0ed5"
+  },
+  "judge_mapping": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108\\judge\\mapping.json",
+    "sha256": "44a24ecb76a086a8febdcd2105e631e8b4db43118fc95b6edc0db9f6f8225c8d"
+  },
+  "frozen_collector": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\frozen_task_run.py",
+    "sha256": "9f62136be3d0201d9e3ba95be40a3177f02145330d60d43870a2d0ee4d9484ed"
+  },
+  "frozen_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\frozen_task_eval.py",
+    "sha256": "352f35b8456ffa69326e591d2ea5cd37af2c6e07536101e3798685418923c6ee"
+  },
+  "summary": {
+    "baseline": {
+      "input_bytes": 147178,
+      "additional_reads": 10,
+      "satisfied": 20,
+      "total_criteria": 20,
+      "false_guidance": 0
+    },
+    "assisted": {
+      "input_bytes": 274867,
+      "additional_reads": 7,
+      "satisfied": 20,
+      "total_criteria": 20,
+      "false_guidance": 0
+    }
+  },
+  "delivered_input_increase_percent": 86.75821114568754,
+  "metrics": [
+    {
+      "case_id": "diagnosis",
+      "arm": "assisted",
+      "input_bytes": 34199,
+      "input_characters": 34199,
+      "output_bytes": 4772,
+      "output_characters": 4772,
+      "additional_reads": 1,
+      "observed_agent_wall_seconds": 275.576771,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "history",
+      "arm": "baseline",
+      "input_bytes": 32199,
+      "input_characters": 32193,
+      "output_bytes": 3462,
+      "output_characters": 3462,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 275.576365,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "history",
+      "arm": "assisted",
+      "input_bytes": 33247,
+      "input_characters": 33241,
+      "output_bytes": 3921,
+      "output_characters": 3920,
+      "additional_reads": 1,
+      "observed_agent_wall_seconds": 275.589044,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "scope",
+      "arm": "assisted",
+      "input_bytes": 110960,
+      "input_characters": 110594,
+      "output_bytes": 2288,
+      "output_characters": 2288,
+      "additional_reads": 2,
+      "observed_agent_wall_seconds": 242.514135,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "companions",
+      "arm": "assisted",
+      "input_bytes": 96461,
+      "input_characters": 96353,
+      "output_bytes": 5512,
+      "output_characters": 5512,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 289.510066,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "companions",
+      "arm": "baseline",
+      "input_bytes": 60051,
+      "input_characters": 60035,
+      "output_bytes": 5587,
+      "output_characters": 5587,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 242.462812,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "scope",
+      "arm": "baseline",
+      "input_bytes": 35505,
+      "input_characters": 35483,
+      "output_bytes": 2349,
+      "output_characters": 2349,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 131.665547,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "diagnosis",
+      "arm": "baseline",
+      "input_bytes": 19423,
+      "input_characters": 19423,
+      "output_bytes": 4687,
+      "output_characters": 4687,
+      "additional_reads": 1,
+      "observed_agent_wall_seconds": 191.256187,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    }
+  ],
+  "interpretation": "Both conditions satisfy20/20 frozen criteria with no material false guidance identified. Assisted agents request7 evidence IDs versus10, but receive86.76 percent more delivered input bytes. This does not establish a quality, latency, token-cost or general productivity advantage. It is a fresh model run over historical tool/context packets, not a current Engram producer regression.",
+  "actual_execution": {
+    "candidates": 8,
+    "independent_judges": 1,
+    "collector_modified": false,
+    "new_current_engram_queries": 0,
+    "cli_model_invocations": 0,
+    "new_framework": false,
+    "prior_prepared_run_completed": true
+  },
+  "verification_limits": [
+    "Frozen inputs and recorded packet/response integrity independently verified; model isolation and verbatim message-to-file transport are coordinator-attested.",
+    "No original-corpus nonfrozen before-hash inventory exists; only frozen corpus integrity is independently verified.",
+    "Input bytes are delivered packets/instructions, not billed tokens. Wall times include coordinator and transport waits.",
+    "Original four categories and criteria unchanged. Original CodeMap/classification/cancellation results remain unchanged.",
+    "No new production fix, release, application edit, memory experiment or instruction drafting was performed.",
+    "Regular automatic model execution and reproducible current-build tool producer inputs remain incomplete; full EG24/EG25 and broader goal are not closed."
+  ],
+  "resources": {
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg24-collected-regression-20261108",
+    "retention": "Retain immutable corpus, deliveries, response transcripts, judgment and verification for review. No preexisting deletion.",
+    "owned_incoming_files_remaining": 0,
+    "collection_lock_exists": false,
+    "running_candidate_or_judge_tasks": false,
+    "new_fixture_tree": false,
+    "source_index_service_changes": false
+  },
+  "next_selected_work": "Complete the original regular-verification execution requirement by connecting actual isolated model execution to the existing frozen_task_run collector, using its unchanged four-category protocol and independent judge. Reuse the supported Codex execution interface; do not create a second evaluation framework. Demonstrate the executable path with a real run and keep historical-packet regression explicitly separate from the still-missing current-build producer replay coverage. Do not reopen completed CodeMap/Blast source probes or alter past task scores.",
+  "goal_complete": false
+}
