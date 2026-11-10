@@ -637,16 +637,23 @@ fn summary_value(
         value["type_name_inspection_omitted"] = json!(true);
         if !fits(&value) { value.as_object_mut().unwrap().remove("type_name_inspection_omitted"); }
     }
+    if let Some(inspection) = full.get("file_type_inspection") {
+        append_file_type_inspection(&mut value, inspection, &fits);
+    } else if full.get("file_type_inspection_omitted") == Some(&json!(true)) {
+        value["file_type_inspection_omitted"] = json!(true);
+        if !fits(&value) { value.as_object_mut().unwrap().remove("file_type_inspection_omitted"); }
+    }
     append_caller_file_starts(&mut value, project, &fits);
     value
 }
 
 // Type mentions can reveal constructors and return types that the incoming
 // callable graph does not model. Keep this lazy search separate from that graph.
-fn type_name_inspection(node: &engram_graph::Node, project: &str) -> Option<Value> {
+fn type_name_inspection(node: &engram_graph::Node, project: &str, zero_dependents: bool) -> Option<Value> {
     let path = node.file_path.as_str();
     if node.node_type != "class" || !recovery_path(path)
-        || !node.node_id.starts_with(&format!("sym:class:{path}:")) {
+        || node.start_line == 0
+        || node.node_id != format!("sym:class:{path}:{}:{}", node.name, node.start_line) {
         return None;
     }
     let name = node.name.rsplit('.').next()?;
@@ -655,16 +662,73 @@ fn type_name_inspection(node: &engram_graph::Node, project: &str) -> Option<Valu
         return None;
     }
     let (directory, _) = path.rsplit_once('/')?;
-    Some(json!({
+    let mut inspection = json!({
         "scope":"Inspect indexed literal type-name mentions in the target directory, including constructors, return types and fields. This action has not run. Matches can include declarations, comments, prefix names and unrelated types; they do not add graph dependents or prove binding, serialization flow, breakage or absence. Other directories and aliases remain unassessed. Follow returned current-source actions/hashes before inferring a route.",
         "action":{"tool":"grep_project","arguments":{"project_id":project,"pattern":name,
             "regex":false,"case_sensitive":false,"path_prefix":format!("{directory}/"),
             "max_results":8,"context_before":2,"context_after":2,"freshness":"off","output_json":true}}
-    }))
+    });
+    if zero_dependents {
+        inspection["project_wide_fallback"] = json!({
+            "scope":"After zero selected graph dependents, inspect project-wide literal type-name mentions, including attributes. This action has not run. Add the task's exclude_path_prefixes; impact requests do not carry exclusions. Declarations, comments, prefix names and unrelated types can match. These are lexical leads, not attribute binding, Calls edges, runtime invocation, breakage or absence proof; graph counts stay unchanged. Follow current-source recovery and compare hashes/freshness. Aliases and omitted matches remain unassessed.",
+            "action":{"tool":"grep_project","arguments":{"project_id":project,"pattern":name,
+                "regex":false,"case_sensitive":false,"max_results":20,"context_before":0,
+                "context_after":0,"freshness":"strict","output_json":true}}
+        });
+    }
+    Some(inspection)
+}
+
+const FILE_TYPE_INSPECTION_LIMIT: usize = 4;
+const FILE_TYPE_INSPECTION_BYTES: usize = 6 * 1024;
+
+// Only already admitted structural seeds from this held walk supply identities.
+// No declaration scan, additional admission, attribute binding or search occurs.
+fn file_type_inspection(walk: &IncomingImpactWalk, target: &str, project: &str) -> Option<Value> {
+    let root = walk.nodes.iter().find(|n| n.node.node_id == target
+        && n.depth == 0 && n.admission == ImpactAdmission::Selected && n.node.node_type == "file"
+        && n.node.node_id == format!("file:{}", n.node.file_path.as_str()))?;
+    let mut classes: Vec<_> = walk.nodes.iter().filter(|n| n.depth == 0
+        && n.admission == ImpactAdmission::Selected && n.node.node_type == "class"
+        && n.node.file_path == root.node.file_path).collect();
+    classes.sort_by(|a,b| a.node.node_id.cmp(&b.node.node_id));
+    if classes.is_empty() { return None; }
+    let mut rows = Vec::new();
+    for seed in &classes {
+        if rows.len() == FILE_TYPE_INSPECTION_LIMIT { break; }
+        let Some(inspection) = type_name_inspection(&seed.node, project, true) else { continue; };
+        rows.push(json!({"node_id":seed.node.node_id,"name":seed.node.name,
+            "file_path":seed.node.file_path.as_str(),"generation":seed.node.generation,
+            "admission":"selected","inspection":inspection}));
+    }
+    Some(json!({"classes_observed":classes.len(),"classes_omitted":classes.len()-rows.len(),
+        "class_limit":FILE_TYPE_INSPECTION_LIMIT,"byte_limit":FILE_TYPE_INSPECTION_BYTES,"classes":rows,
+        "scope":"Selected class seeds already retained by the bounded file walk, not additional dependents or a complete declaration inventory. Identities and physical generations come from that admission; follow-up searches observe fresh state. Invalid identities and count/byte limits omit classes. Local hints and project-wide lexical fallbacks do not establish attribute binding or runtime invocation; retain task exclusions and verify returned source hashes."}))
+}
+
+fn append_file_type_inspection(value: &mut Value, inspection: &Value, fits: &dyn Fn(&Value) -> bool) {
+    value["file_type_inspection"] = inspection.clone();
+    loop {
+        if serde_json::to_vec(&value["file_type_inspection"]).expect("JSON serialization").len()
+            <= FILE_TYPE_INSPECTION_BYTES && fits(value) { return; }
+        if value["file_type_inspection"]["classes"].as_array_mut().and_then(Vec::pop).is_none() { break; }
+        let omitted = value["file_type_inspection"]["classes_omitted"].as_u64().unwrap_or(0);
+        value["file_type_inspection"]["classes_omitted"] = json!(omitted + 1);
+    }
+    value.as_object_mut().unwrap().remove("file_type_inspection");
+    value["file_type_inspection_omitted"] = json!(true);
+    if !fits(value) { value.as_object_mut().unwrap().remove("file_type_inspection_omitted"); }
 }
 
 fn append_type_name_inspection(value: &mut Value, inspection: &Value, fits: &dyn Fn(&Value) -> bool) {
     value["type_name_inspection"] = inspection.clone();
+    if !fits(value) && value["type_name_inspection"].get("project_wide_fallback").is_some() {
+        value["type_name_inspection"].as_object_mut().unwrap().remove("project_wide_fallback");
+        value["type_name_inspection"]["project_wide_fallback_omitted"] = json!(true);
+        if !fits(value) {
+            value["type_name_inspection"].as_object_mut().unwrap().remove("project_wide_fallback_omitted");
+        }
+    }
     if !fits(value) {
         value.as_object_mut().unwrap().remove("type_name_inspection");
         value["type_name_inspection_omitted"] = json!(true);
@@ -2855,7 +2919,7 @@ mod caller_file_start_behavior {
             file_path:engram_core::RelPath::new("src/contracts.vb"),
             start_line:3,end_line:8,generation:7,metadata:None,
         };
-        let inspection = type_name_inspection(&node, "project").unwrap();
+        let inspection = type_name_inspection(&node, "project", false).unwrap();
         assert_eq!(inspection["action"]["arguments"]["pattern"], "ViewportDescriptor");
         assert_eq!(inspection["action"]["arguments"]["case_sensitive"], false);
         let original = json!({"target":{"name":"Demo.ViewportDescriptor"},
@@ -2872,16 +2936,84 @@ mod caller_file_start_behavior {
             assert_eq!(action.is_some(), limit == size);
             assert_eq!(actual, original, "Recovery cannot evict source witnesses or coverage");
         }
+        let broad = type_name_inspection(&node, "project", true).unwrap();
+        let mut marked = full.clone();
+        marked["type_name_inspection"]["project_wide_fallback_omitted"] = json!(true);
+        for limit in [size, serde_json::to_vec(&marked).unwrap().len()] {
+            let mut actual = original.clone();
+            append_type_name_inspection(&mut actual, &broad,
+                &|value|serde_json::to_vec(value).unwrap().len() <= limit);
+            assert_eq!(actual["type_name_inspection"]["action"], inspection["action"],
+                "A new broad fallback must never evict the existing local hint");
+            assert!(actual["type_name_inspection"].get("project_wide_fallback").is_none());
+            assert_eq!(actual["type_name_inspection"].get("project_wide_fallback_omitted").is_some(), limit > size);
+            actual.as_object_mut().unwrap().remove("type_name_inspection");
+            assert_eq!(actual, original);
+        }
         for name in ["Demo.Invalid(Type)", "Demo.", "Demo.a:b", "Demo.9bad"] {
             node.name = name.into();
-            assert!(type_name_inspection(&node, "project").is_none());
+            assert!(type_name_inspection(&node, "project", true).is_none());
         }
         node.name = "Demo.ViewportDescriptor".into();
         node.node_id = "legacy-class".into();
-        assert!(type_name_inspection(&node, "project").is_none());
+        assert!(type_name_inspection(&node, "project", true).is_none());
         node.node_id = "sym:class:../outside.vb:Demo.ViewportDescriptor:3".into();
         node.file_path = engram_core::RelPath::new("../outside.vb");
-        assert!(type_name_inspection(&node, "project").is_none());
+        assert!(type_name_inspection(&node, "project", true).is_none());
+    }
+
+    #[test]
+    fn empty_file_class_recovery_is_bounded_and_preserves_evidence() {
+        use engram_graph::store::ImpactWalkNode;
+        let seed = |name: &str, kind: &str, depth: usize, admission: ImpactAdmission| {
+            ImpactWalkNode {
+                node: engram_graph::Node {
+                    node_id: if kind == "file" { "file:src/cache.vb".into() }
+                        else { format!("sym:{kind}:src/cache.vb:{name}:1") },
+                    node_type:kind.into(), name:name.into(), namespace:"memory".into(),
+                    language:"vb".into(), file_path:engram_core::RelPath::new("src/cache.vb"),
+                    start_line:1,end_line:2,generation:7,metadata:None,
+                }, admission, depth, predecessor:None,via_kind:None,edge_generation:None,
+            }
+        };
+        let mut walk = IncomingImpactWalk::default();
+        walk.nodes.push(seed("cache.vb", "file", 0, ImpactAdmission::Selected));
+        for i in 0..8 { walk.nodes.push(seed(&format!("Demo.Cache{i}"), "class", 0, ImpactAdmission::Selected)); }
+        walk.nodes.push(seed("Demo.Unknown", "class", 0, ImpactAdmission::Unknown));
+        walk.nodes.push(seed("Demo.NonSeed", "class", 1, ImpactAdmission::Selected));
+        walk.nodes.push(seed("Demo.Method", "function", 0, ImpactAdmission::Selected));
+        let mut outside = seed("Demo.Outside", "class", 0, ImpactAdmission::Selected);
+        outside.node.file_path = engram_core::RelPath::new("other.vb"); walk.nodes.push(outside);
+        let mut invalid = seed("Demo.Invalid", "class", 0, ImpactAdmission::Selected);
+        invalid.node.node_id = "legacy-class".into(); walk.nodes.push(invalid);
+        let inspection = file_type_inspection(&walk,"file:src/cache.vb","project").unwrap();
+        assert_eq!(inspection["classes_observed"],9);
+        assert_eq!(inspection["classes"].as_array().unwrap().len(),FILE_TYPE_INSPECTION_LIMIT);
+        let original = json!({"target":{"source_read":{"tool":"get_full_method_body"}},
+            "coverage":{"truncated":true,"reasons":["file_seed_cap"]},
+            "selected_dependents_observed":0,"frontier":[{"reason":"uninspected"}]});
+        let base = serde_json::to_vec(&original).unwrap().len();
+        for limit in [base, base+200, base+2200, base+FILE_TYPE_INSPECTION_BYTES+200] {
+            let mut actual = original.clone();
+            append_file_type_inspection(&mut actual,&inspection,&|v|serde_json::to_vec(v).unwrap().len()<=limit);
+            assert!(serde_json::to_vec(&actual).unwrap().len()<=limit);
+            if let Some(observed) = actual.get("file_type_inspection") {
+                assert!(serde_json::to_vec(observed).unwrap().len()<=FILE_TYPE_INSPECTION_BYTES);
+                let rows = observed["classes"].as_array().unwrap();
+                assert_eq!(rows.len() as u64 + observed["classes_omitted"].as_u64().unwrap(),9);
+                assert!(rows.len()<=FILE_TYPE_INSPECTION_LIMIT);
+                assert!(rows.iter().all(|r| r["generation"]==7 && r["admission"]=="selected"
+                    && r["name"].as_str().unwrap().starts_with("Demo.Cache")));
+            }
+            actual.as_object_mut().unwrap().remove("file_type_inspection");
+            actual.as_object_mut().unwrap().remove("file_type_inspection_omitted");
+            assert_eq!(actual,original,"Optional class recovery must preserve every existing fact");
+        }
+        walk.nodes[0].admission=ImpactAdmission::Unknown;
+        assert!(file_type_inspection(&walk,"file:src/cache.vb","project").is_none());
+        walk.nodes[0].admission=ImpactAdmission::Selected;
+        walk.nodes[0].depth=1;
+        assert!(file_type_inspection(&walk,"file:src/cache.vb","project").is_none());
     }
 
     #[test]
@@ -3595,8 +3727,14 @@ fn render_projection(
         }
     }
     if let Some(root) = lookup.get(target).filter(|n| n.admission == ImpactAdmission::Selected) {
-        if let Some(inspection) = type_name_inspection(&root.node, project) {
+        if let Some(inspection) = type_name_inspection(&root.node, project,
+            value["selected_dependents_observed"].as_u64() == Some(0)) {
             append_type_name_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);
+        }
+    }
+    if value["selected_dependents_observed"].as_u64() == Some(0) {
+        if let Some(inspection) = file_type_inspection(walk, target, project) {
+            append_file_type_inspection(&mut value, &inspection, &|value| section(value).len() <= RESPONSE_BYTES);
         }
     }
     append_caller_file_starts(&mut value, project, &|value|section(value).len()<=RESPONSE_BYTES);

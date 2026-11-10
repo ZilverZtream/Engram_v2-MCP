@@ -371,6 +371,113 @@ fn zero_graph_dependents_offer_executable_lexical_recovery_without_claiming_call
 }
 
 #[test]
+fn empty_filter_impact_recovers_cross_directory_attribute_mentions_without_inventing_dependencies() {
+    owned_case(|fixture| async move {
+        const FILTER: &str = "src/filters/cache.vb";
+        const CONTROLLER: &str = "src/controllers/plans.vb";
+        const EXCLUDED: &str = "src/excluded/copy.vb";
+        let sources = [
+            (FILTER, "Public Class CacheFilter\nEnd Class\n"),
+            (CONTROLLER, "<cachefilter(0)>\nPublic Function GetValue() As Object\nEnd Function\n' CacheFilter is also a comment\nPublic Class CacheFilterExtra\nEnd Class\n"),
+            (EXCLUDED, "<CacheFilter(300)>\n"),
+        ];
+        let baseline = fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        let cancel = CancellationToken::new();
+        let paths: Vec<_> = sources.iter().map(|(path, _)| RelPath::new(path)).collect();
+        fixture.search.prepare_source_snapshot(PID, 2, 3, &paths, &[], &cancel).await.unwrap();
+        let docs: Vec<_> = sources.iter().enumerate().map(|(i, (path, body))|
+            source_doc(3, 190 + i as u64, path, body)).collect();
+        fixture.search.index_docs(PID, &docs, &cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID, 3).unwrap();
+        let mut class = declaration(FILTER, "Demo.CacheFilter", 1, 3);
+        class.node_type = "class".into(); class.language = "vb".into();
+        class.node_id = format!("sym:class:{FILTER}:Demo.CacheFilter:1");
+        let mut nodes = vec![class.clone()];
+        for (path, body) in sources {
+            let path_on_disk = fixture.root.join(path);
+            std::fs::create_dir_all(path_on_disk.parent().unwrap()).unwrap();
+            std::fs::write(path_on_disk, body).unwrap();
+            nodes.push(file_node(path, body, 3));
+        }
+        fixture.engram.state.graph.upsert_nodes(PID, &nodes).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline, 3).unwrap());
+        let edges_before = serde_json::to_value(fixture.engram.state.graph.list_edges(PID, None).unwrap()).unwrap();
+        let graph = impact_packet(&impact_target(&fixture, &class.node_id, Some(3)).await);
+        let inspection = &graph["type_name_inspection"];
+        assert_eq!(inspection["action"]["arguments"]["path_prefix"], "src/filters/");
+        let fallback = &inspection["project_wide_fallback"];
+        assert!(fallback["scope"].as_str().unwrap().contains("exclude_path_prefixes"));
+        assert!(fallback["scope"].as_str().unwrap().contains("not attribute binding"));
+        assert_eq!(fallback["action"]["arguments"]["freshness"], "strict");
+        assert!(fallback["action"]["arguments"].get("path_prefix").is_none());
+        let file_id = format!("file:{FILTER}");
+        let file_graph = impact_packet(&impact_target(&fixture, &file_id, Some(3)).await);
+        let handoff = &file_graph["file_type_inspection"];
+        assert_eq!(handoff["classes_observed"], 1);
+        assert_eq!(handoff["classes_omitted"], 0);
+        assert_eq!(handoff["classes"][0]["node_id"], class.node_id);
+        assert_eq!(handoff["classes"][0]["generation"], 3);
+        assert_eq!(handoff["classes"][0]["inspection"], *inspection);
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            for (target, full, field) in [(&class.node_id, &graph, "type_name_inspection"),
+                (&file_id, &file_graph, "file_type_inspection")] {
+                let summary = impact_packet(&summary_impact(&fixture, tool, target, 3).await);
+                assert_eq!(summary[field], full[field]);
+                for key in ["coverage", "source_generation", "selected_dependents_observed", "target_revision_admitted"] {
+                    assert_eq!(summary[key], full[key]);
+                }
+                assert_eq!(summary["selected_dependents_observed"], 0);
+                assert_eq!(summary["direct_dependents_observed"], 0);
+                assert_eq!(summary["transitive_dependents_observed"], 0);
+            }
+        }
+        // Execute the file handoff: sibling-directory use, comments and prefix
+        // collisions remain inspectable lexical leads, while exclusions apply.
+        let mut args = handoff["classes"][0]["inspection"]["project_wide_fallback"]["action"]["arguments"].clone();
+        args["exclude_path_prefixes"] = json!(["src/excluded"]);
+        let hits = fixture.engram.handle_grep_project(serde_json::from_value(args).unwrap()).await.unwrap();
+        assert!(!hits.is_error.unwrap_or(false));
+        let hits: Value = serde_json::from_str(&hits.content[0].as_text().unwrap().text).unwrap();
+        let matches = hits["matches"].as_array().unwrap();
+        assert!(!matches.iter().any(|hit| hit["file_path"] == EXCLUDED));
+        for line in [1, 4, 5] {
+            assert!(matches.iter().any(|hit| hit["file_path"] == CONTROLLER && hit["line"] == line));
+        }
+        let hit = matches.iter().find(|hit| hit["file_path"] == CONTROLLER && hit["line"] == 1).unwrap();
+        let source = fixture.engram.handle_get_full_method_body(
+            serde_json::from_value(hit["current_source_recovery"]["arguments"].clone()).unwrap()).await.unwrap();
+        let source: Value = serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+        assert!(source["source_code"].as_str().unwrap().contains("<cachefilter(0)>"));
+        assert_eq!(source["source_file_hash"], ContentHash::compute(sources[1].1.as_bytes()).0);
+        assert_eq!(edges_before, serde_json::to_value(fixture.engram.state.graph.list_edges(PID, None).unwrap()).unwrap());
+        assert_eq!(file_graph, impact_packet(&impact_target(&fixture, &file_id, Some(3)).await));
+
+        // A stale class must not supply a freshly selected file's recovery.
+        let mut stale = class.clone(); stale.generation = 1;
+        fixture.engram.state.graph.upsert_nodes(PID, &[stale]).unwrap();
+        let stale_class = impact_packet(&impact_target(&fixture, &class.node_id, Some(3)).await);
+        assert_eq!(stale_class["target_revision_admitted"], false);
+        assert!(stale_class.get("type_name_inspection").is_none());
+        let stale_file = impact_packet(&impact_target(&fixture, &file_id, Some(3)).await);
+        assert!(stale_file.get("file_type_inspection").is_none());
+
+        // A known causal caller retains the old local hint, without offering
+        // the recovery reserved for empty class/file observations.
+        fixture.engram.state.graph.upsert_nodes(PID, &[class.clone()]).unwrap();
+        let caller = declaration(CONTROLLER, "UseFilter", 1, 3);
+        fixture.engram.state.graph.upsert_nodes(PID, &[caller.clone()]).unwrap();
+        fixture.engram.state.graph.upsert_edges(PID,
+            &[edge(caller.node_id, class.node_id.clone(), EdgeKind::Dependency, 3)]).unwrap();
+        let nonzero = impact_packet(&impact_target(&fixture, &class.node_id, Some(3)).await);
+        assert!(nonzero["selected_dependents_observed"].as_u64().unwrap() > 0);
+        assert_eq!(nonzero["type_name_inspection"]["action"], inspection["action"]);
+        assert!(nonzero["type_name_inspection"].get("project_wide_fallback").is_none());
+        let nonzero_file = impact_packet(&impact_target(&fixture, &file_id, Some(3)).await);
+        assert!(nonzero_file.get("file_type_inspection").is_none());
+    });
+}
+
+#[test]
 fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_impact() {
     owned_case(|fixture|async move {
         async fn blast(fixture:&Fixture,args:Value)->String {

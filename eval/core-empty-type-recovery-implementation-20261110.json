@@ -1,0 +1,78 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_38_TESTS_PASS_NOT_BUILT_OR_DEPLOYED",
+  "at_utc": "2026-11-10T08:28:46.256111+00:00",
+  "problem": "Actual filter-file impact has zero graph dependents, while a sibling controller visibly applies its attribute. Static attribute relations are not extracted; existing class recovery searches only its own directory.",
+  "change": "Selected canonical classes with zero observed dependents retain local inspection and gain a project-wide literal-name fallback. Empty file impact offers up to4 already-admitted same-file class seeds in6KiB. Actions explicitly preserve lexical uncertainty, task exclusions, independent source inspection and unchanged graph counts.",
+  "source_files": [
+    {
+      "path": "crates/engram_server/src/services/impact_walk_service.rs",
+      "sha256": "cc33a82a32f51ee7c6cd6a31c74b599aed55735e09289a8d806cc8a266dffc41"
+    },
+    {
+      "path": "crates/engram_server/tests/transitive_impact_behavior_tests.rs",
+      "sha256": "0b7af904220684d86e169b11256dafaadd5cb9d4299722ef3225a4e094f40520"
+    },
+    {
+      "path": "docs/TOOL_CONTRACT.md",
+      "sha256": "f78dc2b7724c0eda151b59f7b39824d533654c51fea4c1a738d4cdac351a6a07"
+    }
+  ],
+  "tests": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-public-v1-20261110.json",
+        "sha256": "8b9801b3ba8f638733e2497ed811fad4420b4169d3c1539d15adcb01ebd089a1"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-public-v1-20261110.log",
+        "sha256": "c00c0b0290fae2146815f6fb127a6ff6a32db8b20cfcb9d7cb8f9b77bec37811"
+      },
+      "passed": 32,
+      "seconds": 332.5692168000387
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-budget-v1-20261110.json",
+        "sha256": "355723a5903f9b1fd158b83818ea033a930c35bdc4ba25cbc9f834fe544f9ceb"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-budget-v1-20261110.log",
+        "sha256": "ce687218e1956155dc9ceee35a427377399446d98cd24f7869987ad4e2ab3648"
+      },
+      "passed": 6,
+      "seconds": 494.70664490002673
+    }
+  ],
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-review-20261110.json",
+    "sha256": "6e2cf94a6041ec469ee7d4e4ca703b413be3f2a7a1632502fae098adc84f0801"
+  },
+  "coderabbit": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-coderabbit-auth-20261110.json",
+    "sha256": "d482aff0d3ddf662e3b78cda8a69665abb8194b339eb18bd0aca0f6e7e9c27f9"
+  },
+  "actual_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-baseline-20261110.json",
+    "sha256": "f60d48d2f86a19d7dc29d9c379b0f9ca70e8cb4900b756c2b95c5a20739513f8"
+  },
+  "runtime_checks_prepared": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-checks-20261110.py",
+    "sha256": "1670559c6ccee7b3543d3c5f5a702a5e204ba18ba53149703dcf729e10af03c6"
+  },
+  "runtime_checks_static_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-checks-review-20261110.json",
+    "sha256": "b3be311fd065c8beb05f5c1343fe9801deaa4a328dac5c11c22b83a5e7915e71"
+  },
+  "current_runtime_verification": false,
+  "schema_or_parser_migration": false,
+  "source_generation_expected": 3144,
+  "frozen_agent_task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-installation-cache-qa-20261110.json",
+    "sha256": "331ce182d8c4fd32b780ec813fe797b4be443d0bbc9312af940dfdc240fa80b5"
+  },
+  "task_outcome": "assisted6/source-only7; neithercomplete; no replay/rescore or demonstrated uplift",
+  "resource_accounting": "Both test-owned temporary directories removed after processes/handles closed. Retain evidence/helpers under recorded V; no preexisting deletion. Package helper is prepared only; no package created.",
+  "goal_complete": false,
+  "original_31_or_19_closed": false,
+  "next_action": "Commit source, build normal release, prepare server-only pair, verify actual emitted recovery/current source, deploy with existing installer and restore normal runtime. No reindex required."
+}
