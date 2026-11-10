@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T11:29:55.527824+00:00",
+    "at_utc": "2026-11-10T12:08:07.702465+00:00",
     "reason": "Actual core-tool navigation improvements and smaller summaries remain insufficient for complete agent tasks: frozen TimeReport7/9 and fresh Permit4/6 comparisons favor source-only under stated limits. Continue the selected response-cost item using actual source evidence; do not report narrow savings as a task win.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: reduce the cost of useful source evidence while preserving witnesses, actions and honest gaps.",
-    "next_user_visible_deliverable": "Continue the existing response-cost item on the actual12738-byte exact-target CodeMap metadata reply; establish a substantial evidence-preserving simplification before another implementation/deploy cycle. Preserve frozen Permit4/6 and TimeReport7/9 scores; no additional hints or audit infrastructure by default.",
+    "active_original_item": "CodeMap and Blast Radius usefulness: close the recorded missing interface write-call witness, after rejecting low-value metadata format accumulation.",
+    "next_user_visible_deliverable": "Build and package the reviewed HTTP metadata profile, perform one ordinary admitted project refresh, then restore the original positive Update/Delete CodeMap and both-impact witness checks against actualsource. Install only after verified candidate delivery; preserve all frozen agent comparisons.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "Installed and normal-verified impact summary reduction9488to7024bytes; fresh independent Permit task froze assisted4/source-only6, both incomplete. Recorded negative usefulness result and all resources; overall goal remains unfinished."
+      "reason": "Rejected low-value CodeMap schema compaction; realmetadata proof identified exact missing calls; implemented and reviewed optionalHTTPprofile,29tests passed. Release/index/publicactualdelivery remains pending."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -11847,12 +11847,23 @@
       }
     },
     "preexisting_http_interface_binding_gap": {
-      "state": "RECORDED_UNFINISHED_NOT_SELECTED_AUTOMATICALLY",
+      "state": "IMPLEMENTED_NATIVE_TESTED_REVIEWED_RELEASE_AND_INDEX_DELIVERY_PENDING",
       "evidence": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-http-context-probe-20261110.json",
         "sha256": "0a0c53dd6d1a009f1b742767a6f4b70eeea05a66233d25e9b7cdac09070fce8e"
       },
-      "effect": "Request.Headers.IfMatch timestamp expressions leave Update/Delete unresolved under existing partial compiler context. No production binding or repair claimed."
+      "effect": "Request.Headers.IfMatch timestamp expressions leave Update/Delete unresolved under existing partial compiler context. No production binding or repair claimed.",
+      "selection_reason": "This is the preserved failed original positive write-route expectation, not a newly discovered issue. Missing compiler Request.Headers.IfMatch type prevents producing its exact Calls witness. Response-cost changes delivered/rejected, frozen task results remain negative; a real-reference proof decides whether the core witness gap can be repaired without guesses or a broad compiler-context project.",
+      "real_reference_proof": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-real-metadata-probe-20261110.json",
+        "sha256": "5a98852d2e4baf1cd1a5ea199828b89d38673d154743f285dfe45bb86625c37e"
+      },
+      "proof_scope": "Unchanged actual controller/interface plus identical synthetic application support types; real metadata only, no HTTP stubs. Only both references bind Update/Delete to exact interface declarations; single-reference controls abstain. Graph ingestion, deployed output and agent usefulness remain unverified.",
+      "implementation_scope": "Optional atomic two-file metadata profile using existing context identity/limits/refresh checks, Rust accepted-mode update and native behavior/provenance regressions. No general assembly discovery or source signature guessing.",
+      "implementation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-implementation-20261110.json",
+        "sha256": "4ca323a73d9f937dd664506c4c0ecc2e0f9813924899cb1b6799ddd1e4fdfb99"
+      }
     },
     "latest_forward_interface_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-delivery-20261110.json",
@@ -11897,7 +11908,13 @@
         "constraint": "Any subsequent change must preserve source identities, witnesses, executable reads, omissions and uncertainty and demonstrate substantial actual reduction. Do not automatically patch the agent choosing a whole-file read or the diagnostic byte cap as a production defect.",
         "causal_limit": "Setup cost, mandated first two tool calls, full-file service read12014bytes, subsequent choice of metadata and bounded searches also contributed. No isolated cause or promised task win.",
         "not_yet_implemented": true,
-        "parked": "HTTP compiler-reference expansion, EG14, instruction drafting, catalog/performance/ownership and replay/rescoring remain parked."
+        "parked": "HTTP compiler-reference expansion, EG14, instruction drafting, catalog/performance/ownership and replay/rescoring remain parked.",
+        "status": "MEASURED_PROJECTION_REJECTED_NO_PRODUCTION_CHANGE",
+        "analysis": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-metadata-lossless-projection-analysis-20261110.json",
+          "sha256": "ae5c0fc4d8d075d08f6391cc0507d89a9e1857a23603ac2e0e004156c05897b7"
+        },
+        "decision": "Exact lossless prototype saved10.78percent on Permit and2.60percent on another packet; reject schema accumulation. All seven helper actions were already present, so additional hints are not justified."
       },
       "fresh_task_win_proven": false
     },

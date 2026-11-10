@@ -1,0 +1,109 @@
+{
+  "status": "IMPLEMENTED_NATIVE_TESTED_REVIEWED_RELEASE_AND_INDEX_DELIVERY_PENDING",
+  "at_utc": "2026-11-10T12:08:07.702465+00:00",
+  "base_commit": "1020f52278735cc3d79b939779fe8f8df7bdea27",
+  "problem": "Original InstallationPlan PatchValue and DeleteValue calls were unresolved because the admitted partial compiler context omitted metadata needed to type Request.Headers.IfMatch. The original positive public witness expectations remained unmet.",
+  "change": "An optional atomic framework_plus_web_http profile admits only the configured exact Web.Http5.3 and Net.Http4.0 metadata pair. Same locked streams supply hashes and metadata identities, metadata payload is capped at1MiB perfile, full images remain behind existing reference-byte admission. Unsupported/missing/scoped metadata retains base framework references and explicit reason. Rust recognizes the new partial mode and fences cache reuse by mode/fingerprint.",
+  "source_pins": {
+    "tools/vb_roslyn_sidecar/CompilerContext.cs": "d6b0f228e2094716c56bfdf99c8dedbf6fa448cde470f5dbb96884346c231d9d",
+    "crates/engram_index/src/vb_extractor.rs": "2e85ce84a4c80334db24b00f1271f8c7c8bf82ff2a14284ff0c50d1252691b3b",
+    "crates/engram_index/src/vb_extractor/provenance_tests.rs": "89695cedfc871d99f774a477dcdf67b9bb2385b8c6b3d978748fc5d9410df80d",
+    "crates/engram_index/tests/vb_sidecar_incremental_test.rs": "cab43eb3800a880f6447b04fe5c148cc499bd052e00112c43fc4646debed2c42",
+    "docs/TOOL_CONTRACT.md": "8bfcdfa802fd1eb932a1977c2fe45ac97e479b4d4023ccc86fc49427a49cc494"
+  },
+  "evidence": {
+    "rejected_metadata_projection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-codemap-metadata-lossless-projection-analysis-20261110.json",
+      "sha256": "ae5c0fc4d8d075d08f6391cc0507d89a9e1857a23603ac2e0e004156c05897b7"
+    },
+    "real_metadata_roslyn_probe": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-real-metadata-probe-20261110.json",
+      "sha256": "5a98852d2e4baf1cd1a5ea199828b89d38673d154743f285dfe45bb86625c37e"
+    },
+    "native_exact_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-native-exact-source-probe-v2-20261110.json",
+      "sha256": "bcc07a682930992a507dac0ca65da2c8fa47c794146b78e7fd4739478b0cbabe"
+    },
+    "native_probe_v1_bom_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-native-exact-source-probe-20261110.json",
+      "sha256": "4d44fae805d0a3e59d73978cbd3a635922ea3a5f0038c542e87e86541f50a202"
+    },
+    "native_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-native-v2-20261110.json",
+      "sha256": "146c40f4aa742aa8407c6d4bdfb66d8f53f8ff34132d96ec7fa807e1eb4d8881"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-source-review-20261110.json",
+      "sha256": "cd90f69dd181ad09ea3b2fb85eb43c5c671d31527ec47af6bc8a47761b526906"
+    },
+    "first_native_provenance_batch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-provenance-native-v1-20261110.json",
+      "sha256": "9c33c8d5231586250158eef24ec22afd69b37d7e573474768924fd96dfc3d686"
+    }
+  },
+  "tests": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-native-behavior-v1-20261110.json",
+        "sha256": "186829d0df62d214fed8aa277cd3a4afeea6840a619ba04c51b4f04c513d96c2"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-native-behavior-v1-20261110.log",
+        "sha256": "685b589081812050bc8952ba0638a36c803c77e2c0463d769c42b5fc8f41fd2a"
+      },
+      "cases": 19
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-provenance-native-v2-20261110.json",
+        "sha256": "857e0b20f095790c75825a2f897d628e2368efebbbfb03a5666a1b3576973785"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-provenance-native-v2-20261110.log",
+        "sha256": "8eaff18289d5dc099149030ef9c77f572eb2b92e49e3be913f2da4fb0ab354eb"
+      },
+      "cases": 8
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-interface-public-v1-20261110.json",
+        "sha256": "5481c81afd6d580f56536ec8f563bcb0e86628d2cafc431eb1c56e3c5ee674d3"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-interface-public-v1-20261110.log",
+        "sha256": "3a81d86fdf973796abde2379a15e5e92613d56a1404702caef8e6da8664bfc0c"
+      },
+      "cases": 2
+    }
+  ],
+  "reported_cases_counted": 29,
+  "validation_limits": [
+    "Native exact-source probe restored Update42-to-interface12 and Delete51-to-interface10 with actualcontroller/contract bytes plus disclosed identical synthetic application support; no synthetic HTTP types. This is not deployed graph proof.",
+    "The first exact-native probe rejected BOM-stripped RPC input; corrected v2 preserves original UTF8/BOM. V1 failure retained.",
+    "Native provenance v1 ran8passing cases but failed the separate pre-identity legacy case for missing explicit historical companion path. Final v2 explicitly excludes that case; no legacy pass claimed.",
+    "19native producer cases,8provenance cases and2public interface cases establish tested behavior, not whole-task usefulness.",
+    "Native path/WebHttp environment variables set and hashes observed by root before tests; generic Cargo runner does not independently record those environment values."
+  ],
+  "native_environment_observed": {
+    "executable": "C:/ai-projects/Engram-MCP_v2/target/release/sidecar/vb_roslyn_sidecar-win-x64.exe",
+    "exe_sha256": "73d0d4e689844ca7efb6046cbd0667e252ac780be8561231f439d7f1f30d8797",
+    "dll_sha256": "a3ee161a6c39971c2f0c4e25435981e786bf9c94fa6cddf3139fa6ef0cf182d5",
+    "web_http_path": "C:/Users/Dennis/source/repos/OciusX/Site/bin/System.Web.Http.dll",
+    "web_http_sha256": "fb2c216b321390fe726bdb842b14343db999d372b6293568cc778966fbd8f64d"
+  },
+  "deployment_pending": true,
+  "ordinary_index_refresh_required": true,
+  "original_positive_write_expectations_unmet": true,
+  "fresh_agent_task_win_proven": false,
+  "frozen_tasks_replayed_or_rescored": false,
+  "resources": {
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "owned_native_and_test_temporary_resources_closed_and_removed": true,
+    "installed_pair_unchanged": true,
+    "normal_runtime_not_stopped_for_this_work": true,
+    "cleanup_condition": "Retain diagnostics and build artifacts for review; preexisting folders require exact-path deletion approval. All owned fixture directories removed after child/job handle closure."
+  },
+  "original31findings_closed": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}

@@ -292,7 +292,8 @@ pub struct VbParserContext {
 }
 
 /// The bounded project environment used by the native parser. Framework-only
-/// context supplies real metadata/imports, not a complete application build.
+/// and the optional two-assembly HTTP context supply real metadata/imports,
+/// not a complete application build or runtime binding proof.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VbCompilerContext {
@@ -311,7 +312,7 @@ impl VbCompilerContext {
             && self.reference_bytes <= compilation::MAX_REFERENCE_BYTES
             && match self.mode.as_str() {
                 "source_only" => self.reference_bytes == 0,
-                "framework_only" => self.reference_bytes > 0,
+                "framework_only" | "framework_plus_web_http" => self.reference_bytes > 0,
                 _ => false,
             }
             && self.reason.as_ref().is_none_or(|s| s.len() <= 1024)
