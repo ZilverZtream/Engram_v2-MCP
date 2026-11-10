@@ -1,0 +1,131 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_EXTERNAL_DIRECT_CALLER_HANDOFF",
+  "at_utc": "2026-11-10T04:38:47.822840+00:00",
+  "source_commit": "647064ddb6486e68fad5d235783b258f52b71e88",
+  "problem": "GetBySearch summary promoted export237..349 instead of its uncovered external direct caller GetUserActivityEntries530..570. Exact direct read existed below, but its introduction was suppressed.",
+  "delivered_behavior": "Existing first-direct introduction is retained for an external callable declaration whose complete literal range/identity/generation is not covered by the promoted route. File-only hints and same-file callable bridge behavior preserved.",
+  "observed_result": {
+    "caller": "system_logs_logs.GetUserActivityEntries",
+    "source_range": [
+      530,
+      570
+    ],
+    "witness_line": 539,
+    "both_summary_tools_verified": true,
+    "exact_emitted_source_action_executed": true,
+    "source_matches_raw_file_and_hash": true,
+    "remaining_report_json_unchanged": true,
+    "only_changed_summary_fields": [
+      "next_source_read_index removed"
+    ],
+    "costs": {
+      "old_blast_summary_utf8_bytes": 8712,
+      "new_blast_summary_utf8_bytes": 9456,
+      "new_impact_summary_utf8_bytes": 9456,
+      "direct_source_read_utf8_bytes": 3839,
+      "three_task_call_utf8_bytes": 22751,
+      "scope": "Known-source restored immediate-caller recommendation only. No frozen QA rerun/rescore or full-task efficiency claim."
+    }
+  },
+  "limits": [
+    "Known-source recovery-order correction only; no fresh-agent task benefit proved.",
+    "Frozen log-refactor task stays assisted5/10 versus source-only9/10. No retry/rescore or causal claim.",
+    "All original pre-handoff allocations/preferred direct sample retained. On other crowded reports restored prefix can reduce later optional extra caller rows; omissions remain explicit.",
+    "No graph/parser/native/schema/index changes or original31findings/full19gates closure."
+  ],
+  "verification": {
+    "unit_tests_passed": 18,
+    "integration_tests_passed": 31,
+    "initial_integration_failure_preserved": true,
+    "existing_integration_test_unchanged": true,
+    "candidate_requests": 10,
+    "normal_requests": 9,
+    "task_calls_each": 3,
+    "source_generation": 3142,
+    "index_update_performed": false,
+    "source_pins_preserved": 23,
+    "native_assets_unchanged": 214,
+    "all150_tool_definitions_unchanged": true,
+    "candidate_registry_and_other14_metadata_preserved": true
+  },
+  "installed": {
+    "server_sha256": "cdf4cd6f1450a33f8edf38c59b67966850ee8f3b565fbf0664f127c27e2a61d3",
+    "manifest_sha256": "5afa6c2285301bb6b0ed2b6904dd62d06b6100ef17f4c89fc1f830601d81c9a2",
+    "normal_primary": {
+      "pid": "37472",
+      "started_at_ms": "1794285420009",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    }
+  },
+  "evidence": {
+    "implementation": {
+      "path": "eval/core-log-direct-handoff-20261110.json",
+      "sha256": "b5463ba9023a9cae7dbe71a8f95ab513e0f10b3d1ba633e66ee34882844a962d"
+    },
+    "frozen_qa": {
+      "path": "eval/core-log-refactor-qa-20261110.json",
+      "sha256": "c0f68eed69cb0eb7ff42cb830e1d611460c9f5b5756c9d75e06d46246d745093"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-paired-package.json",
+      "sha256": "f25cb3f6a4d1487b57e80737803d1fa02b495e2fa3761a073f20218e369e9a58"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-shipping-20261110.json",
+      "sha256": "bd19f0e9567f4dbd7f57ed9a38920ce5f029d3d4b10415dc7ceb5c6fc6300c23"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-candidate-v1\\acceptance.json",
+      "sha256": "42f4c504538270d5ce5e1349da8d17411afced7357c6fd708cc16d4daff2b557"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-normal-v1\\acceptance.json",
+      "sha256": "be25ac73edbfe6171564e35200c9f7e7484c0c38ce3c6208a8dba22e5e7dd443"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-release-gates.json",
+      "sha256": "81f3304ed881ba902549a99b3db62e119924922cafa37041654787171f4a0a10"
+    },
+    "install_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-install-validation.json",
+      "sha256": "6880dd481905c34be1520b1c0488c3a2640cf78de05fdbcb78c6472800bc3488"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-install.json",
+      "sha256": "b76449872a43033cdf2d9962c0af4c9b7c1aad3c744d548b9ee01b877ee92db1"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-config-hold-20261110.json.released.json",
+      "sha256": "ef1de87efcd4ce308d831ec3b95a459a8ce1886480ca12ecf7b14ffe7e9efbaa"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-source-review-v2.json",
+      "sha256": "959866fc8a853726f3b9bc6bb83f8a32f8e2bc9df95ecaa54e316266fb1e7ed2"
+    },
+    "verifier_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-verifier-review.json",
+      "sha256": "d14866b49509181de16911e975d3166de0f073de122b18572f1247ef43594f0c"
+    },
+    "release_helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-release-helpers-review.json",
+      "sha256": "775041229c46b49a40a72d83283cad4f477a8053583acb6d8453fc79d3a5467d"
+    }
+  },
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_candidate_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-package",
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b147a14e57294e32a50e78c868ece900",
+    "retention": "Package, backup, journals and evidence retained for review/recovery. Deletion requires approval of exact paths. All runner-owned test/build/candidate/normal temporary fixtures removed after handles closed.",
+    "config_hold_released": true,
+    "configuration_unchanged": true,
+    "normal_launcher_pid": 45828,
+    "normal_primary_pid": 37472,
+    "normal_server_stop_performed": false,
+    "pending_rpc": null,
+    "all_owned_test_build_driver_jobs_closed": true,
+    "all_candidate_locks_absent": true
+  },
+  "goal_complete": false
+}

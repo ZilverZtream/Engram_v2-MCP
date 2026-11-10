@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T04:21:29.437552+00:00",
-    "reason": "External direct callable handoff corrected and tested18unit/31integration after preserving initial30/1failure and correcting file-hint overreach. Frozen log task stays assisted5/10 vs source-only9/10; build/runtime delivery pending.",
+    "at_utc": "2026-11-10T04:38:47.822840+00:00",
+    "reason": "External direct-callable handoff deployed/normal verified in bothimpacttools; exactsource530..570 nowfirst andallotherobservedreportJSON retained.18unit+31integrationPASS; initialfilehintoverreachFAILretained/corrected withoutintegrationtestchange. Frozenlogtaskassisted5/10 versus source-only9/10; overallusefulnessunproven.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,7 +9841,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. Additional direct-caller source navigation delivered; do not repeat its build/runtime probes or frozen parser-default QA.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. External direct-callable handoff delivered; preserve frozen log-refactor outcome and do not repeat its build/runtime probes or task.",
     "next_user_visible_deliverable": "Continue original core-tool usefulness work using actual task evidence and independent source. Preserve new source-only preference and all earlier outcomes. Do not repeat delivered callee/direct-caller probes, retry frozen tasks, expand instruction drafting, or substitute another broad audit/supporting infrastructure project. Overall completion requires agent-task usefulness evidence beyond narrow navigation savings.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
@@ -9857,8 +9857,12 @@
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
-      "classification": "no_progress",
-      "reason": "Previous turn answered the user accountability question and restated saved results; no implementation or new task evidence. Revalidated clean HEAD a080089 and current tool state; continuing selected original work."
+      "classification": "progress",
+      "reason": "New full task comparison established source-only preference; concrete next-read ordering defect fixed, reviewed, tested, built, installed and normally verified. Prior tasks/failures retained; no goal closure.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-delivery-20261110.json",
+        "sha256": "1968f10018567f8d6c507111818eb4cf6e431d869efe7c0960c59b22b119e250"
+      }
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -9884,8 +9888,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-direct-caller-delivery-20261110.json",
-      "sha256": "335898b192f7d01598eafd8f9c32daa7d552b59d51aa8a3968a05c090fb8aee5"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-delivery-20261110.json",
+      "sha256": "1968f10018567f8d6c507111818eb4cf6e431d869efe7c0960c59b22b119e250"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11531,8 +11535,8 @@
     "runtime_maintenance_checkpoint": {
       "status": "INSTALLED_NORMAL_VERIFIED_NO_HOLD",
       "generation": 3142,
-      "pid_observed": 49412,
-      "manifest_sha256": "660646d2e35430122e27b6e9ec6d3d8c29c8b2ea6b5c0da4f3d0b918bc678fed",
+      "pid_observed": 37472,
+      "manifest_sha256": "5afa6c2285301bb6b0ed2b6904dd62d06b6100ef17f4c89fc1f830601d81c9a2",
       "pending_request_id": null,
       "hold_released": true
     },
@@ -11698,12 +11702,16 @@
       "promoted_read_consumer": "system_logs_logs.btnShowExportOption_Click",
       "observation": "Direct consumer lies in another file from target, but promoted transitive route does not cover its body; summary suppresses direct introduction and sets next_source_read_index0. Exact direct action remains below.",
       "decision": "Retain existing direct source introduction when the external direct caller is absent from the promoted read. Preserve same-file bridge priority and every existing witness/action/count; no new scanning or schema.",
-      "implementation_state": "IMPLEMENTED_REVIEWED_TESTED_NOT_BUILT_OR_DEPLOYED",
+      "implementation_state": "DEPLOYED_NORMAL_VERIFIED_EXTERNAL_DIRECT_CALLER_HANDOFF",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-20261110.json",
         "sha256": "b5463ba9023a9cae7dbe71a8f95ab513e0f10b3d1ba633e66ee34882844a962d"
       },
-      "scope": "Direct callable declaration reads only; file-only hints retain prior cross-file bridge behavior. All original pre-handoff allocations retained; later optional samples may shrink honestly."
+      "scope": "Direct callable declaration reads only; file-only hints retain prior cross-file bridge behavior. All original pre-handoff allocations retained; later optional samples may shrink honestly.",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-delivery-20261110.json",
+        "sha256": "1968f10018567f8d6c507111818eb4cf6e431d869efe7c0960c59b22b119e250"
+      }
     }
   }
 }
