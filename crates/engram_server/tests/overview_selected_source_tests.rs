@@ -2076,6 +2076,79 @@ async fn publish_named_sources(engram: &Engram, search: &HybridSearchEngine, sou
 }
 
 #[test]
+fn source_scope_recovery_finds_type_text_when_its_filename_differs() {
+    owned_case(true, |engram, search| async move {
+        const TARGET: &str = "src/contracts/Packet-Out.vb";
+        const BODY: &str = "Public Class PacketOut\n    Public keepItems As Boolean\nEnd Class\n";
+        publish_named_sources(&engram, &search, &[
+            (TARGET, BODY), ("src/contracts/private/hidden.vb", BODY),
+            ("src/contracts-other/outside.vb", BODY),
+            ("src/contracts/comment.vb", "' PacketOut is only a comment\n"),
+        ]).await;
+        let request = json!({"project_id":PID,"scope":"src/contracts","path_contains":"PacketOut",
+            "exclude_paths":["src/contracts/private"],"include_declarations":false,"include_source":true});
+        let error = engram.handle_get_codebase_overview(serde_json::from_value(request).unwrap()).await.unwrap_err();
+        assert!(serde_json::to_vec(&error).unwrap().len() <= 12 * 1024);
+        let data = error.data.unwrap();
+        let discovery = &data["file_discovery"];
+        let page = navigate(&engram, discovery["arguments"].clone()).await;
+        assert!(page["files"].as_array().unwrap().is_empty(), "A filename miss must remain a miss");
+        assert_eq!(discovery["arguments"]["path_contains"], "PacketOut");
+        let action = &data["text_search_without_path_filter"];
+        assert!(data["text_search_scope"].as_str().unwrap().contains("explicitly dropping only the filename filter"));
+        let reply = engram.handle_grep_project(serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+        let hits: Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text).unwrap();
+        let matches = hits["matches"].as_array().unwrap();
+        assert_eq!(matches.len(), 2, "Preserve directory boundaries and exclusions, without promoting text to declarations");
+        assert!(matches.iter().any(|hit| hit["file_path"] == "src/contracts/comment.vb"));
+        let found = matches.iter().find(|hit| hit["file_path"] == TARGET).unwrap();
+        let (_, body) = excerpt(&engram, found["current_source_recovery"]["arguments"].clone()).await;
+        assert_eq!(body["source_code"], BODY.trim_end_matches('\n'));
+        assert_eq!(body["source_file_hash"], blake3::hash(BODY.as_bytes()).to_hex().to_string());
+    });
+}
+
+#[test]
+fn source_scope_recovery_keeps_filtered_discovery_executable_and_rejects_bad_paths() {
+    owned_case(true, |engram, search| async move {
+        const TARGET: &str = "src/contracts/Packet-Out.vb";
+        const BODY: &str = "Public Class PacketOut\nEnd Class\n";
+        publish_named_sources(&engram, &search, &[(TARGET, BODY),
+            ("src/contracts/private/Packet-Out.vb", BODY)]).await;
+        let request = json!({"project_id":PID,"scope":"src/contracts","path_contains":"Packet-",
+            "symbol_name":"PacketOut","exclude_paths":["src/contracts/private"],"include_source":true});
+        let error = engram.handle_get_codebase_overview(serde_json::from_value(request.clone()).unwrap()).await.unwrap_err();
+        let data = error.data.unwrap();
+        let page = navigate(&engram, data["file_discovery"]["arguments"].clone()).await;
+        let files = page["files"].as_array().unwrap();
+        assert_eq!(files.len(), 1);
+        assert_eq!(files[0]["path"], TARGET);
+        let action = files[0]["actions"].as_array().unwrap().iter().find(|a| a["tool"] == "get_full_method_body").unwrap();
+        let (_, body) = excerpt(&engram, action["arguments"].clone()).await;
+        assert_eq!(body["source_code"], BODY.trim_end_matches('\n'));
+        for scope in [TARGET, "src/contracts/private", "src/missing"] {
+            let mut filtered = request.clone();
+            filtered["scope"] = json!(scope);
+            filtered["path_contains"] = json!("PacketOut");
+            let error = engram.handle_get_codebase_overview(serde_json::from_value(filtered).unwrap()).await.unwrap_err();
+            let data = error.data.unwrap();
+            assert!(data.get("text_search_without_path_filter").is_none(),
+                "An exact-file, excluded or unknown scope must not be advertised as a directory search");
+            let page = navigate(&engram, data["file_discovery"]["arguments"].clone()).await;
+            assert!(page["files"].as_array().unwrap().is_empty());
+        }
+        let mut invalid = request; invalid["scope"] = json!("src/../private");
+        let error = engram.handle_get_codebase_overview(serde_json::from_value(invalid).unwrap()).await.unwrap_err();
+        assert!(error.data.is_none(), "Invalid paths must fail before offering actions");
+        let large = json!({"project_id":PID,"scope":"\"".repeat(2048),"path_contains":"PacketOut",
+            "exclude_paths":["\"".repeat(2048),format!("a{}", "\"".repeat(2047))],"include_source":true});
+        let error = engram.handle_get_codebase_overview(serde_json::from_value(large).unwrap()).await.unwrap_err();
+        assert!(serde_json::to_vec(&error).unwrap().len() <= 12 * 1024);
+        assert!(error.data.unwrap()["recovery_scope"].as_str().unwrap().contains("Retry get_codebase_overview"));
+    });
+}
+
+#[test]
 fn directory_name_recovery_finds_unknown_file_without_claiming_lexical_hits_are_declarations() {
     owned_case(true, |engram,search| async move {
         const TARGET:&str="src/contracts/zz.vb";

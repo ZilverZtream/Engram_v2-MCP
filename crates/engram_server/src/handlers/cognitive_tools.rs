@@ -29,6 +29,38 @@ fn codemap_followup(mut action: serde_json::Value, path_contains: Option<&str>) 
     action
 }
 
+// Called only after path/selector validation. Recovery does not read source or
+// silently reinterpret a filename filter as a declaration lookup.
+fn source_scope_error(req: &crate::models::CodebaseOverviewRequest, directory_scope: bool) -> McpError {
+    use serde_json::json;
+    let discovery = codemap_followup(json!({"tool":"get_codebase_overview","arguments":{
+        "project_id":req.project_id,"scope":req.scope,"exclude_paths":req.exclude_paths,
+        "limit":req.limit.min(8),"include_source":false,"include_declarations":false,
+        "include_retained_context":false}}), req.path_contains.as_deref());
+    let mut error = McpError::invalid_params(
+        "include_source requires an exact selected file surviving scope, filter and exclusions",
+        Some(json!({"file_discovery":discovery,
+            "recovery_scope":"Discover selected file paths first, then use an exact returned file. Scope, filename filter and exclusions are preserved; source/symbol selectors are not applied during file discovery. path_contains matches file paths, not declaration names. No source was read."})));
+    if !serde_json::to_vec(&error).is_ok_and(|bytes| bytes.len() <= 12 * 1024) {
+        error.data = Some(json!({"recovery_scope":"Recovery arguments exceed the error budget. Retry get_codebase_overview with the same project, scope, path_contains and exclusions; set include_source=false, include_declarations=false, include_retained_context=false, limit=8 and both offsets=0; omit symbol and source selectors. Then select an exact returned file. No source was read."}));
+        return error;
+    }
+    if let (true, Some(scope), Some(term)) = (directory_scope, req.scope.as_deref(), req.path_contains.as_deref()) {
+        let mut trial = error.clone();
+        let data = trial.data.as_mut().expect("recovery data");
+        data["text_search_without_path_filter"] = json!({"tool":"grep_project","arguments":{
+            "project_id":req.project_id,"namespace":"memory","pattern":term,"regex":false,
+            "case_sensitive":true,"path_prefix":format!("{scope}/"),
+            "exclude_path_prefixes":req.exclude_paths,"max_results":8,"context_before":0,"context_after":0,
+            "freshness":"off","output_json":true}});
+        data["text_search_scope"] = json!("Optional literal text search inside the requested directory, explicitly dropping only the filename filter. Exclusions remain. Indexed text matches may be comments or unrelated names, not declarations, binding or absence proof. Execute returned current-source recovery and compare hashes. No search has run.");
+        if serde_json::to_vec(&trial).is_ok_and(|bytes| bytes.len() <= 12 * 1024) {
+            error = trial;
+        }
+    }
+    error
+}
+
 fn named_source_fallback(row: &mut serde_json::Value, project: &str) {
     let has_read=row["symbols"].as_array().is_some_and(|symbols|symbols.iter().any(|symbol|
         symbol["actions"].as_array().is_some_and(|actions|actions.iter().any(|a|a["tool"]=="get_full_method_body"))));
@@ -2329,8 +2361,19 @@ impl Engram {
             let exact_file=worker_request.scope.as_deref().is_some_and(|scope| scope_paths.files.len()==1
                 && if cfg!(windows){scope_paths.files[0].0.eq_ignore_ascii_case(scope)}else{scope_paths.files[0].0==scope});
             if worker_request.include_source && !exact_file {
+                // A filtered miss may be an exact file, not a directory. Only
+                // offer directory text recovery after observing a selected
+                // descendant, under the same held view and exclusions.
+                let unfiltered = (worker_request.path_contains.is_some() && paths.files.is_empty())
+                    .then(|| membership.navigation_paths(worker_request.scope.as_deref(),
+                        &worker_request.exclude_paths,0,1,None)).transpose()?;
+                let recovery_paths = unfiltered.as_ref().unwrap_or(&paths);
+                let directory_scope = worker_request.scope.as_deref().is_some_and(|scope|
+                    recovery_paths.files.iter().any(|file| if cfg!(windows) {
+                        !file.0.eq_ignore_ascii_case(scope)
+                    } else { file.0 != scope }));
                 return Ok((None,paths,Vec::new(),Vec::new(),None,true,false,
-                    Some(Err(McpError::invalid_params("include_source requires an exact selected file surviving scope, filter and exclusions",None))),None,None));
+                    Some(Err(source_scope_error(&worker_request,directory_scope))),None,None));
             }
             anyhow::ensure!(worker_request.symbol_offset==0 || exact_file,
                 "symbol_offset requires an exact selected-file scope and offset0");
