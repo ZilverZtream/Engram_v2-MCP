@@ -1,0 +1,161 @@
+{
+  "status": "INFORMED_SOURCE_BASED_QA_DECISION_COMPLETED_RUNTIME_NOT_EXECUTED",
+  "task": "Are ClassifyAutomatic tests enough for the current automatic zoom/manual override workflow? Define the minimum justified backend-to-UI QA matrix.",
+  "decision": "No. Classifier tests cover the count-to-band function, but cannot establish prepared-count integrity, nullable/manual precedence, request gates, JSON consumers, editor selection, persistence, or stale-response safety.",
+  "scope": "Completion of the previously unfinished QA answer using retained tool evidence, current installed-tool navigation and independent source inspection. This is an informed continuation, not a new frozen attempt, held-out success, runtime pass or productivity comparison. Earlier task failures and request/byte caps are unchanged.",
+  "source_root": "C:/Users/Dennis/source/repos/OciusX",
+  "source_aliases": {
+    "Policy": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+    "Spatial": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+    "Endpoint": "Site/kmlquery.aspx.vb",
+    "API": "Site/App_Code/visualisering/api-json/api-visualisering-kml.vb",
+    "Persistence": "Site/App_Code/visualisering/code/visualisering-kml-filer.vb",
+    "DTO": "Site/App_Code/visualisering/code/chartClasses.vb",
+    "Client": "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts",
+    "UI": "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts",
+    "Map": "Site/modules/dashboard/ts/map/vsMap/vsMap.ts"
+  },
+  "minimum_qa_matrix": [
+    {
+      "id": "Q1",
+      "setup": "Whole-file feature/coordinate pairs at (0,0), (100,2500), (500,10000), (1000,25000), (2000,50000), and each band with either count independently one over its limit.",
+      "expected": "Inclusive first-fit bands are 10, 12, 14, 15; BOTH counts must fit. (0,0) is 10. Exceeding the final band gives 17. Include low feature/high coordinate and high feature/low coordinate cases. ClassifyAutomatic itself does not validate negative persisted counts.",
+      "source": [
+        "Policy44-84"
+      ]
+    },
+    {
+      "id": "Q2",
+      "setup": "Prepare standalone GeoJSON and a converted KML/KMZ with multiple sublayers; include empty/null geometry, nested geometry, invalid coordinates and failed writes.",
+      "expected": "One statistics object accumulates the whole file across sublayers. Empty/null geometry is excluded; invalid geometry fails preparation. Count only successfully stored features and recursive geometry points; verify stored feature totals before publishing. Persist both totals with format2. Changing viewport extents must not change Automatic classification.",
+      "source": [
+        "Spatial944-1005",
+        "Spatial1090-1128",
+        "Spatial1386-1466",
+        "Spatial1965-2006",
+        "Spatial2343-2373"
+      ]
+    },
+    {
+      "id": "Q3",
+      "setup": "In an isolated QA cache, test stored zero counts; missing/empty, signed, negative, whitespace, fractional and overflowing counts; wrong format; missing geometry table.",
+      "expected": "Explicit zeros are valid. Invalid/missing counts never become zero: ReadMeta rejects them. QueryCacheCore consumes ReadMeta and separately resolves policy. QueryCache closes handles and retires confirmed incomplete cache; successful deletion permits same-request preparing/rebuild, subject to the recent-failure guard. Deletion failure remains an error. Metadata-only success does not validate the geometry table.",
+      "source": [
+        "Spatial518-540",
+        "Spatial2219-2289",
+        "Spatial2497-2569"
+      ]
+    },
+    {
+      "id": "Q4",
+      "setup": "Automatic with either count missing; manual 7 with unknown counts; manual 7 with heavy prepared counts; reset manual to Automatic.",
+      "expected": "Automatic unknown yields null automatic/effective zoom and pending=true. Manual 7 yields effective 7 and pending=false even while automatic is null; when classified, automatic 17 can coexist with effective 7. Reset restores the automatic value or pending state. Missing is distinct from zero.",
+      "source": [
+        "Policy53-106"
+      ]
+    },
+    {
+      "id": "Q5",
+      "setup": "Geometry below/equal to the effective gate, unprepared Automatic at zoom 9/10, and metadata-only requests below the gate.",
+      "expected": "Ordinary Automatic geometry below discovery 10 and geometry below a manual gate are refused before spatial preparation. At 10, pending Automatic can prepare, then enforce its actual band; equality passes. Metadata bypasses geometry gates and, once prepared, returns policy, counts, extent and layer headers without geometry; a cold metadata request can return preparing. Client discovery 10 is not a server prohibition on lower-zoom metadata requests. Geometry requires valid bounds and explicit zoom 0-30.",
+      "source": [
+        "Spatial429-445",
+        "Spatial447-476",
+        "Spatial486-540",
+        "Spatial2247-2286",
+        "Spatial2584-2608",
+        "Endpoint195-228"
+      ]
+    },
+    {
+      "id": "Q6",
+      "setup": "Manual 0 with intersecting feature/coordinate counts at and above 2000/50000, and payloads at/over 4MiB; include a small viewport intersecting a large geometry.",
+      "expected": "Overrides never bypass per-file limits. Exceeding a cap returns tooMuchDetail rather than partial, clipped or simplified geometry. Envelope candidates undergo exact intersection; accepted features retain complete geometry. Verify client clearing/dimming separately.",
+      "source": [
+        "Spatial33-39",
+        "Spatial2347-2449",
+        "Client523-558",
+        "Client565-570",
+        "UI390-408"
+      ]
+    },
+    {
+      "id": "Q7",
+      "setup": "Trace pending, classified and manual policy through runtime spatial JSON and initial/save descriptors into the client.",
+      "expected": "Spatial JSON explicitly emits nullable policy fields; Endpoint writes result.Json as application/json. Client reads and applies policy before geometry. BuildDescriptor performs no cache read: automaticZoom is null, discoveryZoom 10, maximum override 17. Legacy minZoom 17 is not effectiveMinZoom. Save serialization uses the requested map project.",
+      "source": [
+        "Policy382-395",
+        "Spatial371-400",
+        "Spatial2584-2608",
+        "Endpoint228-240",
+        "DTO215-237",
+        "API398-400",
+        "Client223-277",
+        "Client442-475"
+      ]
+    },
+    {
+      "id": "Q8",
+      "setup": "Unknown Automatic with saved override 0; Automatic 15 with saved 12; a draft becoming unavailable; no native option selected; cancel/reopen.",
+      "expected": "Keep the existing effective override. Unknown Automatic offers only Automatic and 17; otherwise offer Automatic and automaticZoom..17. Unavailable saved/draft values remain visible but disabled, never silently reset/resaved. No-selection must not become Automatic merely because value is empty. Background refresh preserves drafts; cancel/reopen restores saved selection.",
+      "source": [
+        "UI646-711",
+        "UI719-844",
+        "Client223-246"
+      ]
+    },
+    {
+      "id": "Q9",
+      "setup": "Authorized and unauthorized saves, canonical 0/17, explicit null/reset aliases, missing/empty/noncanonical values, and zoom-only/style/no-op saves.",
+      "expected": "Server accepts canonical 0..17 regardless of editor threshold; rejects missing key, empty text, signs, whitespace, fractions, leading zeros and 18. Enforce manager role, creator-company ownership, requested/source access, visibility, type and feature flag. Original-project restriction is UI-only. Store/remove oxShowFromZoom within options; reset need not make the column SQL NULL. Zoom-only saves preserve styles/source/caches; changed saves log, and no-op saves do not resubmit. Style saves preserve the override but invalidate derived caches and clear KML/KMZ conversion rows.",
+      "source": [
+        "Policy121-199",
+        "Policy209-323",
+        "API323-400",
+        "Persistence239-257",
+        "Persistence306-346",
+        "Spatial618-647",
+        "API224-242"
+      ]
+    },
+    {
+      "id": "Q10",
+      "setup": "Prepared Automatic 15; save manual 17 and reset; repeat with ordinary rejection and malformed success descriptor.",
+      "expected": "Busy editor blocks duplicate save/cancel. Valid ACK preserves known Automatic 15 despite the cheap descriptor's null, applies authoritative override, settles busy state and closes. Rejection restores policy and keeps the attempted draft/error. Transport failure alone does not prove no persistence. Current success callback can report saved even if descriptor parsing fails: test this separately rather than assuming authoritative rehydration.",
+      "source": [
+        "UI827-874",
+        "Client1442-1585"
+      ]
+    },
+    {
+      "id": "Q11",
+      "setup": "Delay viewport responses across save start, successful/rejected ACK, pan, hide/dispose and chunked insertion; then deliver an obsolete disabled response.",
+      "expected": "Ordinary stale policy/geometry/errors cannot overwrite current state. Save start/settlement change policy epochs; refresh invalidates viewport/insertion work. Disabled responses deliberately latch even when obsolete, clearing work and preventing re-enable. Explicit metadata camera navigation has separate guards: saving alone need not invalidate its camera action.",
+      "source": [
+        "Client162-174",
+        "Client259-310",
+        "Client432-520",
+        "Client636-673",
+        "Client1088-1104",
+        "Client1184-1244",
+        "Client1471-1537",
+        "Client1629-1672"
+      ]
+    },
+    {
+      "id": "Q12",
+      "setup": "Viewport loading disabled and converted layers queued/admitted/hidden/deleted in both map views.",
+      "expected": "Retain complete-file behavior when disabled at initial setup; a runtime disabled response must not trigger a fallback download. Queued converted layers do not prepare/fetch or expose an active editor. Hiding retains admission; deleting an admitted layer promotes the next queued layer. Confirm actual browser controls, authenticated API and native-cache behavior before release signoff.",
+      "source": [
+        "Map1281-1285",
+        "Map1370-1376",
+        "Map1399-1461",
+        "Client493-520",
+        "UI876-912",
+        ".github/instructions/map-file-layers.instructions.md"
+      ]
+    }
+  ],
+  "relationship_boundaries": "QueryCacheCore directly calls ReadMeta and resolves policy separately; do not invent ReadMeta->Resolve. JSON field propagation and ajax action dispatch are source-traced data/transport links, not graph-proven direct calls. Installed Blast has no indexed setZoomOverride caller; its literal recovery finds mapLayer853. Confirming that source call does not establish exhaustive receiver binding or runtime execution.",
+  "signoff": "Source-based QA planning is complete. All cases above remain to execute against an isolated application/cache and authenticated browser. No application runtime, deployment configuration, production data, generated JS freshness or exhaustive dependency coverage was verified here. This answer does not close the broader Engram goal."
+}

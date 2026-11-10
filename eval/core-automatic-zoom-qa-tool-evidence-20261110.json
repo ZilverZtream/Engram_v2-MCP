@@ -1,0 +1,311 @@
+{
+  "status": "ORIGINAL_QA_ANSWER_FINISHED_WITH_CURRENT_TOOL_AND_INDEPENDENT_SOURCE_EVIDENCE",
+  "at_utc": "2026-11-10T18:55:10.162489+00:00",
+  "source_head": "9e333a1ebd3289af7e15c6354be22a76c62c4632",
+  "answer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-automatic-zoom-qa-completion-20261110.json",
+    "sha256": "f9969ed9111540a30aa3ec0e7e2c003d69d9516c35b8cf2d96615c56ab96920f"
+  },
+  "current_installed_server": {
+    "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+    "sha256": "b8bcc018c1cfb1718e6a7ae70ad9cb269a2077a69a28418f4c48d5edb8bf0f0d"
+  },
+  "source_generation": 3147,
+  "calls": [
+    {
+      "call": "01-editor-codemap",
+      "tool": "get_codebase_overview",
+      "arguments": {
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "scope": "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts",
+        "symbol_name": "_isZoomSelectionAllowed",
+        "include_source": true,
+        "include_retained_context": false,
+        "limit": 1,
+        "exclude_paths": [
+          "Site/Q",
+          ".audit-20261104",
+          ".audit-20261105-dev",
+          ".audit-20261105-browser-background"
+        ]
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\01-editor-codemap\\observer.json",
+        "sha256": "a66aaf2f09d7fdbd9cd576b198a5664081952ed6d55558ffac4e3b7dfbe6d99c"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\01-editor-codemap\\rpc\\002-request.json",
+        "sha256": "3ae2138ed5574037fb99f4bc53282e9fa6cfdf3cb4e378ff62a9669c3eb926e5"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\01-editor-codemap\\tool.txt",
+        "sha256": "02a13181686152e5490e6818a81208f37be2c679c9ac178e386b4d6fa0e4100e"
+      },
+      "text_utf8_bytes": 12024
+    },
+    {
+      "call": "02-editor-impact",
+      "tool": "impact_analysis",
+      "arguments": {
+        "detail": "summary",
+        "limit": 12,
+        "max_depth": 6,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "symbol_fqn": "sym:function:Site/modules/dashboard/ts/map/vsMap/mapLayer.ts:_isZoomSelectionAllowed:703"
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\02-editor-impact\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\02-editor-impact\\rpc\\002-request.json",
+        "sha256": "cc2051c0d999bdc0b13a05d6306f84a19dffcbe4883384e87065b0137cfd831a"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\02-editor-impact\\tool.txt",
+        "sha256": "15d5492ad8ac2db2993f77f70424a25786a51e92673844a00e03a70fe0aea547"
+      },
+      "text_utf8_bytes": 10288
+    },
+    {
+      "call": "03-save-codemap",
+      "tool": "get_codebase_overview",
+      "arguments": {
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "scope": "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts",
+        "symbol_name": "setZoomOverride",
+        "include_source": true,
+        "include_retained_context": false,
+        "limit": 1,
+        "exclude_paths": [
+          "Site/Q",
+          ".audit-20261104",
+          ".audit-20261105-dev",
+          ".audit-20261105-browser-background"
+        ]
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\03-save-codemap\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\03-save-codemap\\rpc\\002-request.json",
+        "sha256": "5e794658b9bc0a839df1c27b68a45c813c687860bbbe6d007bcd2cf4c1045b53"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\03-save-codemap\\tool.txt",
+        "sha256": "ef5730390da69625c8376bfc0cefc5251daf212ff25bd9882fa6de0791addb82"
+      },
+      "text_utf8_bytes": 12006
+    },
+    {
+      "call": "04-apply-policy-source",
+      "tool": "get_full_method_body",
+      "arguments": {
+        "context_lines": 0,
+        "file_path": "Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts",
+        "include_caller_bodies": false,
+        "line_end": 277,
+        "line_start": 259,
+        "output_json": true,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\04-apply-policy-source\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\04-apply-policy-source\\rpc\\002-request.json",
+        "sha256": "fc67c37291d7e0590b312b897bbee840960493db03b0e6fa366202752e1b9208"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\04-apply-policy-source\\tool.txt",
+        "sha256": "48aceeeabc449406e37d8f4f51d1cbbf4a61f4704bac07d25218e93779b0c3fc"
+      },
+      "text_utf8_bytes": 3038
+    },
+    {
+      "call": "05-save-blast",
+      "tool": "compute_blast_radius",
+      "arguments": {
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "symbol_fqn": "sym:function:Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts:setZoomOverride:1442",
+        "max_depth": 2,
+        "limit": 8
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\05-save-blast\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\05-save-blast\\rpc\\002-request.json",
+        "sha256": "a094bb122f0b8842e2655a3fa9c93ad03251c8588b18985d3a89ae5f7c96666a"
+      },
+      "status": "CALLER_ARGUMENT_ERROR",
+      "error": {
+        "code": -32602,
+        "message": "failed to deserialize parameters: unknown field `limit`, expected one of `project_id`, `file_path`, `symbol_fqn`, `include_guidance`, `max_depth`, `detail`"
+      },
+      "frame": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\05-save-blast\\rpc\\002-frame-001.json",
+        "sha256": "29650dea20b5e2cdec8c339ca8a018a4395a3fd278c31d9ac3f95ad421803231"
+      },
+      "attribution": "Root incorrectly supplied limit to compute_blast_radius. API rejection was correct; subsequent corrected call retained separately."
+    },
+    {
+      "call": "06-save-blast-corrected",
+      "tool": "compute_blast_radius",
+      "arguments": {
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "symbol_fqn": "sym:function:Site/modules/dashboard/ts/map/vsMap/vsFileLayerLazyLoaded.ts:setZoomOverride:1442",
+        "max_depth": 2
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\06-save-blast-corrected\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\06-save-blast-corrected\\rpc\\002-request.json",
+        "sha256": "065b31c2e7be26c0dad7503f52484451d454da4eb0e65dc48600bc1b1992bc43"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\06-save-blast-corrected\\tool.txt",
+        "sha256": "3d59a25fcf703f85c5e5b89b27d0a1831710c817b89a92519cf42418311baa29"
+      },
+      "text_utf8_bytes": 5988
+    },
+    {
+      "call": "07-blast-member-recovery",
+      "tool": "grep_project",
+      "arguments": {
+        "case_sensitive": true,
+        "context_after": 2,
+        "context_before": 2,
+        "freshness": "off",
+        "max_results": 8,
+        "output_json": true,
+        "path_prefix": "Site/modules/dashboard/ts/map/vsMap/",
+        "pattern": ".setZoomOverride",
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "regex": false,
+        "exclude_path_prefixes": [
+          "Site/Q",
+          ".audit-20261104",
+          ".audit-20261105-dev",
+          ".audit-20261105-browser-background"
+        ]
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\07-blast-member-recovery\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\07-blast-member-recovery\\rpc\\002-request.json",
+        "sha256": "66ace0948d75cd5c0b0dfb303612b36831c6dafc8958bbdad50395bf6f19f9d7"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\07-blast-member-recovery\\tool.txt",
+        "sha256": "af00baa75a73aaca4f645c1d7ed48659042b1c19fa51ed059dfa3a7031dbfb70"
+      },
+      "text_utf8_bytes": 3489
+    },
+    {
+      "call": "08-blast-source-recovery",
+      "tool": "get_full_method_body",
+      "arguments": {
+        "context_lines": 0,
+        "file_path": "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts",
+        "line_start": 849,
+        "output_json": true,
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      },
+      "observer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\08-blast-source-recovery\\observer.json",
+        "sha256": "4b0c7dd26f616ceea7f1a7befeb6bd74bb7b0012d368ccd0317e2fff23207b38"
+      },
+      "request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\08-blast-source-recovery\\rpc\\002-request.json",
+        "sha256": "73ea803c4ba4d1c4ad6656d4d3f7f20965db609fd485a9a2c678a52c6d66f77c"
+      },
+      "status": "RETURNED",
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\08-blast-source-recovery\\tool.txt",
+        "sha256": "1d245514f520e54647fec7d1a9dfc32f0125c983ed2f0418b02b8221496019ad"
+      },
+      "text_utf8_bytes": 8112
+    }
+  ],
+  "cost": {
+    "tool_requests": 8,
+    "successful_tool_requests": 7,
+    "successful_tool_text_utf8_bytes": 54945,
+    "limits": "This is only the new informed editor/save followthrough. It excludes retained backend/source evidence, source-only reviewer reads and setup/error frames. It must not be represented as the total full-task cost or a successful original8-request/64KiB attempt."
+  },
+  "proof": {
+    "current_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\current-source-checks.json",
+      "sha256": "de6b817cf23624acd0b735fa22a768cff1c3b4d89686441240b4a63491daa41d"
+    },
+    "blast_recovered_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\08-blast-source-recovery\\source-check.json",
+      "sha256": "2235e7a6781412dd557a758ff534c15c9344e3ffc84cd74158d9d97621fdefc4"
+    },
+    "witnesses": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\impact-witness-checks.json",
+      "sha256": "e780556bf5d94aacedbc7201a588c1000117238fda65e3c66b9b92c8d704e6fc"
+    },
+    "source_pins": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\source-pins.json",
+      "sha256": "4f07737f85bc37a741edb55114c8fb0a5fdf38a278bc184846893f94a57412f8"
+    }
+  },
+  "source_review": {
+    "backend_reviewer": "/root/current_producer_capture",
+    "frontend_reviewer": "/root/blast_source_case",
+    "review": "Independent source-first reviews, no prior answer provided until final factual check. Corrected style-save cache invalidation versus zoom-only preservation and cold metadata preparing. Added precise overflow and bounds citations.",
+    "runtime_tests_executed": false,
+    "code_review_or_coderabbit_pass_claimed": false
+  },
+  "decision": {
+    "selected_qa_answer_complete": true,
+    "new_production_patch_selected": false,
+    "reason": "Current CodeMap source/actions and Blast literal recovery provide the required editor/save route. No additional production change is justified by this completed followthrough.",
+    "frozen_attempts_rescored": false,
+    "benefit_or_productivity_claimed": false,
+    "original_results_preserved": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-view-full-qa-20261109.json",
+        "sha256": "b8d3dafbd23ac136440dfd319bafcee685fc058dcc9f811538a1d899cd5ba1c0"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-member-task-20261109.json",
+        "sha256": "b5c314d580e4cc5a4b6cf29a3afc0eae1825509ab0caa05cc8cfa9c806d2f658"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-current-verification-outcome-20261110.json",
+        "sha256": "55eb70aa72f5d0093f8131459b2ef480a8495bf9eb629b9ec010bc5ba5765fcb"
+      }
+    ],
+    "broader_goal_complete": false
+  },
+  "recorded_unselected_observation": {
+    "location": "01-editor-codemap/tool.txt property_references",
+    "observation": "The Number(raw) source site at mapLayer710 is accompanied by a property-navigation candidate for VB _integration.PeriodNumber.Number. The tool explicitly disclaims receiver binding. That unrelated candidate was not used as evidence for the QA answer; no new cross-language binding project selected."
+  },
+  "historical_helper_accounting": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110\\post-delivery-helper-revisions.json",
+    "sha256": "63a0afdff82bbbca817e0cae658e4c7e40429989be5f75b595b77f0a8ca24356"
+  },
+  "retention": {
+    "directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-zoom-qa-completion-20261110",
+    "purpose": "Retained actual current responses, failed request, source checks and completed original QA evidence.",
+    "cleanup_condition": "Retain for delivery review; preexisting evidence is not deleted. No temporary fixture directories were created.",
+    "resources": "All8 observer connections closed. Normal daemon started after authoritative absence; launcher exited0. No build, package install, index update, configuration hold, app edit or live QA mutation. No helper executions."
+  }
+}
