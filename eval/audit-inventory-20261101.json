@@ -11872,12 +11872,25 @@
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
         "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
       },
-      "state": "IMPLEMENTED_TESTED_REVIEWED_RELEASE_BUILD_PENDING",
+      "state": "DEPLOYED_NORMAL_VERIFIED_SUMMARY_COST_REDUCTION_NO_TASK_WIN_CLAIM",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-implementation-20261110.json",
         "sha256": "b36c4764a5e39be81b128d5ec7acb458cda17350acce652a789600e4af90451b"
       },
-      "runtime_validation_pending": true
+      "runtime_validation_pending": false,
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-delivery-20261110.json",
+        "sha256": "d774fcb2f02342ee02593a65e5f4b70f00b9787496fba6ce877f16105bd0c1a7"
+      },
+      "actual_summary_bytes": {
+        "before": 9488,
+        "after": 7024,
+        "saved": 2464
+      }
+    },
+    "latest_interface_summary_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-delivery-20261110.json",
+      "sha256": "d774fcb2f02342ee02593a65e5f4b70f00b9787496fba6ce877f16105bd0c1a7"
     }
   }
 }
