@@ -262,7 +262,7 @@ fn capped_empty_receiver_scan_keeps_executable_member_recovery_beside_known_call
         // A real source directory larger than the unresolved inspection budget.
         // Its unrelated calls sort before the useful collection consumer.
         let noise = format!("class EarlierDeclarations {{\n{}\n}}\n",
-            (0..600).map(|n| format!(" earlier{n:04}(other: any) {{ other.touch(); }}\n")).collect::<String>());
+            (0..3000).map(|n| format!(" earlier{n:04}(other: any) {{ other.touch(); }}\n")).collect::<String>());
         let consumer = "class UploadBatchManager {\n cancelAll(groups: any[]) {\n  for (const group of groups) {\n   for (const handler of group.imageHandlers) {\n    handler.cancelUpload();\n   }\n  }\n }\n}\n";
         for (file, text) in [(handler, body.as_str()), (manager, consumer),
             ("src/ts/images/aaaEarlierDeclarations.ts", noise.as_str())] {
@@ -341,11 +341,18 @@ fn bound_calls_do_not_hide_the_editor_save_witness_from_public_impact() -> Resul
         editor_body.push_str("  layer.setZoomOverride(17);\n }\n}\n");
         let mut noise = String::from("class EarlierCalls {\n");
         for n in 0..600 { noise.push_str(&format!(" bound{n:04}() {{}}\n")); }
-        noise.push_str(" run() {\n");
+        noise.push_str(" run(other: any) {\n");
         for n in 0..600 { noise.push_str(&format!("  this.bound{n:04}();\n")); }
+        // Actual directories also contain unrelated unresolved member calls.
+        // Skipping only bound targets must not make this fixture easier than the real task.
+        for n in 0..600 { noise.push_str(&format!("  other.unrelated{n:04}();\n")); }
         noise.push_str(" }\n}\n");
+        let mut nested_noise = String::from("function nested(other: any) {\n");
+        for n in 0..3000 { nested_noise.push_str(&format!(" other.unrelated{n:04}();\n")); }
+        nested_noise.push_str("}\n");
         for (file, text) in [(TARGET, target_body), (EDITOR, editor_body.as_str()),
             ("src/map/aaaEarlierCalls.ts", noise.as_str()),
+            ("src/map/aaaNested/noise.ts", nested_noise.as_str()),
             ("src/other/outside.ts", "function outside(layer: any) { layer.setZoomOverride(12); }\n")] {
             let path = owned.path().join("repo").join(file);
             std::fs::create_dir_all(path.parent().unwrap())?;
