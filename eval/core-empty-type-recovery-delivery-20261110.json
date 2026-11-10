@@ -1,0 +1,115 @@
+{
+  "status": "DEPLOYED_AND_NORMAL_INSTALLED_TYPE_RECOVERY_VERIFIED",
+  "at_utc": "2026-11-10T08:59:28.679260+00:00",
+  "binary_source_commit": "ce8e84a936efbca706085c635421e4798192025f",
+  "problem": "Empty filter-file impact offered no route to a sibling controller attribute use; selected-class recovery was restricted to its own directory.",
+  "delivered_behavior": {
+    "impact_analysis_and_compute_blast_radius": "Empty selected-class impact retains the local hint and offers bounded project-wide literal type-name search. Empty file impact offers at most four already-admitted class seeds within 6KiB.",
+    "actual_source_followthrough": "The offered search finds the InstallationplansController annotation at line24; emitted source reads match independently checked source bytes and hashes.",
+    "limits": "Lexical mentions only; no attribute binding, callback execution or new graph dependency is asserted. Graph counts remain unchanged.",
+    "codemap": "Existing GetValue metadata and source recovery preserved."
+  },
+  "verification": {
+    "requests": 19,
+    "task_calls": 13,
+    "total_text_bytes": 106011,
+    "task_checks_passed": true,
+    "preservation_passed": true,
+    "all150_definitions_unchanged": true,
+    "errors": [],
+    "pending_request_id": null,
+    "update_attempts": 0,
+    "targeted_tests_passed": 38
+  },
+  "installed_pair": {
+    "server_sha256": "dd26c8e8eb2f56259e6d751713024a17d68c00698d97ef35394c80c125bf1ec9",
+    "manifest_sha256": "5abbb106c953c128beb644679c11ecbd62109c9e06d22855b7b968e53c1cbccf",
+    "native_assets_unchanged": 214,
+    "parser_contract": "vb-ingestion-parser-v6",
+    "source_generation": 3144,
+    "normal_primary_pid": 43132
+  },
+  "evidence": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-shipping-v1-20261110.json",
+      "sha256": "3c475402bc310d972278d6505c795e79b1892f966b83540cdceaaad29f42aff3"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-paired-package.json",
+      "sha256": "d283bab89d83e74c00ef7f9bdf90718257c3f408ca6c4906ec5b79d14cdbed8c"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-candidate-v1\\acceptance.json",
+      "sha256": "5c25d170ff6feb15124476aaa81af4d54ee547a7ceaf6302aabdb4392fc843ed"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-normal-v1\\acceptance.json",
+      "sha256": "313cca713222de4c161100b0b5c9e86ea74a4c13f2c585bb6d50d54dba7d413e"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-release-gates.json",
+      "sha256": "47ad5fdaf787eafbf180dccab652f9bcaeb3fb440547cbacc189a6f6705fd713"
+    },
+    "validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-install-validation.json",
+      "sha256": "33265114d7ba131c2cf8d9efe70090cda331ac2583dbdaf30f92e89ae0c77f59"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-install-upgrade.json",
+      "sha256": "9bb2b6f910e81efca3179aa1142e8ab23b5726e601ecccbafd046badc44a275d"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-config-hold-20261110.json.released.json",
+      "sha256": "086cfa000f365a517a85e3bb7c020687ea703795454ab6843d9d016f4c2be9cf"
+    },
+    "helper_input_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-helper-input-addendum-20261110.json",
+      "sha256": "7c65bfadeb1e819a1f99178099fdb858fb76d20e7dbe6aa92c75945565eb8ff0"
+    },
+    "verifier_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-verifier-review.json",
+      "sha256": "9adb6aa074632924222a81f42ff705e85a75d9803d53bd42438ce8eab477d40b"
+    },
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-type-recovery-implementation-20261110.json",
+      "sha256": "21182b946c1972ce9951072f6006e8570c8cfdde9c57151eee97f898ad6339cb"
+    },
+    "frozen_qa": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-installation-cache-qa-20261110.json",
+      "sha256": "331ce182d8c4fd32b780ec813fe797b4be443d0bbc9312af940dfdc240fa80b5"
+    }
+  },
+  "resources": {
+    "config_hold_released": true,
+    "config_unchanged": true,
+    "normal_runtime_restored": true,
+    "owned_resources_closed": true,
+    "owned_tmp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-empty-type-recovery-20261110-package",
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0acfb745e9834542a79986a2adf0e1ff",
+    "retained_install_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0acfb745e9834542a79986a2adf0e1ff.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0acfb745e9834542a79986a2adf0e1ff.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0acfb745e9834542a79986a2adf0e1ff.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0acfb745e9834542a79986a2adf0e1ff.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0acfb745e9834542a79986a2adf0e1ff.04-committed-no-start.json"
+    ],
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, backup, journals and diagnostic evidence for review; deletion requires approval of exact paths. Only new run-owned temporary fixtures removed."
+  },
+  "agent_usefulness": {
+    "latest_frozen_scores": {
+      "assisted": 6,
+      "source_only": 7,
+      "maximum": 10
+    },
+    "neither_task_complete": true,
+    "fresh_task_win_proven": false,
+    "frozen_tasks_replayed_or_rescored": false,
+    "causal_limit": "The assisted agent already found the filter through grep. This repair is not established as the cause of the task deficit or a remedy for it.",
+    "assessment": "Concrete navigation repair delivered; broader agent usefulness remains unproven."
+  },
+  "goal_complete": false,
+  "original_31_findings_or_19_full_gates_closed": false,
+  "next_action": "Continue original CodeMap/Blast agent-usefulness work. Select the next change only from an observed obstacle to completing a whole real agent task; do not use another locally provable recovery fix as evidence of overall success. Preserve all frozen tasks without replay or rescore."
+}

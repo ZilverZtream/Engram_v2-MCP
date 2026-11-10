@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T08:28:46.256111+00:00",
+    "at_utc": "2026-11-10T08:59:28.679260+00:00",
     "reason": "Fresh cache task assisted6/source7 remains incomplete. Actual empty filter-file impact lacks useful cross-directory type-name recovery; improve that existing core navigation without parser expansion.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius usefulness: bounded lexical recovery for selected class and empty file impact, based on actual attribute-use source witness.",
-    "next_user_visible_deliverable": "Commit source, build normal release, prepare server-only pair, verify actual emitted recovery/current source, deploy with existing installer and restore normal runtime. No reindex required.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness; empty-impact type recovery deployed and checked, broad task completion still unproven.",
+    "next_user_visible_deliverable": "Continue original CodeMap/Blast agent-usefulness work. Select the next change only from an observed obstacle to completing a whole real agent task; do not use another locally provable recovery fix as evidence of overall success. Preserve all frozen tasks without replay or rescore.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9854,11 +9854,11 @@
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
-    "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
+    "latest_user_correction": "Four weeks of circular small fixes and repeated acknowledgments without sufficient outcome improvement. Latest frozen comparison remains assisted6/source7, neither complete. Do not count a narrow repair as whole-task usefulness; select further work by an observed obstacle to task completion.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "Completed fresh6/7comparison, implemented bounded empty class/file recovery, independent source review and38behavior tests passed; actual deployment remains pending."
+      "reason": "Release build, installed pair and normal-runtime source followthrough verified; no whole-task win and no overall completion."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -11778,14 +11778,23 @@
       "sha256": "331ce182d8c4fd32b780ec813fe797b4be443d0bbc9312af940dfdc240fa80b5"
     },
     "selected_type_recovery": {
-      "state": "IMPLEMENTED_REVIEWED_38_TESTS_PASS_NOT_BUILT_OR_DEPLOYED",
+      "state": "DEPLOYED_AND_NORMAL_INSTALLED_TYPE_RECOVERY_VERIFIED",
       "scope": "Offer lazy project-wide type-name recovery for selected classes and bounded already-admitted class-seed recovery from an empty file blast. Preserve narrow hint and graph counts; returned text matches require current source inspection.",
       "causal_limit": "Cedar found and read the filter via grep; this gap is not established as sole cause of its missing evidence. Do not relabel recovery as actual attribute binding or future full-task win.",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-type-recovery-implementation-20261110.json",
         "sha256": "21182b946c1972ce9951072f6006e8570c8cfdde9c57151eee97f898ad6339cb"
       },
-      "tests_passed": 38
+      "tests_passed": 38,
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-type-recovery-delivery-20261110.json",
+        "sha256": "822297b74101d93e109cfcdc66a23fa0b9c986bf040b59ca8dcac710d410f95b"
+      },
+      "fresh_task_win_proven": false
+    },
+    "latest_type_recovery_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-empty-type-recovery-delivery-20261110.json",
+      "sha256": "822297b74101d93e109cfcdc66a23fa0b9c986bf040b59ca8dcac710d410f95b"
     }
   }
 }
