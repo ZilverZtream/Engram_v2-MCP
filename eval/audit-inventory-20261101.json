@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T00:55:44.822204+00:00",
-    "reason": "Selected-declaration continuation deployed and checked in actual candidate/normal contexts. Exact new38line action retains Savecallback; old120line page unchanged; net3988B lower known-source two-call cost.53integration+1budget tests pass. No task retry/fulltaskwin; broader CodeMap/Blast usefulness work remains active.",
+    "at_utc": "2026-11-10T01:43:12.935325+00:00",
+    "reason": "Implicit-call false WMS dependency corrected and installed at generation3142. Real selected caller retains all four original valid menu entries including With writes411/412; Band3 and Coordinate5 preserved. Earlier rejected candidates and observer failures remain recorded. Broader agent usefulness remains unproven.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness, original navigation/witness/recovery queue. Selected invocation-property and declaration-continuation corrections delivered; do not repeat their build/deployment or frozen task trials.",
-    "next_user_visible_deliverable": "Continue from retained original task evidence and actual source checks to the next demonstrated core-tool limitation. A missed/unselected available action alone does not justify another patch. Do not expand audits, instruction drafting, catalog, performance or benchmark infrastructure; preserve task criteria and failures.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. Selected implicit-call correction delivered; do not repeat its builds, migrations or frozen task trials.",
+    "next_user_visible_deliverable": "Continue the original core-tool task evidence toward an actual agent-usefulness outcome. Frozen PASS/PARTIAL/PARTIAL/FAIL/PARTIAL remains unchanged; narrow witness repairs do not close the broader assignment. Do not expand instruction drafting, audits, catalog, performance or ownership work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -10535,13 +10535,9 @@
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
     "current_owned_resource_state": {
-      "daemon_pid": 11080,
-      "launcher_pid": 25296,
-      "maintenance_hold_active": false,
-      "pending_build_or_test": false,
-      "pending_rpc": null,
-      "candidate_and_judge_complete": true,
-      "do_not_resume_terminal_attempt": true
+      "status": "ALL_OWNED_TEST_AND_MAINTENANCE_RESOURCES_CLOSED",
+      "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+      "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-01390ca1389340b280b92ff7840f64d4"
     },
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
@@ -11530,18 +11526,12 @@
       "sha256": "c5b9817630a90da9eb33058f730dd625e13d78a154a20b3756c7e75fb9b3b0d5"
     },
     "runtime_maintenance_checkpoint": {
-      "status": "COMPLETED_HOLD_RELEASED_NORMAL_VERIFIED",
-      "delivery": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-delivery-20261110.json",
-        "sha256": "e168ef6770e254797ba8be132b202c4f5aeb23696aa83334a34d8df4975b9b2c"
-      },
-      "hold_active": false,
-      "normal_primary_pid_at_verification": 8712,
-      "generation": 3140,
-      "historical_checkpoint": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-maintenance-checkpoint.json",
-        "sha256": "844ece7c9038c6e4b790ea9878fbbee8ff69fb7fb4cb42d03fed6d9448ce4fb9"
-      }
+      "status": "INSTALLED_NORMAL_VERIFIED_NO_HOLD",
+      "generation": 3142,
+      "pid_observed": 49412,
+      "manifest_sha256": "660646d2e35430122e27b6e9ec6d3d8c29c8b2ea6b5c0da4f3d0b918bc678fed",
+      "pending_request_id": null,
+      "hold_released": true
     },
     "latest_invocation_property_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-invocation-property-delivery-20261110.json",
@@ -11554,6 +11544,10 @@
     "latest_declaration_continuation_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-delivery-20261110.json",
       "sha256": "e168ef6770e254797ba8be132b202c4f5aeb23696aa83334a34d8df4975b9b2c"
+    },
+    "latest_implicit_call_property_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-implicit-call-property-delivery-20261110.json",
+      "sha256": "d8dcff7ff05cf65cfd38b29d08f60ef4770c5f1a7947dcd8e3de0763f7b3efcd"
     }
   }
 }
