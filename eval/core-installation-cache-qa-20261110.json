@@ -1,0 +1,158 @@
+{
+  "status": "FROZEN_ASSISTED_6_SOURCE_ONLY_7_NO_TASK_COMPLETION_OR_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T08:08:10.056331+00:00",
+  "installed_source_commit": "6869144914185380027f430579ea504568a3e12f",
+  "recording_baseline": "7d340d5",
+  "task": "Assess installation-plan endpoint cache lifetime0to300 and claimed freshness/locality against filter, tokens, consumers and final response policy.",
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-contract.json",
+      "sha256": "3d806c1d35cbedfcc861f921139a84687ebe66e7defdb01d2a3e13180c3b2658"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-binding.json",
+      "sha256": "0241739723752a54fc92ab4a236a37913a2e95dddaaff06351f14dcc1a5e45b6"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-readiness.json",
+      "sha256": "73151f95284a47c6b160bf05cdf427c15e82a90737342b78816374329e054ced"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-oracle.json",
+      "sha256": "21a001b76ef73f9b27fc331523cb7b252a4378e2de1fecc4228a54b39d59c688"
+    },
+    "quality-packet": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-quality-packet.json",
+      "sha256": "ed2ce7e367a73a24c7db98168c0e8f63cae0d6b03462f6a7cdb0032dfb9f2396"
+    },
+    "candidate-source-verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-candidate-source-verification.json",
+      "sha256": "b44dd38b807820d403cd0f840c1e5d77c6144da9ef00beb84303f9ece723ece8"
+    },
+    "blind-judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-blind-judgment.json",
+      "sha256": "22fb57c707d5ae30e4127dd58e0f031751855f8341bfc8a458e19dc72b3c9d8f"
+    },
+    "private-arm-map": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-private-arm-map.json",
+      "sha256": "735b98d8b8feab67046704c1076aa3d4f731e5e9853783434ce625e896b8e754"
+    }
+  },
+  "results": {
+    "assisted": {
+      "candidate": "cedar",
+      "opaque_label": "A",
+      "score_out_of_10": 6,
+      "criteria": [
+        2,
+        1,
+        1,
+        0,
+        2
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-cedar-answer.txt",
+        "sha256": "58d6591d7592fb437c523ce2e7a80880539a4334540cb2e6fdbcd1b26a3dceb9"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-cedar-private-ledger.json",
+        "sha256": "440c20350d48d809b269c761605d10c7e190e07464392b6cd9037f9847dcafed"
+      },
+      "requests": 5,
+      "setup_bytes": 21151,
+      "delivered_bytes": 49297,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld": [
+        {
+          "number": 5,
+          "utf8_bytes": 17599,
+          "sha256": "e95d1b80fc3823061d4d7f28396b76932f4714e6eb37f1b394cfc5b2bf63a128"
+        }
+      ],
+      "delivered_tools": [
+        "get_codebase_overview",
+        "impact_analysis",
+        "grep_project"
+      ]
+    },
+    "source_only": {
+      "candidate": "birch",
+      "opaque_label": "B",
+      "score_out_of_10": 7,
+      "criteria": [
+        2,
+        1,
+        1,
+        1,
+        2
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-birch-answer.txt",
+        "sha256": "9b19805e9143479998274c0135c56e2e6eb477851c35344e734597ff7cf28894"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-qa-20261110-birch-private-ledger.json",
+        "sha256": "0fe1cdb9a215018dca8a42e67055a4da51d25949f9fec6439eb3e70bdfb8cfab"
+      },
+      "requests": 8,
+      "setup_bytes": 4863,
+      "delivered_bytes": 54617,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld": [
+        {
+          "number": 8,
+          "utf8_bytes": 19511,
+          "sha256": "a50693c5c81386126e79ca4247d537d998f7a10c02bf9932443c3e4c811510e5"
+        }
+      ],
+      "delivered_tools": []
+    }
+  },
+  "conclusion": "Both reject the unsupported freshness guarantee, but neither completes browser, timestamp-production or final global-policy source tracing. Source-only obtained more service evidence and the global call. The assisted answer explicitly preserves gaps; its 400-line service read was withheld. No improvement in agent task completion demonstrated.",
+  "method_limits": [
+    "Criteria and contract fixed before candidate work. Independent oracle author had no candidate answers/evidence, but completed after one candidate answer; no pre-answer oracle-freeze claim.",
+    "Same8request/65536byte cap includes complete5tooldefinitions for assisted; setup costs differ. No amortized-tool or causal productivity claim.",
+    "Assisted firstCodeMap thenimpact instruction explicit; remaining choices free. Both broad source reads and delivery cap affected results.",
+    "Opaque judge labels do not guarantee blinding. Shared injected environment, no held-out/history-blind claim.",
+    "No candidate restarted, coached, replayed or rescored; no application/runtime tests performed."
+  ],
+  "source_verification": {
+    "oracle_files": 16,
+    "all_oracle_sha256_match_current": true,
+    "delivered_source_ranges_verified": true
+  },
+  "navigation_diagnosis": {
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-installation-cache-navigation-20261110.json",
+      "sha256": "405846317f7514b7dee580e0b381339dadb21a30327453f0137948444d159709"
+    },
+    "observation": "File blast for ClientCacheWithTimestampAsEtag reports zero external dependents. Controller source24 visibly uses the attribute. Current sidecar does not emit static attribute-use relationships; CodeMap Calls correctly contains onlyGetById. Existing class name recovery is directory-only, excluding controller sibling directory.",
+    "selected_change": "Offer lazy project-wide type-name recovery for selected classes and bounded already-admitted class-seed recovery from an empty file blast. Preserve narrow hint and graph counts; returned text matches require current source inspection.",
+    "state": "IMPLEMENTATION_IN_PROGRESS_NOT_TESTED_OR_DEPLOYED",
+    "causal_limit": "Cedar found and read the filter via grep; this gap is not established as sole cause of its missing evidence. Do not relabel recovery as actual attribute binding or future full-task win.",
+    "parked": "New attribute extraction/graph schema; no parser migration required for selected navigation fix."
+  },
+  "operator_corrections": [
+    "Initial root diagnostic guessedGetValue:25; emitted identity isattribute line24. Absent-target result preserved and corrected in separatev2capture before candidate work.",
+    "Template preflight retained DeleteLayers instruction. Corrected toGetValue and rehashed setup/contract/binding before agents started; preflight files retained.",
+    "Oracle usesUTF8BOM; consumers readutf-8-sig; source evidence unchanged."
+  ],
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefixes": [
+      "core-installation-cache-qa-20261110",
+      "core-installation-cache-selection",
+      "core-installation-cache-navigation",
+      "prepare_installation_cache_qa_20261110",
+      "freeze_installation_cache_qa_20261110",
+      "record_installation_cache_qa_20261110"
+    ],
+    "relay_search_processes_and_observer_handles_closed": true,
+    "candidate_locks_absent": true,
+    "pending_rpc": null,
+    "application_or_index_mutation": false,
+    "cleanup_condition": "Retain artifacts for review in recorded diagnostics root; deletion requires exact-path approval. No preexisting folders removed."
+  },
+  "goal_complete": false,
+  "original_31_or_19_closed": false
+}
