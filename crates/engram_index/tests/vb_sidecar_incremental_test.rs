@@ -118,6 +118,10 @@ End Class
 Public Class CacheMeta
     Public Property CoordinateCount As Long
 End Class
+Public Class RowState
+    Public Property Active As Boolean
+    Public Property Reason As String
+End Class
 Public Class IndexedValues
     Default Public Property Item(index As Integer) As Long
         Get
@@ -192,6 +196,25 @@ Public Class Consumers
             Return .CoordinateCount
         End With
     End Function
+    Public Sub WriteInferredRow(rows As List(Of RowState))
+        Dim row = rows.FirstOrDefault()
+        With row
+            .Active = True
+            .Reason = "edited"
+        End With
+    End Sub
+    Public Sub NestedIndexRead(rows As List(Of RowState), values As Long())
+        Dim row = rows.FirstOrDefault()
+        values(row.Active) = 0
+    End Sub
+    Public Function ReadInferredRow(rows As List(Of RowState)) As String
+        Dim row = rows.FirstOrDefault()
+        Return row.Reason
+    End Function
+    Public Sub NestedReceiverRead(rows As List(Of RowState))
+        Dim row = rows.FirstOrDefault()
+        row.Reason.Length = 1
+    End Sub
     Private Function Transform(value As Integer) As Integer
         Return value
     End Function
@@ -250,6 +273,8 @@ End Class
         ("Consumers.ReadIndexed", "IndexedValues.Item", "property_get", "Return values.Item(0)"),
         ("Consumers.WriteIndexed", "IndexedValues.Item", "property_set", "values.Item(0) = value"),
         ("Consumers.ReadUnresolved", "CacheMeta.CoordinateCount", "property_get", "Return missing.CoordinateCount"),
+        ("Consumers.WriteInferredRow", "RowState.Active", "property_set", ".Active = True"),
+        ("Consumers.WriteInferredRow", "RowState.Reason", "property_set", ".Reason = \"edited\""),
         ("Consumers.ClassifyAutomatic", "Consumers.Band.MaxFeatures", "property_get", "If featureCount <= band.MaxFeatures AndAlso coordinateCount <= band.MaxCoordinates Then"),
         ("Consumers.ClassifyAutomatic", "Consumers.Band.MaxCoordinates", "property_get", "If featureCount <= band.MaxFeatures AndAlso coordinateCount <= band.MaxCoordinates Then"),
         ("Consumers.ClassifyAutomatic", "Consumers.Band.MinZoom", "property_get", "Return band.MinZoom"),
@@ -269,6 +294,9 @@ End Class
         ("Consumers.UnknownArray", "Consumers.Band.MaxFeatures"),
         ("Consumers.PredeclaredControl", "Consumers.Band.MaxFeatures"),
         ("Consumers.ExplicitControl", "Consumers.Band.MaxFeatures"),
+        ("Consumers.NestedIndexRead", "RowState.Active"),
+        ("Consumers.ReadInferredRow", "RowState.Reason"),
+        ("Consumers.NestedReceiverRead", "RowState.Reason"),
     ] {
         assert!(!edges.iter().any(|edge| edge["source_name"] == caller
             && edge["kind"] == "calls" && edge["target_kind"] == "property"

@@ -1387,7 +1387,12 @@ internal sealed class AstEmitter
                         QualifiedNameSyntax qualified => qualified.Left,
                         _ => null
                     };
-                    if (receiverExpression is not null)
+                    // A direct assignment target is not an implicit method
+                    // read. Keep its existing lexical recovery, but do not
+                    // exempt members nested in an index argument or receiver.
+                    var directWrite = reference.Parent is AssignmentStatementSyntax assignment
+                        && assignment.Left == reference;
+                    if (receiverExpression is not null && !directWrite)
                     {
                         var receiverInfo = model.GetSymbolInfo(receiverExpression);
                         // Without framework references VB can lose the element
