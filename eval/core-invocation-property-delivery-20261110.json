@@ -1,0 +1,148 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_INVOCATION_PROPERTY_WITNESS_FIX",
+  "at_utc": "2026-11-10T00:19:04.838921+00:00",
+  "scope": "Delivered correction of two source-disproved dependency identities in actual CodeMap/impact output. Accumulated known-history verification, not a fresh or capped full-task win.",
+  "source_commit": "1be20fbe5503a29a77ecc67ff76f8015feb740f7",
+  "before": {
+    "false_leads": [
+      {
+        "source": "FileLayerSpatialService.BuildMetaOnlyJson",
+        "call_site_line": 2598,
+        "invocation": "Math.Max",
+        "wrong_target": "WMS LayerScaleHint.max"
+      },
+      {
+        "source": "RelationHelper.BuildPair",
+        "call_site_line": 331,
+        "invocation": "updates.Max",
+        "wrong_target": "WMS LayerScaleHint.max"
+      }
+    ],
+    "observation": "CodeMap offered the unrelated WMS property; both impact tools reported 61 direct dependents. Independent source evidence disproved these two selected identities only."
+  },
+  "after": {
+    "native": "Single explicit four-file old/new comparison: exactly the selected false property edge disappears at each site; ordinary invocation multisets remain identical.",
+    "genuine_controls": "All five CacheMeta.CoordinateCount calls at 1465, 2000, 2344, 2533 and 2593 remain exactly identical; the separate contains edge is also identical.",
+    "cold": "One ordinary migration advanced generation 3139 to 3140. A separately closed read-only continuation found neither selected false caller in the returned direct WMS-property graph of either impact tool; one other direct caller remains observed and unvalidated. CodeMap returned genuine property references including CoordinateCount at 2593.",
+    "native_tests": {
+      "passed": 15,
+      "failed": 0
+    },
+    "cold_preservation": "Receipts record unchanged 150 tool definitions, 300 memory sections in the migration, unrelated registry and other 14 project metadata, and pinned OciusX source hashes. These are bounded preservation checks, not a complete knowledge inventory.",
+    "normal": "Installed normal IPC completed 19 requests; both selected false callers absent in both impact tools, CodeMap false property target absent, five genuine CoordinateCount witnesses and eight exact source windows checked. Observer closed, no pending request, generation3140 unchanged."
+  },
+  "preserved_failures": [
+    "Installed old producer failed the new false-property regression as expected.",
+    "First native candidate: 14 passed, 1 failed because genuine indexer getter/setter edges disappeared; production was corrected without weakening preservation expectations.",
+    "Original native comparison FAIL is unchanged: helper counted contains plus five calls as six. Separate offline analysis checks kind=calls and contains separately; no native rerun.",
+    "Original cold acceptance FAIL is unchanged: it rejected the depth-limited graph as clipped. Separately retained read-only continuation completes the selected direct-caller checks without a second migration."
+  ],
+  "limits": [
+    "Native four-file compilation is not full-project semantic proof. Ordinary preserved invocations remain unresolved.",
+    "Cold observations are revision-admitted and bounded, not one atomic snapshot. Impact graphs retain depth-limit frontiers; CodeMap reports nine missing nodes and one display omission. Empty or omitted output alone proves no semantic absence.",
+    "No claim all prior 61 dependents were false, all property fallback is repaired, or the remaining direct caller is valid.",
+    "Original frozen QA outcomes, 31 findings and 19 gates remain unchanged; no original gate closure, fresh full-task win, or overall goal completion."
+  ],
+  "evidence": {
+    "source_evaluation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-invocation-property-20261110.json",
+      "sha256": "c5b9817630a90da9eb33058f730dd625e13d78a154a20b3756c7e75fb9b3b0d5"
+    },
+    "before": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-before-20261110.json",
+      "sha256": "5ea8d8d0701b59d1b90a3907d1b7d41266c4d769566d84fe9eb7dea25849cd5f"
+    },
+    "rejected_v1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-v1-rejected-20261110.json",
+      "sha256": "05423c8d5c9d5d62d0dde47e2bb65e7e9c1377fb2570b49c8d67c18246e68d31"
+    },
+    "native_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-native-v2-20261110.json",
+      "sha256": "c0f08b659a47b90e4f362b81203cbf967f331fe222eefb8dc9f72380c93fb0d5"
+    },
+    "native_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-after-v2-20261110.json",
+      "sha256": "6368eaf3f8858600bc9287099ddb79b4e02cbd57fbe73413d8932a7b497d24b1"
+    },
+    "raw_source_comparison": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-actual-20261110.json",
+      "sha256": "0775ae5344da606d1e3492d4b4ebe923e2562bc2a436ca5c606e1ffd6be7cea4"
+    },
+    "corrected_raw_analysis": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-actual-20261110-corrected-analysis.json",
+      "sha256": "c2d54d1b4ac349579f4887741c2459acf18eb412c2735c6e5998a22fa7be53e9"
+    },
+    "actual_tool_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-math-max-witness-20261110.json",
+      "sha256": "bab0e18de931542776167bc4809bb14f06eabd0fdd450ec2fe71d261894a6a00"
+    },
+    "cold_original": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-cold-v1\\acceptance.json",
+      "sha256": "8cfa22ffa5a4e77c7174a5f876da9b262dd8e02d7c1cfbebc5460244b2ddf04c"
+    },
+    "cold_followup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-cold-followup-v1\\acceptance.json",
+      "sha256": "f2cfffa0fe7dca460b02a3bfcdc5a7567e30de3136edab25a14c89d0b4ada523"
+    },
+    "cold_combined": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-cold-followup-v1\\combined-evidence.json",
+      "sha256": "e2fff2b131fb14708d7c67a5302980a9707a846a6f7f634211b7885d48da6925"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-release-gates.json",
+      "sha256": "f893a680c68307fbcd2c177cf037b0da58dce7485ecd89beb9e33eda9f7b4c1f"
+    },
+    "install_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-install-validation.json",
+      "sha256": "f1e499a3735ec7ac484274f7ec0597a244243844ebbab22437024dfbf2871bf5"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-install.json",
+      "sha256": "f456023100ecf1a33f0e56d765ba116a2cf3dd716b12c4df28ccb150aaff6c1c"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-normal-v1.json",
+      "sha256": "948619ce8501b3d30ce9fd175cc6dbd1bb7b4ecc77a17cc7a6804b01c3ad07a8"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-config-hold-20261110.json.released.json",
+      "sha256": "bcaadf0430244043a2f6afe3d414bc6c3af28df8909bf6a55824c7495657485f"
+    },
+    "followup_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-followup-helper-review.json",
+      "sha256": "e4b73f86cd3d5888b9bd7c1a2daed8a2a66d980732650415ffb738ff8937a85a"
+    },
+    "normal_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-followup-review-normal-addendum.json",
+      "sha256": "83a951e8272b7f2377e3775f324e43b465b2692ab7181fc61d0ff13c58102936"
+    }
+  },
+  "resources": {
+    "hold_released": true,
+    "observer_closed": true,
+    "pending_rpc": null,
+    "owned_fixture_temporaries_removed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-eb21e6c11fc947cea249da2272620d1e",
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_candidate_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-package",
+    "cleanup_condition": "Retain evidence, candidate and installer backup for reviewed recovery; remove only after exact-path authorization. No preexisting folder removed."
+  },
+  "original_gates_closed": false,
+  "fresh_full_task_win": false,
+  "goal_complete": false,
+  "installed_runtime": {
+    "observed_pid": 46884,
+    "server_sha256": "8c2951a7acf91bd96759d65876d9e9ae208d7ccc00285d9569649c5dce2fc84a",
+    "manifest_sha256": "a58bf9a1982757bf20565e21ac6f3017384a55272f0efefe1fad7ab2cc999eaa",
+    "generation": 3140,
+    "rust_server_rebuilt": false,
+    "native_exe_sha256": "a7505232fe0663a67774fb22f9f118edc3e67bb14d4890d624c582c0a079a573",
+    "native_dll_sha256": "25d88d20f117f46f681eb210439c0c84ecb8643f94077acbafdfe52a5a6bf633"
+  },
+  "additional_verifier_failures_preserved": {
+    "exit_code": 1,
+    "error": "TypeError: combined_acceptance was None before binding actual completed continuation",
+    "installation_attempted": false,
+    "migration_repeated": false
+  }
+}
