@@ -1,0 +1,183 @@
+{
+  "status": "FROZEN_ASSISTED_7_SOURCE_ONLY_9_BOTH_INCOMPLETE_NO_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T10:19:50.363073+00:00",
+  "installed_source_commit": "b3887b45c84b06d370995adacd8d7243cb9790d3",
+  "recording_baseline": "b29fc69",
+  "task": "Review removing the Query parameter from TimeReportDaysController.GetValue and its service call because the developer claims id alone determines the result and list-query options cannot affect an individual response. Preserve current API behavior. Trace the actual contract/implementation, query-dependent selection/authorization/projection, downstream helpers/DTOs, and real caller/request usage. Determine the smallest defensible change and concrete expected-result regressions. Do not edit application code or assert unexecuted runtime tests. Final answer at most1200words.",
+  "evidence": {
+    "task-spec": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-task-spec.json",
+      "sha256": "2dc15d4e19d857c21d2c5be849858e4da16d0383e1ea97a68ee68cec2f59806c"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-contract.json",
+      "sha256": "70eefcc257cae9d8763b0f71994e4ea256611029fc281a0cc763b2bc839dfe91"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-binding.json",
+      "sha256": "360f7d7f4731a64d4ab429c1e105694285a035cceccccb05c20d5265e66c39ce"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-readiness.json",
+      "sha256": "eea63cf57438f96a78432cde084474c44e10de974ec4cb0074889bef12e43dd6"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-oracle.json",
+      "sha256": "470e4e6b0712b0aa4c58238f1d06ba9b3fb515728b9b48c1835438e8b3b3ae77"
+    },
+    "quality-packet": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-quality-packet.json",
+      "sha256": "55c877246514040a42135cedd43d29c5952123dbb8001556a685319e24faa183"
+    },
+    "candidate-source-verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-candidate-source-verification.json",
+      "sha256": "62d1813f76bb57bf820c2a350acff8655a400be31b382bc119b921b9cd3356ec"
+    },
+    "oracle-source-verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-oracle-source-verification.json",
+      "sha256": "e007c3820e7e6f566e4ea886804eea133c885a3a24039bb8eddcf6cf553fe7cd"
+    },
+    "blind-judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-blind-judgment.json",
+      "sha256": "32c4b94e1bd6b13e8c78ca08b30aaa2b37e2f51ff46b11c0e43de37527a07858"
+    },
+    "private-arm-map": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-private-arm-map.json",
+      "sha256": "b5b10c700307d6f9ece5b46103267a2b96417396603651dc4070325f556ab197"
+    }
+  },
+  "installed_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-delivery-20261110.json",
+    "sha256": "83c74b88a4e399135fb4327ed79c3dded6c1857106507ffd73d97de182084f30"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "alder",
+      "opaque_label": "B",
+      "score_out_of_10": 7,
+      "criteria": [
+        1,
+        2,
+        1,
+        1,
+        2
+      ],
+      "complete": false,
+      "material_errors": [],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-alder-answer.txt",
+        "sha256": "2ad1456536ac6b4e108b87fab5454aff82f7dfaf5c86b1ecf6fda42a166cd66f"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-alder-private-ledger.json",
+        "sha256": "4c88e205cd4c7dd8d84feb83c2204213da7b74624f4b66231f78057a2185abce"
+      },
+      "requests": 8,
+      "setup_bytes": 20611,
+      "delivered_bytes": 63112,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld": [
+        {
+          "number": 8,
+          "utf8_bytes": 8459,
+          "sha256": "342e4d9990e16909cada1ab31d234b0b69228d51fa0a3aa699c3c74647195936"
+        }
+      ],
+      "errors": [
+        {
+          "number": 6,
+          "status": "RETURNED_ERROR",
+          "text": "{\"code\":-32602,\"message\":\"include_source requires an exact selected file surviving scope, filter and exclusions\"}"
+        },
+        {
+          "number": 7,
+          "status": "REFUSED_OR_ERROR",
+          "text": "{\"error\":\"Refusal\",\"message\":\"Path traversal or noncanonical path\",\"request_charged\":true}"
+        }
+      ],
+      "missing_traces": [
+        "Independent target interface signature evidence.",
+        "DayOut conditional entries and serialization-hook behavior.",
+        "Expansion parser and relevant access/lock helper implementation.",
+        "Actual query consumer/request usage beyond target controller."
+      ]
+    },
+    "source_only": {
+      "candidate": "beech",
+      "opaque_label": "A",
+      "score_out_of_10": 9,
+      "criteria": [
+        2,
+        2,
+        1,
+        2,
+        2
+      ],
+      "complete": false,
+      "material_errors": [],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-beech-answer.txt",
+        "sha256": "8d98d90ce0196ca7f5445b46e802143d96b66cb149a52ef5a2997f56c648175d"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-beech-private-ledger.json",
+        "sha256": "96f725dc84669e668ef994db0cdfd4f097c3612811d293acc62488ec051c7b60"
+      },
+      "requests": 8,
+      "setup_bytes": 4317,
+      "delivered_bytes": 44398,
+      "status": "COMPLETE_REQUEST_BUDGET",
+      "withheld": [],
+      "errors": [],
+      "missing_traces": [
+        "Expansion parser implementation.",
+        "A relevant access/identity or lock helper implementation and downstream nested-entry behavior."
+      ]
+    }
+  },
+  "conclusion": "Both correctly reject Query removal. Source-only substantiates the interface signature, DTO conditional serialization state and an actual list-service query caller. Assisted reaches the concrete implementation through new CodeMap navigation, but does not finish those traces. Neither completes expansion-helper and access/lock helper tracing. No whole-task completion or assisted advantage demonstrated.",
+  "observed_tool_effect": {
+    "implementation_route_uptake": "First CodeMap exposes TimeReportDayService.GetTimeReportDayById; second request targets that implementation with impact_analysis. Third request reads its full76-line source file. Positive forward route uptake, not a task win.",
+    "codemap_bytes": 8168,
+    "impact_summary_bytes": 9488,
+    "impact_potential_interface_callers_bytes": 5395,
+    "potential_interface_routes": 1,
+    "first_two_tool_bytes": 17656,
+    "first_two_source_only_bytes": 9107,
+    "assisted_setup_bytes": 20611,
+    "source_only_setup_bytes": 4317,
+    "causal_limits": "Tool definitions, forced first-two-tool intervention, source-search choices, errors and reply size all affect remaining evidence. One task does not isolate their causal effects or establish general productivity. Do not attribute all missing traces to the new implementation route."
+  },
+  "errors_and_limits": {
+    "request6": "CodeMap request uses include_source with a directory scope/path_contains identifier rather than an exact selected file; actual tool returns -32602 and no concrete recovery action.",
+    "request7": "Relay rejects path_prefix Site/ as noncanonical before tool execution. This is a comparison-harness constraint, not a demonstrated Engram production error.",
+    "request8": "Candidate corrects prefix to Site; actual8459-byte grep output withheld under unchanged byte cap. Before request8 only2576bytes remained. No withheld evidence supplied to candidate or judge.",
+    "unmet_original_write_expectations": "InstallationPlan Update/Delete targets still unresolved, separately recorded. This fresh task does not repair or rescore them."
+  },
+  "method_limits": [
+    "Task, criteria and15-file source oracle frozen before both candidates; all hashes and ranges rechecked after answers.",
+    "Same8request/65536byte cap includes setup and complete5tooldefinitions for assisted; setup cost is not amortized.",
+    "Assisted first CodeMap then impact on a relevant returned target mandated; subsequent choices free. Neither agent coached/restarted or old task replayed.",
+    "Opaque labels hide costs/identities from judge, but content can reveal capabilities. Shared environment; no held-out or history-blind claim.",
+    "Search time/results are bounded; no absence or runtime proof. No application edits or tests were executed."
+  ],
+  "next_selected_original_queue_work": {
+    "scope": "Reduce the evidence cost of CodeMap/Blast interface navigation before adding further route hints. Use this actual8168/9488-byte output and independent source witnesses; retain identities, source actions, bounds and uncertainty.",
+    "starting_observation": "One potential interface caller occupies5395bytes inside the9488-byte impact summary; first two required tool replies use17656bytes. This is a response-cost problem within the original tools, not a justification for another broad audit or new benchmark framework.",
+    "not_yet_implemented": true,
+    "no_promised_task_win": true,
+    "parked": "HTTP compiler-reference expansion, EG14, catalog/performance/ownership, further instruction drafting, and changes to frozen task caps/scores."
+  },
+  "resources": {
+    "all_candidate_requests_terminal": true,
+    "owned_observer_pipes_closed_by_relay": true,
+    "pending_rpc": null,
+    "application_mutation": false,
+    "index_update": false,
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retention": "Keep task setups, ledgers, answers, oracle and judgment under existing diagnostics root; exact-path approval required for deletion. No new worktree or scratch volume."
+  },
+  "original_full19gates_closed": false,
+  "original31findings_closed": false,
+  "goal_complete": false
+}
