@@ -1,0 +1,381 @@
+{
+  "status": "FROZEN_BOTH_COMPLETE_10_OF_10_ACTUAL_CODEMAP_AND_IMPACT_USE_NO_QUALITY_UPLIFT",
+  "at_utc": "2026-11-10T13:57:23.960506+00:00",
+  "task": "Assess the impact of simplifying sharedfunc.GetValidFileName to remove IO.Path.GetInvalidFileNameChars in one pass and then Trim the result, deleting its special colon-to-space/comma-removal rules and whitespace-collapse step. The maintainer claims this is behavior-preserving because callers only need a filesystem-safe filename and the String-to-String signature is unchanged. Determine the actual compatibility consequences before approving a shared-helper change. Trace the current helper behavior and a bounded, qualified set of real direct callers, then follow consequential caller uses through output paths, persisted names or user-visible download/output behavior where supported. Distinguish direct calls from textual leads and unproven runtime/external behavior. Recommend the smallest defensible change and concrete expected-result regressions; do not enumerate every unknown caller or unrelated layer. Do not edit application code or claim unexecuted tests. Final answer at most1200words.",
+  "installed_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
+    "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "spruce",
+      "opaque_label": "B",
+      "score_out_of_10": 10,
+      "criteria": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "complete": true,
+      "material_errors": [],
+      "scope_limits": [
+        "Final custom-form archive/browser flow is explicitly untraced; demonstrated disk-output boundaries are sufficient for this frozen task.",
+        "Report download route is not expanded; write behavior and filename-override boundary are established.",
+        "Caller coverage is representative, not exhaustive."
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-spruce-answer.txt",
+        "sha256": "3184168cd68bbada2d6401967e33cc97e3048a8c67b002242deaf94587e55510"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-spruce-private-ledger.json",
+        "sha256": "e2436e926923bd69da0cc49cdf059f5ce787f42655812a79c15a5c869fc71980"
+      },
+      "requests": 5,
+      "setup_bytes": 22303,
+      "delivered_bytes": 64564,
+      "ledger_status": "STOPPED_BYTE_BUDGET",
+      "answer_terminal": true,
+      "requests_and_bytes": [
+        {
+          "number": 1,
+          "request": {
+            "kind": "tool",
+            "tool": "get_codebase_overview",
+            "arguments": {
+              "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+              "scope": "Site/App_Code/shared-code/sharedfunc.vb",
+              "symbol_name": "GetValidFileName",
+              "include_declarations": true,
+              "include_source": true,
+              "include_retained_context": false,
+              "limit": 8,
+              "exclude_paths": [
+                "Site/Q",
+                ".audit-20261104",
+                ".audit-20261105-dev",
+                ".audit-20261105-browser-background"
+              ]
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 10643,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 2,
+          "request": {
+            "kind": "tool",
+            "tool": "impact_analysis",
+            "arguments": {
+              "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+              "symbol_fqn": "sym:function:Site/App_Code/shared-code/sharedfunc.vb:sharedfunc.GetValidFileName:212",
+              "detail": "summary",
+              "max_depth": 2,
+              "limit": 8
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 12116,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 3,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/customform/code/customFormSheet.vb",
+              "line_start": 450,
+              "line_end": 650
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 13442,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 4,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/customreport/code/reportBuilder.vb",
+              "line_start": 1,
+              "line_end": 150
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 5908,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 5,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/imagegallery/api-json/api-imagegallery.vb",
+              "line_start": 120,
+              "line_end": 270
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 152,
+          "withheld_for_budget": {
+            "utf8_bytes": 5653,
+            "sha256": "b072311ae65759eaa3f85d419a1fa4351ecfd8715505bd7c3588969143914835"
+          }
+        }
+      ]
+    },
+    "source_only": {
+      "candidate": "larch",
+      "opaque_label": "A",
+      "score_out_of_10": 10,
+      "criteria": [
+        2,
+        2,
+        2,
+        2,
+        2
+      ],
+      "complete": true,
+      "material_errors": [],
+      "scope_limits": [
+        "Not an exhaustive caller inventory.",
+        "Additional report and JSON-output callsites are expressly not traced beyond their observed immediate uses.",
+        "Some storage identity/call-connection context lies between exact cited lines; inspected calls, session handoff and ZIP use plus independent display/webhook traces establish the representative consequences without requiring broader source reads."
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-larch-answer.txt",
+        "sha256": "36a5f33a4b61bd84ea2f980f63bf13e4a436d4e687485758306295881cec3fbc"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-larch-private-ledger.json",
+        "sha256": "a78e272e74c786e54131615d9b5f7437faebb5e8a3a50812d7b2c4e026b647d2"
+      },
+      "requests": 7,
+      "setup_bytes": 6772,
+      "delivered_bytes": 63797,
+      "ledger_status": "READY",
+      "answer_terminal": true,
+      "requests_and_bytes": [
+        {
+          "number": 1,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site",
+              "pattern": "GetValidFileName",
+              "max_results": 8,
+              "context": 5
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 13333,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 2,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/shared-code/sharedfunc.vb",
+              "line_start": 212,
+              "line_end": 232
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 1158,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 3,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/modules/system/DownloadFile.aspx.vb",
+              "line_start": 1,
+              "line_end": 270
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 14372,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 4,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/storage/api-json/api-storage.vb",
+              "line_start": 1,
+              "line_end": 400
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 20334,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 5,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site/App_Code/integration/code/gis/vetrofibermap/WebhookManager.vb",
+              "pattern": "label",
+              "max_results": 8,
+              "context": 2
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 4216,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 6,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/integration/code/gis/vetrofibermap/WebhookManager.vb",
+              "line_start": 172,
+              "line_end": 215
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 2339,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 7,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/integration/code/gis/vetrofibermap/WebhookManager.vb",
+              "line_start": 1,
+              "line_end": 20
+            }
+          },
+          "status": "RETURNED",
+          "delivered_utf8_bytes": 1273,
+          "withheld_for_budget": null
+        }
+      ]
+    }
+  },
+  "evidence": {
+    "task_spec": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-task-spec.json",
+      "sha256": "b4a3345d7151e5ded737637bb51f2e9ef92b0bd7370b1b3dfadf4812262bcde5"
+    },
+    "source_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-oracle.json",
+      "sha256": "65df5db46513a55b8ba7bbe9974fc8f4c0874d15acd23a230e7d379dc37d2d91"
+    },
+    "source_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-candidate-source-verification.json",
+      "sha256": "14d5665f402410a68914fd7ae245beb17739b2b7f2c6fba8ea08474841f1cfaf"
+    },
+    "blind_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-blind-judgment.json",
+      "sha256": "01f393633d1e2b7ff521a9e9ea1be59620d30319e203c5bd89610af3ae5c8a07"
+    },
+    "private_arm_mapping": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-private-arm-map.json",
+      "sha256": "d230e9dad0bc9f3baa1650b3a9dc1481ef4a90054f9655c9128f9103ca6e3af9"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-readiness.json",
+      "sha256": "5686aa5da585b583e54bc9ccef27e1097418e563cf645d5cc460f09bbb30946c"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-contract.json",
+      "sha256": "bdc7458fdd7af11d481a5a178f298d4284168d85a93436a751d1d491e0f87937"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-binding.json",
+      "sha256": "c125ebfc06e9ede2419f4475da726d3a5471f1ce9e41c1200850ca86ed7f19e7"
+    },
+    "unbound_binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-binding-unbound.json",
+      "sha256": "b293b09edb30a5c92429763a422bc0d731273332b165d631fe11eb2e0e407c6c"
+    },
+    "startup_busy_readiness_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-selection.json",
+      "sha256": "36f12d8e68e4962edc73c2bad24cec3f6c77ee38deca71813ae193f8dce08b6f"
+    },
+    "successful_readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-shared-impact-qa-20261110-selection-v2.json",
+      "sha256": "9d3b79810c0e4ae40c8d6dd878b2776db5b2df5fa5e79e0e7d5aec901db4559b"
+    }
+  },
+  "limits": {
+    "requests": 8,
+    "delivered_utf8_bytes_including_setup": 65536,
+    "answer_words": 1200,
+    "tool_choice": "Free from request one; identical ordinary source capabilities.",
+    "setup_cost": "All five full actual tool definitions charged to assisted setup; not amortized.",
+    "candidate_exposure": "Fresh fork none and identical initial WAIT/START administration; shared AGENTS/environment possible. Not claimed held-out or history-blind.",
+    "source_judgment": "Five frozen source-based criteria. Representative consequential callers suffice; no extra exhaustive-caller checklist.",
+    "comparison": "One task with different caller choices. Both complete; fewer requests does not establish a causal or general productivity advantage.",
+    "source_only_terminal": "READY is the relay state with budget remaining; candidate voluntarily delivered a terminal answer after seven requests.",
+    "withheld_response": "Assisted request five delivered a 152-byte budget refusal. Its 5653-byte source body was withheld and cannot support the answer."
+  },
+  "demonstrated_behavior": {
+    "assisted_task_complete": true,
+    "actual_core_tool_use_verified": true,
+    "tools_used": [
+      "get_codebase_overview",
+      "impact_analysis"
+    ],
+    "compute_blast_radius_used": false,
+    "source_supported_conclusion": "Proposed GetValidFileName simplification changes punctuation and whitespace semantics, output names and potential same-directory collisions. Assisted answer traced custom-form and report disk writes and recommended retaining semantics with explicit expected-result regressions.",
+    "comparative_quality_uplift": false,
+    "general_productivity_advantage_proven": false,
+    "requests_difference_assisted_minus_source": -2,
+    "bytes_difference_assisted_minus_source": 767,
+    "new_production_defect_established": false,
+    "production_change_justified": false,
+    "broader_goal_complete": false
+  },
+  "retained_observation_not_selected": "CodeMap returned surrounding source lines127..223 around indexed declaration212..223. This is deliberate source-page context, not a missing route. Raw size alone and this successful task do not justify another compaction patch.",
+  "verification": {
+    "oracle_source_files": 5,
+    "oracle_excerpts_verified_by_judge": 14,
+    "oracle_and_candidate_observed_files_rehashed": 10,
+    "source_hash_limit": "Hash verification includes withheld source; hashes do not establish that a body was delivered.",
+    "source_edits": false,
+    "runtime_tests_claimed": false,
+    "index_mutation": false,
+    "preparation_failure": "Initial read-only readiness check saw busy VB parser authority during normal daemon warmup. Failure retained; successful separate v2 receipt after warmup used the same predicate and no index update or restart.",
+    "normal_service_start": "Started installed daemon once after prior daemon was absent. Launcher65524 exited0; observed daemon27084. No claim that this naturally idle-exiting service remains live.",
+    "pending_rpc": false,
+    "owned_relay_locks": false
+  },
+  "prior_results_preserved": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-roq-billing-qa-20261110.json",
+      "sha256": "32b9a700f77024666e4aae41e360db61ec5582ac1ae269a9e4c4ca8f834c6122"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-permit-missing-qa-20261110.json",
+      "sha256": "a72351db3d54e374eb0ce8efca6e7ba4293f2cd9d2a13340022cbaa4a572052c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
+      "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
+    }
+  ],
+  "next_original_work": "Continue the original CodeMap/Blast usefulness queue, with compute_blast_radius agent use still unverified by this case. Select a concrete remaining navigation, witness or recovery obstacle from actual output and independent source; do not replay this task, manufacture a patch from response size, or expand the evaluation infrastructure.",
+  "retention": {
+    "directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "prefix": "core-shared-impact-qa-20261110",
+    "purpose": "Frozen task, source oracle, actual outputs, budgets, answers, independent judgment and retained preparation failure.",
+    "record_writer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\record_shared_filename_qa_20261110.py",
+      "sha256": "489bb176d31b6fd468695792aa76b481e6ad2da32ad768dc8a3942a31fe39758"
+    },
+    "cleanup_condition": "Retain as delivery evidence; deletion requires exact-path authorization. No new temporary source fixtures or worktrees were created.",
+    "preexisting_artifacts_deleted": false
+  }
+}
