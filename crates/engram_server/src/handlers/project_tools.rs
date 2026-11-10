@@ -3477,6 +3477,7 @@ impl Engram {
         let graph_observation = project_service::observe_source_file_metadata(&self.state, &pid).await;
         let source_format = project_service::source_index_format_coverage_from_observation(
             &self.state,
+            std::path::Path::new(&rec.directory),
             generation,
             &graph_observation,
         )

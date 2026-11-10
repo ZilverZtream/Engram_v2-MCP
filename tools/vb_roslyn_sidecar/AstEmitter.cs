@@ -39,6 +39,8 @@ internal sealed class AstEmitter
         new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, long> _sourceBytesByPath = new(StringComparer.OrdinalIgnoreCase);
     private CompilationPolicyDto? _trustedPolicy;
+    internal CompilerContextDto? PreparedCompilerContext { get; private set; }
+    private VisualBasicParseOptions _preparedParseOptions = VisualBasicParseOptions.Default;
     private RefreshPlan? _pendingPlan;
     private ulong _cacheEpoch;
     private ulong _nextPlan;
@@ -47,7 +49,7 @@ internal sealed class AstEmitter
     // compilation without retaining trees from retired projects/revisions.
     private readonly ConditionalWeakTable<SyntaxTree, SyntaxHash> _syntaxHashes = new();
     private sealed record RefreshPlan(CompilationPlanDto Receipt, string Root,
-        List<(string Path, long Bytes)> Sources, ulong Epoch);
+        List<(string Path, long Bytes)> Sources, ulong Epoch, CompilerContextSnapshot? Context);
 
     private sealed record SourcePropertyInfo(string Fqn, string ContainingType, string Path);
 
@@ -136,6 +138,8 @@ internal sealed class AstEmitter
         _cacheEpoch = checked(_cacheEpoch + 1);
         _sourceBytesByPath.Clear();
         _trustedPolicy = null;
+        PreparedCompilerContext = null;
+        _preparedParseOptions = VisualBasicParseOptions.Default;
         _treesByPath.Clear();
         _sourcePropertiesByName.Clear();
         _projectRoot = null;
@@ -183,13 +187,18 @@ internal sealed class AstEmitter
     /// never permission to walk the directory. Failure revokes preparation.
     /// </summary>
     public CompilationPlanDto PlanRefresh(string projectRoot, IReadOnlyList<string>? files,
-        IReadOnlyList<string> changed, CompilationPolicyDto policy)
+        IReadOnlyList<string> changed, CompilationPolicyDto policy, CompilerContextDto? expectedContext = null)
     {
         _pendingPlan = null;
         policy.Validate();
         projectRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(projectRoot));
         if (!Directory.Exists(projectRoot))
             throw new InvalidOperationException("The admitted source root does not exist");
+        // Discovery hashes bounded metadata only. Reference images are loaded
+        // in RefreshProject after Rust admits the plan's explicit byte charge.
+        var compilerContext = expectedContext is null ? null : CompilerContextSnapshot.Read(projectRoot);
+        if (expectedContext is not null && compilerContext!.Identity != expectedContext)
+            throw new InvalidOperationException("Compiler context changed before planning; retry the source batch");
         string CheckedPath(string path)
         {
             var full = Path.GetFullPath(path);
@@ -198,11 +207,13 @@ internal sealed class AstEmitter
                 relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal) ||
                 !full.EndsWith(".vb", StringComparison.OrdinalIgnoreCase))
                 throw new InvalidOperationException("A compilation source is outside the admitted root");
+            if (compilerContext is not null && !compilerContext.AdmitsSource(full))
+                throw new InvalidOperationException("A compilation source is outside the admitted Website context");
             return full;
         }
         var sameRoot = string.Equals(_projectRoot, projectRoot,
             OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
-        if (files is null && (!sameRoot || _projectCompilation is null || _trustedPolicy != policy ||
+        if (files is null && (!sameRoot || _projectCompilation is null || _trustedPolicy != policy || PreparedCompilerContext != expectedContext ||
             _sourceBytesByPath.Count != _treesByPath.Count))
             throw new InvalidOperationException("A cold compilation requires its explicit admitted inventory");
         if ((files ?? changed).Count > policy.MaxTrees)
@@ -241,9 +252,10 @@ internal sealed class AstEmitter
         {
             Id = checked(++_nextPlan), TotalSourceBytes = total, TreeCount = count,
             ChangedSourceBytes = changedBytes, ChangedTreeCount = refreshPaths.Count,
-            MaxChangedFileBytes = maximum, Full = files is not null, Policy = policy
+            MaxChangedFileBytes = maximum, Full = files is not null, Policy = policy,
+            CompilerContext = compilerContext?.Identity, ReferenceBytes = compilerContext?.Identity.ReferenceBytes ?? 0
         };
-        _pendingPlan = new RefreshPlan(receipt, projectRoot, sources, _cacheEpoch);
+        _pendingPlan = new RefreshPlan(receipt, projectRoot, sources, _cacheEpoch, compilerContext);
         return receipt;
     }
 
@@ -255,6 +267,8 @@ internal sealed class AstEmitter
         _pendingPlan = null;
         try
         {
+            if (plan.Context is not null && CompilerContextSnapshot.Read(plan.Root).Identity != plan.Context.Identity)
+                throw new IOException("Compiler context changed after planning; retry the source batch");
             var refreshed = new List<SyntaxTree>(plan.Sources.Count);
             foreach (var (path, bytes) in plan.Sources)
             {
@@ -269,13 +283,15 @@ internal sealed class AstEmitter
                 if (input.ReadByte() != -1 || input.Length != bytes)
                     throw new IOException("VB compilation source grew after planning; retry");
                 var source = System.Text.Encoding.UTF8.GetString(buffer);
-                refreshed.Add(VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), path: path));
+                refreshed.Add(VisualBasicSyntaxTree.ParseText(SourceText.From(SourceForParsing(source)), options: plan.Context?.ParseOptions, path: path));
             }
             // Build the complete replacement before exposing any changed tree.
             // B parsed first must already see the new A and its property cache.
             var next = plan.Receipt.Full
-                ? VisualBasicCompilation.Create("sidecar_project").AddSyntaxTrees(refreshed)
+                ? (plan.Context?.Apply(VisualBasicCompilation.Create("sidecar_project")) ?? VisualBasicCompilation.Create("sidecar_project")).AddSyntaxTrees(refreshed)
                 : _projectCompilation!.RemoveSyntaxTrees(plan.Sources.Select(source => _treesByPath[source.Path])).AddSyntaxTrees(refreshed);
+            if (plan.Context is not null && CompilerContextSnapshot.Read(plan.Root).Identity != plan.Context.Identity)
+                throw new IOException("Compiler context changed during refresh; retry the source batch");
             if (plan.Receipt.Full)
             {
                 _treesByPath.Clear();
@@ -295,6 +311,8 @@ internal sealed class AstEmitter
             _projectCompilation = next;
             _projectRoot = plan.Root;
             _trustedPolicy = plan.Receipt.Policy;
+            PreparedCompilerContext = plan.Context?.Identity;
+            _preparedParseOptions = plan.Context?.ParseOptions ?? VisualBasicParseOptions.Default;
             _cacheEpoch = checked(_cacheEpoch + 1);
         }
         catch
@@ -305,6 +323,8 @@ internal sealed class AstEmitter
             _sourcePropertiesByName.Clear();
             _sourceBytesByPath.Clear();
             _trustedPolicy = null;
+            PreparedCompilerContext = null;
+            _preparedParseOptions = VisualBasicParseOptions.Default;
             _cacheEpoch = checked(_cacheEpoch + 1);
             throw;
         }
@@ -414,6 +434,10 @@ internal sealed class AstEmitter
 
     public (List<SymbolDto>, List<EdgeDto>) Extract(string path, string source)
     {
+        // Legacy/rootless requests must not replace the property inventory of
+        // an admitted context while its unchanged trees retain that receipt.
+        if (PreparedCompilerContext is not null && !IsPreparedSource(path, source))
+            throw new InvalidOperationException("Changed source requires standalone extraction or a new admitted compilation");
         var symbols = new List<SymbolDto>();
         var edges = new List<EdgeDto>();
         try
@@ -437,7 +461,8 @@ internal sealed class AstEmitter
                 // File wasn't in the initial project scan (new file, or path
                 // mismatch). Parse it and add to the compilation for this call,
                 // but don't mutate _projectCompilation — avoids O(N²) rebuilds.
-                tree = VisualBasicSyntaxTree.ParseText(requestedText, path: path);
+                tree = VisualBasicSyntaxTree.ParseText(requestedText,
+                    options: existingTree?.Options as VisualBasicParseOptions ?? _preparedParseOptions, path: path);
                 // A same-path changed request must not see the stale tree as a
                 // second definition. Keep the shared baseline immutable.
                 compilation = existingTree is null ? _projectCompilation.AddSyntaxTrees(tree)

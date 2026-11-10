@@ -1,0 +1,152 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VERIFIED_NOT_DEPLOYED",
+  "at_utc": "2026-11-10T05:28:06.739131+00:00",
+  "base_commit": "379ec66db77774711039c449eeb1e132dbddd772",
+  "problem": "Actual GetUserActivityEntries reads hl_handelselogg.prop_projekt at logs.aspx.vb552, but current indexed Blast Radius reports zero direct dependents and installed native producer omits that getter edge.",
+  "change": "Supply bounded matching ASP.NET Website framework metadata, effective imports/options and compiler-generated constants to existing semantic binding; fingerprint config/reference contents through unchanged-file compatibility, cache preparation, parse receipts and publication. No terminal-name property fallback relaxation.",
+  "native_observation": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-compiler-context-actual-v2-20261110.json",
+      "sha256": "ca9eba9b116db953f7dfaf5395856ebfb6f33170b84d0d08b6faa841628bf0f7"
+    },
+    "old_line552": [
+      {
+        "source_name": "system_logs_logs.GetUserActivityEntries",
+        "source_kind": "function",
+        "source_start_line": 530,
+        "source_language": "vb",
+        "target_name": "system_logs_logs.ActivityLogEntry.prop_projekt",
+        "target_kind": "property",
+        "kind": "calls",
+        "metadata": {
+          "call_site_line": "552",
+          "via": "property_get"
+        }
+      }
+    ],
+    "new_line552": [
+      {
+        "source_name": "system_logs_logs.GetUserActivityEntries",
+        "source_kind": "function",
+        "source_start_line": 530,
+        "source_language": "vb",
+        "target_name": "hl_handelselogg.prop_projekt",
+        "target_kind": "property",
+        "kind": "calls",
+        "metadata": {
+          "call_site_line": "552",
+          "via": "property_get"
+        }
+      },
+      {
+        "source_name": "system_logs_logs.GetUserActivityEntries",
+        "source_kind": "function",
+        "source_start_line": 530,
+        "source_language": "vb",
+        "target_name": "system_logs_logs.ActivityLogEntry.prop_projekt",
+        "target_kind": "property",
+        "kind": "calls",
+        "metadata": {
+          "call_site_line": "552",
+          "via": "property_get"
+        }
+      }
+    ],
+    "compiler_context": {
+      "root": "C:\\Users\\Dennis\\source\\repos\\OciusX",
+      "fingerprint": "54b304362027b3dac02befdf334b78ac2c4fc3f4e1195d3cb53061e1c2e62269",
+      "mode": "framework_only",
+      "reference_bytes": 8809808
+    },
+    "scope": "Exact three unchanged real source files. Native extraction only, not indexed/live tool verification or task success."
+  },
+  "initial_graph_capture": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-getter-impact-20261110.json",
+    "sha256": "77386bc1b77beca2471a19373f5c2fcb26de4694e3adef6fa44236c2c7d9f1aa"
+  },
+  "independent_source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-property-20261110-independent-source.json",
+    "sha256": "20275c68ff549cade5633bf2a044eec5b913edd1554bf6e3aa055ec0c7cdfd9e"
+  },
+  "native_build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-native-v3-20261110.json",
+    "sha256": "40a21710f96d71fda99df3b84bc3747c6c3dd89934ce7f95125719132c146f90"
+  },
+  "tests": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-provenance-v3-20261110.json",
+        "sha256": "b7d2c7667bda46c5cc4a6d9b5e8e804e1ef1fb6d77aa32a547ed6f8c4756e364"
+      },
+      "passed": 27
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-native-integration-v3-20261110.json",
+        "sha256": "63c86f1f3c810e59822118d96f64821ecec3c5093cce3136b608106d9063040d"
+      },
+      "passed": 16
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-public-migration-v2-20261110.json",
+        "sha256": "34b56732dd4e2942efe16d34a72ec28bd4b2e91a1c22c1c2f9edc9142940c82f"
+      },
+      "passed": 2
+    }
+  ],
+  "source_inputs": {
+    "crates/engram_index/src/source_contract.rs": "b62b6e6f03b044a0529621ad356b5ea2b5ab647b6bbff7217f8685f6683ab8af",
+    "crates/engram_index/src/vb_extractor.rs": "c0653ed9057ea83d80c77ee8631f9275f95aa48b6600e3b0d60762600360a259",
+    "crates/engram_index/src/vb_extractor/compilation.rs": "6d2ed54225a8d7aaa046a0dd21b8db7e0cb7b6da82e24dcddf4a813bdb1fcde0",
+    "crates/engram_index/src/vb_extractor/provenance_tests.rs": "04eb00bda14f89f5fd5e29c589777780b791632041b17ed309dd6c4a300e70cf",
+    "crates/engram_index/tests/vb_sidecar_incremental_test.rs": "d772d2e724a827402d3c7a9b24aeb94a53ebdae5a1e46da866ef92df85be3226",
+    "crates/engram_server/src/actors/dreamer.rs": "7d053b3ed93a2d91e63a2a798fb842b43dabae65ac5683b12282d318cbfa55b8",
+    "crates/engram_server/src/handlers/grep_tools.rs": "16044c19b2fb8a5af44a7141c2c2ce2abdcef393684b61547b7bb998ffe4f232",
+    "crates/engram_server/src/handlers/planning_tools.rs": "87fd357221d0b04c5fb5b012de9a2bbbc387c4811096d5c4cd9823b1b67c62cf",
+    "crates/engram_server/src/handlers/project_tools.rs": "44b84fa808c108e8ae3536e71e49ac7708867b5de5e4e53f556418193bc39e2c",
+    "crates/engram_server/src/handlers/search_tools.rs": "fd86e7c2767078f427809feb7dea7db7bc7d942de172e7f41e5d9b438d9cbc84",
+    "crates/engram_server/src/handlers/settings_tools.rs": "1c9cd2b04e6ede2ec35dee5df74a9b71b61512a504997aea25681816439bd21b",
+    "crates/engram_server/src/services/project_service.rs": "b41bbf00cf86522e3b7c1d0d23f4d7391542873d567393a0fe2009c467f33ada",
+    "crates/engram_server/tests/source_index_migration_tests/vb_parser_identity.rs": "9836c9675c326da855cb3f74d4cf4b57058ecc068de8af535b8f8fa25f2bc748",
+    "docs/TOOL_CONTRACT.md": "6bc85e7376745e2891409bd42d8baf93e54493ab77f6832f288e8ac6a318658a",
+    "tools/vb_roslyn_sidecar/AstEmitter.cs": "106a4b589ac8ec2d93ecb318adbca13303198a20f8daa1b763b984b70ffe02a8",
+    "tools/vb_roslyn_sidecar/Program.cs": "da238bcadfcc4de878351bf50e28204a22eacd37bea6f8ee38df539a356d37ef",
+    "tools/vb_roslyn_sidecar/CompilerContext.cs": "a13a613dee46398d3a69dd62f51a9b8f50df4e22cdbb7d49c660f4b4328ab7bc"
+  },
+  "review": "Independent source/configuration review verified actual getter chain, publication/cache fences and scoped inheritance correction. Final native conditional defaults corrected before final build/tests. CodeRabbit authentication unavailable as previously recorded; no CodeRabbit pass claimed.",
+  "preserved_initial_failures": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-provenance-20261110.json",
+        "sha256": "3283e418aa7d01ad9121207d066549c6f80a26d639a2ec6625faaef9d18ca7c4"
+      },
+      "reason": "New test incorrectly expected old immutable compilation to be revoked by a read-only context probe; corrected to require a new context cannot borrow old preparation. Publication independently rechecks context."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-native-integration-20261110.json",
+        "sha256": "1d4b112f9f156a62d8d08e4bd047c37309fefd3545cd9a6d4754740f0b0d6b39"
+      },
+      "reason": "New test counted initializer destination and RHS as one read. Fixture now separates their lines and asserts exact RHS owner/witness without forbidding destination reference. Existing 15 regressions stayed passing."
+    }
+  ],
+  "scope_limits": [
+    "Windows single ASP.NET Website .NETFramework4.8 supported profile; unsupported contexts explicitly source_only. Framework_only does not claim complete application/package/generated metadata or runtime binding.",
+    "Configuration-only bounded directory discovery opens no VB source bodies; build/vendor/VCS/.audit paths excluded. Native ingestion still uses exact admitted source inventory.",
+    "Deployment, ordinary project migration and actual CodeMap/impact/blast verification remain pending.",
+    "Frozen log-refactor comparison remains source-only9/10 versus assisted5/10; no retry, rescore or full-task benefit claimed. Original31findings/19gates and EG14 remain unfinished."
+  ],
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefixes": [
+      "core-log-property-20261110",
+      "core-log-compiler-context-actual",
+      "core-compiler-context",
+      "run_core_compiler_context_native"
+    ],
+    "retention": "Evidence and helpers retained here for review; exact-path approval required for deletion. Owned native/test temporary directories removed and process/stream/job handles closed. Shared build target reused. Installed runtime untouched.",
+    "normal_configuration_hold": false
+  },
+  "goal_complete": false
+}

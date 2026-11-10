@@ -2,6 +2,36 @@ use super::*;
 use anyhow::{Result, ensure};
 
 #[test]
+fn project_compiler_context_must_be_present_and_match_before_metadata_is_reused() -> Result<()> {
+    let owned = tempfile::tempdir()?;
+    let mut context = VbParserContext::from_authority(None);
+    context.compiler_context = Some(VbCompilerContext {
+        root: std::fs::canonicalize(owned.path())?.to_string_lossy().into_owned(),
+        fingerprint: "a".repeat(64),
+        mode: "source_only".into(),
+        reference_bytes: 0,
+        reason: Some("No supported project compiler configuration".into()),
+    });
+    let metadata = serde_json::to_value(VbParserProvenance::RustFallback {
+        context: context.clone(), reason: VbFallbackReason::Unavailable,
+    })?;
+    ensure!(context.matches_metadata(&metadata));
+    let mut old_metadata = metadata.clone();
+    old_metadata["context"].as_object_mut().unwrap().remove("compiler_context");
+    ensure!(!context.matches_metadata(&old_metadata),
+        "Pre-context source metadata cannot inherit a newly configured compilation");
+    let mut changed_imports = context.clone();
+    changed_imports.compiler_context.as_mut().unwrap().fingerprint = "b".repeat(64);
+    ensure!(!changed_imports.matches_metadata(&metadata),
+        "Unchanged VB bytes do not authorize reuse after compiler inputs change");
+    let standalone = VbParserContext::from_authority(None);
+    ensure!(!standalone.matches_metadata(&metadata),
+        "Rootless extraction cannot inherit project compiler authority");
+    owned.close()?;
+    Ok(())
+}
+
+#[test]
 fn unavailable_vb_parser_records_actual_fallback_for_zero_symbol_source() -> Result<()> {
     let owned = tempfile::tempdir()?;
     let path = owned.path().join("empty.vb");
@@ -112,7 +142,7 @@ fn real_vb_child_cancelled_pipe_request_joins_owner_before_replacement() -> Resu
 }
 
 #[test]
-#[ignore = "requires ENGRAM_VB_SIDECAR_TEST_PATH pointing to the built v4 real companion"]
+#[ignore = "requires ENGRAM_VB_SIDECAR_TEST_PATH pointing to the built v5 real companion"]
 fn real_vb_project_parse_fences_prepared_bytes_while_standalone_uses_current_source() -> Result<()> {
     let binary = PathBuf::from(std::env::var_os("ENGRAM_VB_SIDECAR_TEST_PATH")
         .ok_or_else(|| anyhow::anyhow!("Set the explicitly built companion path"))?);
@@ -184,7 +214,7 @@ fn real_vb_project_parse_fences_prepared_bytes_while_standalone_uses_current_sou
 }
 
 #[test]
-#[ignore = "requires ENGRAM_VB_SIDECAR_TEST_PATH pointing to the built v4 real companion"]
+#[ignore = "requires ENGRAM_VB_SIDECAR_TEST_PATH pointing to the built v5 real companion"]
 fn real_vb_peer_refresh_prepares_changed_peers_before_b_first_and_cold_b_only() -> Result<()> {
     let binary = PathBuf::from(std::env::var_os("ENGRAM_VB_SIDECAR_TEST_PATH")
         .ok_or_else(|| anyhow::anyhow!("Set the explicitly built companion path"))?);
@@ -302,7 +332,7 @@ fn real_vb_peer_refresh_prepares_changed_peers_before_b_first_and_cold_b_only() 
 }
 
 #[test]
-#[ignore = "requires v4 ENGRAM_VB_SIDECAR_PATH and serialized idle global parser ownership"]
+#[ignore = "requires v5 ENGRAM_VB_SIDECAR_PATH and serialized idle global parser ownership"]
 fn real_vb_restarted_child_refuses_old_batch_and_fresh_batch_reprepares_its_root() -> Result<()> {
     shutdown_idle_parser()?;
     struct ParserOwner;
@@ -324,7 +354,7 @@ fn real_vb_restarted_child_refuses_old_batch_and_fresh_batch_reprepares_its_root
             let inventory = Arc::new(vec![path.clone()]);
             let lease = prepare_ingestion_batch(&root, std::slice::from_ref(&path), Some(inventory.clone()), None, None, None).await?
                 .ok_or_else(|| anyhow::anyhow!("Missing real compilation lease"))?;
-            ensure!(lease.context.roslyn.is_some(), "Actual v4 companion required");
+            ensure!(lease.context.roslyn.is_some(), "Actual v5 companion required");
             let context = lease.context.clone();
             // This fixture owns the quiescent global child. Actual termination
             // and replacement exercise a same-code fresh process, not a forged
@@ -334,7 +364,8 @@ fn real_vb_restarted_child_refuses_old_batch_and_fresh_batch_reprepares_its_root
                 guard.as_mut().unwrap().stop()?;
                 *guard = None;
             }
-            ensure!(current_parser_context()? == context, "Same loaded code must remain semantically compatible");
+            ensure!(current_parser_context_for_project(&root)? == context,
+                "Same loaded code and project compiler inputs must remain semantically compatible");
             ensure!(extract_vb_in_batch(&lease, &path, source).is_err(),
                 "Semantic code equality cannot authorize a new child with no warmed compilation");
             drop(lease);
@@ -348,6 +379,96 @@ fn real_vb_restarted_child_refuses_old_batch_and_fresh_batch_reprepares_its_root
     })();
     let stopped = shutdown_idle_parser();
     drop(owner);
+    let cleanup = owned.close();
+    result?;
+    stopped?;
+    cleanup?;
+    Ok(())
+}
+
+/// A configuration-only update must rebuild the warmed semantic compilation,
+/// even when the complete admitted VB inventory and every source byte agree.
+#[cfg(windows)]
+#[test]
+#[ignore = "requires v5 ENGRAM_VB_SIDECAR_TEST_PATH and installed .NET Framework 4.8 references"]
+fn real_vb_project_import_change_rebuilds_unchanged_sources_and_invalidates_old_metadata() -> Result<()> {
+    let binary = PathBuf::from(std::env::var_os("ENGRAM_VB_SIDECAR_TEST_PATH")
+        .ok_or_else(|| anyhow::anyhow!("Set the explicitly built companion path"))?);
+    let owned = tempfile::tempdir()?;
+    let mut client = None;
+    let result = (|| -> Result<()> {
+        let root = std::fs::canonicalize(owned.path())?;
+        let config = root.join("web.config");
+        let configuration = |namespace: &str| format!(
+            "<configuration><system.web><compilation targetFramework=\"4.8\" defaultLanguage=\"vb\">
+             <assemblies><add assembly=\"System.Data.Linq, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089\"/></assemblies></compilation>
+             <pages><namespaces><clear/><add namespace=\"{namespace}\"/></namespaces></pages>
+             </system.web><system.codedom><compilers><compiler language=\"vb;vbs;visualbasic;vbscript\" extension=\".vb\"
+             type=\"Microsoft.CodeDom.Providers.DotNetCompilerPlatform.VBCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=4.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35\"
+             compilerOptions=\"/optioninfer+\"><providerOption name=\"UseAspNetSettings\" value=\"true\"/>
+             </compiler></compilers></system.codedom></configuration>");
+        std::fs::write(&config, configuration("BeforeImports"))?;
+        let declarations = "Namespace BeforeImports\nPublic Class Row\nPublic Property Code As Integer\nEnd Class\nEnd Namespace\nNamespace AfterImports\nPublic Class Row\nPublic Property Code As Integer\nEnd Class\nEnd Namespace\n";
+        let source = "Public Class Consumer\nPublic Function Read(value As Row) As Integer\nReturn value.Code\nEnd Function\nEnd Class\n";
+        let peer = root.join("Rows.vb");
+        let path = root.join("Consumer.vb");
+        std::fs::write(&peer, declarations)?;
+        std::fs::write(&path, source)?;
+        let inventory = [engram_core::RelPath::new("Rows.vb"), engram_core::RelPath::new("Consumer.vb")];
+        let changed = [peer.to_string_lossy().into_owned(), path.to_string_lossy().into_owned()];
+        ensure_sidecar_at(&mut client, &binary)?;
+        let before = project_parser_context_locked(&mut client, &root)?;
+        let compiler = before.compiler_context.as_ref().ok_or_else(|| anyhow::anyhow!("Missing compiler context"))?;
+        ensure!(compiler.mode == "framework_only" && compiler.reference_bytes > 0,
+            "This fixture requires real installed .NET Framework metadata, not source-only fallback: {compiler:?}");
+        ensure!(project_parser_context_locked(&mut client, &root)? == before,
+            "Repeated discovery of unchanged inputs must be stable");
+        let plan_request = serde_json::json!({"cmd":"plan_refresh", "project_root":root,
+            "files":changed, "paths":changed, "compilation_policy":before.compilation,
+            "compiler_context":before.compiler_context});
+        let planned = client.as_mut().unwrap().transport.request(transport::encode_request(&plan_request)?,
+            64 * 1024, Duration::from_secs(60))?;
+        let planned: SidecarResponse = serde_json::from_str(&planned)?;
+        ensure!(planned.error.is_none() && !planned.compilation_error);
+        let plan = planned.compilation_plan.ok_or_else(|| anyhow::anyhow!("Missing real framework compilation plan"))?;
+        let (retained, scratch) = plan.charges(&before.compilation)?;
+        ensure!(plan.reference_bytes == compiler.reference_bytes && plan.compiler_context == before.compiler_context
+            && retained > before.compilation.charge(plan.total_source_bytes, plan.tree_count)?
+            && scratch >= compiler.reference_bytes,
+            "Real framework references must be admitted in both retained and transient compilation memory");
+        let budget = Arc::new(engram_core::memory::MemoryBudget::new(0));
+        refresh_project_admitted(&mut client, &root, &inventory, &changed, &before, budget.clone())?;
+        let first = parse_via_sidecar(client.as_mut().unwrap(), &path, source, &before, Some(&root))
+            .map_err(|error| anyhow::anyhow!("Initial configured parse failed: {error:?}"))?;
+        let property_target = |edges: &[ExtractedEdge], target: &str| edges.iter().any(|edge|
+            edge.kind == "calls" && edge.source_name == "Consumer.Read" && edge.target_name == target
+                && edge.metadata.as_ref().is_some_and(|metadata| metadata.get("via").is_some_and(|via| via == "property_get")));
+        ensure!(property_target(&first.1, "BeforeImports.Row.Code")
+            && !property_target(&first.1, "AfterImports.Row.Code"), "Configured namespace must choose the actual source property");
+        let metadata = serde_json::to_value(&first.2)?;
+        ensure!(before.matches_metadata(&metadata));
+        // Remove the old global import and add its namesake in another source
+        // namespace. Neither VB file is edited or reported as changed.
+        std::fs::write(&config, configuration("AfterImports"))?;
+        let after = project_parser_context_locked(&mut client, &root)?;
+        ensure!(after != before && !after.matches_metadata(&metadata),
+            "A project configuration change must invalidate old source provenance");
+        // The old immutable snapshot can finish extraction, but its publication
+        // fence must revalidate it. A new context cannot borrow that warm cache.
+        ensure!(matches!(parse_via_sidecar(client.as_mut().unwrap(), &path, source, &after, Some(&root)),
+            Err(SidecarParseError::Identity)), "New configuration must not authorize an old warm compilation");
+        refresh_project_admitted(&mut client, &root, &inventory, &[], &after, budget)?;
+        let reparsed = parse_via_sidecar(client.as_mut().unwrap(), &path, source, &after, Some(&root))
+            .map_err(|error| anyhow::anyhow!("Configuration-only refresh failed: {error:?}"))?;
+        ensure!(property_target(&reparsed.1, "AfterImports.Row.Code")
+            && !property_target(&reparsed.1, "BeforeImports.Row.Code"),
+            "Empty changed paths must still rebuild peer binding after compiler inputs change");
+        ensure!(std::fs::read_to_string(&peer)? == declarations && std::fs::read_to_string(&path)? == source);
+        ensure!(client.as_ref().unwrap().cached_compiler_context == after.compiler_context);
+        Ok(())
+    })();
+    let stopped = client.as_mut().map(Sidecar::stop).transpose();
+    drop(client);
     let cleanup = owned.close();
     result?;
     stopped?;

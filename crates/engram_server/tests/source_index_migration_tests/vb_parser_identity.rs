@@ -30,6 +30,12 @@ fn config(root: &Path) -> Config {
         embedding_backend: "fts_only".into(), llm_backend: "none".into(), ..Default::default() }
 }
 
+fn project_provenance(root: &Path) -> Result<VbParserProvenance> {
+    let context = engram_index::vb_extractor::current_parser_context_for_project(root)?;
+    ensure!(context.roslyn.is_some(), "This proof requires the real project-aware companion");
+    Ok(VbParserProvenance::Roslyn { context })
+}
+
 async fn update(app: &Engram, pid: &str) -> Result<String> {
     let result = app.handle_update_project(serde_json::from_value(json!({
         "project_id":pid,"wait":true,"max_commits":1,"index_antipatterns":false
@@ -60,7 +66,7 @@ fn warm_phase(root: &Path) -> Result<String> {
             "directory":root.join("repo"),"project_name":"Owned VB parser migration","project_type":"general","wait":true
         }))?).await?;
         let pid = app.state.registry.list_projects()?[0].project_id.clone();
-        let actual = engram_index::vb_extractor::current_parser_provenance()?;
+        let actual = project_provenance(&root.join("repo"))?;
         ensure!(matches!(actual, VbParserProvenance::Roslyn { .. }), "This explicit proof requires the identity-capable real companion");
         for path in ["Source.vb", "Empty.vb"] {
             let mut file = app.state.graph.get_node(&pid, &format!("file:{path}"))?
@@ -102,10 +108,36 @@ fn cold_phase(root: &Path, pid: &str) -> Result<()> {
         ensure!(changed.into_iter().collect::<BTreeSet<_>>() == BTreeSet::from([
             root.join("repo/Source.vb"), root.join("repo/Empty.vb"),
         ]), "A newly loaded Roslyn parser must re-extract unchanged fallback files exactly once");
+        let head = app.state.registry.capture_source_head(pid)?;
+        let before_files = ["Source.vb", "Empty.vb", "Companion.rs"].into_iter()
+            .map(|path| app.state.graph.get_node(pid, &format!("file:{path}")))
+            .collect::<Result<Vec<_>>>()?;
+        // Selecting either VB or another language must not silently inherit
+        // VB peers extracted under an incompatible parser/compiler context.
+        for selected in ["Source.vb", "Companion.rs"] {
+            let refused = app.handle_update_project(serde_json::from_value(json!({
+                "project_id":pid,"wait":true,"only_paths":[selected],"index_antipatterns":false
+            }))?).await;
+            let refusal = match refused {
+                Err(error) => error.to_string(),
+                Ok(result) if result.is_error == Some(true) => result.content.iter()
+                    .filter_map(|content| content.as_text().map(|text| text.text.as_str()))
+                    .collect::<Vec<_>>().join("\n"),
+                Ok(_) => anyhow::bail!("Scoped update inherited incompatible VB source"),
+            };
+            ensure!(refusal.contains("Inherited VB source requires compiler-context migration")
+                && refusal.contains("without only_paths"), "Wrong scoped refusal: {refusal}");
+            ensure!(app.state.registry.source_head_is_current(&head)?,
+                "Refused scoped migration must preserve the published source head");
+            for (path, prior) in ["Source.vb", "Empty.vb", "Companion.rs"].into_iter().zip(&before_files) {
+                ensure!(serde_json::to_value(app.state.graph.get_node(pid, &format!("file:{path}"))?)?
+                    == serde_json::to_value(prior)?, "Refused scoped migration changed {path}");
+            }
+        }
         update(&app, pid).await?;
         let migrated = app.state.registry.active_source_generation(pid)?;
         ensure!(migrated > before);
-        let expected = engram_index::vb_extractor::current_parser_provenance()?;
+        let expected = project_provenance(&root.join("repo"))?;
         for path in ["Source.vb", "Empty.vb"] {
             let file = app.state.graph.get_node(pid, &format!("file:{path}"))?.unwrap();
             ensure!(file.metadata.unwrap()["vb_parser_provenance"] == serde_json::to_value(&expected)?);
@@ -176,13 +208,13 @@ fn public_unchanged_updates_reuse_actual_source_limit_fallback_without_generatio
     let owned = tempfile::tempdir()?;
     let owner = ParserOwner;
     let result = (|| -> Result<()> {
-        let context = engram_index::vb_extractor::current_parser_context()?;
+        let repo_root = owned.path().join("repo");
+        std::fs::create_dir(&repo_root)?;
+        let context = engram_index::vb_extractor::current_parser_context_for_project(&repo_root)?;
         ensure!(context.roslyn.is_some(), "This case requires the actual identity-capable Roslyn companion");
         ensure!(context.max_source_bytes <= 4 * 1024 * 1024, "Keep the actual over-cap source fixture bounded");
         let initial_pid = engram_index::vb_extractor::cached_parser_process_id()?
             .ok_or_else(|| anyhow::anyhow!("Verified parser owner missing"))?;
-        let repo_root = owned.path().join("repo");
-        std::fs::create_dir(&repo_root)?;
         let mut source = String::from("Public Class Stable ' fallbackinventorymarker\nPublic Sub Run() ' fallbackinventorymarker\nEnd Sub ' fallbackinventorymarker\n");
         while source.len() <= context.max_source_bytes {
             source.push_str("' fallbackinventorymarker bounded owned comment for stable degraded source reuse\n");
@@ -248,7 +280,7 @@ fn public_unchanged_updates_reuse_actual_source_limit_fallback_without_generatio
                     "Unchanged fallback must not advance the published generation/revision");
                 ensure!(inventory()? == physical, "Unchanged fallback rewrote selected physical source identities");
                 ensure!(engram_index::vb_extractor::cached_parser_process_id()? == Some(initial_pid)
-                    && engram_index::vb_extractor::current_parser_context()? == context,
+                    && engram_index::vb_extractor::current_parser_context_for_project(&repo_root)? == context,
                     "Unchanged source must keep the captured verified parser owner/context healthy");
             }
             // Real public admission must refuse an aggregate that exceeds the

@@ -20,11 +20,12 @@ pub struct SourceExtractionIdentity {
 }
 
 /// Request/admission-local expectation. Probe once off the async executor;
-/// neither this receipt nor module MVIDs attest project references/options.
+/// project-scoped expectations also capture the supported project parser context.
 #[derive(Debug, Clone)]
 pub struct SourceExtractionExpectation {
     configured: SourceExtractionIdentity,
     vb_parser: Option<crate::vb_extractor::VbParserContext>,
+    project_root: Option<std::path::PathBuf>,
 }
 
 impl SourceExtractionExpectation {
@@ -32,7 +33,18 @@ impl SourceExtractionExpectation {
         let vb_parser = if paths.into_iter().any(crate::vb_extractor::requires_parser_provenance) {
             Some(crate::vb_extractor::current_parser_context()?)
         } else { None };
-        Ok(Self { configured: SourceExtractionIdentity::for_chunk_target(target_chars_per_chunk), vb_parser })
+        Ok(Self { configured: SourceExtractionIdentity::for_chunk_target(target_chars_per_chunk), vb_parser, project_root: None })
+    }
+
+    pub fn for_project<'a>(root: &std::path::Path, target_chars_per_chunk: usize,
+        paths: impl IntoIterator<Item = &'a str>) -> anyhow::Result<Self> {
+        let vb_parser = if paths.into_iter().any(crate::vb_extractor::requires_parser_provenance) {
+            Some(crate::vb_extractor::current_parser_context_for_project(root)?)
+        } else { None };
+        Ok(Self {
+            configured: SourceExtractionIdentity::for_chunk_target(target_chars_per_chunk),
+            vb_parser, project_root: Some(root.to_path_buf()),
+        })
     }
 
     pub fn metadata_is_compatible(&self, metadata: &serde_json::Value, path: &str) -> bool {
@@ -105,7 +117,10 @@ impl SourceExtractionExpectation {
     /// await or reenter extraction. Registry source-identity CAS remains required.
     pub fn with_publication_fence<T>(&self, publish: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
         match &self.vb_parser {
-            Some(expected) => crate::vb_extractor::with_parser_publication_fence(expected, publish),
+            Some(expected) => match &self.project_root {
+                Some(root) => crate::vb_extractor::with_project_parser_publication_fence(expected, Some(root), publish),
+                None => crate::vb_extractor::with_parser_publication_fence(expected, publish),
+            },
             None => publish(),
         }
     }

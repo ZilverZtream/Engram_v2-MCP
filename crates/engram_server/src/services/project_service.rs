@@ -325,7 +325,8 @@ pub async fn source_index_format_coverage_for_generation(
     active_generation: u64,
 ) -> anyhow::Result<(usize, Vec<String>)> {
     let observation = observe_source_file_metadata(state, project_id).await;
-    source_index_format_coverage_from_observation(state, active_generation, &observation).await
+    let rec = ensure_project_record(state, project_id).await?;
+    source_index_format_coverage_from_observation(state, Path::new(&rec.directory), active_generation, &observation).await
 }
 
 /// Request-local live graph observation. Share the raw, validated rows even if
@@ -351,15 +352,17 @@ pub(crate) async fn observe_source_file_metadata(
 
 pub(crate) async fn source_index_format_coverage_from_observation(
     state: &AppState,
+    root: &Path,
     active_generation: u64,
     observation: &SourceFileMetadataObservation,
 ) -> anyhow::Result<(usize, Vec<String>)> {
     let rows = observation.as_ref().map_err(|error| anyhow::anyhow!("{error}"))?.clone();
     let target_chars_per_chunk = state.cfg.max_chunks_per_file;
+    let root = root.to_path_buf();
     tokio::task::spawn_blocking(move || {
         let mut paths = std::collections::BTreeMap::<String, (bool, bool)>::new();
-        let expected = engram_index::SourceExtractionExpectation::for_paths(
-            target_chars_per_chunk, rows.iter().map(|(path, _, _)| path.as_str()),
+        let expected = engram_index::SourceExtractionExpectation::for_project(
+            &root, target_chars_per_chunk, rows.iter().map(|(path, _, _)| path.as_str()),
         )?;
         for (path, metadata, generation) in rows.iter() {
             let current = metadata.as_ref().is_some_and(|m| {
@@ -418,7 +421,7 @@ async fn scan_source_files_with_parser_preflight(
         if preflight {
             let relative = files.iter().filter_map(|path| engram_core::RelPath::from_relative(&root, path))
                 .map(|path| path.as_str().to_owned()).collect::<Vec<_>>();
-            engram_index::SourceExtractionExpectation::for_paths(source_chunk_target, relative.iter().map(String::as_str))?;
+            engram_index::SourceExtractionExpectation::for_project(&root, source_chunk_target, relative.iter().map(String::as_str))?;
         }
         Ok(files)
     })
@@ -463,7 +466,7 @@ pub(crate) async fn capture_source_extraction_for_files(
         let paths = files.iter().map(|path| engram_core::RelPath::from_relative(&root, path)
             .ok_or_else(|| anyhow::anyhow!("Source file outside admitted root: {}", path.display())))
             .collect::<anyhow::Result<Vec<_>>>()?;
-        engram_index::SourceExtractionExpectation::for_paths(target, paths.iter().map(|path| path.as_str()))
+        engram_index::SourceExtractionExpectation::for_project(&root, target, paths.iter().map(|path| path.as_str()))
     }).await?
 }
 
@@ -582,7 +585,7 @@ async fn scan_incremental_changes(
         // Move the owned operation into this worker explicitly; readonly calls
         // have no writer and perform no persistent mutation.
         let writer = writer;
-        let expected = engram_index::SourceExtractionExpectation::for_paths(target_chars_per_chunk,
+        let expected = engram_index::SourceExtractionExpectation::for_project(&root_owned, target_chars_per_chunk,
             disk_files.iter().filter_map(|path| path.strip_prefix(&root_owned).ok()).filter_map(|path| path.to_str()))?;
         let mut patches = Vec::with_capacity(256);
         let mut patch_bytes = 0;
@@ -976,6 +979,10 @@ pub(crate) async fn exclusive_source_changes(
     select_reindex_paths(root, &allowed, requested, &mut changed)?;
     let selected = changed.iter().filter_map(|p| engram_core::RelPath::from_relative(root, p))
         .collect::<std::collections::HashSet<_>>();
+    // An explicit source subset still inherits the compiler context of every
+    // admitted VB peer. Never mix new bindings with incompatible inherited ones.
+    let extraction = capture_source_extraction_for_files(state, root, &allowed).await?;
+    let inherited_extraction = extraction.clone();
     let graph = state.graph.clone();
     let registry = state.registry.clone();
     let token = base.clone();
@@ -991,12 +998,15 @@ pub(crate) async fn exclusive_source_changes(
                 anyhow::ensure!(generation <= token.generation()
                     && (generation != 0 || !meta_has_fingerprint(&metadata)),
                     "Unpublished or unproven outside source revision requires recovery before only_paths: {}", path.as_str());
+                anyhow::ensure!(!engram_index::vb_extractor::requires_parser_provenance(path.as_str())
+                    || metadata.as_ref().is_some_and(|meta|
+                        inherited_extraction.metadata_is_compatible(meta, path.as_str())),
+                    "Inherited VB source requires compiler-context migration before only_paths: {}; run ordinary update_project without only_paths first", path.as_str());
             }
         }
         Ok(())
     }).await??;
-    let extraction = capture_source_extraction_for_files(state, root, &changed).await?;
-    let vb_source_files = admitted_vb_source_files(root, &changed);
+    let vb_source_files = admitted_vb_source_files(root, &allowed);
     drop(source);
     Ok(SourceChangeScan { changed, deleted:Vec::new(), extraction, vb_source_files })
 }

@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T04:38:47.822840+00:00",
+    "at_utc": "2026-11-10T05:28:06.739131+00:00",
     "reason": "External direct-callable handoff deployed/normal verified in bothimpacttools; exactsource530..570 nowfirst andallotherobservedreportJSON retained.18unit+31integrationPASS; initialfilehintoverreachFAILretained/corrected withoutintegrationtestchange. Frozenlogtaskassisted5/10 versus source-only9/10; overallusefulnessunproven.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,7 +9841,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. External direct-callable handoff delivered; preserve frozen log-refactor outcome and do not repeat its build/runtime probes or task.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: selected actual missing getter witness, corrected through native compiler context and source/cache provenance. Implemented and tested; paired release and live indexed/tool validation pending.",
     "next_user_visible_deliverable": "Continue original core-tool usefulness work using actual task evidence and independent source. Preserve new source-only preference and all earlier outcomes. Do not repeat delivered callee/direct-caller probes, retry frozen tasks, expand instruction drafting, or substitute another broad audit/supporting infrastructure project. Overall completion requires agent-task usefulness evidence beyond narrow navigation savings.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
@@ -9858,11 +9858,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "New full task comparison established source-only preference; concrete next-read ordering defect fixed, reviewed, tested, built, installed and normally verified. Prior tasks/failures retained; no goal closure.",
-      "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-delivery-20261110.json",
-        "sha256": "1968f10018567f8d6c507111818eb4cf6e431d869efe7c0960c59b22b119e250"
-      }
+      "reason": "Verified compiler configuration provenance and identified cache/publication correctness requirements, changing the next action to the actual extraction fix rather than a lexical recovery substitute."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -10842,7 +10838,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Reuse actual old impact_analysis graph/depth1 report core-sidecar-parameter-property-impact-20261108.json calls0 (19790B,gen3138) and actual corrected report vb-bound-property-cold-v1-20261108/acceptance.json calls607 (16940B,gen3139). Exact arguments match; sameRustserver and unchanged Spatial/Zoom source hashes. Freeze one report-audit task/rubric/oracle before fresh candidates. Charge exact report once in setup;7additional ordinary source requests,8totalincludingprovidedreport,64KiBtotalincludingallsetup/report/replies. Both candidates ordinary-source-only after captured report to avoid version drift. Reuse existing private/public relay with only explicit captured-report mode/7-request validation extension, independently review it, no new generalized framework or runtime/index replay. Preserve source/index, original scores and parked work.",
+    "independent_next_action": "Build the paired Rust/native release, verify one ordinary project migration and actual getter source witness in CodeMap, impact_analysis and compute_blast_radius, then install and verify normal runtime. Preserve frozen task outcomes; no QA retry or claim of overall completion.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -11712,6 +11708,14 @@
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-delivery-20261110.json",
         "sha256": "1968f10018567f8d6c507111818eb4cf6e431d869efe7c0960c59b22b119e250"
       }
+    },
+    "selected_getter_compiler_context": {
+      "status": "IMPLEMENTED_NATIVE_VERIFIED_NOT_DEPLOYED",
+      "implementation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-implementation-20261110.json",
+        "sha256": "1569af7cdd0a060a6e11cdaa69b3dd6a9264c322d79e26458eb7356840acda1f"
+      },
+      "next": "Paired release and real installed tool verification; native getter witness is already independently confirmed."
     }
   }
 }

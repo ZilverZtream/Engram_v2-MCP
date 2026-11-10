@@ -379,7 +379,7 @@ End Class
         "cmd": "parse", "path": path, "source": source, "standalone": true,
     }));
     assert!(response.get("error").is_none(), "native parse failed: {response}");
-    assert_eq!(response["parser_identity"]["contract"], "vb-ingestion-parser-v4");
+    assert_eq!(response["parser_identity"]["contract"], "vb-ingestion-parser-v5");
     let edges = response["edges"].as_array().unwrap();
     let property_edges: Vec<_> = edges.iter().filter(|edge|
         edge["kind"] == "calls" && edge["target_kind"] == "property").collect();
@@ -411,6 +411,117 @@ End Class
         && edge["target_name"] == "MethodInputs.CoordinateCount"
         && edge["target_kind"] == "function"), "the real method call must remain");
     harness.send(serde_json::json!({"cmd": "shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness);
+    owned.close().unwrap();
+}
+
+/// The project compiler environment must resolve the implicit LINQ receiver
+/// before choosing among identically named source and projection properties.
+#[cfg(windows)]
+#[test]
+fn configured_framework_context_resolves_projection_rhs_and_fences_config_changes() {
+    let Some(bin) = sidecar_path() else { return; };
+    // Declare the directory first: Harness joins its owned child before the
+    // directory is removed, including when an assertion unwinds the fixture.
+    let owned = tempfile::TempDir::new().unwrap();
+    let root = owned.path();
+    let config = root.join("web.config");
+    let configuration = r#"<configuration>
+<system.web><compilation targetFramework="4.8" defaultLanguage="vb" debug="true"><assemblies>
+<add assembly="System.Data.Linq, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"/>
+</assemblies></compilation><pages><namespaces><clear/>
+<add namespace="System"/><add namespace="System.Collections.Generic"/><add namespace="System.Linq"/>
+</namespaces></pages></system.web>
+<system.codedom><compilers><compiler language="vb;vbs;visualbasic;vbscript" extension=".vb"
+type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.VBCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=4.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
+compilerOptions="/optioninfer+"><providerOption name="UseAspNetSettings" value="true"/>
+</compiler></compilers></system.codedom></configuration>"#;
+    std::fs::write(&config, configuration).unwrap();
+    let source = r#"Namespace DataModel
+Public Class Entry
+    Public Property EntityId As Integer
+End Class
+End Namespace
+Namespace DisplayModel
+Public Class Entry
+    Public Property EntityId As Integer
+End Class
+End Namespace
+Public Class Projector
+#If DEBUG Then
+#If _MYTYPE = "Web" Then
+    Public Function Build(rows As List(Of DataModel.Entry)) As List(Of DisplayModel.Entry)
+        Dim selected = From row In rows Select New DisplayModel.Entry With {
+            .EntityId = _
+                row.EntityId}
+        Return selected.ToList()
+    End Function
+#End If
+#End If
+End Class
+"#;
+    let path = root.join("Projection.vb");
+    std::fs::write(&path, source).unwrap();
+    let mut harness = Harness::start(&bin);
+    let context_reply = harness.send(serde_json::json!({"cmd":"compiler_context", "project_root":root}));
+    assert!(context_reply.get("error").is_none(), "compiler context: {context_reply}");
+    assert_eq!(context_reply["parser_identity"]["contract"], "vb-ingestion-parser-v5");
+    let context = context_reply["compiler_context"].clone();
+    assert_eq!(context["mode"], "framework_only",
+        "requires installed .NET Framework 4.8 references; source-only cannot prove LINQ semantics: {context}");
+    let references = context["reference_bytes"].as_u64().unwrap();
+    assert!(references > 0 && references <= 64 * 1024 * 1024);
+    let policy = serde_json::json!({"max_total_source_bytes":1048576,"max_file_source_bytes":524288,
+        "max_trees":64,"allocation_multiplier":32,"tree_overhead_bytes":8192});
+    let plan = harness.send(serde_json::json!({"cmd":"plan_refresh", "project_root":root,
+        "files":[path], "paths":[path], "compilation_policy":policy,"compiler_context":context}));
+    assert!(plan.get("error").is_none(), "plan: {plan}");
+    assert_eq!(plan["compiler_context"], context);
+    assert_eq!(plan["compilation_plan"]["compiler_context"], context);
+    assert_eq!(plan["compilation_plan"]["reference_bytes"], references,
+        "native planning must expose framework bytes before the owner admits reference allocation");
+    let prepared = harness.send(serde_json::json!({"cmd":"refresh_project", "plan_id":plan["compilation_plan"]["id"]}));
+    assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+    assert_eq!(prepared["compiler_context"], context);
+    let parsed = harness.send(serde_json::json!({"cmd":"parse", "project_root":root,
+        "path":path,"source":source,"compiler_context":context}));
+    assert!(parsed.get("error").is_none(), "parse: {parsed}");
+    assert_eq!(parsed["compiler_context"], context);
+    // Put the initializer destination and RHS on separate source lines so the
+    // assertion identifies the receiver read without forbidding the DTO write.
+    let witness = source.lines().position(|line| line.trim() == "row.EntityId}").unwrap() + 1;
+    let reads: Vec<_> = parsed["edges"].as_array().unwrap().iter().filter(|edge|
+        edge["kind"] == "calls" && edge["source_name"] == "Projector.Build"
+            && edge["target_kind"] == "property" && edge["metadata"]["via"] == "property_get"
+            && edge["metadata"]["call_site_line"] == witness.to_string()).collect();
+    assert_eq!(reads.len(), 1, "the projection RHS is one source-property read: {reads:?}");
+    assert_eq!(reads[0]["target_name"], "DataModel.Entry.EntityId",
+        "the DTO initializer's same-named target must not steal the range variable's RHS");
+    assert_eq!(reads[0]["metadata"]["call_site_line"], witness.to_string());
+    assert!(reads[0]["metadata"].get("unresolved").is_none());
+
+    // The source and inventory remain byte-identical. Removing a global
+    // import between plan and refresh must invalidate that admitted plan.
+    let warm_plan = harness.send(serde_json::json!({"cmd":"plan_refresh", "project_root":root,
+        "paths":[], "compilation_policy":policy,"compiler_context":context}));
+    assert!(warm_plan.get("error").is_none(), "warm plan: {warm_plan}");
+    assert_eq!(warm_plan["compilation_plan"]["full"], false);
+    assert!(warm_plan["compilation_plan"]["id"].as_u64().is_some_and(|id| id > 0));
+    std::fs::write(&config, configuration.replace("<add namespace=\"System.Linq\"/>", "<remove namespace=\"System.Linq\"/>")).unwrap();
+    let refused = harness.send(serde_json::json!({"cmd":"refresh_project", "plan_id":warm_plan["compilation_plan"]["id"]}));
+    assert_eq!(refused["compilation_error"], true, "a changed compiler input cannot reuse its old plan: {refused}");
+    assert!(refused["error"].as_str().is_some_and(|error| error.contains("Compiler context changed after planning")),
+        "The valid plan must be rejected for the compiler-input mutation: {refused}");
+    let changed = harness.send(serde_json::json!({"cmd":"compiler_context", "project_root":root}));
+    assert!(changed.get("error").is_none(), "changed context: {changed}");
+    assert_eq!(changed["compiler_context"]["mode"], "framework_only");
+    assert_ne!(changed["compiler_context"]["fingerprint"], context["fingerprint"]);
+    assert_eq!(std::fs::read_to_string(&path).unwrap(), source);
+    let stale = harness.send(serde_json::json!({"cmd":"parse", "project_root":root,
+        "path":path,"source":source,"compiler_context":context}));
+    assert!(stale.get("error").is_some(), "old compiler authority must not parse after the rejected refresh: {stale}");
+    harness.send(serde_json::json!({"cmd":"shutdown"}));
     assert!(harness.child.wait().unwrap().success());
     drop(harness);
     owned.close().unwrap();

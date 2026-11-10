@@ -1329,7 +1329,7 @@ impl Engram {
                 // callback. Validate extraction compatibility eagerly instead
                 // of reporting complete coverage from an unevaluated guard.
                 let compatible = crate::handlers::grep_tools::indexed_file_stats_for_generation(
-                    &graph, &pid, gen_, source_chunk_target,
+                    &graph, &root, &pid, gen_, source_chunk_target,
                 ).and_then(|stats| {
                     anyhow::ensure!(stats.iter().all(|stat| stat.file_hash.is_some()),
                         "source extraction settings or fingerprints are unavailable; run update_project before treating literal coverage as complete");
