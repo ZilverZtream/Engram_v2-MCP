@@ -1,0 +1,133 @@
+{
+  "status": "DEPLOYED_SOURCE_SCOPE_RECOVERY_VERIFIED_ON_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T17:33:07.308335+00:00",
+  "source_commit": "3d74374dede248fe446e3904d2702e4e5cf01d7b",
+  "problem": "Original TimeReport request6 used TimeReportDayOut as a path filter on a directory source preview. Actual declaration is in TimeReportDay-Out.vb; the tool returned an invalid-parameters message with no recovery actions.",
+  "change": "Keep the error and exact-file source boundary. Add filtered file discovery, plus an explicitly separate literal text search only for an observed selected directory. The optional search drops the filename filter, preserves directory/exclusions and returns current-source recovery. Complete errors stay within12KiB.",
+  "actual_result": {
+    "checks": {
+      "original_invalid_request_replayed_once": true,
+      "error_code": -32602,
+      "error_utf8_bytes": 1563,
+      "error_within_12kib": true,
+      "literal_file_discovery_executed": true,
+      "filename_matches": 0,
+      "directory_and_exclusions_preserved": true,
+      "literal_text_search_executed": true,
+      "only_filename_filter_dropped": true,
+      "literal_current_source_recovery_executed": true,
+      "current_source_reads": [
+        {
+          "file_path": "Site/App_Code/api-v2/DataTransferObjects/timeReporting/TimeReportDay-Out.vb",
+          "line_start": 2,
+          "line_end": 34,
+          "source_file_hash": "cf7109850cb4a49f325733a16e3debe25c5fc9e5837e9998c7b8ea58ec9e3627"
+        }
+      ],
+      "no_binding_or_absence_claim": true,
+      "search_result_count": 8,
+      "observed_source_reply_bytes": 3452
+    },
+    "normal_service_pid": 52240,
+    "watching_restored": true,
+    "configuration_unchanged": true,
+    "original_error_bytes": 113,
+    "new_error_bytes": 1563,
+    "source_semantics": [
+      "DTO constructor populates dayEntries only when items is not Nothing.",
+      "ShouldSerializedayEntries suppresses absent dayEntries."
+    ],
+    "measurement_scope": "Actual original request and returned recovery actions executed on candidate and normal service. Original task scores/caps unchanged; no model replay, whole-task success, byte-reduction or productivity claim."
+  },
+  "installed": {
+    "server_sha256": "67e271ef4c992cef0c6aba1a06f73ee877ea50bb4cde7e4079f7ce4cbb194f15",
+    "manifest_sha256": "e3e2bed6f525522b458729c59363870f8eb84707d5c8dc90f8225529ae3195c1",
+    "unchanged_native_assets": 214,
+    "source_generation": 3146
+  },
+  "validation": {
+    "tests": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-tests-v2-20261110.json",
+        "sha256": "9910c4ad343d94f67ba3804cf5d9040845f8e7493d796d2ab49870ee2b21d6e1"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-tests-v2-20261110.log",
+        "sha256": "62a6417c8e035253773f970a5605002b314ffa125b1858d6538f91557d3f3aea"
+      },
+      "passed": 57
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-shipping-20261110.json",
+      "sha256": "923b992b67dd368d3ed0ef555f2879444af99214eafe86917d333f2db6332c58"
+    },
+    "build_seconds": 1334.141010799969,
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\selection-and-source-review.json",
+      "sha256": "a18b29c8bec08c3a0381dd584a543a1ae62a45da337030af2759d0e1cfa0c9e4"
+    },
+    "original_source_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\source-evidence.json",
+      "sha256": "5fa166ede96485be6301685f34db3e7d13dbe520bad91eff934a76b81de576cc"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\pair-receipt.json",
+      "sha256": "4a3557188c3c59611940da0a68247dff6e5946bface85a3d118d1b49f861ef66"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\candidate-v1\\acceptance.json",
+      "sha256": "6d8055f04131fb884cc9ec30a7a64ad2ed8c4c8bea694d5a3e7d8d6b13e8c2ab"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\normal-v1\\acceptance.json",
+      "sha256": "8bd8646a210f0c5333039157f93afdad2d7130f236ad9214a91b9b63d97c90aa"
+    },
+    "release_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\release-gates.json",
+      "sha256": "14568474e91b45b671f1d059413166de32c14c2441d993398f3472297848113b"
+    },
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\install-upgrade.json",
+      "sha256": "40f1df667103388e14fd0073a758586218dfb2140185bc562daadbbeb93c9961"
+    },
+    "startup_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\startup-observation.json",
+      "sha256": "5d870a6e95ff24dd9b708a0e3089c3bac4a8852c60ba8dbf1e5d582d47b0ee3d"
+    }
+  },
+  "preservation": {
+    "source_hashes_unchanged": true,
+    "all150_tool_definitions_unchanged": true,
+    "candidate_registry_preserved": true,
+    "candidate_selection_preserved": true,
+    "other14_metadata_unchanged": true,
+    "index_updates": 0
+  },
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110",
+    "purpose": "Original error, source comparison, build/package, candidate/installed response evidence and installation receipts.",
+    "cleanup_condition": "Retain case evidence and prior package until exact-path cleanup approval. Owned test/build/candidate temporary paths closed and removed.",
+    "prior_pair_preserved": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a970f40032db429a9b8c998b5448abc2",
+    "five_installer_journals_retained": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a970f40032db429a9b8c998b5448abc2.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a970f40032db429a9b8c998b5448abc2.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a970f40032db429a9b8c998b5448abc2.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a970f40032db429a9b8c998b5448abc2.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a970f40032db429a9b8c998b5448abc2.04-committed-no-start.json"
+    ],
+    "owned_candidate_tmp_removed": true,
+    "candidate_resources_closed": true,
+    "normal_observer_closed": true,
+    "owned_build_tmp_removed": true,
+    "config_hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-config-hold-20261110.json.released.json",
+      "sha256": "f314b2afe7b2d4cf7b361f3faf124d87074f2eb8e5a0b316e9ce91d15315e7a2"
+    }
+  },
+  "limits": [
+    "One demonstrated recovery gap repaired. This does not complete the original TimeReport task or prove agent productivity.",
+    "Original31 findings/full19 gates remain unfinished. No completion claims inferred from passing tests or scoped installer gates.",
+    "Startup included a vector warm-up timeout; recorded without expanding into parked performance work."
+  ],
+  "goal_complete": false
+}
