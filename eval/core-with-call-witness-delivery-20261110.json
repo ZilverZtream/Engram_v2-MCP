@@ -1,0 +1,191 @@
+{
+  "status": "DEPLOYED_WITH_CALL_WITNESSES_VERIFIED_ON_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T16:13:16.672621+00:00",
+  "source_commit": "901410f6dc7a26b8a0c83ca6f14b0f0dd211c442",
+  "problem": "Valid leading-dot VB With invocations have no explicit receiver. Passing null to Roslyn aborted file extraction and lost later declaration metadata and caller edges.",
+  "change": "Guard the absent receiver before GetTypeInfo; preserve existing resolved and uncertain interface routes without guessed binding.",
+  "actual_result": {
+    "target": "_us.AuthenticatedResponseCachePolicy.ApplyNoStore",
+    "source_generation": 3146,
+    "codemap": "TerminateCurrentRequest now exposes ApplyNoStore source recovery at18-40 with call witness56.",
+    "impact_and_blast": "Both real direct callers are admitted at AuthenticationSessionTermination.vb:56 and Global.asax.vb:451; default Blast summary and explicit graphs retain both with executable source recovery.",
+    "source_verification": {
+      "call_witnesses": [
+        {
+          "file_path": "Site/App_Code/Global.asax.vb",
+          "line": 451
+        },
+        {
+          "file_path": "Site/App_Code/users-security/code/AuthenticationSessionTermination.vb",
+          "line": 56
+        }
+      ],
+      "codemap_callee_recovery_verified": true,
+      "impact_and_blast_graphs_verified": true,
+      "default_blast_both_consumers_and_source_recovery_verified": true,
+      "current_source_reads": [
+        {
+          "file_path": "Site/App_Code/users-security/code/AuthenticatedResponseCachePolicy.vb",
+          "line_start": 18,
+          "line_end": 40,
+          "source_file_hash": "05864ef1b7633b63c9dfcfe2e09db5060de39a02981eb59e0f7da9835d9c2603"
+        },
+        {
+          "file_path": "Site/App_Code/users-security/code/AuthenticationSessionTermination.vb",
+          "line_start": 21,
+          "line_end": 64,
+          "source_file_hash": "bbe5c4c3f4ba784e46ce00825e2020284945f18988b4008f875f2c09acb4b9b0"
+        },
+        {
+          "file_path": "Site/App_Code/Global.asax.vb",
+          "line_start": 440,
+          "line_end": 456,
+          "source_file_hash": "eddb70179c8f33a32cb169d703072c341ce57d57397bd2ce9d70165c6d80a052"
+        }
+      ],
+      "unknown_and_depth_limit_coverage_preserved": true,
+      "source_pins": {
+        "Site/App_Code/users-security/code/AuthenticatedResponseCachePolicy.vb": "3028ce814fc1bb1b94f53886533b85a890239730e56c7b0fba375e3b243f016f",
+        "Site/App_Code/users-security/code/AuthenticationSessionTermination.vb": "221efcf86999333755adb5d287794c82110302db611c63664ff1c57b5386b38f",
+        "Site/App_Code/Global.asax.vb": "638ec4bf48f810ba677a196c72000bcba2145026aae97637272c24aea20dba06"
+      },
+      "limits": "Selected source/navigation repair. No general productivity, exhaustive graph, runtime behavior or safe-change claim."
+    },
+    "normal_service_pid": 62816,
+    "watching_restored": true,
+    "configuration_unchanged": true
+  },
+  "installed": {
+    "server_sha256": "3aeba9a5221894c34ca8dceac145da9d15a7733e2005f84f7c5014d567ab4cf4",
+    "manifest_sha256": "a0c465edc0433ae60f2c9507ce91ef2291a6e7024119bc8c22430a7a19e79400",
+    "parser_identity": {
+      "contract": "vb-ingestion-parser-v6",
+      "entry_mvid": "32f06f6e-d309-4c7a-a498-41848c85be90",
+      "roslyn_core_mvid": "ff5984b9-af9d-43fb-912d-3c4cda1761dd",
+      "roslyn_vb_mvid": "575815b5-da82-4f41-bc0f-d8d0a248bb2b"
+    },
+    "rust_rebuilt": false,
+    "changed_native_assets": {
+      "sidecar/vb_roslyn_sidecar-win-x64.dll": {
+        "old_sha256": "a3ee161a6c39971c2f0c4e25435981e786bf9c94fa6cddf3139fa6ef0cf182d5",
+        "new_sha256": "6aaee1a5bfbc23e73c27b291a8bf34080aacf627246bcf84abf1c4efedaa1bdb"
+      },
+      "sidecar/vb_roslyn_sidecar-win-x64.exe": {
+        "old_sha256": "73d0d4e689844ca7efb6046cbd0667e252ac780be8561231f439d7f1f30d8797",
+        "new_sha256": "0ab71f2a19431a023b31e47c98302a03004d3a365f77fb67355d5be9cf500467"
+      }
+    }
+  },
+  "validation": {
+    "total_tests_passed": 19,
+    "native_suite": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-with-native-regressions-20261110.json",
+      "sha256": "a78cda4fcbef096cd6496867cb7e0be151c0fd296d6d906e684c4699e3957449"
+    },
+    "explicit_http_regression": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-with-http-preservation-20261110.json",
+      "sha256": "a660683e6950535d0aec2b0d7f71915dc679b55c94b5acab2c3841a97319b9b8"
+    },
+    "regression_against_old_parser": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-with-prepatch-regression-v2-20261110.json",
+      "sha256": "592f16adb7dc7797918244273eebcb86678ad58d63395ae96f64570611e8ac06"
+    },
+    "actual_parser_before": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\parser-cause-proof.json",
+      "sha256": "124091a913bd2bc653ee0d5188b75cac5971e0465a5251966d1321df1daa1703"
+    },
+    "actual_parser_after": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\parser-three-files-after-null-guard\\summary.json",
+      "sha256": "cd695247fa1f788cc6fe63f9e6d183f4a3948086b5c6e06ba75b5aeef246f496"
+    },
+    "native_build_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\sidecar-build.log",
+      "sha256": "6cd8bd6c4ddb5d1d8c6faa9d244a6e8dd581534e3462e2eabd779c6f4262ef15"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\source-review.json",
+      "sha256": "e3cb604b892f37e6b3d9e3d9ab805f089ce33be9d06c70c148c95c979fc9cd66"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\pair-receipt.json",
+      "sha256": "be2ea785b9e24365013def18a765e67e55a6c5cb1c761a6baae50b295ae45dd2"
+    },
+    "migration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\migration-capture-v1\\acceptance.json",
+      "sha256": "51f9c110aed4634b4459d018e04c69bf3193aa755b01ae6f267c2153a2b7bc5c"
+    },
+    "candidate_witnesses": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\public-witness-acceptance.json",
+      "sha256": "74bd9a2b7597238bf814fead676963f86973844498b3eef89cf3bec66d19aa95"
+    },
+    "normal_witnesses": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\normal-witness-acceptance.json",
+      "sha256": "9a94c864c746c3e0eb1eeb4ad5b1af6d2437586f52238315a979dc7dcea14f4a"
+    },
+    "release_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\release-gates.json",
+      "sha256": "dc160c183f6163f33c17b0e1009484ac01ee8fd7e302542f52b35c034649cfea"
+    },
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110\\install-upgrade.json",
+      "sha256": "2e2c381b629375b5095f37fec1ce648238cb5ab7718a9c77fe49ec48961e9b59"
+    }
+  },
+  "preservation": {
+    "ordinary_refreshes": 1,
+    "before_generation": 3145,
+    "after_generation": 3146,
+    "vb_files_reextracted": 1016,
+    "non_vb_selections_preserved": 1291,
+    "memory_sections_preserved": 300,
+    "other_projects_metadata_preserved": 14,
+    "source_edits": false,
+    "public_definitions_unchanged": 150
+  },
+  "preparation_corrections": [
+    "First test invocation used a nonexistent sidecar path and failed before native execution; corrected path reproduced the actual crash. Both records retained.",
+    "Independent prelaunch review removed unsupported limit arguments from two Blast calls before the sole migration. No migration retry."
+  ],
+  "resource_limits": {
+    "maintenance_seconds": 57.07912229996873,
+    "soft_alerts": [
+      "private_bytes soft threshold exceeded",
+      "logical_write_bytes soft threshold exceeded"
+    ],
+    "peaks": {
+      "private_bytes": 1132961792,
+      "resident_bytes": 1138012160,
+      "logical_read_bytes": 4199530716,
+      "logical_write_bytes": 1118868749,
+      "cpu_seconds": 51.5625,
+      "wall_seconds": 55.60600470000645
+    },
+    "scope": "Primary process only; excludes Ollama and descendants; logical IO is not physical SSD writes",
+    "process_exit_code": 0,
+    "owned_tmp_removed": true,
+    "performance_or_full_resource_gate_closed": false
+  },
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-call-witness-20261110",
+    "purpose": "Build/package, before/after evidence, migration and normal public verification. Retain for review.",
+    "cleanup_condition": "No automatic deletion of retained evidence; exact-path cleanup approval required. New test and migration temporary directories removed after owner drain.",
+    "prior_pair_preserved": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-6ec55375523d4de3819777240c96b041",
+    "five_installer_journals_retained": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-6ec55375523d4de3819777240c96b041.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-6ec55375523d4de3819777240c96b041.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-6ec55375523d4de3819777240c96b041.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-6ec55375523d4de3819777240c96b041.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-6ec55375523d4de3819777240c96b041.04-committed-no-start.json"
+    ],
+    "config_hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-with-config-hold-20261110.json.released.json",
+      "sha256": "d3a7912801ae98232a5251900a950af76bf9ac1d0756eaaba1d7bcff0cd01f4d"
+    }
+  },
+  "limits": [
+    "Selected source/navigation repair; unknown references and beyond-depth branches remain explicit.",
+    "No general productivity advantage, exhaustive graph, runtime-dispatch or safe-change claim.",
+    "Original31 findings/full19 gates and broader goal remain unfinished. Evaluation/instruction expansion remains parked."
+  ],
+  "goal_complete": false
+}
