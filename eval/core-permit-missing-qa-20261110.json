@@ -1,0 +1,270 @@
+{
+  "status": "FROZEN_ASSISTED_4_SOURCE_ONLY_6_BOTH_INCOMPLETE_NO_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T11:29:12.177201+00:00",
+  "installed_source_commit": "ed716f990ee14618e802b5b060b5db0a0c2c63d2",
+  "recording_baseline": "5615972",
+  "task": "Review a proposal to simplify PermitsController.GetValue and its service path by returning Nothing whenever the requested permit row is missing, while retaining successful permit responses and leaving existing browser code unchanged. The maintainer claims this preserves user-visible behavior because clients treat a missing record the same as an empty response. Determine whether current source supports that claim. Trace the exact contract/implementation, lookup and missing-record/error behavior, relevant access helpers and DTO construction, and an actual caller/request path with its result handling. Recommend the smallest defensible change and concrete expected-result regressions, separating source proof from unexecuted runtime behavior. Do not edit application code. Final answer at most1200words.",
+  "installed_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-delivery-20261110.json",
+    "sha256": "d774fcb2f02342ee02593a65e5f4b70f00b9787496fba6ce877f16105bd0c1a7"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "aspen",
+      "opaque_label": "A",
+      "score_out_of_10": 4,
+      "criteria": [
+        1,
+        1,
+        1,
+        0,
+        1
+      ],
+      "complete": false,
+      "material_errors": [],
+      "missing_traces": [
+        "Interface declaration source and WebApiConfig registration/routing.",
+        "Domain GetByID filters prm_permits by prm_id and returns FirstOrDefault.",
+        "ResourceNotFound throws intentional NotFound; PermissionDenied(Message) throws Forbidden; InternalServerError throws the 500 exception.",
+        "Check_pr_id broad-project-access or project/subproject-membership behavior and relevant authorization configuration.",
+        "Successful API DTO fields, date formatting, custom/predefined status handling, default documents and supplementary fields.",
+        "An actual caller's result/error handling: edit-page missing-row redirect versus successful binding, or a comparably sufficient real path; legacy map request/envelope handling is also absent.",
+        "Concrete source-backed success and caller expected-result regressions."
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-aspen-answer.txt",
+        "sha256": "ed4a0707382f9c90728c451e670d02564909431dbdcecf2a263c697f2bf3cba0"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-aspen-private-ledger.json",
+        "sha256": "16bac80e19090ce97705e066d9c6d1a6200ea3cdfb85c446ee445ddfcaba82d2"
+      },
+      "requests": 6,
+      "setup_bytes": 21148,
+      "delivered_bytes": 62496,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld": [
+        {
+          "number": 6,
+          "utf8_bytes": 7095,
+          "sha256": "d20c11962b5352d9480ba5343498cf981ec200f5ad5270ba5db3488fc6e91be7"
+        }
+      ],
+      "errors": [],
+      "requests_and_bytes": [
+        {
+          "number": 1,
+          "kind": "tool",
+          "tool": "get_codebase_overview",
+          "delivered_bytes": 8913
+        },
+        {
+          "number": 2,
+          "kind": "tool",
+          "tool": "impact_analysis",
+          "delivered_bytes": 6762
+        },
+        {
+          "number": 3,
+          "kind": "source_read",
+          "tool": null,
+          "delivered_bytes": 12014
+        },
+        {
+          "number": 4,
+          "kind": "tool",
+          "tool": "get_codebase_overview",
+          "delivered_bytes": 12738
+        },
+        {
+          "number": 5,
+          "kind": "source_search",
+          "tool": null,
+          "delivered_bytes": 769
+        },
+        {
+          "number": 6,
+          "kind": "tool",
+          "tool": "grep_project",
+          "delivered_bytes": 152
+        }
+      ]
+    },
+    "source_only": {
+      "candidate": "elm",
+      "opaque_label": "B",
+      "score_out_of_10": 6,
+      "criteria": [
+        2,
+        1,
+        1,
+        1,
+        1
+      ],
+      "complete": false,
+      "material_errors": [],
+      "missing_traces": [
+        "WebApiConfig's api/v2/{controller}/{id} route declaration; exact member and registration trace is otherwise substantially complete.",
+        "Domain GetByID's prm_id predicate and FirstOrDefault lookup.",
+        "Check_pr_id's broad-access/membership policy and relevant global authorization configuration.",
+        "Successful API DTO fields, date formatting, custom/predefined status handling, and default attached-document/custom-form inclusion.",
+        "Continuation from actual edit navigation to page route-parameter read, ShowData lookup, missing-row redirect and successful binding; no alternative complete caller result/error trace supplied.",
+        "Legacy permitGetByFilter dispatch, success/error envelope and map parsing/iteration, or an equivalently sufficient caller trace.",
+        "Concrete expected success DTO and caller outcomes in the regression plan."
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-elm-answer.txt",
+        "sha256": "4caf63ac6497c6ee2ffbe0f07b163c305d687159da926e1306864f8247e6ae09"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-elm-private-ledger.json",
+        "sha256": "bf1b698a76a181f8802f4a1c007cb1fb64ae26b3fbc98cd7e0ac0a4316fe2acb"
+      },
+      "requests": 7,
+      "setup_bytes": 4844,
+      "delivered_bytes": 52878,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld": [
+        {
+          "number": 7,
+          "utf8_bytes": 17376,
+          "sha256": "eee5dba5e736b3e46e48822d0994a89e4cf88ad19c329221a0fc74c07440fd76"
+        }
+      ],
+      "errors": [],
+      "requests_and_bytes": [
+        {
+          "number": 1,
+          "kind": "source_read",
+          "tool": null,
+          "delivered_bytes": 2655
+        },
+        {
+          "number": 2,
+          "kind": "source_search",
+          "tool": null,
+          "delivered_bytes": 8786
+        },
+        {
+          "number": 3,
+          "kind": "source_read",
+          "tool": null,
+          "delivered_bytes": 12014
+        },
+        {
+          "number": 4,
+          "kind": "source_read",
+          "tool": null,
+          "delivered_bytes": 8999
+        },
+        {
+          "number": 5,
+          "kind": "source_search",
+          "tool": null,
+          "delivered_bytes": 6147
+        },
+        {
+          "number": 6,
+          "kind": "source_search",
+          "tool": null,
+          "delivered_bytes": 9281
+        },
+        {
+          "number": 7,
+          "kind": "source_read",
+          "tool": null,
+          "delivered_bytes": 152
+        }
+      ]
+    }
+  },
+  "conclusion": "B scores 6/10 versus A's 4/10. B's advantage comes from source-backed interface/registration evidence and a real partial browser navigation, while its error-helper evidence also improves precision within the partial lookup criterion. Neither answer completes the frozen task. Both correctly reject an unsupported behavior-preservation claim without inventing runtime or serialization outcomes; their principal failures are missing required traces, not material false assertions.",
+  "observed_tool_effect": {
+    "implementation_route_uptake": "First CodeMap exposed PermitService.GetById and second request selected that implementation for impact. Third request read whole230-line service; fourth metadata request exposed seven relevant callee actions, but candidate read none of their bodies.",
+    "codemap_entry_bytes": 8913,
+    "impact_summary_bytes": 6762,
+    "service_source_bytes": 12014,
+    "codemap_service_metadata_bytes": 12738,
+    "first_two_tool_bytes": 15675,
+    "source_only_first_two_bytes": 11441,
+    "all_callee_actions_present": true,
+    "actual_source_reads_are_separate_from_graph_facts": true
+  },
+  "errors_and_limits": {
+    "assisted_budget": "After five delivered requests62344bytes, actual7095-byte grep response withheld in full;152-byte refusal charged, stopped at6requests/62496bytes.",
+    "source_only_budget": "After six delivered requests52726bytes, actual17376-byte map source response withheld in full;152-byte refusal charged, stopped at7requests/52878bytes.",
+    "production_tool_errors": false,
+    "budget_refusals_are_harness_constraints": true,
+    "no_direct_v2_browser_caller_established_by_oracle": true,
+    "original_write_expectations_still_unmet": true
+  },
+  "method_limits": [
+    "Task and criteria frozen before deeper oracle reads and both candidates;12source files and23ranges independently verified after answers.",
+    "Same8request/65536UTF8byte cap includes setup; assisted setup21148bytes includes five full tool definitions, source-only4844bytes. Setup is not amortized.",
+    "Assisted first CodeMap then impact on returned relevant target mandated; later choices free. No coaching, replay, restart or rescore.",
+    "Opaque quality labels hide costs and identities, but content can reveal capabilities. No held-out/history-blind claim.",
+    "New task scores are not a before/after comparison with TimeReport or a causal estimate of the summary fix.",
+    "No application edits, runtime requests or application regression tests. Search bounds do not prove absence."
+  ],
+  "evidence": {
+    "task_spec": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-task-spec.json",
+      "sha256": "b60c387b5d56cc6be3151984af95b817b15327f6563f26c8676830eba72c0667"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-oracle.json",
+      "sha256": "4336c2ea9e66a110ec7421a4b32c458d45ba3f66f7475d3591f2e8ac781f0946"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-readiness.json",
+      "sha256": "0f4c9f5d435ba8c827a6fd7e64e379d4535783e28b7d1d6d7e0b27f6d28282b3"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-contract.json",
+      "sha256": "b2e1f55ee06dd921413bb88c1ab1402b08b669431eb30b125644a0bb9137f75d"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-binding.json",
+      "sha256": "7b753585da9fa20fe063cc1b9faec1ed180036d4e51bb3dc897978a999e04117"
+    },
+    "quality_packet": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-quality-packet.json",
+      "sha256": "82490a35a140af4149e5a10d66b6926078f4bc4e5129f828b8e53663f93cd814"
+    },
+    "judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-blind-judgment.json",
+      "sha256": "69703d13549557c0f14b7003974fe52b2521b0f69dfdcb003250e5c41f6adf38"
+    },
+    "private_arm_map": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-private-arm-map.json",
+      "sha256": "54e7fa2623b5b85bc4f7997d3291b3d3fb6afad6207cb22da3be4850ac061cce"
+    },
+    "candidate_source_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-candidate-source-verification.json",
+      "sha256": "90205356a8e8a12db83312674c8c2c5f87d707088606dc35eb4c9dd0120e89b3"
+    },
+    "oracle_source_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-oracle-source-verification.json",
+      "sha256": "cafd173c028a065fdb910637ce89ce6cb5dc051ded9eeed45ff398007655381e"
+    }
+  },
+  "resources": {
+    "pending_rpc": null,
+    "candidate_locks_absent": true,
+    "source_files_unchanged": true,
+    "oracle_ranges_rechecked": 23,
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain frozen candidate evidence for review; deletion requires approval of exact paths. No new temporary application directories created."
+  },
+  "next_selected_original_queue_work": {
+    "scope": "Continue the selected original CodeMap/Blast response-cost improvement; assess the actual exact-target CodeMap metadata reply before adding more navigation hints.",
+    "starting_observation": "Permit candidate request4 returned12738bytes for one GetById and seven admitted callee actions; compact JSON called_declarations5984bytes, coverage1747bytes, property_references1322bytes. It did not obtain helper bodies afterward. All seven actions were present, so missing navigation actions are not established.",
+    "constraint": "Any subsequent change must preserve source identities, witnesses, executable reads, omissions and uncertainty and demonstrate substantial actual reduction. Do not automatically patch the agent choosing a whole-file read or the diagnostic byte cap as a production defect.",
+    "causal_limit": "Setup cost, mandated first two tool calls, full-file service read12014bytes, subsequent choice of metadata and bounded searches also contributed. No isolated cause or promised task win.",
+    "not_yet_implemented": true,
+    "parked": "HTTP compiler-reference expansion, EG14, instruction drafting, catalog/performance/ownership and replay/rescoring remain parked."
+  },
+  "original_full19gates_closed": false,
+  "original31findings_closed": false,
+  "goal_complete": false
+}

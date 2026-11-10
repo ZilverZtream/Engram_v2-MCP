@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T09:58:19.678995+00:00",
-    "reason": "Actual controller navigation stops at an interface signature; exact implementation source was missing from the agent evidence path. Address this evidence-acquisition obstacle and test a distinct complete task.",
+    "at_utc": "2026-11-10T11:29:55.527824+00:00",
+    "reason": "Actual core-tool navigation improvements and smaller summaries remain insufficient for complete agent tasks: frozen TimeReport7/9 and fresh Permit4/6 comparisons favor source-only under stated limits. Continue the selected response-cost item using actual source evidence; do not report narrow savings as a task win.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: forward interface-to-implementation source navigation, then distinct whole-task evaluation.",
-    "next_user_visible_deliverable": "Complete corrected, explicitly scoped candidate validation: bound GetValue implementation source plus unchanged unbound Patch/Delete controls. Preserve original failed expectations. If valid, install/restore normal runtime and run frozen distinct TimeReportDays whole-task comparison. No HTTP compiler-reference expansion before that outcome.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: reduce the cost of useful source evidence while preserving witnesses, actions and honest gaps.",
+    "next_user_visible_deliverable": "Continue the existing response-cost item on the actual12738-byte exact-target CodeMap metadata reply; establish a substantial evidence-preserving simplification before another implementation/deploy cycle. Preserve frozen Permit4/6 and TimeReport7/9 scores; no additional hints or audit infrastructure by default.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "Release/package completed; actual candidate failure exposed unsupported verification assumption; old runtime restored, old tool baseline and standalone producer controls identify preexisting gap. No overall completion."
+      "reason": "Installed and normal-verified impact summary reduction9488to7024bytes; fresh independent Permit task froze assisted4/source-only6, both incomplete. Recorded negative usefulness result and all resources; overall goal remains unfinished."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -9884,8 +9884,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-call-delivery-20261110.json",
-      "sha256": "7a4620964164cd97be3a944095ae3f8f734c85d8fd4d839a824eb5babaa606b5"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-delivery-20261110.json",
+      "sha256": "d774fcb2f02342ee02593a65e5f4b70f00b9787496fba6ce877f16105bd0c1a7"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11886,11 +11886,62 @@
         "before": 9488,
         "after": 7024,
         "saved": 2464
-      }
+      },
+      "fresh_task_outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-permit-missing-qa-20261110.json",
+        "sha256": "a72351db3d54e374eb0ce8efca6e7ba4293f2cd9d2a13340022cbaa4a572052c"
+      },
+      "next_action": {
+        "scope": "Continue the selected original CodeMap/Blast response-cost improvement; assess the actual exact-target CodeMap metadata reply before adding more navigation hints.",
+        "starting_observation": "Permit candidate request4 returned12738bytes for one GetById and seven admitted callee actions; compact JSON called_declarations5984bytes, coverage1747bytes, property_references1322bytes. It did not obtain helper bodies afterward. All seven actions were present, so missing navigation actions are not established.",
+        "constraint": "Any subsequent change must preserve source identities, witnesses, executable reads, omissions and uncertainty and demonstrate substantial actual reduction. Do not automatically patch the agent choosing a whole-file read or the diagnostic byte cap as a production defect.",
+        "causal_limit": "Setup cost, mandated first two tool calls, full-file service read12014bytes, subsequent choice of metadata and bounded searches also contributed. No isolated cause or promised task win.",
+        "not_yet_implemented": true,
+        "parked": "HTTP compiler-reference expansion, EG14, instruction drafting, catalog/performance/ownership and replay/rescoring remain parked."
+      },
+      "fresh_task_win_proven": false
     },
     "latest_interface_summary_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-delivery-20261110.json",
       "sha256": "d774fcb2f02342ee02593a65e5f4b70f00b9787496fba6ce877f16105bd0c1a7"
+    },
+    "current_permit_missing_task": {
+      "status": "FROZEN_ASSISTED_4_SOURCE_ONLY_6_BOTH_INCOMPLETE_NO_ASSISTED_UPLIFT",
+      "started_at_utc": "2026-11-10T11:22:35.252265+00:00",
+      "candidate_agents": [
+        "/root/permit_missing_aspen",
+        "/root/permit_missing_elm"
+      ],
+      "candidates_started": true,
+      "task_spec": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-task-spec.json",
+        "sha256": "b60c387b5d56cc6be3151984af95b817b15327f6563f26c8676830eba72c0667"
+      },
+      "oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-oracle.json",
+        "sha256": "4336c2ea9e66a110ec7421a4b32c458d45ba3f66f7475d3591f2e8ac781f0946"
+      },
+      "readiness": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-readiness.json",
+        "sha256": "0f4c9f5d435ba8c827a6fd7e64e379d4535783e28b7d1d6d7e0b27f6d28282b3"
+      },
+      "contract": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-contract.json",
+        "sha256": "b2e1f55ee06dd921413bb88c1ab1402b08b669431eb30b125644a0bb9137f75d"
+      },
+      "binding": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-next-api-qa-20261110-binding.json",
+        "sha256": "7b753585da9fa20fe063cc1b9faec1ed180036d4e51bb3dc897978a999e04117"
+      },
+      "scope": "One fresh task following installed summary reduction; prior tasks unchanged, no promised uplift.",
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-permit-missing-qa-20261110.json",
+        "sha256": "a72351db3d54e374eb0ce8efca6e7ba4293f2cd9d2a13340022cbaa4a572052c"
+      }
+    },
+    "latest_permit_missing_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-permit-missing-qa-20261110.json",
+      "sha256": "a72351db3d54e374eb0ce8efca6e7ba4293f2cd9d2a13340022cbaa4a572052c"
     }
   }
 }
