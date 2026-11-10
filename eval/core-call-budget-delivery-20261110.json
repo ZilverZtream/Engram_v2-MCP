@@ -1,0 +1,128 @@
+{
+  "status": "DEPLOYED_LATE_SOURCE_CALL_WITNESSES_VERIFIED_ON_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T18:04:12.376002+00:00",
+  "source_commit": "89c9871946608761616e8488f4d296d5d14d73dc",
+  "problem": "Actual QueryCacheCore Blast Radius reported zero dependents despite QueryCache call at line2222. Native256locator quota was exhausted at line1928 with97650 locator UTF8 bytes; unresolved source calls were correctly excluded by Rust, leaving the real navigation missing.",
+  "change": "Native ordinary source calls now admit up to1024 locators under256KiB summed serialized UTF8, with24KiB per locator. Charge duplicates on every edge. Overflow stays unknown. Existing compiler identity/hash/peer admission remains unchanged. Rust changed only a comment; installed server binary reused.",
+  "actual_result": {
+    "source": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+    "native_same_source_before": {
+      "located": 256,
+      "unknown": 67
+    },
+    "native_same_source_after": {
+      "located": 323,
+      "unknown": 0
+    },
+    "codemap": "QueryCache called_declarations now exposes QueryCacheCore at reference line2222 and literal source-read action.",
+    "impact_and_blast": "Both graphs expose QueryCacheCore <- QueryCache <- QueryViewport <- GetFileLayerViewport, exact source locations2222,520,228. Default Blast shows QueryCache and its source-read action.",
+    "observed_direct_dependents": 1,
+    "observed_transitive_dependents": 2,
+    "source_boundary": "QueryCache deletes confirmed incomplete cache after read handles unwind. QueryViewport can then initiate preparation and return preparing in the same request; deletion failure/file reappearance or a current recent failed-build memo can still return an error. Graph exposes where to inspect; it does not establish runtime execution.",
+    "comparison_scope": "Before capture used max_depth6 and after uses explicitmax_depth3. This verifies restoration of the independently known3-call chain, not equivalent-depth exhaustive counts or a new task-evaluation score.",
+    "default_blast_bytes_before": 4693,
+    "default_blast_bytes_after": 9358,
+    "output_reduction_claimed": false
+  },
+  "installed": {
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\pair-receipt.json",
+      "sha256": "7abc9153190593717f469bb5b3cc07d6859890bed144f111d722289aee63123f"
+    },
+    "server_sha256": "67e271ef4c992cef0c6aba1a06f73ee877ea50bb4cde7e4079f7ce4cbb194f15",
+    "manifest_sha256": "5321d5404b799a5491c60a13c884749aaebe39edee479f0ff6dce2b27460c292",
+    "native_assets": {
+      "sidecar/vb_roslyn_sidecar-win-x64.dll": {
+        "old_sha256": "6aaee1a5bfbc23e73c27b291a8bf34080aacf627246bcf84abf1c4efedaa1bdb",
+        "new_sha256": "9553b9e19d75de6756ee5aa60da4e3fd2880e9c19786f1596509e0846d272374"
+      },
+      "sidecar/vb_roslyn_sidecar-win-x64.exe": {
+        "old_sha256": "0ab71f2a19431a023b31e47c98302a03004d3a365f77fb67355d5be9cf500467",
+        "new_sha256": "d362f0279aacca5fd06d6800fcb784123c0d38278fe710a3c8cd70b7e377eef6"
+      }
+    },
+    "parser_identity": {
+      "contract": "vb-ingestion-parser-v6",
+      "entry_mvid": "66ef4691-c35c-43a1-82f9-2515027fda09",
+      "roslyn_core_mvid": "ff5984b9-af9d-43fb-912d-3c4cda1761dd",
+      "roslyn_vb_mvid": "575815b5-da82-4f41-bc0f-d8d0a248bb2b"
+    },
+    "normal_pid_at_check": 55732,
+    "source_generation": 3147,
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "configuration_hold_released": true
+  },
+  "validation": {
+    "wanted_regression_old_binary": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-call-budget-prepatch-20261110.json",
+      "sha256": "b647bb3c70fa3e82be3df54ea34938ae8d0c06ae5154d201ded994b09e25f1b1"
+    },
+    "native_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-call-budget-native-20261110.json",
+      "sha256": "ce9836d079373e6b87801d7ebcd2a7f78cc27437b9736216c05315ac7d4c743e"
+    },
+    "native_test_counts": "20 passed,1 ignored; ignored HTTP test separately passed",
+    "http_test": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-call-budget-http-20261110.json",
+      "sha256": "b6e1566abb5b21c275842d8c09db5cee3d7202d7418a77cc19de0c0111e8a33a"
+    },
+    "actual_native_before": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\native-one-file-v2\\summary.json",
+      "sha256": "a758856e3d967386b8488670fa6653c439b361ec24fd9e3bd1ce7067d076741b"
+    },
+    "actual_native_after": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\native-one-file-fixed\\summary.json",
+      "sha256": "3047eadeb6f1ef02c289cc293c6f1e67ab297aa165b373e0e958a1b4070f3a16"
+    },
+    "migration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\migration-capture-v1\\acceptance.json",
+      "sha256": "f145669ada6f3ea6d490c772a7493c69308d57aeba4068ead66fdae5a60be122"
+    },
+    "candidate_public_source_check": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\public-witness-acceptance.json",
+      "sha256": "c1e71230ff4e80a92094700565ae92e10b17b7411d26f860227d269b19d83b67"
+    },
+    "normal_public_source_check": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\normal-witness-acceptance.json",
+      "sha256": "412cf12a109862ebf1e77dbb779f0fb29f4b76ba149b550b068a0c584b79d9d6"
+    },
+    "local_source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\source-review.json",
+      "sha256": "9c44b45ebc0e297d7ed0a41514c83626dea2bbbfa6e3001c8103de3bbad9e2c4"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\release-gates.json",
+      "sha256": "4fcfee7140d965f26d6854cf2860f722da78b5aaeaa92d0ba59f1118b199a6dc"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110\\install-upgrade.json",
+      "sha256": "113f43729f5bab6580764b01f4cd2c6a019f03732f1ced6e977e7a55ff34ad67"
+    },
+    "coderabbit": "Not run; prior host authentication unavailable. Independent local source review completed."
+  },
+  "preservation": {
+    "update_attempts": 1,
+    "memory_sections_preserved": 300,
+    "non_vb_selection_preserved_count": 1291,
+    "other14_metadata_unchanged": true,
+    "source_hashes_unchanged": true,
+    "all150_tool_definitions_unchanged": true,
+    "owned_resources_closed": true,
+    "owned_tmp_removed": true
+  },
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110",
+    "purpose": "Before/after real source and public outputs, candidate package, migration and installation receipts; retain for delivery review. No automatic preexisting cleanup.",
+    "owned_fixtures": "Both candidate test batches and expected old-binary failure closed jobs/handles and removed owned temporary directories. Native observer child closed. Build stage removed by supported build finally. Migration owner closed and owned tmp removed. Normal pipe closed. Hold released.",
+    "previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-3f20f3591c1148bfa25e73e4d41b661e",
+    "journals": "engram-pair-3f20f3591c1148bfa25e73e4d41b661e.00-prepared through04-committed-no-start retained at install root.",
+    "failed_preparations_preserved": "Original one-file observer stripped BOM and failed before parsing; v2 preserved exact bytes. Initial bare-name CodeMap observation returned no candidate; qualified name selected the target. Both observations retained."
+  },
+  "limits": [
+    "Finite per-file and cohort bounds remain; no exhaustive caller coverage claim.",
+    "Bare QueryCacheCore name selection hit named_raw_key_limit; retained as unselected existing navigation gap, not automatically the next task.",
+    "This restores a concrete agent navigation route and source recovery boundary; no broad productivity advantage, new model comparison, or historical evaluation rescore.",
+    "Original31 findings/full19 gates and EG14 unfinished work remain preserved; broader goal unfinished."
+  ],
+  "goal_complete": false
+}
