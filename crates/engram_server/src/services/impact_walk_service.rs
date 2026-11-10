@@ -1200,6 +1200,48 @@ mod source_route_upgrade_behavior {
     }
 
     #[test]
+    fn spare_direct_rows_skip_oversized_predecessor_and_preserve_full_budget_baseline() {
+        let mut full = bridge_frame();
+        for node in full["nodes"].as_array_mut().unwrap().iter_mut().skip(1) { node["depth"] = json!(1); }
+        full["nodes"][5]["name"] = json!("LongDisplayName".repeat(16));
+        full["edges"] = json!((1..=6).map(|i|json!({"ref":format!("e{i}"),
+            "source_ref":format!("n{i}"),"target_ref":"n0","kind":"calls","edge_generation":7})).collect::<Vec<_>>());
+        let nodes:HashMap<_,_> = full["nodes"].as_array().unwrap().iter().map(|n|(n["ref"].as_str().unwrap(),n)).collect();
+        let files:HashMap<_,_> = full["files"].as_array().unwrap().iter().map(|f|(f["ref"].as_str().unwrap(),&f["path"])).collect();
+        let recoveries:HashMap<_,_> = full["recoveries"].as_array().unwrap().iter().map(|r|(r["ref"].as_str().unwrap(),r)).collect();
+        let describe = |reference:&str|describe_summary_node(&full,nodes[reference],&nodes,&files,&recoveries,Some(nodes["n0"]),false);
+        let small = describe("n6");let large = describe("n5");
+        let small_bytes=serde_json::to_vec(&small).unwrap().len();let large_bytes=serde_json::to_vec(&large).unwrap().len();
+        assert!(large_bytes<=2048 && large_bytes>small_bytes+128,"Both rows are legal; only spare whole-response space distinguishes them");
+        let mut original=json!({"schema_version":3,"target_revision_admitted":true,
+            "direct_dependents_observed":6,"immediate_consumers_omitted_from_summary":2,
+            "immediate_consumers":(1..=4).map(|i|describe(&format!("n{i}"))).collect::<Vec<_>>(),
+            "coverage":{"missing_nodes":2,"truncated":true},"graph_continuation":{"tool":"impact_analysis","arguments":{"detail":"graph"}},
+            "limitations":["Indexed exposure, not safety.",
+                "Direct sample: up to four, file-diverse then repeats, canonical order per round; byte caps omit rows. recorded_position_uses_source_read reuses the owning read.",
+                "Unknown source positions remain unknown."],"allocated_context":""});
+        let prefix="Existing source handoff remains unchanged.\n";
+        let padding=SUMMARY_BYTES-256-render_summary(&original,prefix).len()-small_bytes-64;
+        original["allocated_context"]=json!("x".repeat(padding));
+        let baseline=render_summary(&original,prefix);
+        let rendered=append_spare_direct_consumers(&original,&full,prefix,baseline.clone());
+        assert!(rendered.len()+256<=SUMMARY_BYTES);
+        let mut result:Value=serde_json::from_str(rendered.split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()).unwrap();
+        assert_eq!(result["immediate_consumers"].as_array().unwrap().len(),5);
+        assert_eq!(result["immediate_consumers"][4],small,"A larger earlier row must not hide the later complete witness and literal action");
+        assert_eq!(result["immediate_consumers_omitted_from_summary"],1);
+        result["immediate_consumers"].as_array_mut().unwrap().pop();
+        result["immediate_consumers_omitted_from_summary"]=json!(2);
+        result["limitations"]=original["limitations"].clone();
+        assert_eq!(result,original,"Every original row, action, gap and allocation survives unchanged");
+        original["allocated_context"]=json!("x".repeat(padding+small_bytes+32));
+        let full_baseline=render_summary(&original,prefix);
+        assert!(full_baseline.len()+256<=SUMMARY_BYTES);
+        assert_eq!(append_spare_direct_consumers(&original,&full,prefix,full_baseline.clone()),full_baseline,
+            "No fitting full row means byte-identical output, including the old limit explanation");
+    }
+
+    #[test]
     fn shared_defaults_preserve_absence_null_false_and_explicit_generations() {
         let mut routes = json!({"connection_defaults":{"source_position_kind":"not_recorded",
             "source_position_scope":"not_recorded","source_line":null,
@@ -1713,7 +1755,56 @@ fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -
     // Unusual metadata can make reference notation larger; retain the original.
     if rendered.len() <= original.len()
         && rendered.len() <= SUMMARY_BYTES.saturating_sub(256)
-    { rendered } else { original }
+    {
+        append_spare_direct_consumers(&compact, full,
+            if shared_first_read { "" } else { immediate_prefix }, rendered)
+    } else { original }
+}
+
+/// Spend only space left after the final summary, routes and source handoff.
+/// The preferred four rows remain intact; later rows keep graph retention order.
+fn append_spare_direct_consumers(value: &Value, full: &Value, prefix: &str, baseline: String) -> String {
+    let Some(existing) = value["immediate_consumers"].as_array() else { return baseline; };
+    let Some(direct) = value["direct_dependents_observed"].as_u64() else { return baseline; };
+    if value["target_revision_admitted"] != true || existing.len() >= 8
+        || direct < existing.len() as u64
+        || value["immediate_consumers_omitted_from_summary"].as_u64() != Some(direct-existing.len() as u64)
+    { return baseline; }
+    let nodes: HashMap<_, _> = full["nodes"].as_array().into_iter().flatten()
+        .filter_map(|node|Some((node["ref"].as_str()?,node))).collect();
+    let files: HashMap<_, _> = full["files"].as_array().into_iter().flatten()
+        .filter_map(|file|Some((file["ref"].as_str()?,&file["path"]))).collect();
+    let recoveries: HashMap<_, _> = full["recoveries"].as_array().into_iter().flatten()
+        .filter_map(|row|Some((row["ref"].as_str()?,row))).collect();
+    let Some(target) = full["target_ref"].as_str().and_then(|reference|nodes.get(reference)).copied()
+        else { return baseline; };
+    let mut shown = BTreeSet::new();
+    for row in existing {
+        let id = row["node_id"].as_str().or_else(||row["node_ref"].as_str()
+            .and_then(|reference|nodes.get(reference)).and_then(|node|node["node_id"].as_str()));
+        let Some(id) = id else { return baseline; };
+        shown.insert(id.to_owned());
+    }
+    let mut accepted = value.clone();
+    let mut result = baseline;
+    for node in full["nodes"].as_array().into_iter().flatten() {
+        let count = accepted["immediate_consumers"].as_array().unwrap().len();
+        if count >= 8 || count as u64 >= direct { break; }
+        let Some(id) = node["node_id"].as_str() else { continue; };
+        if node["admission"] != "selected" || node["depth"] != 1 || shown.contains(id) { continue; }
+        let row = describe_summary_node(full,node,&nodes,&files,&recoveries,Some(target),target["kind"] == "file");
+        if row["sample_connection_to_target"].is_null()
+            || serde_json::to_vec(&row).expect("JSON value serialization").len() > 2048 { continue; }
+        let mut trial = accepted.clone();
+        trial["immediate_consumers"].as_array_mut().unwrap().push(row);
+        trial["immediate_consumers_omitted_from_summary"] = json!(direct-count as u64-1);
+        trial["limitations"][1] = json!("Direct sample: first 4 file-diverse then repeats, canonical per round; extras in retained order, max 8. Byte caps apply. recorded_position_uses_source_read reuses the owning read.");
+        let text = render_summary(&trial,prefix);
+        if text.len() <= SUMMARY_BYTES.saturating_sub(256) {
+            shown.insert(id.to_owned()); accepted = trial; result = text;
+        }
+    }
+    result
 }
 
 /// Offer a declaration-only alternative when a contiguous route read obscures
