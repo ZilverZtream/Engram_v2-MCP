@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T17:33:07.308335+00:00",
-    "reason": "Source-scope error recovery3d74374 is installed and verified using the original TimeReport request and literal returned actions against current DTO source. Prior With and contract-source repairs preserved; broader goal unfinished.",
+    "at_utc": "2026-11-10T17:55:12.503038+00:00",
+    "reason": "Actual Blast Radius reports zero callers for QueryCacheCore despite QueryCache call at FileLayerSpatialService.vb:2222. Native 256-call count cap exhausted by line1928 with only97650 serialized locator bytes.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Continue original CodeMap/Blast Radius navigation, witness and recovery queue. Source-scope recovery delivered; original31/full19 and task-level incompleteness remain.",
-    "next_user_visible_deliverable": "Select the next unfinished original core-tool gap from existing actual task output and independent source. Do not expand comparisons, audits, instruction drafting or supporting infrastructure.",
+    "active_original_item": "Finish selected CodeMap/Blast Radius late-caller omission from ordinary source-call quota.",
+    "next_user_visible_deliverable": "Refresh parser provenance once and verify QueryCacheCore caller and upstream recovery boundary through actual CodeMap, impact_analysis and compute_blast_radius.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -12058,6 +12058,10 @@
     "latest_source_scope_recovery_implementation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-scope-recovery-implementation-20261110.json",
       "sha256": "f749eba4bc652805c2ef476a09d3df2d16967ca75be148de48a9f0f9244ed231"
+    },
+    "current_call_budget_implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-call-budget-implementation-20261110.json",
+      "sha256": "5b12bb95b7d5e86d1060f6bb149c346db6a86e989a3636eaf53fd02eb4f7268a"
     }
   }
 }

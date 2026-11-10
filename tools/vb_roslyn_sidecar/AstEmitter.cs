@@ -492,6 +492,10 @@ internal sealed class AstEmitter
         var interfaceBindingsOmitted = 0;
         var sourceCallsProduced = 0;
         var sourceCallsOmitted = 0;
+        var sourceCallLocatorBytes = 0;
+        const int MaxSourceCallLocators = 1024;
+        const int MaxSourceCallLocatorBytes = 256 * 1024;
+        const int MaxSingleSourceCallLocatorBytes = 24 * 1024;
         string SyntaxSourceHash(SyntaxTree syntaxTree) => _syntaxHashes.GetValue(syntaxTree,
             static key => new SyntaxHash(Convert.ToHexString(SHA256.HashData(
                 Encoding.UTF8.GetBytes(key.GetText().ToString()))).ToLowerInvariant())).Value;
@@ -567,7 +571,9 @@ internal sealed class AstEmitter
 
         SourceMemberLocatorDto? SourceMethod(IMethodSymbol original)
         {
-            if (sourceCallsProduced >= 256 || original.MethodKind != MethodKind.Ordinary
+            if (sourceCallsProduced >= MaxSourceCallLocators
+                || sourceCallLocatorBytes >= MaxSourceCallLocatorBytes
+                || original.MethodKind != MethodKind.Ordinary
                 || original.PartialDefinitionPart is not null || original.PartialImplementationPart is not null
                 || original.DeclaringSyntaxReferences.Length != 1 || _projectRoot is null)
                 return null;
@@ -945,13 +951,23 @@ internal sealed class AstEmitter
                     if (original.Locations.Any(location => location.IsInSource))
                     {
                         var locator = SourceMethod(original);
-                        invocationMetadata["source_call_status"] = locator is null ? "unknown" : "source_located";
-                        if (locator is not null)
+                        var payload = locator is null ? null : JsonSerializer.Serialize(
+                            locator, AppJsonContext.Default.SourceMemberLocatorDto);
+                        var payloadBytes = payload is null ? 0 : Encoding.UTF8.GetByteCount(payload);
+                        // Charge every emitted payload, including repeated targets.
+                        // Keep the byte budget separate from the hard work ceiling:
+                        // common short locators must not hide all later callers.
+                        var admitted = locator is not null
+                            && payloadBytes <= MaxSingleSourceCallLocatorBytes
+                            && sourceCallsProduced < MaxSourceCallLocators
+                            && payloadBytes <= MaxSourceCallLocatorBytes - sourceCallLocatorBytes;
+                        invocationMetadata["source_call_status"] = admitted ? "source_located" : "unknown";
+                        if (admitted)
                         {
                             sourceCallsProduced++;
-                            targetName = locator.Name;
-                            invocationMetadata["source_call_target_v1"] = JsonSerializer.Serialize(
-                                locator, AppJsonContext.Default.SourceMemberLocatorDto);
+                            sourceCallLocatorBytes += payloadBytes;
+                            targetName = locator!.Name;
+                            invocationMetadata["source_call_target_v1"] = payload!;
                         }
                         else { sourceCallsOmitted++; }
                     }
@@ -1648,6 +1664,9 @@ internal sealed class AstEmitter
         symbols[0].Metadata!["interface_bindings_omitted"] = interfaceBindingsOmitted.ToString();
         symbols[0].Metadata!["source_calls_produced"] = sourceCallsProduced.ToString();
         symbols[0].Metadata!["source_calls_omitted"] = sourceCallsOmitted.ToString();
+        symbols[0].Metadata!["source_call_locator_bytes"] = sourceCallLocatorBytes.ToString();
+        symbols[0].Metadata!["source_call_locator_byte_limit"] = MaxSourceCallLocatorBytes.ToString();
+        symbols[0].Metadata!["source_call_locator_limit"] = MaxSourceCallLocators.ToString();
         symbols[0].Metadata!["interface_binding_scope"] = "bounded_explicit_vb_source_methods; open/variant generic, partial-interface, implicit, inherited and property dispatch not assessed";
 
         string ComposeName(string terminal)

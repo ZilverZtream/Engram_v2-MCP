@@ -1,0 +1,16 @@
+{
+  "status": "IMPLEMENTED_NATIVE_TESTED_NOT_DEPLOYED",
+  "at_utc": "2026-11-10T17:55:12.503038+00:00",
+  "problem": "Actual Blast Radius reports zero callers for QueryCacheCore despite QueryCache call at FileLayerSpatialService.vb:2222. Native 256-call count cap exhausted by line1928 with only97650 serialized locator bytes.",
+  "change": "Retain up to1024 exact ordinary source call locators subject to256KiB summed UTF8 payload and24KiB per locator. Every edge charges bytes including duplicate targets; overflow remains unknown. Rust admission behavior unchanged.",
+  "wanted_regression": "Installed sidecar fails late-wrapper source-locator assertion; candidate passes.",
+  "validation": {
+    "native_default": "20 passed, 1 ignored",
+    "native_http_explicit": "1 passed",
+    "actual_source": "Same OciusX source:323located/0unknown vs256located/67unknown; exact call2222 restored in native output. Public indexed recovery still unverified."
+  },
+  "evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-cache-recovery-boundary-20261110",
+  "source_review_sha256": "9c44b45ebc0e297d7ed0a41514c83626dea2bbbfa6e3001c8103de3bbad9e2c4",
+  "goal_complete": false,
+  "limits": "Finite per-file bounds remain; this fixes the demonstrated late-caller omission, not exhaustive coverage or broad task superiority."
+}
