@@ -1,0 +1,186 @@
+{
+  "status": "FROZEN_SOURCE_ONLY_9_OF_10_ASSISTED_8_OF_10_NO_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T06:30:10.101978+00:00",
+  "binary_source_commit": "06efabda57a12f595496ad3c47b3267e65b92d9c",
+  "recording_baseline": "6c2a59f",
+  "evidence": {
+    "task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-task.json",
+      "sha256": "08ee3f7d3a14c7a0b2490dcea44282146f05c7a8fceec2e3e7c068840c6d23b0"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-contract.json",
+      "sha256": "e889ed28c0e7784cf46d174053361621ae2c6837a503534a05bcea4607aeb258"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-binding.json",
+      "sha256": "226466481e2ce5a2ee3d318805381ba0ade8397839945f20268bde77b2e52fc8"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-readiness.json",
+      "sha256": "8e0e2f7ca1a4de2e804a0c00658a6290bb7f95c9ba8042350622dd0fa3bf0ccd"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-oracle.json",
+      "sha256": "f762cf6c3c5658ad0a81205566cf0d0b34983fc16681ca0b521adeaff17b39e6"
+    },
+    "oracle-verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-oracle-verification.json",
+      "sha256": "60913749971a3a6c788494a09e5e854622bd71b0296b4bff62fda544b8fe73ca"
+    },
+    "quality-packet": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-quality-packet.json",
+      "sha256": "ddcfed0f2f1ed19d851cfe3c9827a86436bca57e9cb8afdd983bb0a0960a16fe"
+    },
+    "candidate-source-verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-candidate-source-verification.json",
+      "sha256": "63f6fa43bcc6d1f9d1e9b01e6fdcec7f57cb3586a16c38e941c89e86e235b3db"
+    },
+    "blind-judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-blind-judgment.json",
+      "sha256": "4c0670791c093cc7b64506ab0fb3ae57475f395fa71b43506effe6da9fdf8ead"
+    },
+    "private-arm-map": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-private-arm-map.json",
+      "sha256": "ee38ef99cd66cb9983442dcb9f35c120c47100ad5020a67d23e02982b97a5910"
+    }
+  },
+  "results": {
+    "assisted": {
+      "candidate": "spruce",
+      "opaque_label": "B",
+      "score_out_of_10": 8,
+      "criterion_scores": [
+        2,
+        2,
+        2,
+        1,
+        1
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-spruce-answer.txt",
+        "sha256": "55b142914629aaee5bf8cbd01cf0bf7951eed3fc53f2284638a32d601e77c54c"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-spruce-private-ledger.json",
+        "sha256": "08080c9e11265e5f48413a4fb55cdf91a699ab58e2e660564deb475a5cf02148"
+      },
+      "requests": 7,
+      "setup_bytes": 21170,
+      "delivered_bytes": 65370,
+      "status": "STOPPED_BYTE_BUDGET",
+      "requested_engram_tools": [
+        "get_codebase_overview",
+        "impact_analysis",
+        "grep_project",
+        "grep_project"
+      ],
+      "delivered_engram_tools": [
+        "get_codebase_overview",
+        "impact_analysis"
+      ],
+      "refusals": [
+        {
+          "number": 5,
+          "error": "Refusal('Path traversal or noncanonical path')"
+        }
+      ],
+      "withheld": [
+        {
+          "number": 7,
+          "utf8_bytes": 7160,
+          "sha256": "75409dd9d5128667f41abde4ace11d9feb092e53f18aeb970923fcf60797e459"
+        }
+      ]
+    },
+    "source_only": {
+      "candidate": "rowan",
+      "opaque_label": "A",
+      "score_out_of_10": 9,
+      "criterion_scores": [
+        2,
+        2,
+        2,
+        1,
+        2
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-rowan-answer.txt",
+        "sha256": "8a118b5773d2eb560f17e0dd1b38fc005cc6dc42d84ee75694ceb10b26a7e210"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-qa-20261110-rowan-private-ledger.json",
+        "sha256": "aac7976fbcf7ee331a19fe3f6f0cf9ccd3be0f8c8d2bd85d5b90c5dfb14bffcf"
+      },
+      "requests": 8,
+      "setup_bytes": 5115,
+      "delivered_bytes": 54350,
+      "status": "COMPLETE_REQUEST_BUDGET",
+      "requested_engram_tools": [],
+      "delivered_engram_tools": [],
+      "refusals": [
+        {
+          "number": 7,
+          "error": "FileNotFoundError(2, 'The system cannot find the file specified')"
+        }
+      ],
+      "withheld": []
+    }
+  },
+  "conclusion": "Both correctly reject behavior-preserving cross-resource atomicity. Both leave external caller handling incomplete. Source-only inspects logger behavior and gives matching regression expectations; assisted treats event failure too broadly in a test expectation. No overall tool advantage demonstrated.",
+  "method_limits": [
+    "Distinct explicit-entry task: assisted first uses CodeMap then impact summary; remaining choices free. Not comparable as the same intervention to optional-tool width task.",
+    "Five complete definitions charged upfront; setup21170bytes versus5115bytes, same8request/65536byte cap. Source-only has more payload room; no general causal productivity claim.",
+    "Assisted Site/ grep request rejected by relay canonical-path check before RPC; not an Engram rejection. Later valid grep response withheld in full by frozen byte cap.",
+    "Both made broad source reads; emitted caller actions were not all executed. Actions present do not establish that presentation caused missed inspection.",
+    "Source-selected task with shared injected context; opaque labels imperfect; no task retry/rescore or runtime faults executed."
+  ],
+  "navigation_assessment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-navigation-assessment-20261110.json",
+    "sha256": "9bd8f4b04e0b6db60b2f5ecbfbaed333f6d5e033c6befabd7bfefd853e5126ea"
+  },
+  "selected_followup": {
+    "problem": "systemlogg.Create is absent from actual callable metadata despite explicit DeleteLayers callsite260. Source-only logger read mattered to the task.",
+    "actual_metadata": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-metadata-recovery-20261110.json",
+      "sha256": "7b19af576f010555e8e91cb5bb688fae81f2e16be791fc94f41d7b84e4051f2a"
+    },
+    "actual_outgoing": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-outgoing-20261110.json",
+      "sha256": "29bd7559e7b48ffe99f0c35d4d2d64734bf64f3df3bfad5698b0b67d1f78ffd3"
+    },
+    "actual_logger_declarations": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-logger-navigation-20261110.json",
+      "sha256": "6fa65322ec313be9e3312f88108f43e509e6b79c1ba3e0ab92e62aae3860bb23"
+    },
+    "native_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-native-witness-20261110.json",
+      "sha256": "9f3d03561be251910f101161616190257e83223dda3d8d14afc9c800dfdc92ba"
+    },
+    "observation": "Installed native emits target name _gd.systemlogg.Create and args5, without exact overload identity. Both declarations accept five args: Boolean fifth argument at43 versus Guid fifth argument at77. Source declarations advertise exact semantic signatures, but call record discards that distinction.",
+    "decision": "Preserve compiler-selected ordinary source method locator/signature through verified ingestion/admission; do not guess overload from name/arity and do not change renderer sampling. First prove current compiler symbol and reject stale/ambiguous locators.",
+    "state": "IMPLEMENTATION_IN_PROGRESS_NOT_BUILT_OR_DEPLOYED",
+    "causal_limit": "This targets actual missing navigation evidence; no claim that it caused all score loss or will reverse the frozen score."
+  },
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefixes": [
+      "core-image-delete-qa-20261110",
+      "core-image-delete-selection-20261110",
+      "core-image-delete-metadata-recovery-20261110",
+      "core-image-delete-outgoing-20261110",
+      "core-image-delete-logger-navigation-20261110",
+      "core-image-delete-native-witness-20261110"
+    ],
+    "candidate_pipes_and_search_processes_closed": true,
+    "pending_rpc": null,
+    "candidate_locks_absent": true,
+    "native_process_and_streams_closed": true,
+    "no_application_source_or_index_mutation": true,
+    "normal_daemon_after_completed_task_diagnostics": 41912,
+    "daemon_note": "Original27428 was absent after tasks; no pending candidate requests. Preserved standalone frontend36388, launched normal daemon once for subsequent read-only diagnostics. No frozen candidate resumed.",
+    "cleanup_condition": "Retain evidence in recorded diagnostics root; no preexisting deletion. Native diagnostic owns no source copies or temp directories."
+  },
+  "goal_complete": false,
+  "original_31_or_19_closed": false
+}
