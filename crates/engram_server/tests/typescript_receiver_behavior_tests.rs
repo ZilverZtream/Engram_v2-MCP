@@ -328,6 +328,86 @@ fn capped_empty_receiver_scan_keeps_executable_member_recovery_beside_known_call
     Ok(())
 }
 
+#[test]
+fn bound_calls_do_not_hide_the_editor_save_witness_from_public_impact() -> Result<()> {
+    let owned = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    runtime.block_on(async {
+        const TARGET: &str = "src/map/vsFileLayerLazyLoaded.ts";
+        const EDITOR: &str = "src/map/mapLayer.ts";
+        let target_body = "class FileLayer {\n setZoomOverride(value: number) {}\n}\n";
+        let mut editor_body = String::from("class LayerRow {\n _saveZoomOverride(layer: FileLayer) {\n");
+        while editor_body.lines().count() < 852 { editor_body.push('\n'); }
+        editor_body.push_str("  layer.setZoomOverride(17);\n }\n}\n");
+        let mut noise = String::from("class EarlierCalls {\n");
+        for n in 0..600 { noise.push_str(&format!(" bound{n:04}() {{}}\n")); }
+        noise.push_str(" run() {\n");
+        for n in 0..600 { noise.push_str(&format!("  this.bound{n:04}();\n")); }
+        noise.push_str(" }\n}\n");
+        for (file, text) in [(TARGET, target_body), (EDITOR, editor_body.as_str()),
+            ("src/map/aaaEarlierCalls.ts", noise.as_str()),
+            ("src/other/outside.ts", "function outside(layer: any) { layer.setZoomOverride(12); }\n")] {
+            let path = owned.path().join("repo").join(file);
+            std::fs::create_dir_all(path.parent().unwrap())?;
+            std::fs::write(path, text)?;
+        }
+        let app = open(owned.path()).await?;
+        let indexed = app.handle_index_project(serde_json::from_value(json!({
+            "directory":owned.path().join("repo"),"project_name":"Editor save witness",
+            "project_type":"general","wait":true
+        }))?).await?;
+        ensure!(indexed.is_error != Some(true));
+        settle(&app).await?;
+        let pid = app.state.registry.list_projects()?[0].project_id.clone();
+        let target = app.state.graph.query_nodes(&pid, Some("function"), None, Some(TARGET), 8)?
+            .into_iter().find(|node| node.name == "setZoomOverride").unwrap();
+        let before = serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?;
+        let stored = app.state.graph.list_edges(&pid, Some(EdgeKind::Calls))?;
+        ensure!(stored.iter().filter(|edge| edge.source_id.contains("aaaEarlierCalls.ts")
+            && !edge.target_id.starts_with(engram_graph::store::UNBOUND_RECEIVER_PREFIX)).count() >= 600,
+            "The fixture must exercise real bound calls preceding the editor");
+        for tool in ["impact_analysis", "compute_blast_radius"] {
+            let mut args = json!({"project_id":pid,"symbol_fqn":target.node_id,
+                "max_depth":2,"detail":"summary","include_guidance":false});
+            let reply = if tool == "compute_blast_radius" {
+                app.handle_compute_blast_radius(serde_json::from_value(args)?).await?
+            } else {
+                args.as_object_mut().unwrap().remove("include_guidance");
+                app.handle_impact_analysis(serde_json::from_value(args)?).await?
+            };
+            ensure!(reply.is_error != Some(true));
+            let text = &reply.content[0].as_text().unwrap().text;
+            ensure!(text.len() <= 12 * 1024);
+            let report = packet(text);
+            ensure!(report["direct_dependents_observed"] == 0 && report["transitive_dependents_observed"] == 0,
+                "Recovering unresolved syntax must not invent a bound caller");
+            let inspection = &report["unbound_member_call_inspection"];
+            ensure!(inspection["scope"].as_str().is_some_and(|s| s.contains("does not bind")));
+            let candidates = inspection["candidates"].as_array().unwrap();
+            ensure!(candidates.len() == 1, "The later editor call must be inspectable: {inspection}");
+            let witness = &candidates[0];
+            ensure!(witness["caller"]["file_path"] == EDITOR
+                && witness["caller"]["name"] == "_saveZoomOverride"
+                && witness["receiver"] == "layer" && witness["reference_lines"] == json!([853]));
+            let action = witness["actions"].as_array().unwrap().iter()
+                .find(|action| action["tool"] == "get_full_method_body").unwrap();
+            let read = app.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?).await?;
+            ensure!(read.is_error != Some(true));
+            let body: Value = serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+            ensure!(body["source_file_hash"] == ContentHash::compute(editor_body.as_bytes()).0
+                && body["source_code"].as_str().unwrap().contains("layer.setZoomOverride(17);"));
+            ensure!(report["change_breakage_proven"] == false && report["exhaustive_codebase"] == false);
+        }
+        ensure!(before == serde_json::to_value(app.state.graph.list_edges(&pid, None)?)?);
+        settle(&app).await?;
+        drop(app);
+        Ok::<(), anyhow::Error>(())
+    })?;
+    drop(runtime);
+    owned.close()?;
+    Ok(())
+}
+
 fn check_receivers(app: &Engram, pid: &str) -> Result<()> {
     let functions = app.state.graph.query_nodes(pid, Some("function"), None, None, 32)?;
     let named = |file: &str, name: &str| functions.iter()

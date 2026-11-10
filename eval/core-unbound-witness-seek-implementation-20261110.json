@@ -1,0 +1,41 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_16_FOCUSED_CHECKS_PASSED_NOT_YET_DEPLOYED",
+  "at_utc": "2026-11-10T19:09:43.562542+00:00",
+  "problem": "The current original setZoomOverride Blast request exhausts its optional512-row scan on earlier calls and omits recorded editor syntax atmapLayer853.",
+  "change": "Seek each source callable unresolved-target subrange; skip bound-target tails using canonical key order. Every obtained key and bounded seek is accounted. Primary caller counts, unknown receiver binding, source admission, scope, bytes and deadline remain unchanged.",
+  "source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\source-evidence.json",
+    "sha256": "f5bafaa2468803af9e1911f909bce0412e5a4b367070157f1993cb9f19d2d9c2"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\selection-and-source-review.json",
+    "sha256": "59518bde22cc25db439b3d70e9a72ae7d3b74848f633eeda6c005a3e86fb7b5b"
+  },
+  "tests": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-graph-v2-20261110.json",
+        "sha256": "82bf3f29fa0c3dd76e85ef1204d66798711ce654fb6e65e0fdcfe5f596898537"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-graph-v2-20261110.log",
+        "sha256": "c1daae445ca904c888c1ac0575a702bfc66bda6f54dbf806e2c1d98bb6e099e7"
+      },
+      "passed": 5
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-public-20261110.json",
+        "sha256": "26419f38123383d269d4cd36ad8c9a93deb022be85ca80d82c52383420690fbb"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-public-20261110.log",
+        "sha256": "efef21856bea5a7a7ea212ec7078f3c610057bdd065a7265787a158f62a031fc"
+      },
+      "passed": 11
+    }
+  ],
+  "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110",
+  "required_delivery": "Build server-only package; candidate and normal OciusX original Blast plus impact summary must return unresolved mapLayer._saveZoomOverride853 with an executable source action and0primary counts. Preserve native214, tools150, selected3147 state and independent source bytes.",
+  "goal_complete": false
+}

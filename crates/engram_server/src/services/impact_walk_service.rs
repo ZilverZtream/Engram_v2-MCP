@@ -2924,6 +2924,7 @@ fn render_unbound_inspection(walk: &IncomingImpactWalk, project: &str) -> Option
         "coverage":inspection.coverage,"decoded_bytes":inspection.decoded_bytes,
         "raw_row_limit":inspection.raw_row_limit,"undecoded_lookahead_observed":inspection.lookahead_observed,
         "raw_keys_observed":inspection.raw_keys_observed,
+        "prefix_seeks":inspection.prefix_seeks,"prefix_seek_limit":inspection.prefix_seek_limit,
         "scoped_prefix_exhausted":inspection.scoped_prefix_exhausted,"witness_limit":inspection.witness_limit,
         "distinct_callers_observed":inspection.coverage.nodes_observed,
         "witnesses_retained":inspection.witnesses.len(),
