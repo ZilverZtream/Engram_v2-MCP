@@ -1,0 +1,169 @@
+{
+  "status": "DEPLOYED_AND_VERIFIED_CANDIDATE_AND_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T14:43:35.329110+00:00",
+  "binary_source_commit": "0903728bb7b845a1f07e7bc2d8d0aad05f6a05e2",
+  "problem": "Default standalone Blast Radius returned65670UTF8bytes before source witnesses on the fresh Markdown pipeline task, causing output truncation and exceeding the nominal context allowance.",
+  "delivered_behavior": [
+    "Omitted compute_blast_radius detail now returns the bounded12KiB summary; explicit graph retains full evidence, history and optional advice.",
+    "impact_analysis keeps its existing graph default. Only compute_blast_radius changed in the actual150-definition tool inventory.",
+    "The default summary honestly shows2of3direct consumers in this case; max_depth1 returns all3with source witnesses, and explicit graph recovery remains executable."
+  ],
+  "measurements": {
+    "old_default_bytes": 65670,
+    "installed_default_bytes": 11287,
+    "reduction_percent": 82.81,
+    "installed_direct_focus_bytes": 11184,
+    "candidate_readonly_requests": 14,
+    "normal_readonly_requests": 13,
+    "task_checks_each": 7,
+    "actual_backlog_source_read_executed": true,
+    "explicit_graph_packet_equals_old_default": true,
+    "source_generation": 3145,
+    "index_updates": 0
+  },
+  "installed_pair": {
+    "server_sha256": "3aeba9a5221894c34ca8dceac145da9d15a7733e2005f84f7c5014d567ab4cf4",
+    "manifest_sha256": "7d739e889f527f2a8f9a4abe1ccad3eb4143431900053bc3feb981a4d5de6871",
+    "unchanged_native_assets": 214,
+    "parser_contract": "vb-ingestion-parser-v6",
+    "normal_verified_pid": 70972,
+    "normal_launcher_pid": 62780,
+    "normal_launcher_exit_code": 0,
+    "liveness_scope": "PID verified during normal acceptance; daemon retains ordinary300second idle exit."
+  },
+  "verification": {
+    "source_tests_passed": 33,
+    "source_tests_failed": 0,
+    "source_review_findings": [],
+    "helper_review_findings": [],
+    "candidate_passed": true,
+    "normal_passed": true,
+    "config_unchanged": true,
+    "selected_source_preserved": true,
+    "candidate_registry_and_other14_metadata_preserved": true,
+    "errors": []
+  },
+  "evidence": {
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-blast-default-implementation-20261110.json",
+      "sha256": "6fc5bf324c8851cd73a32542bebb5b518085a1abf6fd1a80211b2aae327e5ffc"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-shipping-v1-20261110.json",
+      "sha256": "e1862d4e1ec4cee23788f33814fc7544f035a96b4293e9e33ee9f3e2f7133284"
+    },
+    "build_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-shipping-v1-20261110.log",
+      "sha256": "2749919af36fa0032297384a6a3925b84c97db13c2eeec3d7ab22d3a8d78b248"
+    },
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-public-v1-20261110.json",
+      "sha256": "2512345c6d499485eac7d0a38da6d0f294755f75ac46d7e075bfc1a2af2bc7e8"
+    },
+    "test_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-public-v1-20261110.log",
+      "sha256": "df8f3f9d45c37097947ab08639af59215496cbf1358a54ceaed5557e97342628"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-paired-package.json",
+      "sha256": "f77d5539570dc984bce58c114994fafdcfc20714c66531de7cd3995f99a7ff85"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-candidate-v1\\acceptance.json",
+      "sha256": "60b15b46197920692d8f77bbb4cc1c342945123a62b2307b16101c33a7889d8f"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-normal-v1\\acceptance.json",
+      "sha256": "ddf4e09364c927e9b3e26fc0f10dd231e9dc5de1f847ff22516cfcf4928e9949"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-release-gates-v1.json",
+      "sha256": "9ded3dbcbcc199c8ebd164dba33421a418e7586e54f8ac1f96c4d6e8253eca62"
+    },
+    "scoped_applicability": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-19-scoped-applicability-v1.json",
+      "sha256": "b310b7a16e0a364b0c590c543c3928cfdcdec62fc6d35700570a6e41d28875ee"
+    },
+    "forward_transition": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-forward-transition-v1.json",
+      "sha256": "60e13fd83edd042345c7fa0b933aa06c890173352cb8275a760ce479b59cbba5"
+    },
+    "validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-install-validation.json",
+      "sha256": "af45211abf0e86f5d10d4eba896e34fbe30e06577701646a9d33b2273024b546"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-install-upgrade.json",
+      "sha256": "7ac8a701aafbe5bbd21ce60121b13869548f92e8b5468e09a25348e3010ad7af"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-source-review.json",
+      "sha256": "499704379e7e8eb492af7dbbe9c64d5cb33804d04cc5fbf5377fcb6102e49849"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-helper-review-v2.json",
+      "sha256": "4753fbdb18a9c8c5aaf6613e1a194bf611ca72700b9b6b8639a0b337ef77f10b"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-config-hold-20261110.json.released.json",
+      "sha256": "30791183d6d5211fb6834ad70bee571c3ec94452c0ec84d98268c0b4b5189e9a"
+    },
+    "proxy_drain": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-proxy-drain.json",
+      "sha256": "b55f19f9ceb892229d03402e3f0574bbafb1a81b108c3e90e7982cbb31fdfbd0"
+    },
+    "natural_daemon_exit": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-natural-daemon-exit.json",
+      "sha256": "41517ef8356719d85d0aca6a6ebeeff0f52be660aa1b262520dcb9ef46eaf50d"
+    }
+  },
+  "usefulness_limits": [
+    "The fresh instructed standalone workflow met five minimum static-source criteria but exceeded its nominal64KiB context allowance. Its result was not replayed or rescored.",
+    "The workflow missed the backlog initial-load exit and did not investigate historical signed acceptance text re-rendering or project/global fallback. Those limitations remain.",
+    "Known-case candidate and installed checks prove the default-response repair and preserved recovery, not a fresh agent success after deployment, runtime Markdown behavior, exhaustive callers or general productivity advantage.",
+    "Earlier completed shared filename comparison and incomplete TimeReport/Permit/RoQ comparisons remain unchanged."
+  ],
+  "resources": {
+    "hold_released": true,
+    "normal_service_restored": true,
+    "old_daemon_forced_stop": false,
+    "old_proxy_closed": 9076,
+    "test_and_build_owned_resources_closed": true,
+    "candidate_and_normal_observers_closed": true,
+    "owned_temporary_directories_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0bb32ece2eb44580811b936c30f1f91d",
+    "retained_install_journals": [
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0bb32ece2eb44580811b936c30f1f91d.00-prepared.json",
+        "sha256": "156360adac5901f41b9a51caa6cbf1e12b7113f70734108a2dbc8662f5df1825",
+        "phase": "prepared"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0bb32ece2eb44580811b936c30f1f91d.01-stage-verified.json",
+        "sha256": "2ae41efe6460ed7e958d4dd8d16cdd6968df6d1ffe03f61e0adb9b9530c48486",
+        "phase": "stage-verified"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0bb32ece2eb44580811b936c30f1f91d.02-old-retired.json",
+        "sha256": "ed96dc050fe9b806a72cce6bb0d2bf4ee6daa61b4ec479a9026980bef675bcaf",
+        "phase": "old-retired"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0bb32ece2eb44580811b936c30f1f91d.03-candidate-active.json",
+        "sha256": "fa05b6545ed1bee46e49c67be42ca85c886768441ef2ecb8483c05e7a791e525",
+        "phase": "candidate-active"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0bb32ece2eb44580811b936c30f1f91d.04-committed-no-start.json",
+        "sha256": "b84d80c6894b330790522302ac2edaac958c678ac3a9df2203424ce7a20ecd3c",
+        "phase": "committed-no-start"
+      }
+    ],
+    "retained_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, prior pair, journals and task/release evidence for review. Removal requires exact-path authorization; preexisting copies remain preserved."
+  },
+  "original_full19_gates_closed": false,
+  "original31_findings_closed": false,
+  "goal_complete": false
+}
