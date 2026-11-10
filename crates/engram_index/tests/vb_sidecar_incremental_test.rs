@@ -141,6 +141,32 @@ Public Class Consumers
     Public Function Latest(updates As List(Of DateTime)) As DateTime
         Return updates.Max()
     End Function
+    Public Function LatestImplicit(updates As List(Of DateTime)) As DateTime
+        Return updates.Max
+    End Function
+    Public Function NextOrder(rows As List(Of Integer)) As Integer
+        Dim existingOrders = rows.Select(Function(r) r).ToList()
+        Return If(existingOrders.Any(), existingOrders.Max, 0) + 1
+    End Function
+    Public Function WithList(updates As List(Of DateTime)) As DateTime
+        With updates
+            Return .Max
+        End With
+    End Function
+    Public Function WithCacheMeta(meta As CacheMeta) As Long
+        With meta
+            Return .CoordinateCount
+        End With
+    End Function
+    Private Function Transform(value As Integer) As Integer
+        Return value
+    End Function
+    Private Function Transform(value As String) As Integer
+        Return 0
+    End Function
+    Public Function BareImplicitMethod() As Integer
+        Return Transform
+    End Function
     Public Function MissingCall() As Object
         Return missing.Transform(1)
     End Function
@@ -186,6 +212,7 @@ End Class
     }
     for (caller, target, via, statement) in [
         ("Consumers.ReadBound", "CacheMeta.CoordinateCount", "property_get", "Return meta.CoordinateCount"),
+        ("Consumers.WithCacheMeta", "CacheMeta.CoordinateCount", "property_get", "Return .CoordinateCount"),
         ("Consumers.ReadIndexed", "IndexedValues.Item", "property_get", "Return values.Item(0)"),
         ("Consumers.WriteIndexed", "IndexedValues.Item", "property_set", "values.Item(0) = value"),
         ("Consumers.ReadUnresolved", "CacheMeta.CoordinateCount", "property_get", "Return missing.CoordinateCount"),
@@ -196,6 +223,17 @@ End Class
             && edge["target_name"] == target && edge["metadata"]["via"] == via
             && edge["metadata"]["call_site_line"] == line.to_string()),
             "Bound property/indexer and existing noninvocation fallback must survive: {caller}: {edges:?}");
+    }
+    for (caller, target) in [
+        ("Consumers.LatestImplicit", "LayerScaleHint.max"),
+        ("Consumers.NextOrder", "LayerScaleHint.max"),
+        ("Consumers.WithList", "LayerScaleHint.max"),
+        ("Consumers.BareImplicitMethod", "LayerScaleHint.Transform"),
+    ] {
+        assert!(!edges.iter().any(|edge| edge["source_name"] == caller
+            && edge["kind"] == "calls" && edge["target_kind"] == "property"
+            && edge["target_name"] == target),
+            "An implicit collection method must not borrow an unrelated source property: {caller}: {edges:?}");
     }
     harness.send(serde_json::json!({"cmd":"shutdown"}));
     assert!(harness.child.wait().unwrap().success());
