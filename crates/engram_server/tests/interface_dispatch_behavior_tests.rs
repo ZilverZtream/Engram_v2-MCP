@@ -94,7 +94,103 @@ async fn impact(app: &Engram, pid: &str, tool: &str, detail: &str, depth: usize)
     packet(&text)
 }
 
+async fn forward_codemap(
+    app: &Engram,
+    pid: &str,
+    name: &str,
+    source: bool,
+    exclude: &[&str],
+) -> Result<Value> {
+    let response = app.handle_get_codebase_overview(serde_json::from_value(json!({
+        "project_id":pid,"scope":"Caller.vb","symbol_name":name,
+        "include_source":source,"include_declarations":true,
+        "include_retained_context":false,"exclude_paths":exclude,"limit":4
+    }))?).await?;
+    ensure!(response.is_error != Some(true), "CodeMap failed: {response:?}");
+    let text = response.content.iter().filter_map(|part|part.as_text())
+        .map(|part|part.text.as_str()).collect::<String>();
+    ensure!(text.len() <= if source {12*1024} else {64*1024},
+        "Interface recovery must fit the existing complete-response cap");
+    let json = text.split_once("## CodeMap Navigation").and_then(|(_,body)|body.split_once("```json"))
+        .and_then(|(_,body)|body.split_once("```"))
+        .ok_or_else(||anyhow::anyhow!("Missing CodeMap navigation: {text}"))?.0;
+    Ok(serde_json::from_str(json)?)
+}
+
+// Starting at a caller must reach implementation source without asking the
+// agent to guess a concrete service name or read an entire service file.
+// The original Calls target remains the contract; these are potential routes.
+async fn verify_forward_codemap(app: &Engram, pid: &str) -> Result<()> {
+    for (name, expected) in [
+        ("First", vec![(4u64,4u64)]),
+        ("Second", vec![(7,7)]),
+        ("Both", vec![(4,10),(7,11)]),
+    ] {
+        let source = forward_codemap(app,pid,name,true,&[]).await?;
+        let metadata = forward_codemap(app,pid,name,false,&[]).await?;
+        let primary = metadata["called_declarations"]["items"].as_array()
+            .ok_or_else(||anyhow::anyhow!("Missing direct contract call: {metadata}"))?;
+        ensure!(!primary.is_empty() && primary.iter().all(|row|row["file_path"]=="Contracts.vb"),
+            "Potential implementation navigation must not invent direct calls to Service.vb");
+        ensure!(source["called_declarations"]["admitted_observed"]==primary.len(),
+            "Source-view direct callee count must still describe indexed Calls only");
+        ensure!(source["current_source"]["source_code"].as_str().is_some_and(|body|
+            body.contains(&format!(" {name}("))), "Caller source must remain available");
+        for page in [&source,&metadata] {
+            let dispatch = &page["called_declarations"]["potential_implementations"];
+            ensure!(dispatch["runtime_dispatch_proven"]==false,
+                "Explicit Implements evidence is not runtime selection: {dispatch}");
+            let routes = dispatch["routes"].as_array()
+                .ok_or_else(||anyhow::anyhow!("Implementation bodies need direct source routes: {dispatch}"))?;
+            ensure!(routes.len()==expected.len() && dispatch["routes_omitted_from_display"]==0,
+                "This small caller needs all exact overload/constructed-type routes in its first source reply: {dispatch}");
+            let observed: std::collections::BTreeSet<_> = routes.iter().map(|row| {
+                (row["implementation"]["start_line"].as_u64().unwrap(),
+                 row["reference_lines"][0].as_u64().unwrap())
+            }).collect();
+            ensure!(observed==expected.iter().copied().collect(),
+                "Do not cross Alpha/Beta overloads or constructed IBox call positions: {dispatch}");
+            for route in routes {
+                ensure!(route["caller"]["name"]==format!("Example.Controller.{name}"));
+                ensure!(primary.iter().any(|row|row["node_id"]==route["contract"]["node_id"]),
+                    "Each potential route must retain its actual direct contract target");
+                ensure!(route["implementation"]["file_path"]=="Service.vb");
+                ensure!(route["reference_lines"].as_array().is_some_and(|lines|lines.len()==1)
+                    && route["reference_lines_truncated"]==false);
+                ensure!(route["clause_line"]==route["implementation"]["start_line"]);
+                let action = &route["implementation_source_read"];
+                ensure!(action["tool"]=="get_full_method_body");
+                let read = app.handle_get_full_method_body(
+                    serde_json::from_value(action["arguments"].clone())?).await?;
+                ensure!(read.is_error!=Some(true), "Advertised implementation read must execute unchanged");
+                let body:Value=serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+                let start=route["implementation"]["start_line"].as_u64().unwrap() as usize;
+                let expected_body=SERVICE.lines().skip(start-1).take(3).collect::<Vec<_>>().join("\n");
+                ensure!(body["source_code"]==expected_body
+                    && body["source_file_hash"]==engram_core::ContentHash::compute(SERVICE.as_bytes()).0,
+                    "The literal action must recover the exact three-line implementation and current file hash, not its overload or a signature: {body}");
+            }
+            if name=="Both" {
+                ensure!(routes[0]["contract_type_key"]!=routes[1]["contract_type_key"],
+                    "Calls to two constructed contracts cannot collapse to the same dispatch proof");
+            }
+        }
+        let excluded=forward_codemap(app,pid,name,true,&["Service.vb"]).await?;
+        ensure!(excluded["current_source"]==source["current_source"],
+            "Excluding implementations cannot displace caller source/hash/pagination");
+        let dispatch=&excluded["called_declarations"]["potential_implementations"];
+        ensure!(dispatch["routes"].as_array().is_some_and(Vec::is_empty)
+            && dispatch["excluded_nodes"].as_u64().is_some_and(|count|count>0),
+            "Explicit target exclusions must survive the forward interface hop: {dispatch}");
+        let again=forward_codemap(app,pid,name,false,&[]).await?;
+        ensure!(again["called_declarations"]["items"]==metadata["called_declarations"]["items"],
+            "Following implementation source actions must not modify primary call facts");
+    }
+    Ok(())
+}
+
 async fn verify(app: &Engram, pid: &str) -> Result<()> {
+    verify_forward_codemap(app,pid).await?;
     let implementation=app.state.graph.query_nodes(pid,Some("function"),None,Some("Service.vb"),16)?
         .into_iter().find(|node|node.start_line==4).ok_or_else(||anyhow::anyhow!("Missing exact Alpha implementation"))?;
     let mut expected=None;
@@ -523,6 +619,24 @@ fn actual_native_interface_callers_survive_incremental_refresh_and_cold_reopen()
             ensure!(indexed.is_error!=Some(true),"Native indexing failed: {indexed:?}");
             let pid=app.state.registry.list_projects()?[0].project_id.clone();
             verify(&app,&pid).await?;
+            // A selected implementation with a corrupt physical fingerprint
+            // cannot be offered as an admitted body. The direct interface call
+            // and caller source must still be usable when this optional hop fails.
+            let before=forward_codemap(&app,&pid,"First",false,&[]).await?;
+            let original_service=app.state.graph.get_node(&pid,"file:Service.vb")?.unwrap();
+            let mut invalid_service=original_service.clone();
+            invalid_service.metadata.as_mut().unwrap()["file_hash"]=json!("invalid");
+            app.state.graph.upsert_nodes(&pid,&[invalid_service])?;
+            let invalid=forward_codemap(&app,&pid,"First",false,&[]).await?;
+            ensure!(invalid["called_declarations"]["items"]==before["called_declarations"]["items"],
+                "Unusable implementation evidence must preserve the admitted direct contract call");
+            let dispatch=&invalid["called_declarations"]["potential_implementations"];
+            ensure!(dispatch["routes"].as_array().is_some_and(Vec::is_empty)
+                && dispatch["coverage"]["truncated"]==true,
+                "A changed implementation fingerprint is uncertainty, not an admitted body or proof of no implementations: {dispatch}");
+            let source=forward_codemap(&app,&pid,"First",true,&[]).await?;
+            ensure!(source["current_source"]["source_code"].as_str().is_some_and(|body|body.contains("Return service.Read(value)")));
+            app.state.graph.upsert_nodes(&pid,&[original_service])?;
             let contract=app.state.graph.query_nodes(&pid,Some("function"),None,Some("IdleContract.vb"),8)?
                 .into_iter().find(|node|node.name.ends_with(".Idle")).unwrap();
             for detail in ["graph","summary"] {

@@ -239,6 +239,30 @@ pub struct CallableReferences {
     pub pending_bytes: usize,
 }
 
+/// A compiler-located explicit implementation of a called interface member.
+/// This is a potential dispatch route, not a direct Calls edge or runtime proof.
+#[derive(Debug, Clone, Serialize)]
+pub struct InterfaceImplementationRoute {
+    pub caller: Node,
+    pub contract: Node,
+    pub implementation: Node,
+    pub call_generation: u64,
+    pub mapping_generation: u64,
+    pub reference_lines: Vec<u32>,
+    pub reference_lines_truncated: bool,
+    pub clause_line: Option<u32>,
+    pub contract_type_key: String,
+    pub contract_type: String,
+}
+
+#[derive(Debug, Default, Clone, Serialize)]
+pub struct InterfaceImplementations {
+    pub routes: Vec<InterfaceImplementationRoute>,
+    /// Separate optional work; never added to direct callable counts.
+    pub coverage: ImpactWalkCoverage,
+    pub excluded_nodes: usize,
+}
+
 const CALLABLE_PENDING_LEADS: usize = 16;
 const CALLABLE_PENDING_BYTES: usize = 64 * 1024;
 
@@ -793,6 +817,193 @@ fn remember(
 }
 
 impl GraphStore {
+    /// Follow at most sixteen already observed callee identities from an exact
+    /// caller to explicit VB interface implementations. Every endpoint, its
+    /// canonical file, Calls binding and Implements binding is rechecked in one
+    /// read transaction. The caller retains its source-selection capability.
+    ///
+    /// This optional observation has its own shared budget: 128 adjacency rows
+    /// plus one undecoded lookahead, sixteen routes, 64KiB per record, 2MiB total
+    /// decoded records, 64KiB retained identity strings and a cooperative 500ms
+    /// deadline. Rejections consume work; supplied IDs never grant admission.
+    pub fn bounded_interface_implementations(
+        &self,
+        project_id: &str,
+        caller_id: &str,
+        contract_ids: &[String],
+        admit: &dyn Fn(&Node, Option<&Node>) -> anyhow::Result<ImpactAdmission>,
+        excluded: &dyn Fn(&Node) -> bool,
+    ) -> anyhow::Result<InterfaceImplementations> {
+        let valid_id = |id: &str, limit| !id.is_empty() && id.len() <= limit
+            && !id.chars().any(char::is_control);
+        anyhow::ensure!(valid_id(project_id, 1024) && valid_id(caller_id, 2048)
+            && contract_ids.len() <= 16 && contract_ids.iter().all(|id|valid_id(id, 2048)),
+            "Invalid interface implementation observation identities");
+        let mut output = (|| -> anyhow::Result<InterfaceImplementations> {
+            let mut output = InterfaceImplementations::default();
+            if contract_ids.is_empty() { return Ok(output); }
+            let mut budget = PropertyBudget { started: Instant::now(), decode_bytes: 0, retained_bytes: 0, halted: false };
+            let tx = self.db.begin_read()?;
+            let nodes = tx.open_table(NODES)?;
+            let edges = tx.open_table(EDGES)?;
+            let incoming = tx.open_table(ADJ_IN)?;
+            let read = |id: &str, budget: &mut PropertyBudget, coverage: &mut ImpactWalkCoverage| -> anyhow::Result<Option<Node>> {
+                if !budget.live(coverage) { return Ok(None); }
+                let Some(raw) = nodes.get(format!("{project_id}\0{id}").as_str())? else {
+                    coverage.missing_nodes += 1;
+                    gap(coverage, "interface_implementation_node_or_file_missing");
+                    return Ok(None);
+                };
+                if !budget.record(raw.value().len(), coverage) { return Ok(None); }
+                let node: Node = bincode::DefaultOptions::new().with_fixint_encoding()
+                    .with_limit(PROPERTY_RECORD_BYTES as u64).reject_trailing_bytes().deserialize(raw.value())?;
+                anyhow::ensure!(node.node_id == id, "Interface implementation node disagrees with its key");
+                if !property_identity_bounded(&node) || node.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                    coverage.unknown_nodes += 1;
+                    gap(coverage, "interface_implementation_identity_or_namespace_unavailable");
+                    return Ok(None);
+                }
+                Ok(Some(node))
+            };
+            let selected_file = |node: &Node, budget: &mut PropertyBudget, output: &mut InterfaceImplementations|
+                -> anyhow::Result<Option<Node>> {
+                if excluded(node) {
+                    output.excluded_nodes += 1;
+                    gap(&mut output.coverage, "interface_implementation_endpoint_excluded");
+                    return Ok(None);
+                }
+                let Some(file) = read(&format!("file:{}", node.file_path.as_str()), budget, &mut output.coverage)?
+                    else { return Ok(None) };
+                if file.node_type != "file" || file.file_path != node.file_path || file.generation != node.generation {
+                    output.coverage.unknown_nodes += 1;
+                    gap(&mut output.coverage, "interface_implementation_canonical_file_unavailable");
+                    return Ok(None);
+                }
+                if excluded(&file) {
+                    output.excluded_nodes += 1;
+                    gap(&mut output.coverage, "interface_implementation_file_excluded");
+                    return Ok(None);
+                }
+                if !budget.live(&mut output.coverage) { return Ok(None); }
+                let node_admission = admit(node, Some(&file))?;
+                if !budget.live(&mut output.coverage) { return Ok(None); }
+                let file_admission = admit(&file, Some(&file))?;
+                if !budget.live(&mut output.coverage) { return Ok(None); }
+                match (node_admission, file_admission) {
+                    (ImpactAdmission::Selected, ImpactAdmission::Selected) => Ok(Some(file)),
+                    (ImpactAdmission::NonSelectedRevision, _) | (_, ImpactAdmission::NonSelectedRevision) => {
+                        output.coverage.non_selected_nodes += 1;
+                        gap(&mut output.coverage, "interface_implementation_non_selected_revision"); Ok(None)
+                    }
+                    _ => {
+                        output.coverage.unknown_nodes += 1;
+                        gap(&mut output.coverage, "interface_implementation_admission_unknown"); Ok(None)
+                    }
+                }
+            };
+            let read_edge = |source: &str, target: &str, kind: &EdgeKind,
+                             budget: &mut PropertyBudget, coverage: &mut ImpactWalkCoverage| -> anyhow::Result<Option<Edge>> {
+                if !budget.live(coverage) { return Ok(None); }
+                let Some(raw) = edges.get(edge_key(project_id, kind, source, target).as_str())? else {
+                    gap(coverage, "interface_implementation_edge_missing"); return Ok(None);
+                };
+                if !budget.record(raw.value().len(), coverage) { return Ok(None); }
+                let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
+                    .with_limit(PROPERTY_RECORD_BYTES as u64).reject_trailing_bytes().deserialize(raw.value())?;
+                anyhow::ensure!(edge.source_id == source && edge.target_id == target && edge.edge_kind == *kind,
+                    "Interface implementation edge disagrees with its key");
+                Ok(Some(edge))
+            };
+            let Some(caller) = read(caller_id, &mut budget, &mut output.coverage)? else { return Ok(output) };
+            if caller.node_type != "function" || !(caller.language.eq_ignore_ascii_case("vb")
+                || caller.language.eq_ignore_ascii_case("vbnet")) { return Ok(output); }
+            let Some(caller_file) = selected_file(&caller, &mut budget, &mut output)? else { return Ok(output) };
+            let mut seen = std::collections::HashSet::new();
+            'contracts: for contract_id in contract_ids {
+                if !seen.insert(contract_id) { continue; }
+                if !budget.live(&mut output.coverage) { break; }
+                let Some(contract) = read(contract_id, &mut budget, &mut output.coverage)? else { continue };
+                if contract.metadata.as_ref().and_then(|m|m.get("interface_member_declaration"))
+                    .and_then(JsonValue::as_str) != Some("true") { continue; }
+                let Some(contract_file) = selected_file(&contract, &mut budget, &mut output)? else { continue };
+                let Some(call) = read_edge(caller_id, contract_id, &EdgeKind::Calls, &mut budget, &mut output.coverage)? else { continue };
+                let Some(calls) = interface_bindings(&call).ok().flatten() else {
+                    gap(&mut output.coverage, "interface_implementation_call_binding_unavailable"); continue;
+                };
+                if call.namespace != engram_core::namespaces::NAMESPACE_MEMORY || !edge_source_revision_matches(&call, &caller) {
+                    gap(&mut output.coverage, "interface_implementation_call_source_unverified"); continue;
+                }
+                if !calls.complete { gap(&mut output.coverage, "interface_implementation_call_bindings_omitted"); }
+                let verified: Vec<_> = calls.bindings.iter().filter(|binding| {
+                    if binding.matches(&caller, &caller_file, &contract, &contract_file) { true }
+                    else { gap(&mut output.coverage, "interface_implementation_call_binding_unverified"); false }
+                }).collect();
+                if verified.is_empty() { continue; }
+                let prefix = adj_key(project_id, &EdgeKind::Implements, contract_id);
+                for entry in incoming.range((prefix.as_str(), "")..)? {
+                    if !budget.live(&mut output.coverage) { break 'contracts; }
+                    let (key, adjacency) = entry?;
+                    let (observed, implementation_id) = key.value();
+                    if observed != prefix { break; }
+                    output.coverage.raw_rows += 1;
+                    if output.coverage.raw_rows > 128 {
+                        gap(&mut output.coverage, "interface_implementation_raw_row_limit"); break 'contracts;
+                    }
+                    anyhow::ensure!(valid_id(implementation_id, 2048), "Invalid interface implementation adjacency identity");
+                    let _ = decode_adj_value(adjacency.value())?;
+                    let Some(implementation) = read(implementation_id, &mut budget, &mut output.coverage)? else { continue };
+                    output.coverage.nodes_observed += 1;
+                    if implementation.node_type != "function" || !(implementation.language.eq_ignore_ascii_case("vb")
+                        || implementation.language.eq_ignore_ascii_case("vbnet")) {
+                        gap(&mut output.coverage, "interface_implementation_declaration_unavailable"); continue;
+                    }
+                    let Some(implementation_file) = selected_file(&implementation, &mut budget, &mut output)? else { continue };
+                    let Some(mapping) = read_edge(implementation_id, contract_id, &EdgeKind::Implements,
+                        &mut budget, &mut output.coverage)? else { continue };
+                    let Some(mappings) = interface_bindings(&mapping).ok().flatten() else {
+                        gap(&mut output.coverage, "interface_implementation_mapping_unavailable"); continue;
+                    };
+                    if mapping.namespace != engram_core::namespaces::NAMESPACE_MEMORY || !edge_source_revision_matches(&mapping, &implementation) {
+                        gap(&mut output.coverage, "interface_implementation_mapping_source_unverified"); continue;
+                    }
+                    if !mappings.complete { gap(&mut output.coverage, "interface_implementation_mapping_bindings_omitted"); }
+                    for support in &mappings.bindings {
+                        let Some(call_support) = verified.iter().find(|binding| binding.target == support.target) else { continue };
+                        if !support.matches(&implementation, &implementation_file, &contract, &contract_file) {
+                            gap(&mut output.coverage, "interface_implementation_mapping_binding_unverified"); continue;
+                        }
+                        if output.routes.iter().any(|row| row.contract.node_id == *contract_id
+                            && row.implementation.node_id == implementation.node_id && row.contract_type_key == support.target.contract_type_key) { continue; }
+                        if output.routes.len() == 16 {
+                            gap(&mut output.coverage, "interface_implementation_route_limit"); break 'contracts;
+                        }
+                        let bytes = identity_bytes(&caller) + identity_bytes(&contract) + identity_bytes(&implementation)
+                            + support.target.contract_type_key.len() + support.target.contract_type.len()
+                            + call_support.reference_lines.len() * std::mem::size_of::<u32>();
+                        if budget.retained_bytes.checked_add(bytes).is_none_or(|n| n > PROPERTY_STRING_BYTES) {
+                            gap(&mut output.coverage, "interface_implementation_retained_byte_limit"); break 'contracts;
+                        }
+                        if !budget.live(&mut output.coverage) { break 'contracts; }
+                        budget.retained_bytes += bytes;
+                        output.routes.push(InterfaceImplementationRoute {
+                            caller: identity_clone(&caller), contract: identity_clone(&contract), implementation: identity_clone(&implementation),
+                            call_generation: call.generation, mapping_generation: mapping.generation,
+                            reference_lines: call_support.reference_lines.clone(), reference_lines_truncated: call_support.reference_lines_truncated,
+                            clause_line: support.reference_lines.first().copied(), contract_type_key: support.target.contract_type_key.clone(),
+                            contract_type: support.target.contract_type.clone(),
+                        });
+                    }
+                }
+            }
+            Ok(output)
+        })()?;
+        for reason in &mut output.coverage.reasons {
+            *reason = reason.replace("property_reference_", "interface_implementation_");
+        }
+        output.coverage.reasons.sort();
+        Ok(output)
+    }
+
     /// Inspect one exact source's outgoing Calls adjacency under one graph
     /// transaction. At most 64 rows are decoded and one further key establishes
     /// a boundary; non-property/rejected rows consume the same allowance.
@@ -2276,6 +2487,139 @@ mod tests {
 
     fn causal(kind: &EdgeKind) -> bool {
         matches!(kind, EdgeKind::Calls | EdgeKind::Dependency)
+    }
+
+    fn interface_navigation_node(path: &str, name: &str, line: u32, contract: bool) -> Node {
+        let id = engram_core::ids::NodeId::symbol("function", None, path, name, line).0;
+        let mut value = node(&id, path, 7);
+        value.name = name.into(); value.start_line = line; value.end_line = line + 5;
+        value.metadata = Some(serde_json::json!({"semantic_member_id":format!("M:{name}:{line}"),
+            "semantic_span_start":line.to_string(),"semantic_span_length":"5",
+            "interface_member_declaration":if contract {"true"} else {"false"}}));
+        value
+    }
+
+    fn interface_navigation_file(path: &str) -> Node {
+        let mut value = file(path, 7);
+        value.metadata = Some(serde_json::json!({"file_hash":"b".repeat(64),
+            "vb_syntax_source_sha256":"c".repeat(64),"vb_parser_provenance":{"backend":"roslyn","parser":"fixture"}}));
+        value
+    }
+
+    fn interface_navigation_edge(source: &Node, contract: &Node, kind: EdgeKind, closed: char) -> Edge {
+        let binding = InterfaceBinding {
+            target: InterfaceMemberLocator { version:1, name:contract.name.clone(),
+                semantic_id:contract.metadata.as_ref().unwrap()["semantic_member_id"].as_str().unwrap().into(),
+                file_path:contract.file_path.as_str().into(),start_line:contract.start_line,
+                span_start:contract.start_line,span_length:5,syntax_source_sha256:"c".repeat(64),
+                contract_type_key:closed.to_string().repeat(64),contract_type:format!("IBox(Of {closed})") },
+            source_semantic_id:source.metadata.as_ref().unwrap()["semantic_member_id"].as_str().unwrap().into(),
+            source_generation:7,source_file_hash:"b".repeat(64),target_generation:7,target_file_hash:"b".repeat(64),
+            parser:serde_json::json!({"backend":"roslyn","parser":"fixture"}),
+            reference_lines:vec![source.start_line+1],reference_lines_truncated:false,
+        };
+        let mut value = edge(&source.node_id, &contract.node_id, kind, 7);
+        value.metadata = Some(serde_json::json!({INTERFACE_BINDINGS:InterfaceBindings {
+            version:1,complete:true,bindings:vec![binding]}}));
+        value
+    }
+
+    fn interface_navigation_fixture(store: &GraphStore) -> anyhow::Result<(Node, Node, Node, Node)> {
+        let caller = interface_navigation_node("Caller.vb", "Controller.Read", 10, false);
+        let contract = interface_navigation_node("Contract.vb", "IBox.Read", 6, true);
+        let alpha = interface_navigation_node("Service.vb", "Service.FetchAlpha", 20, false);
+        let beta = interface_navigation_node("Service.vb", "Service.FetchBeta", 30, false);
+        store.upsert_nodes_and_edges(PROJECT, &[caller.clone(),contract.clone(),alpha.clone(),beta.clone(),
+            interface_navigation_file("Caller.vb"),interface_navigation_file("Contract.vb"),interface_navigation_file("Service.vb")],
+            &[interface_navigation_edge(&caller,&contract,EdgeKind::Calls,'a'),
+                interface_navigation_edge(&alpha,&contract,EdgeKind::Implements,'a'),
+                interface_navigation_edge(&beta,&contract,EdgeKind::Implements,'b')])?;
+        Ok((caller,contract,alpha,beta))
+    }
+
+    #[test]
+    fn interface_implementations_follow_exact_closed_contract_without_inventing_direct_calls() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (caller,contract,alpha,beta) = interface_navigation_fixture(store)?;
+            let admit = |_: &Node, _: Option<&Node>| Ok(ImpactAdmission::Selected);
+            let before = store.bounded_declaration_references(PROJECT,&caller.node_id,&admit,&|_|false)?;
+            let output = store.bounded_interface_implementations(PROJECT,&caller.node_id,&[contract.node_id.clone()],&admit,&|_|false)?;
+            assert_eq!(output.routes.len(),1,"Different constructed contract must not become a possible target");
+            let route = &output.routes[0];
+            assert_eq!(route.implementation.node_id,alpha.node_id);
+            assert_ne!(route.implementation.node_id,beta.node_id);
+            assert_eq!(route.contract.node_id,contract.node_id);
+            assert_eq!(route.caller.node_id,caller.node_id);
+            assert_eq!(route.reference_lines,[11]);
+            assert_eq!(route.clause_line,Some(21));
+            assert!(route.caller.metadata.is_none() && route.contract.metadata.is_none() && route.implementation.metadata.is_none());
+            assert!(!output.coverage.truncated);
+            let after = store.bounded_declaration_references(PROJECT,&caller.node_id,&admit,&|_|false)?;
+            assert_eq!(serde_json::to_value(before)?,serde_json::to_value(after)?,"Optional routes cannot alter direct call evidence");
+
+            let overload = interface_navigation_node("Contract.vb","IBox.Read",12,true);
+            let wrong = interface_navigation_node("Other.vb","Other.Fetch",20,false);
+            store.upsert_nodes_and_edges(PROJECT,&[overload.clone(),wrong.clone(),interface_navigation_file("Other.vb")],
+                &[interface_navigation_edge(&wrong,&overload,EdgeKind::Implements,'a')])?;
+            let output = store.bounded_interface_implementations(PROJECT,&caller.node_id,&[overload.node_id],&admit,&|_|false)?;
+            assert!(output.routes.is_empty(),"A supplied same-name overload without its exact call edge is not a route");
+            assert!(output.coverage.truncated);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn interface_implementations_reject_stale_excluded_and_unverified_endpoint_files() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (caller,contract,alpha,_) = interface_navigation_fixture(store)?;
+            let ids = vec![contract.node_id.clone()];
+            let admit = |_: &Node, _: Option<&Node>| Ok(ImpactAdmission::Selected);
+            let excluded = store.bounded_interface_implementations(PROJECT,&caller.node_id,&ids,&admit,
+                &|n|n.node_type=="file" && n.file_path.as_str()=="Service.vb")?;
+            assert!(excluded.routes.is_empty() && excluded.excluded_nodes==2);
+            let nonselected = store.bounded_interface_implementations(PROJECT,&caller.node_id,&ids,
+                &|n,_|Ok(if n.node_type=="file" && n.file_path.as_str()=="Service.vb" {ImpactAdmission::NonSelectedRevision} else {ImpactAdmission::Selected}),&|_|false)?;
+            assert!(nonselected.routes.is_empty() && nonselected.coverage.non_selected_nodes==2);
+            let mut old = interface_navigation_edge(&alpha,&contract,EdgeKind::Implements,'a');
+            old.metadata.as_mut().unwrap()[SOURCE_ORIGIN] = serde_json::json!({"version":1,"source_id":alpha.node_id,"source_generation":6});
+            store.upsert_nodes_and_edges(PROJECT,&[],&[old])?;
+            let stale = store.bounded_interface_implementations(PROJECT,&caller.node_id,&ids,&admit,&|_|false)?;
+            assert!(stale.routes.is_empty());
+            assert!(stale.coverage.reasons.iter().any(|s|s=="interface_implementation_mapping_source_unverified"));
+            // Restore the mapping, but invalidate the selected source file hash.
+            let mut source_file = interface_navigation_file("Caller.vb");
+            source_file.metadata.as_mut().unwrap()["file_hash"] = serde_json::json!("d".repeat(64));
+            store.upsert_nodes_and_edges(PROJECT,&[source_file],&[interface_navigation_edge(&alpha,&contract,EdgeKind::Implements,'a')])?;
+            let unverified = store.bounded_interface_implementations(PROJECT,&caller.node_id,&ids,&admit,&|_|false)?;
+            assert!(unverified.routes.is_empty() && unverified.coverage.raw_rows==0);
+            assert!(unverified.coverage.reasons.iter().any(|s|s=="interface_implementation_call_binding_unverified"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn interface_implementations_bound_rejected_work_and_disclose_omitted_routes() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (caller,contract,_,_) = interface_navigation_fixture(store)?;
+            let admit = |_: &Node, _: Option<&Node>| Ok(ImpactAdmission::Selected);
+            let mut values = Vec::new(); let mut edges = Vec::new();
+            for index in 0..135 {
+                let implementation = interface_navigation_node("Service.vb", &format!("Service.A{index:03}"), 40+index, false);
+                edges.push(interface_navigation_edge(&implementation,&contract,EdgeKind::Implements,'a'));
+                values.push(implementation);
+            }
+            store.upsert_nodes_and_edges(PROJECT,&values,&edges)?;
+            let excluded = store.bounded_interface_implementations(PROJECT,&caller.node_id,&[contract.node_id.clone()],&admit,
+                &|n|n.file_path.as_str()=="Service.vb")?;
+            assert!(excluded.routes.is_empty());
+            assert_eq!(excluded.coverage.raw_rows,129,"128 rejected rows and one undecoded boundary");
+            assert_eq!(excluded.excluded_nodes,128);
+            assert!(excluded.coverage.reasons.iter().any(|s|s=="interface_implementation_raw_row_limit"));
+            let limited = store.bounded_interface_implementations(PROJECT,&caller.node_id,&[contract.node_id],&admit,&|_|false)?;
+            assert_eq!(limited.routes.len(),16);
+            assert!(limited.coverage.reasons.iter().any(|s|s=="interface_implementation_route_limit"));
+            Ok(())
+        })
     }
 
     fn property(id: &str, path: &str, generation: u64) -> Node {

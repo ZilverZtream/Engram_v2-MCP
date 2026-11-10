@@ -1,0 +1,117 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_61_CASES_PASS_NOT_RELEASE_BUILT_OR_DEPLOYED",
+  "at_utc": "2026-11-10T09:22:51.485177+00:00",
+  "problem": "Actual controller CodeMap routes to an interface signature and hides that route behind metadata; it offers no direct path to the explicit implementation. In the frozen cache task the agent instead requested the whole service file, which exceeded its budget.",
+  "change": "CodeMap follows existing compiler-backed Calls to an interface member and explicit Implements mappings for the same constructed contract. It exposes potential implementation source actions directly in source responses when space permits; metadata retains bounded routes. Direct Calls, source text, ordinary recovery and prior samples remain separate and preserved.",
+  "causal_limit": "A demonstrated navigation obstacle, not proven cause of the cache6/7 score or whole-task success. No frozen task replay/rescore.",
+  "source_files": {
+    "crates/engram_graph/src/store.rs": "3c21bf86f04318f4ab531e7db1dc8523ad54066bc2687ae78e2677b44890c15f",
+    "crates/engram_graph/src/store/impact_walk.rs": "4b3c5d91feb38dcffcf1f3d08f721e69f0a0e88fb6102d65613f1dfe0057a35c",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "d4a94ea2bc60050412472fb055d3151370d630542a34a4674f2f02c7cd4e5201",
+    "crates/engram_server/tests/interface_dispatch_behavior_tests.rs": "cf35001c0d919d11b569b8c0449cb3cfe433f7897ef989d238437cd3514cdb0e",
+    "docs/TOOL_CONTRACT.md": "4adbb8adf3fa27c74add62bb4fc0be56e10f7223a5593ed9492bbebceecd45df"
+  },
+  "tests": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-graph-v1-20261110.json",
+        "sha256": "dfe712502db841bc3fb306ea0c81c209e8f085ee1c89051a69274fd829fb2aab"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-graph-v1-20261110.log",
+        "sha256": "c4a641ce9d6107ef7fae837db51c6e4e197ea3d388cfbcfaae55ecaca5379af3"
+      },
+      "cases_exercised": 3,
+      "seconds": 20.182819200039376
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-public-v1-20261110.json",
+        "sha256": "16a5ba9209af96900b51bfb6497a1925109243e7a247a04bd4318f018db1ea23"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-public-v1-20261110.log",
+        "sha256": "ee48791ee191782b81eb99b64d5b9049a2c6e1c69fae5e8e153f02970b5f6420"
+      },
+      "cases_exercised": 55,
+      "seconds": 296.4206846000161
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-native-v1-20261110.json",
+        "sha256": "01b55e6e9b3c08ddd016d6a24f13d4f8564cab7cd08fe921396bedfec939f683"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-native-v1-20261110.log",
+        "sha256": "958b6e3c22239d4b77382632f8ecc9c03824ace5f5f15e7f784d2106c0f8228d"
+      },
+      "cases_exercised": 2,
+      "seconds": 16.157717099995352
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-budget-v1-20261110.json",
+        "sha256": "ed8866ab6ffd4432e46ea41666968c194b89581c87ba4ac3fc35dd75334c27eb"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-budget-v1-20261110.log",
+        "sha256": "a206cb9d22075610eee5eac69fdc287261cbe6c8cf57793bfb81b27165dcee94"
+      },
+      "cases_exercised": 1,
+      "seconds": 344.4332980000181
+    }
+  ],
+  "tests_exercised": 61,
+  "native_test_provenance": {
+    "public_batch_native_cases": "Two cases early-returned without ENGRAM_VB_SIDECAR_PATH; excluded from61.",
+    "separate_native_batch": "Operator invocation checked installed native exe SHA256 then explicitly set ENGRAM_VB_SIDECAR_PATH before executing native-v1. Runner does not independently capture environment; source tests fail on unusable explicitly supplied sidecar. Native tests ran14.17seconds.",
+    "sidecar": "C:/Users/Dennis/AppData/Local/engram/bin/sidecar/vb_roslyn_sidecar-win-x64.exe",
+    "sidecar_sha256": "41a4843d4dd2e5ae36014c28c6c7071bad5288c4713dda1f34afcba832308dfb"
+  },
+  "evidence": {
+    "before": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-navigation-before-20261110.json",
+      "sha256": "e893a436be40719a04a7bcf11e292f796237e75e99ce5ef0809e72e0f8bc283b"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-review-20261110.json",
+      "sha256": "3b0239ddfec065cea76280dad0a6e408b555d319ad7763514d795bd99d58d60c"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-helper-review-20261110.json",
+      "sha256": "591f9fb5fd33bcaac9e5b49a222f87448b9a10da87a266008f8e12c0f147a598"
+    },
+    "prepared_checks": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-checks-20261110.py",
+      "sha256": "df0bdaaf5b95f4ae8c7980572e4e1e974e332fb622fad50302cb5bed9bea19ec"
+    },
+    "prepared_packaging": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-prepare-pair-20261110.py",
+      "sha256": "5431732fc4d58685f8279fcd47235790bb7fb984993a4b1a4bfa21b1c98d4aee"
+    },
+    "frozen_cache_result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-installation-cache-qa-20261110.json",
+      "sha256": "331ce182d8c4fd32b780ec813fe797b4be443d0bbc9312af940dfdc240fa80b5"
+    },
+    "new_task_spec": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-task-spec.json",
+      "sha256": "2dc15d4e19d857c21d2c5be849858e4da16d0383e1ea97a68ee68cec2f59806c"
+    },
+    "new_task_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-oracle.json",
+      "sha256": "470e4e6b0712b0aa4c58238f1d06ba9b3fb515728b9b48c1835438e8b3b3ae77"
+    }
+  },
+  "new_task_state": "Distinct TimeReportDays query-removal review. Task criteria and independent source oracle frozen before candidates; no candidates started, no task win claimed.",
+  "parser_schema_or_index_migration": false,
+  "source_generation": 3144,
+  "deployed": false,
+  "resources": {
+    "test_owned_temporary_resources_closed_and_removed": true,
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retention": "Keep diagnostics/helper/oracle artifacts for review; deletion requires exact-path approval. No preexisting folders removed. No maintenance hold active."
+  },
+  "goal_complete": false,
+  "original_31_findings_or_19_full_gates_closed": false,
+  "next_action": "Build normal release from committed source, package unchanged native214 assets, execute13actual tool/source checks, deploy and restore normal runtime, then run distinct frozen TimeReportDays task through unchanged evidence relay to assess complete-task usefulness."
+}
