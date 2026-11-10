@@ -118,6 +118,7 @@ def prepare(corpus, destination, kind, delivery_mode='readonly_packet_v2'):
     inputs = {p: evaluation.bounded(corpus, p).read_bytes() for p in frozen}
     destination.mkdir()  # Deliberately refuses an existing directory, including empty ones.
     state = dict(version=1, status='preparing', kind=kind, created_at=now(),
+                 producer_kind=manifest.get('producer_kind', 'historical'),
                  source_corpus=str(corpus), manifest_sha256=digest(inputs['manifest.json']),
                  collector_sha256=digest(Path(__file__).read_bytes()), artifacts={}, runs=[],
                  retention='Retain private run evidence for review. Interrupted preparations are not disposable.',
@@ -227,7 +228,10 @@ def judge(root, identity, response):
         metrics = evaluation.results(root, manifest, oracle, judgments)
         artifact(root, state, 'judgments.json', judgments)
         artifact(root, state, 'report.json', dict(status='recorded_run_verified', kind=state['kind'],
-                 metrics=metrics, limits=state['freshness'] + ' Frozen contexts are historical; this does not requery current tools or prove matched implementation/QA benefit.'))
+                 producer_kind=state.get('producer_kind', 'historical'), metrics=metrics,
+                 limits=state['freshness'] + (' Frozen contexts capture pinned current producers; this is not a fresh holdout or matched implementation/QA benefit.'
+                    if state.get('producer_kind') == 'current_producer' else
+                    ' Frozen contexts are historical; this does not requery current tools or prove matched implementation/QA benefit.')))
         state.update(status='complete', judge_agent=identity, finished_at=now())
         save(root, state)
     return status(root)
@@ -250,6 +254,11 @@ def status(root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
+    p = commands.add_parser('prepare-current', help='Capture pinned existing installed tools into a new frozen corpus')
+    p.add_argument('input_spec_directory', type=Path)
+    p.add_argument('destination', type=Path)
+    p.add_argument('--pins', type=Path, required=True,
+                   help='Explicit binary/manifest hashes, primary PID/start time, project/generation and source-root pins')
     p = commands.add_parser('prepare')
     p.add_argument('corpus', type=Path)
     p.add_argument('destination', type=Path)
@@ -271,7 +280,10 @@ def main():
         if name in ['record', 'judge']:
             p.add_argument('--response', type=Path, required=True)
     args = parser.parse_args()
-    if args.command == 'prepare':
+    if args.command == 'prepare-current':
+        from frozen_task_capture import prepare_current
+        value = prepare_current(args.input_spec_directory, args.destination, args.pins)
+    elif args.command == 'prepare':
         value = prepare(args.corpus, args.destination, args.kind, args.delivery_mode)
     else:
         root = args.directory.resolve(strict=True)

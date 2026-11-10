@@ -1,0 +1,280 @@
+{
+  "status": "CURRENT_PRODUCER_COMPARISON_COMPLETE_BASELINE_20_ASSISTED_19_NO_BENEFIT_CLAIM",
+  "at_utc": "2026-11-10T15:21:03.733491+00:00",
+  "delivered": "prepare-current captures the installed three core tools into the existing frozen four-category/eight-arm verification flow. No new model runner, server deployment or indexing change.",
+  "verification": {
+    "protocol_tests_passed": 30,
+    "independent_local_code_review_findings": [],
+    "live_core_requests": 12,
+    "live_total_rpc_requests": 16,
+    "source_files_pinned": 16,
+    "source_excerpts_checked": 36,
+    "generation": 3145,
+    "installed_binary_source_commit": "0903728bb7b845a1f07e7bc2d8d0aad05f6a05e2",
+    "capture_process": 70972,
+    "source_hashes_unchanged_after_models": true,
+    "fresh_candidate_sessions": 8,
+    "separate_judge_sessions": 1,
+    "model_turns": 18,
+    "candidate_replays": 0,
+    "all_child_turns_exited_zero": true,
+    "saved_result_integrity_verified": true,
+    "ci_scope": "Existing test_frozen_task_*.py pattern includes new synthetic capture tests. CI has not run this private live-producer/model comparison."
+  },
+  "totals": {
+    "baseline": {
+      "satisfied": 20,
+      "total_criteria": 20,
+      "false_guidance": 0,
+      "input_bytes": 83979,
+      "additional_reads": 12,
+      "observed_agent_wall_seconds": 228.801841
+    },
+    "assisted": {
+      "satisfied": 19,
+      "total_criteria": 20,
+      "false_guidance": 1,
+      "input_bytes": 214894,
+      "additional_reads": 12,
+      "observed_agent_wall_seconds": 230.89646199999999
+    }
+  },
+  "assisted_input_bytes_increase_percent": 155.89,
+  "metrics": [
+    {
+      "case_id": "current_scoped_cache_policy",
+      "arm": "baseline",
+      "input_bytes": 17309,
+      "input_characters": 17309,
+      "output_bytes": 4184,
+      "output_characters": 4184,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 52.999706,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "current_scoped_cache_policy",
+      "arm": "assisted",
+      "input_bytes": 41452,
+      "input_characters": 41452,
+      "output_bytes": 4408,
+      "output_characters": 4404,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 57.101736,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "current_diagnosis_tenant_delete",
+      "arm": "baseline",
+      "input_bytes": 15588,
+      "input_characters": 15588,
+      "output_bytes": 4565,
+      "output_characters": 4565,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 57.92108,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "current_history_temp_cleanup",
+      "arm": "assisted",
+      "input_bytes": 60230,
+      "input_characters": 60216,
+      "output_bytes": 4425,
+      "output_characters": 4413,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 58.497254,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "current_diagnosis_tenant_delete",
+      "arm": "assisted",
+      "input_bytes": 48647,
+      "input_characters": 48633,
+      "output_bytes": 4484,
+      "output_characters": 4478,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 57.317721,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "current_companion_clear_due_date",
+      "arm": "assisted",
+      "input_bytes": 64565,
+      "input_characters": 64553,
+      "output_bytes": 4779,
+      "output_characters": 4761,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 57.979751,
+      "satisfied": 4,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 1
+    },
+    {
+      "case_id": "current_companion_clear_due_date",
+      "arm": "baseline",
+      "input_bytes": 27736,
+      "input_characters": 27736,
+      "output_bytes": 4290,
+      "output_characters": 4290,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 68.33161,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "current_history_temp_cleanup",
+      "arm": "baseline",
+      "input_bytes": 23346,
+      "input_characters": 23344,
+      "output_bytes": 4132,
+      "output_characters": 4126,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 49.549445,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    }
+  ],
+  "unsupported_guidance": [
+    {
+      "identity": {
+        "case_id": "current_companion_clear_due_date",
+        "arm": "assisted"
+      },
+      "judgment": {
+        "candidate_id": "3244dc26c02dc48918e94b6b",
+        "criteria": {
+          "c1": "satisfied",
+          "c2": "satisfied",
+          "c3": "not_satisfied",
+          "c4": "satisfied",
+          "c5": "satisfied"
+        },
+        "false_guidance": [
+          "Specifying that UpdateTask should persist database NULL imposes an unsupported storage requirement. The frozen source converts missing dueDate to SqlDateTime.MaxValue; review should establish the intended clear representation and verify readback rather than require SQL NULL."
+        ],
+        "rationale": "Provides a concrete explicit-action plan, representative WebForms companions, action/payload consistency checks, and permission and partial-outcome QA. Withholding conclusions about unavailable DTO and persistence evidence is justified. However, the persistence criterion is not satisfied because the plan introduces an unjustified SQL NULL expectation and does not establish the downstream sentinel and Admin-only date-write behavior."
+      }
+    }
+  ],
+  "source_findings": [
+    "All four CodeMap current-source previews and five inspected caller-reference texts agree with independent source; one unrelated ServerInfo sample remains unverified.",
+    "Cache-policy file impact observes zero graph dependents despite two source-visible callers. It exposes local/project-wide literal type-name recovery, unexecuted in the frozen bundle, and does not claim safety or exhaustive absence.",
+    "Bulk update and cleanup results are file-root depth-one observations. Displayed other members are not method-specific callers; omitted member/source routes remain explicit.",
+    "The assisted bulk task did not request the available persistence excerpt, then required database NULL. Actual UpdateTask normalizes missing dueDate to SqlDateTime.MaxValue and writes dates only under Admin. Its unsupported recommendation is retained, not attributed causally to a tool defect.",
+    "Each impact_analysis/compute_blast_radius pair is byte-identical for this fixed file/summary/depth request. They are alternative views of shared evidence, not independent corroboration."
+  ],
+  "citation_accounting": {
+    "baseline_supported_cited_paths_summed_per_case": 13,
+    "assisted_supported_cited_paths_summed_per_case": 15,
+    "unsupported_path_citations": 0,
+    "locator_span_caveats": 2,
+    "limits": "Evidence-field path coverage proxy only; more cited paths do not establish correct guidance or useful decisions per read."
+  },
+  "limits": [
+    "This is a fresh model run on newly frozen real-source tasks and captured current responses, not autonomous live tool selection or a held-out productivity result.",
+    "The assisted treatment prepacks all three tools, including two identical impact summaries. Its context cost cannot be generalized to adaptive single-tool use.",
+    "Both arms have the same source-read allowlist; selection and frozen oracle remain unchanged. No source-only/assisted score uplift, read reduction or general speed benefit is established.",
+    "No OciusX implementation, application runtime QA, database write or production behavior change was performed.",
+    "Original EG24 regular-verification scope remains partial; this closes its current-producer capture gap. EG25 matched implementation/QA evidence remains unfinished. Original31 findings and19 gate states remain unchanged."
+  ],
+  "evidence": {
+    "capture_manifest": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-corpus-20261110\\manifest.json",
+      "sha256": "e6fc485f970ffef5f501bc55d34ad0cdcf0b43c016f6a9cd60f314257eb0d0ca"
+    },
+    "capture_complete": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-corpus-20261110\\provenance\\capture-complete.json",
+      "sha256": "3d83a048ccef2a0f77190b3df636403b22915dfdde57ef6fe0492de953e771dd"
+    },
+    "capture_pins": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-corpus-20261110\\provenance\\pins.json",
+      "sha256": "97d381e5530ab313ba9c6bda5ad45fad0a6eaaa72e0be14447fe7ef803e833f8"
+    },
+    "source_inputs": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-inputs-20261110\\input-validation.json",
+      "sha256": "9a5d35f445fde8f73577879a10832cce1cabedc13706e830437de67d2f4a07d1"
+    },
+    "source_assessment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-producer-source-check-20261110.json",
+      "sha256": "da1293ce91564f68e7018ded0416023b0fae88b43dfedd5d6c8a7c240721e940"
+    },
+    "cited_evidence_check": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-evidence-read-check-20261110.json",
+      "sha256": "2e825eb887b44d1b8b32a1d8ddc0be445bb37ab77de297dc79b175979469ec61"
+    },
+    "code_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-code-review-20261110.json",
+      "sha256": "6598890fc09d2d8c65798a9c83764bb6dc4039b5ee8e221a40d72e2afd2595a8"
+    },
+    "tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-protocol-tests-20261110.log",
+      "sha256": "67c373b58019174ec3e92d7b4d482ceeacd75a76efd33567ad27a893cbba380d"
+    },
+    "execution": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\execution\\state.json",
+      "sha256": "50062c23dce616bec1e857241ced4f2b10cd2d28d7ba317abaf9a1a96a53597c"
+    },
+    "collection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\collection-state.json",
+      "sha256": "f91ae4f0c5418b0863a7d39f5ac0a897f4a5170c9f98f298cd8f9f79e89d9751"
+    },
+    "report": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\report.json",
+      "sha256": "e3cf06aea03d969d66b76a00226777cefdfbef56b318495ceeb0ff9d054facdd"
+    },
+    "runs": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\runs.json",
+      "sha256": "340cd866ae01feab61916c7970205684c1b202be7fc4295bd69d7efba5b68caa"
+    },
+    "judgments": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\judgments.json",
+      "sha256": "504e75293465d83ea0929cb1cd93c2c21d6c332748afac0462fea31864736007"
+    },
+    "judge_mapping": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\judge\\mapping.json",
+      "sha256": "fc01889f0686bb677a0c83cd778fd07f6ce3c9527eccacc2fdc60c8217e4f3e0"
+    },
+    "judge_prompt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-run-20261110\\judge\\prompt.json",
+      "sha256": "15e0b0865a2c0061fc63c3aab4e5720cca1543337ecdd6eba0c81e39e5c57de0"
+    },
+    "driver_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-current-verification-execute-20261110.log",
+      "sha256": "3a7f4f141ff5163dfb5ce86af2956aac3faf61d85fd182023b592fe2d511526f"
+    }
+  },
+  "resources": {
+    "capture_observer_closed_before_seal": true,
+    "model_executor_completed": true,
+    "test_fixtures_cleaned_by_owned_TemporaryDirectory": true,
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefix": "core-current-verification-",
+    "retention_reason": "Immutable recipes, source excerpts, producer replies, model inputs/responses, independent judgments and verification receipts; exact-path approval required for removal.",
+    "service_restarts": 0,
+    "index_mutations": 0,
+    "application_source_edits": 0,
+    "preexisting_deletions": 0
+  },
+  "next_original_work": "Continue original EG25 matched implementation/QA evidence using the existing isolated OciusX verification path. Preserve this negative fixed-bundle result. Do not repeat/rescore these tasks or turn recorded caller/display limits into an automatic formatting or graph-expansion project.",
+  "goal_complete": false
+}

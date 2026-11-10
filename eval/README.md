@@ -82,6 +82,41 @@ query against the current Engram build or matched implementation/QA benefit.
 
 ### Executing the frozen comparison with Codex
 
+To capture current installed producers before using that same comparison flow:
+
+```powershell
+python -B eval/frozen_task_run.py prepare-current <input-spec-directory> <new-private-corpus> --pins <pins.json>
+python -B eval/frozen_task_run.py prepare <new-private-corpus> <new-private-run> --delivery-mode manual_packet_v1
+```
+
+`prepare-current` connects only to an already running Windows Engram primary.
+It does not start services, change configuration, open databases or run models.
+`pins.json` requires `binary`, `binary_sha256`, `build_manifest`,
+`build_manifest_sha256`, `primary_metadata`, `primary_pid`,
+`primary_started_at_ms`, `source_root`, `project_id`, and `active_generation`.
+Use absolute paths and SHA256 values observed independently of this capture.
+
+Prepare `spec.json` with `version: 1`, `oracle` (a relative JSON path),
+`source_files` (project-relative paths mapped to independently checked SHA256),
+optional `frozen_metadata` (relative evidence paths), and exactly four `cases`.
+Each case has `id`, the original `category`, `task`, `base_inputs` (JSON paths),
+`available_reads` (read IDs mapped to JSON paths), and `tool_requests`
+(`{name, arguments}` objects). Only `get_codebase_overview`, `impact_analysis`
+and `compute_blast_radius` for the pinned project are allowed. Supply an oracle
+with `judge_only_canary` and `cases[id].criteria` as in existing frozen corpora.
+Freeze tasks, criteria and source evidence independently before capture.
+
+The new destination retains the recipe before any producer query, full replies,
+tools/list, freshness observations, process/build pins and selected source
+hashes. Failed captures remain there for inspection; use a new destination for
+another attempt. Observation waits retain the same pending request. Build,
+primary process, generation or selected-source drift prevents a usable freeze.
+Both arms receive the same base sources and available reads; assisted inputs
+add complete tool response text with byte/hash accounting. The unchanged
+`prepare`/`execute` protocol consumes the resulting four-category/eight-arm
+corpus. Metadata distinguishes `current_producer` from historical inputs;
+capture itself establishes neither a fresh holdout nor productivity benefit.
+
 Use Python 3.11 or newer, an authenticated native Codex executable, and a new
 private run directory.
 The executor uses the existing four-task protocol, eight candidates, bounded

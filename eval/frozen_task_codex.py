@@ -356,10 +356,13 @@ def _execute(root, prefix, timeout_seconds, home):
             work = directory / 'work'; work.mkdir()
             schema = directory / 'candidate-schema.json'; schema.write_bytes(collection.encoded(SCHEMA))
             state = dict(version=1, status='starting', created_at=collection.now(), configuration=None,
+                         producer_kind=initial.get('producer_kind', 'historical'),
                          adapter_sha256=collection.digest(Path(__file__).read_bytes()), session_ids=[], turns=[],
                          timeout_seconds_per_invocation=timeout_seconds,
                          retention='Retain private execution artifacts and persistent Codex sessions for review; no automatic removal.',
-                         limits='Frozen historical task run; no current-tool or comparative implementation/QA claim.')
+                         limits=('Frozen current-producer task run; no fresh-holdout or comparative implementation/QA claim.'
+                                 if initial.get('producer_kind') == 'current_producer' else
+                                 'Frozen historical task run; no current-tool or comparative implementation/QA claim.'))
 
             def save():
                 stage = directory / '.state.writing'

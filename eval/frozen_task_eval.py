@@ -81,6 +81,13 @@ def load(root):
     for relative, digest in manifest['frozen_files'].items():
         if hashlib.sha256(bounded(root, relative).read_bytes()).hexdigest() != digest:
             raise ValueError('Frozen input changed: ' + relative)
+    if manifest.get('producer_kind') == 'current_producer':
+        provenance = manifest.get('producer_provenance')
+        if (root / 'capture-failure.json').exists() or provenance not in manifest['frozen_files']:
+            raise ValueError('Current producer capture is failed or lacks frozen completion provenance')
+        complete = read_json(root, provenance)
+        if complete.get('status') != 'complete' or complete.get('kind') != 'current_producer':
+            raise ValueError('Current producer capture did not complete')
     cases = manifest['cases']
     if {case['category'] for case in cases} != CATEGORIES or len(cases) != 4:
         raise ValueError('Pilot requires four distinct frozen task categories')
