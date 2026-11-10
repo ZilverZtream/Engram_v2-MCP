@@ -265,16 +265,17 @@ fn append_codemap_declaration_continuation(
 fn append_codemap_same_file_callable_samples(
     value: &serde_json::Value, baseline: String, callables: Option<&serde_json::Value>, limit: usize,
     render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
-) -> Result<String, String> {
+) -> Result<(serde_json::Value, String), String> {
     use serde_json::json;
-    let Some(items) = callables.and_then(|calls|calls["items"].as_array()) else { return Ok(baseline) };
-    let Some(path) = value["current_source"]["file_path"].as_str() else { return Ok(baseline) };
-    if !value["called_declarations"].is_object() { return Ok(baseline); }
+    let Some(items) = callables.and_then(|calls|calls["items"].as_array()) else { return Ok((value.clone(), baseline)) };
+    let Some(path) = value["current_source"]["file_path"].as_str() else { return Ok((value.clone(), baseline)) };
+    if !value["called_declarations"].is_object() { return Ok((value.clone(), baseline)); }
     let mut trial = value.clone();
     trial["called_declarations"]["samples"] = json!([]);
     trial["called_declarations"]["sample_scope"] = json!(
         "At most2 same-file admitted callees in retained order, using spare response space. Not exhaustive; indexed spans and witnesses are not binding or current method-boundary proof.");
     let mut result = baseline;
+    let mut accepted = value.clone();
     let mut shown = 0;
     for row in items.iter().filter(|row| row["file_path"] == path
         && row["source_read"]["tool"] == "get_full_method_body"
@@ -285,13 +286,42 @@ fn append_codemap_same_file_callable_samples(
         let text = render(&trial)?;
         if text.len() <= limit {
             result = text;
+            accepted = trial.clone();
             shown += 1;
             if shown == 2 { break; }
         } else {
             trial["called_declarations"]["samples"].as_array_mut().unwrap().pop();
         }
     }
-    Ok(result)
+    Ok((accepted, result))
+}
+
+/// Interface candidates are a separate optional source route, never direct
+/// callees. Preserve the body, existing actions and primary callee rows first.
+fn append_codemap_implementation_routes(
+    value: &serde_json::Value, baseline: String, callables: Option<&serde_json::Value>,
+    limit: usize, render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
+) -> Result<String, String> {
+    use serde_json::json;
+    let Some(dispatch) = callables.and_then(|calls| calls.get("potential_implementations")) else {
+        return Ok(baseline);
+    };
+    if !value["called_declarations"].is_object() { return Ok(baseline); }
+    let mut trial = value.clone();
+    trial["called_declarations"]["potential_implementations"] = dispatch.clone();
+    trial["called_declarations"]["potential_implementations"]["routes_omitted_from_display"] = json!(0);
+    loop {
+        let text = render(&trial)?;
+        if text.len() <= limit { return Ok(text); }
+        let dispatch = &mut trial["called_declarations"]["potential_implementations"];
+        let Some(routes) = dispatch["routes"].as_array_mut() else { break };
+        if routes.pop().is_none() { break; }
+        let omitted = dispatch["routes_omitted_from_display"].as_u64().unwrap_or(0) + 1;
+        dispatch["routes_omitted_from_display"] = json!(omitted);
+    }
+    // Even the empty coverage record may not fit. The existing metadata action
+    // remains available; absence of optional routes never asserts no dispatch.
+    Ok(baseline)
 }
 
 /// Append only after the complete existing navigation/property/source response
@@ -305,7 +335,8 @@ fn append_codemap_callables(
     let finish = |value: &serde_json::Value, text: String| {
         if source_view {
             let (value, text) = append_codemap_declaration_continuation(value, text, limit, render)?;
-            append_codemap_same_file_callable_samples(&value, text, callables, limit, render)
+            let (value, text) = append_codemap_same_file_callable_samples(&value, text, callables, limit, render)?;
+            append_codemap_implementation_routes(&value, text, callables, limit, render)
         }
         else { Ok(text) }
     };
@@ -324,10 +355,11 @@ fn append_codemap_callables(
         return if text.len() <= limit { finish(&trial, text) } else { finish(value, baseline) };
     }
     trial["called_declarations"] = callables.clone();
+    trial["called_declarations"].as_object_mut().unwrap().remove("potential_implementations");
     trial["called_declarations"]["display_omitted"] = json!(0);
     loop {
         let text = render(&trial)?;
-        if text.len() <= limit { return Ok(text); }
+        if text.len() <= limit { return append_codemap_implementation_routes(&trial, text, Some(callables), limit, render); }
         let Some(items) = trial["called_declarations"]["items"].as_array_mut() else { break };
         if items.pop().is_none() { break; }
         let omitted = trial["called_declarations"]["display_omitted"].as_u64().unwrap_or(0)+1;
@@ -2490,6 +2522,47 @@ impl Engram {
                                         "candidates_observed":callables.candidates_observed,
                                         "candidates_omitted":callables.candidates_omitted,
                                         "excluded_targets":callables.excluded_nodes}));
+                                    let contract_ids: Vec<_> = callables.references.iter()
+                                        .map(|reference| reference.target.node_id.clone()).collect();
+                                    if !contract_ids.is_empty() {
+                                        let dispatch = graph.bounded_interface_implementations(
+                                            pid, &nodes[0].node_id, &contract_ids, &admit, &excluded);
+                                        let identity = |node: &engram_graph::Node| serde_json::json!({
+                                            "node_id":node.node_id,"name":node.name,"file_path":node.file_path,
+                                            "start_line":node.start_line,"end_line":node.end_line,"generation":node.generation});
+                                        let scope = "Potential implementations through an admitted source-interface call and explicit Implements mapping for the same constructed contract. Separate from direct Calls; runtime receiver/registration and dispatch are unproven. Bounded current-source reads use indexed spans; compare hashes and generations. Missing or omitted routes do not prove absence.";
+                                        let projection = match dispatch {
+                                            Ok(dispatch) if !dispatch.routes.is_empty() || dispatch.coverage.truncated
+                                                || dispatch.excluded_nodes > 0 => {
+                                                let routes: Vec<_> = dispatch.routes.iter().map(|route| {
+                                                    let target = &route.implementation;
+                                                    let read = if target.start_line > 0 && target.end_line >= target.start_line {
+                                                        Some(serde_json::json!({"tool":"get_full_method_body","arguments":{
+                                                            "project_id":pid,"file_path":target.file_path,
+                                                            "line_start":target.start_line,
+                                                            "line_end":target.end_line.min(target.start_line.saturating_add(119)),
+                                                            "context_lines":0,"include_caller_bodies":false,"output_json":true}}))
+                                                    } else { None };
+                                                    serde_json::json!({"caller":identity(&route.caller),
+                                                        "contract":identity(&route.contract),"implementation":identity(target),
+                                                        "call_generation":route.call_generation,"mapping_generation":route.mapping_generation,
+                                                        "reference_lines":route.reference_lines,"reference_lines_truncated":route.reference_lines_truncated,
+                                                        "clause_line":route.clause_line,"contract_type_key":route.contract_type_key,
+                                                        "contract_type":route.contract_type,"implementation_source_read":read})
+                                                }).collect();
+                                                Some(serde_json::json!({"status":"bounded_static_candidates","routes_observed":routes.len(),
+                                                    "routes":routes,"coverage":dispatch.coverage,"excluded_nodes":dispatch.excluded_nodes,
+                                                    "runtime_dispatch_proven":false,"scope":scope}))
+                                            }
+                                            Ok(_) => None,
+                                            Err(_) => Some(serde_json::json!({"status":"unavailable","routes_observed":0,"routes":[],
+                                                "coverage":{"truncated":true,"reasons":["interface_implementation_observation_failed"]},
+                                                "runtime_dispatch_proven":false,"scope":scope})),
+                                        };
+                                        if let Some(projection) = projection {
+                                            callable_navigation.as_mut().unwrap()["potential_implementations"] = projection;
+                                        }
+                                    }
                                 }
                                 properties
                             });
@@ -6475,6 +6548,32 @@ async fn gather_language_style(
 #[cfg(test)]
 mod tests {
     use super::{detect_destructive_patterns, immune_rule_matches_path, path_confidence_score};
+
+    #[test]
+    fn interface_route_pressure_preserves_source_and_direct_calls_with_explicit_omissions() {
+        use serde_json::{Value, json};
+        let page = json!({"current_source":{"source_code":"caller body","source_file_hash":"pinned"},
+            "metadata_recovery":{"tool":"get_codebase_overview","arguments":{"scope":"Caller.vb"}},
+            "called_declarations":{"items":[{"node_id":"contract","source_read":{"tool":"get_full_method_body"}}]}});
+        let calls = json!({"potential_implementations":{"routes_observed":2,"runtime_dispatch_proven":false,
+            "coverage":{"truncated":true,"reasons":["work_limit"]},
+            "routes":[{"implementation":"first","implementation_source_read":{"tool":"get_full_method_body"}},
+                {"implementation":"second","long_identity":"x".repeat(3000)}]}});
+        let render = |value: &Value| serde_json::to_string(value).map_err(|error| error.to_string());
+        let original = render(&page).unwrap();
+        let text = super::append_codemap_implementation_routes(&page, original.clone(), Some(&calls),
+            original.len()+1000, &render).unwrap();
+        let mut result: Value = serde_json::from_str(&text).unwrap();
+        let dispatch = result["called_declarations"].as_object_mut().unwrap().remove("potential_implementations").unwrap();
+        assert_eq!(result,page,"Possible implementations must not displace source, recovery or direct contract calls");
+        assert_eq!(dispatch["routes_observed"],2);
+        assert_eq!(dispatch["routes_omitted_from_display"],1);
+        assert_eq!(dispatch["routes"][0],calls["potential_implementations"]["routes"][0]);
+        assert_eq!(dispatch["coverage"],calls["potential_implementations"]["coverage"]);
+        assert_eq!(dispatch["runtime_dispatch_proven"],false);
+        assert_eq!(super::append_codemap_implementation_routes(&page, original.clone(), Some(&calls),
+            original.len(), &render).unwrap(),original,"Full replies retain their exact bytes and metadata recovery");
+    }
 
     #[test]
     fn declaration_continuation_never_evicts_allocated_source_or_navigation() {

@@ -25,7 +25,7 @@ pub use source_call::{SourceMemberLocator, SourceCallBinding, SourceCallBindings
 use source_call::{requires_source_call_binding, source_call_binding_matches};
 pub use interface_dispatch::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS, interface_bindings, merge_interface_bindings};
 pub use impact_walk::{
-    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, PropertyReference, PropertyReferences, CallableReference, CallableReferences, event_producer, event_owner_matches,
+    ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, PropertyReference, PropertyReferences, CallableReference, CallableReferences, InterfaceImplementationRoute, InterfaceImplementations, event_producer, event_owner_matches,
 };
 pub use source_stat::{FileStatPatch, FileStatPatchReport, VerifiedFileStat, file_metadata_digest};
 
