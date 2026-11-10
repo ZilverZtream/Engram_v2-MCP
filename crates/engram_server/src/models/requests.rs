@@ -2753,12 +2753,16 @@ pub struct ComputeBlastRadiusRequest {
     /// Graph only: unverified one-hop advice (defaulttrue). False skips its worker. Missing retained centrality leaves score/band null; incomplete file membership makes advice unavailable. No ranking runs. Summary omits it.
     #[serde(default = "default_true")]
     pub include_guidance: bool,
-    /// Incoming dependency depth,1..8; default6. Independent of one-hop advice.
+    /// Incoming dependency depth,1..8; default6. Use1 to focus on direct consumers when summary rows are omitted; display remains bounded. Independent of one-hop advice.
     #[serde(default = "default_impact_depth")]
     pub max_depth: usize,
-    /// summary: bounded revision-admitted navigation without advice/history workers. graph: full report.
-    #[serde(default)]
+    /// Default summary: bounded12KiB revision-admitted navigation and explicit graph recovery, without advice/history workers. graph: full report with optional advice/history.
+    #[serde(default = "default_blast_detail")]
     pub detail: ImpactDetail,
+}
+
+fn default_blast_detail() -> ImpactDetail {
+    ImpactDetail::Summary
 }
 
 // -------------------- Autonomous Decision Gate --------------------

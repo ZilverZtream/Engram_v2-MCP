@@ -1,0 +1,139 @@
+{
+  "status": "IMPLEMENTED_TESTED_REVIEWED_NOT_YET_BUILT_OR_INSTALLED",
+  "at_utc": "2026-11-10T14:14:57.145759+00:00",
+  "problem": "An actual standalone Blast Radius task received65670bytes on its omitted-detail first call. The agent observed truncated output before source inspection; full workflow context exceeded the nominal64KiB allowance.",
+  "task": "Assess changing the shared Markdown default pipeline to ordinary Markdown soft-line behavior by removing UseSoftlineBreakAsHardlineBreak(), so a single newline no longer forces a rendered line break. Identify concrete affected rendering surfaces and the validations needed before changing it.",
+  "change": "Only compute_blast_radius now defaults omitted detail to summary. Explicit graph retains full graph, history and optional advice. impact_analysis keeps its existing graph default. Existing max_depth1 is documented for focused direct-consumer recovery; no new response schema or graph/extraction semantics.",
+  "actual_installed_baseline_and_diagnostics": {
+    "consumer-01": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-consumer-01-receipt.json",
+      "sha256": "9289d116bdb9e0f97efb672e61297f9d95d8681d6749e6361578d82e303ce036",
+      "text_utf8_bytes": 65670
+    },
+    "consumer-02": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-consumer-02-receipt.json",
+      "sha256": "c03ee76602f44874eaf3bf21ceff249a1ad88b5ca10aea8c78f5e02da00499cd",
+      "text_utf8_bytes": 2333
+    },
+    "summary": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-summary-receipt.json",
+      "sha256": "3a75efbf6075244bde0431a227a54d9edfe565edfaf64506bff9e6dc20ae6845",
+      "text_utf8_bytes": 11287
+    },
+    "direct": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-direct-receipt.json",
+      "sha256": "9327c794f6c81d7533244f1b9ab64e1a3f99e7489a9b1467543b9f9ef3fdcbec",
+      "text_utf8_bytes": 11184
+    }
+  },
+  "diagnostic_conclusion": "Existing explicit summary is11287bytes and honestly shows2of3direct consumers. Existing max_depth1 summary is11184bytes and recovers all3with matching source witnesses. These diagnose the proposed default change; they are not proof of its installation or a rerun candidate success.",
+  "workflow_result": {
+    "frozen_minimum_source_criteria_met": true,
+    "strict_64KiB_success": false,
+    "captured_tool_text_bytes": 68003,
+    "source_excerpt_bytes": 9199,
+    "minimum_captured_plus_excerpt_bytes": 77202,
+    "accounting_limit": "Additional search/setup/inspection output is not fully reconstructable after truncation; captured replies are not equated with all text delivered to the model.",
+    "useful_source_work": "Agent followed a literal first-consumer read and traced acceptance tab HTML, report PDF and backlog descriptions.",
+    "remaining_behavioral_limits": [
+      "Initial backlog PageLoad unconditional exit missed.",
+      "Historical signed raw acceptance text re-rendering and project/global fallback not investigated.",
+      "No renderer/runtime execution or exhaustive caller proof."
+    ],
+    "source_exclusion_correction": "Initial broad rg exclusion was imprecise; corrected search retained the same four hits with no excluded-path hits.",
+    "comparison": "Instructed standalone-tool workflow, not randomized, paired, held-out productivity evidence or a candidate replay."
+  },
+  "evidence": {
+    "frozen_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-task.json",
+      "sha256": "61106db773e73de334f6949ff16ec5073c6fc0754950e4763acf678a7bba9fa0"
+    },
+    "independent_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-source-evidence.json",
+      "sha256": "944b00b19fccf70fe6aeafa1bbcf7a89c4c1516eb189d52aaa1b3c9a497c4311"
+    },
+    "consumer_answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-consumer-answer.md",
+      "sha256": "3b1ca95552ede2f0ea4455d831caee2b6b563466c431bdbe6e105fd61db1f06d"
+    },
+    "consumer_trajectory": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-consumer-trajectory.json",
+      "sha256": "68f08e789147773347d2752bcd3152a6a8cf01cbebba36a9e83213bcc8a42196"
+    },
+    "source_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-source-judgment.json",
+      "sha256": "82a03c9163b82133439f69ce3f6d216ed3843e6ca5f8c0ba0238bca71cb740a3"
+    },
+    "receipt_comparison": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-receipt-comparison.json",
+      "sha256": "8b66a460c4748ab04ff5d0008849839faf37d64c3f1af292146251eea2905454"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-source-review.json",
+      "sha256": "499704379e7e8eb492af7dbbe9c64d5cb33804d04cc5fbf5377fcb6102e49849"
+    },
+    "read_only_call_helper": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-standalone-blast-20261110-call.py",
+      "sha256": "28d326829b4cccd2f9b2f630f2c7a65e2cfb9204cc6918326f4c8e50f2df5c45"
+    }
+  },
+  "source_pins_verified": {
+    "oracle_files": 9,
+    "candidate_read_ranges": 9,
+    "reviewed_files": [
+      {
+        "path": "crates/engram_server/src/models/requests.rs",
+        "absolute_path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\models\\requests.rs",
+        "sha256": "BA12BF90E172F48546475469D263C3B25B678B021BBCCB541A8017CEB1E6F157"
+      },
+      {
+        "path": "crates/engram_server/src/tools.rs",
+        "absolute_path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\tools.rs",
+        "sha256": "C69F9716CE5FD8A820B30735BDA6D810C0077DE0AFCF33AFB649CBDE235276C4"
+      },
+      {
+        "path": "crates/engram_server/tests/transitive_impact_behavior_tests.rs",
+        "absolute_path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\tests\\transitive_impact_behavior_tests.rs",
+        "sha256": "8176C512F891BE78E29A506BF74CCAD84B796B515DEA2AA69C68354D1CE4E9D1"
+      },
+      {
+        "path": "docs/TOOL_CONTRACT.md",
+        "absolute_path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\docs\\TOOL_CONTRACT.md",
+        "sha256": "4F0FFD9905C27807ECA2EF027490756A2BF0345EA3165A0C747E3575F0E35F6F"
+      }
+    ]
+  },
+  "tests": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-public-v1-20261110.json",
+      "sha256": "2512345c6d499485eac7d0a38da6d0f294755f75ac46d7e075bfc1a2af2bc7e8"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-public-v1-20261110.log",
+      "sha256": "df8f3f9d45c37097947ab08639af59215496cbf1358a54ceaed5557e97342628"
+    },
+    "passed": 33,
+    "failed": 0,
+    "wanted_behavior": "Default schema and actual handler summary stay within12KiB; actual current-source action executes; graph recovery executes and preserves witnesses/generation; explicit blast graph retains advice/history; impact default unchanged."
+  },
+  "review": "Independent local source review found no actionable findings. CodeRabbit was not run because its previously verified authentication was unavailable; this is not a CodeRabbit pass.",
+  "next_delivery": "Build release from these exact reviewed/tested inputs using the existing target; verify actual candidate/installed defaults and explicit graph/source recovery on OciusX, retain unchanged native assets and source generation, then record delivery. No index update is needed.",
+  "installed": false,
+  "broader_goal_complete": false,
+  "retention": {
+    "directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "prefixes": [
+      "core-standalone-blast-20261110-",
+      "core-blast-default-20261110-",
+      "core-blast-default-public-v1-20261110"
+    ],
+    "purpose": "Source-frozen task, actual replies, candidate trajectory, source judgment, diagnosis, implementation checks and release evidence.",
+    "cleanup_condition": "Retain evidence for review; preexisting files/pairs are preserved and deletion needs exact-path approval. Test-owned temporary resources were removed by their completed owner.",
+    "record_writer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-blast-default-20261110-record-implementation.py",
+      "sha256": "9b473e0801660298bf4850d4c29f0ff53df5f3cbae8b6bea2f1d652d62a3b3d4"
+    },
+    "application_edits": false,
+    "index_mutation": false
+  }
+}

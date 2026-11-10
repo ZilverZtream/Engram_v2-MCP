@@ -1142,7 +1142,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Provide exactly one of file_path or symbol_fqn (symbol name or exact node ID). Use detail=summary for the same bounded12KiB incoming-dependency navigation as impact_analysis. Follow source_routes.reads for bodies and consumer_navigation for small steps; fresh counts are non-additive. File queries exclude same-file dependents. Indexed ranges are not verified callsites; potential interface callers, lexical leads and history are not bound primary callers. Default graph adds separate unverified guidance; include_guidance=false skips that worker. Inspect returned gaps and current source: reverse impact can miss producers and runtime consumers. No proposed-edit simulation, exhaustive coverage or safety guarantee."
+        description = "Provide exactly one of file_path or symbol_fqn (symbol name or exact node ID). Defaults to a bounded12KiB summary with incoming-dependency witnesses, source reads and explicit graph recovery. Follow source_routes.reads for bodies and consumer_navigation for small steps; fresh counts are non-additive. File queries exclude same-file dependents. Indexed ranges are not verified callsites; potential interface callers, lexical leads and history are not bound primary callers. Explicit detail=graph adds full evidence, history and separate unverified guidance; include_guidance=false skips the guidance worker. Summary omits guidance/history. Inspect gaps and current source: reverse impact can miss producers and runtime consumers. No proposed-edit simulation, exhaustive coverage or safety guarantee."
     )]
     pub async fn compute_blast_radius(
         &self,

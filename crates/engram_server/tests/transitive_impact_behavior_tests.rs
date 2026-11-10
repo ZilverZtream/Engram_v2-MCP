@@ -478,6 +478,79 @@ fn empty_filter_impact_recovers_cross_directory_attribute_mentions_without_inven
 }
 
 #[test]
+fn default_blast_preserves_source_witnesses_and_executable_graph_recovery_within_agent_budget() {
+    use engram_server::models::{ComputeBlastRadiusRequest, ImpactAnalysisRequest};
+
+    // Clients discover this default from the tool schema before sending an
+    // omitted-detail request; impact_analysis keeps its separate graph default.
+    let blast_schema = serde_json::to_value(schemars::schema_for!(ComputeBlastRadiusRequest)).unwrap();
+    let impact_schema = serde_json::to_value(schemars::schema_for!(ImpactAnalysisRequest)).unwrap();
+    assert_eq!(blast_schema["properties"]["detail"]["default"], "summary");
+    assert_eq!(impact_schema["properties"]["detail"]["default"], "graph");
+
+    owned_case(|fixture| async move {
+        let target = id(POLICY, "ClassifyAutomatic", 1);
+        let caller = id(POLICY, "Resolve", 2);
+        fixture.engram.state.graph.upsert_edges(PID, &[edge(
+            id(COMPANION, "HistoricCompanion", 1), target.clone(), EdgeKind::TemporalCoupling, 1,
+        )]).unwrap();
+        let response = fixture.engram.handle_compute_blast_radius(
+            serde_json::from_value(json!({"project_id":PID,"symbol_fqn":target})).unwrap(),
+        ).await.unwrap();
+        assert!(!response.is_error.unwrap_or(false));
+        let text: String = response.content.iter().filter_map(|part| part.as_text())
+            .map(|part| part.text.as_str()).collect();
+        assert!(text.len() <= 12 * 1024, "The entire default answer must leave room for source inspection");
+        assert!(!text.contains("## Unverified one-hop advisory profile"));
+        assert!(!text.contains("Historical companion observations"));
+        assert!(!text.contains("HistoricCompanion"));
+        let summary = impact_packet(&text);
+        assert_eq!(summary["detail"], "summary");
+        assert_eq!(summary["source_generation"], 2);
+        assert_eq!(summary["direct_dependents_observed"], 1);
+        assert_eq!(summary["selected_dependents_observed"], 5);
+        let consumer = summary["immediate_consumers"].as_array().unwrap().iter()
+            .find(|row| row["node_id"] == caller).expect("Keep the actual direct caller witness");
+        assert_eq!(consumer["file_path"], POLICY);
+        let connection = &consumer["sample_connection_to_target"];
+        assert_eq!(connection["source_node_id"], caller);
+        assert_eq!(connection["target_node_id"], target);
+        assert_eq!(connection["edge_generation"], 2);
+        let read = &consumer["source_read"];
+        assert_eq!(read["tool"], "get_full_method_body");
+        let source = fixture.engram.handle_get_full_method_body(
+            serde_json::from_value(read["arguments"].clone()).unwrap(),
+        ).await.unwrap();
+        assert!(!source.is_error.unwrap_or(false));
+        let source: Value = serde_json::from_str(&source.content[0].as_text().unwrap().text).unwrap();
+        assert!(source["source_code"].as_str().unwrap().contains("pub fn Resolve() -> i32 { ClassifyAutomatic() }"));
+        assert_eq!(source["source_file_hash"], ContentHash::compute(POLICY_BODY.as_bytes()).0);
+
+        // Execute the literal action, preserving its explicit graph mode even
+        // though this answer arrived without a requested display detail.
+        let graph = expand_summary_graph(&fixture, &summary, &target, 6).await;
+        assert_eq!(graph["source_generation"], summary["source_generation"]);
+        assert_eq!(graph["selected_dependents_observed"], summary["selected_dependents_observed"]);
+        assert!(graph_connections(&graph).contains(&(caller, target.clone())));
+        assert!(graph["nodes"].as_array().unwrap().iter().any(|row|
+            row["node_id"] == id(HTTP, "GetFileLayerViewport", 1) && row["generation"] == 1));
+
+        let explicit = fixture.engram.handle_compute_blast_radius(
+            serde_json::from_value(json!({"project_id":PID,"symbol_fqn":target,"detail":"graph"})).unwrap(),
+        ).await.unwrap();
+        assert!(!explicit.is_error.unwrap_or(false));
+        let explicit: String = explicit.content.iter().filter_map(|part| part.as_text())
+            .map(|part| part.text.as_str()).collect();
+        assert!(explicit.contains("## Unverified one-hop advisory profile"));
+        assert!(explicit.contains("## Historical companion observations"));
+        assert!(explicit.contains("HistoricCompanion"));
+        assert_eq!(impact_packet(&explicit), graph, "Explicit blast graph preserves the same held-source evidence");
+        assert_eq!(impact_packet(&impact(&fixture, None).await), graph,
+            "Omitted detail on impact_analysis must keep graph behavior");
+    });
+}
+
+#[test]
 fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_impact() {
     owned_case(|fixture|async move {
         async fn blast(fixture:&Fixture,args:Value)->String {
@@ -490,7 +563,7 @@ fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_imp
         let retention=cache.retention_observation();let mut expected=None;
         assert!(fixture.engram.state.graph.get_cached_centrality(PID,2).unwrap().is_none());
         for guidance in [Some(false),Some(true),None] {
-            let mut args=json!({"project_id":PID,"symbol_fqn":target});
+            let mut args=json!({"project_id":PID,"symbol_fqn":target,"detail":"graph"});
             if let Some(value)=guidance {args["include_guidance"]=json!(value);}
             let text=blast(&fixture,args).await;let facts=impact_packet(&text);
             if let Some(old)=&expected {assert_eq!(&facts,old);} else {expected=Some(facts);}
@@ -508,7 +581,7 @@ fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_imp
         cache.start(2,workers.clone().try_acquire_owned().unwrap()).unwrap().complete(engram_graph::analysis::CentralityMetrics {
             pagerank:std::collections::HashMap::from([(target.clone(),0.04)]),
         });
-        let cached=blast(&fixture,json!({"project_id":PID,"symbol_fqn":target})).await;
+        let cached=blast(&fixture,json!({"project_id":PID,"symbol_fqn":target,"detail":"graph"})).await;
         assert_eq!(impact_packet(&cached),expected.clone().unwrap());
         assert_eq!(profile(&cached)["complexity_breakdown"]["pagerank_score"],8.0);
         assert_eq!(profile(&cached)["centrality"]["source_generation"],2);
@@ -516,24 +589,24 @@ fn optional_advice_uses_only_available_held_generation_ranking_and_preserves_imp
         cache.start(3,workers.clone().try_acquire_owned().unwrap()).unwrap().complete(engram_graph::analysis::CentralityMetrics {
             pagerank:std::collections::HashMap::from([(target.clone(),0.0)]),
         });
-        let older=blast(&fixture,json!({"project_id":PID,"symbol_fqn":target})).await;
+        let older=blast(&fixture,json!({"project_id":PID,"symbol_fqn":target,"detail":"graph"})).await;
         assert_eq!(impact_packet(&older),expected.unwrap());
         assert_eq!(profile(&older)["centrality"]["status"],"generation_not_cached");
         assert!(profile(&older)["migration_risk"].is_null(),"A newer map must not turn a held older request into zero/Low");
         assert_eq!(workers.available_permits(),1);
-        let complete=blast(&fixture,json!({"project_id":PID,"file_path":SPATIAL})).await;
+        let complete=blast(&fixture,json!({"project_id":PID,"file_path":SPATIAL,"detail":"graph"})).await;
         assert!(complete.contains("## Unverified one-hop advisory profile"));
         assert!(profile(&complete)["component_membership"].as_str().unwrap().contains("at collection"));
         // Retain an actual older declaration alongside the current graph.
         // A partial component must not treat it as a current external caller.
         fixture.engram.state.graph.upsert_nodes(PID,&[declaration(POLICY,"ObsoletePolicyCaller",3,1)]).unwrap();
-        let file=blast(&fixture,json!({"project_id":PID,"file_path":POLICY})).await;
+        let file=blast(&fixture,json!({"project_id":PID,"file_path":POLICY,"detail":"graph"})).await;
         assert!(file.contains("file_members_not_fully_admitted"));
         assert!(!file.contains("## Unverified one-hop advisory profile"));
         assert_eq!(impact_packet(&file)["target_revision_admitted"],true);
         let overflow=(0..130).map(|i|declaration(POLICY,&format!("Overflow{i}"),1,2)).collect::<Vec<_>>();
         fixture.engram.state.graph.upsert_nodes(PID,&overflow).unwrap();
-        let capped=blast(&fixture,json!({"project_id":PID,"file_path":POLICY})).await;
+        let capped=blast(&fixture,json!({"project_id":PID,"file_path":POLICY,"detail":"graph"})).await;
         assert!(capped.contains("file_member_inventory_capped"));
         assert!(!capped.contains("## Unverified one-hop advisory profile"));
         assert!(impact_packet(&capped)["coverage"]["reasons"].to_string().contains("file_seed_cap"));
@@ -935,7 +1008,7 @@ fn agents_can_inspect_recorded_references_without_reassigning_same_named_callers
             .upsert_edges(PID, &[first_edge, second_edge])
             .unwrap();
         for tool in ["impact_analysis", "compute_blast_radius"] {
-            let request = json!({"project_id":PID,"symbol_fqn":root,"max_depth":6});
+            let request = json!({"project_id":PID,"symbol_fqn":root,"max_depth":6,"detail":"graph"});
             let result = match tool {
                 "impact_analysis" => {
                     fixture
@@ -1275,7 +1348,7 @@ fn a_shortcut_preserves_the_prepared_alternate_route_and_returns_executable_iden
             .engram
             .handle_compute_blast_radius(
                 serde_json::from_value(json!({
-                    "project_id":PID,"symbol_fqn":root,"include_guidance":false,
+                    "project_id":PID,"symbol_fqn":root,"include_guidance":false,"detail":"graph",
                 }))
                 .unwrap(),
             )
@@ -2007,7 +2080,7 @@ fn public_impact_reaches_the_viewport_endpoint_with_every_real_hop_and_honors_re
             .engram
             .handle_compute_blast_radius(
                 serde_json::from_value(json!({"project_id":PID,
-                    "symbol_fqn":chain[0],"include_guidance":false}))
+                    "symbol_fqn":chain[0],"include_guidance":false,"detail":"graph"}))
                 .unwrap(),
             )
             .await
