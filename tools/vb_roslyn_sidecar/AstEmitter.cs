@@ -1361,12 +1361,45 @@ internal sealed class AstEmitter
                 }
                 if (property is null)
                 {
+                    var candidates = _sourcePropertiesByName.GetValueOrDefault(terminal) ?? [];
+                    if (candidates.Count == 0) return null;
+                    // Implicit VB calls need not have InvocationExpressionSyntax.
+                    // Preserve positive source-property candidates, but never
+                    // turn a method group or ambiguity into a lexical property.
+                    var semanticCandidates = new HashSet<ISymbol>(SymbolEqualityComparer.Default);
+                    var examined = 0;
+                    foreach (var candidate in referenceInfo.CandidateSymbols.Concat(model.GetMemberGroup(reference)))
+                    {
+                        if (++examined > 16) return null;
+                        semanticCandidates.Add(candidate);
+                    }
+                    if (semanticCandidates.Count > 0)
+                    {
+                        if (semanticCandidates.Count != 1 || semanticCandidates.Single() is not IPropertySymbol scoped
+                            || !scoped.Locations.Any(location => location.IsInSource)) return null;
+                        return SanitizeName(scoped.ToDisplayString(BareQualifiedNameFormat));
+                    }
+                    SyntaxNode? receiverExpression = reference switch
+                    {
+                        MemberAccessExpressionSyntax member => member.Expression
+                            ?? member.Ancestors().OfType<WithBlockSyntax>()
+                                .FirstOrDefault(block => !block.WithStatement.Span.Contains(member.Span))?.WithStatement.Expression,
+                        QualifiedNameSyntax qualified => qualified.Left,
+                        _ => null
+                    };
+                    if (receiverExpression is not null)
+                    {
+                        var receiverInfo = model.GetSymbolInfo(receiverExpression);
+                        // A local/parameter can resolve even when its inferred
+                        // or framework type is an error. That does not license
+                        // borrowing an unrelated globally unique property.
+                        if (receiverInfo.Symbol is not null || !receiverInfo.CandidateSymbols.IsEmpty) return null;
+                    }
                     // In incomplete legacy Web Site compilations the receiver
-                    // can be an error type even while the target declaration
-                    // is present in source. Resolve only a unique source
+                    // can remain genuinely unbound even while the target
+                    // declaration is present in source. Resolve a unique source
                     // property, or a unique candidate whose containing type
                     // matches the lexical receiver. Ambiguity stays omitted.
-                    var candidates = _sourcePropertiesByName.GetValueOrDefault(terminal) ?? [];
                     if (candidates.Count == 1)
                     {
                         return SanitizeName(candidates[0].Fqn);
