@@ -1,0 +1,162 @@
+{
+  "status": "DEPLOYED_AND_NORMAL_INSTALLED_LOGGER_OVERLOAD_WITNESS_VERIFIED",
+  "at_utc": "2026-11-10T07:47:43.992164+00:00",
+  "binary_source_commit": "6869144914185380027f430579ea504568a3e12f",
+  "problem": "Actual DeleteLayers CodeMap callable recovery omitted the logger call at line260 because both Create overloads accept five arguments and the call discarded compiler-selected identity.",
+  "delivered_behavior": {
+    "get_codebase_overview": "Emitted metadata recovery exposes exact Boolean Create43..67 with reference260; its emitted source action executed and matches independent current source bytes/hash.",
+    "impact_analysis": "Boolean overload43 includes DeleteLayers with call witness260 and executable226..265 source action; Guid overload77 excludes it.",
+    "compute_blast_radius": "Same exact overload separation, witness and emitted source action.",
+    "selected_boolean_direct_callers_returned": 38,
+    "selected_guid_direct_callers_returned": 16,
+    "boolean_additional_connections_between_direct_callers": 2,
+    "boolean_beyond_depth_frontier_display_rows_omitted": 17,
+    "direct_node_identities_omitted": 0,
+    "direct_edges_omitted": 0,
+    "coverage_limit": "Depth1 observations only. Beyond-depth omissions remain explicit; no exhaustive application or runtime-dispatch claim.",
+    "caller_source_codemap_bytes": 11687,
+    "metadata_recovery_bytes": 14277,
+    "logger_source_read_bytes": 3065,
+    "boolean_graph_bytes_per_tool": 64322,
+    "guid_graph_bytes_per_tool": 39025
+  },
+  "verification": {
+    "targeted_tests_passed": 24,
+    "ordinary_updates": 1,
+    "before_generation": 3143,
+    "after_generation": 3144,
+    "reextracted_vb_files": 1016,
+    "non_vb_revisions_preserved": 1291,
+    "memory_sections_preserved": 300,
+    "other14_metadata_preserved": true,
+    "source_pins_unchanged": 27,
+    "tool_definitions_unchanged": 150,
+    "known_getter_and_false_property_controls_preserved": true,
+    "normal_primary_pid": 37424,
+    "normal_requests": 39,
+    "normal_returned_tool_text_bytes": 412388,
+    "normal_observer_no_index_writes": true,
+    "normal_pending_request": null,
+    "normal_errors": []
+  },
+  "installed_pair": {
+    "server_sha256": "138dac7c9f3880cd8dbaac635efb73715279c0082d47adf6253a4d82eaba5893",
+    "manifest_sha256": "faefe2e38eec5eed237f1875211917a12d274b76cedef6d9f5dd9b69097110ab",
+    "parser_identity": {
+      "contract": "vb-ingestion-parser-v6",
+      "entry_mvid": "3cef8fb4-35cf-4257-a2b4-c60f3ea33d79",
+      "roslyn_core_mvid": "ff5984b9-af9d-43fb-912d-3c4cda1761dd",
+      "roslyn_vb_mvid": "575815b5-da82-4f41-bc0f-d8d0a248bb2b"
+    }
+  },
+  "verification_corrections": {
+    "original_observer_status": "FAIL preserved unchanged",
+    "reason": "Original verifier wrongly required all beyond-depth displayed frontier rows and every edge to point directly to the seed. Actual graph had complete38 direct callers plus2 admitted additional connections and17 omitted depth2 display rows.",
+    "resolution": "Separate reviewed read-only continuation retains all actual counts and edges, requires complete direct identities and both overload controls, and completes all original source checks. No repeat migration, rebuild or frozen QA replay.",
+    "other_operator_errors": "Wrong auxiliary inventory supplied to ValidateUpgrade was refused before mutation and corrected to existing two-wrapper inventory. First normal launcher exited1 with Access denied creating breakaway daemon under PowerShell Start-Process -Wait; launching without that child-tree wait succeeded. Both failures retained."
+  },
+  "evidence": {
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-call-implementation-20261110.json",
+      "sha256": "e5c041bebbd4b588706cd02f8d401181be07f1a2c6ee00465b8ef20aed1b5b17"
+    },
+    "shipping_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-shipping-v1-20261110.json",
+      "sha256": "d4666a8b4377310b5f991bca665f81f91cde071ec6ae5758a837dbb8f695e35b"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-paired-package.json",
+      "sha256": "fdfb0ad4d437d9b3929c755bf3edd3cb8f269ec099e152fed274ef258bd2b4e6"
+    },
+    "runtime_binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-bindings.json",
+      "sha256": "d570f1e93ee579c8482e8358c665d776f86d85121c3809c260ff0c31fcc8c746"
+    },
+    "completed_migration_with_original_verifier_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-cold-v1\\acceptance.json",
+      "sha256": "ca4a18eb9c8172cbed8210dec38c8a65e1bfb64a5b2ace03e6ab9bda0f4aded6"
+    },
+    "read_only_continuation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-post-migration-verify-v1-20261110\\acceptance.json",
+      "sha256": "543643cc1830971bdaa6df418235584685b9e5dce050b2a39f5a2b09d5f64dbb"
+    },
+    "continuation_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-post-migration-helper-review-v1-20261110.json",
+      "sha256": "1bedafd1ba2a4e0e0746b2b850c22477394df8bb12cc8beee0f9f9c3c40cbad1"
+    },
+    "canonical_context_recheck": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-post-cold-context-v2-20261110.json",
+      "sha256": "618d348c517a2aac3346ec0b69e290e278f2124bc79cdb17adf110169fbc7eca"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-release-gates-v2.json",
+      "sha256": "59507f4c3116b83934c21dde924baae79902f1a67e454caf0300d8d2402bfaab"
+    },
+    "install_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-install-validation-v3.json",
+      "sha256": "fa09e15fe4e04b7fa66e7a99a22bd83d8b3cc185147a09654eaea593bfc7192b"
+    },
+    "install_upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-install-upgrade.json",
+      "sha256": "feb0fd103532bb60ea6fd76834cc8a4d496597f7c2db02e74f883e91fb0deeb0"
+    },
+    "installed_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-normal-v2.json",
+      "sha256": "35d5a5a634603fac0c01826a9f8cae00f4319efd9789f3e59b7bfb81180b5f5e"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-config-hold-20261110.json.released.json",
+      "sha256": "ab533a5dc812dbe4b71c1e1b305e3f961bd4abba8e019b29d39ba3ed76501304"
+    },
+    "validation_argument_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-install-validation-v2-refusal.json",
+      "sha256": "213bc6c3032b6baef415a39c2cca32877f8b78b44e67d2106ba621c163074ec5"
+    },
+    "initial_launch_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-normal-launch.json",
+      "sha256": "413ceb165d8966e14499b8d28b5fd597fdb910e55ef5004c9538a8e0ee91d69b"
+    },
+    "normal_launch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-normal-launch-v2.json",
+      "sha256": "7cdf24637ffda509ec2ee5a3b6995081415b83725c986d9cbd0c9d251208520a"
+    }
+  },
+  "resources": {
+    "config_hold_released": true,
+    "config_unchanged": true,
+    "runtime_restored": true,
+    "build_and_test_owned_temps_removed": true,
+    "migration_and_continuation_owned_temps_removed": true,
+    "observer_pipes_process_streams_closed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-package",
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9a14867b61074487817bc50ae2fd1201",
+    "retained_install_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9a14867b61074487817bc50ae2fd1201.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9a14867b61074487817bc50ae2fd1201.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9a14867b61074487817bc50ae2fd1201.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9a14867b61074487817bc50ae2fd1201.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9a14867b61074487817bc50ae2fd1201.04-committed-no-start.json"
+    ],
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Keep retained package, previous pair, journals and diagnostics for review; deletion requires approval of exact paths. Only new run-owned fixture temps were removed. No preexisting directory deleted."
+  },
+  "agent_usefulness": {
+    "fresh_task_win_proven": false,
+    "frozen_image_width_scores": {
+      "assisted": 9,
+      "source_only": 9,
+      "maximum": 10,
+      "engram_calls": 0
+    },
+    "frozen_image_delete_scores": {
+      "assisted": 8,
+      "source_only": 9,
+      "maximum": 10
+    },
+    "frozen_tasks_replayed_or_rescored": false,
+    "interpretation": "A demonstrated missing dependency is repaired and installed. These narrow results do not establish better agent task completion."
+  },
+  "goal_complete": false,
+  "original_31_findings_or_19_full_gates_closed": false,
+  "next_action": "Continue the original CodeMap/Blast agent-usefulness queue on a new untouched real task with independent source criteria. Preserve frozen comparisons and choose further changes only from demonstrated tool gaps; no broad audit or instruction-drafting detour."
+}

@@ -11753,13 +11753,25 @@
       },
       "observation": "Installed native emits target name _gd.systemlogg.Create and args5, without exact overload identity. Both declarations accept five args: Boolean fifth argument at43 versus Guid fifth argument at77. Source declarations advertise exact semantic signatures, but call record discards that distinction.",
       "decision": "Preserve compiler-selected ordinary source method locator/signature through verified ingestion/admission; do not guess overload from name/arity and do not change renderer sampling. First prove current compiler symbol and reject stale/ambiguous locators.",
-      "state": "IMPLEMENTED_AND_TARGETED_TESTED_NOT_DEPLOYED",
+      "state": "DEPLOYED_AND_NORMAL_INSTALLED_LOGGER_OVERLOAD_WITNESS_VERIFIED",
       "causal_limit": "This targets actual missing navigation evidence; no claim that it caused all score loss or will reverse the frozen score.",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-call-implementation-20261110.json",
         "sha256": "e5c041bebbd4b588706cd02f8d401181be07f1a2c6ee00465b8ef20aed1b5b17"
       },
-      "next_action": "Build and deploy paired v6 release; execute one ordinary OciusX update and verify actual logger navigation/witnesses and preserved prior controls."
+      "next_action": "Continue the original CodeMap/Blast agent-usefulness queue on a new untouched real task with independent source criteria. Preserve frozen comparisons and choose further changes only from demonstrated tool gaps; no broad audit or instruction-drafting detour.",
+      "ordinary_migration_observation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-cold-v1\\acceptance.json",
+        "sha256": "ca4a18eb9c8172cbed8210dec38c8a65e1bfb64a5b2ace03e6ab9bda0f4aded6"
+      },
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-call-delivery-20261110.json",
+        "sha256": "7a4620964164cd97be3a944095ae3f8f734c85d8fd4d839a824eb5babaa606b5"
+      }
+    },
+    "latest_source_call_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-call-delivery-20261110.json",
+      "sha256": "7a4620964164cd97be3a944095ae3f8f734c85d8fd4d839a824eb5babaa606b5"
     }
   }
 }
