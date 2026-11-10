@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T19:09:43.562542+00:00",
-    "reason": "Short-name navigation24e31f6 deployed and normal-service verified: original QueryCacheCore request now exposes its selected target, source and actualcaller2222; qualified control unchanged.",
+    "at_utc": "2026-11-10T20:20:38.896617+00:00",
+    "reason": "407b304 is deployed: actual standalone Blast and impact summary expose the previously missing editor call853 and executable source851..874. Normal service verified; two failed approaches retained without installation.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Deliver original TypeScript unresolved-caller navigation: setZoomOverride Blast currently omits mapLayer._saveZoomOverride853 because bound calls exhaust optional scan. Bounded subrange seek implemented/reviewed; candidate/normal source verification pending.",
-    "next_user_visible_deliverable": "Deploy verified bounded unresolved-call witness recovery and execute returned source action on actual mapLayer853. Do not reopen the finished QA answer or expand parser/type binding, catalog, models or broad audits.",
+    "active_original_item": "Continue original CodeMap/Blast agent usefulness work. The setZoomOverride unresolved-caller navigation gap is delivered; stop revisiting that completed investigation.",
+    "next_user_visible_deliverable": "Resolve the existing partial Group.resetState task's still-uninspected async/escape context using actual core-tool output and independent source. Use its retained original criteria; fix only a demonstrated blocking navigation/witness gap. Do not reopen completed save-witness or automatic-zoom QA work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports another24hours of circular work and cost. Stopped EG25 expansion and delivered a concrete core parser/caller repair. This does not justify prior elapsed time or complete the broader goal.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: completed the selected informed QA answer at3d80c55 without changing prior frozen outcomes. This turn implements the original unresolved-caller witness recovery gap and passes16focused checks.",
+    "previous_goal_turn_classification": "Delivered: source407b304 pushed, release installed, both real public outputs and returned source actions verified on normal service;18focused tests passed. Broader goal and prior task outcomes remain unfinished.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9881,8 +9881,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-scope-recovery-delivery-20261110.json",
-      "sha256": "f3ae22e3d446dea8534defa43571419c26262dcf328b58027bcdea7d1c576569"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-unbound-witness-delivery-20261110.json",
+      "sha256": "ddc8e1ec63e95d74ee6fb63fc83b2ac2b0b8abfe8a9aeab0b4ec5357c6ad8767"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",

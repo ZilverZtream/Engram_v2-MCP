@@ -1,0 +1,128 @@
+{
+  "status": "DEPLOYED_UNRESOLVED_CALLER_WITNESS_AND_SOURCE_ACTIONS_VERIFIED_ON_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T20:20:38.896617+00:00",
+  "source_commit": "407b3048caed8f4188e7ce3f2f457c55f143de1e",
+  "problem": "Actual setZoomOverride Blast omitted the source-confirmed mapLayer._saveZoomOverride call at853 because earlier directory entries consumed its optional syntax scan.",
+  "change": "Prioritize immediate sibling files, reserve one quarter of optional rows for descendants, and seek past bound-call tails. Both phases share row, seek, byte and deadline limits and disclose incomplete coverage.",
+  "actual_result": {
+    "tools": [
+      "compute_blast_radius",
+      "impact_analysis"
+    ],
+    "before_witnesses": 0,
+    "after_witnesses": 1,
+    "caller": "Site/modules/dashboard/ts/map/vsMap/mapLayer.ts",
+    "call_line": 853,
+    "returned_source_range": [
+      851,
+      874
+    ],
+    "returned_source_actions_executed": 2,
+    "source_actions_match_actual_file": true,
+    "primary_and_transitive_dependents_remain_zero": true,
+    "receiver_binding": "unresolved",
+    "sibling_phase_completed": true,
+    "descendant_phase_completed": false,
+    "optional_rows": 2048,
+    "keys_observed": 2049,
+    "prefix_seeks": 378,
+    "decoded_bytes": 659767,
+    "source_generation": 3147
+  },
+  "installed": {
+    "server_sha256": "473b916f12833238ff69ac0c822f4b75cb4ea20eb3b1d4ce58d0d85e8b03f8c9",
+    "manifest_sha256": "8e42954f6430d547728b3c1b0eb77e6243fb3d48507ed9fe3c8b3f417b1e58fa",
+    "unchanged_native_assets": 214,
+    "normal_pid_at_verification": 75216,
+    "configuration_hold_released": true,
+    "configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\pair-receipt-v2.json",
+      "sha256": "814bb4510420561f740ad58732e20329ab872c15c8c72562101dc5bf7d8ec754"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\install-upgrade-v2.json",
+      "sha256": "a598104812ca3e1138971584f88e3fcd93eb695ee987aae3dfc5d12ec0ed92d8"
+    }
+  },
+  "validation": {
+    "tests_passed": 18,
+    "tests_failed": 0,
+    "graph_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-graph-v3-20261110.json",
+      "sha256": "8bdf22e430073995feeffca36ed331ec46ac5347b3153b407f8e9dba1ec077aa"
+    },
+    "public_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-public-v2-20261110.json",
+      "sha256": "bc1bfacf57cacdf2c31537fa084421ed52b6685e53e86895620476c6e605e31e"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-shipping-v2-20261110.json",
+      "sha256": "f1dda12ff4727c914bf45f7eb9232f7d189a68196b12578343d8f2552973c7c6"
+    },
+    "independent_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\source-evidence-v2.json",
+      "sha256": "2731ba69591004302959c3500e2e8d61af1f91fa667e2579b8ace694fcea9e6b"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\selection-and-source-review-v2.json",
+      "sha256": "35e8e08f686ead1d9792c55e2f6f6afe7a0cd40e1f6c4ab900921804277e8bd4"
+    },
+    "debug_probe": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\debug-probe-v2\\acceptance.json",
+      "sha256": "2c7b6322121a27708d7d21e084db8ed4d8640811432bf1437eb04fcfab8115d6"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\candidate-v2\\acceptance.json",
+      "sha256": "c5b82506ea8684eb34c6276d504e0a5aca163cf0a0d7e746ceb4b3df2415bbc8"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\normal-v2\\acceptance.json",
+      "sha256": "ac90742b6caac47e220d6a0d00bae3f625acc1861175a9ad2d463e8fcc727208"
+    },
+    "scoped_release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\release-gates-v2.json",
+      "sha256": "210f5d3f597ab987246f8d1e006aed3a4ba344a49d44a0a09c0e564b94508617"
+    },
+    "review_limit": "Independent local source review completed; CodeRabbit auth returned false, so no external review ran."
+  },
+  "failed_attempts": [
+    {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\candidate-v1\\acceptance.json",
+        "sha256": "d6e064baa7a15e570ab7bb8369d0d111153b237af139f106bebcafb576c94e41"
+      },
+      "result": "Bound-tail seeking at512rows still missed the real caller; not installed."
+    },
+    {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110\\debug-probe-v1\\acceptance.json",
+        "sha256": "cd9e7cad4491084b314839036c825f094dbe904d3f05667473d1c53cab547977"
+      },
+      "result": "Increasing optional rows to2048 still missed the real caller; not installed."
+    }
+  ],
+  "preservation": {
+    "no_index_mutation": true,
+    "all150_tool_definitions_unchanged": true,
+    "source_hashes_unchanged": true,
+    "candidate_registry_preserved": true,
+    "candidate_selection_preserved": true,
+    "other14_metadata_unchanged": true,
+    "owned_resources_closed": true,
+    "owned_tmp_removed": true
+  },
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-witness-seek-20261110",
+    "purpose": "Retain real outputs, failed attempts, package and delivery records until exact-path cleanup review.",
+    "previous_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-76d58553c2a8470a9e62d03b8235eecb",
+    "journals": "Five engram-pair-76d58553c2a8470a9e62d03b8235eecb journals retained under installation root.",
+    "owned_fixtures_closed_and_removed": true,
+    "configuration_hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-unbound-seek-config-hold-20261110.json.released.json",
+      "sha256": "e3d38ffd8f8ed2b898c4f4fed2133065fe01a15c602540509de6fcccad45e296"
+    }
+  },
+  "limits": "One original source-confirmed navigation gap is delivered. The unresolved call is not promoted into a bound causal edge. Descendant coverage remains capped. No fresh-agent task rescore, task-wide cost saving, broader usefulness/completeness proof or original31/full19 closure.",
+  "broader_goal_complete": false
+}
