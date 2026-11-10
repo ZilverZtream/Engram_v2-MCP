@@ -1,0 +1,154 @@
+{
+  "status": "FROZEN_BOTH_9_OF_10_NO_TOOL_UPTAKE_NO_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T06:06:43.005915+00:00",
+  "implementation_baseline": "6c2a59f",
+  "task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-task.json",
+    "sha256": "f322bdac0bae11fb49e2d8701c9c772fd1a03b445c241a317643bd7a95ec07ea"
+  },
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-contract.json",
+    "sha256": "1c3261a6a5ffe7fa2518f401a458dddd8510799c2fe8f6667a1e22c90a8a5960"
+  },
+  "binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-binding.json",
+    "sha256": "83dc6d58cdb4524c985ab79d1d568ba9a472ad5c92a8ec9ee1db39909f455827"
+  },
+  "readiness": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-readiness.json",
+    "sha256": "f508926adc3d9ba688a5cc9426843d0a3cf1eb75f28fb0f181efc3644109f057"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-oracle.json",
+    "sha256": "c985a4e02846b3ae25cb496aac7a6b06de93722f696f3c8c7194201cf575ea0f"
+  },
+  "oracle_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-oracle-verification.json",
+    "sha256": "6e56e0b364f70aee7f0bdf3de9591afc8a7eda03a33e5f1b6b234c43fc0dc9b3"
+  },
+  "quality_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-quality-packet.json",
+    "sha256": "e2d7314ed59ad78da9e5566b2bf0b882ce90dbdeebc6fd9ccd4f863b87f7e4fb"
+  },
+  "source_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-candidate-source-verification.json",
+    "sha256": "94fd5c76df8385c231cfa1e1ff61d27d3030a60a7e1c24bb4742c3d9da24de7e"
+  },
+  "quality_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-blind-judgment.json",
+    "sha256": "61fdad1354d4a0a92e2b46f4174fde7f46f5d391ff27163e13d62e906e36427e"
+  },
+  "private_arm_mapping": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-private-arm-map.json",
+    "sha256": "15a37de4338c5a2d65a62e7dfe2cef64c7f8ba062ce75d30ef85ce4abcae9b59"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "pine",
+      "opaque_label": "A",
+      "score_out_of_10": 9,
+      "criterion_scores": [
+        2,
+        1,
+        2,
+        2,
+        2
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-pine-answer.txt",
+        "sha256": "d5af2206055ba7116c16946ebdf5fea557153b2a01e2c606e8a8d08733510adc"
+      },
+      "answer_words": 809,
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-pine-private-ledger.json",
+        "sha256": "acc2f5dab298ee6c148ea1ca1bcc15f8515509c40cba341a8d5ca7c32b3af7ac"
+      },
+      "requests": 5,
+      "setup_bytes": 20344,
+      "total_delivered_bytes": 54166,
+      "actual_engram_calls": 0,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld_requests": [
+        {
+          "number": 5,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/visualisering/code/GlobalMapVariables.vb",
+              "line_start": 1,
+              "line_end": 400
+            }
+          }
+        }
+      ],
+      "pending_rpc": null
+    },
+    "source_only": {
+      "candidate": "willow",
+      "opaque_label": "B",
+      "score_out_of_10": 9,
+      "criterion_scores": [
+        2,
+        1,
+        2,
+        2,
+        2
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-willow-answer.txt",
+        "sha256": "2edb5261c19e3e94aa1b6ae9b9e602269f39307c6b2d6f57d43dc38c33b321c7"
+      },
+      "answer_words": 843,
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-qa-20261110-willow-private-ledger.json",
+        "sha256": "3b8b53c5f5a976023179f0cff0b97e7b18a7b8352ccc9333d06039b072b59b0c"
+      },
+      "requests": 8,
+      "setup_bytes": 4828,
+      "total_delivered_bytes": 65396,
+      "actual_engram_calls": 0,
+      "status": "STOPPED_BYTE_BUDGET",
+      "withheld_requests": [
+        {
+          "number": 8,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site/modules/dashboard/ts/map",
+              "pattern": "new vsNonSpatialImageLayer",
+              "max_results": 8,
+              "context": 5
+            }
+          }
+        }
+      ],
+      "pending_rpc": null
+    }
+  },
+  "conclusion": "Both justify preserving the old wire field and explain concrete client geometry/zoom effects. Both miss the complete page-bootstrap/client-construction bridge. Source-only has a modest evidence advantage from the actual serializer and collection filter. The assisted candidate used zero Engram calls; this is no graph-response defect or causal test of tool consumption.",
+  "limitations": [
+    "One source-selected task, shared injected instructions, no held-out or history-blind claim.",
+    "Five complete tool definitions cost assisted setup20344bytes versus source-only4828bytes, charged under the existing fixed cap. Availability and upfront context cost differ; no causal graph-quality inference.",
+    "Both final requests withheld in full under the frozen65536-byte budget. No withheld source credited.",
+    "No runtime serialization/browser test, deployed bundle load proof or complete rename safety claim."
+  ],
+  "post_task_diagnostic": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-width-recovery-diagnostic-20261110.json",
+      "sha256": "fe4dc33c3b8bbe8ef2bdbbe9c142743d339a564dacaee4a55c0b2747cb1c011c"
+    },
+    "scope": "Root-only actual impact/lexical recovery observations, not sent to candidates and not used to retry or rescore answers. Existing grep recovery finds TS definition; graph scope remains static dependencies. No new implementation defect selected from this run."
+  },
+  "next_action": "Evaluate a distinct real deletion-refactor assessment using CodeMap and Blast Radius as explicit initial tools. This tests actual response consumption; keep this optional-tool comparison frozen and do not relabel it as a tool success.",
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefix": "core-image-width-qa-20261110",
+    "relay_source_search_processes_and_observer_handles_closed": true,
+    "candidate_locks_absent": true,
+    "pending_rpc": null,
+    "application_or_index_mutation": false,
+    "cleanup_condition": "Retain evidence in recorded diagnostics root; exact-path approval required for deletion."
+  },
+  "goal_complete": false,
+  "original_31_or_19_closed": false
+}

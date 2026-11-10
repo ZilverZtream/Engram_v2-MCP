@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T05:54:26.187709+00:00",
-    "reason": "Missing getter dependency fixed and deployed; actual installed CodeMap and both impact tools now expose caller/reference/source action. Latest frozen agent comparison remains assisted5/10 versus source-only9/10; overall usefulness unproven.",
+    "at_utc": "2026-11-10T06:30:10.101978+00:00",
+    "reason": "Fresh deletion task source-only9 versus assisted8 exposed uninspected logger behavior. Actual metadata and native output locate a missing overload identity; no speculative renderer change.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: compiler-context getter fix deployed and verified in installed tools; continue task-level usefulness evidence.",
-    "next_user_visible_deliverable": "Continue the original CodeMap/Blast usefulness task with a new untouched agent task and independent source criteria. Preserve all frozen comparisons; choose any next code change from actual task failures rather than starting another audit.",
+    "active_original_item": "CodeMap and Blast Radius usefulness: preserve exact compiler-selected ordinary source-call identity for overloaded logger dependency; implementation in progress.",
+    "next_user_visible_deliverable": "Recover DeleteLayers callsite260 to Boolean overload systemlogg.Create43 through verified source identity, validate actual tools against source, retain wrong Guid overload exclusion and all frozen task outcomes.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "Completed one ordinary VB migration, installed the tested server/native pair, and verified the missing getter witness through actual public tools on the normal daemon."
+      "reason": "Completed two fresh task comparisons; traced actual missing logger navigation through CodeMap metadata, outgoing graph and installed native output, then selected overload-identity fix."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -11724,6 +11724,37 @@
     "latest_compiler_context_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-delivery-20261110.json",
       "sha256": "fcc8b3ebb8b76a91190e350bb262ca2376be84e4d84b323dca6905aab8486f6f"
+    },
+    "latest_image_width_qa": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-image-width-qa-20261110.json",
+      "sha256": "7a68b8adb943c51c93989ba24a03e7f826b4afb5592fcbf242f188e4fff51f16"
+    },
+    "latest_image_delete_qa": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-image-delete-qa-20261110.json",
+      "sha256": "f5467a80d6cf67ba22e1104277513f464246c5185160c6189668868c9e01768b"
+    },
+    "selected_source_call_identity": {
+      "problem": "systemlogg.Create is absent from actual callable metadata despite explicit DeleteLayers callsite260. Source-only logger read mattered to the task.",
+      "actual_metadata": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-metadata-recovery-20261110.json",
+        "sha256": "7b19af576f010555e8e91cb5bb688fae81f2e16be791fc94f41d7b84e4051f2a"
+      },
+      "actual_outgoing": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-outgoing-20261110.json",
+        "sha256": "29bd7559e7b48ffe99f0c35d4d2d64734bf64f3df3bfad5698b0b67d1f78ffd3"
+      },
+      "actual_logger_declarations": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-logger-navigation-20261110.json",
+        "sha256": "6fa65322ec313be9e3312f88108f43e509e6b79c1ba3e0ab92e62aae3860bb23"
+      },
+      "native_observation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-image-delete-native-witness-20261110.json",
+        "sha256": "9f3d03561be251910f101161616190257e83223dda3d8d14afc9c800dfdc92ba"
+      },
+      "observation": "Installed native emits target name _gd.systemlogg.Create and args5, without exact overload identity. Both declarations accept five args: Boolean fifth argument at43 versus Guid fifth argument at77. Source declarations advertise exact semantic signatures, but call record discards that distinction.",
+      "decision": "Preserve compiler-selected ordinary source method locator/signature through verified ingestion/admission; do not guess overload from name/arity and do not change renderer sampling. First prove current compiler symbol and reject stale/ambiguous locators.",
+      "state": "IMPLEMENTATION_IN_PROGRESS_NOT_BUILT_OR_DEPLOYED",
+      "causal_limit": "This targets actual missing navigation evidence; no claim that it caused all score loss or will reverse the frozen score."
     }
   }
 }
