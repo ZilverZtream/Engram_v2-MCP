@@ -1,0 +1,143 @@
+{
+  "status": "FROZEN_SOURCE_ONLY_10_OF_10_ASSISTED_9_OF_10_NO_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T03:08:21.543354+00:00",
+  "task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-task.json",
+    "sha256": "03db7f7cd04ae16361fe623d2822e2132945b19a956f0be0260d330c0bbfb690"
+  },
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-contract.json",
+    "sha256": "e0b43ea497e32afd7f1c602bdcc8ef18e7f2dbe2f3ed3952c97dbe36523edb84"
+  },
+  "binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-binding.json",
+    "sha256": "045dfafdfd8232b6602e37bddd11ffdf4e4a1d44ffe9d1745a249d030c9adfbe"
+  },
+  "readiness": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-readiness.json",
+    "sha256": "1311620521fba721ed831cfec93a60b5754b905b4f9647509ca0b31df40e9eab"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-oracle.json",
+    "sha256": "857d958612c5e6f8472a3fc3537b77ba9ab28df5bef9e218758051c70ed62ed8"
+  },
+  "source_oracle_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-oracle-verification.json",
+    "sha256": "b7c4fd1b9e6beb10b58b4abe4cf600606bda81f3b2401ea77a1f25b356a09acb"
+  },
+  "quality_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-quality-packet.json",
+    "sha256": "eed24f61ab3c1cf256459e8e7083b8c9becd392c060de45516bf9cebcadc1b0e"
+  },
+  "quality_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-blind-judgment.json",
+    "sha256": "af516660676257fc3c327bba01b4f1ac8c15cbbb50b8f91555d8053b0bacf505"
+  },
+  "arm_mapping": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-private-arm-map.json",
+    "sha256": "c921daa71985266a88d5527e420ada4eccd68f3ed24e2bb6585dcb8ba9da5338"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "ash",
+      "opaque_label": "A",
+      "frozen_quality_score_out_of_10": 9,
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-ash-answer.txt",
+        "sha256": "6fa3d94760baccfdce98d7632108322f5dc5299534b13ba91f710f50150885ab"
+      },
+      "answer_words_whitespace": 804,
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-ash-private-ledger.json",
+        "sha256": "4b8a1c76cf3d358881a46bde878f0c969e84ebf2a0b15c5fa8250101ad18dc85"
+      },
+      "requests": 5,
+      "setup_bytes": 20292,
+      "total_delivered_bytes": 54274,
+      "terminal_budget_state": "STOPPED_BYTE_BUDGET",
+      "answer_final": true,
+      "withheld_requests": [
+        {
+          "number": 5,
+          "utf8_bytes": 20377,
+          "sha256": "cbe24dbc2b9779910b5a36b1db266d4bee92ef5131dc72b64d505b082a956858"
+        }
+      ],
+      "pending_rpc": null
+    },
+    "source_only": {
+      "candidate": "birch",
+      "opaque_label": "B",
+      "frozen_quality_score_out_of_10": 10,
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-birch-answer.txt",
+        "sha256": "d8fbf9ecd02c3424c67ba15465b63a15fffdaaea01193536a27dfb291ade290e"
+      },
+      "answer_words_whitespace": 837,
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-qa-20261110-birch-private-ledger.json",
+        "sha256": "c13ae1322a3569a10007bc5b446f9d8d0ecf961d35b338122208cc3b1b4034e7"
+      },
+      "requests": 7,
+      "setup_bytes": 4776,
+      "total_delivered_bytes": 52708,
+      "terminal_budget_state": "READY",
+      "answer_final": true,
+      "withheld_requests": [],
+      "pending_rpc": null
+    }
+  },
+  "conclusion": "Source-only preferred: it established a changed downstream equality predicate. Assisted changed paths stopped at argument transfer; both supplied three qualifying behavior paths, with no material false guidance. No retry or rescore.",
+  "causal_limits": [
+    "One pair, one proposed-change task; source/evidence shapes may reveal capability despite opaque labels.",
+    "Shared injected AGENTS context; not history-blind or held-out. Root target selection informed by current actual tool output.",
+    "Five full tool definitions are charged upfront in assisted setup; this differs from amortized/deferred discovery.",
+    "Assisted final request was a310-line ordinary source read, though report offered a narrow caller source action. Budget stop alone is not a backend defect.",
+    "No claim that omitted graph caller alone caused the quality difference; other navigation and evidence choices differ."
+  ],
+  "next_concrete_navigation_evidence": {
+    "actual_assisted_summary_bytes": 10855,
+    "direct_callers_shown": 4,
+    "direct_callers_omitted": 14,
+    "exact_emitted_graph_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-graph-recovery-20261110.json",
+      "sha256": "823eafa7254796e9a88dee8a2508a316119cebd8d6f3059b2bf814bb719f924e"
+    },
+    "graph_recovery_bytes": 64302,
+    "selected_omitted_caller": "sym:function:Site/modules/dashboard/pages/admin/system/logs/logs.aspx.vb:system_logs_logs.linqSource_Selecting:158",
+    "admission": "selected generation3142,depth1,edge source line172",
+    "exact_emitted_source_read": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-omitted-caller-source-20261110.json",
+      "sha256": "606681cdbc18def1f1fa545fcbac1d240da0a69baf72b9e1ca6bdc40ba47a497"
+    },
+    "read_bytes": 3163,
+    "source_range": [
+      158,
+      180
+    ],
+    "source_hash_and_body_verified": true,
+    "scope": "Root known-source followthrough after frozen answers. Real navigation gap, not fresh-agent benefit proof. Assess whether spare summary space can expose additional already-admitted direct caller actions without displacing existing facts."
+  },
+  "resources": {
+    "all_observers_closed": true,
+    "pending_rpc": null,
+    "candidate_locks_absent": true,
+    "application_mutated": false,
+    "index_update_performed": false,
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain frozen task/setup/ledger/answers/oracle/judgment and known-source captures in existing V until exact-path cleanup authorization."
+  },
+  "observed_source_pins_verified_after": {
+    "Site/App_Code/shared-code/sharedfunc.vb": "9aa68b8fcbf6ff79ea9fdfde375c4c50a7fe16ff897acd5f0c09ba9a05340373",
+    "Site/modules/dashboard/pages/admin/production/copycodelistcategory.aspx.vb": "04534229e8422d6ed1e05e391f2c7420a43f03e68f7eea2dd90a1abd633796f0",
+    "Site/App_Code/api-json/api-images.vb": "8e179c0d9a5cba7a20be593dc31edaaaf8aa24909e07a77aae4e68f2351ba8b4",
+    "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx.vb": "8642f6ba3ba23fa3d883d6f3ebef6c77e8fc7fd96367eca3a8de2fc7908f435f",
+    "Site/modules/map/bilder/index.vbhtml": "1a4ec07b4cc7abeaff9ed177d14948ad1725da189c6b03c892222a55c07af7b1",
+    "Site/modules/dashboard/pages/public/visualization/visualization_quantities.aspx.vb": "949f13af20ab3ce0b74cf3b23180329cb8dcf2c9d3d1e0d556af8c6a3b676944",
+    "Site/modules/dashboard/pages/public/customform/ctrl_customsheetsearch.ascx.vb": "ed1b59719ba05511643028c77db37b24db56404294fd808794f321f111100185",
+    "Site/modules/dashboard/pages/admin/system/logs/logs.aspx.vb": "8dffb5ec6715baf64a1768fe281974a7990e0c000a8bed0d962e13ca23737182"
+  },
+  "fresh_assisted_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}
