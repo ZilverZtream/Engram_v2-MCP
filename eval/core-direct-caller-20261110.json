@@ -1,0 +1,55 @@
+{
+  "status": "IMPLEMENTED_TESTED_RUNTIME_PENDING",
+  "at_utc": "2026-11-10T03:23:50.761157+00:00",
+  "problem": "Actual10855B TextToInt summary shows4of18direct callers. Exact graph recovery64302B was required to expose admitted logs caller158..180 and its3163B source read.",
+  "behavior": "After final summary/source/handoff allocation, append full already-admitted direct caller rows in retained graph order only when the entire response and2048-byte row cap permit. Preserve preferred first4, max8total; update omission count and limit explanation only after accepted row. No fitting row retains exact baseline. Graph/typed assessment unchanged; no new parameters/scans/parser/index.",
+  "source_hashes": {
+    "crates/engram_server/src/services/impact_walk_service.rs": "390cd738bafc587b1e9b811e5b1f15c20304bceb340cecc0814cae021514de17",
+    "crates/engram_server/tests/transitive_impact_behavior_tests.rs": "893f326ab38fccea8c7c9f853da1bf230d4c71a3d45d81d489d6dd00dc9841a7",
+    "docs/TOOL_CONTRACT.md": "c0a42576e692fa2b0cd3766d1de2afffea33f77beab3fd14f33d19a2d5226d8c"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-source-review-addendum.json",
+    "sha256": "244e7f0f1cf9372f627a804a0f689392d9dc0e46c05460435d32d690c3baca09"
+  },
+  "projection": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-direct-sample-projection-v2-20261110.json",
+    "sha256": "cdf0e91efc7335db3d6b22a489cf81a9ad44ee5d91f00d5723b9796da3aa6c15"
+  },
+  "projection_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-integer-default-direct-sample-projection-review-20261110.json",
+    "sha256": "f5a4ac42319c0150b50be501847105a379ca0cf0595d60cb96e94640277bf69f"
+  },
+  "tests": {
+    "integration_passed": 31,
+    "unit_passed": 16,
+    "evidence": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-transitive-tests-v2-20261110.json",
+        "sha256": "d789d09338f78cc508f95e3824f8e5d85bb6254e19a36b554879574fc271b8bb"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-budget-tests-20261110.json",
+        "sha256": "b4a8c6835e7fc57471b66f4884418d0089b53a35d1163698ec055a6895e4a930"
+      }
+    ],
+    "initial_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-transitive-tests-20261110.json",
+      "sha256": "4877bb58ffb6714bc83eb5097b491cab4dfe8ad66b90947bde35c957c4ee4e11"
+    },
+    "correction": "One preexisting displaycap assertion changed4to8; all counts, distant-route, witness and graph assertions preserved."
+  },
+  "runtime_verifier_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-verifier-review.json",
+    "sha256": "17903af05e603fabb747d73bd39e38a445ea5d11452433c6119694edc0d0d27a"
+  },
+  "frozen_task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-integer-default-qa-20261110.json",
+    "sha256": "66bd6e022cf303bd3bf5036d8bb42f22b9a09868d7fd5c3c9ebf699923b17595"
+  },
+  "runtime": null,
+  "installed": false,
+  "fresh_agent_task_win_proven": false,
+  "goal_complete": false,
+  "retention": "Owned test temporary directories removed after processes/handles closed. Evidence and projection retained in existing V until exact-path cleanup authorization."
+}

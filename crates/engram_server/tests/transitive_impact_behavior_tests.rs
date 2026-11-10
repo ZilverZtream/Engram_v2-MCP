@@ -2674,7 +2674,7 @@ fn default_impact_display_retains_the_distant_http_route_when_direct_callers_exc
             let omitted = summary["immediate_consumers_omitted_from_summary"]
                 .as_u64()
                 .unwrap();
-            assert!(shown <= 4 && omitted > 0);
+            assert!(shown <= 8 && omitted > 0);
             assert_eq!(
                 shown as u64 + omitted,
                 31,
@@ -3143,6 +3143,54 @@ fn file_impact_omits_only_unused_inventory_and_recovers_it_through_codemap() {
 }
 
 #[test]
+fn summary_spare_space_exposes_another_direct_caller_with_executable_source() {
+    owned_case(|fixture| async move {
+        const PATH:&str="src/direct_callers.rs";
+        let mut lines=vec!["pub fn Shared() -> i32 { 1 }".to_owned()];
+        lines.extend((0..9).map(|i|format!("pub fn Caller{i}() -> i32 {{ Shared() }}")));
+        let body=lines.join("\n");let target=id(PATH,"Shared",1);
+        let cancel=CancellationToken::new();let baseline=fixture.engram.state.registry.capture_source_head(PID).unwrap();
+        fixture.search.prepare_source_snapshot(PID,2,3,&[RelPath::new(PATH)],&[],&cancel).await.unwrap();
+        fixture.search.index_docs(PID,&[source_doc(3,300,PATH,&body)],&cancel).await.unwrap();
+        fixture.search.seal_source_snapshot(PID,3).unwrap();std::fs::write(fixture.root.join(PATH),&body).unwrap();
+        let mut nodes=vec![file_node(PATH,&body,3),declaration(PATH,"Shared",1,3)];let mut edges=Vec::new();
+        for i in 0..9 {
+            let name=format!("Caller{i}");let line=i+2;
+            nodes.push(declaration(PATH,&name,line,3));
+            let mut call=edge(id(PATH,&name,line),target.clone(),EdgeKind::Calls,3);
+            call.metadata=Some(json!({"call_site_line":line}));edges.push(call);
+        }
+        fixture.engram.state.graph.upsert_nodes(PID,&nodes).unwrap();fixture.engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        assert!(fixture.engram.state.registry.publish_source_head(&baseline,3).unwrap());
+        let graph=impact_packet(&impact_target(&fixture,&target,Some(1)).await);
+        for tool in ["impact_analysis","compute_blast_radius"] {
+            let summary=impact_packet(&summary_impact(&fixture,tool,&target,1).await);
+            let rows=summary["immediate_consumers"].as_array().unwrap();
+            assert!(rows.len()>4 && rows.len()<=8,"Spare space must expose additional direct callers within the bounded display cap");
+            assert_eq!(rows.iter().take(4).map(|row|row["name"].as_str().unwrap()).collect::<Vec<_>>(),
+                ["Caller0","Caller1","Caller2","Caller3"],"The original preferred four keep their order");
+            assert_eq!(summary["direct_dependents_observed"],9);
+            assert_eq!(summary["immediate_consumers_omitted_from_summary"].as_u64().unwrap()+rows.len() as u64,9);
+            let added=&rows[4];let line=added["start_line"].as_u64().unwrap() as usize;
+            assert_eq!(added["admission"],"selected");assert_eq!(added["generation"],3);
+            assert_eq!(added["sample_connection_to_target"]["target_node_id"],target);
+            assert_eq!(added["sample_connection_to_target"]["source_node_id"],added["node_id"]);
+            assert_eq!(added["sample_connection_to_target"]["source_line"],line);
+            let action=&added["source_read"];assert_eq!(action["tool"],"get_full_method_body");
+            let response=fixture.engram.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone()).unwrap()).await.unwrap();
+            assert!(!response.is_error.unwrap_or(false));
+            let read:Value=serde_json::from_str(&response.content[0].as_text().unwrap().text).unwrap();
+            assert_eq!(read["source_code"],lines[line-1]);
+            assert_eq!(read["source_file_hash"],ContentHash::compute(body.as_bytes()).0);
+            assert_eq!(action["arguments"]["line_end"],line);
+            assert_eq!(summary["coverage"],graph["coverage"]);
+        }
+        assert_eq!(impact_packet(&impact_target(&fixture,&target,Some(1)).await),graph,
+            "Display additions must not alter the graph or its admitted evidence");
+    });
+}
+
+#[test]
 fn file_impact_summary_exposes_distinct_consumer_files_and_actual_member_connections() {
     owned_case(|fixture| async move {
         const WIDGET: &str = "src/widget.rs";
@@ -3446,7 +3494,8 @@ fn file_impact_summary_reveals_files_beyond_samples_without_counting_unadmitted_
             assert_eq!(files.len(),8,"Multiple declarations in a file are one observed path");
             assert!(!files.contains_key(POLICY) && !files.contains_key(UNBOUND) && !files.contains_key(FUTURE_FILE));
             assert!(report["selected_dependents_observed"].as_u64().unwrap()>8);
-            assert_eq!(report["immediate_consumers"].as_array().unwrap().len(),4);
+            assert!((4..=8).contains(&report["immediate_consumers"].as_array().unwrap().len()),
+                "The preferred four remain; spare bytes may expose up to four further direct witnesses");
             assert!(report["coverage"]["unknown_nodes"].as_u64().unwrap()>0);
             assert_eq!(report["working_tree_checked"],false);
             assert!(inventory["scope"].as_str().unwrap().contains("not runtime"));
