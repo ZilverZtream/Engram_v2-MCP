@@ -1,0 +1,140 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_ADDITIONAL_DIRECT_CALLER_READ",
+  "at_utc": "2026-11-10T03:40:13.930019+00:00",
+  "source_commit": "6df7dbba8fa00c9b98e5e9f33a11fd68178640ad",
+  "problem": "An admitted direct logs caller was absent from the four-row TextToInt summary. Following its exact graph recovery cost64302B to expose a23-line source action.",
+  "delivered_behavior": "After all original summary/source/handoff allocations, extra full admitted direct caller rows use spare space in retained graph order, with original four prioritized and total capped at eight. No fitting row leaves exact baseline. Actual logs row with witness172 and source158..180 now appears directly; omitted count14to13.",
+  "actual_costs": {
+    "old_summary_utf8_bytes": 10855,
+    "old_graph_recovery_utf8_bytes": 64302,
+    "old_caller_read_utf8_bytes": 3163,
+    "old_three_call_utf8_bytes": 78320,
+    "new_summary_utf8_bytes": 12117,
+    "new_caller_read_utf8_bytes": 3163,
+    "new_two_call_utf8_bytes": 15280,
+    "net_utf8_bytes_saved": 63040,
+    "scope": "Known-source navigation route only; frozen9/10 QA outcomes unchanged. No fresh task, retry, rescore or full-task cost claim."
+  },
+  "verification": {
+    "integration_tests_passed": 31,
+    "renderer_unit_tests_passed": 16,
+    "candidate_task_calls": 2,
+    "normal_task_calls": 2,
+    "candidate_total_requests": 9,
+    "normal_total_requests": 8,
+    "source_generation": 3142,
+    "source_index_update_performed": false,
+    "source_pins_preserved": 22,
+    "native_assets_unchanged": 214,
+    "all150_tool_definitions_unchanged": true,
+    "original_first_four_callers_and_prior_report_evidence_preserved": true,
+    "changed_summary_fields": [
+      "immediate_consumers appended one row",
+      "immediate_consumers_omitted_from_summary",
+      "limitations[1]"
+    ],
+    "emitted_action_checked_against_actual_graph_and_current_source": true,
+    "registry_selection_other14_metadata_preserved": true
+  },
+  "installed": {
+    "server_sha256": "86a34f8af6e4515b8c7a784428b092f1dcbda3c4b9a0f81f6a513f55a6128c93",
+    "manifest_sha256": "28be95f89c90b6016f07562fb6b4472ff2715b00003cb740249789d1555374dd",
+    "normal_primary": {
+      "pid": "42860",
+      "started_at_ms": "1794281909073",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    }
+  },
+  "evidence": {
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-direct-caller-20261110.json",
+      "sha256": "08a6c099d887ecb799f36c6d362f3d5dec0fed242a382fb858dc31f3bc6ba8bb"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-paired-package.json",
+      "sha256": "9964c04ebd91d8b75f6d2f990289a79ceea4bff5bf723f4dcdb4bf15d4ede82a"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-candidate-v1\\acceptance.json",
+      "sha256": "c5b3a396c63e3ccf1acd59491b88c7883a5733d773343e84206cd42774635431"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-normal-v1\\acceptance.json",
+      "sha256": "1c2552ae3eab2d840aef99deeafbf5c4627bcf38ce919433447592d622ee8362"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-install.json",
+      "sha256": "e2e31e427e320c964c9120b61d703281ca4b1bd0192b34995b4068ee0a21cc9d"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-config-hold-20261110.json.released.json",
+      "sha256": "4609c5c965248d93fb275dbd4a9610b9a62d9cfb86245f1774ec6c32c016d1bd"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-release-gates.json",
+      "sha256": "4cf18a6d47a8bf4bf88973027d6d85e7a69593720226ee05345be74b4010cc5f"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-shipping-20261110.json",
+      "sha256": "0a47b7a1a65e2c99dc769e5e5fbadcc0af48aa483e936a704c0b3ad0cfefbb21"
+    },
+    "tests": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-transitive-tests-v2-20261110.json",
+        "sha256": "d789d09338f78cc508f95e3824f8e5d85bb6254e19a36b554879574fc271b8bb"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-budget-tests-20261110.json",
+        "sha256": "b4a8c6835e7fc57471b66f4884418d0089b53a35d1163698ec055a6895e4a930"
+      }
+    ],
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-source-review-addendum.json",
+      "sha256": "244e7f0f1cf9372f627a804a0f689392d9dc0e46c05460435d32d690c3baca09"
+    },
+    "verifier_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-verifier-review.json",
+      "sha256": "17903af05e603fabb747d73bd39e38a445ea5d11452433c6119694edc0d0d27a"
+    },
+    "release_helpers_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-release-helpers-review.json",
+      "sha256": "f61c005eb9028cb89dcafa7981f5d32ed0923ee25b6ac94d2edfa9d9fc45dca8"
+    },
+    "unchanged_frozen_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-integer-default-qa-20261110.json",
+      "sha256": "66bd6e022cf303bd3bf5036d8bb42f22b9a09868d7fd5c3c9ebf699923b17595"
+    }
+  },
+  "preserved_initial_failure": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-transitive-tests-20261110.json",
+      "sha256": "4877bb58ffb6714bc83eb5097b491cab4dfe8ad66b90947bde35c957c4ee4e11"
+    },
+    "result": "30PASS/1FAIL in old display assertion shown<=4. Root changed that one bound to8; no production changes and no removal of counts/witness/distant-route checks. Final31integration+16unit pass.",
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-source-review-addendum.json",
+      "sha256": "244e7f0f1cf9372f627a804a0f689392d9dc0e46c05460435d32d690c3baca09"
+    }
+  },
+  "resources": {
+    "hold_released": true,
+    "pending_rpc": null,
+    "observers_closed": true,
+    "owned_test_build_candidate_normal_temporary_directories_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-direct-caller-20261110-package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b7dd9b4f2ba24c61bd54425769128a24",
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain exact package, backup, fixed task evidence, projections and receipts for recovery/review until exact-path cleanup authorization. No preexisting folder removed."
+  },
+  "limits": [
+    "Known-source navigation improvement only; no new agent-task success or revised quality score.",
+    "Frozen proposed-change comparison remains assisted9/10 versus source-only10/10, source-only preferred. Candidate oversized ordinary read also contributed to missing evidence; omission alone is not established as cause.",
+    "Thirteen other observed direct callers remain omitted from this summary; static selected edges/ranges do not prove complete binding, behavior, current method boundaries or runtime impact.",
+    "Original31findings/19gates and earlier partial/failing task outcomes remain unchanged; parked work and EG14 remain unfinished."
+  ],
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}

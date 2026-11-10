@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T03:08:21.543354+00:00",
-    "reason": "New frozen proposed-change task favors source-only10/10 over assisted9/10. Exact public graph continuation confirmed omitted selected direct caller recovery requires64302B. Narrow source action independently verified; assess bounded direct-caller navigation, not another broad audit.",
+    "at_utc": "2026-11-10T03:40:13.930019+00:00",
+    "reason": "Additional direct caller display deployed/verified: known TextToInt?logs source route3calls78320B to2calls15280B, originalfirst4/evidence preserved, generation3142 unchanged. Frozen quality stays assisted9/10 vs source-only10/10; broader usefulness not established.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: real omitted-direct-caller navigation gap selected from new frozen task evidence;64302B graph recovery to reach already-admitted logs caller absent from10855Bsummary. Confirm faithful spare-space projection before implementation.",
-    "next_user_visible_deliverable": "Continue the original CodeMap/Blast Radius task-usefulness queue from real output and independent source evidence. Preserve unfavorable/partial task outcomes; do not repeat delivered callee or implicit-call probes, rescore frozen tasks, or substitute another broad audit/supporting infrastructure project. Overall completion requires actual agent-task usefulness evidence.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. Additional direct-caller source navigation delivered; do not repeat its build/runtime probes or frozen parser-default QA.",
+    "next_user_visible_deliverable": "Continue original core-tool usefulness work using actual task evidence and independent source. Preserve new source-only preference and all earlier outcomes. Do not repeat delivered callee/direct-caller probes, retry frozen tasks, expand instruction drafting, or substitute another broad audit/supporting infrastructure project. Overall completion requires agent-task usefulness evidence beyond narrow navigation savings.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9859,10 +9859,10 @@
     "previous_goal_turn_classification": {
       "classification": "progress",
       "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-callee-delivery-20261110.json",
-        "sha256": "ac9b4ca98ae473e84c4439b49214642bfc45300e5f38705b1b0e80eb635bd672"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-direct-caller-delivery-20261110.json",
+        "sha256": "335898b192f7d01598eafd8f9c32daa7d552b59d51aa8a3968a05c090fb8aee5"
       },
-      "reason": "Previous turn installed/pushed e9079ca and verified callee navigation; current new task changes next selected action without rescoring prior evidence."
+      "reason": "New independent task comparison changed selected action; implemented/tested/built/installed/normally verified real omitted-caller recovery improvement. No original goal closure or frozen task rescore."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -9888,8 +9888,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-callee-delivery-20261110.json",
-      "sha256": "ac9b4ca98ae473e84c4439b49214642bfc45300e5f38705b1b0e80eb635bd672"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-direct-caller-delivery-20261110.json",
+      "sha256": "335898b192f7d01598eafd8f9c32daa7d552b59d51aa8a3968a05c090fb8aee5"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11633,7 +11633,7 @@
       "scope": "New proposed parser-default change impact decision; prior tasks remain frozen."
     },
     "selected_omitted_direct_caller_navigation": {
-      "status": "ACTUAL_GAP_PROJECTION_PENDING_NO_IMPLEMENTATION_CLAIM",
+      "status": "DEPLOYED_NORMAL_VERIFIED_KNOWN_NAVIGATION_IMPROVEMENT_ONLY",
       "evidence": {
         "actual_assisted_summary_bytes": 10855,
         "direct_callers_shown": 4,
@@ -11657,7 +11657,22 @@
         "source_hash_and_body_verified": true,
         "scope": "Root known-source followthrough after frozen answers. Real navigation gap, not fresh-agent benefit proof. Assess whether spare summary space can expose additional already-admitted direct caller actions without displacing existing facts."
       },
-      "scope": "Only existing original impact navigation queue: spare-space full already-admitted direct caller rows after all current allocations. No new query/scan/parser/schema/index or task rescore."
+      "scope": "Only existing original impact navigation queue: spare-space full already-admitted direct caller rows after all current allocations. No new query/scan/parser/schema/index or task rescore.",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-direct-caller-delivery-20261110.json",
+        "sha256": "335898b192f7d01598eafd8f9c32daa7d552b59d51aa8a3968a05c090fb8aee5"
+      },
+      "actual_costs": {
+        "old_summary_utf8_bytes": 10855,
+        "old_graph_recovery_utf8_bytes": 64302,
+        "old_caller_read_utf8_bytes": 3163,
+        "old_three_call_utf8_bytes": 78320,
+        "new_summary_utf8_bytes": 12117,
+        "new_caller_read_utf8_bytes": 3163,
+        "new_two_call_utf8_bytes": 15280,
+        "net_utf8_bytes_saved": 63040,
+        "scope": "Known-source navigation route only; frozen9/10 QA outcomes unchanged. No fresh task, retry, rescore or full-task cost claim."
+      }
     }
   }
 }
