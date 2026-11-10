@@ -1,0 +1,373 @@
+{
+  "status": "FROZEN_FRESH_TASK_INCOMPLETE_SOURCE_ONLY_HIGHER_NO_TOOL_UPLIFT",
+  "at_utc": "2026-11-10T13:24:16.421062+00:00",
+  "task": "Review a proposal to remove the ModelState validation from RoqEntriesController.SetAsBilled and rely exclusively on the service to validate billing requests, leaving browser callers unchanged. The maintainer claims that rejected requests will still fail in the same way before any persistent change, including requests with missing or stale timestamps, and that successful responses remain compatible. Determine whether current source supports that claim. Trace the exact controller/contract/implementation, validation and access-check order, timestamp/concurrency and persistence behavior, and one actual caller through its request and result handling. Recommend the smallest defensible change and concrete expected-result regressions. Preserve current API behavior; do not edit application code or claim unexecuted runtime tests. Final answer at most1200words.",
+  "installed_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
+    "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "willow",
+      "opaque_label": "A",
+      "score_out_of_10": 4,
+      "criteria": [
+        1,
+        1,
+        1,
+        0,
+        1
+      ],
+      "complete": false,
+      "material_errors": [],
+      "missing_traces": [
+        "Exact interface declaration not inspected.",
+        "Direction-specific mutation/conflict helper and rowversion mapping not traced.",
+        "DTO, HTTP response implementations and access/context helpers uninspected.",
+        "Actual caller payload, timestamp use and result handling absent.",
+        "Mutation/conflict expected-result regressions remain partly unspecified."
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-willow-answer.txt",
+        "sha256": "b34a50915a7539a0200dae625c8424f460420de3ebcf18e1a1fa23e961c9940e"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-willow-private-ledger.json",
+        "sha256": "d0c6ef29475ba79e7d0f1373294b5a13dc56b3f9bb795320b4bd265495ce34d1"
+      },
+      "requests": 4,
+      "setup_bytes": 21958,
+      "delivered_bytes": 63046,
+      "status": "STOPPED_BYTE_BUDGET",
+      "requests_and_bytes": [
+        {
+          "number": 1,
+          "request": {
+            "kind": "tool",
+            "tool": "get_codebase_overview",
+            "arguments": {
+              "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+              "scope": "Site/App_Code/api-v2/Controllers/reportingOfQuantities/RoqEntriesController.vb",
+              "limit": 1,
+              "include_retained_context": false,
+              "exclude_paths": [
+                "Site/Q",
+                ".audit-20261104",
+                ".audit-20261105-dev",
+                ".audit-20261105-browser-background"
+              ],
+              "include_declarations": true,
+              "include_source": true,
+              "symbol_name": "SetAsBilled"
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 9686,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 2,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqEntryService.vb",
+              "line_start": 1,
+              "line_end": 400
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 28122,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 3,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqEntryService.vb",
+              "line_start": 401,
+              "line_end": 465
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 3128,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 4,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site",
+              "pattern": "/setasbilled",
+              "max_results": 2,
+              "context": 2
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 152,
+          "withheld_for_budget": {
+            "utf8_bytes": 2893,
+            "sha256": "6b937983aa76948f7e63e8c3c4efcf35533386e3da07e59235dd2e977e717bc1"
+          }
+        }
+      ]
+    },
+    "source_only": {
+      "candidate": "rowan",
+      "opaque_label": "B",
+      "score_out_of_10": 6,
+      "criteria": [
+        2,
+        1,
+        1,
+        0,
+        2
+      ],
+      "complete": false,
+      "material_errors": [],
+      "missing_traces": [
+        "Failure status/body and error-helper throw behavior untraced.",
+        "Concurrency enforcement left unverified at source mapping boundary.",
+        "Underlying identity, write permission, company and project access helpers uninspected.",
+        "Actual caller payload, timestamp use and result handling absent."
+      ],
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-rowan-answer.txt",
+        "sha256": "3248c01ffe0e99ed05c5fc754ba311bf93276e8a743957996f9bc7170555df21"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-rowan-private-ledger.json",
+        "sha256": "6a35bbf49db0a09ab31786812cd12d13c8ec3001722cf6bc29369ca17fd51395"
+      },
+      "requests": 8,
+      "setup_bytes": 6427,
+      "delivered_bytes": 47181,
+      "status": "COMPLETE_REQUEST_BUDGET",
+      "requests_and_bytes": [
+        {
+          "number": 1,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/api-v2/Controllers/reportingOfQuantities/RoqEntriesController.vb",
+              "line_start": 1,
+              "line_end": 400
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 3053,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 2,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site",
+              "pattern": "SetAsBilled",
+              "max_results": 8,
+              "context": 5
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 764,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 3,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site/App_Code",
+              "pattern": "SetAsBilled",
+              "max_results": 8,
+              "context": 5
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 13176,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 4,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqEntryService.vb",
+              "line_start": 290,
+              "line_end": 689
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 12331,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 5,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site/App_Code/api-v2",
+              "pattern": "Sub SetAsBilled",
+              "max_results": 8,
+              "context": 5
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 6643,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 6,
+          "request": {
+            "kind": "source_read",
+            "arguments": {
+              "path": "Site/App_Code/api-v2/DataTransferObjects/reportingOfQuantities/RoqSetAsBilled-In.vb",
+              "line_start": 1,
+              "line_end": 200
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 2123,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 7,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site/Scripts",
+              "pattern": "setasbilled",
+              "max_results": 8,
+              "context": 5
+            }
+          },
+          "status": "REFUSED_OR_ERROR",
+          "delivered_bytes": 192,
+          "withheld_for_budget": null
+        },
+        {
+          "number": 8,
+          "request": {
+            "kind": "source_search",
+            "arguments": {
+              "scope": "Site",
+              "pattern": "/setasbilled",
+              "max_results": 8,
+              "context": 5
+            }
+          },
+          "status": "RETURNED",
+          "delivered_bytes": 2472,
+          "withheld_for_budget": null
+        }
+      ]
+    }
+  },
+  "evidence": {
+    "task_spec": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-task-spec.json",
+      "sha256": "3d61ade67a04c98869cb68c8624f647c788ada5a4041d1b5376a052ddd07ff56"
+    },
+    "source_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-oracle.json",
+      "sha256": "49794bf8e06aa826354e7f28f4925b49d355fe0ad3b93061b4aa66f9ef5e8bea"
+    },
+    "source_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-candidate-source-verification.json",
+      "sha256": "927d0249047160c0d08dcdb12bbf97c450b08a216f3a35baabb19c2cc5612188"
+    },
+    "blind_judgment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-blind-judgment.json",
+      "sha256": "3951014dfa53e18058699a4c1232f16a4bd9d2f14f8d8d8cdd126f419acdfeaf"
+    },
+    "private_arm_mapping": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-private-arm-map.json",
+      "sha256": "c0eef67ca8d6b405bc403811202996e83f743518aeaec341e215865f36ca6950"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-readiness.json",
+      "sha256": "f3006b556fd475afdb04ba3d2aca8323fe84844cfc1381e41c6f5597f038a398"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-contract.json",
+      "sha256": "f789625625e9c9da679c01d56368a2b4c3fa863dae79ea90320c00f6806a6606"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-binding.json",
+      "sha256": "83d1c28a3a0e33c49acf355b09a8ecfe7664aae93164bea992db960c34a931b6"
+    },
+    "packet_diagnosis": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-assisted-packet-diagnosis.json",
+      "sha256": "006ad13fecbf8744db2bc0e51a51ed3848237245e6875717b292bf1aa2bfc58e"
+    }
+  },
+  "limits": {
+    "requests_each": 8,
+    "delivered_utf8_bytes_each_including_setup": 65536,
+    "answer_words": 1200,
+    "tool_choice": "free from request one",
+    "ordinary_source_capabilities": "identical for both arms",
+    "assisted_setup": "All five full current tool definitions charged upfront. This is a one-off setup cost, not amortized discovery.",
+    "comparison_scope": "One distinct task; previous Permit forced-first-two intervention differs. No causal before/after comparison across tasks and no claim of general productivity.",
+    "candidate_exposure": "Fresh fork none, identical initial wait/START administration without task evidence; charged setup supplies task evidence. Shared AGENTS/environment possible; not claimed held-out/history-blind."
+  },
+  "observed_obstacle": {
+    "codemap_used": true,
+    "impact_analysis_used": false,
+    "compute_blast_radius_used": false,
+    "codemap_response_bytes": 9686,
+    "correct_exact_implementation_read_offered": {
+      "file": "Site/App_Code/api-v2/Services/reportingOfQuantities/RoqEntryService.vb",
+      "line_start": 317,
+      "line_end": 363
+    },
+    "actual_followup": "Candidate used ordinary source reads1..400 and401..465, totaling31,250B, instead of the offered literal method read. Prior unrelated methods1..303 accounted for22,759 JSON-escaped payload bytes.",
+    "withheld_next_response": {
+      "bytes": 2893,
+      "remaining_before_request": 2642,
+      "excess": 251
+    },
+    "interpretation": "Exact navigation was present. Observed evidence selection and upfront setup cost exhausted the task budget; this does not prove a missing route or backend fault.",
+    "production_change_justified_by_this_attempt": false,
+    "next_original_scope": "Blast Radius agent-usefulness remains untested here because neither impact tool was called. Select a fresh real change-impact task with independent source criteria, rather than patch an already-present navigation action or rescore this task."
+  },
+  "preparation_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-preparation-failure-v1.json",
+      "sha256": "a89d0a15c446224b048f6785922f91567f6d35ac17b8ed8fa284035fa1e58c6c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-write-task-qa-20261110-preparation-failure-v2.json",
+      "sha256": "060189f80f170c6bcda234ff6360776a4e8d7dac1bada52b0439ad47ed841032"
+    }
+  ],
+  "preparation_recovery": "Preserved two failed preparers. Corrected only a nonexistent oracle field check and Function-only assertion for the actual pinned Sub. Both failures preceded RPCs/candidate exposure. Successful v3 used four read-only readiness RPCs; no source/oracle/task/criteria edits.",
+  "preparer": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\prepare_http_write_task_qa_v3_20261110.py",
+    "sha256": "b7e6e8321bef7f8cd869bf94b693f9ada36a8a1bc57b69cd17499eaab3e163c5"
+  },
+  "relay_unchanged": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_core_matched_qa_v3_20261109.py",
+    "sha256": "02a4ccc3e8abb6ce1787f8e9d699d528744caaab4b79d542a22f75b29dd04a02"
+  },
+  "resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "candidate_requests_terminal": true,
+    "pending_rpc": false,
+    "owned_relay_locks_absent": true,
+    "application_edited": false,
+    "index_update_requested": false,
+    "normal_daemon_observed_pid": 68868,
+    "normal_launcher_pid": 70528,
+    "normal_launcher_exit": 0,
+    "normal_start_reason": "Previous normal owner had exited naturally; one hidden daemon launcher restored the installed service before readiness. No forced stop or restart during candidates.",
+    "retention": "Retain task/oracle/setups/requests/ledgers/answers/judgment/diagnosis and preparation failures under V. No temporary fixture directories were created; no preexisting deletion."
+  },
+  "frozen_prior_tasks_replayed_or_rescored": false,
+  "fresh_agent_task_win_proven": false,
+  "original31findings_closed": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}
