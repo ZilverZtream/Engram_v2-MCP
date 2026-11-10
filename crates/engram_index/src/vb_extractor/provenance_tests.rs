@@ -24,6 +24,22 @@ fn project_compiler_context_must_be_present_and_match_before_metadata_is_reused(
     changed_imports.compiler_context.as_mut().unwrap().fingerprint = "b".repeat(64);
     ensure!(!changed_imports.matches_metadata(&metadata),
         "Unchanged VB bytes do not authorize reuse after compiler inputs change");
+    let mut http = context.clone();
+    let compiler = http.compiler_context.as_mut().unwrap();
+    compiler.mode = "framework_plus_web_http".into();
+    compiler.reference_bytes = 1024;
+    compiler.reason = None;
+    let http_metadata = serde_json::to_value(VbParserProvenance::RustFallback {
+        context: http.clone(), reason: VbFallbackReason::Unavailable,
+    })?;
+    ensure!(http.matches_metadata(&http_metadata),
+        "The explicit partial HTTP profile must retain its admitted compiler authority");
+    ensure!(!http.matches_metadata(&metadata) && !context.matches_metadata(&http_metadata),
+        "A new metadata profile must not reuse old source-only receipts, or vice versa");
+    let mut changed_http = http.clone();
+    changed_http.compiler_context.as_mut().unwrap().fingerprint = "c".repeat(64);
+    ensure!(!changed_http.matches_metadata(&http_metadata),
+        "Byte-identical VB source cannot reuse witnesses after an HTTP reference changes");
     let standalone = VbParserContext::from_authority(None);
     ensure!(!standalone.matches_metadata(&metadata),
         "Rootless extraction cannot inherit project compiler authority");

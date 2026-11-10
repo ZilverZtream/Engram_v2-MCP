@@ -527,6 +527,221 @@ End Class
     owned.close().unwrap();
 }
 
+/// Real Web API metadata restores the HTTP-dependent interface calls, while
+/// unavailable or changed metadata must leave their targets unresolved.
+#[cfg(windows)]
+#[test]
+#[ignore = "requires ENGRAM_TEST_WEB_HTTP_ASSEMBLY and the .NET Framework 4.8 metadata profile"]
+fn configured_web_http_context_restores_write_targets_and_fences_metadata_changes() {
+    use sha2::{Digest, Sha256};
+
+    let bin = sidecar_path().expect("explicit HTTP metadata regression requires a published sidecar");
+    let assembly = PathBuf::from(std::env::var_os("ENGRAM_TEST_WEB_HTTP_ASSEMBLY")
+        .expect("set ENGRAM_TEST_WEB_HTTP_ASSEMBLY to the real System.Web.Http.dll"));
+    assert!(assembly.is_file(), "real HTTP metadata fixture is missing: {}", assembly.display());
+    let assembly_bytes = std::fs::read(&assembly).unwrap();
+    // Harness is declared after TempDir, so child termination and joining also
+    // precede directory removal during assertion unwinding.
+    let owned = tempfile::TempDir::new().unwrap();
+    let root = owned.path();
+    std::fs::create_dir(root.join("bin")).unwrap();
+    let copied_assembly = root.join("bin/System.Web.Http.dll");
+    let configuration = r#"<configuration>
+<system.web><compilation targetFramework="4.8" defaultLanguage="vb" debug="true"><assemblies>
+<add assembly="System.Data.Linq, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"/>
+<add assembly="System.Net.Http, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a"/>
+</assemblies></compilation><pages><namespaces><clear/>
+<add namespace="System"/><add namespace="System.Collections.Generic"/><add namespace="System.Linq"/>
+</namespaces></pages></system.web>
+<system.codedom><compilers><compiler language="vb;vbs;visualbasic;vbscript" extension=".vb"
+type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.VBCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=4.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
+compilerOptions="/optioninfer+"><providerOption name="UseAspNetSettings" value="true"/>
+</compiler></compilers></system.codedom>
+<runtime><assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+<dependentAssembly><assemblyIdentity name="System.Web.Http" publicKeyToken="31bf3856ad364e35" culture="neutral"/>
+<bindingRedirect oldVersion="0.0.0.0-5.3.0.0" newVersion="5.3.0.0"/></dependentAssembly>
+<dependentAssembly><assemblyIdentity name="System.Net.Http" publicKeyToken="b03f5f7f11d50a3a" culture="neutral"/>
+<bindingRedirect oldVersion="0.0.0.0-4.2.0.0" newVersion="4.0.0.0"/></dependentAssembly>
+</assemblyBinding></runtime></configuration>"#;
+    std::fs::write(root.join("web.config"), configuration).unwrap();
+    let contract = "Public Interface IPlan\n Sub Update(id As String, timestamp As String, value As Entry)\n Sub Delete(id As String, timestamp As String)\nEnd Interface\nPublic Class LeftValue\nEnd Class\nPublic Class RightValue\nEnd Class\nPublic Interface IAmbiguous\n Sub Pick(value As LeftValue)\n Sub Pick(value As RightValue)\nEnd Interface\n";
+    let caller = r#"Imports System.Web.Http
+Public Class Entry
+ Public Property Id As Integer
+End Class
+Public Class ProbeController
+ Inherits ApiController
+ Public Sub PatchValue(service As IPlan, id As String, value As Entry)
+  service.Update(id, Request.Headers.IfMatch.FirstOrDefault().Tag.Trim(Chr(34)), value)
+ End Sub
+ Public Sub DeleteValue(service As IPlan, id As String)
+  service.Delete(id, Request.Headers.IfMatch.FirstOrDefault().Tag.Trim(Chr(34)))
+ End Sub
+ Public Sub Ambiguous(service As IAmbiguous)
+  service.Pick(Nothing)
+ End Sub
+#If DEBUG Then
+#If _MYTYPE = "Web" Then
+ Public Function Project(rows As List(Of Entry)) As List(Of Entry)
+  Return rows.Where(Function(row) row.Id > 0).ToList()
+ End Function
+#End If
+#End If
+End Class
+"#;
+    let sources = [("contracts.vb", contract), ("controller.vb", caller)];
+    let paths: Vec<_> = sources.iter().map(|(name, source)| {
+        let path = root.join(name);
+        std::fs::write(&path, source).unwrap();
+        path
+    }).collect();
+    let policy = serde_json::json!({"max_total_source_bytes":1048576,"max_file_source_bytes":524288,
+        "max_trees":64,"allocation_multiplier":32,"tree_overhead_bytes":8192});
+    let mut harness = Harness::start(&bin);
+
+    let inspect = |harness: &mut Harness, context: &serde_json::Value, restored: bool| {
+        let plan = harness.send(serde_json::json!({"cmd":"plan_refresh","project_root":root,
+            "files":paths,"paths":paths,"compiler_context":context,"compilation_policy":policy}));
+        assert!(plan.get("error").is_none(), "plan: {plan}");
+        assert_eq!(plan["compilation_plan"]["reference_bytes"], context["reference_bytes"]);
+        let prepared = harness.send(serde_json::json!({"cmd":"refresh_project","plan_id":plan["compilation_plan"]["id"]}));
+        assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+        assert_eq!(prepared["compiler_context"], *context);
+        let parsed: Vec<_> = sources.iter().zip(&paths).map(|((_, source), path)| {
+            assert_eq!(std::fs::read_to_string(path).unwrap(), *source, "metadata changes must not alter VB input");
+            let result = harness.send(serde_json::json!({"cmd":"parse","project_root":root,
+                "path":path,"source":source,"compiler_context":context}));
+            assert!(result.get("error").is_none(), "parse: {result}");
+            assert_eq!(result["compiler_context"], *context);
+            result
+        }).collect();
+        let edges = parsed[1]["edges"].as_array().unwrap();
+        for (method, target, declaration, semantic_id) in [
+            ("PatchValue", "Update", "Sub Update(id As String, timestamp As String, value As Entry)", "M:IPlan.Update(System.String,System.String,Entry)"),
+            ("DeleteValue", "Delete", "Sub Delete(id As String, timestamp As String)", "M:IPlan.Delete(System.String,System.String)"),
+        ] {
+            let call_line = caller.lines().position(|line| line.trim_start().starts_with(&format!("service.{target}("))).unwrap() + 1;
+            let calls: Vec<_> = edges.iter().filter(|edge| edge["kind"] == "calls"
+                && edge["source_name"] == format!("ProbeController.{method}")
+                && edge["metadata"]["call_site_line"] == call_line.to_string()
+                && edge["metadata"].get("interface_call_status").is_some()).collect();
+            assert_eq!(calls.len(), 1, "one interface invocation at the actual call site: {calls:?}");
+            let edge = calls[0];
+            if !restored {
+                assert_eq!(edge["metadata"]["interface_call_status"], "unknown");
+                assert!(edge["metadata"].get("interface_call_target_v1").is_none(), "missing HTTP metadata must not invent a target");
+                continue;
+            }
+            assert_eq!(edge["metadata"]["interface_call_status"], "source_located");
+            let locator: serde_json::Value = serde_json::from_str(edge["metadata"]["interface_call_target_v1"].as_str().unwrap()).unwrap();
+            assert_eq!(locator["name"], format!("IPlan.{target}"));
+            assert_eq!(locator["file_path"], "contracts.vb");
+            assert_eq!(locator["semantic_id"], semantic_id);
+            assert_eq!(locator["syntax_source_sha256"], format!("{:x}", Sha256::digest(contract.as_bytes())));
+            assert_eq!(locator["start_line"], contract.lines().position(|line| line.trim() == declaration).unwrap() + 1);
+            let units: Vec<_> = contract.encode_utf16().collect();
+            let start = locator["span_start"].as_u64().unwrap() as usize;
+            let length = locator["span_length"].as_u64().unwrap() as usize;
+            assert_eq!(String::from_utf16(&units[start..start + length]).unwrap(), declaration);
+            assert_eq!(parsed[0]["symbols"].as_array().unwrap().iter().filter(|symbol|
+                symbol["name"] == locator["name"] && symbol["start_line"] == locator["start_line"]
+                    && symbol["metadata"]["semantic_member_id"] == locator["semantic_id"]).count(), 1);
+        }
+        let ambiguous: Vec<_> = edges.iter().filter(|edge| edge["kind"] == "calls"
+            && edge["source_name"] == "ProbeController.Ambiguous").collect();
+        assert_eq!(ambiguous.len(), 1);
+        assert_eq!(ambiguous[0]["metadata"]["interface_call_status"], "unknown");
+        assert!(ambiguous[0]["metadata"].get("interface_call_target_v1").is_none(), "real metadata cannot justify choosing an ambiguous overload");
+        assert!(edges.iter().any(|edge| edge["kind"] == "calls" && edge["source_name"] == "ProbeController.Project"
+            && edge["target_name"] == "Entry.Id" && edge["metadata"]["via"] == "property_get"
+            && edge["metadata"].get("unresolved").is_none()), "configured LINQ and ASP.NET conditional symbols must still resolve the source property");
+    };
+
+    let missing = harness.send(serde_json::json!({"cmd":"compiler_context","project_root":root}));
+    assert!(missing.get("error").is_none(), "context: {missing}");
+    let baseline = missing["compiler_context"].clone();
+    assert_eq!(baseline["mode"], "framework_only");
+    assert_eq!(baseline["reason"], "website_http_reference_missing", "optional metadata omission must be disclosed: {baseline}");
+    inspect(&mut harness, &baseline, false);
+
+    for fault in ["mutated", "removed"] {
+        std::fs::write(&copied_assembly, &assembly_bytes).unwrap();
+        let reply = harness.send(serde_json::json!({"cmd":"compiler_context","project_root":root}));
+        assert!(reply.get("error").is_none(), "context: {reply}");
+        let context = reply["compiler_context"].clone();
+        assert_eq!(context["mode"], "framework_plus_web_http", "requires real configured HTTP metadata: {context}");
+        assert!(context["reference_bytes"].as_u64().unwrap() > baseline["reference_bytes"].as_u64().unwrap());
+        assert_ne!(context["fingerprint"], baseline["fingerprint"]);
+        inspect(&mut harness, &context, true);
+        let plan = harness.send(serde_json::json!({"cmd":"plan_refresh","project_root":root,
+            "paths":[],"compiler_context":context,"compilation_policy":policy}));
+        assert!(plan.get("error").is_none(), "warm plan: {plan}");
+        assert_eq!(plan["compilation_plan"]["full"], false);
+        if fault == "mutated" {
+            std::fs::write(&copied_assembly, b"not a managed assembly").unwrap();
+        } else {
+            std::fs::remove_file(&copied_assembly).unwrap();
+        }
+        let refused = harness.send(serde_json::json!({"cmd":"refresh_project","plan_id":plan["compilation_plan"]["id"]}));
+        assert_eq!(refused["compilation_error"], true, "{fault} metadata must invalidate the admitted plan: {refused}");
+        assert!(refused["error"].as_str().is_some_and(|error| error.contains("Compiler context changed after planning")), "{refused}");
+        let changed = harness.send(serde_json::json!({"cmd":"compiler_context","project_root":root}));
+        assert!(changed.get("error").is_none(), "changed context: {changed}");
+        let changed = &changed["compiler_context"];
+        assert_eq!(changed["mode"], "framework_only", "optional HTTP failure must retain the framework profile");
+        assert_eq!(changed["reference_bytes"], baseline["reference_bytes"], "HTTP references must be admitted atomically");
+        assert!(changed["reason"].as_str().is_some_and(|reason| reason.starts_with("website_http_")), "omission must be disclosed: {changed}");
+        assert_ne!(changed["fingerprint"], context["fingerprint"]);
+        let stale = harness.send(serde_json::json!({"cmd":"parse","project_root":root,
+            "path":paths[1],"source":caller,"compiler_context":context}));
+        assert!(stale.get("error").is_some(), "old compiler authority must not parse after metadata rejection: {stale}");
+        inspect(&mut harness, changed, false);
+    }
+    // A healthy root pair cannot establish one website-wide HTTP environment
+    // when a location or descendant config selects a different HTTP policy.
+    std::fs::write(&copied_assembly, &assembly_bytes).unwrap();
+    let scoped_runtime = r#"<runtime><assemblyBinding xmlns="urn:schemas-microsoft-com:asm.v1">
+<dependentAssembly><assemblyIdentity name="System.Web.Http" publicKeyToken="31bf3856ad364e35" culture="neutral"/>
+<bindingRedirect oldVersion="0.0.0.0-5.3.0.0" newVersion="5.2.9.0"/></dependentAssembly>
+</assemblyBinding></runtime>"#;
+    for scoped in ["root_location", "descendant"] {
+        let descendant = root.join("scoped");
+        if scoped == "root_location" {
+            std::fs::write(root.join("web.config"), configuration.replace("</configuration>",
+                &format!("<location path=\"scoped\">{scoped_runtime}</location></configuration>"))).unwrap();
+        } else {
+            std::fs::create_dir(&descendant).unwrap();
+            std::fs::write(descendant.join("web.config"), format!("<configuration>{scoped_runtime}</configuration>")).unwrap();
+        }
+        let reply = harness.send(serde_json::json!({"cmd":"compiler_context","project_root":root}));
+        assert!(reply.get("error").is_none(), "{scoped} context: {reply}");
+        let context = &reply["compiler_context"];
+        assert_eq!(context["mode"], "framework_only", "{scoped} policy cannot be silently ignored");
+        assert_eq!(context["reason"], "website_http_scoped_configuration");
+        assert_eq!(context["reference_bytes"], baseline["reference_bytes"], "scoped HTTP omission preserves the framework profile");
+        inspect(&mut harness, context, false);
+        if scoped == "root_location" {
+            std::fs::write(root.join("web.config"), configuration).unwrap();
+        } else {
+            // These are newly created fixture resources; remove only the
+            // owned config and then its empty directory.
+            std::fs::remove_file(descendant.join("web.config")).unwrap();
+            std::fs::remove_dir(&descendant).unwrap();
+        }
+        let restored = harness.send(serde_json::json!({"cmd":"compiler_context","project_root":root}));
+        assert!(restored.get("error").is_none(), "restored {scoped} context: {restored}");
+        assert_eq!(restored["compiler_context"]["mode"], "framework_plus_web_http");
+        assert_ne!(restored["compiler_context"]["fingerprint"], context["fingerprint"]);
+        inspect(&mut harness, &restored["compiler_context"], true);
+    }
+    assert_eq!(std::fs::read(&assembly).unwrap(), assembly_bytes, "the external metadata fixture is read-only");
+    assert_eq!(std::fs::read_to_string(root.join("web.config")).unwrap(), configuration);
+    harness.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness);
+    owned.close().unwrap();
+}
+
 /// Contract callers must remain discoverable without confusing overloads,
 /// namespaces or constructed generic interfaces. Drive the actual native
 /// producer, rather than manufacturing the metadata expected by ingestion.

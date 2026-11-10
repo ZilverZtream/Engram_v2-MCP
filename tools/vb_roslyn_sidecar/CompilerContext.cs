@@ -1,5 +1,7 @@
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.VisualBasic;
+using System.Reflection.Metadata;
+using System.Reflection.PortableExecutable;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -8,8 +10,9 @@ using System.Text.RegularExpressions;
 using System.Xml;
 using System.Xml.Linq;
 
-// A deliberately partial ASP.NET Website context. Only installed framework
-// metadata is admitted; application/bin/package references remain unassessed.
+// A deliberately partial ASP.NET Website context. Besides installed framework
+// metadata, one explicitly configured Web API pair can be admitted. Other
+// application/bin/package references remain unassessed.
 internal sealed record CompilerContextDto
 {
     [JsonPropertyName("root")] public string Root { get; init; } = "";
@@ -32,6 +35,9 @@ internal sealed class CompilerContextSnapshot
     private readonly List<string> imports = [];
     private readonly Dictionary<string, object> defines = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, string> assemblies = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, XElement> httpRedirects = new(StringComparer.OrdinalIgnoreCase);
+    private string? httpConfigurationIssue, optionalReason;
+    private bool httpEnabled;
     private int configBytes;
     private bool infer = true, explicitly = true, autoVb = true, debug;
     private OptionStrict strict = OptionStrict.Off;
@@ -80,6 +86,7 @@ internal sealed class CompilerContextSnapshot
         if (bytes is null) return;
         var root = Xml(bytes).Root;
         if (root?.Name != "configuration") throw new Unsupported("unsupported_configuration_document");
+        ObserveHttpConfiguration(root);
         if (root.Elements("location").Any(location => location.Descendants().Any(e =>
             e.Name.LocalName is "compilation" or "pages" or "system.codedom")))
             throw new Unsupported("scoped_compiler_configuration");
@@ -185,6 +192,144 @@ internal sealed class CompilerContextSnapshot
                 throw new Unsupported("unsupported_compiler_override");
         }
     }
+    private static bool HttpAssembly(string? name) => name is not null
+        && (name.Equals("System.Web.Http", StringComparison.OrdinalIgnoreCase)
+            || name.Equals("System.Net.Http", StringComparison.OrdinalIgnoreCase));
+    private static bool HasHttpRuntimePolicy(XContainer container)
+    {
+        XNamespace ns = "urn:schemas-microsoft-com:asm.v1";
+        return container.Descendants("runtime").Any(runtime =>
+            runtime.Attribute("configSource") is not null || runtime.Attribute("file") is not null
+            || runtime.Descendants(ns + "assemblyIdentity").Any(identity => HttpAssembly((string?)identity.Attribute("name")))
+            || runtime.Elements(ns + "assemblyBinding").Any(binding =>
+                binding.Attribute("configSource") is not null || binding.Attribute("file") is not null
+                || binding.Element(ns + "probing") is not null));
+    }
+    private void ObserveHttpConfiguration(XElement root)
+    {
+        XNamespace ns = "urn:schemas-microsoft-com:asm.v1";
+        if (root.Elements("location").Any(HasHttpRuntimePolicy))
+            httpConfigurationIssue = "website_http_scoped_configuration";
+        var runtime = root.Element("runtime");
+        if (runtime is null) return;
+        if (root.Elements("runtime").Skip(1).Any()
+            || runtime.Attribute("configSource") is not null || runtime.Attribute("file") is not null)
+            httpConfigurationIssue = "website_http_external_configuration";
+        foreach (var binding in runtime.Elements(ns + "assemblyBinding"))
+        {
+            if (binding.Element(ns + "probing") is not null)
+                httpConfigurationIssue = "website_http_private_probing";
+            foreach (var dependency in binding.Elements(ns + "dependentAssembly"))
+            {
+                var name = dependency.Elements(ns + "assemblyIdentity").Select(identity => (string?)identity.Attribute("name"))
+                    .FirstOrDefault(HttpAssembly);
+                if (name is null) continue;
+                if (binding.Attributes().Any(a => !a.IsNamespaceDeclaration)
+                    || dependency.Attributes().Any() || dependency.Elements(ns + "assemblyIdentity").Count() != 1
+                    || dependency.Elements(ns + "bindingRedirect").Count() != 1
+                    || dependency.Elements().Any(e => e.Name != ns + "assemblyIdentity" && e.Name != ns + "bindingRedirect")
+                    || !httpRedirects.TryAdd(name, new XElement(dependency)))
+                    httpConfigurationIssue = "website_http_unsupported_binding_policy";
+            }
+        }
+    }
+    private void RequireHttpRedirect(string name, string token, Version version)
+    {
+        XNamespace ns = "urn:schemas-microsoft-com:asm.v1";
+        if (!httpRedirects.TryGetValue(name, out var dependency)) throw new Unsupported("website_http_redirect_missing");
+        var identity = dependency.Element(ns + "assemblyIdentity")!;
+        var redirect = dependency.Element(ns + "bindingRedirect")!;
+        if (identity.Attributes().Any(a => a.Name != "name" && a.Name != "publicKeyToken" && a.Name != "culture")
+            || redirect.Attributes().Any(a => a.Name != "oldVersion" && a.Name != "newVersion")
+            || !string.Equals((string?)identity.Attribute("publicKeyToken"), token, StringComparison.OrdinalIgnoreCase)
+            || (string?)identity.Attribute("culture") != "neutral"
+            || !Version.TryParse((string?)redirect.Attribute("newVersion"), out var target) || target != version)
+            throw new Unsupported("website_http_redirect_identity");
+        var range = ((string?)redirect.Attribute("oldVersion") ?? "").Split('-');
+        if (range.Length is < 1 or > 2 || !Version.TryParse(range[0], out var first)
+            || !Version.TryParse(range[^1], out var last) || first > version || last < version || first > last)
+            throw new Unsupported("website_http_redirect_range");
+        Observe("http_redirect:" + name, dependency.ToString(SaveOptions.DisableFormatting));
+    }
+    private (string Path, long Bytes, string Hash) ReadHttpReference(string path, string name, Version version, string token, long remaining)
+    {
+        Observe("http_path", path);
+        if (!File.Exists(path)) { Observe(path, "absent"); throw new Unsupported("website_http_reference_missing"); }
+        OrdinaryFile(path);
+        using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+        var length = input.Length;
+        if (length <= 0 || length > 16 * 1024 * 1024 || length > remaining)
+            throw new Unsupported("website_http_reference_byte_limit");
+        var hash = HashReference(input, length);
+        Observe(path, hash);
+        input.Position = 0;
+        using var image = new PEReader(input, PEStreamOptions.LeaveOpen);
+        var metadataBytes = image.PEHeaders.CorHeader?.MetadataDirectory.Size ?? 0;
+        if (metadataBytes <= 0) throw new Unsupported("website_http_metadata_invalid");
+        if (metadataBytes > MaxConfigBytes) throw new Unsupported("website_http_metadata_byte_limit");
+        var metadata = image.GetMetadataReader();
+        if (!metadata.IsAssembly) throw new Unsupported("website_http_metadata_invalid");
+        var assembly = metadata.GetAssemblyDefinition();
+        var publicKey = metadata.GetBlobBytes(assembly.PublicKey);
+        var actualToken = publicKey.Length == 0 ? "" : Convert.ToHexString(SHA1.HashData(publicKey)[^8..].Reverse().ToArray()).ToLowerInvariant();
+        if ((assembly.Flags & System.Reflection.AssemblyFlags.PublicKey) == 0
+            || !metadata.GetString(assembly.Name).Equals(name, StringComparison.OrdinalIgnoreCase)
+            || assembly.Version != version || metadata.GetString(assembly.Culture) != "" || actualToken != token)
+            throw new Unsupported("website_http_reference_identity");
+        // This is a metadata identity check, not assembly execution or a claim
+        // that all dependencies are resolved. Admit only the demonstrated pair.
+        if (name == "System.Web.Http")
+        {
+            var dependencies = metadata.AssemblyReferences.Select(metadata.GetAssemblyReference)
+                .Where(reference => metadata.GetString(reference.Name).Equals("System.Net.Http", StringComparison.OrdinalIgnoreCase)).ToArray();
+            if (dependencies.Length != 1 || dependencies[0].Version != new Version(4, 0, 0, 0)
+                || metadata.GetString(dependencies[0].Culture) != ""
+                || (dependencies[0].Flags & System.Reflection.AssemblyFlags.PublicKey) != 0
+                || Convert.ToHexString(metadata.GetBlobBytes(dependencies[0].PublicKeyOrToken)).ToLowerInvariant() != "b03f5f7f11d50a3a")
+                throw new Unsupported("website_http_dependency_identity");
+        }
+        Observe("http_identity", name + "," + version + ",neutral," + actualToken);
+        return (path, length, hash);
+    }
+    private void TryHttpProfile()
+    {
+        var web = Path.Combine(WebsiteRoot!, "bin", "System.Web.Http.dll");
+        if (!assemblies.ContainsKey("System.Net.Http") && httpRedirects.Count == 0
+            && httpConfigurationIssue is null && !File.Exists(web)) return;
+        try
+        {
+            if (httpConfigurationIssue is not null) throw new Unsupported(httpConfigurationIssue);
+            if (!assemblies.TryGetValue("System.Net.Http", out var declared)) throw new Unsupported("website_http_reference_not_enabled");
+            var parts = declared.Split(',').Select(part => part.Trim()).ToArray();
+            if (parts.Length != 4 || new[] { "Version", "Culture", "PublicKeyToken" }.Any(key =>
+                parts.Skip(1).Count(part => part.StartsWith(key + "=", StringComparison.OrdinalIgnoreCase)) != 1))
+                throw new Unsupported("website_http_declaration_identity");
+            var identity = new System.Reflection.AssemblyName(declared);
+            if (!string.Equals(identity.Name, "System.Net.Http", StringComparison.OrdinalIgnoreCase)
+                || identity.Version != new Version(4, 0, 0, 0) || !string.IsNullOrEmpty(identity.CultureName)
+                || Convert.ToHexString(identity.GetPublicKeyToken() ?? []).ToLowerInvariant() != "b03f5f7f11d50a3a")
+                throw new Unsupported("website_http_declaration_identity");
+            RequireHttpRedirect("System.Web.Http", "31bf3856ad364e35", new Version(5, 3, 0, 0));
+            RequireHttpRedirect("System.Net.Http", "b03f5f7f11d50a3a", new Version(4, 0, 0, 0));
+            var privateNet = Path.Combine(WebsiteRoot!, "bin", "System.Net.Http.dll");
+            var overridden = true;
+            try { _ = File.GetAttributes(privateNet); }
+            catch (FileNotFoundException) { overridden = false; }
+            catch (DirectoryNotFoundException) { overridden = false; }
+            Observe(privateNet, overridden ? "present_unsupported_override" : "absent");
+            if (overridden) throw new Unsupported("website_http_private_net_override");
+            var net = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "Microsoft.NET", "Framework64", "v4.0.30319", "System.Net.Http.dll");
+            var remaining = MaxReferenceBytes - references.Sum(r => r.Bytes);
+            var webReference = ReadHttpReference(web, "System.Web.Http", new Version(5, 3, 0, 0), "31bf3856ad364e35", remaining);
+            var netReference = ReadHttpReference(net, "System.Net.Http", new Version(4, 0, 0, 0), "b03f5f7f11d50a3a", remaining - webReference.Bytes);
+            references.Add(webReference); references.Add(netReference); httpEnabled = true;
+        }
+        catch (Unsupported error) { optionalReason = error.Message; }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or ArgumentException
+            or InvalidOperationException or BadImageFormatException or System.Security.SecurityException)
+        { optionalReason = "website_http_metadata_unavailable"; }
+        Observe("http_profile", optionalReason ?? "admitted");
+    }
     private static bool Skipped(string name) => name.StartsWith(".audit", StringComparison.OrdinalIgnoreCase)
         || new[] { ".git", ".hg", ".svn", ".vs", ".vscode", "bin", "obj", "packages", "node_modules", "vendor" }
             .Contains(name, StringComparer.OrdinalIgnoreCase);
@@ -209,7 +354,9 @@ internal sealed class CompilerContextSnapshot
                 if (!directory.Equals(WebsiteRoot, StringComparison.OrdinalIgnoreCase))
                 {
                     var bytes = ReadConfig(config)!;
-                    if (HasScopedCompilerSettings(Xml(bytes))) throw new Unsupported("descendant_compiler_configuration");
+                    var document = Xml(bytes);
+                    if (HasScopedCompilerSettings(document)) throw new Unsupported("descendant_compiler_configuration");
+                    if (HasHttpRuntimePolicy(document)) httpConfigurationIssue = "website_http_scoped_configuration";
                 }
             }
             // Bound enumeration before sorting; never recurse into source files
@@ -304,6 +451,7 @@ internal sealed class CompilerContextSnapshot
             if (input.Position != bytes || input.Length != bytes) throw new Unsupported("framework_reference_changed");
             total += bytes; references.Add((path, bytes, hash)); Observe(path, hash);
         }
+        TryHttpProfile();
     }
     internal static CompilerContextSnapshot Read(string projectRoot)
     {
@@ -315,21 +463,22 @@ internal sealed class CompilerContextSnapshot
         catch (Unsupported error) { reason = error.Message; }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or XmlException or ArgumentException or InvalidOperationException or System.Security.SecurityException)
         { reason = "compiler_context_unavailable"; }
-        snapshot.Observe("result", reason ?? "framework_only");
+        snapshot.Observe("result", reason ?? (snapshot.httpEnabled ? "framework_plus_web_http" : "framework_only"));
         snapshot.Identity = new CompilerContextDto { Root = root,
             Fingerprint = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(JsonSerializer.Serialize(snapshot.observations)))).ToLowerInvariant(),
-            Mode = reason is null ? "framework_only" : "source_only", Reason = reason,
+            Mode = reason is null ? (snapshot.httpEnabled ? "framework_plus_web_http" : "framework_only") : "source_only", Reason = reason ?? snapshot.optionalReason,
             ReferenceBytes = reason is null ? snapshot.references.Sum(r => r.Bytes) : 0 };
         return snapshot;
     }
-    internal bool AdmitsSource(string path) => Identity.Mode != "framework_only" || (WebsiteRoot is not null && Under(WebsiteRoot, path)
+    private bool HasMetadata => Identity.Mode is "framework_only" or "framework_plus_web_http";
+    internal bool AdmitsSource(string path) => !HasMetadata || (WebsiteRoot is not null && Under(WebsiteRoot, path)
         && !Path.GetRelativePath(WebsiteRoot, path).Split(Path.DirectorySeparatorChar).SkipLast(1).Any(Skipped));
-    internal VisualBasicParseOptions ParseOptions => Identity.Mode == "framework_only"
+    internal VisualBasicParseOptions ParseOptions => HasMetadata
         ? VisualBasicParseOptions.Default.WithPreprocessorSymbols(defines)
         : VisualBasicParseOptions.Default;
     internal VisualBasicCompilation Apply(VisualBasicCompilation compilation)
     {
-        if (Identity.Mode != "framework_only") return compilation;
+        if (!HasMetadata) return compilation;
         var loaded = new List<MetadataReference>(references.Count);
         foreach (var reference in references)
         {
