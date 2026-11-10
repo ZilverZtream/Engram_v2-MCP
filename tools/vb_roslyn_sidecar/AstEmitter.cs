@@ -1390,6 +1390,44 @@ internal sealed class AstEmitter
                     if (receiverExpression is not null)
                     {
                         var receiverInfo = model.GetSymbolInfo(receiverExpression);
+                        // Without framework references VB can lose the element
+                        // type of an implicit For Each local even for a source
+                        // array. Recover only from this exact control symbol
+                        // and its semantically known array element type.
+                        if (receiverExpression is IdentifierNameSyntax
+                            && receiverInfo.Symbol is ILocalSymbol local
+                            && local.Type.TypeKind == TypeKind.Error)
+                        {
+                            var loopsExamined = 0;
+                            foreach (var loop in reference.Ancestors().OfType<ForEachBlockSyntax>())
+                            {
+                                if (++loopsExamined > 16) return null;
+                                var statement = loop.ForEachStatement;
+                                if (statement.Span.Contains(reference.Span)
+                                    || !SymbolEqualityComparer.Default.Equals(local,
+                                        model.GetSymbolInfo(statement.ControlVariable).Symbol)) continue;
+                                if (statement.ControlVariable is not IdentifierNameSyntax
+                                    || local.DeclaringSyntaxReferences.Length != 1
+                                    || local.DeclaringSyntaxReferences[0].SyntaxTree != statement.SyntaxTree
+                                    || local.DeclaringSyntaxReferences[0].Span != statement.Span) return null;
+                                if (model.GetTypeInfo(statement.Expression).Type is IArrayTypeSymbol array
+                                    && array.ElementType is INamedTypeSymbol element
+                                    && element.TypeKind != TypeKind.Error
+                                    && element.Locations.Any(location => location.IsInSource))
+                                {
+                                    var members = element.GetMembers(terminal);
+                                    if (members.Length == 1 && members[0] is IPropertySymbol arrayProperty
+                                        && arrayProperty.Parameters.Length == 0
+                                        && arrayProperty.Locations.Any(location => location.IsInSource))
+                                    {
+                                        return SanitizeName(arrayProperty.ToDisplayString(BareQualifiedNameFormat));
+                                    }
+                                }
+                                // A matched loop with no exact property cannot
+                                // borrow a property from another loop or type.
+                                return null;
+                            }
+                        }
                         // A local/parameter can resolve even when its inferred
                         // or framework type is an error. That does not license
                         // borrowing an unrelated globally unique property.
