@@ -11824,7 +11824,7 @@
         "sha256": "470e4e6b0712b0aa4c58238f1d06ba9b3fb515728b9b48c1835438e8b3b3ae77"
       },
       "candidates_started": true,
-      "status": "RUNNING_FIXED_CRITERIA_SAME_CAPS_NO_RETRY",
+      "status": "FROZEN_ASSISTED_7_SOURCE_ONLY_9_BOTH_INCOMPLETE_NO_ASSISTED_UPLIFT",
       "candidate_agents": [
         "/root/time_report_query_alder",
         "/root/time_report_query_beech"
@@ -11840,6 +11840,10 @@
       "readiness": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-readiness.json",
         "sha256": "eea63cf57438f96a78432cde084474c44e10de974ec4cb0074889bef12e43dd6"
+      },
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
+        "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
       }
     },
     "preexisting_http_interface_binding_gap": {
@@ -11853,6 +11857,21 @@
     "latest_forward_interface_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-delivery-20261110.json",
       "sha256": "83c74b88a4e399135fb4327ed79c3dded6c1857106507ffd73d97de182084f30"
+    },
+    "latest_time_report_query_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
+      "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
+    },
+    "selected_interface_navigation_response_cost": {
+      "scope": "Reduce the evidence cost of CodeMap/Blast interface navigation before adding further route hints. Use this actual8168/9488-byte output and independent source witnesses; retain identities, source actions, bounds and uncertainty.",
+      "starting_observation": "One potential interface caller occupies5395bytes inside the9488-byte impact summary; first two required tool replies use17656bytes. This is a response-cost problem within the original tools, not a justification for another broad audit or new benchmark framework.",
+      "not_yet_implemented": true,
+      "no_promised_task_win": true,
+      "parked": "HTTP compiler-reference expansion, EG14, catalog/performance/ownership, further instruction drafting, and changes to frozen task caps/scores.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
+        "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
+      }
     }
   }
 }
