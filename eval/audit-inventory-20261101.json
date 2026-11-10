@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T15:21:03.733491+00:00",
-    "reason": "Blast default-response repair is now deployed and verified on actual OciusX:65670to11287bytes, explicit graph preserved, focused direct-consumer recovery retains all3sourceverified witnesses.33tests and candidate/normal checks passed; original task budget failure and semantic limits remain unchanged.",
+    "at_utc": "2026-11-10T16:13:16.672621+00:00",
+    "reason": "Latest user correction stops evaluation expansion. Native With truncation repair901410f is installed and verified through normal CodeMap/impact/Blast on actual cache-policy callers.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG24 current-producer integration and actual four-category run complete; original EG25 matched implementation/QA evidence remains the next original delivery. Broader goal unfinished.",
-    "next_user_visible_deliverable": "Continue original EG25 matched implementation/QA evidence using the existing isolated OciusX verification path. Preserve this negative fixed-bundle result. Do not repeat/rescore these tasks or turn recorded caller/display limits into an automatic formatting or graph-expansion project.",
+    "active_original_item": "Continue original CodeMap/Blast Radius navigation, witness and recovery queue. Selected With/cache-call defect delivered; broader goal unfinished.",
+    "next_user_visible_deliverable": "Continue an unfinished original core-tool gap demonstrated by actual output and independent source. Preserve this shipped repair; do not restart GPS comparisons, broad audits, instruction drafting or supporting infrastructure.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9854,9 +9854,9 @@
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
-    "latest_user_correction": "User reports week4 of circular small fixes and repeated acknowledgments. Latest frozen comparisons remain Permit4/6 and TimeReport7/9, both incomplete. This delivery reintroduced an already-corrected verifier predicate; record that preparation failure plainly. A narrow repair is not the broader outcome.",
+    "latest_user_correction": "User reports another24hours of circular work and cost. Stopped EG25 expansion and delivered a concrete core parser/caller repair. This does not justify prior elapsed time or complete the broader goal.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: completed current-producer integration, thirty tests, twelve actual core-tool captures, eight candidate runs and separate source/opaque-judge checks; recorded baseline20/20 versus assisted19/20 and one false-guidance item without replay.",
+    "previous_goal_turn_classification": "Delivery:901410f pushed; native With extraction crash fixed;19native tests pass; same actual source regains target metadata and both callers; one refresh; normal installed CodeMap/impact/Blast source-verified.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9881,8 +9881,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
-      "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-with-call-witness-delivery-20261110.json",
+      "sha256": "5ff4366f6ac5df21c961a3a021b80c7c46b4e350c4259dd2fda2904e5e2e6dce"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -10835,7 +10835,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Commit and push the reviewed current-producer integration and immutable negative result to origin/master; then continue original EG25 from existing isolated implementation/QA capability, with a concrete source-backed task and fixed success criteria.",
+    "independent_next_action": "With repair deployed and normal readback passed. Continue original core-tool delivery under latest user correction without scope/permission questions or automatically promoting new issues.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -11997,6 +11997,55 @@
       },
       "original_findings_or_gates_changed": false,
       "goal_complete": false
+    },
+    "current_matched_implementation": {
+      "status": "COMPLETED_ISOLATED_QA_IDENTICAL_CANDIDATES_NO_COMPARATIVE_ADVANTAGE",
+      "task": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\getlocation-task-criteria-freeze.json",
+        "sha256": "27d93eb6bed2c342bae568e441e9951fdc63e56d00e8fe34b952a8d425d028f0"
+      },
+      "qa_freeze": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\getlocation-driver-freeze.json",
+        "sha256": "6f07973fda25adb943287a01c0347f31060751c26ff5fdc0c5075fbf5a34f567"
+      },
+      "baseline_qa": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\getlocation-baseline-assertions.json",
+        "sha256": "6f16d19a7debee55ca5d2515d980e3990e48c25dd397056d41ac2bb56e388a84"
+      },
+      "caller_source_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\getlocation-source-witnesses.json",
+        "sha256": "7cacd17a395e2d0ba01fe05aa741a4f1d0ef25c2fd69fd4fc2a8ce271e9b4605"
+      },
+      "candidate_setup": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\candidate-start-record.json",
+        "sha256": "af70f65da89bcd3e63d0c0e21cd3e3eaed156a6216a72a0e16e6d77dcf3af59d"
+      },
+      "baseline_compilation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\compile-baseline-original\\compile-receipt.json",
+        "sha256": "eaab9de20eb226722cc6e5ed0f6edc20d6aaf2f799f8072ae7f039eff03834aa"
+      },
+      "agents": [
+        "/root/gps_implementation_pine",
+        "/root/gps_implementation_elm"
+      ],
+      "owned_evidence_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110",
+      "rejected_initial_selection": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\datetime-selection-rejected.json",
+        "sha256": "66035ac8ace3f2ca91fbc532169c9ad2f3b8b764c465db4bf69133f3b89b7100"
+      },
+      "scope_limits": "No live app/source/index mutation, no concurrency or ownership redesign. Nine cases test full helper source with controlled timer/geolocation dependencies. Whole map bundle emission reproduces baseline despite213preexisting compiler errors; no clean-project/browser/hardware QA claim. Research-channel budget is not total implementation context or effort.",
+      "goal_complete": false,
+      "outcome": "Both candidates produced identical source/generated companion changes and passed frozen9/9, baseline5/9. No live app edits, core runtime delivery, clean-build claim or assistance advantage.",
+      "final_source_qa_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\getlocation-final-source-qa-review-20261110.json",
+        "sha256": "bd30bd120db752b3ff3218afdd33964d8c292a693abba34a227f7b854ff7ce43"
+      },
+      "independent_qa": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\independent-qa\\summary.json",
+        "sha256": "8d0c0f90da3bfcec7d98b50c769668ccb7e70a9d925f75c8645f8cd922327717"
+      },
+      "qa_assertion_correction": "Original preserved; removed two implementation-specific timer-call-count assertions before reviewing candidate results. All9inputs/expected behavior/no-pending-timer assertion unchanged; baseline remained4fail/5pass.",
+      "isolation_caveat": "Assisted candidate reported early inspection of unrelated generated Q namespace boilerplate in its owned baseline map.js; retained in review. No clean/blind-isolation claim or replay."
     }
   }
 }
