@@ -169,6 +169,20 @@ async fn verify_forward_codemap(app: &Engram, pid: &str) -> Result<()> {
                 ensure!(body["source_code"]==expected_body
                     && body["source_file_hash"]==engram_core::ContentHash::compute(SERVICE.as_bytes()).0,
                     "The literal action must recover the exact three-line implementation and current file hash, not its overload or a signature: {body}");
+                // Reviewing a signature change also requires the declared
+                // contract, directly from this same caller response.
+                let action = &route["contract_source_read"];
+                ensure!(action["tool"]=="get_full_method_body");
+                let read = app.handle_get_full_method_body(
+                    serde_json::from_value(action["arguments"].clone())?).await?;
+                ensure!(read.is_error!=Some(true), "Contract source action must execute unchanged");
+                let body:Value=serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+                let line = match name { "First" => 7, "Second" => 8, _ => 11 };
+                ensure!(body["file_path"]=="Contracts.vb" && body["line_start"]==line
+                    && body["line_end"]==line
+                    && body["source_code"]==CONTRACTS.lines().nth(line-1).unwrap()
+                    && body["source_file_hash"]==engram_core::ContentHash::compute(CONTRACTS.as_bytes()).0,
+                    "Recover the actual overload or generic declaration, not the implementation signature: {body}");
             }
             if name=="Both" {
                 ensure!(routes[0]["contract_type_key"]!=routes[1]["contract_type_key"],

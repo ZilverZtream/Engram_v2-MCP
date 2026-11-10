@@ -2536,7 +2536,7 @@ impl Engram {
                                                 || dispatch.excluded_nodes > 0 => {
                                                 let routes: Vec<_> = dispatch.routes.iter().map(|route| {
                                                     let target = &route.implementation;
-                                                    let read = if target.start_line > 0 && target.end_line >= target.start_line {
+                                                    let source_read = |target: &engram_graph::Node| if target.start_line > 0 && target.end_line >= target.start_line {
                                                         Some(serde_json::json!({"tool":"get_full_method_body","arguments":{
                                                             "project_id":pid,"file_path":target.file_path,
                                                             "line_start":target.start_line,
@@ -2548,7 +2548,9 @@ impl Engram {
                                                         "call_generation":route.call_generation,"mapping_generation":route.mapping_generation,
                                                         "reference_lines":route.reference_lines,"reference_lines_truncated":route.reference_lines_truncated,
                                                         "clause_line":route.clause_line,"contract_type_key":route.contract_type_key,
-                                                        "contract_type":route.contract_type,"implementation_source_read":read})
+                                                        "contract_type":route.contract_type,
+                                                        "contract_source_read":source_read(&route.contract),
+                                                        "implementation_source_read":source_read(target)})
                                                 }).collect();
                                                 Some(serde_json::json!({"status":"bounded_static_candidates","routes_observed":routes.len(),
                                                     "routes":routes,"coverage":dispatch.coverage,"excluded_nodes":dispatch.excluded_nodes,
