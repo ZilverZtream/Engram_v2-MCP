@@ -31,9 +31,9 @@ pub(crate) async fn prepare(
     HashMap<usize, PreparedBinding>,
     Option<engram_core::memory::AllocationGuard>,
 )> {
-    // Ordinary source calls are much denser than interface dispatch. Allow a
-    // 1K-file cohort at the native 256-locator/file cap, charging actual bytes
-    // before deserializing or constructing admission indexes. Limits fail the
+    // Ordinary source calls are much denser than interface dispatch. Apply
+    // cohort-wide work and byte limits independently of native per-file caps,
+    // charging before deserializing or constructing admission indexes. Limits fail the
     // publication rather than silently reverting to name/arity resolution.
     let mut count = 0usize;
     let mut estimated = 0usize;

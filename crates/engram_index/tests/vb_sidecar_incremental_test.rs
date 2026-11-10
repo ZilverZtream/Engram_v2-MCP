@@ -898,7 +898,10 @@ fn ordinary_source_calls_preserve_compiler_selected_optional_overloads() {
     let boolean = "Public Shared Sub Create(m As String, f As String, e As String, ok As Boolean, current As Boolean, Optional message As String = \"\", Optional extra As String = \"\")\nEnd Sub\n";
     let guid = "Public Shared Sub Create(m As String, f As String, e As String, ok As Boolean, user As System.Guid, Optional message As String = \"\")\nEnd Sub\n";
     for reversed in [false, true] {
-        let owned = tempfile::TempDir::new().unwrap();
+        let owned = match std::env::var_os("ENGRAM_TEST_TMPDIR") {
+            Some(root) => tempfile::TempDir::new_in(root).unwrap(),
+            None => tempfile::TempDir::new().unwrap(),
+        };
         std::fs::write(owned.path().join("web.config"),
             r#"<configuration>
 <system.web><compilation targetFramework="4.8" defaultLanguage="vb" debug="true"><assemblies>
@@ -979,14 +982,159 @@ compilerOptions="/optioninfer+"><providerOption name="UseAspNetSettings" value="
         assert!(contract["metadata"].get("source_call_status").is_none(), "interface dispatch remains a separate route");
         let ordinary: Vec<_> = edges.iter().filter(|edge| edge["target_name"] == "Sample.AuditLog.Create" && edge["kind"] == "calls").collect();
         assert_eq!(ordinary.len(), 259);
-        assert_eq!(ordinary.iter().filter(|edge| edge["metadata"]["source_call_status"] == "source_located").count(), 256);
+        assert_eq!(ordinary.iter().filter(|edge| edge["metadata"]["source_call_status"] == "source_located").count(), 259,
+            "compact compiler-selected calls must survive beyond the former256-call cutoff");
         let omitted: Vec<_> = ordinary.iter().filter(|edge| edge["metadata"]["source_call_status"] == "unknown").collect();
-        assert_eq!(omitted.len(), 3, "exhausted source locators must stay unresolved rather than guessing an overload");
-        assert!(omitted.iter().all(|edge| edge["metadata"].get("source_call_target_v1").is_none()));
+        assert!(omitted.is_empty(), "this overload fixture fits both locator budgets");
+        for edge in &ordinary {
+            let payload = edge["metadata"]["source_call_target_v1"].as_str().unwrap();
+            assert!(payload.len() <= 24 * 1024, "each native locator must fit Rust admission");
+            let locator: serde_json::Value = serde_json::from_str(payload).unwrap();
+            let expected = if edge["source_name"] == "Controller.DeleteForUser" {
+                "M:Sample.AuditLog.Create(System.String,System.String,System.String,System.Boolean,System.Guid,System.String)"
+            } else {
+                "M:Sample.AuditLog.Create(System.String,System.String,System.String,System.Boolean,System.Boolean,System.String,System.String)"
+            };
+            assert_eq!(locator["semantic_id"], expected, "later calls retain their selected overload, not a name/arity guess");
+        }
         let others: Vec<_> = edges.iter().filter(|edge| edge["kind"] == "calls" && edge["source_name"] == "Controller.ExternalAndMissing").collect();
         assert_eq!(others.len(), 2);
         assert!(others.iter().all(|edge| edge["metadata"].get("source_call_status").is_none()),
             "external and unbound calls retain ordinary behavior");
+        harness.send(serde_json::json!({"cmd":"shutdown"}));
+        assert!(harness.child.wait().unwrap().success());
+        drop(harness);
+        owned.close().unwrap();
+    }
+}
+
+/// An ordinary wrapper late in a file must retain its exact source callee even
+/// when hundreds of earlier, small calls consumed the old count-only allowance.
+#[test]
+fn late_wrapper_call_retains_source_locator_after_many_small_calls() {
+    use sha2::{Digest, Sha256};
+    let Some(bin) = sidecar_path() else { return; };
+    let owned = match std::env::var_os("ENGRAM_TEST_TMPDIR") {
+        Some(root) => tempfile::TempDir::new_in(root).unwrap(),
+        None => tempfile::TempDir::new().unwrap(),
+    };
+    let path = owned.path().join("t.vb");
+    let mut source = String::from("Public Class A\n Public Shared Sub F()\n End Sub\n Public Shared Sub Earlier()\n");
+    source.push_str(&" F()\n".repeat(300));
+    source.push_str(" End Sub\n Public Shared Sub Wrapper()\n Core()\n End Sub\n Public Shared Sub Core()\n End Sub\nEnd Class\n");
+    std::fs::write(&path, &source).unwrap();
+    let mut harness = Harness::start(&bin);
+    let plan = harness.send(serde_json::json!({"cmd":"plan_refresh", "project_root":owned.path(),
+        "files":[path], "paths":[path], "compilation_policy":{
+            "max_total_source_bytes":1048576, "max_file_source_bytes":524288,
+            "max_trees":64, "allocation_multiplier":32, "tree_overhead_bytes":8192}}));
+    assert!(plan.get("error").is_none(), "plan: {plan}");
+    let prepared = harness.send(serde_json::json!({"cmd":"refresh_project", "plan_id":plan["compilation_plan"]["id"]}));
+    assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+    let response = harness.send(serde_json::json!({"cmd":"parse", "project_root":owned.path(), "path":path, "source":source}));
+    assert!(response.get("error").is_none(), "parse: {response}");
+    let symbols = response["symbols"].as_array().unwrap();
+    assert!(!symbols.iter().any(|s| s["name"] == "file_parse_error"), "valid file emission must finish");
+    let calls: Vec<_> = response["edges"].as_array().unwrap().iter().filter(|e| e["kind"] == "calls").collect();
+    assert_eq!(calls.len(), 301);
+    assert!(calls.iter().all(|e| e["metadata"]["source_call_status"] == "source_located"));
+    let wrapper: Vec<_> = calls.iter().filter(|e| e["source_name"] == "A.Wrapper").collect();
+    assert_eq!(wrapper.len(), 1);
+    let edge = wrapper[0];
+    assert_eq!(edge["target_name"], "A.Core");
+    let witness = source.lines().position(|line| line == " Core()").unwrap() + 1;
+    assert_eq!(edge["metadata"]["call_site_line"], witness.to_string());
+    let locator: serde_json::Value = serde_json::from_str(edge["metadata"]["source_call_target_v1"].as_str().unwrap()).unwrap();
+    let declaration = symbols.iter().find(|s| s["name"] == "A.Core").unwrap();
+    assert_eq!(locator["version"], 1);
+    assert_eq!(locator["file_path"], "t.vb");
+    assert_eq!(locator["semantic_id"], "M:A.Core");
+    assert_eq!(locator["semantic_id"], declaration["metadata"]["semantic_member_id"]);
+    assert_eq!(locator["start_line"], declaration["start_line"]);
+    assert_eq!(locator["syntax_source_sha256"], format!("{:x}", Sha256::digest(source.as_bytes())));
+    let units: Vec<_> = source.encode_utf16().collect();
+    let start = locator["span_start"].as_u64().unwrap() as usize;
+    let length = locator["span_length"].as_u64().unwrap() as usize;
+    assert_eq!(String::from_utf16(&units[start..start + length]).unwrap(), "Public Shared Sub Core()");
+    let payload_bytes: usize = calls.iter().map(|e| e["metadata"]["source_call_target_v1"].as_str().unwrap().len()).sum();
+    assert!(calls.iter().all(|e| e["metadata"]["source_call_target_v1"].as_str().unwrap().len() <= 24 * 1024));
+    let file = &symbols.iter().find(|s| s["name"] == "file_parse").unwrap()["metadata"];
+    assert_eq!(file["source_calls_produced"], "301");
+    assert_eq!(file["source_calls_omitted"], "0");
+    assert_eq!(file["source_call_locator_bytes"], payload_bytes.to_string());
+    assert!(payload_bytes <= 256 * 1024);
+    harness.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness);
+    owned.close().unwrap();
+}
+
+/// Small repeated locators reach the explicit count limit; long qualified
+/// targets exhaust the byte allowance first. Both retain honest unknown calls
+/// without a locator, and file counters account for the emitted UTF-8 payloads.
+#[test]
+fn source_call_locator_budgets_bound_count_and_serialized_bytes() {
+    let Some(bin) = sidecar_path() else { return; };
+    for long_name in [false, true] {
+        let owned = match std::env::var_os("ENGRAM_TEST_TMPDIR") {
+            Some(root) => tempfile::TempDir::new_in(root).unwrap(),
+            None => tempfile::TempDir::new().unwrap(),
+        };
+        let path = owned.path().join("t.vb");
+        let namespace = format!("Long{}", "Qualified".repeat(20));
+        let mut source = if long_name { format!("Namespace {namespace}\n") } else { String::new() };
+        source.push_str("Public Class A\n Public Shared Sub F()\n End Sub\n Public Shared Sub Many()\n");
+        source.push_str(&" F()\n".repeat(1101));
+        source.push_str(" End Sub\nEnd Class\n");
+        if long_name { source.push_str("End Namespace\n"); }
+        std::fs::write(&path, &source).unwrap();
+        let mut harness = Harness::start(&bin);
+        let plan = harness.send(serde_json::json!({"cmd":"plan_refresh", "project_root":owned.path(),
+            "files":[path], "paths":[path], "compilation_policy":{
+                "max_total_source_bytes":1048576, "max_file_source_bytes":524288,
+                "max_trees":64, "allocation_multiplier":32, "tree_overhead_bytes":8192}}));
+        assert!(plan.get("error").is_none(), "plan: {plan}");
+        let prepared = harness.send(serde_json::json!({"cmd":"refresh_project", "plan_id":plan["compilation_plan"]["id"]}));
+        assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+        let response = harness.send(serde_json::json!({"cmd":"parse", "project_root":owned.path(), "path":path, "source":source}));
+        assert!(response.get("error").is_none(), "parse: {response}");
+        let symbols = response["symbols"].as_array().unwrap();
+        assert!(!symbols.iter().any(|s| s["name"] == "file_parse_error"), "budget exhaustion must not abort the file");
+        let calls: Vec<_> = response["edges"].as_array().unwrap().iter().filter(|e| e["kind"] == "calls").collect();
+        assert_eq!(calls.len(), 1101, "overflow calls remain visible as unknown");
+        let located: Vec<_> = calls.iter().filter(|e| e["metadata"]["source_call_status"] == "source_located").collect();
+        let unknown: Vec<_> = calls.iter().filter(|e| e["metadata"]["source_call_status"] == "unknown").collect();
+        assert_eq!(located.len() + unknown.len(), calls.len());
+        assert!(!located.is_empty() && !unknown.is_empty());
+        assert!(unknown.iter().all(|e| e["metadata"].get("source_call_target_v1").is_none()),
+            "exhausted calls must not fall back to invented exact bindings");
+        let payload_bytes: usize = located.iter().map(|e| e["metadata"]["source_call_target_v1"].as_str().unwrap().len()).sum();
+        let one_payload_bytes = located[0]["metadata"]["source_call_target_v1"].as_str().unwrap().len();
+        assert!(located.len() <= 1024 && payload_bytes <= 256 * 1024);
+        let target = if long_name { format!("{namespace}.A.F") } else { "A.F".to_owned() };
+        let declaration = symbols.iter().find(|s| s["name"] == target).unwrap();
+        for edge in &located {
+            let payload = edge["metadata"]["source_call_target_v1"].as_str().unwrap();
+            assert!(payload.len() <= 24 * 1024, "individual payload must fit Rust source-call admission");
+            let locator: serde_json::Value = serde_json::from_str(payload).unwrap();
+            assert_eq!(payload.len(), one_payload_bytes, "all repetitions target the same source declaration");
+            assert_eq!(locator["semantic_id"], declaration["metadata"]["semantic_member_id"]);
+            assert_eq!(locator["file_path"], "t.vb");
+            assert_eq!(locator["start_line"], declaration["start_line"]);
+        }
+        if long_name {
+            assert!(located.len() < 1024 && payload_bytes + one_payload_bytes > 256 * 1024,
+                "the next real serialized locator must exhaust bytes before the count limit");
+        } else {
+            assert_eq!(located.len(), 1024, "short A.F locators must reach the count allowance");
+            assert!(payload_bytes + one_payload_bytes <= 256 * 1024, "the count limit, not bytes, stopped the short case");
+        }
+        let file = &symbols.iter().find(|s| s["name"] == "file_parse").unwrap()["metadata"];
+        assert_eq!(file["source_calls_produced"], located.len().to_string());
+        assert_eq!(file["source_calls_omitted"], unknown.len().to_string());
+        assert_eq!(file["source_call_locator_bytes"], payload_bytes.to_string());
+        assert_eq!(file["source_call_locator_byte_limit"], (256 * 1024).to_string());
+        assert_eq!(file["source_call_locator_limit"], "1024");
         harness.send(serde_json::json!({"cmd":"shutdown"}));
         assert!(harness.child.wait().unwrap().success());
         drop(harness);
