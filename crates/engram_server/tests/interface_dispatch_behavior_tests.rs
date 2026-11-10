@@ -212,6 +212,38 @@ async fn verify(app: &Engram, pid: &str) -> Result<()> {
         if let Some(old)=&expected {ensure!(&facts==old,"Advice must not change admitted evidence or potential routes");}
         else {expected=Some(facts);}
     }
+    // The default display can reuse its target identity, but an agent must be
+    // able to recover both exact constructed-contract routes and read callers.
+    for tool in ["impact_analysis", "compute_blast_radius"] {
+        let args=json!({"project_id":pid,"symbol_fqn":implementation.node_id,"max_depth":4,"detail":"summary"});
+        let result=if tool=="impact_analysis" {
+            app.handle_impact_analysis(serde_json::from_value(args)?).await?
+        } else { app.handle_compute_blast_radius(serde_json::from_value(args)?).await? };
+        ensure!(result.is_error!=Some(true));
+        let summary=packet(&result.content[0].as_text().unwrap().text)?;
+        let routes=summary["potential_interface_callers"]["routes"].as_array().unwrap();
+        ensure!(routes.len()==2 && summary["potential_interface_callers"]["runtime_dispatch_proven"]==false);
+        for route in routes {
+            ensure!(route["implementation_ref"]=="target" && route.get("implementation").is_none());
+            let mut expanded=route.clone();expanded.as_object_mut().unwrap().remove("implementation_ref");
+            let mut endpoint=serde_json::Map::new();
+            for key in ["node_id","name","file_path","generation","start_line","end_line"] {
+                ensure!(!summary["target"][key].is_null(),"Reference cannot require another lookup to identify its implementation");
+                endpoint.insert(key.into(),summary["target"][key].clone());
+            }
+            expanded["implementation"]=Value::Object(endpoint);
+            ensure!(expected.as_ref().unwrap()["potential_interface_callers"]["routes"].as_array().unwrap().contains(&expanded),
+                "Expanded summary must retain the exact graph route, positions and literal reads");
+            let action=&route["caller_source_read"];
+            let read=app.handle_get_full_method_body(serde_json::from_value(action["arguments"].clone())?).await?;
+            ensure!(read.is_error!=Some(true));
+            let body:Value=serde_json::from_str(&read.content[0].as_text().unwrap().text)?;
+            let first=action["arguments"]["line_start"].as_u64().unwrap() as usize;
+            let last=action["arguments"]["line_end"].as_u64().unwrap() as usize;
+            ensure!(body["source_code"]==CALLER.lines().skip(first-1).take(last-first+1).collect::<Vec<_>>().join("\n"),
+                "The compact summary must still recover actual caller source with its literal action");
+        }
+    }
     for tool in ["impact_analysis", "compute_blast_radius"] {
         for detail in ["summary", "graph"] {
             let report = impact(app, pid, tool, detail, 4).await?;
@@ -427,6 +459,10 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 let dispatch=&summary["potential_interface_callers"];ensure!(dispatch["routes_observed"]==1 && dispatch["routes"].as_array().unwrap().len()==1);
                 ensure!(dispatch["coverage"]["truncated"]==true,"Legacy dispatch remains explicitly unknown");
                 let route=&dispatch["routes"][0];let action=&route["caller_source_read"];
+                ensure!(dispatch.get("configuration_inspection").is_none()
+                    && (dispatch["configuration_inspection_in_graph"]==true
+                        || dispatch["configuration_inspection_actions_omitted"].as_u64().is_some_and(|count|count>0)),
+                    "A moved or previously budget-omitted plan needs explicit recovery/omission disclosure: {dispatch}");
                 // A crowded summary keeps all three consumer files and its
                 // unknown frontiers; follow its literal graph action for an
                 // optional configuration hint that did not fit.
