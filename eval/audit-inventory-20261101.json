@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T17:55:12.503038+00:00",
-    "reason": "Actual Blast Radius reports zero callers for QueryCacheCore despite QueryCache call at FileLayerSpatialService.vb:2222. Native 256-call count cap exhausted by line1928 with only97650 serialized locator bytes.",
+    "at_utc": "2026-11-10T18:04:12.376002+00:00",
+    "reason": "Late source-call witness89c9871 deployed and verified on normal OciusX service; exact2222/520/228 chain and recovery boundary exposed. Broader goal unfinished.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Finish selected CodeMap/Blast Radius late-caller omission from ordinary source-call quota.",
-    "next_user_visible_deliverable": "Refresh parser provenance once and verify QueryCacheCore caller and upstream recovery boundary through actual CodeMap, impact_analysis and compute_blast_radius.",
+    "active_original_item": "Continue original CodeMap/Blast Radius navigation, witness and recovery queue; selected late-caller quota fix delivered.",
+    "next_user_visible_deliverable": "Use the existing original task evidence to select the next unfinished core-tool delivery; no fresh audit, comparison expansion, instruction drafting, catalog or performance detour.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports another24hours of circular work and cost. Stopped EG25 expansion and delivered a concrete core parser/caller repair. This does not justify prior elapsed time or complete the broader goal.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Delivery: one release build completed; candidate and normal returned error/discovery/search/source actions executed and source-verified; install complete, hold released, normal watching restored.",
+    "previous_goal_turn_classification": "Delivery: old-binary regression failed as expected; candidate21tests passed, actual source binding restored, one VB refresh, public source verification, native-only installation and normal-service verification passed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12062,6 +12062,10 @@
     "current_call_budget_implementation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-call-budget-implementation-20261110.json",
       "sha256": "5b12bb95b7d5e86d1060f6bb149c346db6a86e989a3636eaf53fd02eb4f7268a"
+    },
+    "latest_call_budget_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-call-budget-delivery-20261110.json",
+      "sha256": "6f86419e4248a9c821868742fb3a45da617e65e960d24479f11d2fbde696f0ed"
     }
   }
 }
