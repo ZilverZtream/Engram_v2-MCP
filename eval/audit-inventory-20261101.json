@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T00:19:04.838921+00:00",
-    "reason": "Invocation/property false-witness correction deployed and normal IPC verified. Two demonstrated false leads removed; original capped agent task remains incomplete. Maintenance ended; no active hold or pending observer.",
+    "at_utc": "2026-11-10T00:35:45.188072+00:00",
+    "reason": "Previous turn delivered false property witness fix. Current actual CodeMap output exposes a selected-declaration continuation cost:590..709genericread8026B versus590..627neededremainder3597B. New separate bounded action implemented, independently reviewed,53integration+1budget tests pass; shipping/candidate/normal verification pending.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation, witness and recovery queue remains active. Invocation-position false property witness slice delivered; do not repeat migration or frozen QA.",
-    "next_user_visible_deliverable": "Address the remaining navigation/output burden already demonstrated in the original agent task; select the next concrete gap from retained actual output and independent source evidence. Preserve original task criteria and failures. No broad audit, helper crawl, benchmark infrastructure or repeated deployment verification.",
+    "active_original_item": "CodeMap/Blast agent-usefulness queue: finish the demonstrated selected-declaration source continuation gap. Preserve source and ordinary file pagination; no task retry/rescore.",
+    "next_user_visible_deliverable": "Build and deploy the tested CodeMap declaration_continuation action, execute its exact returned590..627 request against current OciusX source, preserve the original590..709 continuation and existing output facts, and report actual net response cost. No index update or sidecar rebuild.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Concrete narrow delivery: false dependency identities removed and normal runtime checked. Full-task usefulness remains unproven; no frozen task rescoring.",
+    "previous_goal_turn_classification": "progress: prior invocation/property correction installed and normal-verified. Current work implements a source-verified navigation gap, not a new full-task claim.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11546,6 +11546,10 @@
     "latest_invocation_property_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-invocation-property-delivery-20261110.json",
       "sha256": "808280723ee314faa408190359265f7d19511ad546ff9ce3c2dc696b21fa7be1"
+    },
+    "selected_declaration_continuation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-20261110.json",
+      "sha256": "3ac4a7cce0a6c10b2c75ddba420777c4b7a7058e81b7a19011c8c54ab6678515"
     }
   }
 }

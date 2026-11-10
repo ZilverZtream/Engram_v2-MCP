@@ -1,0 +1,85 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_TESTED_NOT_YET_DEPLOYED",
+  "at_utc": "2026-11-10T00:28:12.305585+00:00",
+  "previous_goal_turn": "progress: deployed invocation/property witness correction",
+  "problem": "Selected declaration470..627 preview470..589 offers only an unbounded-end file continuation590..709; required Save callback594..596 is in remaining declaration590..627.",
+  "evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-before-20261110.json",
+    "sha256": "188b861583c56729fbcfbf7c00db70e7f3a2faf6c2d17e441ae905b5bb117166"
+  },
+  "independent_source": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\Site\\modules\\dashboard\\ts\\map\\vsMap\\mapLayer.ts",
+    "sha256": "162bae19110ad44279e30d6bde1c0ca6558b483c5a0490bd8913ecfc56137aef",
+    "both_returned_ranges_match_current_source": true,
+    "same_source_blake3": "cc1ca474d2c4cd1dd5d2d57c153b50a819be2c14457dff5931222f46d0c21021",
+    "save_callback_lines": [
+      594,
+      596
+    ],
+    "declaration_closing_line": 627
+  },
+  "measured_current_reads": {
+    "overview_utf8_bytes": 10615,
+    "ordinary_file_continuation": {
+      "lines": [
+        590,
+        709
+      ],
+      "utf8_bytes": 8026
+    },
+    "bounded_declaration_remainder": {
+      "lines": [
+        590,
+        627
+      ],
+      "utf8_bytes": 3597
+    },
+    "read_difference_utf8_bytes": 4429,
+    "new_action_overhead_not_yet_measured": true
+  },
+  "selected_change": "Add a separate exact declaration_continuation action after existing allocation, only for a single observed matching indexed anchor and valid remaining in-file span. Preserve old next_page, source, navigation, properties and12KiB/8KiB bounds. No extra graph or source scan.",
+  "limits": [
+    "Indexed span is not current method-boundary or binding proof.",
+    "Current three-call measurement is administrative known-source evidence, not an original task retry or favorable rescore.",
+    "No proof this gap caused original task failure or that fixing it completes original eight-request task.",
+    "Full original task criteria,31findings,19gates and unfavorable outcomes stay unchanged."
+  ],
+  "resources": {
+    "observer_closed": true,
+    "pending_request_id": null,
+    "source_unchanged": true,
+    "temporary_fixture_created": false,
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain evidence until exact-path cleanup authorized."
+  },
+  "goal_complete": false,
+  "verification": {
+    "integration": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-server-tests-20261110.json",
+        "sha256": "f02fd647704dd121607d06b6d9274fc2fab5695ec30495f8743185ece5b5aba4"
+      },
+      "passed": 53,
+      "owned_temp_removed": true
+    },
+    "budget": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-budget-test-20261110.json",
+        "sha256": "fa78de6c23c6c40de7f5dcc688cc2b448a4d268e40b4cd0829360a867680c5d6"
+      },
+      "passed": 1,
+      "owned_temp_removed": true
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-local-review-20261110.json",
+      "sha256": "675a529cd78f2286632a35ecd430f67c3ae8d6d0e9e633f6dbd32b56795ec8a4"
+    },
+    "coderabbit": "Host auth status returned not_authenticated; independent local review used, no remote review claimed."
+  },
+  "projected_response_cost": {
+    "scope": "Static projection only; candidate and installed runtime checks pending",
+    "new_action_overhead_bytes": 441,
+    "projected_overview_bytes": 11056,
+    "projected_two_read_sequence_savings_bytes": 3988
+  }
+}

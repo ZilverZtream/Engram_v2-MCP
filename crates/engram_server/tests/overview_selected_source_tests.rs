@@ -2818,12 +2818,61 @@ fn codemap_source_preview_keeps_named_response_handling_across_a_page_boundary()
             assert_eq!(preview["source_code"], source.lines().skip(start-1).take(end-start+1).collect::<Vec<_>>().join("\n"));
             assert_eq!(preview["source_file_hash"], blake3::hash(source.as_bytes()).to_hex().to_string());
             assert_eq!(preview["source_verification"], "current_file_snapshot_not_index_verified");
+            assert!(preview.get("declaration_continuation").is_none(), "A completely displayed indexed span needs no declaration remainder");
             assert_eq!(preview["next_page"]["arguments"]["line_start"], end+1);
             let (_, next) = excerpt(&engram, preview["next_page"]["arguments"].clone()).await;
             assert_eq!(next["source_file_hash"], preview["source_file_hash"]);
             assert_eq!(next["source_code"], source.lines().skip(end).take(120).collect::<Vec<_>>().join("\n"));
         });
     }
+}
+
+#[test]
+fn codemap_declaration_continuation_reads_the_remaining_selected_span_without_replacing_file_pagination() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/editor.ts";
+        let mut lines: Vec<_> = (1..=950).map(|line| format!("// editor line {line}")).collect();
+        lines[469] = "function attachEditor() {".into();
+        lines[593] = "    saveButton.onclick = () => saveOverride();".into();
+        lines[626] = "} // editor end".into();
+        let source = format!("\u{feff}{}\r\n", lines.join("\r\n"));
+        publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+        let id = format!("sym:function:{PATH}:attachEditor:470");
+        let mut declaration = node(&id, "function", "attachEditor", PATH, 1);
+        declaration.start_line = 470; declaration.end_line = 627;
+        engram.state.graph.upsert_nodes(PID, &[declaration.clone()]).unwrap();
+        let args = json!({"project_id":PID,"scope":PATH,"symbol_node_id":id,"include_source":true});
+        let text = navigation_text(&engram, args.clone()).await;
+        let page = navigation(&text);
+        let preview = &page["current_source"];
+        assert!(text.len() <= 12*1024 && serde_json::to_vec(preview).unwrap().len() <= 8*1024);
+        assert_eq!(preview["line_start"], 470);
+        assert_eq!(preview["line_end"], 589);
+        assert_eq!(preview["source_code"], source.lines().skip(469).take(120).collect::<Vec<_>>().join("\n"));
+        let action = &preview["declaration_continuation"];
+        assert_eq!(action["tool"], "get_full_method_body");
+        assert_eq!(action["arguments"], json!({"project_id":PID,"file_path":PATH,
+            "line_start":590,"line_end":627,"context_lines":0,"include_caller_bodies":false,"output_json":true}));
+        assert!(preview["declaration_continuation_scope"].as_str().unwrap().contains("not verified current method bounds"));
+        let (_, remainder) = excerpt(&engram, action["arguments"].clone()).await;
+        assert_eq!(remainder["source_file_hash"], preview["source_file_hash"]);
+        assert_eq!(remainder["source_code"], source.lines().skip(589).take(38).collect::<Vec<_>>().join("\n"));
+        assert!(remainder["source_code"].as_str().unwrap().contains("saveButton.onclick"));
+        let ordinary = &preview["next_page"];
+        assert_eq!(ordinary["arguments"]["line_start"], 590);
+        assert!(ordinary["arguments"].get("line_end").is_none());
+        let (_, file_page) = excerpt(&engram, ordinary["arguments"].clone()).await;
+        assert_eq!(file_page["line_end"], 709);
+        assert_eq!(file_page["source_file_hash"], remainder["source_file_hash"]);
+        assert!(file_page["source_code"].as_str().unwrap().contains("editor line 709"));
+
+        declaration.end_line = 900;
+        engram.state.graph.upsert_nodes(PID, &[declaration]).unwrap();
+        let longer = navigate(&engram, args).await;
+        let action = &longer["current_source"]["declaration_continuation"];
+        assert_eq!(action["arguments"]["line_start"], 590);
+        assert_eq!(action["arguments"]["line_end"], 709, "The remaining indexed span still obeys the120line read cap");
+    });
 }
 
 #[test]
@@ -2856,6 +2905,7 @@ fn codemap_source_preview_long_or_invalid_indexed_spans_keep_honest_recovery() {
         let current = &invalid["current_source"];
         assert_eq!(current["status"], "available", "An invalid indexed end must not move a readable anchor off the current file");
         assert!(current["source_code"].as_str().unwrap().contains("function largeCallback"));
+        assert!(current.get("declaration_continuation").is_none(), "An out-of-file indexed end is not a continuation bound");
         assert_eq!(current["source_verification"], "current_file_snapshot_not_index_verified");
         assert_eq!(invalid["working_tree_checked"], false);
     });
@@ -2944,6 +2994,7 @@ fn codemap_source_preview_keeps_ambiguous_candidates_and_selected_file_boundarie
         let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
         assert_source_navigation(&engram,&result,&baseline).await;
         assert!(preview["indexed_anchor_node_id"].is_null(),"Source windows must not choose an overload");
+        assert!(preview.get("declaration_continuation").is_none(), "Ambiguous candidates must not borrow one declaration's end");
         assert_eq!(preview["mode"],"candidate_spans");
         assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
         assert_eq!(preview["source_verification"],"current_file_snapshot_not_index_verified");
@@ -3100,6 +3151,7 @@ fn codemap_source_preview_bounds_whole_utf8_lines_and_preserves_orientation_when
         assert!(text.len()<=12*1024,"Escaping and footer are inside the complete reply budget");
         let mut result=navigation(&text);let preview=result.as_object_mut().unwrap().remove("current_source").unwrap();
         assert_source_navigation(&engram,&result,&baseline).await;assert!(serde_json::to_vec(&preview).unwrap().len()<=8*1024);
+        assert!(preview.get("declaration_continuation").is_none(), "An unanchored file preview retains only file pagination");
         let end=preview["line_end"].as_u64().unwrap() as usize;assert!(end>0 && end<120);
         assert_eq!(preview["source_code"],source.lines().take(end).collect::<Vec<_>>().join("\n"));
         assert_eq!(preview["source_file_hash"],blake3::hash(source.as_bytes()).to_hex().to_string());
