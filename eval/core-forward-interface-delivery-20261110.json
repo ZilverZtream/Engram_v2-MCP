@@ -1,0 +1,130 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_ADMITTED_INTERFACE_NAVIGATION_WRITE_GAPS_UNFINISHED",
+  "at_utc": "2026-11-10T10:12:34.554735+00:00",
+  "binary_source_commit": "b3887b45c84b06d370995adacd8d7243cb9790d3",
+  "problem": "Actual GetValue CodeMap led to the interface declaration without a bounded source route to its explicit implementation. A frozen agent attempted a whole service read that exceeded its remaining budget.",
+  "delivered_behavior": "CodeMap source and metadata views now expose bounded potential implementation source actions through compiler-admitted Calls and matching explicit Implements bindings. Actual emitted InstallationPlanService.GetById lines90..115 match independent current source bytes and hash. Routes describe potential dispatch, not runtime proof.",
+  "verification": {
+    "requests": 19,
+    "task_calls": 13,
+    "total_text_bytes": 128418,
+    "task_checks_passed": true,
+    "preservation_passed": true,
+    "all150_definitions_unchanged": true,
+    "errors": [],
+    "pending_request_id": null,
+    "update_attempts": 0
+  },
+  "installed_pair": {
+    "server_sha256": "fdaf21d51b191bc700643e2bac22fb9edafe93a598dcbcd7db9d6f5123b5e7f9",
+    "manifest_sha256": "9acd0c604672c43035ed03379dcdfb1b8ca9cc56217e1b7f84c121a83822a49b",
+    "native_assets_unchanged": 214,
+    "parser_contract": "vb-ingestion-parser-v6",
+    "source_generation": 3144,
+    "normal_primary_pid": 28536
+  },
+  "original_failure_preserved": true,
+  "original_positive_write_expectations_unmet": true,
+  "original_thirteen_positive_checks_pass_claimed": false,
+  "unresolved": "PatchValue and DeleteValue Update/Delete call targets remain unresolved under existing partial HTTP compiler context. Corrected checks require the old installed missing-target state to remain explicit and unchanged; they do not repair it.",
+  "evidence": {
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-paired-package.json",
+      "sha256": "999929f2794062ae7418296d7fbbe29b507e756a31e6e12c09f2a89ecd1533e5"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-shipping-v1-20261110.json",
+      "sha256": "7c8ce508a84b1bdec205fa184372c1048334b56accd759a06b2b67f7711ff0f2"
+    },
+    "original_candidate_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-candidate-v1\\acceptance.json",
+      "sha256": "6ad947739534d98ddb2862f308aa511a2b4b0d86d34f2f6ae16dcbaec0fdcf4a"
+    },
+    "corrected_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-candidate-v2\\acceptance.json",
+      "sha256": "213d0e7043e5ad8d188ad20c4f3f39436df681607f40e48a0d112d8d191f5c16"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-normal-v2\\acceptance.json",
+      "sha256": "4b6df08fdec0e8a11bf37a17e4bb64669793892e8f63d43105aec3dc42c208e5"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-release-gates-v2.json",
+      "sha256": "1b693bff2d96d3cb0499d447404bfd79fbad0e6e9febdbfa662d66135d904ae3"
+    },
+    "validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-install-validation.json",
+      "sha256": "65b1d8a9349eb4ff149c4af6e5668457d0b0729092dcaad911ebadedc60fa638"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-install-upgrade.json",
+      "sha256": "7ffda60946c217247e75ad9bcc9fa2838b0935880bb694a4e41529b7cef45297"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-config-hold-v2-20261110.json.released.json",
+      "sha256": "b465f999af63cd294a4b8280623ef257613e30db7b68a2839740b5cc6d8b5f29"
+    },
+    "corrected_checks_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-corrected-checks-review-20261110.json",
+      "sha256": "a65988a00130f54ae9ef3b4d7238c0f4c6bf410ddd88dd36f7307dad2154f862"
+    },
+    "gate_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-gate-v2-helper-review-20261110.json",
+      "sha256": "0a907a389d301f0cd88f430aa4e5434a07e32425e6527f77ffbbf20f97308313"
+    },
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-implementation-20261110.json",
+      "sha256": "e0414f2e68fb2b5bebaf58fa8efc9a21e043cb1da26aa0ae7d9f8fbbd15a7305"
+    },
+    "failure_scope": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-candidate-failure-20261110.json",
+      "sha256": "4434919c6af27800101ff4b5227350363dbfb8d9220ca31ad7e2a22328322012"
+    }
+  },
+  "resources": {
+    "config_hold_released": true,
+    "config_unchanged": true,
+    "normal_runtime_restored": true,
+    "owned_resources_closed": true,
+    "owned_tmp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-package",
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a325e413ca744c6787e798ffd085b7e6",
+    "retained_install_journals": [
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a325e413ca744c6787e798ffd085b7e6.00-prepared.json",
+        "sha256": "ef610a75882f5ffe368ced6956f828760d2df92a630170493bab8780579655b3"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a325e413ca744c6787e798ffd085b7e6.01-stage-verified.json",
+        "sha256": "ba2f0e897906b0b4a0e2e9ad742165b1832b8d934747ee78b0eb338794518a96"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a325e413ca744c6787e798ffd085b7e6.02-old-retired.json",
+        "sha256": "0127699a759a1a6c0036dfa18cd0f3fa65bd0087d50d2c636c6f5a186ac5a582"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a325e413ca744c6787e798ffd085b7e6.03-candidate-active.json",
+        "sha256": "a747d68ef8f1e76467c93861ab4a625a835e7b4bcda9bea10fd03d79d821e3a5"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a325e413ca744c6787e798ffd085b7e6.04-committed-no-start.json",
+        "sha256": "6f23c423f88e53fb31ffd3d15ad3903839c443be48e72cf84dbc044ff598302b"
+      }
+    ],
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, backup, journals and diagnostic evidence for review; deletion requires approval of exact paths. New run-owned temporary fixtures were removed."
+  },
+  "agent_usefulness": {
+    "fresh_task_win_proven": false,
+    "frozen_tasks_replayed_or_rescored": false,
+    "latest_frozen_scores": {
+      "assisted": 6,
+      "source_only": 7,
+      "maximum": 10
+    },
+    "causal_limit": "Known navigation fix; no established cause of the frozen score deficit or proof of a whole-task improvement. Fresh TimeReport query comparison running with pre-frozen task/oracle."
+  },
+  "original_full19gates_closed": false,
+  "original31findings_closed": false,
+  "goal_complete": false
+}
