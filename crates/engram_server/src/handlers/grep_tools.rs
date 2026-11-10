@@ -28,18 +28,19 @@ use crate::tools::Engram;
 /// `check_freshness` skips rather than reporting as drift.
 pub(crate) fn indexed_file_stats_for_generation(
     graph: &engram_graph::GraphStore,
+    root: &std::path::Path,
     project_id: &str,
     active_generation: u64,
     source_chunk_target: usize,
 ) -> anyhow::Result<Vec<engram_index::grep::IndexedFileStat>> {
     let files = graph.list_file_node_metadata_with_generation(project_id)?;
-    let configured = engram_index::SourceExtractionExpectation::for_paths(
-        source_chunk_target, std::iter::empty::<&str>(),
+    let configured = engram_index::SourceExtractionExpectation::for_project(
+        root, source_chunk_target, std::iter::empty::<&str>(),
     )?;
     let vb_expected = files.iter().any(|(path, _, _)|
         engram_index::vb_extractor::requires_parser_provenance(path.as_str()))
-        .then(|| engram_index::SourceExtractionExpectation::for_paths(
-            source_chunk_target, files.iter().map(|(path, _, _)| path.as_str()),
+        .then(|| engram_index::SourceExtractionExpectation::for_project(
+            root, source_chunk_target, files.iter().map(|(path, _, _)| path.as_str()),
         ));
     Ok(files
         .into_iter()
@@ -310,7 +311,7 @@ impl Engram {
                 freshness,
             };
             let started = std::time::Instant::now();
-            let stats = indexed_file_stats_for_generation(&graph, &fingerprint_pid, generation, source_chunk_target)?;
+            let stats = indexed_file_stats_for_generation(&graph, &project_dir, &fingerprint_pid, generation, source_chunk_target)?;
             let mut result =
                 engram_index::grep::grep(&engine, &project_dir, &gq, || Ok(stats.clone()))?;
             if gq.namespace == "memory"

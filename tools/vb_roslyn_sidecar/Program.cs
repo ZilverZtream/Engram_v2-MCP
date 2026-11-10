@@ -50,6 +50,23 @@ while (Console.In.ReadLine() is { } line)
         return;
     }
 
+    if (request.Cmd == "compiler_context")
+    {
+        try
+        {
+            var context = CompilerContextSnapshot.Read(request.ProjectRoot ?? string.Empty);
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            { CompilerContext = context.Identity, ParserIdentity = parserIdentity }, AppJsonContext.Default.SidecarResponse));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            { Error = ex.Message, CompilationError = true }, AppJsonContext.Default.SidecarResponse));
+        }
+        Console.Out.Flush();
+        continue;
+    }
+
     if (request.Cmd == "begin_project")
     {
         try
@@ -73,14 +90,15 @@ while (Console.In.ReadLine() is { } line)
             CompilationPlanDto? plan = null;
             if (request.Cmd == "plan_refresh")
                 plan = emitter.PlanRefresh(request.ProjectRoot ?? string.Empty, request.Files, request.Paths ?? [],
-                    request.CompilationPolicy ?? throw new InvalidOperationException("Missing compilation policy"));
+                    request.CompilationPolicy ?? throw new InvalidOperationException("Missing compilation policy"), request.CompilerContext);
             else
                 emitter.RefreshProject(request.PlanId ?? throw new InvalidOperationException("Missing compilation plan token"));
             Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
             {
                 ProjectRoot = emitter.ProjectRoot,
                 ParserIdentity = parserIdentity,
-                CompilationPlan = plan
+                CompilationPlan = plan,
+                CompilerContext = plan is not null ? plan.CompilerContext : emitter.PreparedCompilerContext
             }, AppJsonContext.Default.SidecarResponse));
         }
         catch (Exception ex)
@@ -189,6 +207,21 @@ while (Console.In.ReadLine() is { } line)
             Console.Out.Flush();
             continue;
         }
+        if (!request.Standalone && request.ProjectRoot is not null && request.CompilerContext != selected.PreparedCompilerContext)
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            { Error = "Compiler context differs from prepared compilation", CompilationError = true }, AppJsonContext.Default.SidecarResponse));
+            Console.Out.Flush();
+            continue;
+        }
+        if (!request.Standalone && request.ProjectRoot is null && selected.PreparedCompilerContext is not null
+            && !selected.IsPreparedSource(request.Path ?? string.Empty, request.Source ?? string.Empty))
+        {
+            Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
+            { Error = "Changed source requires standalone extraction or a new admitted compilation", CompilationError = true }, AppJsonContext.Default.SidecarResponse));
+            Console.Out.Flush();
+            continue;
+        }
         var (symbols, edges) = selected.Extract(request.Path ?? string.Empty, request.Source ?? string.Empty);
         Console.WriteLine(JsonSerializer.Serialize(new SidecarResponse
         {
@@ -197,7 +230,8 @@ while (Console.In.ReadLine() is { } line)
             Edges = edges,
             ParserIdentity = parserIdentity,
             ProjectRoot = selected.ProjectRoot,
-            Standalone = request.Standalone
+            Standalone = request.Standalone,
+            CompilerContext = request.Standalone ? null : selected.PreparedCompilerContext
         }, AppJsonContext.Default.SidecarResponse));
     }
     catch (Exception ex)
@@ -210,6 +244,8 @@ while (Console.In.ReadLine() is { } line)
 
 internal sealed class SidecarRequest
 {
+    [JsonPropertyName("compiler_context")]
+    public CompilerContextDto? CompilerContext { get; set; }
     [JsonPropertyName("cmd")]
     public string? Cmd { get; set; }
 
@@ -254,6 +290,8 @@ internal sealed class SidecarRequest
 
 internal sealed class SidecarResponse
 {
+    [JsonPropertyName("compiler_context")]
+    public CompilerContextDto? CompilerContext { get; set; }
     [JsonPropertyName("compilation_plan")]
     public CompilationPlanDto? CompilationPlan { get; set; }
     [JsonPropertyName("project_root")]
@@ -313,6 +351,10 @@ internal sealed record CompilationPolicyDto
 
 internal sealed class CompilationPlanDto
 {
+    [JsonPropertyName("compiler_context")]
+    public CompilerContextDto? CompilerContext { get; set; }
+    [JsonPropertyName("reference_bytes")]
+    public long ReferenceBytes { get; set; }
     [JsonPropertyName("id")]
     public ulong Id { get; set; }
     [JsonPropertyName("total_source_bytes")]
@@ -334,7 +376,7 @@ internal sealed class CompilationPlanDto
 internal sealed class ParserIdentity
 {
     [JsonPropertyName("contract")]
-    public string Contract { get; set; } = "vb-ingestion-parser-v4";
+    public string Contract { get; set; } = "vb-ingestion-parser-v5";
     [JsonPropertyName("entry_mvid")]
     public string EntryMvid { get; set; } = string.Empty;
     [JsonPropertyName("roslyn_core_mvid")]

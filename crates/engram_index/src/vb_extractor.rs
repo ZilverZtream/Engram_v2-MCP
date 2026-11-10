@@ -273,13 +273,13 @@ impl VbLoadedParserIdentity {
         let mvid = |value: &str| value.len() == 36
             && value.bytes().enumerate().all(|(n, byte)| if [8, 13, 18, 23].contains(&n) { byte == b'-' } else { byte.is_ascii_hexdigit() })
             && value.bytes().any(|byte| byte != b'0' && byte != b'-');
-        self.contract == "vb-ingestion-parser-v4" && mvid(&self.entry_mvid)
+        self.contract == "vb-ingestion-parser-v5" && mvid(&self.entry_mvid)
             && mvid(&self.roslyn_core_mvid) && mvid(&self.roslyn_vb_mvid)
     }
 }
 
-/// Available parser code and effective policy, distinct from the backend a
-/// particular file actually used. No PID/nonce or project-reference claim.
+/// Available parser code, effective policy and bounded compiler environment,
+/// distinct from the backend a particular file actually used. No PID/nonce.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct VbParserContext {
@@ -288,6 +288,44 @@ pub struct VbParserContext {
     pub max_source_bytes: usize,
     pub request_timeout_secs: u64,
     pub compilation: CompilationPolicy,
+    pub compiler_context: Option<VbCompilerContext>,
+}
+
+/// The bounded project environment used by the native parser. Framework-only
+/// context supplies real metadata/imports, not a complete application build.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct VbCompilerContext {
+    pub root: String,
+    pub fingerprint: String,
+    pub mode: String,
+    pub reference_bytes: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub reason: Option<String>,
+}
+
+impl VbCompilerContext {
+    fn is_supported(&self) -> bool {
+        Path::new(&self.root).is_absolute() && self.root.len() <= 32768
+            && self.fingerprint.len() == 64 && self.fingerprint.bytes().all(|b| b.is_ascii_hexdigit())
+            && self.reference_bytes <= compilation::MAX_REFERENCE_BYTES
+            && match self.mode.as_str() {
+                "source_only" => self.reference_bytes == 0,
+                "framework_only" => self.reference_bytes > 0,
+                _ => false,
+            }
+            && self.reason.as_ref().is_none_or(|s| s.len() <= 1024)
+    }
+
+    fn matches_metadata(&self, value: &serde_json::Value) -> bool {
+        let Some(value) = value.as_object() else { return false; };
+        value.len() == (if self.reason.is_some() { 5 } else { 4 })
+            && value.get("root").and_then(|v| v.as_str()) == Some(self.root.as_str())
+            && value.get("fingerprint").and_then(|v| v.as_str()) == Some(self.fingerprint.as_str())
+            && value.get("mode").and_then(|v| v.as_str()) == Some(self.mode.as_str())
+            && value.get("reference_bytes").and_then(|v| v.as_u64()) == Some(self.reference_bytes)
+            && value.get("reason").and_then(|v| v.as_str()) == self.reason.as_deref()
+    }
 }
 
 impl VbParserContext {
@@ -299,12 +337,14 @@ impl VbParserContext {
             request_timeout_secs: std::env::var("ENGRAM_VB_SIDECAR_TIMEOUT_SECS").ok()
                 .and_then(|value| value.parse::<u64>().ok()).filter(|value| *value > 0).unwrap_or(60).min(300),
             compilation: CompilationPolicy::default(),
+            compiler_context: None,
         }
     }
     fn is_supported(&self) -> bool {
         self.fallback_contract == crate::SOURCE_INDEX_VERSION && self.max_source_bytes > 0
             && (1..=300).contains(&self.request_timeout_secs)
             && self.compilation.supported()
+            && self.compiler_context.as_ref().is_none_or(VbCompilerContext::is_supported)
             && self.roslyn.as_ref().is_none_or(VbLoadedParserIdentity::is_supported)
     }
     /// Borrowed metadata/GUID comparisons avoid deserialization allocations.
@@ -313,11 +353,15 @@ impl VbParserContext {
     pub(crate) fn matches_metadata(&self, actual: &serde_json::Value) -> bool {
         let Some(object) = actual.as_object() else { return false; };
         let Some(context) = object.get("context").and_then(serde_json::Value::as_object) else { return false; };
-        if !self.is_supported() || context.len() != 5
+        if !self.is_supported() || context.len() != 6
             || context.get("fallback_contract").and_then(|v| v.as_u64()) != Some(self.fallback_contract)
             || context.get("max_source_bytes").and_then(|v| v.as_u64()).and_then(|v| usize::try_from(v).ok()) != Some(self.max_source_bytes)
             || context.get("request_timeout_secs").and_then(|v| v.as_u64()) != Some(self.request_timeout_secs)
-            || !context.get("compilation").is_some_and(|value| self.compilation.matches_metadata(value)) { return false; }
+            || !context.get("compilation").is_some_and(|value| self.compilation.matches_metadata(value))
+            || !context.get("compiler_context").is_some_and(|actual| match &self.compiler_context {
+                Some(expected) => expected.matches_metadata(actual),
+                None => actual.is_null(),
+            }) { return false; }
         let authority_matches = match &self.roslyn {
             None => context.get("roslyn").is_some_and(serde_json::Value::is_null),
             Some(expected) => context.get("roslyn").and_then(serde_json::Value::as_object).is_some_and(|actual| {
@@ -382,6 +426,7 @@ struct Sidecar {
     project_root: Option<PathBuf>,
     inventory_signature: Option<blake3::Hash>,
     cached_policy: Option<CompilationPolicy>,
+    cached_compiler_context: Option<VbCompilerContext>,
     cached_charge: Option<Arc<compilation::CachedCharge>>,
     /// False once a deployed sidecar has told us it does not know the
     /// `invalidate` command, so we stop asking it every update.
@@ -401,7 +446,7 @@ static COMPILATION: LazyLock<Arc<tokio::sync::Semaphore>> =
 
 /// One warmed compilation belongs to one entire ingestion operation. Workers
 /// retain this owner even when their async waiter is cancelled. This fences
-/// project-root/cache ownership, not external references or project options.
+/// project-root/cache ownership and its captured compiler environment.
 pub(crate) struct VbCompilationLease {
     _permit: tokio::sync::OwnedSemaphorePermit,
     _parse_admission: Option<Arc<tokio::sync::OwnedSemaphorePermit>>,
@@ -466,7 +511,7 @@ pub(crate) async fn prepare_ingestion_batch(root: &Path, files: &[PathBuf],
             "Changed VB source is absent from its admitted compilation inventory");
         let mut guard = get_or_spawn_sidecar().lock()
             .map_err(|error| anyhow::anyhow!("VB compilation coordinator unavailable: {error}"))?;
-        let context = parser_context_locked(&mut guard)?;
+        let context = project_parser_context_locked(&mut guard, &root)?;
         if context.roslyn.is_some() {
             refresh_project_admitted(&mut guard, &root, &inventory, &vb, &context,
                 memory_budget.clone().unwrap_or_else(|| compilation::DEFAULT_BUDGET.clone()))?;
@@ -545,6 +590,7 @@ fn ensure_sidecar_at<'a>(guard: &'a mut Option<Sidecar>, sidecar_bin: &Path) -> 
             project_root: None,
             inventory_signature: None,
             cached_policy: None,
+            cached_compiler_context: None,
             cached_charge: None,
             supports_invalidate: true,
             identity: None,
@@ -580,6 +626,30 @@ pub fn current_parser_context() -> anyhow::Result<VbParserContext> {
     parser_context_locked(&mut guard)
 }
 
+pub fn current_parser_context_for_project(root: &Path) -> anyhow::Result<VbParserContext> {
+    let root = std::fs::canonicalize(root)?;
+    let mut guard = get_or_spawn_sidecar().try_lock().map_err(|error| anyhow::anyhow!(
+        "VB parser authority is busy or unavailable; retry after current extraction finishes: {error}"))?;
+    project_parser_context_locked(&mut guard, &root)
+}
+
+fn project_parser_context_locked(guard: &mut Option<Sidecar>, root: &Path) -> anyhow::Result<VbParserContext> {
+    let mut context = parser_context_locked(guard)?;
+    if context.roslyn.is_none() { return Ok(context); }
+    let sidecar = guard.as_mut().ok_or_else(|| anyhow::anyhow!("VB parser missing during context discovery"))?;
+    let payload = transport::encode_request(&serde_json::json!({"cmd":"compiler_context", "project_root":root}))?;
+    let line = sidecar.transport.request(payload, 64 * 1024, Duration::from_secs(60))?;
+    let response: SidecarResponse = serde_json::from_str(&line)?;
+    anyhow::ensure!(response.error.is_none() && !response.compilation_error
+        && response.parser_identity.as_ref() == context.roslyn.as_ref(),
+        "VB compiler context discovery refused: {}", response.error.as_deref().unwrap_or("invalid parser identity"));
+    let compiler = response.compiler_context.ok_or_else(|| anyhow::anyhow!("VB parser omitted compiler context"))?;
+    anyhow::ensure!(compiler.is_supported() && Path::new(&compiler.root) == root,
+        "VB compiler context does not belong to the admitted project");
+    context.compiler_context = Some(compiler);
+    Ok(context)
+}
+
 fn parser_context_locked(guard: &mut Option<Sidecar>) -> anyhow::Result<VbParserContext> {
     match ensure_sidecar(guard) {
         Ok(sidecar) => {
@@ -598,11 +668,19 @@ fn parser_context_locked(guard: &mut Option<Sidecar>) -> anyhow::Result<VbParser
 
 pub(crate) fn with_parser_publication_fence<T>(expected: &VbParserContext,
     publish: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
+    with_project_parser_publication_fence(expected, None, publish)
+}
+
+pub(crate) fn with_project_parser_publication_fence<T>(expected: &VbParserContext,
+    root: Option<&Path>, publish: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
     let mut coordinator = get_or_spawn_sidecar().try_lock().map_err(|error| anyhow::anyhow!(
         "VB parser is busy or unavailable before source publication; retry: {error}"))?;
-    let current = parser_context_locked(&mut coordinator)?;
+    let current = match root {
+        Some(root) => project_parser_context_locked(&mut coordinator, &std::fs::canonicalize(root)?)?,
+        None => parser_context_locked(&mut coordinator)?,
+    };
     anyhow::ensure!(current == *expected,
-        "VB parser code or extraction policy changed after source scan; source publication refused, rescan and retry");
+        "VB parser code, compiler context or extraction policy changed after source scan; source publication refused, rescan and retry");
     // Deliberately keep the same coordinator held through the synchronous CAS.
     // Never call async work or reenter VB extraction from this closure.
     publish()
@@ -625,10 +703,14 @@ struct SidecarRequest<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     project_root: Option<&'a str>,
     standalone: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    compiler_context: Option<&'a VbCompilerContext>,
 }
 
 #[derive(Debug, Deserialize)]
 struct SidecarResponse {
+    #[serde(default)]
+    compiler_context: Option<VbCompilerContext>,
     #[serde(default)]
     compilation_plan: Option<compilation::Plan>,
     #[serde(default)]
@@ -755,7 +837,8 @@ fn parse_via_sidecar(
     if source.len() > context.max_source_bytes { return Err(SidecarParseError::SourceLimit); }
     let root_text = project_root.map(|root| root.to_string_lossy());
     let req = SidecarRequest { cmd: "parse", path: path.display().to_string(), source,
-        project_root: root_text.as_deref(), standalone: project_root.is_none() };
+        project_root: root_text.as_deref(), standalone: project_root.is_none(),
+        compiler_context: context.compiler_context.as_ref() };
     let payload = transport::encode_request(&req).map_err(|error| {
         if error.io_error_kind() == Some(std::io::ErrorKind::InvalidInput) {
             SidecarParseError::SourceLimit
@@ -768,6 +851,7 @@ fn parse_via_sidecar(
     let response: SidecarResponse =
         serde_json::from_str(&line).map_err(|e| SidecarParseError::Protocol(e.into()))?;
     if response.compilation_error { return Err(SidecarParseError::Identity); }
+    if response.compiler_context != context.compiler_context { return Err(SidecarParseError::Identity); }
     if let Some(error) = response.error {
         return Err(SidecarParseError::Sidecar(error));
     }
@@ -1053,14 +1137,17 @@ fn refresh_project_admitted(guard: &mut Option<Sidecar>, project_root: &Path,
         #[serde(skip_serializing_if = "Option::is_none")]
         files: Option<Inventory<'a>>,
         compilation_policy: &'a CompilationPolicy,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        compiler_context: Option<&'a VbCompilerContext>,
     }
     for attempt in 0..2 {
         let warm = guard.as_ref().is_some_and(|sidecar| sidecar.project_root.as_deref() == Some(project_root)
             && sidecar.inventory_signature == Some(signature) && sidecar.cached_policy.as_ref() == Some(&context.compilation)
+            && sidecar.cached_compiler_context == context.compiler_context
             && sidecar.cached_charge.as_ref().is_some_and(|charge| charge.same_budget(&budget)));
         let request = Refresh { cmd: "plan_refresh", project_root, paths: changed,
             files: (!warm).then_some(Inventory { root: project_root, paths: &sorted }),
-            compilation_policy: &context.compilation };
+            compilation_policy: &context.compilation, compiler_context: context.compiler_context.as_ref() };
         let payload = transport::encode_request(&request)?;
         let sidecar = guard.as_mut().ok_or_else(|| anyhow::anyhow!("VB child missing before compilation plan"))?;
         let line = sidecar.transport.request(payload, 4096, Duration::from_secs(60))?;
@@ -1073,6 +1160,8 @@ fn refresh_project_admitted(guard: &mut Option<Sidecar>, project_root: &Path,
         anyhow::ensure!(!response.compilation_error && response.parser_identity.as_ref() == context.roslyn.as_ref(),
             "VB compilation plan identity mismatch; source publication refused");
         let plan = response.compilation_plan.ok_or_else(|| anyhow::anyhow!("VB child omitted compilation plan"))?;
+        anyhow::ensure!(plan.compiler_context == context.compiler_context && response.compiler_context == context.compiler_context,
+            "VB compilation plan changed compiler context; rescan and retry");
         anyhow::ensure!(plan.full == !warm && plan.tree_count == sorted.len() as u64,
             "VB compilation plan does not cover the entire admitted inventory");
         let (retained, scratch_bytes) = plan.charges(&context.compilation)?;
@@ -1080,7 +1169,8 @@ fn refresh_project_admitted(guard: &mut Option<Sidecar>, project_root: &Path,
             let charge = if warm {
                 let charge = sidecar.cached_charge.as_ref().unwrap().clone();
                 charge.ensure(retained, context.compilation.charge(context.compilation.max_total_source_bytes,
-                    context.compilation.max_trees)?)?;
+                    context.compilation.max_trees)?.checked_add(compilation::reference_charge(plan.reference_bytes)?)
+                    .ok_or_else(|| anyhow::anyhow!("VB compilation charge overflow"))?)?;
                 charge
             } else { compilation::CachedCharge::new(budget.clone(), retained)? };
             let scratch = compilation::CachedCharge::scratch(budget.clone(), scratch_bytes)?;
@@ -1105,7 +1195,8 @@ fn refresh_project_admitted(guard: &mut Option<Sidecar>, project_root: &Path,
             let response: SidecarResponse = serde_json::from_str(&line)?;
             anyhow::ensure!(response.error.is_none() && !response.compilation_error
                 && response.project_root.as_deref().map(Path::new) == Some(project_root)
-                && response.parser_identity.as_ref() == context.roslyn.as_ref(),
+                && response.parser_identity.as_ref() == context.roslyn.as_ref()
+                && response.compiler_context == context.compiler_context,
                 "VB compilation refresh refused: {}", response.error.as_deref().unwrap_or("invalid receipt"));
             Ok(())
         })();
@@ -1116,6 +1207,7 @@ fn refresh_project_admitted(guard: &mut Option<Sidecar>, project_root: &Path,
         }
         sidecar.cached_charge = Some(charge.clone());
         sidecar.cached_policy = Some(context.compilation.clone());
+        sidecar.cached_compiler_context = context.compiler_context.clone();
         sidecar.project_root = Some(project_root.to_owned());
         sidecar.inventory_signature = Some(signature);
         sidecar.transport.retain_compilation_holds(vec![charge]);
@@ -1467,7 +1559,8 @@ pub(crate) fn extract_vb_in_batch(lease: &VbCompilationLease, path: &Path, sourc
     let result = match &lease.incarnation {
         Some(expected) => {
             anyhow::ensure!(guard.as_ref().is_some_and(|s| Arc::ptr_eq(expected, &s.incarnation)
-                && s.project_root.as_ref() == Some(&lease.root) && s.transport.is_running()),
+                && s.project_root.as_ref() == Some(&lease.root)
+                && s.cached_compiler_context == lease.context.compiler_context && s.transport.is_running()),
                 "VB child/root changed during ingestion; retry the whole source update");
             extract_vb_in_context(&mut guard, &canonical_path, source, lease.context.clone(), Some(&lease.root))
         }

@@ -7,6 +7,13 @@ use std::sync::{Arc, LazyLock, Mutex};
 pub(super) static DEFAULT_BUDGET: LazyLock<Arc<MemoryBudget>> =
     LazyLock::new(|| Arc::new(MemoryBudget::new(0)));
 
+pub(super) const MAX_REFERENCE_BYTES: u64 = 64 * 1024 * 1024;
+
+pub(super) fn reference_charge(bytes: u64) -> anyhow::Result<u64> {
+    anyhow::ensure!(bytes <= MAX_REFERENCE_BYTES, "VB framework reference limit exceeded");
+    Ok(bytes * 4)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CompilationPolicy {
@@ -63,6 +70,10 @@ pub(super) struct Plan {
     pub max_changed_file_bytes: u64,
     pub full: bool,
     pub policy: CompilationPolicy,
+    #[serde(default)]
+    pub reference_bytes: u64,
+    #[serde(default)]
+    pub compiler_context: Option<super::VbCompilerContext>,
 }
 
 impl Plan {
@@ -75,9 +86,14 @@ impl Plan {
             && (self.changed_tree_count != 0 || self.changed_source_bytes == 0)
             && (!self.full || (self.changed_tree_count == self.tree_count && self.changed_source_bytes == self.total_source_bytes)),
             "VB compilation plan does not match its admitted policy");
-        let retained = policy.charge(self.total_source_bytes, self.tree_count)?;
+        anyhow::ensure!(self.compiler_context.as_ref().map_or(0, |c| c.reference_bytes) == self.reference_bytes,
+            "VB compilation reference charge does not match compiler context");
+        let references = reference_charge(self.reference_bytes)?;
+        let retained = policy.charge(self.total_source_bytes, self.tree_count)?.checked_add(references)
+            .ok_or_else(|| anyhow::anyhow!("VB compilation metadata estimate overflow"))?;
         let changed = if self.full { 0 } else { policy.charge(self.changed_source_bytes, self.changed_tree_count)? };
         let scratch = self.max_changed_file_bytes.checked_mul(4).and_then(|input| input.checked_add(changed))
+            .and_then(|input| input.checked_add(self.reference_bytes * 2))
             .ok_or_else(|| anyhow::anyhow!("VB compilation scratch estimate overflow"))?;
         Ok((retained, scratch))
     }

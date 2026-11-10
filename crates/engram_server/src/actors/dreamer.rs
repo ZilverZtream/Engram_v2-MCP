@@ -213,6 +213,7 @@ pub async fn record_cooccurrence(
     let graph = state.graph.clone();
     let pid = project_id.to_owned();
     let chunk_target = state.cfg.max_chunks_per_file;
+    let registry = state.registry.clone();
     let canonical_files = tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
         let mut nodes = Vec::new();
         for (path, namespace) in candidates {
@@ -226,9 +227,14 @@ pub async fn record_cooccurrence(
         }
         // Missing parser authority cannot certify a canonical source anchor.
         // Keep learning through provenance-labelled search-document nodes.
-        let extraction = engram_index::SourceExtractionExpectation::for_paths(
-            chunk_target, nodes.iter().map(|node| node.file_path.as_str()),
-        );
+        let extraction = (|| -> anyhow::Result<_> {
+            let rec = registry.get_project(&pid)?
+                .ok_or_else(|| anyhow::anyhow!("Project source root unavailable for {pid}"))?;
+            engram_index::SourceExtractionExpectation::for_project(
+                std::path::Path::new(&rec.directory), chunk_target,
+                nodes.iter().map(|node| node.file_path.as_str()),
+            )
+        })();
         if let Err(error) = &extraction {
             tracing::debug!(error = %error, "Search learning cannot certify current parser provenance");
         }

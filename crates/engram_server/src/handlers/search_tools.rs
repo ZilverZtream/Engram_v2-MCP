@@ -745,13 +745,13 @@ impl Engram {
                 let hash = node.as_ref().and_then(|n| n.metadata.as_ref())
                     .and_then(|m| m.get("file_hash")).and_then(|h| h.as_str());
                 let Some(hash) = hash else { return Ok("unverified: no source fingerprint; source-index format and cached line ranges are unknown — update_project or read source directly"); };
-                let expected = engram_index::SourceExtractionExpectation::for_paths(
-                    source_chunk_target, std::iter::once(source_path.as_str()),
+                let root = std::fs::canonicalize(&rec.directory)?;
+                let expected = engram_index::SourceExtractionExpectation::for_project(
+                    &root, source_chunk_target, std::iter::once(source_path.as_str()),
                 )?;
                 anyhow::ensure!(node.as_ref().and_then(|n| n.metadata.as_ref())
                     .is_some_and(|meta| expected.metadata_is_compatible(meta, &source_path)),
                     "Legacy source chunk withheld: {source_path} requires source-index migration. Run update_project for this project and repeat search, or read the source file directly; cached line ranges are not trustworthy.");
-                let root = std::fs::canonicalize(&rec.directory)?;
                 let full = std::fs::canonicalize(root.join(&source_path))
                     .map_err(|e| anyhow::anyhow!("Source unavailable for {source_path}: {e}. Cached chunk withheld; refresh the index."))?;
                 anyhow::ensure!(full.starts_with(&root), "Source path escapes project root");

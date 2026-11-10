@@ -420,8 +420,8 @@ impl Engram {
                 // A discovered code-behind may introduce VB after a markup-only
                 // request. Capture its actual parser once, only when needed.
                 let mut vb_extraction = None;
-                let extraction = engram_index::SourceExtractionExpectation::for_paths(
-                    source_chunk_target, std::iter::empty::<&str>(),
+                let extraction = engram_index::SourceExtractionExpectation::for_project(
+                    &axis_root, source_chunk_target, std::iter::empty::<&str>(),
                 ).map_err(|e| e.to_string());
                 for file in files {
                     // Graph file identities preserve case, even on Windows.
@@ -435,8 +435,8 @@ impl Engram {
                 while let Some((file, discover_companion, companion_relation)) = pending.pop_front() {
                     let needs_vb = engram_index::vb_extractor::requires_parser_provenance(&file);
                     if vb_extraction.is_none() && needs_vb {
-                        vb_extraction = Some(engram_index::SourceExtractionExpectation::for_paths(
-                            source_chunk_target, std::iter::once(file.as_str()),
+                        vb_extraction = Some(engram_index::SourceExtractionExpectation::for_project(
+                            &axis_root, source_chunk_target, std::iter::once(file.as_str()),
                         ).map_err(|e| e.to_string()));
                     }
                     let expected = if needs_vb { vb_extraction.as_ref().expect("VB expectation captured") }
