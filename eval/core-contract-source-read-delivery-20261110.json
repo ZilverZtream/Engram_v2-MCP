@@ -1,0 +1,133 @@
+{
+  "status": "DEPLOYED_CONTRACT_SOURCE_READ_VERIFIED_ON_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T16:50:26.955293+00:00",
+  "source_commit": "3f0bf297b180b3b943970dfaa97ef3c1edc7e70a",
+  "problem": "CodeMap source view exposed interface identity and implementation source, but reading the actual interface declaration required a metadata recovery followed by a source read.",
+  "change": "Expose contract_source_read beside implementation_source_read on the existing admitted interface route.",
+  "actual_result": {
+    "task": "Original TimeReport GetValue / GetTimeReportDayById navigation gap",
+    "checks": {
+      "direct_contract_action_executed": true,
+      "implementation_action_preserved_and_executed": true,
+      "caller_source_preview_unchanged": true,
+      "old_route_preserved_except_added_contract_source_read": true,
+      "runtime_dispatch_unproven_preserved": true,
+      "current_source_reads": [
+        {
+          "file_path": "Site/App_Code/api-v2/Controllers/timeReporting/TimeReportDaysController.vb",
+          "line_start": 1,
+          "line_end": 28,
+          "source_file_hash": "eaec113856ae7159be14a94aaf049ec87bc1d1c4150b0e95ffd93705561294d4"
+        },
+        {
+          "file_path": "Site/App_Code/api-v2/Services/timeReporting/interfaces/ITimeReportDayService.vb",
+          "line_start": 5,
+          "line_end": 5,
+          "source_file_hash": "64255dad437fa0b5feefd93e8882219e8ddad8aab2d734b61eef2dcd1804d647"
+        },
+        {
+          "file_path": "Site/App_Code/api-v2/Services/timeReporting/TimeReportDayService.vb",
+          "line_start": 49,
+          "line_end": 72,
+          "source_file_hash": "3d5bcdd75bb51ab4e9d7afbf67d4fad415defe1e2cd5e0970a9076ef46060e4f"
+        }
+      ],
+      "contract_read_followups_before": 2,
+      "contract_read_followups_after": 1,
+      "original_source_reply_bytes": 8169,
+      "current_source_reply_bytes": 8479,
+      "retained_caller_source_bytes": 1005
+    },
+    "normal_service_pid": 55184,
+    "watching_restored": true,
+    "configuration_unchanged": true,
+    "contract_read_path_bytes_before": 20342,
+    "contract_read_path_bytes_after": 10568,
+    "measurement_scope": "Selected original response plus literal recovery calls only; no whole-task rescore or productivity claim."
+  },
+  "installed": {
+    "server_sha256": "8127a44c91969438f240fcc413ff3b168e3ab22b3a15206c1c387b8ea0153c67",
+    "manifest_sha256": "657ad7afeb286a8dc4b2aa622845838135ba1682c7677768759be4b0d660bf6d",
+    "unchanged_native_assets": 214,
+    "source_generation": 3146
+  },
+  "validation": {
+    "native_tests": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-contract-read-native-20261110.json",
+        "sha256": "e004ce0e0a226488d0906a4de89eeea3e942bc0587e850974e08783f0a53b79d"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-contract-read-native-20261110.log",
+        "sha256": "25ca048395346a82ee7d4fd10c6afa5a9c7708ea446094efbc4cc6633ac3fae3"
+      },
+      "passed": 2
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-contract-read-shipping-20261110.json",
+      "sha256": "63d1a89b1e62cb77a35ea00227d1ae289c39a3a83283d393f7bf13b134061176"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\selection-and-source-review.json",
+      "sha256": "3b8bfa26a76ae4262f347851af62b4fdf9228c448f898fa7180d8b96027ed4b9"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\pair-receipt.json",
+      "sha256": "f1a5d7ae2eec7a35f0927acdc9a430a140919849cdd146ddb075be4ecbf97dca"
+    },
+    "original_two_followup_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\before-recovery\\receipt.json",
+      "sha256": "283b23fb86be34b1cfffc0f663fcd05e4235af37cdc0973f5a16aeb33f6f0c3f"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\candidate-v1\\acceptance.json",
+      "sha256": "76a81a4cbcfc132fc35fddc0b765ba556a1800458da3feccfee475912e4348de"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\normal-v1\\acceptance.json",
+      "sha256": "198a8922c33e4deeded6c953e9443238e70fdc72cc18612a1694f27795c80ede"
+    },
+    "release_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\release-gates.json",
+      "sha256": "5078273e43b31957f29f20a4facc42ed88b1df79b507b5411f9244301ede2a3f"
+    },
+    "installer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110\\install-upgrade.json",
+      "sha256": "2f449e92d0bfe2bb31a32d02db3f6ba82970a222c96c3c06ddebc0ead50c2b71"
+    }
+  },
+  "preservation": {
+    "source_hashes_unchanged": true,
+    "all150_tool_definitions_unchanged": true,
+    "candidate_registry_preserved": true,
+    "candidate_selection_preserved": true,
+    "other14_metadata_unchanged": true,
+    "index_updates": 0
+  },
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-timereport-contract-20261110",
+    "purpose": "Retain original source responses, package, build and candidate/installed verification evidence.",
+    "cleanup_condition": "Exact-path cleanup approval required for retained evidence and prior package; no automatic deletion.",
+    "prior_pair_preserved": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-94233243e24c48eeaff0108536e28bf1",
+    "five_installer_journals_retained": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-94233243e24c48eeaff0108536e28bf1.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-94233243e24c48eeaff0108536e28bf1.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-94233243e24c48eeaff0108536e28bf1.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-94233243e24c48eeaff0108536e28bf1.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-94233243e24c48eeaff0108536e28bf1.04-committed-no-start.json"
+    ],
+    "owned_candidate_tmp_removed": true,
+    "candidate_resources_closed": true,
+    "normal_observer_closed": true,
+    "config_hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-contract-read-config-hold-20261110.json.released.json",
+      "sha256": "70c7036f7c4687f99d4f5d773f5fe10ba339023caf1523e0b03ecc00b0fe342c"
+    }
+  },
+  "limits": [
+    "One fewer follow-up in the selected actual navigation path; no general agent productivity advantage demonstrated.",
+    "Original TimeReport task remains partial; no task replay or rescore.",
+    "Original31 findings/full19 gates and broader goal remain unfinished. Evaluation/instruction expansion remains parked."
+  ],
+  "goal_complete": false
+}

@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T16:13:16.672621+00:00",
-    "reason": "Latest user correction stops evaluation expansion. Native With truncation repair901410f is installed and verified through normal CodeMap/impact/Blast on actual cache-policy callers.",
+    "at_utc": "2026-11-10T16:50:26.955293+00:00",
+    "reason": "Original TimeReport contract-source navigation gap fixed at3f0bf29, installed and checked against current OciusX source. With caller repair remains deployed. Broader goal unfinished.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Continue original CodeMap/Blast Radius navigation, witness and recovery queue. Selected With/cache-call defect delivered; broader goal unfinished.",
-    "next_user_visible_deliverable": "Continue an unfinished original core-tool gap demonstrated by actual output and independent source. Preserve this shipped repair; do not restart GPS comparisons, broad audits, instruction drafting or supporting infrastructure.",
+    "active_original_item": "Continue original CodeMap/Blast Radius navigation, witness and recovery queue; With caller and direct interface source-read gaps delivered.",
+    "next_user_visible_deliverable": "Continue the original core-tool queue from existing actual task evidence; no new broad audit, comparison suite or instruction drafting.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports another24hours of circular work and cost. Stopped EG25 expansion and delivered a concrete core parser/caller repair. This does not justify prior elapsed time or complete the broader goal.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Delivery:901410f pushed; native With extraction crash fixed;19native tests pass; same actual source regains target metadata and both callers; one refresh; normal installed CodeMap/impact/Blast source-verified.",
+    "previous_goal_turn_classification": "Delivery:3f0bf29 pushed and installed; native behavior tests2/2; actual TimeReport interface source now one follow-up instead of two, verified on normal daemon.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9881,8 +9881,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-with-call-witness-delivery-20261110.json",
-      "sha256": "5ff4366f6ac5df21c961a3a021b80c7c46b4e350c4259dd2fda2904e5e2e6dce"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-contract-source-read-delivery-20261110.json",
+      "sha256": "ddaae666706389e549c788dd0acad8ae6438ab85815b2d43c4c622946174daf6"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11986,8 +11986,8 @@
       "sha256": "b884311de466eb18a1bd2030688bcacbf32485946708e22cb97c82c52284ca5f"
     },
     "latest_core_delivery": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-blast-default-delivery-20261110.json",
-      "sha256": "b884311de466eb18a1bd2030688bcacbf32485946708e22cb97c82c52284ca5f"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-contract-source-read-delivery-20261110.json",
+      "sha256": "ddaae666706389e549c788dd0acad8ae6438ab85815b2d43c4c622946174daf6"
     },
     "current_regular_verification": {
       "status": "CURRENT_PRODUCER_COMPARISON_COMPLETE_BASELINE_20_ASSISTED_19_NO_BENEFIT_CLAIM",
@@ -12046,6 +12046,10 @@
       },
       "qa_assertion_correction": "Original preserved; removed two implementation-specific timer-call-count assertions before reviewing candidate results. All9inputs/expected behavior/no-pending-timer assertion unchanged; baseline remained4fail/5pass.",
       "isolation_caveat": "Assisted candidate reported early inspection of unrelated generated Q namespace boilerplate in its owned baseline map.js; retained in review. No clean/blind-isolation claim or replay."
+    },
+    "latest_contract_source_read_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-contract-source-read-delivery-20261110.json",
+      "sha256": "ddaae666706389e549c788dd0acad8ae6438ab85815b2d43c4c622946174daf6"
     }
   }
 }
