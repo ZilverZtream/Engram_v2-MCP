@@ -17,6 +17,7 @@ const MAX_DEPTH: usize = 8;
 const MAX_RECORD_BYTES: usize = 256 * 1024;
 const MAX_DECODE_BYTES: usize = 8 * 1024 * 1024;
 const WALK_TIME: Duration = Duration::from_secs(2);
+const MAX_UNBOUND_PREFIX_SEEKS: usize = 512;
 
 // Reserved producer evidence. Extractor metadata is projected to JSON strings
 // by ingestion, so it cannot supply this typed nested object. Raw GraphStore
@@ -361,6 +362,8 @@ pub struct UnboundMemberInspection {
     pub decoded_bytes: usize,
     pub raw_row_limit: usize,
     pub raw_keys_observed: usize,
+    pub prefix_seeks: usize,
+    pub prefix_seek_limit: usize,
     pub witness_limit: usize,
     /// One undecoded matching-prefix key can establish that the row cap hid
     /// more work. It does not establish how many eligible witnesses remain.
@@ -495,6 +498,7 @@ fn inspect_unbound_members(
         // Reserve one shared raw-work slot for an undecoded boundary/lookahead
         // key. Every obtained key remains within the original shared limit.
         raw_row_limit: remaining_rows.saturating_sub(1).min(512),
+        prefix_seek_limit: MAX_UNBOUND_PREFIX_SEEKS,
         witness_limit: remaining_witnesses.min(8), ..Default::default()
     };
     if !budget.live(&mut result.coverage) {
@@ -541,6 +545,7 @@ fn inspect_unbound_members(
         };
         let prefix = format!("{project}\0calls\0sym:function:{directory}/");
         let mut range = edges.range(prefix.as_str()..)?;
+        result.prefix_seeks = 1;
         loop {
             if !budget.live(&mut result.coverage) || optional_halted { return Ok(()); }
             let Some(entry) = range.next() else { break; };
@@ -560,6 +565,27 @@ fn inspect_unbound_members(
                 && parts[2..].iter().all(|id| !id.is_empty() && id.len() <= 2048 && !id.chars().any(char::is_control)),
                 "Unbound inspection edge key unavailable");
             let (source, target) = (parts[2], parts[3]);
+            if !target.starts_with(super::UNBOUND_RECEIVER_PREFIX) {
+                // Calls are ordered by source, then target. Bound-target tails
+                // are irrelevant to this optional syntax inspection. The key
+                // just obtained is still charged, including repeated boundaries.
+                if result.prefix_seeks == result.prefix_seek_limit {
+                    gap(&mut result.coverage, "unbound_prefix_seek_limit");
+                    return Ok(());
+                }
+                let next = if target < super::UNBOUND_RECEIVER_PREFIX {
+                    format!("{project}\0calls\0{source}\0{}", super::UNBOUND_RECEIVER_PREFIX)
+                } else {
+                    // Source IDs contain no controls: U+0001 sorts after every
+                    // source+NUL target but before any longer valid source ID.
+                    // In particular, a line1 source must not skip line10.
+                    format!("{project}\0calls\0{source}\u{1}")
+                };
+                if !budget.live(&mut result.coverage) { return Ok(()); }
+                result.prefix_seeks += 1;
+                range = edges.range(next.as_str()..)?;
+                continue;
+            }
             if !charge(raw.value().len(), budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted) {
                 if optional_halted { return Ok(()); } else { continue; }
             }
@@ -3115,12 +3141,81 @@ mod tests {
     }
 
     #[test]
+    fn unbound_inspection_seeks_past_bound_calls_and_preserves_source_id_extensions() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (root, caller, unresolved) = unbound_fixture(store)?;
+            let early = script_node("src/images/aaa.ts", "Probe", 1);
+            let extended = script_node("src/images/aaa.ts", "Probe", 10);
+            assert!(extended.node_id.starts_with(&early.node_id));
+            let expected = [("src/images/image.ts",1),("src/images/group.ts",1),("src/images/aaa.ts",1)];
+            store.upsert_nodes(PROJECT, &[early.clone(), extended.clone(), file("src/images/aaa.ts", 1)])?;
+            let mut bound = Vec::new();
+            for number in 0..600 {
+                // Exercise both sides of the reserved target range. These
+                // unrelated calls must not consume the optional decode budget.
+                bound.push(edge(&early.node_id, &format!("::aaa_{number:04}"), EdgeKind::Calls, 1));
+                bound.push(edge(&early.node_id, &format!("sym:function:other.ts:Bound:{number}"), EdgeKind::Calls, 1));
+            }
+            store.upsert_edges(PROJECT, &bound)?;
+            let observe = || store.bounded_incoming_walk(PROJECT, &[root.node_id.clone()], 6, &causal,
+                &|node, file| selected(&expected, node, file));
+            let baseline = primary_facts(&observe()?)?;
+            store.upsert_edges(PROJECT, &[unresolved, unbound_edge(&extended, "local")])?;
+            let walk = observe()?;
+            assert_eq!(primary_facts(&walk)?, baseline, "Syntax observations must not promote primary dependents");
+            let inspection = walk.unbound_member_inspection.unwrap();
+            assert_eq!(inspection.witnesses.len(), 2);
+            for expected_caller in [&extended, &caller] {
+                let witness = inspection.witnesses.iter().find(|row| row.caller.node_id == expected_caller.node_id).unwrap();
+                assert_eq!(witness.reference_lines, vec![12,13]);
+                assert_eq!(witness.edge_generation, 1);
+            }
+            assert!(inspection.scoped_prefix_exhausted && !inspection.coverage.truncated, "{inspection:?}");
+            assert!(inspection.raw_keys_observed < 20, "Bound target tails were still enumerated");
+            assert!(inspection.decoded_bytes < 16 * 1024, "Bound target payloads were decoded");
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unbound_inspection_bounds_source_seeks_without_claiming_exhaustion() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (root, _, unresolved) = unbound_fixture(store)?;
+            let bound = (0..600).map(|number| edge(
+                &format!("sym:function:src/images/aaa.ts:Probe{number:04}:1"),
+                "sym:function:other.ts:Bound:1", EdgeKind::Calls, 1)).collect::<Vec<_>>();
+            store.upsert_edges(PROJECT, &bound)?;
+            store.upsert_edges(PROJECT, &[unresolved])?;
+            let walk = store.bounded_incoming_walk(PROJECT, &[root.node_id.clone()], 6, &causal,
+                &|node, file| selected(&[("src/images/image.ts",1),("src/images/group.ts",1)], node, file))?;
+            let inspection = walk.unbound_member_inspection.unwrap();
+            assert!(inspection.witnesses.is_empty() && inspection.coverage.truncated);
+            assert!(inspection.coverage.reasons.iter().any(|reason| reason == "unbound_prefix_seek_limit"));
+            assert!(!inspection.scoped_prefix_exhausted && !inspection.lookahead_observed);
+            assert_eq!(inspection.prefix_seeks, inspection.prefix_seek_limit);
+            assert_eq!(inspection.raw_keys_observed, MAX_UNBOUND_PREFIX_SEEKS);
+            assert_eq!(inspection.coverage.raw_rows, MAX_UNBOUND_PREFIX_SEEKS);
+            assert_eq!(inspection.decoded_bytes, 0);
+            assert_eq!(inspection.witnesses_omitted_lower_bound, 0);
+            let tx = store.db.begin_read()?;
+            let mut budget = Budget { started: Instant::now(), string_bytes:0, decode_bytes:0, halted:false };
+            let limited = inspect_unbound_members(&tx, PROJECT, &root, 2, 8, &mut budget,
+                &|node, file| selected(&[("src/images/image.ts",1),("src/images/group.ts",1)], node, file)).unwrap();
+            assert_eq!(limited.raw_row_limit, 1);
+            assert_eq!(limited.coverage.raw_rows, 1);
+            assert_eq!(limited.raw_keys_observed, 2, "Only one shared lookahead slot, not one per seek");
+            assert!(limited.lookahead_observed && !limited.scoped_prefix_exhausted);
+            Ok(())
+        })
+    }
+
+    #[test]
     fn unbound_inspection_bounds_skipped_rows_and_discloses_unknown_remainder() -> anyhow::Result<()> {
         owned_case(|store| {
             let (root, _, unresolved) = unbound_fixture(store)?;
             store.upsert_edges(PROJECT, &[unresolved])?;
             let skipped = (0..513).map(|number| edge("sym:function:src/images/aaa.ts:Probe:1",
-                &format!("::unrelated_{number:04}"), EdgeKind::Calls, 1)).collect::<Vec<_>>();
+                &format!("{UNBOUND_RECEIVER_PREFIX}h{number:04}.differentMember"), EdgeKind::Calls, 1)).collect::<Vec<_>>();
             store.upsert_edges(PROJECT, &skipped)?;
             let walk = store.bounded_incoming_walk(PROJECT, &[root.node_id], 6, &causal,
                 &|node, file| selected(&[("src/images/image.ts",1),("src/images/group.ts",1)], node, file))?;
