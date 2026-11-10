@@ -1,0 +1,113 @@
+{
+  "status": "DEPLOYED_TERMINAL_NAME_SOURCE_AND_IMPACT_ACTIONS_VERIFIED_ON_NORMAL_SERVICE",
+  "at_utc": "2026-11-10T18:38:35.114877+00:00",
+  "source_commit": "24e31f6f7649964e46d683e044e84fc2944bc48a",
+  "problem": "Actual exact-file CodeMap QueryCacheCore bare-name lookup produced zero indexed candidates under its64-key limit; a manually qualified _vs.FileLayerSpatialService.QueryCacheCore request found the declaration. Literal fallback showed source but offered no selected symbol source/impact actions.",
+  "change": "Use canonical revision-admitted type names in that file to guide bounded qualified-member probes before ordinary terminal fallback. Preserve shared work limits, overload candidates and stale-node rejection. Reserve16rawkeys and half the decode budget for fallback when owner hints miss. Owner hits explicitly leave terminal inventory and uniqueness unproven.",
+  "actual_result": {
+    "request": "Original get_codebase_overview exact-file QueryCacheCore/include_source request, unchanged.",
+    "before_candidates": 0,
+    "normal_candidates": 1,
+    "selected_node_id": "sym:function:Site/App_Code/visualisering/code/FileLayerSpatialService.vb:_vs.FileLayerSpatialService.QueryCacheCore:2247",
+    "source_span": [
+      2247,
+      2289
+    ],
+    "current_preview_span": [
+      2235,
+      2289
+    ],
+    "actions_executed": [
+      "Returned get_full_method_body2247..2289",
+      "Returned impact_analysis summary for selected target"
+    ],
+    "known_caller_source_line": 2222,
+    "qualified_control_packet_unchanged": true,
+    "source_and_generation_unchanged": true,
+    "normal_original_response_utf8_bytes": 12121,
+    "original_diagnostic_two_lookup_response_bytes": 18968,
+    "comparison_limit": "Before two requests were an informed diagnostic (bare-name miss then qualified control); after original request provides the target/actions directly. No fresh-agent adoption, frozen-task rescore, task-wide cost saving or general productivity claim."
+  },
+  "installed": {
+    "server_sha256": "b8bcc018c1cfb1718e6a7ae70ad9cb269a2077a69a28418f4c48d5edb8bf0f0d",
+    "manifest_sha256": "501cad857a65f954410c13fbae363d2696b1f386203cc24762952ff55d895ff1",
+    "unchanged_native_assets": 214,
+    "source_generation": 3147,
+    "normal_pid_at_verification": 60396,
+    "configuration_hold_released": true,
+    "configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\pair-receipt.json",
+      "sha256": "d27e69a3e11c872ab2749f4e1c5f78fee9d5d63291c47558a6b34a454461960f"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\install-upgrade.json",
+      "sha256": "dcb2171362b6a3ba21177d076f8524b078f3d77a8a03f95dcd63289aaeb24e59"
+    }
+  },
+  "validation": {
+    "tests_passed": 59,
+    "tests_failed": 0,
+    "test_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-owner-navigation-focused-v2-20261110.json",
+      "sha256": "8436675e113df42d72ee3996df771bb33bbd135c93449ad9029e23e8531017f4"
+    },
+    "test_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-owner-navigation-focused-v2-20261110.log",
+      "sha256": "d904626057fbe1ae03c0f6858cbb41b12c4a8cae154dbbdef3d9aa291b15f43b"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-owner-navigation-shipping-20261110.json",
+      "sha256": "59603c17af757c1e5698e4439be50fd13c941ce1c5d2de7e5eac79e6875bf877"
+    },
+    "build_seconds": 768.7379730999819,
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\selection-and-source-review.json",
+      "sha256": "91656f38f104005e4813d6e4932ef0b01535bca6cce05324cc4089ba2be457de"
+    },
+    "independent_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\source-evidence.json",
+      "sha256": "7625a6fd5844136eea33baec90a1c5296db3a7356588539948ab3a8573fbb151"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\candidate-v1\\acceptance.json",
+      "sha256": "240dff67f35b6079eab6b54d0758c469a6ca99aaf2d1ea429a3dbc1ede6ce896"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\normal-v1\\acceptance.json",
+      "sha256": "9805787fe9c0c725bc17f44b86b337bef8858a3375110b4e15ba1ed9b3843ee9"
+    },
+    "scoped_release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\release-gates.json",
+      "sha256": "b065a7c3cf76e280b32b114d0f7867751eaccc7398ec2c4799a99a93b528c15c"
+    },
+    "review_limits": "Independent local source review; CodeRabbit was not run because prior host authentication was unavailable."
+  },
+  "preservation": {
+    "no_index_mutation": true,
+    "all150_tool_definitions_unchanged": true,
+    "source_hashes_unchanged": true,
+    "candidate_registry_preserved": true,
+    "candidate_selection_preserved": true,
+    "other14_metadata_unchanged": true,
+    "owned_resources_closed": true,
+    "owned_tmp_removed": true
+  },
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110",
+    "purpose": "Retained before/after real outputs, source evidence, package, review, build and deployment records; exact-path cleanup requires review.",
+    "previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0101c3feef0749bda28ea26e47a5a8be",
+    "journals": "Five engram-pair-0101c3feef0749bda28ea26e47a5a8be transaction journals retained under installation root.",
+    "temporary_resources": "Both test batches and release build closed owned jobs/handles and removed owned temporary directories. Candidate owner closed and tmp removed. Normal observer pipe closed. Configuration hold released. Normal service restored. No preexisting copy deletion.",
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-config-hold-20261110.json.released.json",
+      "sha256": "ac434e9d1681dceff1891ccb39aa1d133c653b8df8b015f954d793deb7385e1d"
+    }
+  },
+  "limits": [
+    "Bounded owner guidance improves this observed lookup, not exhaustive terminal-name resolution or semantic binding.",
+    "All original31 findings and19 gate records preserved; this scoped release does not close them.",
+    "Original task outcomes and parked EG14 artifacts remain unchanged; broader goal unfinished."
+  ],
+  "goal_complete": false
+}
