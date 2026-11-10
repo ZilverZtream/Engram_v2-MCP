@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T05:28:06.739131+00:00",
-    "reason": "External direct-callable handoff deployed/normal verified in bothimpacttools; exactsource530..570 nowfirst andallotherobservedreportJSON retained.18unit+31integrationPASS; initialfilehintoverreachFAILretained/corrected withoutintegrationtestchange. Frozenlogtaskassisted5/10 versus source-only9/10; overallusefulnessunproven.",
+    "at_utc": "2026-11-10T05:54:26.187709+00:00",
+    "reason": "Missing getter dependency fixed and deployed; actual installed CodeMap and both impact tools now expose caller/reference/source action. Latest frozen agent comparison remains assisted5/10 versus source-only9/10; overall usefulness unproven.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: selected actual missing getter witness, corrected through native compiler context and source/cache provenance. Implemented and tested; paired release and live indexed/tool validation pending.",
-    "next_user_visible_deliverable": "Continue original core-tool usefulness work using actual task evidence and independent source. Preserve new source-only preference and all earlier outcomes. Do not repeat delivered callee/direct-caller probes, retry frozen tasks, expand instruction drafting, or substitute another broad audit/supporting infrastructure project. Overall completion requires agent-task usefulness evidence beyond narrow navigation savings.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: compiler-context getter fix deployed and verified in installed tools; continue task-level usefulness evidence.",
+    "next_user_visible_deliverable": "Continue the original CodeMap/Blast usefulness task with a new untouched agent task and independent source criteria. Preserve all frozen comparisons; choose any next code change from actual task failures rather than starting another audit.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9858,7 +9858,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "Verified compiler configuration provenance and identified cache/publication correctness requirements, changing the next action to the actual extraction fix rather than a lexical recovery substitute."
+      "reason": "Completed one ordinary VB migration, installed the tested server/native pair, and verified the missing getter witness through actual public tools on the normal daemon."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -9884,8 +9884,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-delivery-20261110.json",
-      "sha256": "1968f10018567f8d6c507111818eb4cf6e431d869efe7c0960c59b22b119e250"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-delivery-20261110.json",
+      "sha256": "fcc8b3ebb8b76a91190e350bb262ca2376be84e4d84b323dca6905aab8486f6f"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11710,12 +11710,20 @@
       }
     },
     "selected_getter_compiler_context": {
-      "status": "IMPLEMENTED_NATIVE_VERIFIED_NOT_DEPLOYED",
+      "status": "DEPLOYED_AND_INSTALLED_GETTER_WITNESS_VERIFIED",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-implementation-20261110.json",
         "sha256": "1569af7cdd0a060a6e11cdaa69b3dd6a9264c322d79e26458eb7356840acda1f"
       },
-      "next": "Paired release and real installed tool verification; native getter witness is already independently confirmed."
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-delivery-20261110.json",
+        "sha256": "fcc8b3ebb8b76a91190e350bb262ca2376be84e4d84b323dca6905aab8486f6f"
+      },
+      "next": "Continue the original CodeMap/Blast usefulness task with a new untouched agent task and independent source criteria. Preserve all frozen comparisons; choose any next code change from actual task failures rather than starting another audit."
+    },
+    "latest_compiler_context_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-delivery-20261110.json",
+      "sha256": "fcc8b3ebb8b76a91190e350bb262ca2376be84e4d84b323dca6905aab8486f6f"
     }
   }
 }

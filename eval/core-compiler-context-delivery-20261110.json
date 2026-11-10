@@ -1,0 +1,148 @@
+{
+  "status": "DEPLOYED_AND_INSTALLED_GETTER_WITNESS_VERIFIED",
+  "at_utc": "2026-11-10T05:54:26.187709+00:00",
+  "binary_source_commit": "06efabda57a12f595496ad3c47b3267e65b92d9c",
+  "problem": "Changing hl_handelselogg.prop_projekt could affect GetUserActivityEntries, but the installed graph reported zero direct dependents despite the source read at logs.aspx.vb:552.",
+  "delivered_behavior": {
+    "impact_analysis": "One admitted direct caller GetUserActivityEntries with reference line552 and executable source action530..570.",
+    "compute_blast_radius": "Same exact getter/caller/reference/source action.",
+    "get_codebase_overview": "Current caller source preview and emitted metadata recovery expose the exact getter.",
+    "before_direct_dependents": 0,
+    "after_direct_dependents": 1,
+    "source_read_executed_and_independently_checked": true,
+    "getter_summary_bytes": 8132,
+    "caller_source_bytes": 3839,
+    "compiler_context_mode": "framework_only",
+    "coverage_limitation": "Depth1 reports explicitly truncated at depth limit; no complete application binding or exhaustive impact claim."
+  },
+  "verification": {
+    "targeted_tests_passed": 45,
+    "ordinary_updates": 1,
+    "before_generation": 3142,
+    "after_generation": 3143,
+    "reextracted_vb_files": 1016,
+    "non_vb_revisions_preserved": 1291,
+    "source_membership_changed": false,
+    "authored_memory_sections_preserved": 300,
+    "other14_metadata_preserved": true,
+    "source_pins_preserved": 24,
+    "tool_definitions_unchanged": 150,
+    "normal_primary_pid": 27428,
+    "normal_requests": 28,
+    "normal_index_writes": false,
+    "known_positive_and_false_property_controls_preserved": true
+  },
+  "installed_pair": {
+    "server_sha256": "e5e75ee8e2a64997356590658f6cf45d57ab216fbb7b140f45e411ee015a9a94",
+    "manifest_sha256": "3c7f2fb55d09e94d8564f2fe02bf1fded727c531fd3f8ba1acc865926a3aa076",
+    "new_parser_identity": {
+      "contract": "vb-ingestion-parser-v5",
+      "entry_mvid": "794393dc-faf3-4912-8c69-3ef3d723a8a6",
+      "roslyn_core_mvid": "ff5984b9-af9d-43fb-912d-3c4cda1761dd",
+      "roslyn_vb_mvid": "575815b5-da82-4f41-bc0f-d8d0a248bb2b"
+    }
+  },
+  "post_build_installer_change": {
+    "path": "scripts/deploy_windows_release_pair.ps1",
+    "sha256": "eaf16d718f6316e31af86e1443c0543ec6cd38730c83e6e2ebe1f1fc76f5fc6a",
+    "change": "Accept exact supported contracts v4 or v5; preserve all package/gate/forward-transition checks.",
+    "original_shipping_snapshot_preserved": true,
+    "part_of_compiled_or_packaged_binary": false,
+    "isolated_gate_cases_passed": 19
+  },
+  "observer_correction": "First normal observer exceeded its progress logging bound after collecting core output. Preserved failure and original helper; v2 changes only progress serialization and output paths, passes same semantic checks on existing daemon without restart or reindex.",
+  "evidence": {
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-compiler-context-implementation-20261110.json",
+      "sha256": "1569af7cdd0a060a6e11cdaa69b3dd6a9264c322d79e26458eb7356840acda1f"
+    },
+    "shipping_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-shipping-20261110.json",
+      "sha256": "3cb34e0917b819ff89436de2621311ddd3064c4b9f32205d112e5a3c54bf5370"
+    },
+    "paired_package": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-paired-package.json",
+      "sha256": "86bb0f241c809d5f348e5cd642093fb72b1d4cf9a8281207eaf925a7fe80efa3"
+    },
+    "cold_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-cold-v1\\acceptance.json",
+      "sha256": "0d2f97b0c91e5ac3d68147cf6ccc98c4dbbe839e9514fca6725619599852f5f6"
+    },
+    "post_migration_context": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-post-cold-context-20261110.json",
+      "sha256": "390b776a8c0f8ff9a5eab3ca2af7d2031da219ca4b8f94655b11024020ce3efd"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-release-gates.json",
+      "sha256": "8f20af5efd770f1f12731d6d020addf8e43e3cb020e5276eb3dc2ff930140e7c"
+    },
+    "install_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-install-validation.json",
+      "sha256": "4938e4408253c717d11668d1613b78c86dc8e3c7faf7d88e0b6f1fa70941cb8f"
+    },
+    "install_upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-install-upgrade.json",
+      "sha256": "719b8c4b13085daac05c9f3b9416813c4960cb5656a25209922d87e77af9d201"
+    },
+    "normal_installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-normal-v2.json",
+      "sha256": "babd9ec1f2b0ea53bdbaf6504c7e4b0b158e160d31dd1c0d547a841dfd147fab"
+    },
+    "config_hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-config-hold-20261110.json.released.json",
+      "sha256": "18405408e5c66e78a70cda2233aae97baeeca9c57979479283498a9c7127fc2c"
+    },
+    "installer_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-installer-gate-20261110-review.json",
+      "sha256": "2dd1baf8c49f6b93e556702c73650eace7fc609bd31040be029aa6317a4901eb"
+    },
+    "observer_v2_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-normal-v2-review.json",
+      "sha256": "20ac1e9be8d12fc5158e34dbf04fefcd0359b94d491185ee3ab2ca68a40581d2"
+    },
+    "initial_installer_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-install-validation-v1-refusal.json",
+      "sha256": "c033dc22942774d9594cad38073fc0f8cd7cd890636e0b81454a327792cb04fe"
+    },
+    "initial_observer_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-normal-v1-failure.json",
+      "sha256": "0a6a188448ee3e2f35a59679a7a9db79f765d8eed45f1368946c0566697ace48"
+    },
+    "frozen_latest_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-refactor-qa-20261110.json",
+      "sha256": "c0f68eed69cb0eb7ff42cb830e1d611460c9f5b5756c9d75e06d46246d745093"
+    }
+  },
+  "resources": {
+    "configuration_hold_released": true,
+    "configuration_unchanged": true,
+    "cold_process_streams_and_temp_closed": true,
+    "build_temp_removed": true,
+    "normal_observer_pipe_closed": true,
+    "runtime_restored": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-20261110-package",
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-bbbe0c6615da434faa4347055d20ab50",
+    "retained_install_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-bbbe0c6615da434faa4347055d20ab50.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-bbbe0c6615da434faa4347055d20ab50.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-bbbe0c6615da434faa4347055d20ab50.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-bbbe0c6615da434faa4347055d20ab50.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-bbbe0c6615da434faa4347055d20ab50.04-committed-no-start.json"
+    ],
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, prior pair, journals and diagnostics for review; deletion requires approval of exact paths. No preexisting folders removed."
+  },
+  "agent_usefulness": {
+    "fresh_task_win_proven": false,
+    "latest_frozen_comparison": {
+      "assisted": 5,
+      "source_only": 9,
+      "maximum": 10
+    },
+    "frozen_tasks_replayed_or_rescored": false,
+    "interpretation": "A real missing dependency is fixed and deployed. This does not establish that agents complete broader work better with these tools."
+  },
+  "goal_complete": false,
+  "original_31_findings_or_19_full_gates_closed": false,
+  "next_action": "Continue the original CodeMap/Blast usefulness task with a new untouched agent task and independent source criteria. Preserve all frozen comparisons; choose any next code change from actual task failures rather than starting another audit."
+}
