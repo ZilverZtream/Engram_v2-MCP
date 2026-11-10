@@ -928,7 +928,11 @@ internal sealed class AstEmitter
                 else if (invocationSymbol.CandidateSymbols.OfType<IMethodSymbol>()
                     .Any(candidate => candidate.ContainingType.TypeKind == TypeKind.Interface)
                     || (inv.Expression is MemberAccessExpressionSyntax access
-                        && model.GetTypeInfo(access.Expression).Type?.TypeKind == TypeKind.Interface))
+                        // A leading-dot invocation inside With has no explicit
+                        // receiver. Its resolved symbol above remains valid;
+                        // querying a null syntax node aborts the whole file.
+                        && access.Expression is { } receiver
+                        && model.GetTypeInfo(receiver).Type?.TypeKind == TypeKind.Interface))
                 {
                     // An ambiguous interface call must not enter Rust's
                     // generic name/arity resolver as an ordinary call.

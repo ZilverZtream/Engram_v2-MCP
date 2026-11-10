@@ -828,6 +828,66 @@ fn statically_typed_receiver_retains_its_verified_declaring_type() {
     assert!(calls[0]["metadata"].get("source_call_target_v1").is_none());
 }
 
+/// Leading-dot calls must not truncate a file before declaration metadata or
+/// later callers are emitted. A missing member stays unresolved, while exact
+/// source and interface calls retain their existing binding routes.
+#[test]
+fn with_invocations_preserve_declarations_and_later_source_call_witnesses() {
+    let Some(bin) = sidecar_path() else { return; };
+    let owned = match std::env::var_os("ENGRAM_TEST_TMPDIR") {
+        Some(root) => tempfile::TempDir::new_in(root).unwrap(),
+        None => tempfile::TempDir::new().unwrap(),
+    };
+    let helper = "Namespace Example\nPublic Interface IContract\n Sub Run()\nEnd Interface\nPublic Class Helper\n Public Sub Touch()\n End Sub\n Public Shared Sub Harden(value As Helper)\n With value\n .Touch()\n End With\n End Sub\nEnd Class\nEnd Namespace\n";
+    let first = "Namespace Example\nPublic Class FirstCaller\n Public Sub Work(value As Helper)\n Helper.Harden(value)\n End Sub\nEnd Class\nEnd Namespace\n";
+    let second = "Public Class SecondCaller\n Public Sub Work(value As Example.Helper, contract As Example.IContract)\n With value\n .Touch()\n .Missing()\n End With\n With contract\n .Run()\n End With\n Example.Helper.Harden(value)\n End Sub\nEnd Class\n";
+    let sources = [("helper.vb", helper), ("first.vb", first), ("second.vb", second)];
+    let paths: Vec<_> = sources.iter().map(|(name, source)| {
+        let path = owned.path().join(name);
+        std::fs::write(&path, source).unwrap();
+        path
+    }).collect();
+    let mut harness = Harness::start(&bin);
+    let plan = harness.send(serde_json::json!({"cmd":"plan_refresh", "project_root":owned.path(),
+        "files":paths, "paths":paths, "compilation_policy":{
+            "max_total_source_bytes":1048576, "max_file_source_bytes":524288,
+            "max_trees":64, "allocation_multiplier":32, "tree_overhead_bytes":8192}}));
+    assert!(plan.get("error").is_none(), "plan: {plan}");
+    let prepared = harness.send(serde_json::json!({"cmd":"refresh_project", "plan_id":plan["compilation_plan"]["id"]}));
+    assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+    let parsed: Vec<_> = sources.iter().zip(&paths).map(|((_, source), path)| {
+        let response = harness.send(serde_json::json!({"cmd":"parse", "project_root":owned.path(),
+            "path":path, "source":source}));
+        assert!(response.get("error").is_none(), "parse: {response}");
+        assert!(!response["symbols"].as_array().unwrap().iter().any(|s| s["name"] == "file_parse_error"),
+            "With member syntax must not abort this valid file: {response}");
+        response
+    }).collect();
+    let target = parsed[0]["symbols"].as_array().unwrap().iter()
+        .find(|s| s["name"] == "Example.Helper.Harden").unwrap();
+    assert_eq!(target["metadata"]["semantic_member_id"], "M:Example.Helper.Harden(Example.Helper)");
+    for (caller, source, witness_line) in [(&parsed[1], "Example.FirstCaller.Work", "4"),
+                                          (&parsed[2], "SecondCaller.Work", "10")] {
+        let calls: Vec<_> = caller["edges"].as_array().unwrap().iter()
+            .filter(|e| e["kind"] == "calls" && e["target_name"] == "Example.Helper.Harden").collect();
+        assert_eq!(calls.len(), 1, "each real source invocation must survive preceding With calls");
+        assert_eq!(calls[0]["source_name"], source);
+        assert_eq!(calls[0]["metadata"]["call_site_line"], witness_line);
+        let locator: serde_json::Value = serde_json::from_str(calls[0]["metadata"]["source_call_target_v1"].as_str().unwrap()).unwrap();
+        assert_eq!(locator["file_path"], "helper.vb");
+        assert_eq!(locator["semantic_id"], target["metadata"]["semantic_member_id"]);
+    }
+    let later = parsed[2]["edges"].as_array().unwrap();
+    assert!(later.iter().any(|e| e["metadata"]["interface_call_status"] == "source_located"),
+        "With interface dispatch still follows its exact contract route");
+    let missing = later.iter().find(|e| e["kind"] == "calls" && e["target_name"] == ".Missing").unwrap();
+    assert_eq!(missing["metadata"]["unresolved"], "true");
+    assert!(missing["metadata"].get("source_call_target_v1").is_none(), "no guessed source binding");
+    harness.send(serde_json::json!({"cmd":"shutdown"}));
+    assert!(harness.child.wait().unwrap().success());
+    drop(harness); // Close the child before removing this test's source fixture.
+}
+
 /// Both logger overloads accept five arguments. Compiler selection, source
 /// navigation and the call-site witness must survive either declaration order.
 #[cfg(windows)]
