@@ -11797,7 +11797,7 @@
       "sha256": "822297b74101d93e109cfcdc66a23fa0b9c986bf040b59ca8dcac710d410f95b"
     },
     "selected_forward_interface_navigation": {
-      "state": "ORIGINAL_CANDIDATE_FAIL_PRESERVED_INSTALLED_RUNTIME_RESTORED",
+      "state": "DEPLOYED_NORMAL_VERIFIED_ADMITTED_INTERFACE_NAVIGATION_WRITE_GAPS_UNFINISHED",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-implementation-20261110.json",
         "sha256": "e0414f2e68fb2b5bebaf58fa8efc9a21e043cb1da26aa0ae7d9f8fbbd15a7305"
@@ -11808,7 +11808,11 @@
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-candidate-failure-20261110.json",
         "sha256": "4434919c6af27800101ff4b5227350363dbfb8d9220ca31ad7e2a22328322012"
       },
-      "original_positive_write_expectations_unmet": true
+      "original_positive_write_expectations_unmet": true,
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-delivery-20261110.json",
+        "sha256": "83c74b88a4e399135fb4327ed79c3dded6c1857106507ffd73d97de182084f30"
+      }
     },
     "prepared_time_report_query_task": {
       "task_spec": {
@@ -11819,7 +11823,24 @@
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-oracle.json",
         "sha256": "470e4e6b0712b0aa4c58238f1d06ba9b3fb515728b9b48c1835438e8b3b3ae77"
       },
-      "candidates_started": false
+      "candidates_started": true,
+      "status": "RUNNING_FIXED_CRITERIA_SAME_CAPS_NO_RETRY",
+      "candidate_agents": [
+        "/root/time_report_query_alder",
+        "/root/time_report_query_beech"
+      ],
+      "contract": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-contract.json",
+        "sha256": "70eefcc257cae9d8763b0f71994e4ea256611029fc281a0cc763b2bc839dfe91"
+      },
+      "binding": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-binding.json",
+        "sha256": "360f7d7f4731a64d4ab429c1e105694285a035cceccccb05c20d5265e66c39ce"
+      },
+      "readiness": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-time-report-query-qa-20261110-readiness.json",
+        "sha256": "eea63cf57438f96a78432cde084474c44e10de974ec4cb0074889bef12e43dd6"
+      }
     },
     "preexisting_http_interface_binding_gap": {
       "state": "RECORDED_UNFINISHED_NOT_SELECTED_AUTOMATICALLY",
@@ -11828,6 +11849,10 @@
         "sha256": "0a0c53dd6d1a009f1b742767a6f4b70eeea05a66233d25e9b7cdac09070fce8e"
       },
       "effect": "Request.Headers.IfMatch timestamp expressions leave Update/Delete unresolved under existing partial compiler context. No production binding or repair claimed."
+    },
+    "latest_forward_interface_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-forward-interface-delivery-20261110.json",
+      "sha256": "83c74b88a4e399135fb4327ed79c3dded6c1857106507ffd73d97de182084f30"
     }
   }
 }
