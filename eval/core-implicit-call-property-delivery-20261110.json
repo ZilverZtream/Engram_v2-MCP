@@ -1,0 +1,204 @@
+{
+  "status": "DEPLOYED_SELECTED_IMPLICIT_CALL_WITNESS_CORRECTION_FULL_GOAL_UNFINISHED",
+  "at_utc": "2026-11-10T01:43:12.935325+00:00",
+  "source_commit": "a0639748757781a1532709e773b9cd66bcd4c173",
+  "rust_server_source_commit": "1a3524e5f51917a83891cec914a339a744d9814b",
+  "problem": "UpdateByID429 existingOrders.Max without parentheses was indexed as the unrelated WMS LayerScaleHint.max property, and offered as a dependency by CodeMap and both impact tools.",
+  "delivered_behavior": "Known-receiver implicit call reads cannot borrow a global property without positive semantic evidence. Preserve scoped source properties/indexers, exact implicit source-array loop properties, and prior direct assignment-target recovery. Direct writes remain lexical static observations when binding is unavailable.",
+  "actual_result": {
+    "source_generation": 3142,
+    "false_wms_target_absent_from_selected_caller": true,
+    "selected_caller_original_menu_retained_except_wms": {
+      "baseline": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-remaining-tools-20261110.json",
+        "sha256": "98b1073bbb69576000e0ca4c9afaf92bf8bac513c231629711677fd1f42a15d7"
+      },
+      "baseline_generation": 3140,
+      "excluded_demonstrated_target": "sym:property:Site/App_Code/integration/code/gis/Layer/DataSources/WMS/v1.1.1/capabilities_1_1_1.vb:_integration.gis.layer.datasource.wms.v1_1_1.LayerScaleHint.max:1209",
+      "excluded_source_lines": [
+        429
+      ],
+      "retained_menu_items": 4,
+      "only_normalized_fields": [
+        "generation",
+        "edge_generation"
+      ],
+      "full_selected_menu_except_demonstrated_target_preserved": true,
+      "two_property_write_references_preserved": true,
+      "write_references": {
+        "sym:property:Site/App_Code/iFalt.designer.vb:ra_redovisningsartiklar.ra_aktiv:44280": [
+          411
+        ],
+        "sym:property:Site/App_Code/iFalt.designer.vb:ra_redovisningsartiklar.ra_forklaring:44314": [
+          412
+        ]
+      },
+      "scope": "Exact returned selected-caller property menu preservation against the original known-source observation. Indexed references are not compiler/runtime write-mode proof; metadata coverage gaps remain explicit."
+    },
+    "classify_automatic_band3_preserved": true,
+    "coordinate_count5_preserved": true,
+    "installed_normal_requests": 21,
+    "installed_pid_observed": 49412,
+    "pending_request_id": null
+  },
+  "validation": {
+    "native_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-native-v5-20261110.json",
+      "sha256": "39800751b59cc9e01cfd240eadb115d8ac2edaa30d468f943a319a1f99ae2e64"
+    },
+    "native15_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-native-tests-v4-20261110.json",
+      "sha256": "f67d6b16f2e00ffa8025ef53cbe168c1d8baa5d66463d09e7f7ae4845ba84394"
+    },
+    "native_five_file_comparison": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-actual-v4-20261110.json",
+      "sha256": "770d4feeb8046a97e850db78167870f87890765bdfa657568c778b48f5c77f3b"
+    },
+    "native_delta_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-delta-review-v2-20261110.json",
+      "sha256": "e246223c55589672c35dff558bb9c891f6d559adf9175a7de5dda6963da2e5fa"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-source-review-v3-20261110.json",
+      "sha256": "fb30d1967a4d150f27b39e744d6d188b06d41e75cd38aec69c02f303409fbdbf"
+    },
+    "cold": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-cold-v1\\acceptance.json",
+      "sha256": "57c9eee3269fa305a52ee0682320ebc3b86d596975faac25e8bed8e945c055d9"
+    },
+    "installed_normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-normal-v2.json",
+      "sha256": "563b301c466db388094def734fe1e2e73af9a3953edc8758c89e98a8679e35ef"
+    },
+    "observer_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-observer-review-v2-20261110.json",
+      "sha256": "0653e3ed6abbbf87797d05f735b99b8dde62081c6fd17977cd49426cd7cd89d4"
+    }
+  },
+  "runtime": {
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-paired-package.json",
+      "sha256": "280372a101a1186abe07d03c054b659ecfad7318ab9c13449b785d2e0ca852bb"
+    },
+    "server_sha256": "7bb170bae054be5df22923fff19eeccc11075d5907bdd2923d8c433fd9dbfaed",
+    "manifest_sha256": "660646d2e35430122e27b6e9ec6d3d8c29c8b2ea6b5c0da4f3d0b918bc678fed",
+    "new_parser_identity": {
+      "contract": "vb-ingestion-parser-v4",
+      "entry_mvid": "0cd4594f-0a06-4380-8cd8-18ab7fc72128",
+      "roslyn_core_mvid": "ff5984b9-af9d-43fb-912d-3c4cda1761dd",
+      "roslyn_vb_mvid": "575815b5-da82-4f41-bc0f-d8d0a248bb2b"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-release-gates.json",
+      "sha256": "8b1c04517a1532daaf184fa331b2635cb0319c09ae0f85e235e02f576f02e356"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-install.json",
+      "sha256": "2d9ee4c943369b53c7ba6ac180c47a3191b9343ef16afa91d6e5d556e6546482"
+    },
+    "runtime_admission_binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-bindings.json",
+      "sha256": "abcfcd3a3f95891df3e0cc03d89115b94c61a7e08bb50202973f47795cccf6b1"
+    },
+    "post_cold_binding_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-bindings-post-cold.json",
+      "sha256": "3387e6733ec58fe51f4e35a2627a64679cc68ec3eaced1fdb31db62ede264d6c"
+    }
+  },
+  "candidate_history": [
+    {
+      "source_commit": "7141e78",
+      "result": "Rejected: native15 passed but actual five-file comparison removed three genuine Band links. Initial named-control PASS is not overall preservation.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-actual-20261110.json",
+        "sha256": "f65eefa1a9b202e6726209d5ea47729b959fc2dbf3a9d7f9cb2211a65217b244"
+      },
+      "review_addendum": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-source-review-regression-addendum-20261110.json",
+        "sha256": "0cf49f9d9bef873cd17dcd9291d861f6b8d4ca7e22f5a23aa341b71c7e9bf560"
+      }
+    },
+    {
+      "source_commit": "113597a",
+      "result": "Array origin recovery passed native controls; full-project selected caller lost two genuine With writes. Candidate was not installed. Its selected-witness cold PASS is retained with this limitation.",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-20261110-cold-v1\\acceptance.json",
+        "sha256": "94c1e386ae3d2b180cc81852cad4f81c3c896a3e1d69a542e105a25d87e0b9a4"
+      },
+      "generation_transition": [
+        3140,
+        3141
+      ]
+    },
+    {
+      "source_commit": "a0639748757781a1532709e773b9cd66bcd4c173",
+      "result": "Direct-write correction retained all four original selected-caller links except only the demonstrated WMS target; final native/cold/normal checks pass.",
+      "generation_transition": [
+        3141,
+        3142
+      ]
+    }
+  ],
+  "observer_errors_preserved": {
+    "before_impact_json_block_error": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-before-20261110.json",
+      "sha256": "c0d04a68fbb25b1022d2c6671977b428bb718cd07a94d5aec7972f174fbdf0d1"
+    },
+    "before_unsupported_blast_limit": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-continuation-20261110.json",
+      "sha256": "469f89b248e64057802e4770a741ccf2b4447e2df8ee2979b7f9b1a54df60d47"
+    },
+    "normal_pre_rpc_binding_hash_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-normal-v1.json",
+      "sha256": "bd0a92651a93235161e0ad9a34bc667cbba166436375fb99fd4f7a8284fb2688"
+    },
+    "binding_restoration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-binding-restoration.json",
+      "sha256": "221f32322221a6e8c2fb41dd83e3c644b641720c557544cc76781204b323db7d"
+    },
+    "normal_continuation_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-normal-continuation.py",
+      "sha256": "042c048a3e9dffa7402089cbfd91e86b2dca944dd1f60000f43dec31fffbd374"
+    },
+    "explanation": "Normal failed before RPC because root enriched mutable lifecycle fields. Exact original admission bytes were restored after verifying the recorded cold digest; enriched receipt retained separately. Unchanged reviewed normal verifier then used fresh output destinations. No third update or weakened criteria."
+  },
+  "preservation": {
+    "source_pins": 20,
+    "authored_notes": 300,
+    "other_project_metadata": 14,
+    "each_new_parser_refresh_once": true,
+    "total_candidate_refreshes": 2,
+    "source_membership_changes": 0,
+    "config_unchanged": true,
+    "findings31_unchanged": true,
+    "original19gates_unchanged": true,
+    "frozen_task_outcomes_unchanged": true
+  },
+  "resources": {
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-config-hold-20261110.json.released.json",
+      "sha256": "8f94f64a75384a7b69ac81b4bcbb826b9af029b2ba78c57b90268ab211fe07a7"
+    },
+    "cold_children_and_owned_temps_closed": true,
+    "normal_observer_closed": true,
+    "native_test_fixtures_closed_and_removed": true,
+    "retained_packages": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-20261110-package",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-implicit-call-property-v2-20261110-package"
+    ],
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-01390ca1389340b280b92ff7840f64d4",
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain named evidence/packages/backups for review. No preexisting directory deleted; exact-path approval required for later removal."
+  },
+  "limitations": [
+    "Selected-caller CodeMap still exposes seven missing-node coverage gaps.",
+    "Empty WMS direct graph means empty recorded evidence, not proof of semantic absence.",
+    "Direct write fallback preserves existing lexical evidence, not compiler receiver-binding guarantees.",
+    "No exhaustive project property-recall claim, frozen task replay or new full-agent task victory.",
+    "Frozen original full-QA grades remain PASS/PARTIAL/PARTIAL/FAIL/PARTIAL."
+  ],
+  "fresh_agent_task_win_proven": false,
+  "goal_complete": false,
+  "full_original_backlog_complete": false,
+  "original_full19gates_closed": false
+}
