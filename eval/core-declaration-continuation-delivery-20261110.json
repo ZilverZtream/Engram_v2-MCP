@@ -1,0 +1,135 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_DECLARATION_CONTINUATION",
+  "at_utc": "2026-11-10T00:55:44.822204+00:00",
+  "source_commit": "1a3524e5f51917a83891cec914a339a744d9814b",
+  "implementation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-20261110.json",
+    "sha256": "3ac4a7cce0a6c10b2c75ddba420777c4b7a7058e81b7a19011c8c54ab6678515"
+  },
+  "problem": "CodeMap selected an indexed editor declaration470..627 but its offered source continuation read590..709 after preview470..589. The required Save callback lies594..596 inside the remaining590..627span.",
+  "delivered_behavior": "Separate executable declaration_continuation reads590..627. Original next_page still reads590..709. Actual candidate and installed CodeMap responses preserve every preexisting JSON field after removing the two added fields; source and other navigation retain their allocation.",
+  "actual_costs": {
+    "baseline_overview": 10615,
+    "installed_overview": 11056,
+    "new_action_overhead": 441,
+    "old_file_continuation": 8026,
+    "new_declaration_continuation": 3597,
+    "old_two_read_sequence": 18641,
+    "new_two_read_sequence": 14653,
+    "net_utf8_bytes_saved": 3988,
+    "ordinary_lines": 120,
+    "declaration_remainder_lines": 38,
+    "scope": "Same known-source two-call navigation sequence, not a complete task cost or fresh-agent comparison."
+  },
+  "verification": {
+    "integration_tests_passed": 53,
+    "budget_test_passed": 1,
+    "candidate_task_calls": 3,
+    "normal_task_calls": 3,
+    "candidate_protocol_and_lifecycle_requests": 7,
+    "normal_protocol_and_lifecycle_requests": 6,
+    "all150_tool_definitions_unchanged": true,
+    "source_pins_unchanged": 19,
+    "source_generation": 3140,
+    "source_index_update_performed": false,
+    "unchanged_native_assets": 214,
+    "registry_selection_other14_metadata_preserved": true,
+    "actual_save_callback_and_ranges_checked_against_current_source": true
+  },
+  "installed": {
+    "server_sha256": "7bb170bae054be5df22923fff19eeccc11075d5907bdd2923d8c433fd9dbfaed",
+    "manifest_sha256": "ceabb5bfd8f24b033b000adedad9074f8979fda5bda231695ff3bdb9bd53e788",
+    "normal_primary": {
+      "pid": "8712",
+      "started_at_ms": "1794272061242",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    }
+  },
+  "evidence": {
+    "before": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-before-20261110.json",
+      "sha256": "188b861583c56729fbcfbf7c00db70e7f3a2faf6c2d17e441ae905b5bb117166"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-paired-package.json",
+      "sha256": "31a9f92e998a5e1b5c032546dbf0849866ea3c423503be5bfa4709cf902f80a8"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-candidate-v1\\acceptance.json",
+      "sha256": "1650a3826b3a495f3051e25b94e173900133ea0ad1871140271e273936bd58ca"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-normal-v1\\acceptance.json",
+      "sha256": "957419dfee7b640ee80a7aebeed5978d2914fda0a20aff2d75bcb4b1476e51ea"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-install.json",
+      "sha256": "610a8d9734c188c3e1e1deae91c12ec588320d48c86ef66b9eaceaa5bcbda72c"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-config-hold-20261110.json.released.json",
+      "sha256": "d7bfbb37c179a787cc178f1f93e25375d49346d8903fc131a24473103e63e72c"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-release-gates.json",
+      "sha256": "0d65d5486841f700627bc8eef2eaa985609a1db0abd135422a2b782e3aa34781"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-shipping-20261110.json",
+      "sha256": "f413016b7104d505f1bc35066ff91a89e4b89421f19c72561369cb3f3bf952bf"
+    },
+    "tests": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-server-tests-20261110.json",
+        "sha256": "f02fd647704dd121607d06b6d9274fc2fab5695ec30495f8743185ece5b5aba4"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-budget-test-20261110.json",
+        "sha256": "fa78de6c23c6c40de7f5dcc688cc2b448a4d268e40b4cd0829360a867680c5d6"
+      }
+    ],
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-local-review-20261110.json",
+      "sha256": "675a529cd78f2286632a35ecd430f67c3ae8d6d0e9e633f6dbd32b56795ec8a4"
+    },
+    "verifier_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-verifier-review.json",
+      "sha256": "21355bf67fa93533487a5beafea682511f56f4ea3ff1c1d90b68e1e470b30a09"
+    }
+  },
+  "preserved_preparation_failure": {
+    "first_attempt": "Failed before package/server copy: incorrectly required complete equality of test/build inventory key sets",
+    "correction": "All test input hashes must equal build input hashes; exactly8 additional build inputs separately checked against current source",
+    "additional_build_inputs": [
+      "scripts/build_windows_release.ps1",
+      "scripts/deploy_windows_release_pair.ps1",
+      "tools/vb_roslyn_sidecar/AstEmitter.cs",
+      "tools/vb_roslyn_sidecar/InvocationAnalyzer.cs",
+      "tools/vb_roslyn_sidecar/Program.cs",
+      "tools/vb_roslyn_sidecar/ReturnPathAnalyzer.cs",
+      "tools/vb_roslyn_sidecar/global.json",
+      "tools/vb_roslyn_sidecar/vb_roslyn_sidecar.csproj"
+    ]
+  },
+  "resources": {
+    "hold_released": true,
+    "both_observers_closed": true,
+    "pending_rpc": null,
+    "owned_test_build_and_verifier_temporary_directories_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-declaration-continuation-20261110-package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-2171d50de4d54a63ad67b53b8c04f443",
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, backup, original measurements and receipts for review/recovery until exact-path cleanup authorized; no preexisting folder removed."
+  },
+  "limits": [
+    "Indexed declaration spans remain unverified current method boundaries; compare source hashes across calls.",
+    "Additional action is omitted when either source or complete-response budget is full; existing content remains intact.",
+    "No claim this gap caused the original capped agent failure, and no task retry or favorable rescore.",
+    "Original full-task outcomes,31findings,19gates and parked work remain unchanged and unfinished where previously unfinished."
+  ],
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}
