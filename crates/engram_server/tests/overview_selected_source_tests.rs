@@ -4126,6 +4126,97 @@ fn codemap_metadata_recovers_late_callee_without_file_search_or_source_displacem
 }
 
 #[test]
+fn codemap_source_callee_samples_read_same_file_helpers_without_metadata_hop() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/Endpoint.vb";
+        const OTHER:&str="src/External.vb";
+        const HIDDEN:&str="src/private/Hidden.vb";
+        let mut lines:Vec<_>=(1..=260).map(|i|format!("' line {i}")).collect();
+        lines[9]="Sub Save()".into();lines[10]="LoadRows() : PersistRows()".into();lines[11]="End Sub".into();
+        for (start,name) in [(200,"LoadRows"),(220,"PersistRows"),(240,"FinishRows")] {
+            lines[start-1]=format!("Sub {name}()");lines[start]=format!("' current {name} implementation");lines[start+1]="End Sub".into();
+        }
+        let body=lines.join("\n");
+        publish_named_sources(&engram,&search,&[(PATH,&body),(OTHER,"Sub NewContext()\nEnd Sub"),(HIDDEN,"Sub Hidden()\nEnd Sub")]).await;
+        let source_id=format!("sym:function:{PATH}:Save:10");
+        let mut source=node(&source_id,"function","Save",PATH,1);source.start_line=10;source.end_line=12;
+        engram.state.graph.upsert_nodes(PID,&[source]).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_node_id":source_id,"include_source":true,"exclude_paths":["src/private"]});
+        let before=navigate(&engram,request.clone()).await;
+        let mut nodes=Vec::new();let mut edges=Vec::new();
+        for (path,name,start,end,generation) in [(PATH,"LoadRows",200,202,1),(PATH,"PersistRows",220,222,1),(PATH,"FinishRows",240,242,1),
+            (OTHER,"NewContext",1,2,1),(HIDDEN,"Hidden",1,2,1),(PATH,"StaleHelper",250,252,2)] {
+            let id=format!("sym:function:{path}:{name}:{start}");
+            let mut target=node(&id,"function",name,path,generation);target.start_line=start;target.end_line=end;nodes.push(target);
+            edges.push(Edge {source_id:source_id.clone(),target_id:id,namespace:"memory".into(),language:"vb".into(),
+                edge_kind:EdgeKind::Calls,weight:1,generation:1,metadata:Some(json!({"call_site_line":11})),updated_at_ms:1});
+        }
+        engram.state.graph.upsert_nodes(PID,&nodes).unwrap();engram.state.graph.upsert_edges(PID,&edges).unwrap();
+        let text=navigation_text(&engram,request).await;assert!(text.len()<=12*1024);
+        let after=navigation(&text);let calls=&after["called_declarations"];
+        assert_eq!(after["current_source"],before["current_source"],"A callee action cannot displace or alter the requested source/hash/navigation");
+        assert_eq!(after["candidates"],before["candidates"]);assert_eq!(after["selection"],before["selection"]);
+        let samples=calls["samples"].as_array().unwrap();assert_eq!(samples.len(),2,"Source view samples at most two helpers even when three local reads are admitted");
+        assert_eq!(calls["samples_shown"],samples.len());
+        assert_eq!(calls["admitted_observed"].as_u64().unwrap(),samples.len() as u64+calls["admitted_not_sampled"].as_u64().unwrap());
+        assert!(calls["sample_scope"].as_str().unwrap().contains("Not exhaustive"));
+        assert_eq!(calls["coverage_truncated"],true,"Excluded/nonselected callees remain visible as gaps");
+        for sample in samples {
+            assert_eq!(sample["file_path"],PATH);assert_eq!(sample["generation"],1);assert_eq!(sample["edge_generation"],1);
+            assert_eq!(sample["reference_lines"],json!([11]));
+            let read=&sample["source_read"];assert_eq!(read["tool"],"get_full_method_body");
+            let (_,current)=excerpt(&engram,read["arguments"].clone()).await;
+            let first=read["arguments"]["line_start"].as_u64().unwrap() as usize;
+            let last=read["arguments"]["line_end"].as_u64().unwrap() as usize;
+            assert_eq!(current["source_code"],lines[first-1..last].join("\n"));
+            assert_eq!(current["source_file_hash"],ContentHash::compute(body.as_bytes()).0);
+        }
+        assert!(!calls.to_string().contains("StaleHelper") && !calls.to_string().contains("Hidden"));
+        let metadata=navigate(&engram,after["metadata_recovery"]["arguments"].clone()).await;
+        for sample in samples {
+            assert!(metadata["called_declarations"]["items"].as_array().unwrap().contains(sample),"Source samples preserve full admitted metadata rows/actions");
+        }
+        assert_eq!(metadata["called_declarations"]["excluded_targets"],1);
+        assert!(metadata["called_declarations"]["coverage"]["non_selected_nodes"].as_u64().unwrap()>0);
+    });
+}
+
+#[test]
+fn codemap_source_callee_pressure_keeps_source_and_declaration_continuation() {
+    owned_case(true, |engram,search| async move {
+        const PATH:&str="src/Endpoint.vb";
+        let mut lines:Vec<_>=(1..=240).map(|i|format!("' context {i} {}","x".repeat(40))).collect();
+        lines[0]="Sub Save()".into();lines[179]="End Sub".into();
+        let body=lines.join("\n");publish_named_sources(&engram,&search,&[(PATH,&body)]).await;
+        let source_id=format!("sym:function:{PATH}:Save:1");
+        let mut source=node(&source_id,"function","Save",PATH,1);source.start_line=1;source.end_line=180;
+        engram.state.graph.upsert_nodes(PID,&[source]).unwrap();
+        let request=json!({"project_id":PID,"scope":PATH,"symbol_node_id":source_id,"include_source":true});
+        let before=navigate(&engram,request.clone()).await;
+        assert!(before["current_source"]["declaration_continuation"].is_object());
+        // Stay inside graph identity admission; pressure belongs to the
+        // optional rendered row, not an invalid adjacency key.
+        let name=format!("Helper{}","x".repeat(1880));let id=format!("sym:function:{PATH}:{name}:220");
+        assert!(id.len()<=2048);
+        let mut helper=node(&id,"function",&name,PATH,1);helper.start_line=220;helper.end_line=222;
+        engram.state.graph.upsert_nodes(PID,&[helper]).unwrap();
+        engram.state.graph.upsert_edges(PID,&[Edge {source_id:source_id.clone(),target_id:id,namespace:"memory".into(),language:"vb".into(),
+            edge_kind:EdgeKind::Calls,weight:1,generation:1,metadata:Some(json!({"call_site_line":2})),updated_at_ms:1}]).unwrap();
+        let text=navigation_text(&engram,request).await;assert!(text.len()<=12*1024);let after=navigation(&text);
+        assert_eq!(after["format"],"engram-codemap-source-v1");
+        assert_eq!(after["metadata_recovery"]["tool"],"get_codebase_overview");
+        assert_eq!(after["current_source"],before["current_source"],"Oversized optional rows cannot replace the existing body, file page or selected declaration continuation");
+        assert_eq!(after["candidates"],before["candidates"]);assert_eq!(after["coverage"],before["coverage"]);
+        assert_eq!(after["called_declarations"]["admitted_observed"],1);
+        assert!(after["called_declarations"].get("samples").is_none());
+        let metadata=navigate(&engram,after["metadata_recovery"]["arguments"].clone()).await;
+        assert_eq!(metadata["called_declarations"]["items"][0]["name"],name,"The original metadata recovery remains usable when source samples do not fit");
+        assert!(serde_json::to_vec(&metadata["called_declarations"]["items"][0]).unwrap().len()>12*1024-text.len(),
+            "The admitted full row alone exceeds spare room after the cue and continuation; this fixture must exercise sample rendering pressure");
+    });
+}
+
+#[test]
 fn codemap_callable_metadata_pressure_drops_only_new_rows() {
     owned_case(true, |engram,search| async move {
         const PATH:&str="src/Endpoint.vb";

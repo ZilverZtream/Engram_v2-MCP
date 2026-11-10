@@ -224,7 +224,7 @@ fn finish_codemap_source(
 fn append_codemap_declaration_continuation(
     value: &serde_json::Value, baseline: String, limit: usize,
     render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
-) -> Result<String, String> {
+) -> Result<(serde_json::Value, String), String> {
     use serde_json::json;
     let action = || -> Option<serde_json::Value> {
         let source = &value["current_source"];
@@ -248,16 +248,50 @@ fn append_codemap_declaration_continuation(
             "line_end":last.min(end+120),"context_lines":0,
             "include_caller_bodies":false,"output_json":true}}))
     };
-    let Some(action) = action() else { return Ok(baseline) };
+    let Some(action) = action() else { return Ok((value.clone(), baseline)) };
     let mut trial = value.clone();
     trial["current_source"]["declaration_continuation"] = action;
     trial["current_source"]["declaration_continuation_scope"] = json!(
         "Remaining indexed declaration range, not verified current method bounds or binding. Compare source hashes across reads.");
     if serde_json::to_vec(&trial["current_source"]).map_err(|e|e.to_string())?.len() > 8*1024 {
-        return Ok(baseline);
+        return Ok((value.clone(), baseline));
     }
     let text = render(&trial)?;
-    Ok(if text.len() <= limit { text } else { baseline })
+    Ok(if text.len() <= limit { (trial, text) } else { (value.clone(), baseline) })
+}
+
+/// Full admitted rows only: samples never replace the cue, declaration
+/// continuation, source text or existing navigation to make themselves fit.
+fn append_codemap_same_file_callable_samples(
+    value: &serde_json::Value, baseline: String, callables: Option<&serde_json::Value>, limit: usize,
+    render: &dyn Fn(&serde_json::Value) -> Result<String, String>,
+) -> Result<String, String> {
+    use serde_json::json;
+    let Some(items) = callables.and_then(|calls|calls["items"].as_array()) else { return Ok(baseline) };
+    let Some(path) = value["current_source"]["file_path"].as_str() else { return Ok(baseline) };
+    if !value["called_declarations"].is_object() { return Ok(baseline); }
+    let mut trial = value.clone();
+    trial["called_declarations"]["samples"] = json!([]);
+    trial["called_declarations"]["sample_scope"] = json!(
+        "At most2 same-file admitted callees in retained order, using spare response space. Not exhaustive; indexed spans and witnesses are not binding or current method-boundary proof.");
+    let mut result = baseline;
+    let mut shown = 0;
+    for row in items.iter().filter(|row| row["file_path"] == path
+        && row["source_read"]["tool"] == "get_full_method_body"
+        && row["source_read"]["arguments"]["file_path"] == path) {
+        trial["called_declarations"]["samples"].as_array_mut().unwrap().push(row.clone());
+        trial["called_declarations"]["samples_shown"] = json!(shown+1);
+        trial["called_declarations"]["admitted_not_sampled"] = json!(items.len()-shown-1);
+        let text = render(&trial)?;
+        if text.len() <= limit {
+            result = text;
+            shown += 1;
+            if shown == 2 { break; }
+        } else {
+            trial["called_declarations"]["samples"].as_array_mut().unwrap().pop();
+        }
+    }
+    Ok(result)
 }
 
 /// Append only after the complete existing navigation/property/source response
@@ -269,7 +303,10 @@ fn append_codemap_callables(
     use serde_json::json;
     let baseline = render(value)?;
     let finish = |value: &serde_json::Value, text: String| {
-        if source_view { append_codemap_declaration_continuation(value, text, limit, render) }
+        if source_view {
+            let (value, text) = append_codemap_declaration_continuation(value, text, limit, render)?;
+            append_codemap_same_file_callable_samples(&value, text, callables, limit, render)
+        }
         else { Ok(text) }
     };
     let Some(callables) = callables else { return finish(value, baseline) };
@@ -6451,21 +6488,21 @@ mod tests {
                     "arguments":{"project_id":"p","file_path":"src/editor.ts","line_start":481}}}});
         let render = |value: &Value| serde_json::to_string(value).map_err(|error|error.to_string());
         let original = render(&page).unwrap();
-        let roomy = super::append_codemap_declaration_continuation(&page, original.clone(), 12*1024, &render).unwrap();
+        let (_, roomy) = super::append_codemap_declaration_continuation(&page, original.clone(), 12*1024, &render).unwrap();
         let mut added: Value = serde_json::from_str(&roomy).unwrap();
         assert_eq!(added["current_source"]["declaration_continuation"]["arguments"]["line_start"],481);
         assert_eq!(added["current_source"]["declaration_continuation"]["arguments"]["line_end"],600);
         added["current_source"].as_object_mut().unwrap().remove("declaration_continuation");
         added["current_source"].as_object_mut().unwrap().remove("declaration_continuation_scope");
         assert_eq!(added,page,"Optional recovery must not change source, existing pagination, candidates or admitted callable facts");
-        assert_eq!(super::append_codemap_declaration_continuation(&page, original.clone(), original.len(), &render).unwrap(),original,
+        assert_eq!(super::append_codemap_declaration_continuation(&page, original.clone(), original.len(), &render).unwrap().1,original,
             "A full reply must remain byte-identical when the new action cannot fit");
         page["current_source"]["source_code"] = json!("");
         let remaining = 8*1024 - serde_json::to_vec(&page["current_source"]).unwrap().len() - 64;
         page["current_source"]["source_code"] = json!("x".repeat(remaining));
         assert!(serde_json::to_vec(&page["current_source"]).unwrap().len() <= 8*1024);
         let original = render(&page).unwrap();
-        assert_eq!(super::append_codemap_declaration_continuation(&page, original.clone(), 12*1024, &render).unwrap(),original,
+        assert_eq!(super::append_codemap_declaration_continuation(&page, original.clone(), 12*1024, &render).unwrap().1,original,
             "The preview cap also forbids buying a continuation by discarding existing source bytes");
     }
 
