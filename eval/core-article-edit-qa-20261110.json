@@ -1,0 +1,183 @@
+{
+  "status": "NEW_CURRENT_ARTICLE_QA_BOTH_4_5_OF_5_NO_ASSISTED_QUALITY_UPLIFT",
+  "at_utc": "2026-11-10T02:08:43.026570+00:00",
+  "implementation_baseline": "83cdbeca6d8b265171039ae1ce8416ae06d1bd5a",
+  "task": "Review the CURRENT article-edit workflow in OciusX for QA coverage. Starting point: Site/App_Code/redovisning/code/redovisningsartiklar.vb, UpdateByID. Decide whether tests of this method alone are sufficient to sign off article edits. Trace one actual caller through its edit request, persistence and returned/client outcome; account for ordinary edited fields, optional order/category inputs and a missing article. Give the minimum regression matrix justified by inspected current code, with concrete inputs and expected results. Separate existing source behavior from desired business policy, direct calls from unresolved leads, and source evidence from runtime/deployment assumptions. Do not edit application code or invent a requested behavior change. Cite source paths/lines; final answer at most1200words.",
+  "acceptance_criteria": [
+    "Identify the actual owner/signature and current ordinary field updates, missing-row behavior and return contract from source.",
+    "Trace a representative real request/caller boundary: input parsing/defaults, validation or guards, invocation and response/client interpretation; disclose any uninspected bridge.",
+    "Explain order/category behavior, including omitted or sentinel inputs, category-change ordering and representative empty/populated-category outcomes without inventing policy.",
+    "Identify the actual persistence boundary and relevant failure/side-effect limits; avoid unsupported atomicity, concurrency, authorization or successful-response guarantees.",
+    "Give a source-supported concrete expected-result regression matrix and justified method-only sign-off decision; state uninspected caller, configuration and runtime coverage."
+  ],
+  "generation": 3142,
+  "installed_server_sha256": "7bb170bae054be5df22923fff19eeccc11075d5907bdd2923d8c433fd9dbfaed",
+  "installed_manifest_sha256": "660646d2e35430122e27b6e9ec6d3d8c29c8b2ea6b5c0da4f3d0b918bc678fed",
+  "protocol": {
+    "task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-task.json",
+      "sha256": "6e303417dce10cf01949420690c463700ce8cb7b78426be06619f50afaad9ff5"
+    },
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-contract.json",
+      "sha256": "6f488bc2c6bdf3676942b33c9391d41a72531b652680b384a299eb9802eb520b"
+    },
+    "binding": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-binding.json",
+      "sha256": "7eca1c89652a329ba660a7821845c7833c3878e8e3de00a07faca1f495c623ca"
+    },
+    "readiness": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-readiness.json",
+      "sha256": "837f1810ca52226079ef6b454e95e8d9fbc8db9877504273e4d10d2dbf0150fe"
+    },
+    "relay": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\run_core_matched_qa_v3_20261109.py",
+      "sha256": "02a4ccc3e8abb6ce1787f8e9d699d528744caaab4b79d542a22f75b29dd04a02"
+    },
+    "limits": {
+      "requests": 8,
+      "delivered_utf8_bytes": 65536
+    },
+    "fresh_candidate_threads": true,
+    "history_blind_or_held_out": false,
+    "exposure": "Both disclosed injected workspace/AGENTS including prior Engram progress; neither saw task-specific source/old answers before setup. Root knew the starting declaration from a real witness defect.",
+    "blinding": "Independent source oracle frozen before answers. Judge saw opaque answers/source availability; identities/costs/traces withheld until quality froze. Prose/ranges could suggest capabilities; strict blinding not claimed.",
+    "new_benchmark_infrastructure": false
+  },
+  "independent_source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-source-oracle.json",
+    "sha256": "5a3aa1769ea941fb5d893d8cddbb36df901c3f05354edf3aedd8804dc3d64c1b"
+  },
+  "source_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-oracle-source-verification.json",
+    "sha256": "24f5b38843621308cc28ad0f2e70e6a3f8b0d7687b44f86b401e8ce10988a328"
+  },
+  "quality_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-blind-judgment.json",
+    "sha256": "558d590490bf10b50a56bd9265aaa8ced007d99f0e0392a01b052e0a24f4b9de"
+  },
+  "arms": {
+    "assisted": {
+      "opaque_label": "B",
+      "agent": "/root/article_maple",
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-maple-answer.txt",
+        "sha256": "feabf86f1b5ca2d7c2997b157dbd84a1453b5c06804f7811fde30615a9f802c7"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-maple-private-ledger.json",
+        "sha256": "4cea84fbfcb738c1e9c1e52664fcfc3473d12ad7336485d7d9d1c0e4e02c1f12"
+      },
+      "grades": [
+        1,
+        0.5,
+        1,
+        1,
+        1
+      ],
+      "score": 4.5,
+      "word_count": 981,
+      "requests": 6,
+      "setup_utf8_bytes": 20365,
+      "returned_utf8_bytes": 43556,
+      "total_delivered_utf8_bytes": 63921,
+      "request_seconds_sum": 15.722021199995652,
+      "ledger_terminal_observation": "READY",
+      "answer_completed": true,
+      "public_tool_calls": [
+        {
+          "tool": "get_codebase_overview",
+          "bytes": 10651
+        },
+        {
+          "tool": "compute_blast_radius",
+          "bytes": 9160
+        }
+      ],
+      "withheld_responses": []
+    },
+    "source_only": {
+      "opaque_label": "A",
+      "agent": "/root/article_hazel",
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-hazel-answer.txt",
+        "sha256": "79ecdd1d2cf1c6c719c17c5be4992ff7a5db5309b3d1756d174b07518d1e8df4"
+      },
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-hazel-private-ledger.json",
+        "sha256": "da1031cd29d09f9032490b3b3a9939c20db0ad637bae41cd9504377d2a191dbb"
+      },
+      "grades": [
+        1,
+        0.5,
+        1,
+        1,
+        1
+      ],
+      "score": 4.5,
+      "word_count": 894,
+      "requests": 6,
+      "setup_utf8_bytes": 4839,
+      "returned_utf8_bytes": 50062,
+      "total_delivered_utf8_bytes": 54901,
+      "request_seconds_sum": 15.20198769995477,
+      "ledger_terminal_observation": "STOPPED_BYTE_BUDGET",
+      "answer_completed": true,
+      "public_tool_calls": [],
+      "withheld_responses": [
+        {
+          "utf8_bytes": 20671,
+          "sha256": "9e698ecb42481372541927621252cc4f18d10d3213af4470f2fc0bc49cf1f144"
+        }
+      ]
+    }
+  },
+  "result": {
+    "graded_quality": "Tie4.5/5; both criterion2partial",
+    "qualitative_preference": "source_only, slight",
+    "material_false_guidance_observed": false,
+    "remaining_gap": "Request/control-binding, TextToInt parser defaults and client/framework outcome remain incomplete. Assisted also left actual rebind body uninspected.",
+    "usefulness_observed": "Actual CodeMap selected the declaration and current body; Blast exposed real caller leads subsequently used. This pair does not establish comparative quality or productivity benefit.",
+    "quality_uplift_established": false
+  },
+  "attribution_limits": [
+    "One paired task with supplied starting declaration, not a held-out or general productivity result.",
+    "Same8request/65536byte caps and ordinary source capabilities; all setup bytes charged. Upfront five-tool schema cost differs from amortized or deferred discovery.",
+    "Wide source reads and incomplete boundary choices can explain omissions; no backend defect is inferred from grades alone.",
+    "Source-only broad markup read was withheld for the diagnostic byte cap, not a public tool failure.",
+    "Both broad ordinary Site searches reached15second limits; results differed. Source search is not exhaustive absence evidence.",
+    "No application tests, HTTP/browser/database execution or app edits."
+  ],
+  "separate_selected_navigation_change": {
+    "before_source_reply_bytes": 10651,
+    "exact_metadata_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-callee-recovery-before-20261110.json",
+      "sha256": "cd051a64f63a389110a5a8c202b2f4f80847b589ce885a2d1a8171ae837a8eca"
+    },
+    "metadata_hop_bytes": 11360,
+    "exact_emitted_helper_read": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-callee-source-before-20261110.json",
+      "sha256": "7e1fae52c8cf0edb52f1af4b9d7e39714ecf82988195aa1be6429fcaea47459c"
+    },
+    "helper_source_bytes": 2539,
+    "helper_lines": [
+      27,
+      37
+    ],
+    "decision": "Offer a bounded same-file admitted callee read sample directly in source view using spare reply room after existing facts and continuation. Existing metadata list remains. Actual action availability/cost gap, not a claimed cause of criterion2partial or a frozen candidate win.",
+    "implementation_status": "IN_PROGRESS_NO_BUILD_OR_DELIVERY_CLAIM"
+  },
+  "resources": {
+    "pending_rpc": null,
+    "observers_closed": true,
+    "relay_owned_locks_removed": true,
+    "new_temporary_fixtures": [],
+    "source_hashes_rechecked": true,
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain new task/setup/requests/replies/oracle/answers/ledgers under existing V; no preexisting folders removed."
+  },
+  "prior_frozen_outcomes_unchanged": true,
+  "fresh_full_task_win_proven": false,
+  "goal_complete": false,
+  "original_full19gates_closed": false
+}

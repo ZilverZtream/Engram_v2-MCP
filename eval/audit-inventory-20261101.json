@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T01:43:12.935325+00:00",
+    "at_utc": "2026-11-10T02:08:43.026570+00:00",
     "reason": "Implicit-call false WMS dependency corrected and installed at generation3142. Real selected caller retains all four original valid menu entries including With writes411/412; Band3 and Coordinate5 preserved. Earlier rejected candidates and observer failures remain recorded. Broader agent usefulness remains unproven.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9856,7 +9856,14 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: selected CodeMap source continuation implemented, tested, deployed and actual returned actions independently source-checked. Broader task still incomplete.",
+    "previous_goal_turn_classification": {
+      "classification": "progress",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-implicit-call-property-delivery-20261110.json",
+        "sha256": "d8dcff7ff05cf65cfd38b29d08f60ef4770c5f1a7947dcd8e3de0763f7b3efcd"
+      },
+      "reason": "Source fix and retained validation committed/pushed83cdbec; installed generation3142 verified. Overall goal not complete."
+    },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11548,6 +11555,59 @@
     "latest_implicit_call_property_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-implicit-call-property-delivery-20261110.json",
       "sha256": "d8dcff7ff05cf65cfd38b29d08f60ef4770c5f1a7947dcd8e3de0763f7b3efcd"
+    },
+    "current_article_edit_task": {
+      "status": "FROZEN_BOTH_4_5_OF_5_SOURCE_ONLY_SLIGHTLY_PREFERRED",
+      "task": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-task.json",
+        "sha256": "6e303417dce10cf01949420690c463700ce8cb7b78426be06619f50afaad9ff5"
+      },
+      "contract": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-contract.json",
+        "sha256": "6f488bc2c6bdf3676942b33c9391d41a72531b652680b384a299eb9802eb520b"
+      },
+      "binding": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-binding.json",
+        "sha256": "7eca1c89652a329ba660a7821845c7833c3878e8e3de00a07faca1f495c623ca"
+      },
+      "readiness": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-readiness.json",
+        "sha256": "837f1810ca52226079ef6b454e95e8d9fbc8db9877504273e4d10d2dbf0150fe"
+      },
+      "candidate_agents": [
+        "/root/article_maple",
+        "/root/article_hazel"
+      ],
+      "source_judge": "/root/article_source_judge",
+      "scope": "New current article-edit QA workflow; same8request/65536byte caps, old frozen results untouched. Existing relay reused; no benchmark infrastructure expansion. Source oracle frozen before judge sees candidates/costs. No task retries or coaching.",
+      "resources": "New evidence only in existing V; observer calls own/close pipes. Normal server launch authorized; no index update or application edits.",
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-article-edit-qa-20261110.json",
+        "sha256": "e2f43e1a0317b9e2180f030118a4532d4d53d5e7b333c68d7a7c979f5814b933"
+      }
+    },
+    "selected_source_callee_navigation": {
+      "status": "IN_PROGRESS",
+      "evidence": {
+        "before_source_reply_bytes": 10651,
+        "exact_metadata_recovery": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-callee-recovery-before-20261110.json",
+          "sha256": "cd051a64f63a389110a5a8c202b2f4f80847b589ce885a2d1a8171ae837a8eca"
+        },
+        "metadata_hop_bytes": 11360,
+        "exact_emitted_helper_read": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-callee-source-before-20261110.json",
+          "sha256": "7e1fae52c8cf0edb52f1af4b9d7e39714ecf82988195aa1be6429fcaea47459c"
+        },
+        "helper_source_bytes": 2539,
+        "helper_lines": [
+          27,
+          37
+        ],
+        "decision": "Offer a bounded same-file admitted callee read sample directly in source view using spare reply room after existing facts and continuation. Existing metadata list remains. Actual action availability/cost gap, not a claimed cause of criterion2partial or a frozen candidate win.",
+        "implementation_status": "IN_PROGRESS_NO_BUILD_OR_DELIVERY_CLAIM"
+      },
+      "scope": "Renderer only: same-file already-admitted read samples using spare source reply room. No new scanning, source IO, parser, schema or index update. No frozen task replay."
     }
   }
 }
