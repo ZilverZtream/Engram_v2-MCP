@@ -1,0 +1,147 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_SAME_FILE_CALLEE_READS",
+  "at_utc": "2026-11-10T02:48:16.427890+00:00",
+  "source_commit": "dee278468d72b7c94e6f079738217f2b652ec756",
+  "problem": "Actual UpdateByID source reply exposed only a callee count. An11360-byte metadata recovery was required to obtain the11-line same-file GetBy_rk_id read action.",
+  "delivered_behavior": "Source view now uses spare reply space for up to two full already-admitted same-file callee rows and their existing executable source reads, after existing facts and declaration continuation. Metadata mode is unchanged. Samples retain witness/revision information and explicit omission/scope limits.",
+  "actual_costs": {
+    "old_source_response_utf8_bytes": 10651,
+    "old_metadata_recovery_utf8_bytes": 11360,
+    "old_callee_read_utf8_bytes": 2539,
+    "old_three_call_utf8_bytes": 24550,
+    "new_source_response_utf8_bytes": 11645,
+    "new_callee_read_utf8_bytes": 2538,
+    "new_two_call_utf8_bytes": 14183,
+    "net_utf8_bytes_saved": 10367,
+    "scope": "Known-source three-call navigation compared with two-call emitted-action followthrough; not full-task cost, fresh-agent productivity or a QA retry."
+  },
+  "verification": {
+    "integration_tests_passed": 55,
+    "budget_test_passed": 1,
+    "candidate_task_calls": 2,
+    "normal_task_calls": 2,
+    "candidate_total_requests": 9,
+    "normal_total_requests": 8,
+    "all150_tool_definitions_unchanged": true,
+    "source_pins_unchanged": 20,
+    "source_generation": 3142,
+    "source_index_update_performed": false,
+    "unchanged_native_assets": 214,
+    "registry_selection_other14_metadata_preserved": true,
+    "preexisting_source_response_preserved": true,
+    "emitted_callee_read_checked_against_current_source": true
+  },
+  "installed": {
+    "server_sha256": "b2a084f3750b5af51068463fe8e92d46cf50aed0da074528aa9b591c0a9bf017",
+    "manifest_sha256": "ad79a9a4ee60cd52c2e4b67e0d435d2cfdbd28e8f9e4d24c9c492f4dc7974440",
+    "normal_primary": {
+      "pid": "52092",
+      "started_at_ms": "1794278815422",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    }
+  },
+  "evidence": {
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-callee-20261110.json",
+      "sha256": "33a79c9d4f7c086cb8ac38246c7766d35f4fecbb69f4d2c2a100f369d629e9fe"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-paired-package.json",
+      "sha256": "cb15ba04a19f8af669a056c1f5cdc0cdec9490bf36a2e5b60f6bb6ac2dff86a0"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-candidate-v1\\acceptance.json",
+      "sha256": "937c3b8c392959b5145c0e9695284474966cdae17e69af4ff7d2c0158aa2b708"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-normal-v1\\acceptance.json",
+      "sha256": "b0b01c8976d84d427260af610a76a5c0248da002af3705e272eadeb1f1f4e9b6"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-install.json",
+      "sha256": "1f23cf9c6dfeb66aef709c97dd0841c61fd5f91a3156e047194cab766ea22254"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-config-hold-20261110.json.released.json",
+      "sha256": "5e9cae607e3e3a90a5a51883dba74ed6a124cf8b2bc250fd85dc5d31c798eedd"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-release-gates.json",
+      "sha256": "8b29e63f8af3bafba15e282d4f8e929dd8bef7f0d05f6ceb18c42ec70f1a61e5"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-shipping-20261110.json",
+      "sha256": "17595c47bec628b61d14d2bc1397a98a90c0020fee659dc8cc4b2b738d4adc1f"
+    },
+    "tests": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-selected-tests-v2-20261110.json",
+        "sha256": "e30e215a029ed4094db03b8cab5d1947835d30cce1c8359a6374d5cc02144ae3"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-budget-test-20261110.json",
+        "sha256": "3d0b26189d330596e8fb1d6c9977d51027075590d7ea9e4f782367dbabc22332"
+      }
+    ],
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-fixture-review-addendum.json",
+      "sha256": "546115d5099cd14fb1bc3b74313d0940a57558ea47b3aa66d443438e534b2ec1"
+    },
+    "verifier_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-verifier-review.json",
+      "sha256": "1167aca060ab9eca1fde199bdea132322e2c3f9bb0ecc5b42ec72822a832aeb9"
+    },
+    "pair_preparation_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-pair-preparation-review.json",
+      "sha256": "d9129f1b653160a3367553f5fd9fd0a3ae7cbf6b1a73d22b9f64fecf53e14947"
+    },
+    "gate_helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-gate-helper-review.json",
+      "sha256": "e342ad079449ebe196e007f62bca535a9ca8da096979a3c1249d55f1cf12dda8"
+    },
+    "unchanged_article_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-article-edit-qa-20261110.json",
+      "sha256": "e2f43e1a0317b9e2180f030118a4532d4d53d5e7b333c68d7a7c979f5814b933"
+    }
+  },
+  "preserved_preparation_failures": {
+    "initial_test": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-selected-tests-20261110.json",
+      "sha256": "7d2a0026dca3828ef3ec8790b604476179c69f7acfa3b6b8586dfbbf281bae26"
+    },
+    "cause": "Initial pressure fixture exceeded existing2048-byte graph identity limit, so callable admission did not run. Corrected valid identity retains original assertions and explicitly proves row exceeds remaining reply budget. Production unchanged.",
+    "verifier_preflight": "Two retained pre-runtime verifier versions incorrectly expected metadata isError field; corrected predicate uses actual recorded status/schema/text and passed independent review.",
+    "rejected_helpers": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-verify-preflight-rejected.py",
+        "sha256": "8ca5942801225ee2163409bd69e5d7e3382ceb9b350588401dbe8a3e9422a38f"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-verify-preflight-rejected-2.py",
+        "sha256": "9916320d328b8b1e990df821f66e626e62fb9881fb08757a7fb25c03290e98d2"
+      }
+    ]
+  },
+  "resources": {
+    "hold_released": true,
+    "pending_rpc": null,
+    "observers_closed": true,
+    "owned_test_build_candidate_normal_temporary_directories_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-4bbf6ac89e834ae0bcf1169c2a6b7865",
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain exact package, backup, source evidence and receipts for recovery/review until exact-path cleanup authorization. No preexisting folder removed."
+  },
+  "limits": [
+    "Known-source mechanical navigation improvement only; no new agent-task success or quality uplift established.",
+    "Article workflow QA stays4.5/5 in both arms with slight source-only preference. No replay or rescore.",
+    "Sampled indexed declarations and witnesses do not establish complete method boundaries, receiver binding, value flow or runtime behavior.",
+    "Samples may be omitted under pressure; metadata recovery and explicit coverage limits remain.",
+    "Original31findings/19gates and prior incomplete task outcomes remain unchanged; EG14 and parked work remain unfinished."
+  ],
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}

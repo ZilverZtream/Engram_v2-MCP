@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T02:08:43.026570+00:00",
-    "reason": "Implicit-call false WMS dependency corrected and installed at generation3142. Real selected caller retains all four original valid menu entries including With writes411/412; Band3 and Coordinate5 preserved. Earlier rejected candidates and observer failures remain recorded. Broader agent usefulness remains unproven.",
+    "at_utc": "2026-11-10T02:48:16.427890+00:00",
+    "reason": "Same-file callee read sample deployed and verified on actual UpdateByID at unchanged generation3142. Known route reduced3calls24550B to2calls14183B while preserving original evidence. Article workflow QA remains4.5/5both, source-only slightly preferred; no broader usefulness win.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. Selected implicit-call correction delivered; do not repeat its builds, migrations or frozen task trials.",
-    "next_user_visible_deliverable": "Continue the original core-tool task evidence toward an actual agent-usefulness outcome. Frozen PASS/PARTIAL/PARTIAL/FAIL/PARTIAL remains unchanged; narrow witness repairs do not close the broader assignment. Do not expand instruction drafting, audits, catalog, performance or ownership work.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness: original navigation/witness/recovery queue. Same-file callee source-view improvement delivered; do not repeat its build/runtime probes or frozen task trials.",
+    "next_user_visible_deliverable": "Continue the original CodeMap/Blast Radius task-usefulness queue from real output and independent source evidence. Preserve unfavorable/partial task outcomes; do not repeat delivered callee or implicit-call probes, rescore frozen tasks, or substitute another broad audit/supporting infrastructure project. Overall completion requires actual agent-task usefulness evidence.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9859,10 +9859,10 @@
     "previous_goal_turn_classification": {
       "classification": "progress",
       "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-implicit-call-property-delivery-20261110.json",
-        "sha256": "d8dcff7ff05cf65cfd38b29d08f60ef4770c5f1a7947dcd8e3de0763f7b3efcd"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-callee-delivery-20261110.json",
+        "sha256": "ac9b4ca98ae473e84c4439b49214642bfc45300e5f38705b1b0e80eb635bd672"
       },
-      "reason": "Source fix and retained validation committed/pushed83cdbec; installed generation3142 verified. Overall goal not complete."
+      "reason": "Implemented, tested, built, installed and normally verified the selected original navigation improvement. Broader task usefulness remains unproven; no goal completion or task rescore."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -9888,8 +9888,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-delivery-20261110.json",
-      "sha256": "e168ef6770e254797ba8be132b202c4f5aeb23696aa83334a34d8df4975b9b2c"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-callee-delivery-20261110.json",
+      "sha256": "ac9b4ca98ae473e84c4439b49214642bfc45300e5f38705b1b0e80eb635bd672"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11587,7 +11587,7 @@
       }
     },
     "selected_source_callee_navigation": {
-      "status": "IN_PROGRESS",
+      "status": "DEPLOYED_NORMAL_VERIFIED_KNOWN_NAVIGATION_IMPROVEMENT_ONLY",
       "evidence": {
         "before_source_reply_bytes": 10651,
         "exact_metadata_recovery": {
@@ -11605,9 +11605,24 @@
           37
         ],
         "decision": "Offer a bounded same-file admitted callee read sample directly in source view using spare reply room after existing facts and continuation. Existing metadata list remains. Actual action availability/cost gap, not a claimed cause of criterion2partial or a frozen candidate win.",
-        "implementation_status": "IN_PROGRESS_NO_BUILD_OR_DELIVERY_CLAIM"
+        "implementation_status": "DELIVERED_SOURCE_dee2784_NORMAL_VERIFIED"
       },
-      "scope": "Renderer only: same-file already-admitted read samples using spare source reply room. No new scanning, source IO, parser, schema or index update. No frozen task replay."
+      "scope": "Renderer only: same-file already-admitted read samples using spare source reply room. No new scanning, source IO, parser, schema or index update. No frozen task replay.",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-callee-delivery-20261110.json",
+        "sha256": "ac9b4ca98ae473e84c4439b49214642bfc45300e5f38705b1b0e80eb635bd672"
+      },
+      "actual_costs": {
+        "old_source_response_utf8_bytes": 10651,
+        "old_metadata_recovery_utf8_bytes": 11360,
+        "old_callee_read_utf8_bytes": 2539,
+        "old_three_call_utf8_bytes": 24550,
+        "new_source_response_utf8_bytes": 11645,
+        "new_callee_read_utf8_bytes": 2538,
+        "new_two_call_utf8_bytes": 14183,
+        "net_utf8_bytes_saved": 10367,
+        "scope": "Known-source three-call navigation compared with two-call emitted-action followthrough; not full-task cost, fresh-agent productivity or a QA retry."
+      }
     }
   }
 }
