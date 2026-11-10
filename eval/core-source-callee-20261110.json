@@ -1,0 +1,95 @@
+{
+  "status": "IMPLEMENTED_TESTED_RUNTIME_PENDING",
+  "at_utc": "2026-11-10T02:23:13.834499+00:00",
+  "scope": "Bounded source-view same-file callable actions from already-admitted rows. No task retry, rescore, new graph scan, source IO, parser/index/schema change or full-task success claim.",
+  "source_hashes": {
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "3951a14a5947c102e3c5bb5009bba766a09fd08ade976e2b17b1edb4ff7c3377",
+    "crates/engram_server/tests/overview_selected_source_tests.rs": "c39bb3255eac4acf381da2bb725a70fc78c16a1d24d626d986d0b52f070a8949",
+    "docs/TOOL_CONTRACT.md": "7004619c353104597af43536e513e11d3e5883737efc5a54b7bc70fcd051608d"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-source-review.json",
+    "sha256": "9db9a89089f6178e59e1f0d274bf14352e64c01f90ce387e19aa8d722cc3ebdf"
+  },
+  "problem_evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-qa-20261110-maple-private-ledger.json",
+      "sha256": "4cea84fbfcb738c1e9c1e52664fcfc3473d12ad7336485d7d9d1c0e4e02c1f12",
+      "selector": "requests[0].delivered_text only; original source10651B"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-callee-recovery-before-20261110.json",
+      "sha256": "cd051a64f63a389110a5a8c202b2f4f80847b589ce885a2d1a8171ae837a8eca",
+      "selector": "calls[0].text; metadata11360B"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-article-edit-callee-source-before-20261110.json",
+      "sha256": "7e1fae52c8cf0edb52f1af4b9d7e39714ecf82988195aa1be6429fcaea47459c"
+    }
+  ],
+  "behavior": {
+    "allocation_order": [
+      "unchanged source/navigation/property facts and existing callable count cue",
+      "existing declaration continuation",
+      "at most two full same-file admitted callable rows that fit remaining whole-response budget"
+    ],
+    "additive_fields": [
+      "called_declarations.samples",
+      "called_declarations.samples_shown",
+      "called_declarations.admitted_not_sampled",
+      "called_declarations.sample_scope"
+    ],
+    "budget_bytes": 12288,
+    "no_fitting_row": "Exact prior response retained",
+    "metadata": "Existing content and item order unchanged",
+    "actions": "Unchanged source_read actions, exact identities/witnesses/generations retained; fresh reads do not prove binding or complete current method bounds"
+  },
+  "projection_not_runtime": {
+    "old_complete_source_reply_bytes": 10651,
+    "new_complete_source_reply_bytes": 11646,
+    "current_source_bytes": 3494,
+    "old_metadata_hop_bytes": 11360,
+    "unchanged_callee_read_bytes": 2539,
+    "old_three_call_bytes": 24550,
+    "new_two_call_projected_bytes": 14185,
+    "exact_sample_node_id": "sym:function:Site/App_Code/redovisning/code/redovisningsartiklar.vb:_rv.redovisningsartiklar.GetBy_rk_id:27"
+  },
+  "tests": {
+    "status": "PASS",
+    "integration_suite": "overview_selected_source_tests",
+    "new_cases": [
+      "codemap_source_callee_samples_read_same_file_helpers_without_metadata_hop",
+      "codemap_source_callee_pressure_keeps_source_and_declaration_continuation"
+    ],
+    "existing_unit": "handlers::cognitive_tools::tests::declaration_continuation_never_evicts_allocated_source_or_navigation",
+    "wanted_behavior": "Executable same-file reads with exact source/hash, at most2 of3 local candidates, stale/excluded rejection, honest coverage/counts, full-row equality to metadata, oversized-row fallback preserving source and declaration continuation.",
+    "integration_passed": 55,
+    "budget_unit_passed": 1,
+    "evidence": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-selected-tests-v2-20261110.json",
+        "sha256": "e30e215a029ed4094db03b8cab5d1947835d30cce1c8359a6374d5cc02144ae3"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-budget-test-20261110.json",
+        "sha256": "3d0b26189d330596e8fb1d6c9977d51027075590d7ea9e4f782367dbabc22332"
+      }
+    ],
+    "initial_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-selected-tests-20261110.json",
+      "sha256": "7d2a0026dca3828ef3ec8790b604476179c69f7acfa3b6b8586dfbbf281bae26"
+    }
+  },
+  "build": null,
+  "candidate_runtime": null,
+  "normal_runtime": null,
+  "retention": "Test fixtures removed after owned processes and handles closed. Evidence remains in the recorded diagnostics root until exact-path cleanup authorization. Prior failure retained.",
+  "fixture_correction_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-fixture-review-addendum.json",
+    "sha256": "546115d5099cd14fb1bc3b74313d0940a57558ea47b3aa66d443438e534b2ec1"
+  },
+  "runtime_verifier_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-callee-20261110-verifier-review.json",
+    "sha256": "1167aca060ab9eca1fde199bdea132322e2c3f9bb0ecc5b42ec72822a832aeb9"
+  }
+}
