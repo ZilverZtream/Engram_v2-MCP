@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T03:40:13.930019+00:00",
-    "reason": "Additional direct caller display deployed/verified: known TextToInt?logs source route3calls78320B to2calls15280B, originalfirst4/evidence preserved, generation3142 unchanged. Frozen quality stays assisted9/10 vs source-only10/10; broader usefulness not established.",
+    "at_utc": "2026-11-10T04:02:40.886431+00:00",
+    "reason": "New full log-refactor task frozen source-only9/10 versus assisted5/10. Existing tool navigation correctly exposes source, but source handoff promotes transitive export over uncovered external direct caller. Retain that direct source introduction; task scores remain frozen.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9857,12 +9857,8 @@
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
-      "classification": "progress",
-      "evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-direct-caller-delivery-20261110.json",
-        "sha256": "335898b192f7d01598eafd8f9c32daa7d552b59d51aa8a3968a05c090fb8aee5"
-      },
-      "reason": "New independent task comparison changed selected action; implemented/tested/built/installed/normally verified real omitted-caller recovery improvement. No original goal closure or frozen task rescore."
+      "classification": "no_progress",
+      "reason": "Previous turn answered the user accountability question and restated saved results; no implementation or new task evidence. Revalidated clean HEAD a080089 and current tool state; continuing selected original work."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -11673,6 +11669,36 @@
         "net_utf8_bytes_saved": 63040,
         "scope": "Known-source navigation route only; frozen9/10 QA outcomes unchanged. No fresh task, retry, rescore or full-task cost claim."
       }
+    },
+    "current_log_refactor_task": {
+      "status": "FROZEN_SOURCE_ONLY_9_OF_10_ASSISTED_5_OF_10_NO_ASSISTED_UPLIFT",
+      "outcome": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-refactor-qa-20261110.json",
+        "sha256": "c0f68eed69cb0eb7ff42cb830e1d611460c9f5b5756c9d75e06d46246d745093"
+      },
+      "scope": "New full task, unchanged8request/65536-byte caps. Prior frozen task outcomes unchanged; no assisted uplift."
+    },
+    "selected_external_direct_handoff": {
+      "capture": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-cedar-private-ledger.json",
+        "sha256": "67fbfe16621c57f14057c8414f1f57c712346790185f32b576122c050cdd9570"
+      },
+      "request": 2,
+      "target": "_gd.handelselogg.GetBySearch",
+      "first_direct_consumer": "system_logs_logs.GetUserActivityEntries",
+      "direct_read_lines": [
+        530,
+        570
+      ],
+      "direct_witness_line": 539,
+      "promoted_next_read_lines": [
+        237,
+        349
+      ],
+      "promoted_read_consumer": "system_logs_logs.btnShowExportOption_Click",
+      "observation": "Direct consumer lies in another file from target, but promoted transitive route does not cover its body; summary suppresses direct introduction and sets next_source_read_index0. Exact direct action remains below.",
+      "decision": "Retain existing direct source introduction when the external direct caller is absent from the promoted read. Preserve same-file bridge priority and every existing witness/action/count; no new scanning or schema.",
+      "implementation_state": "IN_PROGRESS_NOT_DEPLOYED"
     }
   }
 }

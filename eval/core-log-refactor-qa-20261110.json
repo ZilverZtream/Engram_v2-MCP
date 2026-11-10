@@ -1,0 +1,141 @@
+{
+  "status": "FROZEN_SOURCE_ONLY_9_OF_10_ASSISTED_5_OF_10_NO_ASSISTED_UPLIFT",
+  "at_utc": "2026-11-10T04:02:40.886431+00:00",
+  "implementation_baseline": "a0800895ce665bbf3e915daff7592ae5837d100e",
+  "task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-task.json",
+    "sha256": "1a69a8c3ff5b1d36fd0b58bcd063bb8c1bfc1b01fb41d94717e54e3df6942be4"
+  },
+  "contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-contract.json",
+    "sha256": "8e8ce71398f9cf1a29b1c7b22f8a0ff7d2884f3d84e40da113ee97ca2127f56e"
+  },
+  "binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-binding.json",
+    "sha256": "3ecdb934684f64af3d0d3d7f3e8fe9a465233e8e145cbec8edb6849468502dd3"
+  },
+  "readiness": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-readiness.json",
+    "sha256": "d656f460600def01f2e50cd9b551a82ad99ff220030fab04a5f94c25bd6e5f3b"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-oracle.json",
+    "sha256": "9312d391d5578d51c76a1fff4fb8234d0d64613db02ae56749a5c54d27e67a6c"
+  },
+  "source_oracle_task_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-oracle-task-binding.json",
+    "sha256": "0737e5df5b3973711a498434e48c653139affa86e0e13ba38faa3849d3f2658c"
+  },
+  "source_oracle_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-oracle-verification.json",
+    "sha256": "2965014cbe737d56cd68da1c1ea20de145f5af580c55f71c5fec64d02add669a"
+  },
+  "candidate_source_verification": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-candidate-source-verification.json",
+    "sha256": "e099319a0862ab7d37d11d335c8d9a6a918e287f914c553820bd7fa0cf6e2d39"
+  },
+  "quality_packet": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-quality-packet.json",
+    "sha256": "6c0e8c4c71d76051f0a6d11c0d03dc3a099089c9cd11845ca9e782b522c46edd"
+  },
+  "quality_judgment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-blind-judgment.json",
+    "sha256": "175c0550beb9190f6c73328e501efd5facf564235f170371a9d1867ca5dcbbd5"
+  },
+  "arm_mapping": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-private-arm-map.json",
+    "sha256": "92887be65ca1a0382961e5c39e84c0cd6036cc7eacf8f22b3c6ac81ceab286c0"
+  },
+  "results": {
+    "assisted": {
+      "candidate": "cedar",
+      "opaque_label": "B",
+      "frozen_quality_score_out_of_10": 5,
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-cedar-answer.txt",
+        "sha256": "0120fe9d738c0cfb9341f08ff5c2a5d1b3fdd0c4f292eb5d132c9e6ff7e1d4e0"
+      },
+      "answer_words_whitespace": 839,
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-cedar-private-ledger.json",
+        "sha256": "67fbfe16621c57f14057c8414f1f57c712346790185f32b576122c050cdd9570"
+      },
+      "requests": 3,
+      "setup_bytes": 20592,
+      "total_delivered_bytes": 64928,
+      "terminal_budget_state": "READY",
+      "answer_final": true,
+      "withheld_requests": [],
+      "pending_rpc": null
+    },
+    "source_only": {
+      "candidate": "elm",
+      "opaque_label": "A",
+      "frozen_quality_score_out_of_10": 9,
+      "answer": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-elm-answer.txt",
+        "sha256": "f08d58c1aa309433fd1e2f17e388ecf3f802565c0402fc4e87719fcad5691f03"
+      },
+      "answer_words_whitespace": 940,
+      "ledger": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-elm-private-ledger.json",
+        "sha256": "4dd141206a98aaca24fef83a3289bd3ad6b6a21ec740b0958762ec217090c865"
+      },
+      "requests": 7,
+      "setup_bytes": 5056,
+      "total_delivered_bytes": 55125,
+      "terminal_budget_state": "STOPPED_BYTE_BUDGET",
+      "answer_final": true,
+      "withheld_requests": [
+        {
+          "number": 7,
+          "utf8_bytes": 20827,
+          "sha256": "6ef17d3bbcd08abf274eaa3c1ee0fffbad5ac547827fdc44ddf780d92afa8d25"
+        }
+      ],
+      "pending_rpc": null
+    }
+  },
+  "conclusion": "Source-only preferred: it inspected actual getter, internal call and supplementary merge. Assisted explicitly left those uninspected. Both partial grid markup bridge; no material false guidance. No retry or rescore.",
+  "causal_limits": [
+    "One source-selected proposed-refactor review, not held-out/history-blind or general causal productivity evidence.",
+    "Opaque labels hide identities/costs, but prose/evidence shape can reveal capability.",
+    "Five full definitions charged upfront to assisted setup; not amortized/deferred discovery.",
+    "Assisted chose a400-line ordinary read ending before the direct caller despite an exact action available in its report. This choice is separate from report ordering; causation of quality loss is not established.",
+    "Source-only final markup request was withheld in full under unchanged65536-byte cap; no withheld-body evidence credited."
+  ],
+  "selected_concrete_navigation_gap": {
+    "capture": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-refactor-qa-20261110-cedar-private-ledger.json",
+      "sha256": "67fbfe16621c57f14057c8414f1f57c712346790185f32b576122c050cdd9570"
+    },
+    "request": 2,
+    "target": "_gd.handelselogg.GetBySearch",
+    "first_direct_consumer": "system_logs_logs.GetUserActivityEntries",
+    "direct_read_lines": [
+      530,
+      570
+    ],
+    "direct_witness_line": 539,
+    "promoted_next_read_lines": [
+      237,
+      349
+    ],
+    "promoted_read_consumer": "system_logs_logs.btnShowExportOption_Click",
+    "observation": "Direct consumer lies in another file from target, but promoted transitive route does not cover its body; summary suppresses direct introduction and sets next_source_read_index0. Exact direct action remains below.",
+    "decision": "Retain existing direct source introduction when the external direct caller is absent from the promoted read. Preserve same-file bridge priority and every existing witness/action/count; no new scanning or schema.",
+    "implementation_state": "IN_PROGRESS_NOT_DEPLOYED"
+  },
+  "goal_complete": false,
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_prefix": "core-log-refactor-qa-20261110",
+    "retention": "Task evidence, setup, opaque copies and builder attempts retained for review; exact-path approval required for cleanup.",
+    "observer_pipes_closed": true,
+    "candidate_pending_rpc": null,
+    "candidate_locks_absent": true,
+    "source_search_processes_owned_by_unchanged_relay": true,
+    "source_or_index_mutation": false,
+    "builder_attempts": "v1 stopped at exact-source trailing-newline check; v2 stopped on withheld refusal shape; v3 produced complete packet with withheld bodies excluded, all delivered source verified. Existing opaque copy preserved and byte-checked. Initial order-sensitive tool-list assertion failed; exact same150definitions verified by name without repeat RPC."
+  }
+}
