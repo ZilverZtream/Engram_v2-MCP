@@ -1,0 +1,89 @@
+{
+  "status": "IMPLEMENTED_AND_TARGETED_TESTED_NOT_DEPLOYED",
+  "at_utc": "2026-11-10T07:01:54.705159+00:00",
+  "problem": "Actual CodeMap callable recovery omitted DeleteLayers line260 logger call because two Create overloads accept five arguments and the call discarded compiler-selected identity.",
+  "behavior": "Native v6 emits exact source signature/path/span/hash. Ingestion admits selected current or inherited endpoints; marked rejected calls cannot fall back to name/arity. CodeMap and impact reads revalidate source/target evidence.",
+  "scope_limits": "Bounded ordinary VB source methods, not complete application binding. No frozen task replay/rescore or fresh task win claimed.",
+  "native_witness": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-actual-v1-20261110.json",
+    "sha256": "15f234ec212c38e7e02ed85bbec3e8bb0dd30ced54808a70889d0423d6fb9025"
+  },
+  "native_build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-native-v1-20261110.json",
+    "sha256": "3ee71736d46b3ee99fd10a3f90185f839e49d787e72a81b43eccd4500c8002e7"
+  },
+  "tests_passed": 24,
+  "tests": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-graph-v1-20261110.json",
+      "sha256": "76db2468fd2a93f011923a1f95a5f5331b0317456da2debe5a68e19520236ebd"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-native-integration-v3-20261110.json",
+      "sha256": "1dcae89ce42ee694de8aaabd279d5bb76daad7577fe98c129a2dfe1676f0917c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-public-v2-20261110.json",
+      "sha256": "cc4744843d193dd46f71a93f1d9b34a01661cdadd31f25de0c0e7e82b9c5dfac"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-interface-v2-20261110.json",
+      "sha256": "7d39a23d8d89d8668cb1692d53824a91f1f32ae00b843b8fe98398f5c110c54c"
+    }
+  ],
+  "test_coverage": [
+    "Boolean/Guid overloads in both declaration orders and real callsite source",
+    "Stale/corrupt/unknown proofs and bounded merging",
+    "Public CodeMap exact emitted source action, both impact tools, caller-only refresh, reopen",
+    "Interface routes, distinct consumers, explicit unresolved recovery and executable discovery"
+  ],
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-source-review.json",
+    "sha256": "1380e79c926a319029555241e04e3153878e2bdd58b86edccf269c7eb9492487"
+  },
+  "review_addenda": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-source-review-fixture-addendum.json",
+      "sha256": "34b4d475e1dcb4bf67e168852d7514d3b52a0f253d25a6792267b7063200ddfa"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-source-review-arguments-addendum.json",
+      "sha256": "be2f63d404a3e21382e7b963ce862ded6c7ae072c2e838b5c02ddb90d68fe236"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-source-review-interface-addendum.json",
+      "sha256": "c79c2dec8572ab7cbdf32ffd29c6c2a5e089b337f48e414939659ef676208b5a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-20261110-source-review-native-anonymization-addendum.json",
+      "sha256": "540825bafa512a09a03947489d11dd435fb33088097102bd0af809c3d0120e38"
+    }
+  ],
+  "installer_gate_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-installer-gate-20261110-review.json",
+    "sha256": "28d2b05505114056d457a513700962b8bfaf2273997ed35a56e138a4906120d9"
+  },
+  "preserved_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-native-integration-v1-20261110.json",
+      "sha256": "701296cb0e810d6517370c032329f35d9b90fba3936efbebe0fa90dea86c6b81"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-public-v1-20261110.json",
+      "sha256": "91725313545ac14d119016ec6a421519650af6544aa0caae778a9de39b13a502"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-interface-v1-20261110.json",
+      "sha256": "3910cc18f3cc0e39cf5383e3963b4668fdc0c08bdb428449cc88d8de451c3b92"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-call-interface-diagnostic-v1-20261110.json",
+      "sha256": "8161301f6c5bf58d3521764b1ab076166c8fbe708b45bb1afd43f7f596789875"
+    }
+  ],
+  "corrections": "Fixed two new test setup mistakes (framework configuration and tool-specific arguments); updated an existing schema2 integration assertion to verify equivalent schema3 caveat and execute emitted unresolved recovery, preserving behavioral requirements. Production renderer unchanged. Commit hook required anonymizing the new synthetic native fixture; all17 native tests passed again after the naming-only correction.",
+  "resources": "Build/test fixture directories and owned process handles closed; retained evidence only in the existing diagnostics directory. No application source edits or preexisting deletion.",
+  "goal_complete": false,
+  "fresh_agent_task_win_proven": false,
+  "next_action": "Build and deploy paired v6 release; execute one ordinary OciusX update and verify actual logger navigation/witnesses and preserved prior controls."
+}

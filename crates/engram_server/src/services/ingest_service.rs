@@ -241,6 +241,8 @@ pub async fn process_ingest_stats(
                     _ => serde_json::Map::new(),
                 };
                 for (k, v) in m.iter() {
+                    // Managed admission proofs cannot originate in extractor metadata.
+                    if k == engram_graph::store::SOURCE_CALL_BINDINGS || k == "source_call_binding_admission" { continue; }
                     obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
                 nodes[i].metadata = Some(serde_json::Value::Object(obj));
@@ -699,7 +701,8 @@ pub async fn process_ingest_stats(
         None
     };
 
-    let (mut nodes, interface_bindings, _interface_reservation) = super::interface_bindings::prepare(state,project_id,stats,nodes).await?;
+    let (nodes, interface_bindings, _interface_reservation) = super::interface_bindings::prepare(state,project_id,stats,nodes).await?;
+    let (mut nodes, source_call_bindings, _source_call_reservation) = super::source_call_bindings::prepare(state,project_id,stats,nodes).await?;
     let mut edges = Vec::with_capacity(stats.edges.len());
     let mut event_producers = std::collections::HashMap::new();
     for (edge_index, (rel_path, edge)) in stats.edges.iter().enumerate() {
@@ -716,8 +719,10 @@ pub async fn process_ingest_stats(
         )));
 
         let interface_binding = interface_bindings.get(&edge_index);
+        let source_call_binding = source_call_bindings.get(&edge_index);
+        let exact_binding = interface_binding.or(source_call_binding);
         let mut unproven_markup_control = false;
-        let source_id = if let Some(binding) = interface_binding {
+        let source_id = if let Some(binding) = exact_binding {
             binding.source_id.clone()
         } else if edge.source_kind == "asset_bundle"
             && edge.source_name.starts_with("bundle:")
@@ -851,8 +856,10 @@ pub async fn process_ingest_stats(
         // the post-pass).
         let mut target_resolution: Option<(f32, &'static str)> = None;
         let mut target_crossed_language = false;
-        let target_id = if let Some(binding) = interface_binding {
-            if binding.evidence.is_some() { target_resolution=Some((1.0,"exact_source_interface_member")); }
+        let target_id = if let Some(binding) = exact_binding {
+            if binding.evidence.is_some() {
+                target_resolution = Some((1.0, if source_call_binding.is_some() { "exact_source_method" } else { "exact_source_interface_member" }));
+            }
             binding.target_id.clone()
         } else if edge.kind == "calls" && edge.metadata.as_ref()
             .is_some_and(|m| m.get("receiver_unbound").is_some_and(|v| v == "true")) {
@@ -1208,6 +1215,8 @@ pub async fn process_ingest_stats(
                 serde_json::Map::with_capacity(edge.metadata.as_ref().map_or(0, |m| m.len()) + 3);
             if let Some(m) = edge.metadata.as_ref() {
                 for (k, v) in m {
+                    // Managed admission proofs cannot originate in extractor metadata.
+                    if k == engram_graph::store::SOURCE_CALL_BINDINGS || k == "source_call_binding_admission" { continue; }
                     obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
             }
@@ -1218,6 +1227,12 @@ pub async fn process_ingest_stats(
                 obj.insert("interface_binding_admission".into(),serde_json::json!(if binding.evidence.is_some() {"verified_source_declaration"}else{"unknown"}));
                 if let Some(evidence) = &binding.evidence {
                     obj.insert(engram_graph::store::INTERFACE_BINDINGS.into(),evidence.clone());
+                }
+            }
+            if let Some(binding) = source_call_binding {
+                obj.insert("source_call_binding_admission".into(),serde_json::json!(if binding.evidence.is_some() {"verified_source_declaration"}else{"unknown"}));
+                if let Some(evidence) = &binding.evidence {
+                    obj.insert(engram_graph::store::SOURCE_CALL_BINDINGS.into(),evidence.clone());
                 }
             }
             // Call-SITE anchor: the extractor's source_start_line is the line
@@ -1313,6 +1328,7 @@ pub async fn process_ingest_stats(
                         if let serde_json::Value::Object(base) = slot {
                             merge_call_site_metadata(base, &extra);
                             engram_graph::store::merge_interface_bindings(base, &extra)?;
+                            engram_graph::store::merge_source_call_bindings(base, &extra)?;
                             for (k, v) in extra {
                                 base.entry(k).or_insert(v);
                             }

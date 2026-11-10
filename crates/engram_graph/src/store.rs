@@ -17,9 +17,12 @@ mod file_metadata_scan;
 mod centrality_cache;
 mod impact_walk;
 mod interface_dispatch;
+mod source_call;
 mod named_navigation;
 #[cfg(test)]
 mod edge_scan_tests;
+pub use source_call::{SourceMemberLocator, SourceCallBinding, SourceCallBindings, SOURCE_CALL_BINDINGS, source_call_bindings, merge_source_call_bindings};
+use source_call::{requires_source_call_binding, source_call_binding_matches};
 pub use interface_dispatch::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS, interface_bindings, merge_interface_bindings};
 pub use impact_walk::{
     ImpactAdmission, ImpactWalkCoverage, ImpactWalkNode, ImpactWitness, IncomingImpactWalk, PropertyReference, PropertyReferences, CallableReference, CallableReferences, event_producer, event_owner_matches,
@@ -2086,6 +2089,7 @@ impl GraphStore {
                     .with_limit(64 * 1024).reject_trailing_bytes().deserialize(value.value()).ok()?;
                 if edge.source_id != source_id || edge.target_id != target_id
                     || edge.edge_kind != EdgeKind::Calls { return None; }
+                if requires_source_call_binding(&edge) { return None; }
                 if edge.metadata.as_ref().is_some_and(|m| m.get("receiver_unbound")
                     .is_some_and(|v| v == true || v.as_str() == Some("true"))) { return None; }
             }
@@ -3362,7 +3366,8 @@ impl GraphStore {
         let mut updates: Vec<(String, Edge)> = Vec::new();
 
         for entry in &unresolved {
-            if entry.edge.target_id.starts_with(UNBOUND_RECEIVER_PREFIX)
+            if requires_source_call_binding(&entry.edge)
+                || entry.edge.target_id.starts_with(UNBOUND_RECEIVER_PREFIX)
                 || entry.edge.metadata.as_ref().is_some_and(|m|
                     m.get("receiver_unbound").is_some_and(|v| v == true || v.as_str() == Some("true"))) {
                 continue;

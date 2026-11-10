@@ -30,6 +30,7 @@ pub mod house_style;
 pub mod ingest_service;
 pub(crate) mod webforms_bindings;
 pub(crate) mod interface_bindings;
+pub(crate) mod source_call_bindings;
 pub mod instrumentation_service;
 pub mod integrity_service;
 pub mod instruction_maintenance;

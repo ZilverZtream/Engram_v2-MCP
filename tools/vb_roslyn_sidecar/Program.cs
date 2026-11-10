@@ -376,7 +376,7 @@ internal sealed class CompilationPlanDto
 internal sealed class ParserIdentity
 {
     [JsonPropertyName("contract")]
-    public string Contract { get; set; } = "vb-ingestion-parser-v5";
+    public string Contract { get; set; } = "vb-ingestion-parser-v6";
     [JsonPropertyName("entry_mvid")]
     public string EntryMvid { get; set; } = string.Empty;
     [JsonPropertyName("roslyn_core_mvid")]
@@ -393,6 +393,18 @@ internal sealed class ParserIdentity
 
 // Additive source locator, carried inside metadata until Rust validates it
 // against the admitted declaration and its exact source revision.
+internal sealed class SourceMemberLocatorDto
+{
+    [JsonPropertyName("version")] public int Version { get; set; } = 1;
+    [JsonPropertyName("name")] public string Name { get; set; } = "";
+    [JsonPropertyName("semantic_id")] public string SemanticId { get; set; } = "";
+    [JsonPropertyName("file_path")] public string FilePath { get; set; } = "";
+    [JsonPropertyName("start_line")] public int StartLine { get; set; }
+    [JsonPropertyName("span_start")] public int SpanStart { get; set; }
+    [JsonPropertyName("span_length")] public int SpanLength { get; set; }
+    [JsonPropertyName("syntax_source_sha256")] public string SyntaxSourceSha256 { get; set; } = "";
+}
+
 internal sealed class InterfaceMemberLocatorDto
 {
     [JsonPropertyName("version")] public int Version { get; set; } = 1;
@@ -411,4 +423,5 @@ internal sealed class InterfaceMemberLocatorDto
 [JsonSerializable(typeof(SidecarRequest))]
 [JsonSerializable(typeof(SidecarResponse))]
 [JsonSerializable(typeof(InterfaceMemberLocatorDto))]
+[JsonSerializable(typeof(SourceMemberLocatorDto))]
 internal partial class AppJsonContext : JsonSerializerContext { }

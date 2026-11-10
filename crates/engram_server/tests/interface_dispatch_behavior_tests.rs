@@ -283,8 +283,10 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
             }
             let parent=app.state.graph.query_nodes(&pid,Some("function"),None,Some(dashboard),16)?
                 .into_iter().find(|node|node.name.ends_with(".BuildRow")).unwrap();
+            let receiver_id=format!("sym:self:{dashboard}:Me:{}",parent.start_line);
+            let parent_id=parent.node_id.clone();
             app.state.graph.upsert_edges(&pid,&[engram_graph::Edge {
-                source_id:format!("sym:self:{dashboard}:Me:{}",parent.start_line),
+                source_id:receiver_id.clone(),
                 target_id:parent.node_id,namespace:"memory".into(),language:"vb".into(),
                 edge_kind:engram_graph::EdgeKind::Calls,weight:1,generation:parent.generation,
                 metadata:None,updated_at_ms:1,
@@ -297,9 +299,33 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 let text=response.content.iter().filter_map(|p|p.as_text()).map(|p|p.text.as_str()).collect::<String>();
                 ensure!(text.len()<=12*1024);let summary=packet(&text)?;
                 ensure!(summary["direct_dependents_observed"]==3);
-                ensure!(summary["enclosing_declaration_scope"].as_str().is_some_and(|scope|scope.contains("unresolved")),
-                    "Receiver context uncertainty must stay explicit without crowding consumer files");
+                let unresolved_scope=summary["enclosing_declaration_scope"].as_str()
+                    .or_else(||summary["limitations"].as_array()?.iter().filter_map(Value::as_str)
+                        .find(|text|text.contains("Enclosing recovery leaves receiver/edge unresolved")));
+                ensure!(unresolved_scope.is_some_and(|scope|scope.contains("unresolved")),
+                    "Receiver context uncertainty must stay explicit without crowding consumer files: {summary}");
                 let files:std::collections::BTreeSet<_>=summary["immediate_consumers"].as_array().unwrap().iter().map(|row|row["file_path"].as_str().unwrap()).collect();
+                // Compact schema3 retains the unresolved caveat and a counted
+                // frontier omission. Its literal graph action must still expose
+                // the exact receiver as unresolved and recover its enclosing body.
+                ensure!(summary["frontier"].as_array().is_some_and(|rows|!rows.is_empty())
+                    || summary["frontier_rows_omitted_from_summary"].as_u64().is_some_and(|count|count>0));
+                let continuation=&summary["graph_continuation"];
+                ensure!(continuation["tool"]=="impact_analysis");
+                let full=app.handle_impact_analysis(serde_json::from_value(continuation["arguments"].clone())?).await?;
+                ensure!(full.is_error!=Some(true));
+                let expanded=packet(&full.content[0].as_text().unwrap().text)?;
+                let receiver=expanded["nodes"].as_array().unwrap().iter().find(|node|node["node_id"]==receiver_id)
+                    .ok_or_else(||anyhow::anyhow!("Unresolved receiver was lost from graph continuation: {expanded}"))?;
+                ensure!(receiver["admission"]=="unresolved");
+                ensure!(expanded["frontier"].as_array().unwrap().iter().any(|row|
+                    row["source_ref"]==receiver["ref"] && row["reason"]=="missing_graph_node"));
+                let recovery=expanded["recoveries"].as_array().unwrap().iter().find(|row|row["ref"]==receiver["recovery_ref"]).unwrap();
+                ensure!(recovery["scope_ref"]=="enclosing_declaration" && recovery["tool"]=="get_codebase_overview"
+                    && recovery["arguments"]["symbol_node_id"]==parent_id,
+                    "An enclosing source action cannot resolve the receiver or select another method: {recovery}");
+                let enclosing=app.handle_get_codebase_overview(serde_json::from_value(recovery["arguments"].clone())?).await?;
+                ensure!(enclosing.is_error!=Some(true),"Literal enclosing navigation must remain executable");
                 ensure!(files.len()==3 && files.contains(provider) && files.contains(dashboard),
                     "Potential dispatch and optional gap rows must not hide distinct ordinary consumers: {summary}");
                 let dispatch=&summary["potential_interface_callers"];ensure!(dispatch["routes_observed"]==1 && dispatch["routes"].as_array().unwrap().len()==1);
@@ -308,15 +334,8 @@ fn compact_dispatch_keeps_distinct_consumer_files_and_inspectable_caller_context
                 // A crowded summary keeps all three consumer files and its
                 // unknown frontiers; follow its literal graph action for an
                 // optional configuration hint that did not fit.
-                let expanded;
-                let inspection=if let Some(inspection)=dispatch.get("configuration_inspection") { inspection } else {
-                    ensure!(dispatch["configuration_inspection_actions_omitted"]==1);
-                    let continuation=&summary["graph_continuation"];
-                    let full=app.handle_impact_analysis(serde_json::from_value(continuation["arguments"].clone())?).await?;
-                    ensure!(full.is_error!=Some(true));
-                    expanded=packet(&full.content[0].as_text().unwrap().text)?;
-                    &expanded["potential_interface_callers"]["configuration_inspection"]
-                };
+                let inspection=dispatch.get("configuration_inspection")
+                    .unwrap_or(&expanded["potential_interface_callers"]["configuration_inspection"]);
                 ensure!(inspection["actions"].as_array().is_some_and(|actions|actions.len()==1)
                     && inspection["actions_omitted"]==0,
                     "A usable contract route needs bounded configuration discovery without losing consumer files: {dispatch}");

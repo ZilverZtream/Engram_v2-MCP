@@ -224,7 +224,7 @@ function Quiescent($Gate) {
 function Gate([string]$Path,[string]$Hash,[bool]$Rollback) {
     $gate = JsonPin $Path $Hash
     if ($gate.schema_version -ne 1 -or $gate.release_ready -isnot [bool] -or $gate.release_ready -ne $true -or (Full ([string]$gate.install_root)) -ne $InstallRoot) { throw 'Release evidence is not final for this installation' }
-    if ($gate.candidate.sidecar_contract -cnotin @('vb-ingestion-parser-v4', 'vb-ingestion-parser-v5')) { throw 'Candidate parser contract lacks final package evidence' }
+    if ($gate.candidate.sidecar_contract -cnotin @('vb-ingestion-parser-v4', 'vb-ingestion-parser-v5', 'vb-ingestion-parser-v6')) { throw 'Candidate parser contract lacks final package evidence' }
     $ids = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
     foreach ($item in @($gate.gates)) {
         if ($item.id -cnotmatch '^S(0[1-9]|1[0-9])$' -or -not $ids.Add([string]$item.id) -or $item.status -cne 'passed' -or

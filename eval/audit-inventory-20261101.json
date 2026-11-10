@@ -11753,8 +11753,13 @@
       },
       "observation": "Installed native emits target name _gd.systemlogg.Create and args5, without exact overload identity. Both declarations accept five args: Boolean fifth argument at43 versus Guid fifth argument at77. Source declarations advertise exact semantic signatures, but call record discards that distinction.",
       "decision": "Preserve compiler-selected ordinary source method locator/signature through verified ingestion/admission; do not guess overload from name/arity and do not change renderer sampling. First prove current compiler symbol and reject stale/ambiguous locators.",
-      "state": "IMPLEMENTATION_IN_PROGRESS_NOT_BUILT_OR_DEPLOYED",
-      "causal_limit": "This targets actual missing navigation evidence; no claim that it caused all score loss or will reverse the frozen score."
+      "state": "IMPLEMENTED_AND_TARGETED_TESTED_NOT_DEPLOYED",
+      "causal_limit": "This targets actual missing navigation evidence; no claim that it caused all score loss or will reverse the frozen score.",
+      "implementation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-source-call-implementation-20261110.json",
+        "sha256": "e5c041bebbd4b588706cd02f8d401181be07f1a2c6ee00465b8ef20aed1b5b17"
+      },
+      "next_action": "Build and deploy paired v6 release; execute one ordinary OciusX update and verify actual logger navigation/witnesses and preserved prior controls."
     }
   }
 }
