@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_NATIVE_TESTED_REVIEWED_RELEASE_AND_INDEX_DELIVERY_PENDING",
+  "status": "DEPLOYED_HTTP_WRITE_NAVIGATION_VERIFIED_NO_FRESH_AGENT_WIN",
   "at_utc": "2026-11-10T12:08:07.702465+00:00",
   "base_commit": "1020f52278735cc3d79b939779fe8f8df7bdea27",
   "problem": "Original InstallationPlan PatchValue and DeleteValue calls were unresolved because the admitted partial compiler context omitted metadata needed to type Request.Headers.IfMatch. The original positive public witness expectations remained unmet.",
@@ -91,9 +91,9 @@
     "web_http_path": "C:/Users/Dennis/source/repos/OciusX/Site/bin/System.Web.Http.dll",
     "web_http_sha256": "fb2c216b321390fe726bdb842b14343db999d372b6293568cc778966fbd8f64d"
   },
-  "deployment_pending": true,
-  "ordinary_index_refresh_required": true,
-  "original_positive_write_expectations_unmet": true,
+  "deployment_pending": false,
+  "ordinary_index_refresh_required": false,
+  "original_positive_write_expectations_unmet": false,
   "fresh_agent_task_win_proven": false,
   "frozen_tasks_replayed_or_rescored": false,
   "resources": {
@@ -105,5 +105,9 @@
   },
   "original31findings_closed": false,
   "original_full19gates_closed": false,
-  "goal_complete": false
+  "goal_complete": false,
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
+    "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
+  }
 }

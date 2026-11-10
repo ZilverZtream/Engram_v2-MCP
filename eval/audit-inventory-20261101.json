@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T12:08:07.702465+00:00",
-    "reason": "Actual core-tool navigation improvements and smaller summaries remain insufficient for complete agent tasks: frozen TimeReport7/9 and fresh Permit4/6 comparisons favor source-only under stated limits. Continue the selected response-cost item using actual source evidence; do not report narrow savings as a task win.",
+    "at_utc": "2026-11-10T12:53:47.942900+00:00",
+    "reason": "The original missing Update/Delete witness is now delivered and checked through installed CodeMap and both impact tools. Narrow delivery does not reverse frozen negative agent comparisons; continue the original agent-usefulness goal.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap and Blast Radius usefulness: close the recorded missing interface write-call witness, after rejecting low-value metadata format accumulation.",
-    "next_user_visible_deliverable": "Build and package the reviewed HTTP metadata profile, perform one ordinary admitted project refresh, then restore the original positive Update/Delete CodeMap and both-impact witness checks against actualsource. Install only after verified candidate delivery; preserve all frozen agent comparisons.",
+    "active_original_item": "CodeMap and Blast Radius usefulness: HTTP write navigation delivered; verify complete agent-task benefit before selecting another code change.",
+    "next_user_visible_deliverable": "Run one new untouched real agent change-planning task against independent source criteria using installed tools and a source-only comparison. Preserve all frozen tasks; report complete-task success or failure before another narrow fix. Do not resume instruction drafting or supporting infrastructure work.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9854,11 +9854,11 @@
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
-    "latest_user_correction": "Four weeks of circular small fixes and repeated acknowledgments without sufficient outcome improvement. Latest frozen comparison remains assisted6/source7, neither complete. Do not count a narrow repair as whole-task usefulness; select further work by an observed obstacle to task completion.",
+    "latest_user_correction": "User reports week4 of circular small fixes and repeated acknowledgments. Latest frozen comparisons remain Permit4/6 and TimeReport7/9, both incomplete. This delivery reintroduced an already-corrected verifier predicate; record that preparation failure plainly. A narrow repair is not the broader outcome.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "reason": "Rejected low-value CodeMap schema compaction; realmetadata proof identified exact missing calls; implemented and reviewed optionalHTTPprofile,29tests passed. Release/index/publicactualdelivery remains pending."
+      "reason": "Delivered and installed original Update/Delete witness repair; actual17positive HTTP checks and preserved core controls pass on normal daemon. Two preparation errors retained, onlyone indexrefresh. Broader agent usefulness remains unfinished."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -9884,8 +9884,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-delivery-20261110.json",
-      "sha256": "d774fcb2f02342ee02593a65e5f4b70f00b9787496fba6ce877f16105bd0c1a7"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
+      "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11847,22 +11847,26 @@
       }
     },
     "preexisting_http_interface_binding_gap": {
-      "state": "IMPLEMENTED_NATIVE_TESTED_REVIEWED_RELEASE_AND_INDEX_DELIVERY_PENDING",
+      "state": "DEPLOYED_HTTP_WRITE_NAVIGATION_VERIFIED_NO_FRESH_AGENT_WIN",
       "evidence": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-http-context-probe-20261110.json",
         "sha256": "0a0c53dd6d1a009f1b742767a6f4b70eeea05a66233d25e9b7cdac09070fce8e"
       },
-      "effect": "Request.Headers.IfMatch timestamp expressions leave Update/Delete unresolved under existing partial compiler context. No production binding or repair claimed.",
+      "effect": "Exact Update/Delete interface calls, explicit implementation routes and both reverse-tool witnesses now pass against actual source on installed generation3145.",
       "selection_reason": "This is the preserved failed original positive write-route expectation, not a newly discovered issue. Missing compiler Request.Headers.IfMatch type prevents producing its exact Calls witness. Response-cost changes delivered/rejected, frozen task results remain negative; a real-reference proof decides whether the core witness gap can be repaired without guesses or a broad compiler-context project.",
       "real_reference_proof": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-real-metadata-probe-20261110.json",
         "sha256": "5a98852d2e4baf1cd1a5ea199828b89d38673d154743f285dfe45bb86625c37e"
       },
-      "proof_scope": "Unchanged actual controller/interface plus identical synthetic application support types; real metadata only, no HTTP stubs. Only both references bind Update/Delete to exact interface declarations; single-reference controls abstain. Graph ingestion, deployed output and agent usefulness remain unverified.",
+      "proof_scope": "Native positive/negative evidence plus actual candidate and installed graph/source checks. No runtime dispatch or fresh whole-agent-task improvement proof.",
       "implementation_scope": "Optional atomic two-file metadata profile using existing context identity/limits/refresh checks, Rust accepted-mode update and native behavior/provenance regressions. No general assembly discovery or source signature guessing.",
       "implementation": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-implementation-20261110.json",
-        "sha256": "4ca323a73d9f937dd664506c4c0ecc2e0f9813924899cb1b6799ddd1e4fdfb99"
+        "sha256": "fc8614946c5e3726bcd5ba64403264e6db574f4ada0b9498b8d77cb3a6a8bde6"
+      },
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
+        "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
       }
     },
     "latest_forward_interface_delivery": {
@@ -11959,6 +11963,10 @@
     "latest_permit_missing_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-permit-missing-qa-20261110.json",
       "sha256": "a72351db3d54e374eb0ce8efca6e7ba4293f2cd9d2a13340022cbaa4a572052c"
+    },
+    "latest_http_context_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-http-context-delivery-20261110.json",
+      "sha256": "6be77e6c0eee3c6df8e62500025f403fecdf5379bf6285ca07e0b3fc09c538db"
     }
   }
 }

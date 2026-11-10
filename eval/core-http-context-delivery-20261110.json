@@ -1,0 +1,197 @@
+{
+  "status": "DEPLOYED_HTTP_WRITE_NAVIGATION_VERIFIED_NO_FRESH_AGENT_WIN",
+  "at_utc": "2026-11-10T12:53:47.923559+00:00",
+  "source_commit": "f2bd6f4374589b3985231e88439cc0ef09475fdb",
+  "outcome": "On actual OciusX InstallationplansController, CodeMap exposes exact GetById, Update and Delete interface calls, explicit implementation navigation and current source actions. Both impact tools return the required reverse potential-consumer witnesses. This repairs the preserved positive write-route failure; it is not runtime dispatch or complete agent-task proof.",
+  "installed": {
+    "server_sha256": "b26eed29f81d5d0c9ebe33a8eecb78f2ed2f932beb03d6e7534b72354ae3707e",
+    "manifest_sha256": "dec320da8cad845a92cf793a8061bb742f097afe2e41a479c0f306d79b5c7f11",
+    "parser_identity": {
+      "contract": "vb-ingestion-parser-v6",
+      "entry_mvid": "8b037051-d408-412b-8f7f-c3934edb321d",
+      "roslyn_core_mvid": "ff5984b9-af9d-43fb-912d-3c4cda1761dd",
+      "roslyn_vb_mvid": "575815b5-da82-4f41-bc0f-d8d0a248bb2b"
+    },
+    "compiler_context": {
+      "root": "\\\\?\\C:\\Users\\Dennis\\source\\repos\\OciusX",
+      "fingerprint": "37fae9455005fef1912d83b2195e9e9eade0d32328888263aeea9c095fe424db",
+      "mode": "framework_plus_web_http",
+      "reference_bytes": 9453640
+    },
+    "generation": 3145,
+    "observed_primary_pid": 73624,
+    "launcher_pid": 59776,
+    "normal_verification": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-20261110-normal-v2.json",
+      "sha256": "50fee7535f1641dd1cc59bc2517201f424218e9d9d4bfcbd8debef903948c78a"
+    },
+    "requests": 56,
+    "http_checks": 17,
+    "returned_tool_text_bytes": 535715,
+    "normal_watching_restored": true,
+    "configuration_unchanged": true
+  },
+  "validation": {
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-20261110-paired-package.json",
+      "sha256": "97bac6cd3f6c1af951fe3ce83e5f4a1026b7535a91c9a6766a948a2ce9be1e8f"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-shipping-v1-20261110.json",
+      "sha256": "1053f74bdb798d11a7765bca18cdb67947cebdd9f8b8e68059c4c680a85b382c"
+    },
+    "tests": [
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-native-behavior-v1-20261110.json",
+          "sha256": "186829d0df62d214fed8aa277cd3a4afeea6840a619ba04c51b4f04c513d96c2"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-native-behavior-v1-20261110.log",
+          "sha256": "685b589081812050bc8952ba0638a36c803c77e2c0463d769c42b5fc8f41fd2a"
+        },
+        "cases_counted": 19,
+        "native_environment_attribution": "Operator-observed invocation set ENGRAM_VB_SIDECAR_PATH and/or ENGRAM_VB_SIDECAR_TEST_PATH to the candidate after checking executable/DLL hashes. Native HTTP fixture also uses the checked real System.Web.Http DLL. Environment is not independently captured by runner receipt.",
+        "operator_observed_candidate_exe_sha256": "73d0d4e689844ca7efb6046cbd0667e252ac780be8561231f439d7f1f30d8797",
+        "operator_observed_candidate_dll_sha256": "a3ee161a6c39971c2f0c4e25435981e786bf9c94fa6cddf3139fa6ef0cf182d5"
+      },
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-provenance-native-v2-20261110.json",
+          "sha256": "857e0b20f095790c75825a2f897d628e2368efebbbfb03a5666a1b3576973785"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-provenance-native-v2-20261110.log",
+          "sha256": "8eaff18289d5dc099149030ef9c77f572eb2b92e49e3be913f2da4fb0ab354eb"
+        },
+        "cases_counted": 8,
+        "native_environment_attribution": "Operator-observed invocation set ENGRAM_VB_SIDECAR_PATH and/or ENGRAM_VB_SIDECAR_TEST_PATH to the candidate after checking executable/DLL hashes. Native HTTP fixture also uses the checked real System.Web.Http DLL. Environment is not independently captured by runner receipt.",
+        "operator_observed_candidate_exe_sha256": "73d0d4e689844ca7efb6046cbd0667e252ac780be8561231f439d7f1f30d8797",
+        "operator_observed_candidate_dll_sha256": "a3ee161a6c39971c2f0c4e25435981e786bf9c94fa6cddf3139fa6ef0cf182d5"
+      },
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-interface-public-v1-20261110.json",
+          "sha256": "5481c81afd6d580f56536ec8f563bcb0e86628d2cafc431eb1c56e3c5ee674d3"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-interface-public-v1-20261110.log",
+          "sha256": "3a81d86fdf973796abde2379a15e5e92613d56a1404702caef8e6da8664bfc0c"
+        },
+        "cases_counted": 2,
+        "native_environment_attribution": "Operator-observed invocation set ENGRAM_VB_SIDECAR_PATH and/or ENGRAM_VB_SIDECAR_TEST_PATH to the candidate after checking executable/DLL hashes. Native HTTP fixture also uses the checked real System.Web.Http DLL. Environment is not independently captured by runner receipt.",
+        "operator_observed_candidate_exe_sha256": "73d0d4e689844ca7efb6046cbd0667e252ac780be8561231f439d7f1f30d8797",
+        "operator_observed_candidate_dll_sha256": "a3ee161a6c39971c2f0c4e25435981e786bf9c94fa6cddf3139fa6ef0cf182d5"
+      }
+    ],
+    "selected_test_cases": 29,
+    "unexecuted_historical_case": "real_legacy_vb_child_preserves_parse_protocol_but_cannot_claim_verified_ingestion; unavailable preidentity companion, not counted",
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-source-review-20261110.json",
+      "sha256": "cd90f69dd181ad09ea3b2fb85eb43c5c671d31527ec47af6bc8a47761b526906"
+    },
+    "single_refresh_with_failed_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-20261110-cold-v1\\acceptance.json",
+      "sha256": "ff692e21a5d1d8582adc7bf9e5d8b083b0c73eac004fa90603c7d6ebcdcfdfe2"
+    },
+    "read_only_continuation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-post-migration-verify-v1-20261110\\acceptance.json",
+      "sha256": "72048206e3d87e4dbc3c0bbb634c49124a3c6488623bac26a793cd4b48e9a1d3"
+    },
+    "continuation_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-readonly-continuation-review-20261110.json",
+      "sha256": "d70446ee336218d030c9bd5e0d0887a37a7bcced2c4cdc7a0451ad1c00c8f1d7"
+    },
+    "post_refresh_native_context": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-post-cold-context-v2-20261110.json",
+      "sha256": "4ff79ddd6887c6cb97d467e7bb49b2858ad6270aa567859704a3194aa16e7218"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-20261110-release-gates-v2.json",
+      "sha256": "d4d6150c6ed0179a7ee702614e26a0860745b69042a816428e148d0372b555e5"
+    },
+    "installer_transaction": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a0d8b5dabfb64df095f87e68e0de3e85.04-committed-no-start.json",
+      "sha256": "91e584f88a2f637cf23ab9a4553ddb0f32d5845ec68f33726035e4e4a9dff962"
+    }
+  },
+  "preparation_failures": {
+    "malformed_baseline_pin": "First preflight rejected a63-character SHA256 literal before child creation or RPC. Original inputs and failure record retained. Only the pin and dependent helper hashes were corrected.",
+    "reintroduced_obsolete_assertion": "The successful refresh was followed by a failed old frontier_rows_omitted==0 predicate. The same assertion had already been corrected in an earlier source-call verifier. Reuse was a preparation/review mistake. Original FAIL retained; no second refresh or rebuild.",
+    "actual_depth_one_evidence": {
+      "direct_callers": 42,
+      "direct_caller_identities_returned": 42,
+      "node_identities_omitted": 0,
+      "edges_omitted": 0,
+      "depth_two_frontier_rows_omitted": 33,
+      "additional_verified_connections_between_direct_callers": 4
+    },
+    "recovery": "A separate reviewed read-only continuation reuses the full previously corrected depth-one predicate, retains depth-two omissions, and requires all original17positive HTTP checks. Normal mode repeats those checks on the installed daemon."
+  },
+  "preservation": {
+    "ordinary_updates": 1,
+    "before_generation": 3144,
+    "after_generation": 3145,
+    "selected_vb_reextracted": 1016,
+    "non_vb_selection_preserved": 1291,
+    "memory_sections_preserved": 300,
+    "other14_metadata_unchanged": true,
+    "unrelated_registry_preserved": true,
+    "source_hashes_unchanged": true,
+    "source_files_pinned": 31,
+    "tool_definitions_unchanged": true,
+    "frozen_agent_tasks_replayed_or_rescored": false
+  },
+  "resources": {
+    "cold_owned_process_closed": true,
+    "cold_owned_temp_removed": true,
+    "continuation_owned_process_closed": true,
+    "continuation_owned_temp_removed": true,
+    "normal_observer_pipe_closed": true,
+    "build_resources_closed": true,
+    "resource_acceptance_claimed": false,
+    "cold_soft_alerts": [
+      "private_bytes soft threshold exceeded",
+      "logical_write_bytes soft threshold exceeded"
+    ],
+    "config_hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-config-hold-20261110.json.released.json",
+      "sha256": "b0e41f723909579d760421f0fd4a4bba225cb4b1646aa939a378fc26be5e5ca3"
+    },
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-20261110-package",
+    "retained_previous_installation": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a0d8b5dabfb64df095f87e68e0de3e85",
+    "retained_installer_journals": [
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a0d8b5dabfb64df095f87e68e0de3e85.00-prepared.json",
+        "sha256": "2a54434fa914f721de09feb868e851dd6be02d398235a1753bcbef9f652ef1a1"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a0d8b5dabfb64df095f87e68e0de3e85.01-stage-verified.json",
+        "sha256": "409d6520e1888bb9e5cb3b9013102037a4c7261ed12af6326472647ac9b779fd"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a0d8b5dabfb64df095f87e68e0de3e85.02-old-retired.json",
+        "sha256": "e580bc61ad6b192e24d91fd9c4123889c6e8d11327dda18e903cda5ff10dd233"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a0d8b5dabfb64df095f87e68e0de3e85.03-candidate-active.json",
+        "sha256": "155ea409620423f50c67e9980953a41cb8cdc7060a8aaeed5f14cb15c16190dd"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-a0d8b5dabfb64df095f87e68e0de3e85.04-committed-no-start.json",
+        "sha256": "91e584f88a2f637cf23ab9a4553ddb0f32d5845ec68f33726035e4e4a9dff962"
+      }
+    ],
+    "cleanup_condition": "Retain package, evidence, previous installation and journals for review/recovery. Delete only with exact-path approval; no preexisting folders deleted."
+  },
+  "limits": [
+    "Compiler metadata profile remains partial, not general application reference resolution.",
+    "The latest frozen agent comparisons remain Permit assisted4/source6 and TimeReport assisted7/source9; both sides incomplete. These results are unchanged.",
+    "No global disk-freshness, sustained-resource, runtime-dispatch, rollback or full-backlog acceptance claim."
+  ],
+  "fresh_agent_task_win_proven": false,
+  "original31findings_closed": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false
+}
