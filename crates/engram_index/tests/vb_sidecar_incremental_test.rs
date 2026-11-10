@@ -379,7 +379,7 @@ End Class
         "cmd": "parse", "path": path, "source": source, "standalone": true,
     }));
     assert!(response.get("error").is_none(), "native parse failed: {response}");
-    assert_eq!(response["parser_identity"]["contract"], "vb-ingestion-parser-v5");
+    assert_eq!(response["parser_identity"]["contract"], "vb-ingestion-parser-v6");
     let edges = response["edges"].as_array().unwrap();
     let property_edges: Vec<_> = edges.iter().filter(|edge|
         edge["kind"] == "calls" && edge["target_kind"] == "property").collect();
@@ -466,7 +466,7 @@ End Class
     let mut harness = Harness::start(&bin);
     let context_reply = harness.send(serde_json::json!({"cmd":"compiler_context", "project_root":root}));
     assert!(context_reply.get("error").is_none(), "compiler context: {context_reply}");
-    assert_eq!(context_reply["parser_identity"]["contract"], "vb-ingestion-parser-v5");
+    assert_eq!(context_reply["parser_identity"]["contract"], "vb-ingestion-parser-v6");
     let context = context_reply["compiler_context"].clone();
     assert_eq!(context["mode"], "framework_only",
         "requires installed .NET Framework 4.8 references; source-only cannot prove LINQ semantics: {context}");
@@ -608,6 +608,115 @@ fn statically_typed_receiver_retains_its_verified_declaring_type() {
     assert_eq!(calls.len(), 1);
     assert_eq!(calls[0]["target_name"], "Example.Store.Exists");
     assert!(calls[0]["metadata"].get("unresolved").is_none());
+    assert_eq!(calls[0]["metadata"]["source_call_status"], "unknown",
+        "an unadmitted standalone source target must not enter the name/arity resolver");
+    assert!(calls[0]["metadata"].get("source_call_target_v1").is_none());
+}
+
+/// Both logger overloads accept five arguments. Compiler selection, source
+/// navigation and the call-site witness must survive either declaration order.
+#[cfg(windows)]
+#[test]
+fn ordinary_source_calls_preserve_compiler_selected_optional_overloads() {
+    use sha2::{Digest, Sha256};
+    let Some(bin) = sidecar_path() else { return; };
+    let boolean = "Public Shared Sub Create(m As String, f As String, e As String, ok As Boolean, current As Boolean, Optional message As String = \"\", Optional extra As String = \"\")\nEnd Sub\n";
+    let guid = "Public Shared Sub Create(m As String, f As String, e As String, ok As Boolean, user As System.Guid, Optional message As String = \"\")\nEnd Sub\n";
+    for reversed in [false, true] {
+        let owned = tempfile::TempDir::new().unwrap();
+        std::fs::write(owned.path().join("web.config"),
+            r#"<configuration>
+<system.web><compilation targetFramework="4.8" defaultLanguage="vb" debug="true"><assemblies>
+<add assembly="System.Data.Linq, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089"/>
+</assemblies></compilation><pages><namespaces><clear/>
+<add namespace="System"/><add namespace="System.Collections.Generic"/><add namespace="System.Linq"/>
+</namespaces></pages></system.web>
+<system.codedom><compilers><compiler language="vb;vbs;visualbasic;vbscript" extension=".vb"
+type="Microsoft.CodeDom.Providers.DotNetCompilerPlatform.VBCodeProvider, Microsoft.CodeDom.Providers.DotNetCompilerPlatform, Version=4.1.0.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35"
+compilerOptions="/optioninfer+"><providerOption name="UseAspNetSettings" value="true"/>
+</compiler></compilers></system.codedom></configuration>"#).unwrap();
+        let methods = if reversed { format!("{guid}{boolean}") } else { format!("{boolean}{guid}") };
+        let logger = format!("' Unicode before the target: \u{1f4cd}\nNamespace Sample\nPublic Class AuditLog\n{methods}End Class\nEnd Namespace\n");
+        let mut caller = String::from("Public Interface IContract\n Sub Run()\nEnd Interface\nPublic Class Controller\n Public Sub DeleteLayers()\n Sample.AuditLog.Create(\"map\", \"DeleteLayers\", \"deleted\", True, True)\n End Sub\n Public Sub DeleteForUser(user As System.Guid)\n Sample.AuditLog.Create(\"map\", \"DeleteForUser\", \"deleted\", True, user)\n End Sub\n Public Sub Contract(service As IContract)\n service.Run()\n End Sub\n Public Sub ExternalAndMissing()\n System.Console.WriteLine(\"external\")\n Missing.Work()\n End Sub\n Public Sub Many()\n");
+        for _ in 0..257 {
+            caller.push_str(" Sample.AuditLog.Create(\"map\", \"Many\", \"deleted\", True, True)\n");
+        }
+        caller.push_str(" End Sub\nEnd Class\n");
+        let sources = [("logger.vb", logger.as_str()), ("caller.vb", caller.as_str())];
+        let paths: Vec<_> = sources.iter().map(|(name, source)| {
+            let path = owned.path().join(name);
+            std::fs::write(&path, source).unwrap();
+            path
+        }).collect();
+        let mut harness = Harness::start(&bin);
+        let reply = harness.send(serde_json::json!({"cmd":"compiler_context","project_root":owned.path()}));
+        assert!(reply.get("error").is_none(), "context: {reply}");
+        let context = reply["compiler_context"].clone();
+        assert_eq!(context["mode"], "framework_only", "real System.Guid overload requires framework references");
+        let plan = harness.send(serde_json::json!({"cmd":"plan_refresh","project_root":owned.path(),
+            "files":paths,"paths":paths,"compiler_context":context,"compilation_policy":{
+                "max_total_source_bytes":1048576,"max_file_source_bytes":524288,
+                "max_trees":64,"allocation_multiplier":32,"tree_overhead_bytes":8192}}));
+        assert!(plan.get("error").is_none(), "plan: {plan}");
+        let prepared = harness.send(serde_json::json!({"cmd":"refresh_project","plan_id":plan["compilation_plan"]["id"]}));
+        assert!(prepared.get("error").is_none(), "refresh: {prepared}");
+        let parsed: Vec<_> = sources.iter().zip(&paths).map(|((_, source), path)| {
+            let response = harness.send(serde_json::json!({"cmd":"parse","project_root":owned.path(),
+                "path":path,"source":source,"compiler_context":context}));
+            assert!(response.get("error").is_none(), "parse: {response}");
+            response
+        }).collect();
+        let edges = parsed[1]["edges"].as_array().unwrap();
+        for (method, declaration, signature) in [
+            ("Controller.DeleteLayers", boolean, "M:Sample.AuditLog.Create(System.String,System.String,System.String,System.Boolean,System.Boolean,System.String,System.String)"),
+            ("Controller.DeleteForUser", guid, "M:Sample.AuditLog.Create(System.String,System.String,System.String,System.Boolean,System.Guid,System.String)"),
+        ] {
+            let edge = edges.iter().find(|edge| edge["kind"] == "calls" && edge["source_name"] == method).unwrap();
+            assert_eq!(edge["target_name"], "Sample.AuditLog.Create");
+            assert_eq!(edge["metadata"]["args"], "5");
+            assert_eq!(edge["metadata"]["source_call_status"], "source_located");
+            assert!(edge.get("target_start_line").is_none_or(serde_json::Value::is_null),
+                "a cross-file source target must not use the same-file line shortcut");
+            let locator: serde_json::Value = serde_json::from_str(edge["metadata"]["source_call_target_v1"].as_str().unwrap()).unwrap();
+            assert_eq!(locator["version"], 1);
+            assert_eq!(locator["name"], edge["target_name"]);
+            assert_eq!(locator["file_path"], "logger.vb");
+            assert_eq!(locator["semantic_id"], signature);
+            assert_eq!(locator["syntax_source_sha256"], format!("{:x}", Sha256::digest(logger.as_bytes())));
+            let declaration_line = logger.lines().position(|line| line == declaration.lines().next().unwrap()).unwrap() + 1;
+            assert_eq!(locator["start_line"], declaration_line);
+            let units: Vec<_> = logger.encode_utf16().collect();
+            let start = locator["span_start"].as_u64().unwrap() as usize;
+            let length = locator["span_length"].as_u64().unwrap() as usize;
+            assert_eq!(String::from_utf16(&units[start..start + length]).unwrap(), declaration.lines().next().unwrap());
+            let matching: Vec<_> = parsed[0]["symbols"].as_array().unwrap().iter().filter(|symbol|
+                symbol["name"] == locator["name"] && symbol["start_line"] == locator["start_line"]
+                    && symbol["metadata"]["semantic_member_id"] == locator["semantic_id"]).collect();
+            assert_eq!(matching.len(), 1, "navigation must identify exactly the selected source declaration");
+            assert_eq!(matching[0]["metadata"]["arity_min"], "5");
+            let witness = edge["metadata"]["call_site_line"].as_str().unwrap().parse::<usize>().unwrap();
+            let expected = if method.ends_with("DeleteLayers") { "\"DeleteLayers\", \"deleted\", True, True)" }
+                else { "\"DeleteForUser\", \"deleted\", True, user)" };
+            assert!(caller.lines().nth(witness - 1).unwrap().contains(expected));
+        }
+        let contract = edges.iter().find(|edge| edge["kind"] == "calls" && edge["source_name"] == "Controller.Contract").unwrap();
+        assert_eq!(contract["metadata"]["interface_call_status"], "source_located");
+        assert!(contract["metadata"].get("source_call_status").is_none(), "interface dispatch remains a separate route");
+        let ordinary: Vec<_> = edges.iter().filter(|edge| edge["target_name"] == "Sample.AuditLog.Create" && edge["kind"] == "calls").collect();
+        assert_eq!(ordinary.len(), 259);
+        assert_eq!(ordinary.iter().filter(|edge| edge["metadata"]["source_call_status"] == "source_located").count(), 256);
+        let omitted: Vec<_> = ordinary.iter().filter(|edge| edge["metadata"]["source_call_status"] == "unknown").collect();
+        assert_eq!(omitted.len(), 3, "exhausted source locators must stay unresolved rather than guessing an overload");
+        assert!(omitted.iter().all(|edge| edge["metadata"].get("source_call_target_v1").is_none()));
+        let others: Vec<_> = edges.iter().filter(|edge| edge["kind"] == "calls" && edge["source_name"] == "Controller.ExternalAndMissing").collect();
+        assert_eq!(others.len(), 2);
+        assert!(others.iter().all(|edge| edge["metadata"].get("source_call_status").is_none()),
+            "external and unbound calls retain ordinary behavior");
+        harness.send(serde_json::json!({"cmd":"shutdown"}));
+        assert!(harness.child.wait().unwrap().success());
+        drop(harness);
+        owned.close().unwrap();
+    }
 }
 
 #[test]

@@ -273,7 +273,7 @@ impl VbLoadedParserIdentity {
         let mvid = |value: &str| value.len() == 36
             && value.bytes().enumerate().all(|(n, byte)| if [8, 13, 18, 23].contains(&n) { byte == b'-' } else { byte.is_ascii_hexdigit() })
             && value.bytes().any(|byte| byte != b'0' && byte != b'-');
-        self.contract == "vb-ingestion-parser-v5" && mvid(&self.entry_mvid)
+        self.contract == "vb-ingestion-parser-v6" && mvid(&self.entry_mvid)
             && mvid(&self.roslyn_core_mvid) && mvid(&self.roslyn_vb_mvid)
     }
 }

@@ -657,6 +657,23 @@ fn recorded_positions(edge: &Edge) -> (Option<u32>, &'static str, Vec<u32>, bool
     let Some(metadata) = edge.metadata.as_ref().and_then(JsonValue::as_object) else {
         return (None, "not_recorded", Vec::new(), false);
     };
+    if requires_source_call_binding(edge) {
+        // Called after endpoint admission. Never mix arbitrary edge-wide
+        // positions into the compiler-selected declaration's witness.
+        let Ok(Some(proofs)) = source_call_bindings(edge) else {
+            return (None, "not_recorded", Vec::new(), false);
+        };
+        let mut lines = std::collections::BTreeSet::new();
+        let mut truncated = !proofs.complete;
+        for proof in proofs.bindings {
+            lines.extend(proof.reference_lines);
+            truncated |= proof.reference_lines_truncated;
+        }
+        truncated |= lines.len() > 8;
+        let lines: Vec<_> = lines.into_iter().take(8).collect();
+        return (lines.first().copied(), if lines.is_empty() { "not_recorded" }
+            else { "call_reference_syntax_metadata" }, lines, truncated);
+    }
     // Ingestion retains at most 128 positions. Bound inspection of older or
     // hand-authored records too; never clone arbitrary extractor metadata.
     let mut lines = std::collections::BTreeSet::new();
@@ -939,6 +956,29 @@ impl GraphStore {
                 output.coverage.unknown_nodes += 1;
                 gap(&mut output.coverage, "property_reference_edge_source_unverified");
                 continue;
+            }
+            if requires_source_call_binding(&edge) {
+                // Exact endpoint metadata is read in this transaction under the
+                // same shared scan/record budget, before retaining any lead.
+                let valid = match read(target_id, &mut budget, &mut output.coverage)? {
+                    Some(target) => {
+                        let source_file = read(&format!("file:{}", source.file_path.as_str()), &mut budget, &mut output.coverage)?;
+                        let target_file = read(&format!("file:{}", target.file_path.as_str()), &mut budget, &mut output.coverage)?;
+                        match (source_file.as_ref(), target_file.as_ref()) {
+                            (Some(sf), Some(tf)) => source_call_binding_matches(&edge, &source, sf, &target, tf),
+                            _ => false,
+                        }
+                    }
+                    None => false,
+                };
+                if !valid {
+                    output.coverage.unknown_nodes += 1;
+                    gap(&mut output.coverage, "source_call_binding_unverified");
+                    if let Some(observed) = callables.as_deref_mut() {
+                        gap(&mut observed.coverage, "source_call_binding_unverified");
+                    }
+                    continue;
+                }
             }
             let Some(target) = read(target_id, &mut budget, &mut output.coverage)? else { continue };
             if target.node_id != source.node_id { output.coverage.nodes_observed += 1; }
@@ -1804,6 +1844,28 @@ impl GraphStore {
                             "unverified_edge_source_revision",
                         );
                         continue;
+                    }
+                    if requires_source_call_binding(&edge) {
+                        // The traversal cache retains identities only. Re-read
+                        // full endpoint records rather than admitting stripped
+                        // or old cached metadata after a target republication.
+                        let full_source = read_node(source, &mut budget, &mut output.coverage)?;
+                        let full_target = read_node(&target, &mut budget, &mut output.coverage)?;
+                        let valid = if let (Some(full_source), Some(full_target)) = (full_source.as_ref(), full_target.as_ref()) {
+                            let source_file = read_node(&format!("file:{}", full_source.file_path.as_str()), &mut budget, &mut output.coverage)?;
+                            let target_file = read_node(&format!("file:{}", full_target.file_path.as_str()), &mut budget, &mut output.coverage)?;
+                            match (source_file.as_ref(), target_file.as_ref()) {
+                                (Some(sf), Some(tf)) => source_call_binding_matches(&edge, full_source, sf, full_target, tf),
+                                _ => false,
+                            }
+                        } else { false };
+                        if !valid {
+                            output.coverage.unknown_nodes += 1;
+                            gap(&mut output.coverage, "source_call_binding_unverified");
+                            record_frontier(&mut output.frontier, &mut output.coverage, &mut budget, output.witnesses.len(),
+                                source, Some(&target), Some(kind), Some(node), depth + 1, "source_call_binding_unverified");
+                            continue;
+                        }
                     }
                     let producer_selected=match event_producer(&edge) {
                         Ok(None)=>true,
@@ -3465,4 +3527,164 @@ mod tests {
             Ok(())
         })
     }
+
+    fn source_call_fixture(boolean_line: u32, guid_line: u32) -> (Vec<Node>, Edge, SourceCallBinding) {
+        let mut caller = node("", "src/delete.vb", 7);
+        caller.name = "Image.DeleteLayers".into();
+        caller.start_line = 226;
+        caller.end_line = 265;
+        caller.node_id = engram_core::ids::NodeId::symbol("function", None, "src/delete.vb", &caller.name, caller.start_line).0;
+        caller.metadata.as_mut().unwrap()["semantic_member_id"] = serde_json::json!("M:Image.DeleteLayers(System.Int32)");
+        let mut boolean = node("", "src/log.vb", 9);
+        boolean.name = "Logger.Create".into();
+        boolean.start_line = boolean_line;
+        boolean.end_line = boolean_line + 20;
+        boolean.node_id = engram_core::ids::NodeId::symbol("function", None, "src/log.vb", &boolean.name, boolean.start_line).0;
+        boolean.metadata = Some(serde_json::json!({"source_identity":"fixture",
+            "semantic_member_id":"M:Logger.Create(System.String,System.String,System.String,System.Boolean,System.Boolean,System.String,System.String)",
+            "semantic_span_start":"2736", "semantic_span_length":"207", "arity":"7", "arity_min":"5"}));
+        let mut guid = boolean.clone();
+        guid.start_line = guid_line;
+        guid.end_line = guid_line + 20;
+        guid.node_id = engram_core::ids::NodeId::symbol("function", None, "src/log.vb", &guid.name, guid.start_line).0;
+        guid.metadata.as_mut().unwrap()["semantic_member_id"] = serde_json::json!("M:Logger.Create(System.String,System.String,System.String,System.Boolean,System.Guid,System.String)");
+        guid.metadata.as_mut().unwrap()["arity"] = serde_json::json!("6");
+        let parser = serde_json::json!({"backend":"roslyn", "contract":"ordinary-source-fixture-v1"});
+        let mut caller_file = file("src/delete.vb", 7);
+        caller_file.metadata = Some(serde_json::json!({"source_identity":"fixture", "file_hash":"a".repeat(64),
+            "vb_syntax_source_sha256":"b".repeat(64), "vb_parser_provenance":parser}));
+        let mut target_file = file("src/log.vb", 9);
+        target_file.metadata = Some(serde_json::json!({"source_identity":"fixture", "file_hash":"c".repeat(64),
+            "vb_syntax_source_sha256":"d".repeat(64), "vb_parser_provenance":parser}));
+        let proof = SourceCallBinding {
+            target: SourceMemberLocator { version:1, name:boolean.name.clone(),
+                semantic_id:boolean.metadata.as_ref().unwrap()["semantic_member_id"].as_str().unwrap().into(),
+                file_path:"src/log.vb".into(), start_line:boolean_line, span_start:2736, span_length:207,
+                syntax_source_sha256:"d".repeat(64) },
+            source_semantic_id:caller.metadata.as_ref().unwrap()["semantic_member_id"].as_str().unwrap().into(),
+            source_generation:7, source_file_hash:"a".repeat(64), target_generation:9,
+            target_file_hash:"c".repeat(64), parser, reference_lines:vec![260], reference_lines_truncated:false,
+        };
+        let mut call = edge(&caller.node_id, &boolean.node_id, EdgeKind::Calls, 7);
+        call.metadata = Some(serde_json::json!({"source_call_status":"source_located",
+            "source_call_binding_admission":"verified_source_declaration", "args":"5",
+            // A free-standing extractor line must not replace admitted evidence.
+            "call_site_line":261,
+            SOURCE_CALL_BINDINGS:SourceCallBindings {version:1, complete:true, bindings:vec![proof.clone()]}}));
+        (vec![caller, boolean, guid, caller_file, target_file], call, proof)
+    }
+
+    fn current_source_call_node(node: &Node, file: Option<&Node>) -> anyhow::Result<ImpactAdmission> {
+        Ok(if file.is_some_and(|file| file.generation == node.generation && file.file_path == node.file_path) {
+            ImpactAdmission::Selected
+        } else { ImpactAdmission::Unknown })
+    }
+
+    #[test]
+    fn source_call_selected_overload_and_witness_survive_reversed_declaration_order() -> anyhow::Result<()> {
+        for (boolean_line, guid_line) in [(43,77),(77,43)] {
+            owned_case(|store| {
+                let (nodes, call, _) = source_call_fixture(boolean_line, guid_line);
+                store.upsert_nodes_and_edges(PROJECT, &nodes, &[call.clone()])?;
+                let (_, outgoing) = store.bounded_declaration_references(PROJECT, &call.source_id, &current_source_call_node, &|_|false)?;
+                assert_eq!(outgoing.references.len(),1);
+                assert_eq!(outgoing.references[0].target.node_id, nodes[1].node_id);
+                assert_eq!(outgoing.references[0].reference_lines, vec![260]);
+                let incoming = store.bounded_incoming_walk(PROJECT, &[call.target_id.clone()], 1, &causal, &current_source_call_node)?;
+                assert_eq!(incoming.witnesses.len(),1);
+                assert_eq!(incoming.witnesses[0].reference_lines, vec![260]);
+                let unrelated = store.bounded_incoming_walk(PROJECT, &[nodes[2].node_id.clone()], 1, &causal, &current_source_call_node)?;
+                assert!(unrelated.witnesses.is_empty());
+                Ok(())
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn source_call_republication_or_corrupt_proof_cannot_become_current_impact() -> anyhow::Result<()> {
+        for change in ["target_signature", "target_span", "target_syntax", "target_hash", "target_generation",
+            "source_signature", "source_hash", "source_generation", "parser", "missing_proof", "malformed_proof", "incomplete_proof", "unknown_admission", "interface_target"] {
+            owned_case(|store| {
+                let (mut nodes, mut call, _) = source_call_fixture(43,77);
+                store.upsert_nodes_and_edges(PROJECT, &nodes, &[call.clone()])?;
+                match change {
+                    "target_signature" => nodes[1].metadata.as_mut().unwrap()["semantic_member_id"] = nodes[2].metadata.as_ref().unwrap()["semantic_member_id"].clone(),
+                    "target_span" => nodes[1].metadata.as_mut().unwrap()["semantic_span_length"] = serde_json::json!("208"),
+                    "target_syntax" => nodes[4].metadata.as_mut().unwrap()["vb_syntax_source_sha256"] = serde_json::json!("e".repeat(64)),
+                    "target_hash" => nodes[4].metadata.as_mut().unwrap()["file_hash"] = serde_json::json!("e".repeat(64)),
+                    "target_generation" => { nodes[1].generation += 1; nodes[4].generation += 1; },
+                    "source_signature" => nodes[0].metadata.as_mut().unwrap()["semantic_member_id"] = serde_json::json!("M:Image.DeleteLayers(System.String)"),
+                    "source_hash" => nodes[3].metadata.as_mut().unwrap()["file_hash"] = serde_json::json!("e".repeat(64)),
+                    "source_generation" => { nodes[0].generation += 1; nodes[3].generation += 1;
+                        // Even if edge source-revision evidence is refreshed, the old compiler binding is stale.
+                        call.generation += 1; },
+                    "parser" => nodes[4].metadata.as_mut().unwrap()["vb_parser_provenance"]["contract"] = serde_json::json!("different"),
+                    "missing_proof" => { call.metadata.as_mut().unwrap().as_object_mut().unwrap().remove(SOURCE_CALL_BINDINGS); },
+                    "malformed_proof" => call.metadata.as_mut().unwrap()[SOURCE_CALL_BINDINGS] = serde_json::json!({"version":1,"bindings":"invalid"}),
+                    "incomplete_proof" => call.metadata.as_mut().unwrap()[SOURCE_CALL_BINDINGS]["complete"] = serde_json::json!(false),
+                    "unknown_admission" => call.metadata.as_mut().unwrap()["source_call_binding_admission"] = serde_json::json!("unknown"),
+                    "interface_target" => nodes[1].metadata.as_mut().unwrap()["interface_member_declaration"] = serde_json::json!("true"),
+                    _ => unreachable!(),
+                }
+                store.upsert_nodes_and_edges(PROJECT, &nodes, &[call.clone()])?;
+                let (_, outgoing) = store.bounded_declaration_references(PROJECT, &call.source_id, &current_source_call_node, &|_|false)?;
+                assert!(outgoing.references.is_empty(), "{change}");
+                assert!(outgoing.coverage.reasons.iter().any(|r| r == "source_call_binding_unverified"), "{change}: {:?}", outgoing.coverage);
+                let incoming = store.bounded_incoming_walk(PROJECT, &[call.target_id.clone()], 1, &causal, &current_source_call_node)?;
+                assert!(incoming.witnesses.is_empty(), "{change}");
+                assert!(incoming.frontier.iter().any(|f| f.reason == "source_call_binding_unverified"), "{change}");
+                Ok(())
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn source_call_unknown_locator_never_falls_through_generic_name_resolution() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (mut nodes, mut call, _) = source_call_fixture(43,77);
+            // Only one matching declaration exists: generic name matching would
+            // otherwise produce a plausible but unsupported current call.
+            nodes.remove(2);
+            call.target_id = "::Logger.Create".into();
+            call.metadata = Some(serde_json::json!({"source_call_status":"unknown", "args":"5"}));
+            store.upsert_nodes_and_edges(PROJECT, &nodes, &[call.clone()])?;
+            assert_eq!(store.resolve_symbol_edges(PROJECT)?,0);
+            assert!(store.try_resolve_unresolved_target(PROJECT, &call.source_id, &call.target_id).is_none());
+            let (_, outgoing) = store.bounded_declaration_references(PROJECT, &call.source_id, &current_source_call_node, &|_|false)?;
+            assert!(outgoing.references.is_empty());
+            assert!(outgoing.coverage.reasons.iter().any(|r| r == "source_call_binding_unverified"));
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn source_call_merge_keeps_owned_positions_bounded_and_refuses_partial_proofs() -> anyhow::Result<()> {
+        let (_, call, mut proof) = source_call_fixture(43,77);
+        let mut base = call.metadata.unwrap().as_object().unwrap().clone();
+        proof.reference_lines = (226..258).collect();
+        let extra = serde_json::json!({SOURCE_CALL_BINDINGS:SourceCallBindings {version:1, complete:true, bindings:vec![proof.clone()]}});
+        merge_source_call_bindings(&mut base, extra.as_object().unwrap())?;
+        let merged: SourceCallBindings = serde_json::from_value(base[SOURCE_CALL_BINDINGS].clone())?;
+        assert_eq!(merged.bindings.len(),1);
+        assert_eq!(merged.bindings[0].reference_lines.len(),32);
+        assert!(merged.bindings[0].reference_lines_truncated);
+        assert!(merged.complete);
+        let mut distinct = Vec::new();
+        for generation in 10..26 { let mut changed = proof.clone(); changed.target_generation = generation; distinct.push(changed); }
+        let extra = serde_json::json!({SOURCE_CALL_BINDINGS:SourceCallBindings {version:1, complete:true, bindings:distinct}});
+        merge_source_call_bindings(&mut base, extra.as_object().unwrap())?;
+        let merged: SourceCallBindings = serde_json::from_value(base[SOURCE_CALL_BINDINGS].clone())?;
+        assert_eq!(merged.bindings.len(),16);
+        assert!(!merged.complete);
+        let mut excessive = proof;
+        excessive.reference_lines = (226..259).collect();
+        let extra = serde_json::json!({SOURCE_CALL_BINDINGS:SourceCallBindings {version:1, complete:true, bindings:vec![excessive]}});
+        let mut empty = serde_json::Map::new();
+        assert!(merge_source_call_bindings(&mut empty, extra.as_object().unwrap()).is_err());
+        assert!(empty.is_empty());
+        Ok(())
+    }
+
 }

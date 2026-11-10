@@ -490,6 +490,8 @@ internal sealed class AstEmitter
         var parseErrorCount = tree.GetDiagnostics().Count(d => d.Severity == DiagnosticSeverity.Error);
         var interfaceBindingsProduced = 0;
         var interfaceBindingsOmitted = 0;
+        var sourceCallsProduced = 0;
+        var sourceCallsOmitted = 0;
         string SyntaxSourceHash(SyntaxTree syntaxTree) => _syntaxHashes.GetValue(syntaxTree,
             static key => new SyntaxHash(Convert.ToHexString(SHA256.HashData(
                 Encoding.UTF8.GetBytes(key.GetText().ToString()))).ToLowerInvariant())).Value;
@@ -560,6 +562,42 @@ internal sealed class AstEmitter
                 SpanStart = syntax.SpanStart, SpanLength = syntax.Span.Length,
                 SyntaxSourceSha256 = SyntaxSourceHash(syntax.SyntaxTree),
                 ContractTypeKey = contractTypeKey, ContractType = contractDisplay,
+            };
+        }
+
+        SourceMemberLocatorDto? SourceMethod(IMethodSymbol original)
+        {
+            if (sourceCallsProduced >= 256 || original.MethodKind != MethodKind.Ordinary
+                || original.PartialDefinitionPart is not null || original.PartialImplementationPart is not null
+                || original.DeclaringSyntaxReferences.Length != 1 || _projectRoot is null)
+                return null;
+            var syntax = original.DeclaringSyntaxReferences[0].GetSyntax();
+            if (syntax is not MethodStatementSyntax || syntax.Parent is not MethodBlockSyntax
+                || !_treesByPath.TryGetValue(syntax.SyntaxTree.FilePath, out var admittedTree)
+                || !ReferenceEquals(admittedTree, syntax.SyntaxTree)
+                || syntax.SpanStart < 0 || syntax.Span.Length <= 0
+                || syntax.Span.End > syntax.SyntaxTree.GetText().Length)
+                return null;
+            var relative = Path.GetRelativePath(_projectRoot, syntax.SyntaxTree.FilePath).Replace('\\', '/');
+            var identity = SemanticId(original);
+            var name = original.ToDisplayString(BareQualifiedNameFormat);
+            if (identity.Length == 0 || name.Length is 0 or > 2048 || name.Any(char.IsControl)
+                || relative.Length > 2048 || Path.IsPathRooted(relative)
+                || relative.Split('/').Any(part => part is "" or "." or "..")
+                || relative.Contains(':') || relative.Any(char.IsControl))
+                return null;
+            // Error-tolerant compilations can retain duplicate declarations with
+            // identical documentation IDs. Such IDs cannot select a declaration.
+            var peers = original.ContainingType.GetMembers(original.Name);
+            if (peers.Length > 256 || peers.OfType<IMethodSymbol>()
+                .Count(peer => SemanticId(peer) == identity) != 1)
+                return null;
+            return new SourceMemberLocatorDto
+            {
+                Name = name, SemanticId = identity, FilePath = relative,
+                StartLine = Line(syntax.SyntaxTree, syntax),
+                SpanStart = syntax.SpanStart, SpanLength = syntax.Span.Length,
+                SyntaxSourceSha256 = SyntaxSourceHash(syntax.SyntaxTree),
             };
         }
 
@@ -874,7 +912,8 @@ internal sealed class AstEmitter
                 var targetName = ResolveInvocationName(inv);
                 var callSiteLine = Line(tree, inv);
                 var invocationMetadata = ResolveInvocationMetadata(inv) ?? new Dictionary<string, string>();
-                if (model.GetSymbolInfo(inv).Symbol is IMethodSymbol calledMethod
+                var invocationSymbol = model.GetSymbolInfo(inv);
+                if (invocationSymbol.Symbol is IMethodSymbol calledMethod
                     && calledMethod.ContainingType.TypeKind == TypeKind.Interface)
                 {
                     var locator = SourceInterfaceMember(calledMethod);
@@ -886,7 +925,7 @@ internal sealed class AstEmitter
                     }
                     else { interfaceBindingsOmitted++; }
                 }
-                else if (model.GetSymbolInfo(inv).CandidateSymbols.OfType<IMethodSymbol>()
+                else if (invocationSymbol.CandidateSymbols.OfType<IMethodSymbol>()
                     .Any(candidate => candidate.ContainingType.TypeKind == TypeKind.Interface)
                     || (inv.Expression is MemberAccessExpressionSyntax access
                         && model.GetTypeInfo(access.Expression).Type?.TypeKind == TypeKind.Interface))
@@ -895,6 +934,23 @@ internal sealed class AstEmitter
                     // generic name/arity resolver as an ordinary call.
                     invocationMetadata["interface_call_status"] = "unknown";
                     interfaceBindingsOmitted++;
+                }
+                else if (invocationSymbol.Symbol is IMethodSymbol selectedMethod)
+                {
+                    var original = (selectedMethod.ReducedFrom ?? selectedMethod).OriginalDefinition;
+                    if (original.Locations.Any(location => location.IsInSource))
+                    {
+                        var locator = SourceMethod(original);
+                        invocationMetadata["source_call_status"] = locator is null ? "unknown" : "source_located";
+                        if (locator is not null)
+                        {
+                            sourceCallsProduced++;
+                            targetName = locator.Name;
+                            invocationMetadata["source_call_target_v1"] = JsonSerializer.Serialize(
+                                locator, AppJsonContext.Default.SourceMemberLocatorDto);
+                        }
+                        else { sourceCallsOmitted++; }
+                    }
                 }
                 invocationMetadata["call_site_line"] = callSiteLine.ToString();
                 // TODO-13: argument count lets the resolver prefer the
@@ -1586,6 +1642,8 @@ internal sealed class AstEmitter
         Walk(root);
         symbols[0].Metadata!["interface_bindings_produced"] = interfaceBindingsProduced.ToString();
         symbols[0].Metadata!["interface_bindings_omitted"] = interfaceBindingsOmitted.ToString();
+        symbols[0].Metadata!["source_calls_produced"] = sourceCallsProduced.ToString();
+        symbols[0].Metadata!["source_calls_omitted"] = sourceCallsOmitted.ToString();
         symbols[0].Metadata!["interface_binding_scope"] = "bounded_explicit_vb_source_methods; open/variant generic, partial-interface, implicit, inherited and property dispatch not assessed";
 
         string ComposeName(string terminal)
