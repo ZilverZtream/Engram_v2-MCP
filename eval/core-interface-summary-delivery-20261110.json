@@ -1,0 +1,143 @@
+{
+  "status": "DEPLOYED_NORMAL_VERIFIED_SUMMARY_COST_REDUCTION_NO_TASK_WIN_CLAIM",
+  "at_utc": "2026-11-10T11:21:20.897563+00:00",
+  "binary_source_commit": "ed716f990ee14618e802b5b060b5db0a0c2c63d2",
+  "problem": "Frozen TimeReport agent comparison scored assisted7/10 versus source-only9/10; first CodeMap8168 and impact9488 bytes consumed budget before completing required source traces. This does not establish response size as the sole cause.",
+  "delivered_behavior": "Impact summary defers optional configuration-inspection plan to its literal Graph continuation and refers to an identical implementation endpoint using the six inline target facts. Independent comparison retains caller/contract, both edge witnesses, source actions, bounds and uncertainty. Graph configuration search and subsequent source action executed against current independent source. CodeMap production behavior unchanged.",
+  "measurements": {
+    "prior_summary_utf8_bytes": 9488,
+    "installed_summary_utf8_bytes": 7024,
+    "saved_bytes": 2464,
+    "saved_percent": 25.96964586846543,
+    "tools": [
+      "impact_analysis",
+      "compute_blast_radius"
+    ],
+    "scope": "One known TimeReport implementation; no whole-task savings or general productivity claim."
+  },
+  "verification": {
+    "requests": 27,
+    "task_calls": 21,
+    "task_checks_passed": true,
+    "preservation_passed": true,
+    "all150_definitions_unchanged": true,
+    "errors": [],
+    "pending_request_id": null,
+    "update_attempts": 0
+  },
+  "tests": {
+    "reported_cases": 94,
+    "meaning": "Wanted behavior checks; not agent usefulness proof."
+  },
+  "installed_pair": {
+    "server_sha256": "916359b43f9232ec1d281c2bb2305df5ad2101037b505d8cdb52e4db6cd2d39f",
+    "manifest_sha256": "ac1feee16a5bf6e15c2c9101c321e87dca9b6dc3365e1c98aafb105addb0d92f",
+    "native_assets_unchanged": 214,
+    "parser_contract": "vb-ingestion-parser-v6",
+    "source_generation": 3144,
+    "normal_primary_pid": 63608
+  },
+  "candidate_parser_failure": "Preserved v1 failure: verifier read both impact and historical JSON sections as one. Corrected v2 restricts parsing to requested top-level section; all21 task calls/assertions retained.",
+  "original_positive_write_expectations_unmet": true,
+  "original_thirteen_positive_checks_pass_claimed": false,
+  "evidence": {
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-paired-package.json",
+      "sha256": "30b1e250cd71c465467eb023fa18710914b599bd3825f0e6be2aaaca144839bc"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-shipping-v1-20261110.json",
+      "sha256": "7943592091d316bf2666df9cd11a77050e0529480a8f8af82026a7ce96c5e029"
+    },
+    "candidate_parser_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-candidate-v1\\acceptance.json",
+      "sha256": "ef510f87f3cf3c1bd73de36f7c93518736c7727566fbc592743591aff5eb34e0"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-candidate-v2\\acceptance.json",
+      "sha256": "10ac56f651b0aecc843f49d5e33a04f0065c8c76a3967ee8b8784d1c4e7d4674"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-normal-v2\\acceptance.json",
+      "sha256": "fc803affe57c1eded1784f99af1ab93e07091fa9436877cace8804722e3260a6"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-release-gates-v2.json",
+      "sha256": "f6c88ccf59fef96e28941b114d266324571d1f319d16ad6cb4f548c3a4c2336f"
+    },
+    "validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-install-validation.json",
+      "sha256": "dfe500da3ed8ad7eafc51608adf82f04c6fd898b8799c859f88a18507fa7798f"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-install-upgrade.json",
+      "sha256": "6836cb2f92c862fd723d76e203f589dc27d99ce232a439a112b2a81f046aef88"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-config-hold-20261110.json.released.json",
+      "sha256": "221791656c14e932ff8bb10f09be940500e95f3341998a9577b79413b2c4d91e"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-review-v3-20261110.json",
+      "sha256": "64ee22fd037b4ac64ac7129bf97a83d68763c10b7c31c0d85bb56e352b3608e2"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-helpers-review-v2-20261110.json",
+      "sha256": "0c77cddb2fc329b79cbbc36fbd248c71581af31a8fd989a59f0c8ebd7ab266da"
+    },
+    "implementation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-implementation-20261110.json",
+      "sha256": "b36c4764a5e39be81b128d5ec7acb458cda17350acce652a789600e4af90451b"
+    },
+    "frozen_task": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
+      "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
+    }
+  },
+  "resources": {
+    "config_hold_released": true,
+    "config_unchanged": true,
+    "normal_runtime_restored": true,
+    "owned_resources_closed": true,
+    "owned_tmp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-20261110-package",
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0af59a28ed934738b31936950191e512",
+    "retained_install_journals": [
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0af59a28ed934738b31936950191e512.00-prepared.json",
+        "sha256": "983be6f94c474dff813d96ab3e64b78a4048c66341d3f0bdd4a6211e383fb8db"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0af59a28ed934738b31936950191e512.01-stage-verified.json",
+        "sha256": "c1cffe7a8ea061fa7bd45779aed9d086c436c06faf2988952ee30c8165ba6bef"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0af59a28ed934738b31936950191e512.02-old-retired.json",
+        "sha256": "a215a4c2f5c949c01bb11bd3279595693ccd6243093f8e62c0ca9dff3583c6b2"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0af59a28ed934738b31936950191e512.03-candidate-active.json",
+        "sha256": "3c1d012ef392463a883883df9fec0c489175c57e53ce68f7638ddc9c859e0727"
+      },
+      {
+        "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-0af59a28ed934738b31936950191e512.04-committed-no-start.json",
+        "sha256": "f4ac4f32c2909e19b00e990c1d2c460bff85db251ffff67c026387d2a7d92272"
+      }
+    ],
+    "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain package, backup, journals and diagnostic evidence for review; deletion requires approval of exact paths. New run-owned temporary fixtures removed."
+  },
+  "agent_usefulness": {
+    "fresh_task_win_proven": false,
+    "frozen_tasks_replayed_or_rescored": false,
+    "latest_frozen_scores": {
+      "assisted": 7,
+      "source_only": 9,
+      "maximum": 10
+    },
+    "next": "Fresh Permit missing-record task with independently frozen source criteria; no candidates started when this receipt was written."
+  },
+  "original_full19gates_closed": false,
+  "original31findings_closed": false,
+  "goal_complete": false
+}
