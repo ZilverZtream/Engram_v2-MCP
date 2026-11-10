@@ -9811,7 +9811,7 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T20:20:38.896617+00:00",
+    "at_utc": "2026-11-10T20:33:03.747376+00:00",
     "reason": "407b304 is deployed: actual standalone Blast and impact summary expose the previously missing editor call853 and executable source851..874. Normal service verified; two failed approaches retained without installation.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Continue original CodeMap/Blast agent usefulness work. The setZoomOverride unresolved-caller navigation gap is delivered; stop revisiting that completed investigation.",
-    "next_user_visible_deliverable": "Resolve the existing partial Group.resetState task's still-uninspected async/escape context using actual core-tool output and independent source. Use its retained original criteria; fix only a demonstrated blocking navigation/witness gap. Do not reopen completed save-witness or automatic-zoom QA work.",
+    "active_original_item": "Return to the existing broader backlog in TODO.md. Bounded current-state check of item16c: indexing must survive embedding-backend failure. Do not reopen CodeMap/Blast evaluations.",
+    "next_user_visible_deliverable": "Deliver the next genuinely missing original backlog behavior. First check TODO16c current embedding-failure paths; implement and validate the concrete missing lexical/graph preservation behavior if still absent, or advance past it if already satisfied. No broad audit or replacement backlog.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9853,10 +9853,10 @@
       "Additional performance experiments or storage redesign",
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
-    "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
-    "latest_user_correction": "User reports another24hours of circular work and cost. Stopped EG25 expansion and delivered a concrete core parser/caller repair. This does not justify prior elapsed time or complete the broader goal.",
+    "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
+    "latest_user_correction": "User explicitly rejects further CodeMap/Blast rabbit holes: these were quick fixes and the broader existing backlog must resume. This supersedes the earlier instruction to keep those two features as the exclusive active priority.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Delivered: source407b304 pushed, release installed, both real public outputs and returned source actions verified on normal service;18focused tests passed. Broader goal and prior task outcomes remain unfinished.",
+    "previous_goal_turn_classification": "Progress: deployed407b304 verified; subsequent12call informed reset-context continuation finished and confirms existing recovery works. No additional production change in that continuation.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9872,12 +9872,10 @@
       "original_core_priority_preserved": true
     },
     "next_slice_scope_limits": [
-      "Keep CodeMap and Blast Radius as active core priority; new instruction drafting, catalog expansion, storage/performance experiments and kernel/cleanup remain parked.",
-      "Continue only measured CodeMap/Blast agent usefulness. Preserve recovered source context and all existing admitted/unbound evidence while reducing demonstrated navigation/output burden. Do not expand parser/catalog/global scans, infer binding, displace mandatory facts or relabel controlled probes as fresh adoption.",
-      "Frozen Q code changes/reviews remain prohibited; passive indexing is user-authorized.",
-      "All31 findings/full19 gate records and prior sustained-resource failure remain unchanged/unclosed.",
-      "Use existing checkout/shared target, owned temporary lifetimes and focused behavior checks; push only origin/master without AI/coauthor attribution or tags.",
-      "File-level fresh02 passed only its frozen bounded planning task. Do not replace the partial reset task or equate seven observed file groups with runtime implementations/type/reference completeness. Next VB task must be chosen/validated from actual public output and independent source before another code change."
+      "Existing TODO/backlog is authoritative; stale unchecked entries must be checked in current code before implementation.",
+      "Keep changes bounded to the selected missing behavior and finish delivery before selecting another item.",
+      "Preserve partial instruction artifacts, local work, installed pairing and original unfinished records.",
+      "No kernel/SSD forensics or preexisting-folder deletion; push only origin/master."
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
@@ -12103,6 +12101,16 @@
       "no_index_refresh_required": true,
       "source_generation": 3147,
       "goal_complete": false
+    },
+    "completed_core_fix_cycle": {
+      "source_commit": "407b3048caed8f4188e7ce3f2f457c55f143de1e",
+      "delivery": "eval/core-unbound-witness-delivery-20261110.json",
+      "context": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-reset-context-completion-20261110.json",
+        "sha256": "3dd9681b3748e2306ba6f4cca9f00bf214c9830642f550fa9f8ed7d9915a9617"
+      },
+      "closed_for_further_investigation": true,
+      "remaining_limits_preserved": true
     }
   }
 }

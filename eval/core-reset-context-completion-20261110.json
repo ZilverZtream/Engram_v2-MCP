@@ -1,0 +1,197 @@
+{
+  "status": "INFORMED_RESET_CONTEXT_INSPECTION_FINISHED_NO_PRODUCTION_CHANGE",
+  "at_utc": "2026-11-10T20:33:03.747376+00:00",
+  "source_commit": "407b3048caed8f4188e7ce3f2f457c55f143de1e",
+  "original_task": "Before changing imgHandler.resetState, inspect reset/deletion/reload/group state and async invariants.",
+  "findings": [
+    "imageHandlers401..403 returns the mutable backing array; intended typed construction does not prove runtime alias stability.",
+    "resetState increments generation before cancelUpload. Cancellation invalidates upload attempts before abort; preparation cancellation is a separate generation boundary.",
+    "_setPreparingState changes state and notifies listeners only on transition; generation guards compare captured/current reset identity and stale chains throw.",
+    "Fetch success checks generation before state writes; error tails only log and do not mark completion.",
+    "Editor-loading and delayed signature callbacks lack generation checks in inspected ranges; this is a static planning concern, not a demonstrated runtime defect.",
+    "Current Blast retains3admitted callers and2separate unresolved leads. Its graph_continuation exposes the omitted manager lead, whose h is typed from Array<imgGroupHandler>, not a proven direct imgHandler callee."
+  ],
+  "independent_source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\independent-source.json",
+    "sha256": "edbcdd59b27f777cf251b4401237ede1a240ec0433237791c9c1021e2ce4b626"
+  },
+  "manager_source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\manager-source.json",
+    "sha256": "e1d749c6dff2272714636e7c594fabbd77fb20584a7bd3c0cce2f16b644b3979"
+  },
+  "traffic": {
+    "calls": 12,
+    "returned_utf8_bytes": 87924,
+    "all_tool_calls": [
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\01-current-core\\rpc\\002-request.json",
+          "sha256": "78b669e948c687e0a561058619af560dc171e8c936470b8c2831b9e95e526990"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\01-current-core\\rpc\\002-frame-001.json",
+          "sha256": "22a584b461f2be3659a213d0ced8edbeede5f37c61c3de27263752cb3b348fab"
+        },
+        "tool": "get_codebase_overview",
+        "returned_utf8_bytes": 7245
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\02-current-blast\\rpc\\002-request.json",
+          "sha256": "d34c716370a0b3cef83b6a4be8e760f896fb3044a15420891a7a3b98b25ac682"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\02-current-blast\\rpc\\002-frame-001.json",
+          "sha256": "38c7a6492d23ae0f7dbffc453dffb840460d28afff4445a3f6d79b8e3201b47e"
+        },
+        "tool": "compute_blast_radius",
+        "returned_utf8_bytes": 11183
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\03-follow-returned-actions\\rpc\\002-request.json",
+          "sha256": "ba0fdc3398f3017c3d7be4ad35605777c507bcb8b79165e185c27c58588bc115"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\03-follow-returned-actions\\rpc\\002-frame-001.json",
+          "sha256": "db32a76997f051a53401b4e5503884486507291f9a1abaa7b6005e042435051b"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 2037
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\03-follow-returned-actions\\rpc\\003-request.json",
+          "sha256": "f9eb96505fa25ba60575339f3e96d6d3f67b7621dae097955e988eb5a8daf009"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\03-follow-returned-actions\\rpc\\003-frame-001.json",
+          "sha256": "a0eba0ab35f2240478b064ce118097dd0e148fce8fd5a2a1bec66702fb6491b9"
+        },
+        "tool": "impact_analysis",
+        "returned_utf8_bytes": 9633
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\03-follow-returned-actions\\rpc\\004-request.json",
+          "sha256": "4a9ee063916f835460aca1b4e31a4c2f2451b91dea7c30f3d1e400c041c8a579"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\03-follow-returned-actions\\rpc\\004-frame-001.json",
+          "sha256": "b278dc125d21f6f5fee0bc9cff068f536757b4ce4ac2704a588be6e02e2e8cee"
+        },
+        "tool": "get_codebase_overview",
+        "returned_utf8_bytes": 11391
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\002-request.json",
+          "sha256": "fb99722b1385e74a3660e0dd3f8b5c3a9011337f781ae1880700d23e49e05982"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\002-frame-001.json",
+          "sha256": "b4d24adcab0ced1710d034bc75a4129ac9ef34d36f6c2e385fb4487a637c70a4"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 4168
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\003-request.json",
+          "sha256": "ac3b1c0371d9dd46732b5fbf6f12e52d8299b644702c227aff02702276ecf94e"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\003-frame-001.json",
+          "sha256": "38cb856170483a2beacd0090daf36f7d72023b42faa57e490fcba412af4ff0cc"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 4554
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\004-request.json",
+          "sha256": "cccfa9066ea6041ecf013c134698dfc7d60ede9790b7ba02181bef6fdaa20354"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\004-frame-001.json",
+          "sha256": "cf1d5a98a73c3fafce6f581b7c5287c2d2fd7582e416fb4ca01443c23f3f53f8"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 4205
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\005-request.json",
+          "sha256": "9e906f9e704b3b47f2effd19936ebedce8ebe630a1674ee52e10c3d354ada976"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\04-remaining-helper-source\\rpc\\005-frame-001.json",
+          "sha256": "f45a4690a043d67a72b28eaade1eebe765a061f4deda0b80b01cdab1d37e46b7"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 2777
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\05-omitted-caller-recovery\\rpc\\002-request.json",
+          "sha256": "fe851a9ea1f4c4e040ac273f1f98bec837085d453e5964212e4b4083f160bb60"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\05-omitted-caller-recovery\\rpc\\002-frame-001.json",
+          "sha256": "9963e3d6eba1a2f92703ccae4b4342cda749d2db37468a36c64131369a83143d"
+        },
+        "tool": "impact_analysis",
+        "returned_utf8_bytes": 17643
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\06-manager-lead\\rpc\\002-request.json",
+          "sha256": "fc0566f85c5c9a9edf82caff6f1494f2986468a673d8ff23a08be417a360660e"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\06-manager-lead\\rpc\\002-frame-001.json",
+          "sha256": "52426d9b3becd21d7d23bffd4f0e23a0181546ca18b808e9f30852437548b5d6"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 2042
+      },
+      {
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\06-manager-lead\\rpc\\003-request.json",
+          "sha256": "9868decb155fb3403c387d166d17d747b43b0a8e680ff857e484ef13d11075d2"
+        },
+        "response": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\06-manager-lead\\rpc\\003-frame-001.json",
+          "sha256": "11e3e6db28207265caf2b50bd480b74d91e867ee981f68090086bc1009ce1e8b"
+        },
+        "tool": "get_full_method_body",
+        "returned_utf8_bytes": 11046
+      }
+    ]
+  },
+  "observer_errors": [
+    {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\01-current-core\\recovery.json",
+        "sha256": "a45ea2e85a46e6b4eae460f5fc4a227edf092a990c372f6103c33584e5967432"
+      },
+      "description": "Initial observer double-unwrapped result; complete captured response recovered without replay."
+    },
+    {
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110\\06-manager-lead\\source-recovery.json",
+        "sha256": "8bb7d56ced65c1bda6c13127f27b2f0f6b7792a020387e0334ca1ba30d8e3d1e"
+      },
+      "description": "Observer stripped BOM; complete captured source verified preserving actual BOM without replay."
+    }
+  ],
+  "runtime_changed": false,
+  "application_sources_changed": false,
+  "pipe_handles_closed": true,
+  "retention": {
+    "directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-resetstate-context-20261110",
+    "purpose": "Retain actual outputs/source evidence and observer errors until reviewed exact-path cleanup; no live fixtures."
+  },
+  "limits": "Informed continuation adds evidence to previously partial context; frozen scores unchanged. No fresh-agent benchmark, comparative benefit, runtime safety, complete alias analysis or broader-goal completion.",
+  "priority_disposition": "User explicitly ended repeated CodeMap/Blast investigations and directed work back to broader existing backlog. This case is closed for investigation; no more probes/builds without a concrete regression."
+}
