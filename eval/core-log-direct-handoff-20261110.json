@@ -1,0 +1,80 @@
+{
+  "status": "IMPLEMENTED_REVIEWED_TESTED_NOT_BUILT_OR_DEPLOYED",
+  "at_utc": "2026-11-10T04:21:29.437552+00:00",
+  "base_commit": "72e5837593ffe3b0b829e00a41e6b78c19153797",
+  "problem": "An external direct caller body can be skipped by the recommended transitive source route even though the exact direct read remains available. Actual GetBySearch report promotes export237..349 over direct GetUserActivityEntries530..570.",
+  "behavior": "Retain existing direct source introduction when first external callable declaration has an explicit range not fully covered by the promoted route for the same selected identity/file/project/physical generation. Existing same-file bridge and file/navigation-hint handling remain.",
+  "preservation": "All previously allocated facts/routes/actions/witnesses/counts and original preferred direct sample remain. Restored prefix can reduce later optional spare-space rows; omission counts stay honest. Exact whole report JSON preservation apart from next_source_read_index applies to observed one-direct log case, not every possible larger sample.",
+  "design": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-design.json",
+    "sha256": "cca77f67520029b2474327917d13ae1f9bb07e6f1628204450529ec4d18a78bc"
+  },
+  "projection_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-prefix-correction.json",
+    "sha256": "0271354449cb5c800ebb3d74c698347fa7560a2796fd53442f09c9717dc53199"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-source-review-v2.json",
+    "sha256": "959866fc8a853726f3b9bc6bb83f8a32f8e2bc9df95ecaa54e316266fb1e7ed2"
+  },
+  "initial_review_retained": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-20261110-source-review.json",
+    "sha256": "8032c1f118d10b95bf27de542cb950d56d2d74dc93262d6c81aa6001be45437b"
+  },
+  "source_hashes": {
+    "crates/engram_server/src/services/impact_walk_service.rs": "fbaea3dbb7717eb79f25269ffb722a18e365e36f07a481ca3c5bdbca2405b23d",
+    "docs/TOOL_CONTRACT.md": "c56820d909406f7a1bda5cfa3d2dcf4877553700f40a49c0bc53e09b99fe4866"
+  },
+  "unchanged_integration_test_sha256": "893f326ab38fccea8c7c9f853da1bf230d4c71a3d45d81d489d6dd00dc9841a7",
+  "tests": {
+    "final_unit": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-unit-tests-v2-20261110.json",
+      "sha256": "1b87b498bb234f1f0ba31dcc38c5773827974d280949db1138b7dc1d0a0b9230"
+    },
+    "final_unit_passed": 18,
+    "final_integration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-transitive-tests-v2-20261110.json",
+      "sha256": "2ac12e23dfb9860fb337b25ca5e1cdc6bde785d5b481c96858776b05e431d6e8"
+    },
+    "final_integration_passed": 31,
+    "initial_unit": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-unit-tests-20261110.json",
+      "sha256": "687766015ce5a9968fecf7bf99093d05f92eff546f5262ffa3109c1813094027"
+    },
+    "initial_unit_passed": 17,
+    "initial_integration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-log-direct-handoff-transitive-tests-20261110.json",
+      "sha256": "b58d14107c6a85187fe57a3e0d7a01bbea4ce0436df7b56f9461cc8f4a51b552"
+    },
+    "initial_integration_passed": 30,
+    "initial_integration_failed": 1,
+    "initial_failure_resolution": "New guard overreached file-only hints sorting before same-file callable bridge. Corrected production eligibility to existing callable+explicit-range contract and added mixed-hint regression. Original integration test unchanged."
+  },
+  "frozen_task": {
+    "path": "eval/core-log-refactor-qa-20261110.json",
+    "sha256": "c0f68eed69cb0eb7ff42cb830e1d611460c9f5b5756c9d75e06d46246d745093",
+    "assisted": 5,
+    "source_only": 9,
+    "score_out_of": 10,
+    "retry_or_rescore": false,
+    "causal_claim": false
+  },
+  "runtime_verification_pending": [
+    "shipping release build",
+    "paired candidate verification for both summary tools plus direct read",
+    "installed normal verification"
+  ],
+  "scope": "Presentation-only original navigation queue; no source query/graph/parser/schema/native/index change, no original31/19 closure.",
+  "resources": {
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "owned_test_temps_removed": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-67udcogo",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-tcnbe15k",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-p0y776gl",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\edit-workload-focused-6b1ik5u5"
+    ],
+    "all_test_jobs_and_handles_closed": true,
+    "retained": "Logs, receipts, helper templates and corrected/rejected verifier evidence stay in existing evidence root; exact-path approval required for cleanup."
+  },
+  "goal_complete": false
+}

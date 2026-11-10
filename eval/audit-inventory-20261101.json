@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T04:02:40.886431+00:00",
-    "reason": "New full log-refactor task frozen source-only9/10 versus assisted5/10. Existing tool navigation correctly exposes source, but source handoff promotes transitive export over uncovered external direct caller. Retain that direct source introduction; task scores remain frozen.",
+    "at_utc": "2026-11-10T04:21:29.437552+00:00",
+    "reason": "External direct callable handoff corrected and tested18unit/31integration after preserving initial30/1failure and correcting file-hint overreach. Frozen log task stays assisted5/10 vs source-only9/10; build/runtime delivery pending.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -11698,7 +11698,12 @@
       "promoted_read_consumer": "system_logs_logs.btnShowExportOption_Click",
       "observation": "Direct consumer lies in another file from target, but promoted transitive route does not cover its body; summary suppresses direct introduction and sets next_source_read_index0. Exact direct action remains below.",
       "decision": "Retain existing direct source introduction when the external direct caller is absent from the promoted read. Preserve same-file bridge priority and every existing witness/action/count; no new scanning or schema.",
-      "implementation_state": "IN_PROGRESS_NOT_DEPLOYED"
+      "implementation_state": "IMPLEMENTED_REVIEWED_TESTED_NOT_BUILT_OR_DEPLOYED",
+      "implementation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-log-direct-handoff-20261110.json",
+        "sha256": "b5463ba9023a9cae7dbe71a8f95ab513e0f10b3d1ba633e66ee34882844a962d"
+      },
+      "scope": "Direct callable declaration reads only; file-only hints retain prior cross-file bridge behavior. All original pre-handoff allocations retained; later optional samples may shrink honestly."
     }
   }
 }
