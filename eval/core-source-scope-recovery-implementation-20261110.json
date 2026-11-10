@@ -1,0 +1,43 @@
+{
+  "status": "IMPLEMENTED_TESTED_REVIEWED_NOT_YET_BUILT_OR_INSTALLED",
+  "at_utc": "2026-11-10T17:06:11.050347+00:00",
+  "problem": "Original actual TimeReport request6 used class name TimeReportDayOut as a filename filter under directory scope with include_source. CodeMap returned only an invalid-parameters message; actual DTO filename is TimeReportDay-Out.vb.",
+  "change": "Retain the invalid-parameters error and provide executable paths-only discovery preserving scope/filter/exclusions. Only an observed selected directory descendant enables an explicitly unfiltered literal text-search alternative; current-source recovery remains separate. Complete error is bounded to12KiB.",
+  "actual_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\source-evidence.json",
+    "sha256": "5fa166ede96485be6301685f34db3e7d13dbe520bad91eff934a76b81de576cc"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110\\selection-and-source-review.json",
+    "sha256": "a18b29c8bec08c3a0381dd584a543a1ae62a45da337030af2759d0e1cfa0c9e4"
+  },
+  "tests": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-tests-v2-20261110.json",
+      "sha256": "9910c4ad343d94f67ba3804cf5d9040845f8e7493d796d2ab49870ee2b21d6e1"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-tests-v2-20261110.log",
+      "sha256": "62a6417c8e035253773f970a5605002b314ffa125b1858d6538f91557d3f3aea"
+    },
+    "passed": 57,
+    "failed": 0,
+    "ignored": 0,
+    "initial_failed_run": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-tests-20261110.json",
+      "sha256": "e1c63c7469a1b91adc7682bbe579a82eefcfc1c86d2df461378c4b8211827692"
+    },
+    "correction": "Two new excerpt expectations included a trailing newline omitted by the existing tool. Corrected line rendering expectations; complete-file hash assertions retained. Added exact-file/excluded/missing-scope coverage after review."
+  },
+  "pending": "Build same reviewed/tested inputs; execute actual returned error actions against OciusX candidate then installed daemon. No index update/native rebuild needed.",
+  "retention": {
+    "case_directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-source-scope-recovery-20261110",
+    "purpose": "Original error, proposed recovery, independent source, review and future package/installation evidence.",
+    "cleanup_condition": "Retain evidence until exact-path cleanup approval; owned test fixture/temp paths have closed and been removed."
+  },
+  "installed": false,
+  "original31findings_closed": false,
+  "original_full19gates_closed": false,
+  "goal_complete": false,
+  "limits": "No original task replay/rescore, general productivity improvement or complete graph claim."
+}
