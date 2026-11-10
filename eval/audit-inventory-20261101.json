@@ -11865,13 +11865,19 @@
     "selected_interface_navigation_response_cost": {
       "scope": "Reduce the evidence cost of CodeMap/Blast interface navigation before adding further route hints. Use this actual8168/9488-byte output and independent source witnesses; retain identities, source actions, bounds and uncertainty.",
       "starting_observation": "One potential interface caller occupies5395bytes inside the9488-byte impact summary; first two required tool replies use17656bytes. This is a response-cost problem within the original tools, not a justification for another broad audit or new benchmark framework.",
-      "not_yet_implemented": true,
+      "not_yet_implemented": false,
       "no_promised_task_win": true,
       "parked": "HTTP compiler-reference expansion, EG14, catalog/performance/ownership, further instruction drafting, and changes to frozen task caps/scores.",
       "evidence": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
         "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
-      }
+      },
+      "state": "IMPLEMENTED_TESTED_REVIEWED_RELEASE_BUILD_PENDING",
+      "implementation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-interface-summary-implementation-20261110.json",
+        "sha256": "b36c4764a5e39be81b128d5ec7acb458cda17350acce652a789600e4af90451b"
+      },
+      "runtime_validation_pending": true
     }
   }
 }

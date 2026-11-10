@@ -1633,6 +1633,84 @@ mod source_route_upgrade_behavior {
     }
 
     #[test]
+    fn interface_summary_keeps_witness_reads_and_defers_configuration_only_with_recovery() {
+        let implementation = json!({"node_id":"sym:function:Site/App_Code/Services/ReaderService.vb:Example.ReaderService.Read:49",
+            "name":"Example.ReaderService.Read", "file_path":"Site/App_Code/Services/ReaderService.vb",
+            "generation":17, "start_line":49, "end_line":72});
+        let caller_read = json!({"tool":"get_full_method_body","arguments":{"project_id":"p",
+            "file_path":"Site/App_Code/Controllers/Readers.vb","line_start":2,"line_end":24,"output_json":true}});
+        let configuration = json!({"actions":[{"tool":"grep_project","arguments":{"project_id":"p",
+            "pattern":"IReader", "path_prefix":"Site/App_Code/", "regex":false}}],
+            "actions_omitted":1,"unrestricted_fallback":{"actions":[{"tool":"grep_project"}]}});
+        let route = json!({"implementation":implementation,"implementation_primary_depth":0,"potential_depth":2,
+            "caller":{"node_id":"sym:function:Site/App_Code/Controllers/Readers.vb:Readers.GetValue:22","generation":17},
+            "contract":{"node_id":"sym:function:Site/App_Code/Interfaces/IReader.vb:IReader.Read:5","generation":16},
+            "caller_to_contract_admission":"source_revision_admitted_indexed_call",
+            "connections":[{"source":"implementation","target":"contract","kind":"implements_interface_member","generation":17,"clause_line":49},
+                {"source":"caller","target":"contract","kind":"calls","generation":17,"reference_lines":[23],"reference_lines_truncated":true}],
+            "caller_source_read":caller_read,"reference_samples_outside_context":1,
+            "recorded_position_read":{"tool":"get_full_method_body","arguments":{"project_id":"p",
+                "file_path":"Site/App_Code/Controllers/Readers.vb","line_start":123,"line_end":130,"output_json":true}}});
+        let summary = json!({"schema_version":2,"target":implementation,"source_generation":18,
+            "selected_dependents_observed":0,"direct_dependents_observed":0,"transitive_dependents_observed":0,
+            "coverage":{"truncated":true,"reasons":["unknown_source_revision"]},
+            "graph_continuation":{"tool":"impact_analysis","arguments":{"project_id":"p","detail":"graph",
+                "symbol_fqn":implementation["node_id"],"max_depth":3}},
+            "potential_interface_callers":{"routes_observed":2,"distinct_callers_observed":1,"routes_omitted":1,
+                "non_additive_to_primary_counts":true,"runtime_dispatch_proven":false,
+                "coverage":{"truncated":true,"unknown_nodes":1,"reasons":["unknown_source_revision"]},
+                "frontier":[{"reason":"unknown_source_revision","source_id":"missing","depth":3}],"frontier_omitted":2,
+                "routes":[route],"configuration_inspection":configuration}});
+        let displayed = compact_summary_display(&summary);
+        let dispatch = &displayed["potential_interface_callers"];
+        assert_eq!(dispatch["configuration_inspection_in_graph"],true);
+        assert!(dispatch.get("configuration_inspection").is_none());
+        assert_eq!(displayed["graph_continuation"],summary["graph_continuation"]);
+        let mut previously_omitted=summary.clone();
+        previously_omitted["potential_interface_callers"].as_object_mut().unwrap().remove("configuration_inspection");
+        let mut recovered=compact_summary_display(&previously_omitted);
+        disclose_graph_configuration(&mut recovered,&summary);
+        assert_eq!(recovered["potential_interface_callers"]["configuration_inspection_in_graph"],true,
+            "An initially omitted plan/counter must not hide a configuration plan that is retained in Graph");
+        let mut unavailable=compact_summary_display(&previously_omitted);
+        disclose_graph_configuration(&mut unavailable,&previously_omitted);
+        assert!(unavailable["potential_interface_callers"].get("configuration_inspection_in_graph").is_none(),
+            "No retained plan means Graph recovery cannot promise one");
+        let mut restored = dispatch["routes"][0].clone();
+        assert_eq!(restored["implementation_ref"],"target");
+        restored.as_object_mut().unwrap().remove("implementation_ref");
+        restored["implementation"] = displayed["target"].clone();
+        assert_eq!(restored,route,"The reader must reconstruct the exact identity without losing either witness or either source action");
+        for key in ["routes_observed","distinct_callers_observed","routes_omitted","non_additive_to_primary_counts",
+            "runtime_dispatch_proven","coverage","frontier","frontier_omitted"] {
+            assert_eq!(dispatch[key],summary["potential_interface_callers"][key],"Lost {key}");
+        }
+        for continuation in [Value::Null,json!({"tool":"impact_analysis","arguments":{"detail":"summary"}}),
+            json!({"tool":"other","arguments":{"detail":"graph"}})] {
+            let mut unavailable = summary.clone(); unavailable["graph_continuation"] = continuation;
+            let displayed = compact_summary_display(&unavailable);
+            assert_eq!(displayed["potential_interface_callers"]["configuration_inspection"],configuration,
+                "No graph recovery means the usable configuration plan must stay inline");
+            assert!(displayed["potential_interface_callers"].get("configuration_inspection_in_graph").is_none());
+        }
+        for (key, different) in [("node_id",json!("another")),("name",json!("Another.Read")),
+            ("file_path",json!("Other.vb")),("generation",json!(18)),("start_line",json!(50)),("end_line",json!(73))] {
+            let mut mismatch = summary.clone(); mismatch["target"][key] = different;
+            let displayed = compact_summary_display(&mismatch);
+            assert_eq!(displayed["potential_interface_callers"]["routes"][0],route,
+                "Matching names alone cannot erase a different {key}");
+        }
+        for endpoint in [Value::Null,json!({"node_ref":"n0"})] {
+            let mut missing = summary.clone(); missing["target"] = endpoint;
+            assert_eq!(compact_summary_display(&missing)["potential_interface_callers"]["routes"][0],route);
+        }
+        let mut extra = summary.clone();extra["potential_interface_callers"]["routes"][0]["implementation"]["unknown_field"]=json!("retain");
+        assert_eq!(compact_summary_display(&extra)["potential_interface_callers"]["routes"][0],extra["potential_interface_callers"]["routes"][0]);
+        assert_eq!(summary["potential_interface_callers"]["configuration_inspection"],configuration,
+            "Display projection does not edit the full evidence or affect safety assessment");
+    }
+
+    #[test]
     fn declaration_bundle_exposes_nearer_branch_without_spending_lines_on_gaps() {
         let mut frame = bridge_frame();
         let nearer = frame["nodes"].as_array_mut().unwrap().iter_mut().find(|n|n["ref"]=="n5").unwrap();
@@ -1923,6 +2001,7 @@ fn source_handoff_section(value: &Value, full: &Value) -> Option<(usize, String)
 fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -> String {
     let original = render_summary(value, immediate_prefix);
     let mut compact = compact_summary_display(value);
+    disclose_graph_configuration(&mut compact, full);
     let handoff = source_handoff_section(value, full);
     let shared_first_read = handoff.is_some();
     if let Some((index, _)) = handoff {
@@ -1939,7 +2018,8 @@ fn render_summary_handoff(value: &Value, full: &Value, immediate_prefix: &str) -
         }
     }
     let rendered = render_summary(&compact, if shared_first_read { "" } else { immediate_prefix });
-    // Compaction must never sacrifice an already allocated witness or action.
+    // Compaction retains source evidence/actions; optional configuration plans
+    // can move behind the existing graph continuation with explicit disclosure.
     // Unusual metadata can make reference notation larger; retain the original.
     if rendered.len() <= original.len()
         && rendered.len() <= SUMMARY_BYTES.saturating_sub(256)
@@ -2061,9 +2141,9 @@ fn declaration_read_plan(value: &Value, full: &Value, read_index: usize) -> Opti
         "scope":"Nearer retained declarations sharing a nonseed ancestor, not an uninterrupted call chain. Only their indexed spans are read; connectors and intervening context may be unread. Original source_routes.reads action remains available. No additional graph evidence or method-boundary proof."}))
 }
 
-/// Source-oriented display of the already allocated summary. All action objects,
-/// named unknowns and selected route tables survive. Work telemetry is available
-/// from graph mode; neither traversal nor safety assessment runs again here.
+/// Source-oriented display of the already allocated summary. Source actions,
+/// witnesses and named unknowns survive. Optional configuration discovery stays
+/// in graph mode; neither traversal nor safety assessment runs again here.
 fn compact_summary_display(value: &Value) -> Value {
     let mut compact = value.clone();
     let routes = &value["source_routes"];
@@ -2127,9 +2207,39 @@ fn compact_summary_display(value: &Value) -> Value {
         "separate_context", "immediate_consumer_detail_limit_bytes", "enclosing_declaration_scope"] {
         fields.remove(key);
     }
+    let inline_target = compact["target"].clone();
+    let graph_available = compact["graph_continuation"]["tool"] == "impact_analysis"
+        && compact["graph_continuation"]["arguments"]["detail"] == "graph";
     if let Some(dispatch) = compact.get_mut("potential_interface_callers").and_then(Value::as_object_mut) {
         dispatch.remove("implementations_checked");
         dispatch.insert("scope".into(), json!("Separate non-additive observations of one explicit VB source-interface hop. Other dispatch forms and rejected/unresolved locators are unassessed; zero routes does not prove absence."));
+        // A summary must not spend another source read's worth of bytes on
+        // alternate configuration searches. The existing graph action exposes
+        // that optional plan under a fresh observation; caller evidence remains.
+        if graph_available && dispatch.get("configuration_inspection").is_some_and(Value::is_object) {
+            dispatch.remove("configuration_inspection");
+            dispatch.insert("configuration_inspection_in_graph".into(), json!(true));
+        }
+        let mut shared_target = false;
+        for route in dispatch.get_mut("routes").and_then(Value::as_array_mut).into_iter().flatten() {
+            let Some(fields) = route.as_object_mut() else { continue; };
+            let Some(endpoint) = fields.get("implementation").and_then(Value::as_object) else { continue; };
+            // Never merge merely equal names/IDs, different physical revisions,
+            // unknown fields, or a target whose facts live in another table.
+            let keys = ["node_id", "name", "file_path", "generation", "start_line", "end_line"];
+            if endpoint.len() == keys.len()
+                && keys.iter().all(|key| endpoint.get(*key).is_some_and(|fact|
+                    !fact.is_null() && inline_target.get(*key) == Some(fact)))
+            {
+                fields.remove("implementation");
+                fields.insert("implementation_ref".into(), json!("target"));
+                shared_target = true;
+            }
+        }
+        if shared_target {
+            dispatch.insert("implementation_ref_scope".into(), json!(
+                "implementation_ref=target reuses the top-level target's identity, revision and indexed range."));
+        }
     }
     if let Some(routes) = compact.get_mut("source_routes").and_then(Value::as_object_mut) {
         routes.insert("scope".into(), json!("Connection fields override connection_defaults. Input producers may lie outside reverse impact."));
@@ -2145,6 +2255,21 @@ fn compact_summary_display(value: &Value) -> Value {
         "Actions are unexecuted, fresh bounded observations, not replay. Compare generation/coverage/hash. Indexed ranges do not prove method bounds, callsites, value flow or runtime. Enclosing recovery leaves receiver/edge unresolved."
     ]);
     compact
+}
+
+// The initial allocation may already have omitted the optional configuration
+// plan and even its omission counter. Inspect the retained graph, not absence
+// in the summary, to disclose this recovery. The final renderer still enforces
+// its byte cap and falls back without evicting any witness or source action.
+fn disclose_graph_configuration(summary: &mut Value, full: &Value) {
+    if full["potential_interface_callers"]["configuration_inspection"].is_object()
+        && summary["potential_interface_callers"].is_object()
+        && summary["potential_interface_callers"].get("configuration_inspection").is_none()
+        && summary["graph_continuation"]["tool"] == "impact_analysis"
+        && summary["graph_continuation"]["arguments"]["detail"] == "graph"
+    {
+        summary["potential_interface_callers"]["configuration_inspection_in_graph"] = json!(true);
+    }
 }
 
 // The first projection reserves conservative framing space. Once the actual

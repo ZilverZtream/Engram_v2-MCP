@@ -1,0 +1,80 @@
+{
+  "status": "IMPLEMENTED_TESTED_REVIEWED_RELEASE_BUILD_PENDING",
+  "at_utc": "2026-11-10T10:51:08.414082+00:00",
+  "baseline_commit": "34a9be2",
+  "problem": "Actual TimeReport impact summary spent9488bytes, including5395bytes on one potential interface caller and optional configuration alternatives. Frozen assisted task7/10 vs source-only9/10 remains unchanged.",
+  "change": "Compact impact summaries retain caller source actions, both static edge witnesses, coverage and omissions. Optional configuration plans remain in Graph with explicit recovery disclosure. Exact duplicate implementation identity can refer to the final inline target; mismatches/additional fields stay inline. A retained Graph plan remains discoverable even if earlier summary allocation omitted its plan and omission counter.",
+  "scope": "Impact summary rendering only. CodeMap, full Graph, native extraction, graph admission, stored data and safety assessment unchanged. No index migration.",
+  "verification": {
+    "tests": [
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-unit-v2-20261110.json",
+          "sha256": "77402051e9ac1a196de5d2d9535b52d5f4b4cb314fa604e3c6a0281038f9319d"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-unit-v2-20261110.log",
+          "sha256": "ec0886b954c4d0442c2e454f788f2cd4372d74547fe8fce94664c1325483e59f"
+        },
+        "cases_reported": [
+          5
+        ],
+        "owned_temp_removed": true
+      },
+      {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-public-v3-20261110.json",
+          "sha256": "a18ae5291d64af5858af8d6d03861634384b80dd5f74807fcf1199f6ed976fb5"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-public-v3-20261110.log",
+          "sha256": "99c7fa8c2bb52c82ad7c53c90b16c5a5106cbb037d2bbbf581ce8e5689e22048"
+        },
+        "cases_reported": [
+          2,
+          55,
+          32
+        ],
+        "owned_temp_removed": true
+      }
+    ],
+    "cases_reported_total": 94,
+    "native_attribution": "Operator checked installed sidecar exe SHA41a4843d4dd2e5ae36014c28c6c7071bad5288c4713dda1f34afcba832308dfb before setting ENGRAM_VB_SIDECAR_PATH for public-v3. Native2 executed in7.85s; runner does not independently record environment.",
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-review-v3-20261110.json",
+      "sha256": "64ee22fd037b4ac64ac7129bf97a83d68763c10b7c31c0d85bb56e352b3608e2"
+    },
+    "source_pins": {
+      "crates/engram_server/src/services/impact_walk_service.rs": "0e0f91003a7df88dec560ed709fb39f38d42422be92e9b93b10f451925714659",
+      "crates/engram_server/tests/interface_dispatch_behavior_tests.rs": "95f8a1f7c579a28be5c79fd082c24d8db9dad493030ddcd58e707afc185c35d4",
+      "docs/TOOL_CONTRACT.md": "aaf63f61e082a67e2ede29e6660cb5c0fc4a3a7c740d6763bfb5b67c9843d80a"
+    },
+    "coverage": "Exact target-reference reconstruction against full Graph, current caller reads, Graph configuration search/source recovery, mismatch/extra-field controls, absent-plan controls, public source and transitive regressions. Test counts do not prove agent usefulness."
+  },
+  "failed_runs_preserved": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-public-v1-20261110.json",
+      "sha256": "ade0f90ecc09b85f9380ef94340c14cf76d9b02958d46b24096d784a5d8a6fa5"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-interface-summary-public-v2-20261110.json",
+      "sha256": "16c9f0d2a39c6566730fa0b79b2756e064758d518e63fe594b6588e46d866af5"
+    }
+  ],
+  "failure_correction": "An initially overstrict marker assertion exposed missing recovery disclosure when the previous allocation omitted both optional configuration plan and counter. Production now consults retained Graph for the disclosure; native recovery assertion and actual source followthrough pass.",
+  "runtime_validation_pending": true,
+  "planned_runtime_check": "Retain original13 admitted-interface checks; add8 actual TimeReport observations. Require summaries below75percent of9488bytes, unchanged witness/action/coverage facts, literalGraph?configuration search?current source/hash followthrough. This is known-case verification, not frozen task replay or a fresh task win.",
+  "frozen_task": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-time-report-query-qa-20261110.json",
+    "sha256": "213b3ed1b184656d0d8f56de4eda8a0abe8695601f6f74d1bba25bcde2e099ed"
+  },
+  "resources": {
+    "owned_test_temporaries_removed": true,
+    "evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101",
+    "cleanup_condition": "Retain receipts/logs/helper evidence in existing diagnostic root; deletion requires exact-path approval."
+  },
+  "fresh_agent_task_win_proven": false,
+  "original_full19gates_closed": false,
+  "original31findings_closed": false,
+  "goal_complete": false
+}
