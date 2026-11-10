@@ -135,6 +135,40 @@ Public Class OtherIndexedValues
     End Property
 End Class
 Public Class Consumers
+    Private Class Band
+        Public Property MaxFeatures As Long
+        Public Property MaxCoordinates As Long
+        Public Property MinZoom As Integer
+    End Class
+    Private Shared ReadOnly _bands As Band() = {
+        New Band With {.MaxFeatures=100, .MaxCoordinates=2500, .MinZoom=10}}
+    Public Function ClassifyAutomatic(featureCount As Long, coordinateCount As Long) As Integer
+        For Each band In _bands
+            If featureCount <= band.MaxFeatures AndAlso coordinateCount <= band.MaxCoordinates Then
+                Return band.MinZoom
+            End If
+        Next
+        Return 0
+    End Function
+    Public Function UnknownArray(values As Object()) As Long
+        For Each value In values
+            Return value.MaxFeatures
+        Next
+        Return 0
+    End Function
+    Public Function PredeclaredControl() As Long
+        Dim value As MissingType
+        For Each value In _bands
+            Return value.MaxFeatures
+        Next
+        Return 0
+    End Function
+    Public Function ExplicitControl() As Long
+        For Each value As MissingType In _bands
+            Return value.MaxFeatures
+        Next
+        Return 0
+    End Function
     Public Function Numeric(a As Integer, b As Integer) As Integer
         Return Math.Max(1, Math.Max(a, b))
     End Function
@@ -216,6 +250,9 @@ End Class
         ("Consumers.ReadIndexed", "IndexedValues.Item", "property_get", "Return values.Item(0)"),
         ("Consumers.WriteIndexed", "IndexedValues.Item", "property_set", "values.Item(0) = value"),
         ("Consumers.ReadUnresolved", "CacheMeta.CoordinateCount", "property_get", "Return missing.CoordinateCount"),
+        ("Consumers.ClassifyAutomatic", "Consumers.Band.MaxFeatures", "property_get", "If featureCount <= band.MaxFeatures AndAlso coordinateCount <= band.MaxCoordinates Then"),
+        ("Consumers.ClassifyAutomatic", "Consumers.Band.MaxCoordinates", "property_get", "If featureCount <= band.MaxFeatures AndAlso coordinateCount <= band.MaxCoordinates Then"),
+        ("Consumers.ClassifyAutomatic", "Consumers.Band.MinZoom", "property_get", "Return band.MinZoom"),
     ] {
         let line = source.lines().position(|line| line.trim() == statement).unwrap() + 1;
         assert!(edges.iter().any(|edge| edge["source_name"] == caller
@@ -229,6 +266,9 @@ End Class
         ("Consumers.NextOrder", "LayerScaleHint.max"),
         ("Consumers.WithList", "LayerScaleHint.max"),
         ("Consumers.BareImplicitMethod", "LayerScaleHint.Transform"),
+        ("Consumers.UnknownArray", "Consumers.Band.MaxFeatures"),
+        ("Consumers.PredeclaredControl", "Consumers.Band.MaxFeatures"),
+        ("Consumers.ExplicitControl", "Consumers.Band.MaxFeatures"),
     ] {
         assert!(!edges.iter().any(|edge| edge["source_name"] == caller
             && edge["kind"] == "calls" && edge["target_kind"] == "property"
