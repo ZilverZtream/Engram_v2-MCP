@@ -1,0 +1,39 @@
+{
+  "status": "IMPLEMENTED_59_TESTS_PASSED_RELEASE_VALIDATION_PENDING",
+  "at_utc": "2026-11-10T18:21:15.372713+00:00",
+  "original_scope": "CodeMap exact-file short-name navigation, actual source evidence and executable impact recovery. No new index, parser work, model comparison or broad audit.",
+  "problem": "Current normal OciusX generation3147: exact-file QueryCacheCore bare name reports zero indexed candidates after64raw-key limit; qualified name returns the actual declaration. Caller must otherwise infer namespace/type before reaching admitted source/impact actions.",
+  "selected_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\source-evidence.json",
+    "sha256": "7625a6fd5844136eea33baec90a1c5296db3a7356588539948ab3a8573fbb151"
+  },
+  "before_public_capture": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-terminal-owner-navigation-20261110\\before\\capture.json",
+    "sha256": "1d5f4b2466ab666914acfd6b52eb257fcee68129b28607b5c86910aba689408d"
+  },
+  "behavior": "Bare single-file zero exact matches: gather up to32 canonical selected class names, prefer shallower owners, probe qualified members under shared64keys/2MiB/64KiBrecord/8candidate/500ms bounds and40prefix seeks. Stop owner work before final16keys or beyond1MiBdecode so ordinary fallback retains capacity. Owner matches keep broad terminal inventory explicitly unassessed; no uniqueness or semantic binding inferred. Exact, qualified and directory lookup behavior preserved.",
+  "tests": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-owner-navigation-focused-v2-20261110.json",
+      "sha256": "8436675e113df42d72ee3996df771bb33bbd135c93449ad9029e23e8531017f4"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-owner-navigation-focused-v2-20261110.log",
+      "sha256": "d904626057fbe1ae03c0f6858cbb41b12c4a8cae154dbbdef3d9aa291b15f43b"
+    },
+    "passed": 59,
+    "failed": 0,
+    "wanted_cases": [
+      "Crowded file short-name lookup finds both overloads and another selected owner; stale member excluded; qualified lookup unchanged.",
+      "Unsuccessful owner hints with crowded keys or large metadata retain ordinary terminal fallback and disclose omitted work."
+    ]
+  },
+  "review_correction": "Initial local review found fallback starvation: only prefix seeks reserved. Corrected raw-key and decode reservations and added regression with real boundary-key costs. Initial58test pass retained; final59test batch includes both reservation branches.",
+  "retention": "All current diagnostics, original failed pre-RPC observation, before capture and prepared helpers retained under case. Owned test jobs/handles closed and fixture directories removed.",
+  "limits": [
+    "No installed behavior improvement claimed yet; candidate and normal original-request/action-chain verification required.",
+    "Source previews and candidate nodes do not establish language binding, exhaustive callers or runtime safety.",
+    "Original31/full19/EG14 states preserved; overall goal unfinished."
+  ],
+  "goal_complete": false
+}

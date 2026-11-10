@@ -2985,6 +2985,108 @@ fn codemap_source_preview_long_or_invalid_indexed_spans_keep_honest_recovery() {
 }
 
 #[test]
+fn codemap_short_name_keeps_terminal_recovery_when_class_owners_do_not_help() {
+    for large_metadata in [false, true] {
+        owned_case(true, move |engram, search| async move {
+            const PATH: &str = "src/ManyOwners.vb";
+            let source = (1..=200).map(|line|format!("' line {line}"))
+                .collect::<Vec<_>>().join("\n");
+            publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+            let mut records = Vec::new();
+            // None of these admitted class names supplies the requested
+            // member. Their keys or metadata must not consume the entire
+            // allowance needed to recover an ordinary terminal match.
+            for index in 0..40 {
+                let name = format!("B{index:03}");
+                let mut owner = node(&format!("sym:class:{PATH}:{name}:1"),
+                    "class", &name, PATH, 1);
+                if large_metadata { owner.metadata = Some(json!({"padding":"x".repeat(60000)})); }
+                records.push(owner);
+            }
+            let id = format!("sym:function:{PATH}:A.MissingOwner.Find:160");
+            let mut member = node(&id, "function", "A.MissingOwner.Find", PATH, 1);
+            member.start_line = 160; member.end_line = 163;
+            records.push(member);
+            // Keep a later key so unsuccessful prefix seeks observe boundary
+            // rows instead of ending the table without using their budget.
+            let mut property = node(&format!("sym:property:{PATH}:Z.Unrelated:180"),
+                "property", "Z.Unrelated", PATH, 1);
+            property.start_line = 180; property.end_line = 180;
+            records.push(property);
+            engram.state.graph.upsert_nodes(PID, &records).unwrap();
+            let result = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+                "symbol_name":"Find","limit":8})).await;
+            assert_eq!(result["files"][0]["symbols"][0]["node_id"], id,
+                "Unsuccessful owner hints must leave ordinary terminal-name recovery usable");
+            let work = &result["coverage"]["declarations"][0];
+            assert!(work["declaration_admission"]["raw_rows"].as_u64().unwrap() <= 64);
+            assert!(work["raw_record_bytes_decoded"].as_u64().unwrap() <= 2 * 1024 * 1024);
+            assert!(work["declaration_admission"]["truncated"].as_bool().unwrap(),
+                "Work omitted to preserve recovery must remain disclosed");
+            let expected_gap = if large_metadata { "named_owner_decode_budget" }
+                else { "named_owner_raw_key_limit" };
+            assert!(work["declaration_admission"]["reasons"].as_array().unwrap()
+                .contains(&json!(expected_gap)), "The exercised owner limit must be disclosed");
+        });
+    }
+}
+
+#[test]
+fn codemap_short_method_name_reaches_admitted_type_members_in_a_crowded_file() {
+    owned_case(true, |engram, search| async move {
+        const PATH: &str = "src/Cache.vb";
+        let source = (1..=240).map(|line| format!("' source line {line}"))
+            .collect::<Vec<_>>().join("\n");
+        publish_named_sources(&engram, &search, &[(PATH, &source)]).await;
+        let mut records = Vec::new();
+        // Unrelated methods precede every requested member in the file's
+        // canonical key order. Knowing the file must still be useful.
+        for index in 0..80 {
+            let name = format!("A{index:03}.Unrelated");
+            records.push(node(&format!("sym:function:{PATH}:{name}:10"),
+                "function", &name, PATH, 1));
+            records.last_mut().unwrap().start_line = 10;
+            records.last_mut().unwrap().end_line = 10;
+        }
+        for (owner, line) in [("_vs.Cache", 20), ("_vs.Other", 120), ("_vs.Stale", 150)] {
+            let mut ty = node(&format!("sym:class:{PATH}:{owner}:{line}"),
+                "class", owner, PATH, 1);
+            ty.start_line = line; ty.end_line = 240;
+            records.push(ty);
+        }
+        let expected: Vec<_> = [("_vs.Cache.QueryCacheCore", 190),
+            ("_vs.Cache.QueryCacheCore", 196), ("_vs.Other.QueryCacheCore", 210)]
+            .into_iter().map(|(name, line)| {
+                let id = format!("sym:function:{PATH}:{name}:{line}");
+                let mut member = node(&id, "function", name, PATH, 1);
+                member.start_line = line; member.end_line = line + 3;
+                records.push(member); id
+            }).collect();
+        let mut stale = node(&format!("sym:function:{PATH}:_vs.Stale.QueryCacheCore:220"),
+            "function", "_vs.Stale.QueryCacheCore", PATH, 0);
+        stale.start_line = 220; stale.end_line = 223;
+        records.push(stale);
+        engram.state.graph.upsert_nodes(PID, &records).unwrap();
+        let result = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+            "symbol_name":"QueryCacheCore","limit":8})).await;
+        let observed: std::collections::BTreeSet<_> = result["files"][0]["symbols"]
+            .as_array().unwrap().iter().map(|s|s["node_id"].as_str().unwrap().to_owned()).collect();
+        assert_eq!(observed, expected.into_iter().collect(),
+            "Retain both overloads and the other admitted owner; reject stale members");
+        let work = &result["coverage"]["declarations"][0];
+        assert!(work["declaration_admission"]["truncated"].as_bool().unwrap(),
+            "Owner-based discovery cannot establish that all terminal aliases were searched");
+        assert!(work["declaration_admission"]["non_selected_nodes"].as_u64().unwrap() >= 1);
+        assert!(work["declaration_admission"]["raw_rows"].as_u64().unwrap() <= 64);
+        assert!(work["raw_record_bytes_decoded"].as_u64().unwrap() <= 2 * 1024 * 1024);
+        let exact = navigate(&engram, json!({"project_id":PID,"scope":PATH,
+            "symbol_name":"_vs.Cache.QueryCacheCore","limit":8})).await;
+        assert_eq!(exact["files"][0]["symbols"].as_array().unwrap().len(), 2,
+            "Qualified lookup keeps the existing exact-overload behavior");
+    });
+}
+
+#[test]
 fn codemap_source_preview_inspects_one_observed_candidate_without_resolving_an_unfinished_name() {
     owned_case(true, |engram, search| async move {
         const PATH: &str = "src/Serializer.vb";

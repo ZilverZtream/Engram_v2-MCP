@@ -8,6 +8,10 @@ const RECORD_BYTES: usize = 64 * 1024;
 const DECODE_BYTES: usize = 2 * 1024 * 1024;
 const RAW_KEYS: usize = 64;
 const CANDIDATES: usize = 8;
+const OWNER_NAMES: usize = 32;
+const FILE_PREFIX_SEEKS: usize = 40;
+const TERMINAL_FALLBACK_KEYS: usize = 16;
+const OWNER_DECODE_BYTES: usize = DECODE_BYTES / 2;
 const DEADLINE_MS: u64 = 500;
 // Some extractors also represent interfaces as class records. Navigate the
 // recorded declaration kind without claiming language-level type binding.
@@ -118,6 +122,10 @@ impl GraphStore {
         let mut out = Vec::new();
         let mut kinds = Vec::new();
         let mut terminal_kinds = Vec::new();
+        let mut prefix_seeks = 0;
+        let mut owner_lookup_attempted = false;
+        let mut owners_retained = 0;
+        let mut owner_probe_found = false;
         let mut attempted_files=0;
         let mut completed_files=0;
         let mut admitted_files=0;
@@ -147,25 +155,107 @@ impl GraphStore {
                 completed_files+=1;continue;
             }
             admitted_files+=1;
-            for terminal in [false, true] {
+            for phase in 0..3 {
+                let terminal = phase != 0;
                 // Exact successes, qualified requests and directory pages keep
                 // their original path. Recovery shares this transaction, file
-                // admission and budget; it never starts a project-wide scan.
+                // admission and budget; owners guide names, never binding.
                 if terminal && (directory || name.contains('.') || !out.is_empty() || budget.halted) {
                     break;
                 }
-                'kinds: for kind in NAMED_KINDS {
+                let mut prefixes = Vec::new();
+                if phase == 1 {
+                    owner_lookup_attempted = true;
+                    let prefix = format!("{project}\0sym:class:{path}:");
+                    prefix_seeks += 1;
+                    let mut entries = table.range(prefix.as_str()..)?;
+                    let mut owners = Vec::new();
+                    loop {
+                        if !budget.live() { break; }
+                        if budget.coverage.raw_rows >= RAW_KEYS - TERMINAL_FALLBACK_KEYS {
+                            budget.gap("named_owner_raw_key_limit");
+                            break;
+                        }
+                        let Some(entry) = entries.next() else { break; };
+                        budget.coverage.raw_rows += 1;
+                        let (key, raw) = entry?;
+                        if !key.value().starts_with(&prefix) { break; }
+                        if raw.value().len() > OWNER_DECODE_BYTES.saturating_sub(budget.bytes) {
+                            budget.gap("named_owner_decode_budget");
+                            break;
+                        }
+                        let id = key.value().strip_prefix(&format!("{project}\0")).expect("project prefix");
+                        let Some(node) = budget.decode(raw.value(), id) else { continue; };
+                        if node.node_type != "class" || node.file_path.as_str() != *path
+                            || node.namespace != "memory" || node.name.is_empty() || node.name.len() > 2048
+                            || node.name.chars().any(char::is_control)
+                            || node.node_id != format!("sym:class:{path}:{}:{}", node.name, node.start_line) {
+                            budget.coverage.unknown_nodes += 1;
+                            budget.gap("named_candidate_identity_mismatch");
+                            continue;
+                        }
+                        match admit(&node, Some(&file))? {
+                            ImpactAdmission::Selected => {
+                                if !owners.contains(&node.name) {
+                                    owners.push(node.name);
+                                    if owners.len() == OWNER_NAMES {
+                                        budget.gap("named_owner_limit");
+                                        break;
+                                    }
+                                }
+                            }
+                            ImpactAdmission::NonSelectedRevision => {
+                                budget.coverage.non_selected_nodes += 1;
+                                budget.gap("named_non_selected_revision");
+                            }
+                            _ => {
+                                budget.coverage.unknown_nodes += 1;
+                                budget.gap("named_candidate_admission_unknown");
+                            }
+                        }
+                    }
+                    // Nested owners may sort before their containing class in
+                    // canonical keys. Collect first, then prefer shallower names.
+                    owners.sort_by(|a, b| a.matches('.').count().cmp(&b.matches('.').count()).then_with(|| a.cmp(b)));
+                    owners_retained = owners.len();
+                    for owner in owners {
+                        for kind in NAMED_KINDS {
+                            prefixes.push((kind, format!("{project}\0sym:{kind}:{path}:{owner}.{name}:")));
+                        }
+                    }
+                } else {
+                    for kind in NAMED_KINDS {
+                        let prefix = if terminal {
+                            format!("{project}\0sym:{kind}:{path}:")
+                        } else {
+                            format!("{project}\0sym:{kind}:{path}:{name}:")
+                        };
+                        prefixes.push((kind, prefix));
+                    }
+                }
+                'kinds: for (kind, prefix) in prefixes {
                     if !budget.live() { break; }
+                    // Reserve the existing broad kind prefixes when owner
+                    // probes find nothing, within the same total seek cap.
+                    if phase == 1 && prefix_seeks == FILE_PREFIX_SEEKS - NAMED_KINDS.len() {
+                        budget.gap("named_owner_probe_limit");
+                        break;
+                    }
+                    if !directory && prefix_seeks == FILE_PREFIX_SEEKS {
+                        budget.gap("named_prefix_seek_limit");
+                        budget.halted = true;
+                        break;
+                    }
+                    prefix_seeks += 1;
                     kinds.push(kind);
-                    let prefix = if terminal {
-                        terminal_kinds.push(kind);
-                        format!("{project}\0sym:{kind}:{path}:")
-                    } else {
-                        format!("{project}\0sym:{kind}:{path}:{name}:")
-                    };
+                    if terminal { terminal_kinds.push(kind); }
                     let mut entries = table.range(prefix.as_str()..)?;
                     loop {
                         if !budget.live() { break 'kinds; }
+                        if phase == 1 && budget.coverage.raw_rows >= RAW_KEYS - TERMINAL_FALLBACK_KEYS {
+                            budget.gap("named_owner_raw_key_limit");
+                            break 'kinds;
+                        }
                         if budget.coverage.raw_rows == RAW_KEYS {
                             budget.gap("named_raw_key_limit");
                             budget.halted=true;
@@ -175,6 +265,10 @@ impl GraphStore {
                         budget.coverage.raw_rows += 1;
                         let (key, raw) = entry?;
                         if !key.value().starts_with(&prefix) { break; }
+                        if phase == 1 && raw.value().len() > OWNER_DECODE_BYTES.saturating_sub(budget.bytes) {
+                            budget.gap("named_owner_decode_budget");
+                            break 'kinds;
+                        }
                         let id = key.value().strip_prefix(&format!("{project}\0")).expect("project prefix");
                         let Some(mut node) = budget.decode(raw.value(), id) else { continue; };
                         if node.node_type != kind || node.file_path.as_str() != *path
@@ -212,13 +306,18 @@ impl GraphStore {
                         }
                     }
                 }
+                if phase == 1 && !out.is_empty() {
+                    owner_probe_found = true;
+                    // An owner-guided hit is useful navigation, but skipping
+                    // the broad fallback cannot establish terminal uniqueness.
+                    budget.gap("named_terminal_inventory_unassessed_after_owner_match");
+                }
             }
             if budget.halted {partial_file=Some(*path);break;}
             completed_files+=1;
         }
         let retained=out.len();
-        let prefix_seeks=kinds.len();
-        let completed=!budget.halted;
+        let completed=!budget.halted && !owner_probe_found;
         let mut report=if directory {
             json!({"files_selected":paths.len(),"files_attempted":attempted_files,
                 "files_completed":completed_files,"files_not_attempted":paths.len()-attempted_files,
@@ -242,6 +341,20 @@ impl GraphStore {
                 "scope":"Only after zero admitted exact-name candidates; shared work limits over one selected file. Distinct qualified/overload identities remain candidates, not binding or uniqueness proof."});
             report["unassessed"]=json!(["legacy_or_noncanonical_identities","other_node_kinds",
                 "case_aliases","other_qualified_or_nonterminal_aliases","current_source_and_runtime_binding"]);
+        }
+        if owner_lookup_attempted {
+            if owner_probe_found {
+                report["observation"]=json!("bounded_exact_file_owner_guided_terminal_lookup");
+                report["declaration_inventory"]=json!("bounded_class_owners_and_qualified_name_probes");
+            }
+            report["owner_guided_terminal_lookup"]=json!({"attempted":true,
+                "canonical_selected_owners_retained":owners_retained,"owner_limit":OWNER_NAMES,
+                "prefix_seeks":prefix_seeks,"prefix_seek_limit":FILE_PREFIX_SEEKS,
+                "fallback_raw_keys_reserved":TERMINAL_FALLBACK_KEYS,"owner_decode_ceiling_bytes":OWNER_DECODE_BYTES,
+                "matching_candidates_found":owner_probe_found,
+                "broad_terminal_fallback_skipped":owner_probe_found,
+                "terminal_inventory_complete":false,"uniqueness_proven":false,
+                "scope":"Canonical revision-admitted class names guide bounded qualified-name probes; owners do not establish semantic binding."});
         }
         Ok((out,report))
     }
