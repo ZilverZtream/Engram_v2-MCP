@@ -1,0 +1,66 @@
+{
+  "status": "ORIGINAL_CANDIDATE_FAIL_PRESERVED_INSTALLED_RUNTIME_RESTORED",
+  "at_utc": "2026-11-10T09:58:19.678995+00:00",
+  "binary_source_commit": "b3887b45c84b06d370995adacd8d7243cb9790d3",
+  "release_build": "PASS",
+  "package": "PREPARED_NOT_INSTALLED",
+  "candidate": {
+    "status": "FAIL",
+    "requests": 10,
+    "task_calls": 5,
+    "expected_task_calls": 13,
+    "errors": [
+      "AssertionError('Exact direct interface call lost')"
+    ],
+    "original_positive_write_expectations_unmet": true
+  },
+  "observations": {
+    "GetValue": "Source and metadata expose exact bound interface implementation route; emitted90..115read executed with current full-filehash and exactsource text.",
+    "PatchValue": "Candidate has only three ErrorResponses direct calls and seven missing targets. This called_declarations object equals old installed output.",
+    "DeleteValue": "Old installed output has one ErrorResponses direct call and six missing targets. Candidatev1 never reached Delete; no candidate result claimed.",
+    "producer_probe": "Actual installed sidecar reproduces unresolved Update/Delete. Two synthetic controls isolate HTTP timestamp-expression context; actual DLL reference closure remains untested."
+  },
+  "verification_error": "The original positive Patch/Delete assertions assumed compiler-admitted calls from visible source syntax without establishing that precondition. The committed navigation API follows only already-admitted interface calls. Original candidate remains FAIL, not partial PASS.",
+  "scope_decision": "Preserve the missing HTTP binding issue and unmet write-route expectations. Corrected validation will require preservation of both unknown write-call gaps and direct primary evidence, while retaining the GetValue emitted-source proof and negative exclusion controls. No invented bindings, parser changes, relaxed source/hash proof, frozen-task replay or original13-pass claim. Continue selected bound-interface navigation to a distinct whole-task evaluation before selecting another parser change.",
+  "evidence": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-shipping-v1-20261110.json",
+      "sha256": "7c8ce508a84b1bdec205fa184372c1048334b56accd759a06b2b67f7711ff0f2"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-paired-package.json",
+      "sha256": "999929f2794062ae7418296d7fbbe29b507e756a31e6e12c09f2a89ecd1533e5"
+    },
+    "candidate_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-20261110-candidate-v1\\acceptance.json",
+      "sha256": "6ad947739534d98ddb2862f308aa511a2b4b0d86d34f2f6ae16dcbaec0fdcf4a"
+    },
+    "old_installed_baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-old-installed-write-baseline-20261110.json",
+      "sha256": "8c4af66ca50bd84762888499edd9f33428d73067a7f063036ade0822bf0e0fe5"
+    },
+    "producer_probe": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-http-context-probe-20261110.json",
+      "sha256": "0a0c53dd6d1a009f1b742767a6f4b70eeea05a66233d25e9b7cdac09070fce8e"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-forward-interface-config-hold-20261110.json.released.json",
+      "sha256": "dcf93a410a5b1db951345b23485db184e51900c010579c46e99f2c992d43d3df"
+    }
+  },
+  "runtime": {
+    "installed_server_sha256": "dd26c8e8eb2f56259e6d751713024a17d68c00698d97ef35394c80c125bf1ec9",
+    "installed_source_commit": "ce8e84a936efbca706085c635421e4798192025f",
+    "restored_primary_pid": 26540,
+    "config_hold_released": true,
+    "config_unchanged": true,
+    "index_update": false,
+    "candidate_resources_closed": true,
+    "owned_candidate_temp_removed": true
+  },
+  "fresh_task_win_proven": false,
+  "frozen_outcomes_changed": false,
+  "goal_complete": false,
+  "original_31_or_full19_closed": false,
+  "retention": "Retain failed receipt, prepared package/helpers, standalone probe and source oracle in V for review; deletion requires exact-path approval. New owned candidate/probe temps removed after handles closed. No preexisting deletion."
+}
