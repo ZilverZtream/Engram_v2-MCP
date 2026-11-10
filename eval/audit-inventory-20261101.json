@@ -9811,8 +9811,8 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T00:35:45.188072+00:00",
-    "reason": "Previous turn delivered false property witness fix. Current actual CodeMap output exposes a selected-declaration continuation cost:590..709genericread8026B versus590..627neededremainder3597B. New separate bounded action implemented, independently reviewed,53integration+1budget tests pass; shipping/candidate/normal verification pending.",
+    "at_utc": "2026-11-10T00:55:44.822204+00:00",
+    "reason": "Selected-declaration continuation deployed and checked in actual candidate/normal contexts. Exact new38line action retains Savecallback; old120line page unchanged; net3988B lower known-source two-call cost.53integration+1budget tests pass. No task retry/fulltaskwin; broader CodeMap/Blast usefulness work remains active.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9841,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "CodeMap/Blast agent-usefulness queue: finish the demonstrated selected-declaration source continuation gap. Preserve source and ordinary file pagination; no task retry/rescore.",
-    "next_user_visible_deliverable": "Build and deploy the tested CodeMap declaration_continuation action, execute its exact returned590..627 request against current OciusX source, preserve the original590..709 continuation and existing output facts, and report actual net response cost. No index update or sidecar rebuild.",
+    "active_original_item": "CodeMap and Blast Radius agent usefulness, original navigation/witness/recovery queue. Selected invocation-property and declaration-continuation corrections delivered; do not repeat their build/deployment or frozen task trials.",
+    "next_user_visible_deliverable": "Continue from retained original task evidence and actual source checks to the next demonstrated core-tool limitation. A missed/unselected available action alone does not justify another patch. Do not expand audits, instruction drafting, catalog, performance or benchmark infrastructure; preserve task criteria and failures.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9856,7 +9856,7 @@
     "scope_guard": "Do not start parked/new work unless user redirects or a concrete blocker prevents delivering the active original item. All31findings/19gates remain tracked and unfinished states preserved.",
     "latest_user_correction": "User reports four weeks of circular small fixes and repeated unacceptable-speed admissions. Do not equate local tests, audit records or isolated navigation savings with task-level delivery. Preserve the unfavorable matched comparison; no broad audit or infrastructure detour.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: prior invocation/property correction installed and normal-verified. Current work implements a source-verified navigation gap, not a new full-task claim.",
+    "previous_goal_turn_classification": "progress: selected CodeMap source continuation implemented, tested, deployed and actual returned actions independently source-checked. Broader task still incomplete.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -9881,8 +9881,8 @@
     ],
     "q_freeze_decision": "User authorized passive automatic indexing; keep Q code changes and reviews frozen. This is sufficient authorization to restore normal watching without another permission prompt.",
     "latest_core_delivery_evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-invocation-property-delivery-20261110.json",
-      "sha256": "808280723ee314faa408190359265f7d19511ad546ff9ce3c2dc696b21fa7be1"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-delivery-20261110.json",
+      "sha256": "e168ef6770e254797ba8be132b202c4f5aeb23696aa83334a34d8df4975b9b2c"
     },
     "latest_stateful_core_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\resetstate-fresh02-independent-judgment-20261106.json",
@@ -11531,17 +11531,17 @@
     },
     "runtime_maintenance_checkpoint": {
       "status": "COMPLETED_HOLD_RELEASED_NORMAL_VERIFIED",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-delivery-20261110.json",
+        "sha256": "e168ef6770e254797ba8be132b202c4f5aeb23696aa83334a34d8df4975b9b2c"
+      },
+      "hold_active": false,
+      "normal_primary_pid_at_verification": 8712,
+      "generation": 3140,
       "historical_checkpoint": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-invocation-property-20261110-maintenance-checkpoint.json",
         "sha256": "844ece7c9038c6e4b790ea9878fbbee8ff69fb7fb4cb42d03fed6d9448ce4fb9"
-      },
-      "delivery": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-invocation-property-delivery-20261110.json",
-        "sha256": "808280723ee314faa408190359265f7d19511ad546ff9ce3c2dc696b21fa7be1"
-      },
-      "hold_active": false,
-      "normal_primary_pid_at_verification": 46884,
-      "generation": 3140
+      }
     },
     "latest_invocation_property_delivery": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-invocation-property-delivery-20261110.json",
@@ -11550,6 +11550,10 @@
     "selected_declaration_continuation": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-20261110.json",
       "sha256": "3ac4a7cce0a6c10b2c75ddba420777c4b7a7058e81b7a19011c8c54ab6678515"
+    },
+    "latest_declaration_continuation_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\core-declaration-continuation-delivery-20261110.json",
+      "sha256": "e168ef6770e254797ba8be132b202c4f5aeb23696aa83334a34d8df4975b9b2c"
     }
   }
 }
