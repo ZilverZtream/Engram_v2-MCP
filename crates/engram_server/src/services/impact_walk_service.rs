@@ -1430,6 +1430,94 @@ mod source_route_upgrade_behavior {
     }
 
     #[test]
+    fn source_handoff_keeps_external_direct_read_before_uncovered_transitive_ranges() {
+        let mut frame = bridge_frame();
+        frame["nodes"][1]["file_ref"]=json!("f1");
+        frame["nodes"][1]["node_id"]=json!("sym:function:src/cache.rs:Resolve:200");
+        frame["nodes"][1]["start_line"]=json!(200);frame["nodes"][1]["end_line"]=json!(210);
+        let recovery=frame["recoveries"].as_array_mut().unwrap().iter_mut().find(|row|row["ref"]=="rn1").unwrap();
+        recovery["arguments"]["file_path"]=json!("src/cache.rs");
+        recovery["arguments"]["line_start"]=json!(200);recovery["arguments"]["line_end"]=json!(210);
+        let mut summary=summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        let index=summary["source_routes"]["reads"].as_array().unwrap().iter()
+            .position(|row|row["arguments"]["file_path"]=="src/cache.rs").unwrap();
+        let read=&mut summary["source_routes"]["reads"][index];
+        read["arguments"].as_object_mut().unwrap().remove("source_ranges");
+        read["arguments"]["line_start"]=json!(10);read["arguments"]["line_end"]=json!(30);
+        read["covered_refs"]=json!(["n4"]);
+        let direct=summary["immediate_consumers"][0]["source_read"].clone();
+        let immediate=immediate_section(&frame,false).unwrap();
+        assert!(immediate.contains(&serde_json::to_string(&direct).unwrap()));
+        assert!(source_handoff_section(&summary,&frame).is_none(),
+            "Another-file transitive read cannot suppress an uncovered direct read already in that file");
+        let rendered=render_summary_handoff(&summary,&frame,&immediate);
+        assert!(rendered.starts_with(&immediate));
+        let packet=|text:&str|serde_json::from_str::<Value>(text.split("## Revision-admitted change impact")
+            .nth(1).unwrap().split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()).unwrap();
+        assert_eq!(packet(&rendered),compact_summary_display(&summary),
+            "Restoring the prefix must retain every original route, action, witness, count and gap; no new next-read index is added");
+        let mut covered=summary.clone();
+        covered["source_routes"]["reads"][index]["covered_refs"]=json!(["n1"]);
+        covered["source_routes"]["reads"][index]["arguments"]["line_start"]=json!(195);
+        covered["source_routes"]["reads"][index]["arguments"]["line_end"]=json!(215);
+        assert_eq!(source_handoff_section(&covered,&frame).unwrap().0,index,
+            "A valid shared read covering the same direct identity and complete bounded range can still be promoted");
+        let mut variants=Vec::new();
+        let mut wrong_identity=covered.clone();wrong_identity["source_routes"]["reads"][index]["covered_refs"]=json!(["n4"]);variants.push(wrong_identity);
+        let mut wrong_generation=covered.clone();
+        wrong_generation["source_routes"]["nodes"].as_array_mut().unwrap().iter_mut()
+            .find(|node|node["ref"]=="n1").unwrap()["generation"]=json!(8);variants.push(wrong_generation);
+        for (start,end) in [(195,205),(205,215),(0,215)] {
+            let mut partial=covered.clone();partial["source_routes"]["reads"][index]["arguments"]["line_start"]=json!(start);
+            partial["source_routes"]["reads"][index]["arguments"]["line_end"]=json!(end);variants.push(partial);
+        }
+        let mut gap=covered.clone();let args=gap["source_routes"]["reads"][index]["arguments"].as_object_mut().unwrap();
+        args.remove("line_start");args.remove("line_end");
+        args.insert("source_ranges".into(),json!([{"line_start":195,"line_end":204},{"line_start":206,"line_end":215}]));variants.push(gap);
+        for variant in variants {
+            assert!(source_handoff_section(&variant,&frame).is_none());
+            assert!(render_summary_handoff(&variant,&frame,&immediate).starts_with(&immediate));
+        }
+        summary["retained_evidence"]=json!("");
+        let remaining=SUMMARY_BYTES-256-render_summary(&summary,&immediate).len();
+        summary["retained_evidence"]=json!("x".repeat(remaining));
+        let rendered=render_summary_handoff(&summary,&frame,&immediate);
+        assert!(rendered.starts_with(&immediate) && rendered.len()+256<=SUMMARY_BYTES);
+        assert_eq!(packet(&rendered),compact_summary_display(&summary),
+            "A full budget cannot buy the restored direct read by discarding previously allocated evidence");
+    }
+
+    #[test]
+    fn source_handoff_file_hint_keeps_same_file_callable_bridge_navigation() {
+        let mut frame=bridge_frame();
+        frame["files"].as_array_mut().unwrap().push(json!({"ref":"fh","path":"src/file_hint.rs"}));
+        frame["nodes"].as_array_mut().unwrap().insert(1,json!({"ref":"nh","node_id":"file:src/file_hint.rs",
+            "name":"src/file_hint.rs","kind":"file","file_ref":"fh","generation":7,
+            "admission":"selected","is_seed":false,"depth":1,"start_line":0,"end_line":0,"recovery_ref":"rh"}));
+        frame["recoveries"].as_array_mut().unwrap().push(json!({"ref":"rh","tool":"get_full_method_body","scope_ref":"file_excerpt",
+            "arguments":{"project_id":"p","file_path":"src/file_hint.rs","line_start":1,"output_json":true,"context_lines":0}}));
+        frame["edges"].as_array_mut().unwrap().insert(0,json!({"ref":"eh","source_ref":"nh","target_ref":"n0","kind":"calls","edge_generation":7}));
+        frame["selected_dependents_observed"]=json!(7);
+        let mut summary=summary_value(&frame,"p",None,None,8,Some(2),Some(5),None);
+        upgrade_source_routes(&mut summary,&frame,&|_|true);
+        let hint=summary["immediate_consumers"].as_array().unwrap().iter()
+            .find(|row|row["node_id"]=="file:src/file_hint.rs").unwrap();
+        assert_eq!(hint["source_read_scope"],"current_file_excerpt");
+        let (index,_)=source_handoff_section(&summary,&frame).expect(
+            "A first file-only hint cannot suppress the existing same-file callable bridge to another file");
+        assert_eq!(summary["source_routes"]["reads"][index]["arguments"]["file_path"],"src/cache.rs");
+        assert_eq!(summary["direct_dependents_observed"],2);
+        assert!(summary["source_routes"]["file_hints"].as_array().unwrap().contains(&json!("src/file_hint.rs")));
+        let immediate=immediate_section(&frame,false).unwrap();
+        let rendered=render_summary_handoff(&summary,&frame,&immediate);
+        assert!(!rendered.starts_with(&immediate));
+        let packet:Value=serde_json::from_str(rendered.split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()).unwrap();
+        assert_eq!(packet["next_source_read_index"],index);
+        assert_eq!(packet["source_routes"]["reads"],summary["source_routes"]["reads"]);
+    }
+
+    #[test]
     fn source_handoff_cannot_evict_evidence_to_fit_the_final_envelope() {
         let frame = bridge_frame();
         let mut summary = summary_value(&frame,"p",None,None,8,Some(1),Some(5),None);
@@ -1719,12 +1807,48 @@ fn source_handoff_section(value: &Value, full: &Value) -> Option<(usize, String)
     } else { vec![&read["arguments"]] };
     let mut total = 0u64;
     let mut previous = 0u64;
-    for range in ranges {
+    for range in &ranges {
         let (start,end) = (range["line_start"].as_u64()?,range["line_end"].as_u64()?);
         if start == 0 || start <= previous || end < start || end > u32::MAX as u64 { return None; }
         total = total.checked_add(end.checked_sub(start)?.checked_add(1)?)?;
         if total > 120 { return None; }
         previous = end;
+    }
+    let first_file = first["file_ref"].as_str().and_then(|reference|files.get(reference))?.as_str()?;
+    if first_file != target_file
+        && matches!(first["kind"].as_str(), Some("function" | "method" | "constructor"))
+        && original["source_read_scope"] == "explicit_source_range"
+    {
+        // Crossing a file boundary is already achieved by this direct caller.
+        // A transitive read may replace its introduction only when it also
+        // retains the complete literal read of that same selected identity.
+        // File-only hints and navigation/excerpt recoveries are not callable
+        // declaration reads; retain their existing bridge-handoff behavior.
+        let direct = &original["source_read"];
+        let arguments = &direct["arguments"];
+        let (start,end) = (arguments["line_start"].as_u64()?,arguments["line_end"].as_u64()?);
+        if direct["tool"] != "get_full_method_body" || start == 0 || end < start
+            || end > u32::MAX as u64 || end-start >= 120
+            || arguments["context_lines"] != 0 || arguments["output_json"] != true
+            || arguments.get("source_ranges").is_some()
+            || arguments.get("include_caller_bodies").is_some_and(|value|value != false)
+            || arguments["file_path"] != first_file
+            || arguments["project_id"] != read["arguments"]["project_id"]
+            || read["arguments"]["file_path"] != first_file
+            || !read["covered_refs"].as_array()?.contains(&first["ref"])
+            || !value["source_routes"]["nodes"].as_array()?.iter().any(|node|
+                node["ref"] == first["ref"] && node["node_id"] == first["node_id"]
+                    && node["file_ref"] == first["file_ref"] && node["generation"] == first["generation"])
+        { return None; }
+        let mut uncovered = start;
+        for range in &ranges {
+            let (first,last) = (range["line_start"].as_u64()?,range["line_end"].as_u64()?);
+            if last < uncovered { continue; }
+            if first > uncovered { return None; }
+            uncovered = last + 1;
+            if uncovered > end { break; }
+        }
+        if uncovered <= end { return None; }
     }
     let call = json!({"tool":read["tool"],"arguments":read["arguments"]});
     let prefix = format!("\n## Next indexed source read\n\nRead indexed declaration ranges in another file along the retained dependency routes. Action unexecuted; inspect its returned hash and verification. Complete-method boundaries and invocation location are unverified. Direct consumers, witnesses and unknown branches remain below. No value-flow, runtime or safe-change proof.\n\n```json\n{}\n```\n",
