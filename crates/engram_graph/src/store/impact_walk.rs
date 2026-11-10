@@ -18,6 +18,7 @@ const MAX_RECORD_BYTES: usize = 256 * 1024;
 const MAX_DECODE_BYTES: usize = 8 * 1024 * 1024;
 const WALK_TIME: Duration = Duration::from_secs(2);
 const MAX_UNBOUND_PREFIX_SEEKS: usize = 512;
+const MAX_UNBOUND_RAW_ROWS: usize = 2048;
 
 // Reserved producer evidence. Extractor metadata is projected to JSON strings
 // by ingestion, so it cannot supply this typed nested object. Raw GraphStore
@@ -364,6 +365,12 @@ pub struct UnboundMemberInspection {
     pub raw_keys_observed: usize,
     pub prefix_seeks: usize,
     pub prefix_seek_limit: usize,
+    pub scan_order: &'static str,
+    pub sibling_rows_limit: usize,
+    pub sibling_raw_keys_observed: usize,
+    pub sibling_phase_completed: bool,
+    pub recursive_phase_started: bool,
+    pub recursive_phase_completed: bool,
     pub witness_limit: usize,
     /// One undecoded matching-prefix key can establish that the row cap hid
     /// more work. It does not establish how many eligible witnesses remain.
@@ -497,8 +504,9 @@ fn inspect_unbound_members(
     let mut result = UnboundMemberInspection {
         // Reserve one shared raw-work slot for an undecoded boundary/lookahead
         // key. Every obtained key remains within the original shared limit.
-        raw_row_limit: remaining_rows.saturating_sub(1).min(512),
+        raw_row_limit: remaining_rows.saturating_sub(1).min(MAX_UNBOUND_RAW_ROWS),
         prefix_seek_limit: MAX_UNBOUND_PREFIX_SEEKS,
+        scan_order: "immediate_sibling_files_then_descendants",
         witness_limit: remaining_witnesses.min(8), ..Default::default()
     };
     if !budget.live(&mut result.coverage) {
@@ -512,6 +520,7 @@ fn inspect_unbound_members(
         gap(&mut result.coverage, "unbound_shared_row_or_witness_budget_unavailable");
         return Some(result);
     }
+    result.sibling_rows_limit = result.raw_row_limit - result.raw_row_limit / 4;
     let mut optional_halted = false;
     let attempted = (|| -> anyhow::Result<()> {
         let nodes = tx.open_table(NODES)?;
@@ -544,103 +553,148 @@ fn inspect_unbound_members(
             Ok(Some(node))
         };
         let prefix = format!("{project}\0calls\0sym:function:{directory}/");
-        let mut range = edges.range(prefix.as_str()..)?;
-        result.prefix_seeks = 1;
-        loop {
+        let source_prefix = format!("sym:function:{directory}/");
+        let mut descendants_observed = false;
+        for recursive in [false, true] {
+            if recursive && result.sibling_phase_completed && !descendants_observed { break; }
             if !budget.live(&mut result.coverage) || optional_halted { return Ok(()); }
-            let Some(entry) = range.next() else { break; };
-            result.raw_keys_observed += 1;
-            let (key, raw) = entry?;
-            let key = key.value();
-            if !key.starts_with(&prefix) { result.scoped_prefix_exhausted = true; return Ok(()); }
-            if result.coverage.raw_rows == result.raw_row_limit {
-                result.lookahead_observed = true;
+            if result.raw_keys_observed > result.raw_row_limit {
                 gap(&mut result.coverage, "unbound_raw_row_limit"); return Ok(());
             }
-            result.coverage.raw_rows += 1;
-            anyhow::ensure!(key.len() <= project.len() + 3 + "calls".len() + 4096,
-                "Unbound inspection edge key exceeds limits");
-            let parts = key.split('\0').collect::<Vec<_>>();
-            anyhow::ensure!(parts.len() == 4 && parts[0] == project && parts[1] == "calls"
-                && parts[2..].iter().all(|id| !id.is_empty() && id.len() <= 2048 && !id.chars().any(char::is_control)),
-                "Unbound inspection edge key unavailable");
-            let (source, target) = (parts[2], parts[3]);
-            if !target.starts_with(super::UNBOUND_RECEIVER_PREFIX) {
-                // Calls are ordered by source, then target. Bound-target tails
-                // are irrelevant to this optional syntax inspection. The key
-                // just obtained is still charged, including repeated boundaries.
-                if result.prefix_seeks == result.prefix_seek_limit {
-                    gap(&mut result.coverage, "unbound_prefix_seek_limit");
-                    return Ok(());
+            if result.prefix_seeks == result.prefix_seek_limit {
+                gap(&mut result.coverage, "unbound_prefix_seek_limit"); return Ok(());
+            }
+            result.prefix_seeks += 1;
+            if recursive { result.recursive_phase_started = true; }
+            let mut range = edges.range(prefix.as_str()..)?;
+            loop {
+                if !budget.live(&mut result.coverage) || optional_halted { return Ok(()); }
+                if !recursive && result.sibling_raw_keys_observed == result.sibling_rows_limit {
+                    gap(&mut result.coverage, "unbound_sibling_phase_row_limit");
+                    break;
                 }
-                let next = if target < super::UNBOUND_RECEIVER_PREFIX {
-                    format!("{project}\0calls\0{source}\0{}", super::UNBOUND_RECEIVER_PREFIX)
-                } else {
-                    // Source IDs contain no controls: U+0001 sorts after every
-                    // source+NUL target but before any longer valid source ID.
-                    // In particular, a line1 source must not skip line10.
-                    format!("{project}\0calls\0{source}\u{1}")
+                let Some(entry) = range.next() else {
+                    if recursive { result.recursive_phase_completed = true; }
+                    else { result.sibling_phase_completed = true; }
+                    break;
                 };
+                result.raw_keys_observed += 1;
+                if !recursive { result.sibling_raw_keys_observed += 1; }
+                let (key, raw) = entry?;
+                let key = key.value();
+                // Every obtained key, including phase boundaries and repeated
+                // source discoveries, shares this one row budget and lookahead.
+                if result.coverage.raw_rows == result.raw_row_limit {
+                    if key.starts_with(&prefix) {
+                        result.lookahead_observed = true;
+                        gap(&mut result.coverage, "unbound_raw_row_limit"); return Ok(());
+                    }
+                } else {
+                    result.coverage.raw_rows += 1;
+                }
+                if !key.starts_with(&prefix) {
+                    if recursive { result.recursive_phase_completed = true; }
+                    else { result.sibling_phase_completed = true; }
+                    break;
+                }
+                anyhow::ensure!(key.len() <= project.len() + 3 + "calls".len() + 4096,
+                    "Unbound inspection edge key exceeds limits");
+                let parts = key.split('\0').collect::<Vec<_>>();
+                anyhow::ensure!(parts.len() == 4 && parts[0] == project && parts[1] == "calls"
+                    && parts[2..].iter().all(|id| !id.is_empty() && id.len() <= 2048 && !id.chars().any(char::is_control)),
+                    "Unbound inspection edge key unavailable");
+                let (source, target) = (parts[2], parts[3]);
+                let relative_source = source.strip_prefix(&source_prefix).expect("directory source prefix");
+                let (relative_file, _) = relative_source.split_once(':')
+                    .ok_or_else(|| anyhow::anyhow!("Unbound inspection source file unavailable"))?;
+                anyhow::ensure!(!relative_file.is_empty(), "Unbound inspection source file empty");
+                let nested = relative_file.split_once('/');
+                let next = if !recursive && nested.is_some() {
+                    descendants_observed = true;
+                    // '/' -> '0' skips this entire nested directory, while keeping
+                    // adjacent sibling filenames/directories in lexical order.
+                    let first = nested.expect("nested file").0;
+                    Some(format!("{project}\0calls\0{source_prefix}{first}0"))
+                } else if recursive && nested.is_none() {
+                    // ':' -> ';' skips all callable owners of this immediate file,
+                    // but not longer filenames or descendant directory prefixes.
+                    Some(format!("{project}\0calls\0{source_prefix}{relative_file};"))
+                } else if !target.starts_with(super::UNBOUND_RECEIVER_PREFIX) {
+                    if target < super::UNBOUND_RECEIVER_PREFIX {
+                        Some(format!("{project}\0calls\0{source}\0{}", super::UNBOUND_RECEIVER_PREFIX))
+                    } else {
+                        // Source IDs contain no controls: U+0001 sorts after every
+                        // source+NUL target but before longer source IDs (1 vs10).
+                        Some(format!("{project}\0calls\0{source}\u{1}"))
+                    }
+                } else { None };
+                if let Some(next) = next {
+                    if result.prefix_seeks == result.prefix_seek_limit {
+                        gap(&mut result.coverage, "unbound_prefix_seek_limit"); return Ok(());
+                    }
+                    if !budget.live(&mut result.coverage) { return Ok(()); }
+                    result.prefix_seeks += 1;
+                    range = edges.range(next.as_str()..)?;
+                    continue;
+                }
+                if !charge(raw.value().len(), budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted) {
+                    if optional_halted { return Ok(()); } else { continue; }
+                }
+                let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
+                    .with_limit(64 * 1024).reject_trailing_bytes().deserialize(raw.value())?;
+                anyhow::ensure!(edge.source_id == source && edge.target_id == target && edge.edge_kind == EdgeKind::Calls,
+                    "Unbound inspection edge/key mismatch");
+                let Some(spelling) = target.strip_prefix(super::UNBOUND_RECEIVER_PREFIX) else { continue; };
+                let Some((receiver, terminal)) = spelling.rsplit_once('.') else { continue; };
+                if terminal != member { continue; }
+                let metadata = edge.metadata.as_ref();
+                let marked = metadata.and_then(|m| m.get("receiver_unbound"))
+                    .is_some_and(|v| v == true || v.as_str() == Some("true"));
+                let hint = metadata.and_then(|m| m.get("receiver")).and_then(JsonValue::as_str);
+                let matches_hint = hint.is_some_and(|hint| hint.len() <= 512
+                    && hint.chars().map(|c| if c.is_control() { ' ' } else { c }).eq(receiver.chars()));
+                if !marked || !matches_hint || receiver.is_empty() || edge.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                    result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_marker_or_namespace_unverified"); continue;
+                }
+                let Some(caller) = read(source, budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted)? else { continue; };
+                if !canonical_script_callable(&caller) || !caller.file_path.as_str().starts_with(&format!("{directory}/")) {
+                    result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_caller_identity_unverified"); continue;
+                }
+                let Some(file) = read(&format!("file:{}", caller.file_path.as_str()), budget,
+                    &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted)? else { continue; };
+                if file.node_type != "file" || file.file_path != caller.file_path
+                    || file.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
+                    result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_file_identity_unverified"); continue;
+                }
+                match admit(&caller, Some(&file))? {
+                    ImpactAdmission::Selected if edge_source_revision_matches(&edge, &caller) => {}
+                    ImpactAdmission::NonSelectedRevision => {
+                        result.coverage.non_selected_nodes += 1; gap(&mut result.coverage, "unbound_non_selected_caller"); continue;
+                    }
+                    _ => {
+                        result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_source_revision_unverified"); continue;
+                    }
+                }
                 if !budget.live(&mut result.coverage) { return Ok(()); }
-                result.prefix_seeks += 1;
-                range = edges.range(next.as_str()..)?;
-                continue;
-            }
-            if !charge(raw.value().len(), budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted) {
-                if optional_halted { return Ok(()); } else { continue; }
-            }
-            let edge: Edge = bincode::DefaultOptions::new().with_fixint_encoding()
-                .with_limit(64 * 1024).reject_trailing_bytes().deserialize(raw.value())?;
-            anyhow::ensure!(edge.source_id == source && edge.target_id == target && edge.edge_kind == EdgeKind::Calls,
-                "Unbound inspection edge/key mismatch");
-            let Some(spelling) = target.strip_prefix(super::UNBOUND_RECEIVER_PREFIX) else { continue; };
-            let Some((receiver, terminal)) = spelling.rsplit_once('.') else { continue; };
-            if terminal != member { continue; }
-            let metadata = edge.metadata.as_ref();
-            let marked = metadata.and_then(|m| m.get("receiver_unbound"))
-                .is_some_and(|v| v == true || v.as_str() == Some("true"));
-            let hint = metadata.and_then(|m| m.get("receiver")).and_then(JsonValue::as_str);
-            let matches_hint = hint.is_some_and(|hint| hint.len() <= 512
-                && hint.chars().map(|c| if c.is_control() { ' ' } else { c }).eq(receiver.chars()));
-            if !marked || !matches_hint || receiver.is_empty() || edge.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
-                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_marker_or_namespace_unverified"); continue;
-            }
-            let Some(caller) = read(source, budget, &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted)? else { continue; };
-            if !canonical_script_callable(&caller) || !caller.file_path.as_str().starts_with(&format!("{directory}/")) {
-                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_caller_identity_unverified"); continue;
-            }
-            let Some(file) = read(&format!("file:{}", caller.file_path.as_str()), budget,
-                &mut result.coverage, &mut result.decoded_bytes, &mut optional_halted)? else { continue; };
-            if file.node_type != "file" || file.file_path != caller.file_path
-                || file.namespace != engram_core::namespaces::NAMESPACE_MEMORY {
-                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_file_identity_unverified"); continue;
-            }
-            match admit(&caller, Some(&file))? {
-                ImpactAdmission::Selected if edge_source_revision_matches(&edge, &caller) => {}
-                ImpactAdmission::NonSelectedRevision => {
-                    result.coverage.non_selected_nodes += 1; gap(&mut result.coverage, "unbound_non_selected_caller"); continue;
+                if result.witnesses.iter().any(|row| row.caller.node_id == source && row.unresolved_target_id == target) { continue; }
+                let (_, position_kind, lines, lines_truncated) = recorded_positions(&edge);
+                if lines.iter().any(|line| *line < caller.start_line || *line > caller.end_line) {
+                    result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_reference_outside_declared_span"); continue;
                 }
-                _ => {
-                    result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_source_revision_unverified"); continue;
+                if result.witnesses.len() == result.witness_limit {
+                    result.witnesses_omitted_lower_bound += 1;
+                    gap(&mut result.coverage, "unbound_witness_limit"); return Ok(());
                 }
+                if !budget.retain(identity_bytes(&caller) + target.len() + receiver.len()
+                    + lines.len() * std::mem::size_of::<u32>(), &mut result.coverage) { return Ok(()); }
+                result.witnesses.push(UnboundMemberWitness { caller: identity_clone(&caller),
+                    unresolved_target_id: target.to_owned(), receiver: receiver.to_owned(), edge_generation: edge.generation,
+                    source_position_kind: position_kind, reference_lines: lines, reference_lines_truncated: lines_truncated });
             }
-            if !budget.live(&mut result.coverage) { return Ok(()); }
-            if result.witnesses.iter().any(|row| row.caller.node_id == source && row.unresolved_target_id == target) { continue; }
-            let (_, position_kind, lines, lines_truncated) = recorded_positions(&edge);
-            if lines.iter().any(|line| *line < caller.start_line || *line > caller.end_line) {
-                result.coverage.unknown_nodes += 1; gap(&mut result.coverage, "unbound_reference_outside_declared_span"); continue;
-            }
-            if result.witnesses.len() == result.witness_limit {
-                result.witnesses_omitted_lower_bound += 1;
-                gap(&mut result.coverage, "unbound_witness_limit"); return Ok(());
-            }
-            if !budget.retain(identity_bytes(&caller) + target.len() + receiver.len()
-                + lines.len() * std::mem::size_of::<u32>(), &mut result.coverage) { return Ok(()); }
-            result.witnesses.push(UnboundMemberWitness { caller: identity_clone(&caller),
-                unresolved_target_id: target.to_owned(), receiver: receiver.to_owned(), edge_generation: edge.generation,
-                source_position_kind: position_kind, reference_lines: lines, reference_lines_truncated: lines_truncated });
         }
-        result.scoped_prefix_exhausted = !optional_halted && !budget.halted;
+        result.scoped_prefix_exhausted = result.sibling_phase_completed
+            && (!result.recursive_phase_started || result.recursive_phase_completed)
+            && !optional_halted && !budget.halted;
         Ok(())
     })();
     if attempted.is_err() {
@@ -3210,11 +3264,92 @@ mod tests {
     }
 
     #[test]
+    fn unbound_inspection_prioritizes_sibling_callers_over_early_nested_noise() -> anyhow::Result<()> {
+        owned_case(|store| {
+            let (root, caller, unresolved) = unbound_fixture(store)?;
+            let mut noise = (0..3000).map(|number| edge(
+                "sym:function:src/images/aaa/deep.ts:Probe:1",
+                &format!("{UNBOUND_RECEIVER_PREFIX}h{number:04}.differentMember"), EdgeKind::Calls, 1)).collect::<Vec<_>>();
+            for number in 0..600 {
+                noise.push(edge("sym:function:src/images/bbb.ts:Probe:1",
+                    &format!("sym:function:other.ts:Bound:{number}"), EdgeKind::Calls, 1));
+                noise.push(edge("sym:function:src/images/bbb.ts:Probe:1",
+                    &format!("{UNBOUND_RECEIVER_PREFIX}h{number:04}.differentMember"), EdgeKind::Calls, 1));
+            }
+            store.upsert_edges(PROJECT, &noise)?;
+            let expected = [("src/images/image.ts",1),("src/images/group.ts",1)];
+            let observe = || store.bounded_incoming_walk(PROJECT, &[root.node_id.clone()], 6, &causal,
+                &|node, file| selected(&expected, node, file));
+            let baseline = primary_facts(&observe()?)?;
+            store.upsert_edges(PROJECT, &[unresolved])?;
+            let walk = observe()?;
+            assert_eq!(primary_facts(&walk)?, baseline);
+            let inspection = walk.unbound_member_inspection.unwrap();
+            assert_eq!(inspection.witnesses.len(), 1);
+            assert_eq!(inspection.witnesses[0].caller.node_id, caller.node_id);
+            assert_eq!(inspection.witnesses[0].reference_lines, vec![12,13]);
+            assert_eq!(inspection.scan_order, "immediate_sibling_files_then_descendants");
+            assert!(inspection.sibling_phase_completed && inspection.recursive_phase_started);
+            assert!(!inspection.recursive_phase_completed && !inspection.scoped_prefix_exhausted);
+            assert!(inspection.sibling_raw_keys_observed < inspection.sibling_rows_limit);
+            assert_eq!(inspection.raw_keys_observed, MAX_UNBOUND_RAW_ROWS + 1);
+            assert!(inspection.lookahead_observed && inspection.coverage.truncated);
+            assert!(inspection.prefix_seeks <= inspection.prefix_seek_limit);
+            assert!(inspection.decoded_bytes <= 2 * 1024 * 1024);
+            Ok(())
+        })
+    }
+
+    #[test]
+    fn unbound_inspection_keeps_descendant_recovery_and_reports_capped_sibling_phase() -> anyhow::Result<()> {
+        for peer_noise in [0, 1600] {
+            owned_case(|store| {
+                let (root, _, _) = unbound_fixture(store)?;
+                let caller = script_node("src/images/nested/deep.ts", "clear", 10);
+                let mut noise = (0..peer_noise).map(|number| edge(
+                    "sym:function:src/images/aaa.ts:Probe:1",
+                    &format!("{UNBOUND_RECEIVER_PREFIX}h{number:04}.differentMember"), EdgeKind::Calls, 1)).collect::<Vec<_>>();
+                // Both phases obtain this same directory boundary; both reads
+                // must be charged, without treating it as another lookahead.
+                noise.push(edge("sym:function:src/images2/out.ts:Probe:1", "bound", EdgeKind::Calls, 1));
+                store.upsert_edges(PROJECT, &noise)?;
+                store.upsert_nodes(PROJECT, &[caller.clone(), file(caller.file_path.as_str(), 1)])?;
+                let expected = [("src/images/image.ts",1),(caller.file_path.as_str(),1)];
+                let observe = || store.bounded_incoming_walk(PROJECT, &[root.node_id.clone()], 6, &causal,
+                    &|node, file| selected(&expected, node, file));
+                let baseline = primary_facts(&observe()?)?;
+                store.upsert_edges(PROJECT, &[unbound_edge(&caller, "nested")])?;
+                let walk = observe()?;
+                assert_eq!(primary_facts(&walk)?, baseline);
+                let inspection = walk.unbound_member_inspection.unwrap();
+                assert_eq!(inspection.witnesses.len(), 1);
+                assert_eq!(inspection.witnesses[0].caller.node_id, caller.node_id);
+                assert_eq!(inspection.witnesses[0].reference_lines, vec![12,13]);
+                assert!(inspection.recursive_phase_started && inspection.recursive_phase_completed);
+                assert_eq!(inspection.sibling_phase_completed, peer_noise == 0);
+                assert_eq!(inspection.scoped_prefix_exhausted, peer_noise == 0);
+                assert_eq!(inspection.coverage.truncated, peer_noise != 0);
+                assert_eq!(inspection.raw_keys_observed, inspection.coverage.raw_rows,
+                    "Every obtained phase/boundary key fits and is charged to the shared processed rows");
+                assert!(inspection.raw_keys_observed <= MAX_UNBOUND_RAW_ROWS);
+                if peer_noise > 0 {
+                    assert_eq!(inspection.sibling_raw_keys_observed, inspection.sibling_rows_limit);
+                    assert_eq!(inspection.sibling_rows_limit, MAX_UNBOUND_RAW_ROWS * 3 / 4);
+                    assert!(inspection.coverage.reasons.iter().any(|reason| reason == "unbound_sibling_phase_row_limit"));
+                }
+                Ok(())
+            })?;
+        }
+        Ok(())
+    }
+
+    #[test]
     fn unbound_inspection_bounds_skipped_rows_and_discloses_unknown_remainder() -> anyhow::Result<()> {
         owned_case(|store| {
-            let (root, _, unresolved) = unbound_fixture(store)?;
-            store.upsert_edges(PROJECT, &[unresolved])?;
-            let skipped = (0..513).map(|number| edge("sym:function:src/images/aaa.ts:Probe:1",
+            let (root, _, _) = unbound_fixture(store)?;
+            let late = script_node("src/images/zzz/group.ts", "clear", 10);
+            store.upsert_edges(PROJECT, &[unbound_edge(&late, "h")])?;
+            let skipped = (0..MAX_UNBOUND_RAW_ROWS + 1).map(|number| edge("sym:function:src/images/aaa/deep.ts:Probe:1",
                 &format!("{UNBOUND_RECEIVER_PREFIX}h{number:04}.differentMember"), EdgeKind::Calls, 1)).collect::<Vec<_>>();
             store.upsert_edges(PROJECT, &skipped)?;
             let walk = store.bounded_incoming_walk(PROJECT, &[root.node_id], 6, &causal,
@@ -3222,8 +3357,8 @@ mod tests {
             assert_eq!(walk.nodes.iter().filter(|node| node.depth>0 && node.admission==ImpactAdmission::Selected).count(), 3);
             let inspection = walk.unbound_member_inspection.unwrap();
             assert!(inspection.witnesses.is_empty() && inspection.coverage.truncated);
-            assert_eq!(inspection.coverage.raw_rows, 512);
-            assert_eq!(inspection.raw_keys_observed, 513);
+            assert_eq!(inspection.coverage.raw_rows, MAX_UNBOUND_RAW_ROWS);
+            assert_eq!(inspection.raw_keys_observed, MAX_UNBOUND_RAW_ROWS + 1);
             assert!(inspection.lookahead_observed && !inspection.scoped_prefix_exhausted);
             assert_eq!(inspection.witnesses_omitted_lower_bound, 0, "Unexamined rows are not known eligible witnesses");
             Ok(())
