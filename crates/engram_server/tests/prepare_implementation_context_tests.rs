@@ -187,7 +187,10 @@ async fn changed_target_is_rejected_before_old_spans_are_sliced() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn style_context_exposes_deterministic_basis_and_failures() {
-    let (_tmp, _state, engram, pid) = fixture().await;
+    let (temporary, _state, engram, pid) = fixture().await;
+    // Own an empty history boundary: fixtures may live under another Git
+    // checkout, whose ancestors must not satisfy this failure scenario.
+    drop(git2::Repository::init(temporary.path().join("proj")).unwrap());
     let mut request = prepare_req(&pid, "GetAll");
     request["include_style_profile"] = json!(true);
     request["max_pattern_examples"] = json!(usize::MAX);

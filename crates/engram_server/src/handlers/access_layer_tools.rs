@@ -21,6 +21,9 @@ use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
 
+#[path = "access_layer_tools/context_response.rs"]
+mod context_response;
+
 /// Resolve application-relative directives from hosting evidence, never a
 /// repository-specific folder name. Nested web.config files can configure a
 /// subdirectory, so prefer an explicit application marker or the outermost
@@ -4978,6 +4981,7 @@ impl Engram {
         &self,
         req: PrepareImplementationContextRequest,
     ) -> Result<CallToolResult, McpError> {
+        context_response::validate(&req)?;
         let rec = self.ensure_project_record(&req.project_id).await?;
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
@@ -5211,7 +5215,9 @@ impl Engram {
                 && (!method_info.session_keys_read.is_empty()
                     || !method_info.session_keys_written.is_empty())
             {
-                let all_keys: HashSet<&str> = method_info
+                // Stable evidence/record order is required for hash-bound
+                // context continuations across otherwise identical calls.
+                let all_keys: std::collections::BTreeSet<&str> = method_info
                     .session_keys_read
                     .iter()
                     .chain(method_info.session_keys_written.iter())
@@ -5525,6 +5531,11 @@ impl Engram {
             }
             ctx.style_profile = style.style_guide;
             ctx.style_basis = Some(style.basis);
+        }
+
+        if req.max_tokens.is_some() || req.context_offset > 0 || req.context_expected_hash.is_some() {
+            let freshness = self.access_freshness(&req.project_id, &rec.directory, Some(&req.file_path)).await;
+            return context_response::finish(&req, &ctx, &freshness);
         }
 
         if output_json {

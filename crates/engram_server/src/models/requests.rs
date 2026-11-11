@@ -3692,10 +3692,24 @@ fn default_max_pattern_examples() -> usize {
 /// Assemble everything an LLM needs to generate correct code for a method modification:
 /// coding style profile, pattern examples from callers, database schema for referenced tables,
 /// SP signatures, session state context, control mappings, VB traps, and sync hazards.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct PrepareImplementationContextRequest {
     pub project_id: String,
+    /// Complete reply budget estimated as ceil(UTF-8 bytes/4), including JSON
+    /// escaping, policy, warnings, freshness and recovery. Enables context-record
+    /// paging. Too-small budgets refuse with a usable minimum; no safety context
+    /// is discarded. Omit for the existing complete response format.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Record offset from the returned continuation, not a source line number.
+    /// Nonzero offsets require context_expected_hash. Keep other options fixed.
+    #[serde(default)]
+    pub context_offset: usize,
+    /// Hash from a previous context page. Changed assembled evidence requires
+    /// restarting at offset zero. This does not retain a source/index snapshot.
+    #[serde(default)]
+    pub context_expected_hash: Option<String>,
     /// The file containing the method to be modified.
     pub file_path: String,
     /// The method name to prepare context for.

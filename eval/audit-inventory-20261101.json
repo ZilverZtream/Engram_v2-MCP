@@ -9956,30 +9956,29 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_HISTORY_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
-      "original_requirement": "TODO P0-4: optional whole-response token budgets, explicit truncation/pagination and structured output across tools. This delivery covers search_history text and precedent modes.",
-      "observed_source_gap": "SearchHistoryRequest has no max_tokens or output_json. Text mode builds an unbounded complete reply including full subject lines, shows12matched paths with only a +N marker, and truncates content with no literal full-history recovery. Existing EG20/21 capability and historical-scope behavior is deployed and must be preserved.",
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "TODO P0-4 specifically identifies unbounded access-layer contexts. Deliver optional complete-response budgets and recoverable explicit omissions for prepare_implementation_context in existing Markdown and JSON formats.",
+      "observed_source_gap": "PrepareImplementationContextRequest has output_json but no max_tokens or paging. The handler renders complete method bodies, caller examples and dependency context without a whole-reply budget. Existing source checks, ambiguity refusal, dependency coverage/warnings and style-provider disclosures must survive budgeting.",
       "existing_evidence": [
-        "TODO.md P0-4 remains partial",
-        "eval/eg20-history-capability-delivery-20261111.json",
-        "eval/p04-search-json-delivery-20261111.json",
-        "eval/p04-document-response-delivery-20261111.json"
+        "TODO.md P0-4 access_layer_tools context requirement",
+        "eval/p04-document-response-delivery-20261111.json",
+        "eval/p04-history-response-delivery-20261111.json",
+        "crates/engram_server/tests/prepare_implementation_context_tests.rs"
       ],
       "implementation_files": [
         "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/git_tools.rs",
-        "crates/engram_server/src/handlers/search_tools/response_budget.rs",
-        "crates/engram_server/src/handlers/search_tools/structured_response.rs"
+        "crates/engram_server/src/handlers/access_layer_tools.rs",
+        "existing response-budget/source-excerpt helpers as appropriate"
       ],
       "finite_acceptance": [
-        "Observe installed public text and precedent replies and schema on one owned real Git history with independently captured commit IDs, authored messages, source changes and timestamps. Preserve this baseline.",
-        "Both modes honor optional max_tokens over complete UTF8 reply text, including JSON escaping and capability/scope/rerank/coverage metadata. Output_json exposes typed results and honest bounded-window totals/truncation. Too-small or invalid budgets return actionable refusal, not stripped warning metadata.",
-        "Page whole history records within the existing selected limit/window without changing retrieval or ranking. Truncated preview and displayed-file omissions have explicit identity-bound recovery where evidence exists; unavailable recovery is disclosed. Preserve author/date/path/as_of_rev restrictions and published-change grouping; do not invent unindexed history or a durable corpus cursor.",
-        "Use relevant native/no-vector checks and actual public candidate/installed text/precedent calls against independent Git source/message bytes and historical exclusions. Preserve default legacy behavior, retrieval capability and configured rerank behavior. Build/deploy only the tested change, record limits and advance."
+        "Observe installed public Markdown/JSON/schema on one owned real source fixture with a long target method and callers; compare returned source spans/bodies against independently authored bytes. Record the actual missing behavior before product edits.",
+        "Optional max_tokens applies to the complete UTF8 reply at bytes/4 including JSON escaping, mandatory warning/coverage/freshness/identity and continuation metadata. Refuse invalid/tiny budgets with a usable minimum; never imply omitted dependencies were absent.",
+        "Make large context usable within requested budgets through bounded source previews and/or whole context-record pages with literal recovery of omitted source/context. Preserve required target identity and safety/coverage disclosures on every page. Recover and compare source against independent evidence; disclose mutable-input and unavailable-evidence limits without inventing snapshot completeness.",
+        "Keep existing ambiguity/overload/source-staleness/dependency-provider behavior and default output compatibility. Run relevant native/no-vector checks and actual candidate/installed agent task reconstruction, then commit/push origin/master, deploy and advance."
       ],
-      "constraints": "No new generic transport/middleware or snapshot-store project; reuse existing reply-budget and citation recovery mechanisms. EG20/21 ranking/capability improvements are not reopened. CodeMap/Blast and TODO16c remain unselected. Full P0-4 beyond this tool remains open."
+      "constraints": "One selected tool; no generic snapshot store, new approval UI, graph/CodeMap/Blast improvements, broad audit, performance or sidecar project. Full P0-4 and broader accepted backlog remain open."
     },
-    "at_utc": "2026-11-11T21:03:16.575748+00:00",
+    "at_utc": "2026-11-11T21:25:30.721959+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10009,8 +10008,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 search_history response contract delivered; advance the next unfinished original requirement.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "P0-4 prepare_implementation_context complete response budgets and recovery",
+    "next_user_visible_deliverable": "A budgeted implementation context that retains target/coverage warnings and explicitly recovers omitted source/context.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10024,7 +10023,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: history response budgets, JSON, paging and exact recovery built, candidate/installed public Git acceptance passed, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: context response budget/recovery implemented and focused native/no-vector acceptance completed; public release acceptance pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12521,7 +12520,35 @@
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "receipt": "eval\\p04-history-response-delivery-20261111.json",
       "source_commit": "e9ad9aa4c4e2bb2b5749dc5364ce189c3e7ba811",
-      "installed_server_sha256": "feba2dccb6ca65312cfe6458420f8a478b459946621d01de6e0938650e7e7ad6"
+      "installed_server_sha256": "feba2dccb6ca65312cfe6458420f8a478b459946621d01de6e0938650e7e7ad6",
+      "delivered_contract": {
+        "status": "DELIVERED_HISTORY_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
+        "original_requirement": "TODO P0-4: optional whole-response token budgets, explicit truncation/pagination and structured output across tools. This delivery covers search_history text and precedent modes.",
+        "observed_source_gap": "SearchHistoryRequest has no max_tokens or output_json. Text mode builds an unbounded complete reply including full subject lines, shows12matched paths with only a +N marker, and truncates content with no literal full-history recovery. Existing EG20/21 capability and historical-scope behavior is deployed and must be preserved.",
+        "existing_evidence": [
+          "TODO.md P0-4 remains partial",
+          "eval/eg20-history-capability-delivery-20261111.json",
+          "eval/p04-search-json-delivery-20261111.json",
+          "eval/p04-document-response-delivery-20261111.json"
+        ],
+        "implementation_files": [
+          "crates/engram_server/src/models/requests.rs",
+          "crates/engram_server/src/handlers/git_tools.rs",
+          "crates/engram_server/src/handlers/search_tools/response_budget.rs",
+          "crates/engram_server/src/handlers/search_tools/structured_response.rs"
+        ],
+        "finite_acceptance": [
+          "Observe installed public text and precedent replies and schema on one owned real Git history with independently captured commit IDs, authored messages, source changes and timestamps. Preserve this baseline.",
+          "Both modes honor optional max_tokens over complete UTF8 reply text, including JSON escaping and capability/scope/rerank/coverage metadata. Output_json exposes typed results and honest bounded-window totals/truncation. Too-small or invalid budgets return actionable refusal, not stripped warning metadata.",
+          "Page whole history records within the existing selected limit/window without changing retrieval or ranking. Truncated preview and displayed-file omissions have explicit identity-bound recovery where evidence exists; unavailable recovery is disclosed. Preserve author/date/path/as_of_rev restrictions and published-change grouping; do not invent unindexed history or a durable corpus cursor.",
+          "Use relevant native/no-vector checks and actual public candidate/installed text/precedent calls against independent Git source/message bytes and historical exclusions. Preserve default legacy behavior, retrieval capability and configured rerank behavior. Build/deploy only the tested change, record limits and advance."
+        ],
+        "constraints": "No new generic transport/middleware or snapshot-store project; reuse existing reply-budget and citation recovery mechanisms. EG20/21 ranking/capability improvements are not reopened. CodeMap/Blast and TODO16c remain unselected. Full P0-4 beyond this tool remains open."
+      }
+    },
+    "p04_context_response_20261111": {
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "receipt": "eval\\p04-context-response-delivery-20261111.json"
     }
   }
 }
