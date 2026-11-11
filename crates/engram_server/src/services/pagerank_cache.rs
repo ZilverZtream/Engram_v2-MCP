@@ -50,6 +50,14 @@ impl State {
 }
 
 impl PageRankCache {
+    /// Called while all ranking worker permits are held, after graph-only
+    /// replacement. A source generation alone cannot identify changed edges.
+    pub(crate) fn invalidate_after_graph_rebuild(&self) {
+        let mut state = self.state.lock().unwrap_or_else(|error| error.into_inner());
+        state.value = None;
+        state.retry_after = None;
+    }
+
     /// Read one retained same-generation target without changing cache state,
     /// expiring/dropping a map, waiting for work, or starting ranking work.
     pub fn peek_target_score(&self, generation: u64, target: &str) -> TargetPageRank {

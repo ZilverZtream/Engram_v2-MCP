@@ -1,0 +1,47 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T23:51:30.633013+00:00",
+  "original_requirement": "TODO16b: complete graph re-extraction without embedding, search/vector writes or Git replay; preserve identity and retained relationships.",
+  "public_entrypoint": "repair_project(scope=\"graph_only\")",
+  "behavior": "Uses the full extraction path and isolated resolution, then atomically replaces extracted graph evidence at original file revisions. Preserves learning/history and reports retained relationships without a unique successor. Refuses source drift, changed chunk settings, cancellation and wipe_and_reindex.",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\baseline\\acceptance.json",
+    "sha256": "05270ad898bdcf1cc9e426cd56fa1b4024aad06c2a5dbc620cbb8eb16e5e6558"
+  },
+  "source_sha256": {
+    "crates/engram_graph/src/store.rs": "18090b7229079f5e3bf4c70459f24cb6741d6fb66ae7494fc470d7f97435e95e",
+    "crates/engram_graph/src/store/source_rebuild.rs": "d47557227cbf7306b9fba1b895c67000aac3f9c05865c44eb5b53bd984c86748",
+    "crates/engram_graph/src/store/source_rebuild/tests.rs": "b877ea683cceb4b48bda8ec61f95deb91ae65aa3b09c28b42512a1f3e57ca6fb",
+    "crates/engram_index/src/hybrid.rs": "af5bd6d189f2799e33abdf4b5d44ac01e616f2e34f9bdbdbbf56e2ca7eec9fe7",
+    "crates/engram_index/src/hybrid/graph_extraction_tests.rs": "397366a405849565554da278d2a6030f20772e416bf02dc5a99a045cf9d98940",
+    "crates/engram_server/src/handlers/project_tools.rs": "6e5f831ef58605d8bc385e1797a5496006da6af4700458edc847b1c4b5e81b2d",
+    "crates/engram_server/src/handlers/project_tools/graph_rebuild.rs": "02f624189fb2781d9191ebb82a75777b2c470f964ab0fc2f7420693653b10169",
+    "crates/engram_server/src/handlers/project_tools/graph_rebuild/tests.rs": "eef266088bb8f65362e4faa82e83614d894eabf0575ec5cc269cb667f205d98c",
+    "crates/engram_server/src/handlers/project_tools/source_publication_tests/repair_history_options.rs": "f5774c92523fb0cf24764c5f078b6b856993544fecafa6a41696cf4a7b7832bb",
+    "crates/engram_server/src/models/requests.rs": "1d2cb44149ed7ef2a48bf285fe155db5d907b545fe31691a4d09e6cfc34b332a",
+    "crates/engram_server/src/services/ingest_service.rs": "4a51ee160bbe3cb7cf1fb636258dfb132ae61a2486d910aa7aee30b44db46721",
+    "crates/engram_server/src/services/pagerank_cache.rs": "8301fee7cfe359053a5d7174f2cbb91ba6d12437549c6e90a718f47fdc75eabe",
+    "crates/engram_server/src/services/project_service.rs": "57280ddf4e8db44ee199d0cbe89d11d1da11ba29912e2c96d2debc896dfd81fb",
+    "crates/engram_server/src/state.rs": "d240ae16a90a605520fcdcbb09178d7e5074650be25b97573bc9c2e3b9949c88",
+    "crates/engram_server/src/tools.rs": "615e80ebd2d41e5b1015370ce63ee36673282dc323070761b4b02c86721d83d8"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\source-review.json",
+    "sha256": "5a02c3e8182b64e5e40834291cd86e06eedaf1cec38b1cd9ac16ab9bd10bcd09"
+  },
+  "helper_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\helper-review.json",
+    "sha256": "149e2c4ad179eefc0b3b06af40025b844a3727139e921b43d52c1913d6c1f6d5"
+  },
+  "validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\source-validation.json",
+    "sha256": "cad141b0e4a4c1111e9a7800aed81b5ce11f9ef3b6229c35d884e998361c5c4d"
+  },
+  "source_commit": null,
+  "outstanding": [
+    "Release build/package.",
+    "Candidate and installed public MCP checks.",
+    "Deployment and normal installed runtime identity verification."
+  ],
+  "limitations": "No production rebuild performed, no measured large-project speedup, no complete backlog/19-gate/EG14 claim."
+}

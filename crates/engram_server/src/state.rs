@@ -17,6 +17,7 @@ use tokio_util::sync::CancellationToken;
 /// Beyond this limit, the least recently accessed project is evicted.
 /// Startup priming shares this bound so it cannot churn through the registry.
 pub(crate) const MAX_CACHED_PROJECTS: usize = 5;
+pub(crate) const PAGERANK_WORKER_LIMIT: u32 = 2;
 
 #[derive(Debug, Clone)]
 pub enum AppEvent {
@@ -268,7 +269,7 @@ impl AppState {
                 memory_budget: Arc::new(memory_budget),
                 checkpoints: Arc::new(checkpoints),
                 migration_progress: Arc::new(migration_progress),
-                pagerank_workers: Arc::new(Semaphore::new(2)),
+                pagerank_workers: Arc::new(Semaphore::new(PAGERANK_WORKER_LIMIT as usize)),
                 co_change_cache: Arc::new(DashMap::new()),
                 lexicon_cache: Arc::new(DashMap::new()),
                 node_snapshot_cache: Arc::new(DashMap::new()),

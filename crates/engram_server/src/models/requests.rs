@@ -1176,6 +1176,7 @@ pub struct WatchProjectRequest {
 pub struct RepairProjectRequest {
     pub project_id: String,
     /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only", "initialize_vectors".
+    /// graph_only re-extracts unchanged source with current parsers, preserves source revisions and search/vector/history stores, and never embeds or replays Git. Changed source or chunk configuration requires update_project first. Retained relationships without a unique successor are reported explicitly. Cannot combine with wipe_and_reindex.
     /// With wipe_and_reindex=false, full repair can recover a damaged or missing required source head using fresh staging, while preserving existing readers, history and knowledge. Recovery refuses incomplete storage/identity authority or an exceeded discovery budget.
     /// initialize_vectors embeds stored documents into an absent vector table; vector_only rebuilds vectors for all retained namespaces. Both preserve stored text/history/knowledge and the source generation, require an embedding backend and may take several minutes. initialize_vectors refuses existing tables and wipe_and_reindex.
     #[serde(default = "default_repair_scope")]
@@ -1183,7 +1184,7 @@ pub struct RepairProjectRequest {
     /// Wipe all data and re-index from scratch. Default: false.
     #[serde(default)]
     pub wipe_and_reindex: bool,
-    /// Max Git commits in the background history follow-up for ordinary full/graph_only repair. Default: 500; 0 skips the follow-up. Damaged-source recovery preserves existing history without replaying it.
+    /// Max Git commits in the background history follow-up for ordinary full repair. Default: 500; 0 skips the follow-up. Graph-only repair and damaged-source recovery preserve history without replaying it.
     #[serde(default = "default_repair_max_commits")]
     pub max_commits: usize,
     /// Index antipatterns during the requested Git follow-up. Default: true; no effect when the follow-up is skipped.

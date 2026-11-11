@@ -174,7 +174,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Repair a damaged project index (scopes: tantivy_only, vector_only, graph_only, full). Use when check_integrity or project_health reports inconsistencies."
+        description = "Repair a project index (scopes: tantivy_only, vector_only, graph_only, full). graph_only re-extracts unchanged source with current parsers while preserving search/vector stores and source revisions; it never embeds or replays Git. Update changed source first. Use other scopes when check_integrity or project_health reports storage inconsistencies."
     )]
     pub async fn repair_project(
         &self,
