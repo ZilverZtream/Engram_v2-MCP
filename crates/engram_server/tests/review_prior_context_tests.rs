@@ -278,6 +278,88 @@ fn assert_current_secret_preserved(response: &Value, baseline: &Value) -> anyhow
 }
 
 #[test]
+fn omitted_indexed_review_summaries_are_exactly_recoverable_without_suppressing_findings() -> anyhow::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    let result: anyhow::Result<()> = runtime.block_on(async {
+        let (engram, pid, _root) = fixture(temporary.path()).await?;
+        let baseline = public_review_json(&engram, &pid).await?;
+        let search = engram.state.get_project_cached(&pid).unwrap().search.clone();
+        let cancel = tokio_util::sync::CancellationToken::new();
+        // Stored legacy summaries, not reconstructed original discussions.
+        // One long UTF-8 line also requires the returned citation continuation.
+        let docs = (1..=13).map(|n| {
+            let mut doc = corpus_doc("review_verdict", n);
+            doc.generation = 0;
+            doc.path = RelPath::new(&format!("review:PR-{}:1", 900 + n));
+            doc.content = format!("Stored review summary {n}\r\nFile: /src/export.rs:1\r\nexport password {}",
+                "retained UTF-8 detail é. ".repeat(if n == 13 { 4000 } else { 170 }));
+            doc.content_hash = ContentHash::compute(doc.content.as_bytes()).0;
+            doc
+        }).collect::<Vec<_>>();
+        search.index_docs(&pid, &docs, &cancel).await?;
+        let response = public_review_json(&engram, &pid).await?;
+        assert_current_secret_preserved(&response, &baseline)?;
+        let context = &response["prior_review_context"];
+        anyhow::ensure!(serde_json::to_vec(context)?.len() <= 16 * 1024);
+        anyhow::ensure!(context["items"].as_array().unwrap().len() <= 8);
+        let omissions = context["omissions"].as_array().unwrap();
+        for reason in ["candidate_count_budget", "serialized_response_budget", "complete_stored_document_exceeds_context_budget"] {
+            anyhow::ensure!(omissions.iter().any(|o| o["reason"] == reason), "missing exercised omission: {reason}");
+        }
+        let mut recovered_long_document = false;
+        for omission in omissions {
+            let recovery = &omission["recovery"];
+            anyhow::ensure!(recovery["tool"] == "get_chunk", "omitted indexed summary needs exact recovery: {omission}");
+            let mut arguments = recovery["arguments"].clone();
+            anyhow::ensure!(arguments["project_id"] == pid && arguments["namespace"] == "review_verdict");
+            let original = docs.iter().find(|d| arguments["doc_id"] == d.doc_id)
+                .ok_or_else(|| anyhow::anyhow!("recovery lost exact stored document identity"))?;
+            anyhow::ensure!(omission["path"] == original.path.as_str());
+            let expected_hash = format!("blake3-raw-utf8:{}", blake3::hash(original.content.as_bytes()).to_hex());
+            anyhow::ensure!(arguments["citation"]["expected_raw_hash"] == expected_hash);
+            let mut complete = String::new();
+            let mut pages = 0;
+            loop {
+                pages += 1;
+                anyhow::ensure!(pages <= 4, "citation recovery failed to advance");
+                let result = engram.get_chunk(rmcp::handler::server::tool::Parameters(
+                    serde_json::from_value(arguments.clone())?,
+                )).await?;
+                let page: Value = serde_json::from_str(text(&result))?;
+                anyhow::ensure!(page["raw_content_hash"] == expected_hash);
+                anyhow::ensure!(page["identity"]["doc_id"] == original.doc_id);
+                anyhow::ensure!(page["returned_range"]["byte_start"] == complete.len());
+                complete.push_str(page["content"].as_str().unwrap());
+                if page["continuation"].is_null() { break; }
+                arguments["citation"] = page["continuation"].clone();
+            }
+            anyhow::ensure!(complete.as_bytes() == original.content.as_bytes());
+            anyhow::ensure!(format!("blake3-raw-utf8:{}", blake3::hash(complete.as_bytes()).to_hex()) == expected_hash);
+            recovered_long_document |= original.content.len() > 40_000 && pages > 1;
+        }
+        anyhow::ensure!(recovered_long_document);
+        // The same action must refuse a replacement under the same doc_id;
+        // exact recovery must not silently become a fresh search/current text.
+        let stale = omissions[0]["recovery"]["arguments"].clone();
+        let mut replacement = docs.iter().find(|d| stale["doc_id"] == d.doc_id).unwrap().clone();
+        replacement.content.push_str(" changed after observation");
+        replacement.content_hash = ContentHash::compute(replacement.content.as_bytes()).0;
+        search.index_docs(&pid, &[replacement], &cancel).await?;
+        let rejected = engram.get_chunk(rmcp::handler::server::tool::Parameters(
+            serde_json::from_value(stale)?,
+        )).await.unwrap_err();
+        anyhow::ensure!(rejected.message.contains("citation_hash_mismatch"));
+        Ok(())
+    });
+    drop(runtime);
+    let cleanup = temporary.close();
+    result?;
+    cleanup?;
+    Ok(())
+}
+
+#[test]
 fn ordinary_public_review_discovers_standalone_decisions_preserving_raw_history_and_findings() -> anyhow::Result<()> {
     let temporary = tempfile::tempdir()?;
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;

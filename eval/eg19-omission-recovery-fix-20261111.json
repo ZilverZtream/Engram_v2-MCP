@@ -1,0 +1,60 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_RELEASE_PENDING",
+  "at_utc": "2026-11-11T08:26:36.884992+00:00",
+  "requirement": "EG19 bounded decision-aware review must make omitted prior-summary evidence recoverable without implying authority or suppressing findings.",
+  "observed_before": {
+    "review_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\review-json\\result.json",
+      "sha256": "00f2f203f87b1a992790b8064798ba98515c6b0550905e6e19bbcc98a842c79c"
+    },
+    "problem": "Serialized-budget omissions for PR2053 threads34040/34068 retained only PR/path/reason; exact document identity/hash/action discarded.",
+    "stored_summary_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\baseline\\source-oracle.json",
+      "sha256": "8b3875a2e62e07eb1c8c35e11d8ba137785db27b388ba4b4653c39c2c8dee1ed"
+    },
+    "stored_summary_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\baseline\\summary.json",
+      "sha256": "f3bbdc4e4a4a8c5e2f66c32211c1a3be44e634615ef4a037066a49827ca35496"
+    }
+  },
+  "change": "Omitted indexed summaries retain exact get_chunk byte-citation recovery bound to full raw stored-content hash. Standalone event recovery retained. Shared limits distinguish stored summaries from missing original legacy discussion.",
+  "tests": {
+    "red": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\red-result.json",
+      "sha256": "c778e027d4afbbbb50ba7abf67130b2703e559f0e36132a492dcbf3c0fe3da8b"
+    },
+    "red_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\red.log",
+      "sha256": "2a5e2ac1363f7a0a5fc42d121facf5048ddbaa77cbe9b52a7bf631d8eb3a5ecb"
+    },
+    "green": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\green-result.json",
+      "sha256": "3e16d3f8b3f1d20b95827a104d40db9d44a4f14f8572ee4a0d4cdbc808d0ca1e"
+    },
+    "green_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\green.log",
+      "sha256": "4c7488ace0cc036dd887f118476eeec6cdb99a1dbdc7ebcdf6337fa1e33ce742"
+    },
+    "passed": 6,
+    "failed": 0,
+    "fixture_entries": []
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\review.json",
+    "sha256": "66a4f1d78f5b549940597a9ce1df5149e5490badda48656f97974c8f4aa99cba"
+  },
+  "deployment": {
+    "installed": false,
+    "build_label": "eg19-omission-recovery-shipping-20261111",
+    "next": "Build existing release target, deploy full package with unchanged sidecar, and execute returned omission action for actual PR2053:34068 against the predeployment stored-summary oracle."
+  },
+  "limits": [
+    "Recovery does not reconstruct missing original discussion or authenticate authority.",
+    "Current worktree/revision applicability remains unestablished; this change does not grant blanket exceptions.",
+    "Full EG19 and original acceptance gates remain open."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111",
+    "retention": "Retain tests/review/baseline/delivery evidence for delivery review; red-temp and green-temp roots empty, fixture teardown passed. Normal installed service remains available; no preexisting folders deleted."
+  }
+}

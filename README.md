@@ -98,6 +98,13 @@ file references, basename matches and shared review/thread identifiers describe
 relevance, not an exception's applicability. Indexed discussions may already be
 clipped; missing source URLs, unassociated events and budget omissions are explicit.
 
+Budget-omitted indexed summaries retain a `recovery` call to `get_chunk` in citation
+mode, bound to the exact document ID and observed raw-content hash. Follow its
+UTF-8 byte continuations to recover the stored summary; a changed document is
+rejected instead of silently substituted. This does not reconstruct discussion
+missing from a legacy summary. Standalone decision omissions retain their existing
+event-history recovery. Recovery metadata shares the same 16 KiB context budget.
+
 Workflow status and LLM dismissal are not accepted policy decisions. Earlier
 `wontFix` patterns no longer reduce anti-pattern finding severity. Existing imported
 events remain intact, and a later explicit decision survives a rescan. Imported
