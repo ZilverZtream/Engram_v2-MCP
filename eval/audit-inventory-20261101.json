@@ -9950,28 +9950,22 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_GREP_CONTRACT_FULL_P04_PARTIAL",
-      "original_requirement": "TODO P0-4: caller response budgets, truncation metadata and recoverable pagination on hot tools, including structured JSON output.",
-      "selected_tool": "grep_project",
-      "baseline": "baseline-v2/observation.json: actual installed Markdown5254bytes with11matches hidden, JSON46781bytes with all12matches; exact current-source recovery checked against independent file contents/hash. Both max_tokens and offset rejected. First baseline incorrectly assumed Markdown exceeded8KiB; failed receipt and exact driver preserved, fixture cleaned.",
+      "status": "EXISTING_FIX_VERIFIED_REGRESSION_COMPLETE",
+      "original_requirement": "TODO P0-0: apostrophe queries must not parse-error or abort hybrid search; lexical and full search return matching evidence in loose and strict modes.",
+      "selected_tool": "search_memory; underlying lexical_search and search",
+      "observed_source_gap": "Existing fix22a5668 already escapes apostrophes. Existing lexical_search_tolerates_apostrophe_in_query test only requires loose-mode hits and never calls full search; TODO0 remains unchecked. No duplicate product fix assumed.",
       "implementation_files": [
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/grep_tools.rs",
-        "crates/engram_server/src/handlers/grep_tools/response_budget.rs",
-        "crates/engram_server/src/tools.rs"
+        "crates/engram_server/tests/hybrid_search_behavioral_tests.rs"
       ],
       "finite_acceptance": [
-        "Optional max_tokens estimates ceil(UTF-8 complete reply-text bytes/4). Count all Markdown or serialized JSON metadata, warnings, recovery actions, context and freshness. Preserve valid complete JSON and whole rendered match records.",
-        "Offset continues within the same bounded max_results search window. Keep pattern, filters, freshness, context and max_results fixed; do not expand candidate scans or silently turn a bounded grep into exhaustive search. Report returned count, omitted matches, next offset and window end; mutable source is not snapshotted across calls.",
-        "Preserve coverage, result-limit and stale/overlay warnings from the entire requested window when budget omits matches. Retain current-source and indexed-citation actions and their scope caveats. A budget too small for mandatory metadata plus one match gives an actionable minimum; empty pages and invalid budgets are bounded/refused correctly.",
-        "Default Markdown retains its existing per-line clipping and approximate3000-byte matches limit, while exposing continuation for hidden matches. Explicit max_tokens replaces that approximate match limit with a whole-reply bound. Unbudgeted JSON still returns all requested matches.",
-        "Actual owned fixtures prove complete-window reconstruction and independent source recovery in Markdown and JSON; include changed/new working-tree matches and stale coverage warnings. Verify focused regressions, build/deploy, run candidate and installed MCP checks, record evidence and advance."
+        "Installed native public search_memory on owned known-source fixture returns matching evidence for contractions and possessives, lexical and hybrid, loose and strict; literal citations recover exact independent source/hash.",
+        "Strengthen the existing regression to require matching hits on lexical and full search, both modes, with fixture resources closed before teardown. Run focused native and no-default-features checks.",
+        "Keep the original apostrophe production fix if actual behavior passes; record installed identity and source evidence, reconcile TODO0 and commit/push. Runtime deployment only if product code changes."
       ],
-      "remaining_scope": "Other tools, provider-specific tokenizer counts, uniform envelopes beyond grep, durable snapshot cursors and full P0-4 remain unfinished. Source-scan allocation/performance work and CodeMap/Blast remain outside this delivery.",
-      "previous_delivery": "Vector budget source18a6e87, deployed evidencea482cce; installed42ddcd36991959182aad4fdeda18e9fa16ce2b03dfd211757f7273af784f4f57"
+      "remaining_scope": "Other TODO items, P0-4 and original full backlog remain unfinished. No retrieval tuning or broad audit."
     },
-    "at_utc": "2026-11-11T17:50:14.092073+00:00",
-    "reason": "Installed grep Markdown hides11matches behind an approximate limit with no offset; JSON returns46781bytes without a caller budget. Existing recovery works and must be preserved.",
+    "at_utc": "2026-11-11T17:56:50.738416+00:00",
+    "reason": "Existing fix22a5668 already escapes apostrophes. Existing lexical_search_tolerates_apostrophe_in_query test only requires loose-mode hits and never calls full search; TODO0 remains unchecked. No duplicate product fix assumed.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10000,8 +9994,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 grep response budget: selected contract delivered; broader response-budget requirements remain open.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "TODO P0-0: existing production fix verified; missing regression acceptance completed.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not redo delivered search/grep fixes or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10015,7 +10009,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: grep response budget built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: grep deployment completed in b341fde; original TODO0 acceptance verified through12installed cases and strengthened native/no-vector regression.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12414,6 +12408,12 @@
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "full_p04_closed": false,
       "source_commit": "3b7a80fc59988d02fc596d9f873bc0fec4c31698",
+      "installed_server_sha256": "7b70db0f06707713c8d93b7efab68bb7465ae8b3835cfb95e8679c59575c2b75"
+    },
+    "p00_apostrophe_20261111": {
+      "status": "EXISTING_FIX_VERIFIED_REGRESSION_COMPLETE",
+      "receipt": "eval\\p00-apostrophe-delivery-20261111.json",
+      "original_fix_commit": "22a566881c565c70d5de7b4d1e8e50a425d3c242",
       "installed_server_sha256": "7b70db0f06707713c8d93b7efab68bb7465ae8b3835cfb95e8679c59575c2b75"
     }
   }

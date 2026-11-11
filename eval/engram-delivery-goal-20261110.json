@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search, vector and grep response budgets are now deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "P0-4",
-    "receipt": "eval\\p04-grep-response-budget-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected grep budget delivery is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "finding": "TODO P0-0",
+    "status": "EXISTING_FIX_VERIFIED_REGRESSION_COMPLETE",
+    "receipt": "eval\\p00-apostrophe-delivery-20261111.json",
+    "remaining": "Selected apostrophe acceptance complete; full original backlog remains open. Select next unfinished original requirement using current_execution_focus."
   }
 }
