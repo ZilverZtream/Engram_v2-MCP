@@ -3652,10 +3652,22 @@ pub struct GetMethodEditContextRequest {
 
 /// Full page context: control tree, all event handlers with bodies, data layer,
 /// state, AJAX, validation, auth, and coding style for a WebForms page.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetPageContextRequest {
     pub project_id: String,
+    /// Complete reply budget, estimated as ceil(UTF-8 bytes/4), including
+    /// coverage, warnings, JSON escaping and recovery. Too-small budgets return
+    /// a usable minimum. Omit for the existing complete response format.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Record offset from the literal continuation; requires its context hash.
+    #[serde(default)]
+    pub context_offset: usize,
+    /// Assembled-context hash from a prior page. Changed evidence or semantic
+    /// options require restarting. No filesystem/index snapshot is retained.
+    #[serde(default)]
+    pub context_expected_hash: Option<String>,
     /// Path to the .aspx/.ascx/.master file. `page_path` is accepted as a
     /// compatibility alias.
     #[serde(alias = "page_path")]

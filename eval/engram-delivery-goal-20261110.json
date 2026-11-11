@@ -41,11 +41,8 @@
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search/document/history/implementation-context reply budgets and P1-12 confidence consumption are deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
     "finding": "P0-4 get_page_context",
-    "status": "SELECTED_INSTALLED_GAP_VERIFIED",
-    "evidence": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\baseline\\acceptance.json",
-      "sha256": "9289811028c364e0fa9349866e4f1346e4db0d3a051ecf8427ddfa6f0bf6d444"
-    },
-    "remaining": "Implement get_page_context optional complete-reply budget and recoverable pages using the existing context-response design where practical. No baseline rerun or broader audit is needed."
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "receipt": "eval\\p04-page-response-delivery-20261111.json",
+    "remaining": "Build, verify candidate and installed public WebForms context recovery, deploy and check normal runtime. Full P0-4, provider-specific tokenization, durable snapshots and remaining original backlog are unfinished."
   }
 }

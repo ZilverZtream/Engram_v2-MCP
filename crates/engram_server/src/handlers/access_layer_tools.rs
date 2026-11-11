@@ -4426,6 +4426,7 @@ impl Engram {
         &self,
         req: GetPageContextRequest,
     ) -> Result<CallToolResult, McpError> {
+        context_response::validate_controls(req.max_tokens, req.context_offset, req.context_expected_hash.as_deref())?;
         let rec = self.ensure_project_record(&req.project_id).await?;
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
@@ -4941,6 +4942,9 @@ impl Engram {
         let freshness = self
             .access_freshness(&req.project_id, &rec.directory, Some(&req.aspx_file))
             .await;
+        if req.max_tokens.is_some() || req.context_offset > 0 || req.context_expected_hash.is_some() {
+            return context_response::finish_page(&req, &ctx, &freshness);
+        }
         if output_json {
             let json = serde_json::to_string_pretty(&FreshAccessResponse {
                 result: &ctx,
