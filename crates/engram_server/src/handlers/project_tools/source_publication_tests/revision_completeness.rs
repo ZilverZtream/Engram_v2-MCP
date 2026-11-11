@@ -275,6 +275,95 @@ async fn multi_chunk_rename_preserves_complete_old_and_current_revisions_across_
     verification
 }
 
+#[test]
+fn multi_chunk_shrink_and_delete_preserve_complete_retained_revisions_and_cold_selection()
+-> Result<()> {
+    let temp = tempfile::tempdir()?;
+    // Runtime teardown precedes filesystem teardown even if an assertion panics.
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()?;
+    let outcome = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        runtime.block_on(async {
+            let cfg = config(
+                temp.path(),
+                if cfg!(feature = "vector") { "local" } else { "fts_only" },
+            );
+            let original = source("original", 8);
+            let shrunk = source("shrunk", 2);
+            let sibling = source("sibling", 1);
+            let app = create(temp.path(), cfg.clone(), &original)?;
+            let result = async {
+                initial(&app).await?;
+                let original_generation = generation(&app)?;
+                let ps = app.ensure_project_runtime(PROJECT).await
+                    .map_err(|e| anyhow::anyhow!("{e}"))?;
+                let original_lease = ps.search.pin_source_generation(PROJECT, original_generation)?;
+                let original_expected = [("source.rs", original.as_str()), ("sibling.rs", sibling.as_str())];
+                let before = groups_under(&app, original_generation, &original_expected, &original_lease).await?;
+                ensure!(before["source.rs"].len() >= 2, "Fixture must contain multiple actual chunks");
+
+                std::fs::write(temp.path().join("repo/source.rs"), &shrunk)?;
+                update(&app).await?;
+                let shrunk_generation = generation(&app)?;
+                ensure!(shrunk_generation == original_generation + 1);
+                let shrunk_lease = ps.search.pin_source_generation(PROJECT, shrunk_generation)?;
+                let shrunk_expected = [("source.rs", shrunk.as_str()), ("sibling.rs", sibling.as_str())];
+                let after_shrink = groups_under(&app, shrunk_generation, &shrunk_expected, &shrunk_lease).await?;
+                ensure!(after_shrink["source.rs"].len() < before["source.rs"].len(),
+                    "Public shrinking must remove obsolete chunks from the selected revision");
+                ensure!(after_shrink["sibling.rs"] == before["sibling.rs"],
+                    "Shrinking a file must preserve its sibling's complete physical identity");
+                ensure!(groups_under(&app, original_generation, &original_expected, &original_lease).await? == before);
+
+                std::fs::remove_file(temp.path().join("repo/source.rs"))?;
+                update(&app).await?;
+                let final_generation = generation(&app)?;
+                ensure!(final_generation == shrunk_generation + 1);
+                let after_delete = groups(&app, final_generation, &[("sibling.rs", &sibling)]).await?;
+                ensure!(after_delete["sibling.rs"] == before["sibling.rs"],
+                    "Deletion must preserve the complete inherited sibling");
+                ensure!(groups_under(&app, original_generation, &original_expected, &original_lease).await? == before,
+                    "The complete initial revision must survive both updates' collection");
+                ensure!(groups_under(&app, shrunk_generation, &shrunk_expected, &shrunk_lease).await? == after_shrink,
+                    "The complete intermediate revision must survive deletion collection");
+                eprintln!("S02_PUBLIC_SHRINK_DELETE {}", json!({
+                    "native_vectors":cfg!(feature="vector"),
+                    "original_generation":original_generation,"shrunk_generation":shrunk_generation,
+                    "final_generation":final_generation,"original_chunks":before["source.rs"].len(),
+                    "shrunk_chunks":after_shrink["source.rs"].len(),
+                    "final_paths":after_delete.keys().collect::<Vec<_>>(),
+                    "unchanged_physical_pks":after_delete["sibling.rs"].iter().map(|b| &b.pk).collect::<Vec<_>>()
+                }));
+                drop(shrunk_lease);
+                drop(original_lease);
+                drop(ps);
+                Ok::<_, anyhow::Error>((final_generation, after_delete))
+            }.await;
+            finish_owned_jobs(&app).await;
+            drop(app);
+            let (final_generation, expected) = result?;
+            let reopened = open(cfg)?;
+            let recovered = async {
+                ensure!(generation(&reopened)? == final_generation);
+                ensure!(groups(&reopened, final_generation, &[("sibling.rs", &sibling)]).await? == expected,
+                    "Cold reopen must preserve the exact sibling-only revision after shrink/delete");
+                Ok(())
+            }.await;
+            finish_owned_jobs(&reopened).await;
+            drop(reopened);
+            recovered
+        })
+    }));
+    drop(runtime);
+    temp.close()?;
+    match outcome {
+        Ok(result) => result,
+        Err(panic) => std::panic::resume_unwind(panic),
+    }
+}
+
 #[cfg(feature = "vector")]
 mod provider {
     use super::*;
