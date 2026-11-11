@@ -5306,15 +5306,20 @@ fn build_embedder_for_backend(
                 .embedding_model
                 .clone()
                 .unwrap_or_else(|| "nomic-embed-text".into());
-            let embedder =
-                engram_ml::embed::RemoteEmbedder::ollama(model, url, 768).map_err(|e| {
-                    anyhow::anyhow!(
-                        "ENG-AUD-2026-0007 EMB2: failed to build Ollama embedder \
-                         (embedding_backend=ollama) — refusing to fall back to \
-                         ProjectionEmbedder; fix the configuration or switch to \
-                         a different backend: {e}"
-                    )
-                })?;
+            let embedder = engram_ml::embed::RemoteEmbedder::ollama_with_timeout(
+                model,
+                url,
+                cfg.ollama_embed_dim.unwrap_or(768),
+                cfg.embedding_request_timeout_secs,
+            )
+            .map_err(|e| {
+                anyhow::anyhow!(
+                    "ENG-AUD-2026-0007 EMB2: failed to build Ollama embedder \
+                     (embedding_backend=ollama) — refusing to fall back to \
+                     ProjectionEmbedder; fix the configuration or switch to \
+                     a different backend: {e}"
+                )
+            })?;
             Ok(Arc::new(embedder))
         }
         "local" | "candle" => Ok(Arc::new(engram_ml::embed::LocalEmbedder)),

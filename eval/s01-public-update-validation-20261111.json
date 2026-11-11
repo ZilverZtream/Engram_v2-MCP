@@ -1,0 +1,87 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_YET_DEPLOYED",
+  "at_utc": "2026-11-11T10:26:01.089131+00:00",
+  "requirement": "EG13/S01 ordinary public one-file update preserves unrelated physical source/vector identities and avoids document re-embedding.",
+  "product_failure": {
+    "description": "Public initial indexing with valid Ollama dimension4 failed because HybridSearchEngine hardcoded768.",
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\native-result.json",
+      "sha256": "d7a8f8043e10bf57842184cb04d5d999b42831ac495d40541ef130cef2a1182b"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\native.log",
+      "sha256": "fbdbf1981ce86132dfe5a0f7e0afcb9e9183240872b36df09e3a0194c09b5eb6"
+    }
+  },
+  "change": "Ollama source-index construction uses configured dimension and request timeout, matching the ML factory; omitted dimension keeps768.",
+  "checks": [
+    {
+      "configuration": "native-final",
+      "passed": 1,
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\native-final-result.json",
+        "sha256": "591d122064e1c06b72ee07cf9bbc7145e694257479e9a3a4fe9dca445cfcabe0"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\native-final.log",
+        "sha256": "d1470b6dc80bae9311851207b806ae7693eb35bfa263e50b6d3a16fc75bfa6c1"
+      },
+      "fixture_entries": []
+    },
+    {
+      "configuration": "no-vector",
+      "passed": 1,
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\no-vector-result.json",
+        "sha256": "591d122064e1c06b72ee07cf9bbc7145e694257479e9a3a4fe9dca445cfcabe0"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\no-vector.log",
+        "sha256": "aabcb8a4b842b4c30faded8a246954572d1263c78fec49dae8b10536f4be3600"
+      },
+      "fixture_entries": []
+    }
+  ],
+  "observed_behavior": [
+    "Public initial index, real one-file edit and public update complete in both configurations.",
+    "Untouched complete source body/range retains original generation and physical PK, with no replacement duplicate; only changed row is added (physical source rows2 to3 under held original-generation lease).",
+    "Native update provider receives only replacement source; untouched vector retains original physical PK. Deliberate query embeddings are recorded separately.",
+    "No-vector build makes no provider calls and has no vector rows or document embedding identity."
+  ],
+  "oracle_correction": {
+    "description": "Initial public indexing legitimately also embeds an Indexing Report. An overstrict total-input assertion was corrected to require both sources exactly once and permit only the separately recorded report; replacement-only update expectation remains unchanged.",
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\native-fixed-result.json",
+      "sha256": "73c8126b6a68a094b7a50432ce4a69419d540eddfcc2fe683b90eea557f65fec"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\native-fixed.log",
+      "sha256": "dfc4bcee6ffa5b3215a2d9f733a7ba258df2ca035c6dadc3c0317765dac56978"
+    }
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\review.json",
+    "sha256": "f670921a6e6cb19a9fb186041736107fe2cccf211c694c2ea20819543888fa44"
+  },
+  "source": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid.rs",
+      "sha256": "8cfbcf8379af040ccba1caa1567df703160c007516669511b0b7feac3f15fe20"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\tests\\source_update_physical_reuse_test.rs",
+      "sha256": "f070bb3f6a26711449fdd9dfd79307db4750f35a30ef982cfcf65d4eff155bad"
+    }
+  ],
+  "limits": [
+    "Stored-row identity and provider calls do not measure containing-fragment or physical SSD writes.",
+    "This does not close all S01 writers or the original19 storage gates.",
+    "Release build, packaged public verification and installed normal verification remain pending.",
+    "Adjacent OpenAI dimension hardcode recorded under EG23; no public failure reproduced and no change included."
+  ],
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111",
+    "test_fixtures": "All owned fixtures removed after runtime/database/provider closure; both result inventories empty.",
+    "evidence": "Logs, receipts and release helpers retained here for delivery traceability."
+  }
+}

@@ -797,7 +797,12 @@
       "closure_state": "Local identity/retention behavior verified:8native servicecases includingactual sameRepo twoLocalconfigurations/provideroracle+10 concurrentprofiles;7no-vector common servicecases. Canonicalrepo/documentprovideridentity/dimension/prefix key, localrequest snapshots,8partitions/estimated32MiBretention. Implementation included in shipped lineage; full-change review, feature-specific deployed acceptance and original residual gates remain open.",
       "dependencies": [],
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "recorded_nonblocking_dimension_issue_20261111": {
+        "observation": "HybridSearchEngine OpenAI/remote builder still passes hardcoded1536; configured openai_embed_dim is honored by the separate ML factory. Source inspection only, not a reproduced public OpenAI failure.",
+        "source": "crates/engram_index/src/hybrid.rs build_embedder_for_backend",
+        "disposition": "Retain under embedding configuration correctness; do not displace current S01/Ollama blocking fix or automatically expand its acceptance."
+      }
     },
     {
       "id": "EG-24",
@@ -951,7 +956,8 @@
     {
       "id": "S01",
       "required_behavior": "One real file edit rewrites no unrelated chunk bodies or vectors; record physical revision identity and embedding calls.",
-      "state": "Partial: nativeengine wantedbehavior passes exactper-content documentembedding/shrink/delete/inherited lexical+vector PK/oldreader/GC/deletion-only/engine-reopen+nextedit contract. MatchedMCP processlogicalwrites fall; physicalfragment rewrite/allwriter/no-vector scope still requires matching evidence."
+      "state": "Partial: native and actual no-vector public real-file update now verify complete untouched physical source identity/no duplicates; native untouched vector PK and replacement-only provider inputs verified. Retained direct-engine shrink/delete/old-reader/GC/reopen coverage remains. Physical fragment writes and all-writer scope are not closed; current Ollama constructor fix awaits release deployment.",
+      "public_update_validation_20261111": "eval/s01-public-update-validation-20261111.json"
     },
     {
       "id": "S02",
@@ -9925,21 +9931,33 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "original_requirement": "EG13/S01: one real file edit rewrites no unrelated chunk bodies or vectors; record physical revision identity and embedding calls, covering native and no-vector configurations.",
-      "current_missing_behavior": "The S01 summary remains partial, while later direct/public source evidence may already cover parts of it. Inspect this gate only and identify a concrete uncovered behavior before implementing or replaying; do not broaden into19gate audit or performance experiments.",
+      "current_missing_behavior": "Blocking Ollama dimension bug fixed and public-update contract validated. Remaining finite delivery: commit/push, release build, packaged dimension4 public index/update and installed existing768-provider smoke; preserve physical-fragment/all-writer limitations.",
       "implementation_files": [
-        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/tests/source_update_physical_reuse_test.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_index/tests/source_snapshot_reuse_test.rs"
+        "crates/engram_index/src/hybrid.rs"
       ],
       "finite_acceptance": [
-        "Reconcile existing S01 actual physical revision and embedding-work evidence against current shared source writer paths once.",
-        "Retain covered native/no-vector and inherited-reader cases; no duplicate workload without relevant gap.",
-        "If an original contract gap remains, record exact path and desired-behavior check, implement only necessary fix, verify and deliver.",
-        "Do not equate unchanged document IDs/counts with unchanged physical chunks/vectors; preserve original remaining storage/resource requirements."
+        "One owned two-file Rust fixture: public initial index, change one real file, ordinary synchronous public update with Git follow-up disabled.",
+        "Untouched source retains complete physical lexical row identity/generation/body and has no duplicate replacement rows; native vector identity/coverage remain unchanged.",
+        "Native loopback embedding provider records actual document input: only the changed source content is embedded during update. Deliberate query embeddings are observed separately.",
+        "Same public lexical contract runs in an actual no-vector build and explicitly verifies absent vectors/provider work.",
+        "Reuse retained deletion/GC/held-reader/reopen tests; no expanded workload, performance profiling or new runtime API.",
+        "Fixture owns provider task/listener, runtime/database handles and temporary directory; cleanup on success and unwinding. Fix only a concrete observed product failure, then verify and deliver."
       ],
-      "previous_delivery": "eval/eg04-cache-store-delivery-20261111.json"
+      "previous_delivery": "eval/eg04-cache-store-delivery-20261111.json",
+      "retained_direct_engine_evidence": [
+        "source-edit-document-embedding-cost-unified-server-contract.json",
+        "source-reuse-no-vector-scoring-fixed.json",
+        "admission-context-source-reuse-without-vector-feature.json",
+        "eval/eg03-installed-watcher-delivery-20261111.json"
+      ],
+      "concrete_failure": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/s01-public-update-20261111/native.log",
+      "necessary_fix": "HybridSearchEngine Ollama construction uses configured dimension (legacy default768) and existing configured request timeout, matching the documented ML factory.",
+      "recorded_nonblocking_issue": "The adjacent OpenAI/remote hybrid builder also uses hardcoded1536 rather than openai_embed_dim. Recorded for existing embedding configuration correctness work; not changed in this S01 blocking fix.",
+      "validation": "Native and no-vector public-update tests passed with stable source hashes and empty fixture inventories; eval/s01-public-update-validation-20261111.json."
     },
-    "at_utc": "2026-11-11T10:02:05.722454+00:00",
+    "at_utc": "2026-11-11T10:06:33.286365+00:00",
     "reason": "EG04 original bounded-cache/store correctness already supported by retained behavior and deployed source; avoid repeated workload and advance original source-revision storage gate S01.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
