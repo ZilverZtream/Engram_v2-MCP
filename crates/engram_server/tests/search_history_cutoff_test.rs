@@ -430,6 +430,8 @@ async fn precedent_mode_ranks_whole_published_changes_within_the_cutoff() {
             .unwrap(),
     );
     assert!(short.starts_with("History search results"), "{short}");
+    assert!(short.contains("lexical retrieval (vectors disabled)"), "{short}");
+    assert!(!short.contains("fused lexical+vector order"), "{short}");
 
     let mut bad = request(&fixture.project_id, story);
     bad.mode = Some("fuzzy".into());

@@ -9859,7 +9859,7 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "original_requirement": "EG20/EG21: capability-aware natural-language history routing, preserved historical cutoffs, caller-controlled rerank budget and truthful ranking-tier disclosure.",
-      "current_missing_behavior": "Original local native/no-vector routing/budget evidence exists; feature-specific current installed routing/latency acceptance remains open. Inspect current implementation and one real history query against independent Git evidence; fix only a demonstrated gap.",
+      "current_missing_behavior": "Installed long-query routing returns the independently identified OciusX change and excludes it at its parent revision and excluded path. Concrete remaining defect: text-mode header unconditionally claims fused lexical+vector ranking when semantic_quality is Off (fts_only or no-vector build). Correct capability disclosure, extend the existing public short-query acceptance, and verify installed behavior after release. Preserve the existing finite history scope.",
       "implementation_files": [
         "crates/engram_server/src/handlers/git_tools.rs",
         "crates/engram_server/tests/search_history_cutoff_test.rs"

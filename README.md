@@ -242,6 +242,9 @@ edit into a four-file regression.
 
 History precedent search reports its actual baseline: semantic, degraded
 trigram, or lexical fallback when vectors are disabled or absent from the build.
+Text-mode history search reports the configured retrieval capability, including
+lexical-only and degraded trigram modes; it does not claim that both lexical
+and vector results contributed to each response.
 The optional `rerank_timeout_ms` sets the LLM ordering budget (0 skips it;
 default and maximum 90000 ms). It does not bound baseline retrieval. Unavailable,
 failed or timed-out reranking preserves the baseline and historical scope.
