@@ -1,0 +1,92 @@
+{
+  "status": "PUBLIC_SHRINK_DELETE_VALIDATED_ON_DEPLOYED_RUNTIME_SOURCE",
+  "at_utc": "2026-11-11T11:04:07.901536+00:00",
+  "requirement": "EG13/S02 complete immutable multi-chunk revisions through public shrink/delete updates.",
+  "production_change": "None. New wanted-behavior coverage closes the previously unverified public shrink/delete path in native and actual no-vector configurations.",
+  "checks": [
+    {
+      "configuration": "native",
+      "passed": 1,
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-public-shrink-delete-20261111\\native-result.json",
+        "sha256": "f5ad39f5ee443a932c6a6a81fc174fb4b8327878787c4ba1d49ce37b4e1d66e1"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-public-shrink-delete-20261111\\native.log",
+        "sha256": "ab82b9a4502c135329daf886ed8f59a05293790dd0c2eb56a510a03a705071c8"
+      },
+      "observed": {
+        "final_generation": 5,
+        "final_paths": [
+          "sibling.rs"
+        ],
+        "native_vectors": true,
+        "original_chunks": 8,
+        "original_generation": 3,
+        "shrunk_chunks": 2,
+        "shrunk_generation": 4,
+        "unchanged_physical_pks": [
+          "publication-contract:memory:3:9c8700983deb3c7063b76e29449ea91d56596c23808017deb16c8fdad96f0948"
+        ]
+      }
+    },
+    {
+      "configuration": "no-vector",
+      "passed": 1,
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-public-shrink-delete-20261111\\no-vector-result.json",
+        "sha256": "8982706c201bb5da124e955c0a069b00ed32d79f6496e54f8e590e4a718095a9"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-public-shrink-delete-20261111\\no-vector.log",
+        "sha256": "2b54e4328d365fed255d42e0519b66681bc0c5f6ce25b2b14e343e822c0054f1"
+      },
+      "observed": {
+        "final_generation": 5,
+        "final_paths": [
+          "sibling.rs"
+        ],
+        "native_vectors": false,
+        "original_chunks": 8,
+        "original_generation": 3,
+        "shrunk_chunks": 2,
+        "shrunk_generation": 4,
+        "unchanged_physical_pks": [
+          "publication-contract:memory:3:9c8700983deb3c7063b76e29449ea91d56596c23808017deb16c8fdad96f0948"
+        ]
+      }
+    }
+  ],
+  "coverage": [
+    "Real source file extraction initially produces8chunks; actual filesystem shrink and ordinary public update produce2complete chunks, with obsolete chunks absent.",
+    "Actual deletion and ordinary public update leave exactly the untouched sibling, retaining its original physical PK, full body and line range.",
+    "Held initial and intermediate revisions retain exact complete bodies through update collection. Native vector and lexical physical selections agree.",
+    "Cold AppState reopen retains the final exact sibling-only revision.",
+    "All owned jobs/handles/runtime close before TempDir removal, including caught assertion unwinding. Both fixture inventories empty."
+  ],
+  "source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools\\source_publication_tests\\revision_completeness.rs",
+    "sha256": "3bd8409085a6e75a7fbec2e34c9441239a5872f5ab46825c1413a04111ffbf17"
+  },
+  "deployed_runtime_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-public-shrink-delete-20261111\\runtime-source-binding.json",
+    "sha256": "1d04653674110453ca9dbfe9bc21da7aef4f912b6bac132b3d407197459cfb04"
+  },
+  "installed_delivery": "eval/s01-public-update-validation-20261111.json",
+  "retained_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-next-scope-20261111.json",
+    "sha256": "e5383444f5b6e151c6b8beb93d57d5453720aa9d2598a4534a2e9aa5185c9a7b"
+  },
+  "retained_scope": "Existing native3/no-vector2 public rename and extraction/embedding-failure checks retained, plus direct-engine shrink/deletion evidence; not repeated.",
+  "review": "Local source review checked independent full-body/line oracle, physical identity comparison, actual public update calls, held revisions, cold reopen and unwind resource ordering. No external CodeRabbit review pass claimed.",
+  "limits": [
+    "Later embedding-batch failure is not proof of partial native-storage upsert failure; that distinct failure scope remains open.",
+    "No physical SSD/containing-fragment write measurement, performance claim, or closure of all19 storage gates.",
+    "Installed source binding does not mean this new test was run through the installed MCP transport."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s02-public-shrink-delete-20261111",
+    "test_fixtures": "Removed after owned runtime closure; no leftovers.",
+    "retention": "Logs, source binding, results and empty runner TEMP containers retained as evidence. No preexisting folders deleted."
+  }
+}
