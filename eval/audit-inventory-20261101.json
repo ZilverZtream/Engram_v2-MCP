@@ -288,13 +288,13 @@
     {
       "id": "EG-03",
       "finding": "Watcher noise and unchanged refreshes rebuild source snapshots",
-      "ledger_disposition": "Fixed and deployed in `ebbc03b`",
+      "ledger_disposition": "Installed watcher/no-op correctness verified; sustained-resource acceptance remains unfinished",
       "existing_evidence_and_next_gate": "Watcher and generation behavior tests; short live idle sample. Active-edit production measurements remain needed.",
       "required_behavior": [
         "Ignored/storage events schedule no work; unchanged refresh retains its source head; changes during indexing converge.",
         "Deletion and rename behavior remains correct under Windows path forms."
       ],
-      "closure_state": "Native and no-vector each passed11 focused +23 public checks. Current EG03 locally verified; implementation included in later deployed lineage; feature-specific deployed acceptance and full-audit gates remain unclosed.",
+      "closure_state": "Current installed isolated fts_only Windows fixture passed unchanged refresh,12s noise observation, real edit/rename/delete with exact stored source and obsolete-path removal. Sourceheads1?2?3?4; both owned fixtures cleaned. Stronger scheduler/race/cancellation proof retained from native/no-vector tests. Earlier real OciusX2of7 sustained-resource failure remains open.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg03_real_actor_behavior_20261102",
       "latest_runtime_delivery": {
@@ -302,7 +302,8 @@
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
       },
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "latest_installed_delivery": "eval/eg03-installed-watcher-delivery-20261111.json"
     },
     {
       "id": "EG-04",
@@ -9905,27 +9906,33 @@
       "core_tools": 32,
       "full_tools": 150,
       "no_source_change": true
+    },
+    "eg03_installed_watcher_delivery_20261111": {
+      "receipt": "eval/eg03-installed-watcher-delivery-20261111.json",
+      "status": "INSTALLED_CORRECTNESS_VERIFIED",
+      "no_runtime_source_change": true,
+      "remaining": "Sustained-resource acceptance and original broader gates remain unfinished; no additional performance investigation selected."
     }
   },
-  "last_updated_at": "2026-11-11T09:44:42.005151+00:00",
+  "last_updated_at": "2026-11-11T09:57:16.035449+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG03: ignored/storage events schedule no work; unchanged refresh retains its source head; changes during indexing converge; deletion/rename remain correct under Windows path forms.",
-      "current_missing_behavior": "Local native/no-vector actor and public tests plus later deployed edit evidence exist. Reconcile that evidence once against this contract; execute only a specific uncovered installed behavior, without additional performance tuning or storage redesign.",
+      "original_requirement": "EG04: repeated reads/store reloads retain bounded caches and do not reopen/shutdown persistent writers unnecessarily; real-edit rewriting stays separately tracked in EG13.",
+      "current_missing_behavior": "Retained cache pressure/Weak lifetime, no-op reopen, PageRank and native workload evidence exists, and code is deployed. Reconcile once against this original correctness contract before selecting any additional action; do not reopen held performance/storage redesign investigations.",
       "implementation_files": [
-        "crates/engram_server/src/actors/watcher.rs",
-        "crates/engram_server/src/handlers/project_tools.rs"
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/state.rs"
       ],
       "finite_acceptance": [
-        "Use retained original actor and public tests for covered noise/no-op/race/path behavior; do not repeat passed cases without a demonstrated gap.",
-        "For any missing installed behavior, compare public search/recovery with independent edited/renamed/deleted file evidence; source/node counts alone do not establish delivery.",
-        "Use only owned fixtures or already-authorized scoped work; preserve OciusX authored sources and normal configuration, close handles and clean new fixtures.",
-        "Record concrete gap and finite protocol before implementation; fix only a reproduced failure, verify, deliver and advance."
+        "Inspect retained current policy/lifetime/no-op behavior receipts and relevant implementation once.",
+        "If original correctness behavior is already covered and shipped, record its disposition without repeating workloads.",
+        "Fix only a specific demonstrated remaining correctness failure; leave whole-app plateau, sustained resource and real-edit rewrite requirements in their own original records.",
+        "Do not expand into additional performance tuning, SSD/kernel attribution or deletion of preexisting folders."
       ],
-      "previous_delivery": "eval/eg18-installed-preset-delivery-20261111.json"
+      "previous_delivery": "eval/eg03-installed-watcher-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T09:44:42.005151+00:00",
-    "reason": "Installed Core/Full finite dependency-chain acceptance passed with owned resources cleaned and normal Full restored. Advance original watcher/incremental-refresh reliability acceptance.",
+    "at_utc": "2026-11-11T09:57:16.035449+00:00",
+    "reason": "EG03 finite installed correctness acceptance passed; preserve separate resource shortfall and advance original EG04 cache/store correctness.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9954,8 +9961,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG03: watcher noise, unchanged refresh and source-edit convergence delivery.",
-    "next_user_visible_deliverable": "Refresh and watcher operations preserve unchanged source and converge to actual edited/renamed/deleted files.",
+    "active_original_item": "EG04: bounded caches and persistent-writer/store lifetimes.",
+    "next_user_visible_deliverable": "Repeated reads/reloads preserve bounded retained caches and avoid unnecessary persistent-writer reopen/shutdown.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -9969,7 +9976,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: history release installed/verified, Core32 and Full150 real protocol acceptance passed; source and memory recovery checked and service restored.",
+    "previous_goal_turn_classification": "Progress: installed no-op/noise/edit/rename/delete acceptance passed; exact stored content and cleanup verified, failed fixture setup retained.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

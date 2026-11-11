@@ -1,0 +1,233 @@
+{
+  "status": "INSTALLED_CORRECTNESS_VERIFIED",
+  "at_utc": "2026-11-11T09:57:16.035449+00:00",
+  "requirement": "EG03 watcher/no-op/source-edit correctness; resource acceptance tracked separately.",
+  "implementation": "Existing deployed implementation; no runtime code change required by this acceptance.",
+  "installed_pair": {
+    "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+    "server_sha256": "2c4d170fdd08d6a6b3ea496ff308579443f58e83ffa080e8fd698f5745a44b96",
+    "manifest_sha256": "c2aaeb818ab0dd368b740669895ac771bd58febe5e1a943bac4a4875aacbc14b"
+  },
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v2\\acceptance.json",
+    "sha256": "3744070ee15f5b5adef591a82f324bd1e452aaf1b266650ef41994b9e5d2b67b"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v2\\source-oracle.json",
+    "sha256": "ce2b41ef333f19f4df71a7521087d6d46004dbdaa9a44f7d3c3ef4265563e1d3"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\verify-installed-watcher.py",
+    "sha256": "d816ffd21615f2cde31a28c5d711d13b707d3a5fcd66ddb43ec3fd67fd2a6146"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\parent-review-v2.json",
+    "sha256": "11079c4ce538c4d6e5238819ab6e7ce1e3193d0f1775b91f76a2216f914b6b0c"
+  },
+  "phases": {
+    "unchanged_refresh": {
+      "status": "PASS",
+      "source_head": 1,
+      "selected_unchanged": true
+    },
+    "noise_window": {
+      "status": "PASS",
+      "samples": [
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          },
+          "jobs": []
+        },
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          },
+          "jobs": []
+        },
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          },
+          "jobs": []
+        },
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          },
+          "jobs": []
+        },
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          },
+          "jobs": []
+        },
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          },
+          "jobs": []
+        }
+      ],
+      "claim": "No observed head, selected-path or durable job-list change over six two-second-spaced samples; not proof that callbacks/events/updaters were never admitted"
+    },
+    "real_edit": {
+      "status": "PASS",
+      "previous_head": 1,
+      "published_head": 2,
+      "selected": {
+        "companion.rs": 1,
+        "watched.rs": 2
+      },
+      "observations": [
+        {
+          "generation": 1,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 1
+          }
+        },
+        {
+          "generation": 2,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 2
+          }
+        }
+      ],
+      "citation": {
+        "path": "watched.rs",
+        "doc_id": "db5fb699a77faa4861ad56def90d5e1fcbbfbf9de4becd14313004652558f95d",
+        "raw_content_hash": "blake3-raw-utf8:4e02f7011d4e22d1d2e3183731f175418b70d897bebb6d94804840982618b7dd",
+        "exact_oracle_bytes": 44
+      },
+      "absent_path": null
+    },
+    "rename": {
+      "status": "PASS",
+      "previous_head": 2,
+      "published_head": 3,
+      "selected": {
+        "companion.rs": 1,
+        "Renamed.rs": 3
+      },
+      "observations": [
+        {
+          "generation": 2,
+          "selected": {
+            "companion.rs": 1,
+            "watched.rs": 2
+          }
+        },
+        {
+          "generation": 3,
+          "selected": {
+            "companion.rs": 1,
+            "Renamed.rs": 3
+          }
+        }
+      ],
+      "citation": {
+        "path": "Renamed.rs",
+        "doc_id": "b829c666cbd878f65c0ce5b1a62b93eab53a311a9586dce6eb6956c40d7f812d",
+        "raw_content_hash": "blake3-raw-utf8:4e02f7011d4e22d1d2e3183731f175418b70d897bebb6d94804840982618b7dd",
+        "exact_oracle_bytes": 44
+      },
+      "absent_path": "watched.rs"
+    },
+    "delete": {
+      "status": "PASS",
+      "previous_head": 3,
+      "published_head": 4,
+      "selected": {
+        "companion.rs": 1
+      },
+      "observations": [
+        {
+          "generation": 3,
+          "selected": {
+            "companion.rs": 1,
+            "Renamed.rs": 3
+          }
+        },
+        {
+          "generation": 4,
+          "selected": {
+            "companion.rs": 1
+          }
+        }
+      ],
+      "citation": {
+        "path": "companion.rs",
+        "doc_id": "78b3c9787a1deda8089428267689504d13aff42b78951e3c222b6d665ac0f824",
+        "raw_content_hash": "blake3-raw-utf8:379e52efea2a51778eb0d50f709fc512d4e14427dcf2a3a5dd5709b3920d80c5",
+        "exact_oracle_bytes": 40
+      },
+      "absent_path": "Renamed.rs"
+    }
+  },
+  "initial_source": {
+    "head": 1,
+    "selection": {
+      "companion.rs": 1,
+      "watched.rs": 1
+    },
+    "citation": {
+      "path": "watched.rs",
+      "doc_id": "e5a287fa686f9ce9779f786891046b05af33070f0a682e634e352a6f572149cc",
+      "raw_content_hash": "blake3-raw-utf8:78c47ae6c6a92e5d8739bf47c339bde865f6487517da54e6fff7161981872f1d",
+      "exact_oracle_bytes": 39
+    },
+    "companion": {
+      "path": "companion.rs",
+      "doc_id": "78b3c9787a1deda8089428267689504d13aff42b78951e3c222b6d665ac0f824",
+      "raw_content_hash": "blake3-raw-utf8:379e52efea2a51778eb0d50f709fc512d4e14427dcf2a3a5dd5709b3920d80c5",
+      "exact_oracle_bytes": 40
+    }
+  },
+  "final_head": 4,
+  "initial_fixture_failure": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v1\\acceptance.json",
+      "sha256": "a14922f5646f1d22d0ac7f4ee87fbe24dc809d295c05e74cbf4541f2dab270dd"
+    },
+    "stderr": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111\\capture-v1\\stderr.log",
+      "sha256": "146304cfe325d41cc9b90669c4c99e9695725558a93b190cf8c2c8a576613b7f"
+    },
+    "reason": "max_commits_per_watch0 rejected before indexing; corrected to supported minimum1 in empty repository.",
+    "resources_cleaned": true
+  },
+  "retained_stronger_correctness": "execution_evidence_20261101.eg03_real_actor_behavior_20261102: native/no-vector real actor acknowledgment, deterministic edit-during-index and unwatch cancellation;23public regressions each. Not rerun.",
+  "retained_deployed_production_observation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\app-code-edge-projection-delivery-outcome-20261105.json",
+    "sha256": "885289c99be0871a080626e2917e7c7bca22f497f85ab3824638e0afe46d960c"
+  },
+  "limits": [
+    "fts_only isolated installed Rust watcher acceptance; not a native-vector or OciusX production resource result.",
+    "Noise is a bounded head/selection/durable-job observation, not event admission instrumentation.",
+    "Deterministic edit-during-index and unwatch cancellation rely on retained native/no-vector real-actor tests.",
+    "Empty Git repository; watcher history limit is the supported minimum1. No performance tuning, sustained resource workload or old-reader proof.",
+    "Earlier OciusX sustained-resource observation remains incomplete2of7 and above512MiB; this isolated fts_only check does not close that requirement."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg03-installed-20261111",
+    "both_owned_fixture_directories_removed": true,
+    "exact_reader_and_process_handles_closed": true,
+    "production_data_and_config_not_used": true,
+    "retention": "Retain script, source oracle and wire/results receipts for review. New owned fixture directories removed only after process/reader/handles closed. No preexisting folders deleted."
+  }
+}
