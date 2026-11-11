@@ -1,0 +1,82 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T18:23:30.822843+00:00",
+  "original_requirement": "TODO P0-4: consistent structured responses, budgets, truncation metadata and recoverable pagination.",
+  "implemented": "Optional output_json for search_memory/vector_search returns a shared versioned envelope with typed hits, literal recovery, warnings, live guidance/scope, freshness and explicit pagination. Whole serialized JSON budgets preserve complete records and mandatory context; content/snippet truncation is explicit. Original default Markdown remains.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\baseline\\acceptance.json",
+      "sha256": "45ab14b4a0ef180276eea2a58a7d522c3e2b488a93a6bd49a97c9a799fdfb88b"
+    },
+    "driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\baseline.py",
+      "sha256": "47bc1a5829461277070e429a46839e16f7d14bc1e6dd758ef2cb138a090c7a6d"
+    },
+    "behavior": "Installed7b70db0f rejected output_json in lexical/hybrid search_memory and vector_search. Existing text replies recovered all8independent source files through literal citation actions."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-no-vector-final-result.json",
+          "sha256": "5098e4f3fed8d5a18f037d11b7c2d7f9e0ecf2f62dcdbaf0baa04d4ae1d78fe3"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-no-vector-final.log",
+          "sha256": "fa5ea0c6134e824e91874fce368c941f7e1d82937a001229c41c22bc58d3f138"
+        },
+        "passed": 24
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-native-result.json",
+          "sha256": "a3bc7020895b3dd35979a5bd8b1b8a498c2216e792ed379e29e4dbfb23b94bb3"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-native.log",
+          "sha256": "83b038e89d314402fecffbc555e4da4908b218c34724c4f605bd6339395da10b"
+        },
+        "passed": 5
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-shared-result.json",
+          "sha256": "ce95a9be1e817bcf7ffb1cf056ff609ddcd789bca1942237f1069c02019a62b7"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-shared.log",
+          "sha256": "e827f68e2909f627db12405db0749dbb96038a5d7512a9c9594b43f552f07350"
+        },
+        "passed": 22
+      }
+    ],
+    "total_passed": 51,
+    "initial_failed_fixture_assertion": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\json-no-vector-result.json",
+      "sha256": "f0105cdee97ac3ade72ab4784c3cba322bb86bcf5609adb1e6c729bb84f2eb08"
+    },
+    "correction": "Initial new knowledge assertion assumed an indexed chunk and original section had identical trailing bytes. Existing chunking appends newline; corrected check verifies both distinct exact recoveries without changing product normalization."
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\source-review.json",
+    "sha256": "4934e1b0f9fcbe16ab0d5d6414f7658803b400d8081d889ebd1afecbcd35f2ed"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/planning_tools.rs": "cdef5b789fe1577b6593fe3453c7ca0c11590cb8548c161d9544a7dd65f91d7d",
+    "crates/engram_server/src/handlers/search_tools.rs": "c7c1332e58555be59e50c4ddf4d598c2437f06757ece8560f4405868895c8822",
+    "crates/engram_server/src/handlers/search_tools/structured_response.rs": "fc59447a72fd480253f8b02f6bdb09f009d7806d7752a111c15d9f84fc1f1918",
+    "crates/engram_server/src/models/requests.rs": "82ab7fde3c8149acb71ad73882a2092071ff79508357a199cbca7cde65d367ce",
+    "crates/engram_server/src/tools.rs": "67e1d6dbe428f011ec775204f9eb48be0f30055d9c5dd46d4fcb0fa91a83851d",
+    "crates/engram_server/tests/incremental_test.rs": "19dc2400b42fbb7b70cb135ab83327a2148626e9551442c7b41e639c9d495696",
+    "crates/engram_server/tests/integration_test.rs": "212e1b2f0e6f509cd4708185f97b09f4e7ee0d14a87d3c37b139e8a5c838a674",
+    "crates/engram_server/tests/mcp_input_negative_tests.rs": "14da5e73096ca20456724c0bde234d300e12792c9229d97d0f0c3c0285d9b2e2",
+    "crates/engram_server/tests/search_json_tests.rs": "f5ffa6edde0d4e58512e9f6b6bca951ae0af08a017c076f94118d1d88fb015d4",
+    "crates/engram_server/tests/vector_search_score_tests.rs": "450ab38e4f8d9428c4c48845bd9984566bd414337dcd5379a3bb7200ea996964"
+  },
+  "remaining": "Build/deploy and verify actual candidate/installed MCP structured output. Other tools, provider-token accounting, durable cursors and full P0-4 remain unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111",
+    "test_and_baseline_fixtures_closed_and_removed": true,
+    "retained": "Baseline, logs, review and helpers retained here. Earlier policy-rejected cleanup fixture remains untouched."
+  }
+}

@@ -68,6 +68,7 @@ async fn test_index_and_search_flow() {
 
     // 2. Search Memory
     let search_req = engram_server::SearchMemoryRequest {
+        output_json: false,
         offset: 0,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
@@ -419,6 +420,7 @@ async fn test_path_normalization() {
 
     // Verify path in search
     let search_req = engram_server::SearchMemoryRequest {
+        output_json: false,
         offset: 0,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
@@ -561,6 +563,7 @@ async fn test_memory_bank_persistence() {
     // 4. Verify Memory Bank still searchable
     let search_mb_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory_bank".into(),
@@ -658,6 +661,7 @@ async fn test_indexing_deduplication() {
 
     // 2. Search and count results
     let search_req = engram_server::SearchMemoryRequest {
+        output_json: false,
         offset: 0,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
@@ -831,6 +835,7 @@ async fn test_gc_preserves_global_namespaces() {
         // I'll call search_memory to ensure it's loaded.
         engram_tmp
             .search_memory(Parameters(engram_server::SearchMemoryRequest {
+                output_json: false,
                 offset: 0,
                 project_id: project_id.to_string(),
                 namespace: "memory_bank".into(),
@@ -865,6 +870,7 @@ async fn test_gc_preserves_global_namespaces() {
     // 5. Verify global data persisted
     let search_mb = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory_bank".into(),
@@ -1296,6 +1302,7 @@ async fn test_watch_project() {
     // 5. Verify search result contains the update
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
@@ -1403,6 +1410,7 @@ async fn test_search_features() {
     // 2. Test fts_mode: regex
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
@@ -1438,6 +1446,7 @@ async fn test_search_features() {
     // 3. Test include_path_prefixes
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
@@ -1471,6 +1480,7 @@ async fn test_search_features() {
     // 4. Test language_filters
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
@@ -1504,6 +1514,7 @@ async fn test_search_features() {
     // 5. Test use_mmr (verify it doesn't crash)
     let _ = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),
@@ -1584,6 +1595,7 @@ async fn test_get_chunk_hardening() {
     // 2. Search to find a chunk_id
     let search_res = engram
         .search_memory(Parameters(engram_server::SearchMemoryRequest {
+            output_json: false,
             offset: 0,
             project_id: project_id.to_string(),
             namespace: "memory".into(),

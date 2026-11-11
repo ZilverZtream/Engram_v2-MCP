@@ -111,6 +111,7 @@ async fn test_incremental_indexing() {
 
     // 5. Verify Search
     let search_req = engram_server::SearchMemoryRequest {
+        output_json: false,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
         query: "changed".into(),
@@ -142,6 +143,7 @@ async fn test_incremental_indexing() {
 
     // Verify B is gone
     let search_req_b = engram_server::SearchMemoryRequest {
+        output_json: false,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
         query: "function_b".into(),
@@ -179,6 +181,7 @@ async fn test_incremental_indexing() {
 
     // Verify C is present
     let search_req_c = engram_server::SearchMemoryRequest {
+        output_json: false,
         project_id: project_id.to_string(),
         namespace: "memory".into(),
         query: "function_c".into(),

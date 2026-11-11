@@ -10350,6 +10350,7 @@ impl Engram {
         let t_vec = std::time::Instant::now();
         let vector_result = self
             .handle_vector_search(crate::models::VectorSearchRequest {
+                output_json: false,
                 project_id: req.project_id.clone(),
                 query: retrieval_story.clone(),
                 namespace: "memory".to_string(),

@@ -77,6 +77,7 @@ async fn setup() -> (tempfile::TempDir, engram_server::Engram, String) {
 async fn search(engram: &engram_server::Engram, pid: &str, query: &str) -> String {
     let res = engram
         .vector_search(Parameters(engram_server::VectorSearchRequest {
+            output_json: false,
             project_id: pid.to_string(),
             query: query.to_string(),
             namespace: "memory".into(),

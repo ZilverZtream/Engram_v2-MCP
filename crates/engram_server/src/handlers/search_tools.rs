@@ -21,6 +21,8 @@ mod lexical_worker_tests;
 mod response_budget_tests;
 #[path = "search_tools/response_budget.rs"]
 mod response_budget;
+#[path = "search_tools/structured_response.rs"]
+mod structured_response;
 
 /// P0-8: inclusive line-range overlap. Zero-valued ranges mean "unknown"
 /// and never overlap anything.
@@ -190,6 +192,14 @@ impl Engram {
         };
         let offset = req.sanitized_offset();
         if offset >= crate::models::requests::MAX_SEARCH_RESULTS {
+            if req.output_json {
+                let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,None);
+                value["status"]=serde_json::json!("no_hits");
+                value["search_executed"]=serde_json::json!(false);
+                value["message"]=serde_json::json!("Result cap reached (200). Narrow query/scope and restart at offset=0; no search was run.");
+                let page=structured_response::Page{offset:req.offset,window_limit:crate::models::requests::MAX_SEARCH_RESULTS,total:None};
+                return Ok(CallToolResult::success(vec![Content::text(structured_response::finish(value,&[],page,req.max_tokens)?.0)]));
+            }
             return Ok(CallToolResult::success(vec![Content::text(response_budget::message(format!(
                 "result: no_hits\nresult_cap_reached: {}\nrequested_offset: {}\nSearch is bounded; narrow the query or scope and restart at offset=0. No search was run.",
                 crate::models::requests::MAX_SEARCH_RESULTS, req.offset
@@ -389,23 +399,6 @@ impl Engram {
             .take(req.sanitized_max_results())
             .collect();
 
-        if hits.is_empty() {
-            // P0-7: an empty result with no guidance burns agent turns.
-            let msg = if offset > 0 {
-                format!(
-                    "result: no_hits (offset {offset} is past the end of the ranked results)\n\
-                     hints: lower offset, or re-run with offset=0 to see the first page."
-                )
-            } else {
-                "result: no_hits\n\
-                 hints: try fts_mode=\"loose\" (OR-of-terms) or a shorter query; \
-                 check the namespace (default \"memory\"); call get_index_freshness \
-                 to verify the index is current; grep_project finds exact literals."
-                    .to_string()
-            };
-            return Ok(CallToolResult::success(vec![Content::text(response_budget::message(msg, &req)?)]));
-        }
-
         let mut out = String::new();
         // VEC1/D1: prepend degraded-mode warning when reindex is pending.
         if let Some(since_ms) = reindex_since_ms {
@@ -429,6 +422,35 @@ impl Engram {
                 engram_index::SemanticQuality::Semantic => {}
             }
         }
+        let structured_warnings=if req.output_json && !out.is_empty() {vec![out.trim().to_owned()]} else {Vec::new()};
+
+        if hits.is_empty() {
+            // P0-7: an empty result with no guidance burns agent turns.
+            let msg = if offset > 0 {
+                format!(
+                    "result: no_hits (offset {offset} is past the end of the ranked results)\n\
+                     hints: lower offset, or re-run with offset=0 to see the first page."
+                )
+            } else {
+                "result: no_hits\n\
+                 hints: try fts_mode=\"loose\" (OR-of-terms) or a shorter query; \
+                 check the namespace (default \"memory\"); call get_index_freshness \
+                 to verify the index is current; grep_project finds exact literals."
+                    .to_string()
+            };
+            if req.output_json {
+                let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,Some(gen_));
+                value["status"]=serde_json::json!("no_hits");
+                value["message"]=serde_json::json!(msg);
+                value["warnings"]=serde_json::json!(structured_warnings);
+                value["freshness"]=serde_json::json!(self.freshness_footer(&req.project_id,gen_).await);
+                value["semantic_quality"]=serde_json::json!(if req.semantic {structured_response::quality(ps.search.semantic_quality())} else {"not_used"});
+                let page=structured_response::Page{offset:req.offset,window_limit:crate::models::requests::MAX_SEARCH_RESULTS,total:None};
+                return Ok(CallToolResult::success(vec![Content::text(structured_response::finish(value,&[],page,req.max_tokens)?.0)]));
+            }
+            return Ok(CallToolResult::success(vec![Content::text(response_budget::message(msg, &req)?)]));
+        }
+
         out.push_str(&format!("active_generation: {gen_}\n"));
         let hit_refs: Vec<engram_index::HybridHit> = hits
             .iter()
@@ -454,6 +476,7 @@ impl Engram {
         }
         let symbols_by_path = self.symbols_for_hits(&req.project_id, &hit_refs).await;
         let mut hit_blocks = Vec::with_capacity(hits.len());
+        let mut json_hits = Vec::new();
         for (i, (ns, h)) in hits.iter().enumerate() {
             let mut hit_out = String::new();
             let (hit_project, hit_namespace) = ns
@@ -461,6 +484,47 @@ impl Engram {
                 .map_or((req.project_id.as_str(), ns.as_str()), |namespace| {
                     (user_pid, namespace)
                 });
+            let full_content = if req.include_content {
+                let engine = if hit_project == req.project_id {
+                    Some(ps.search.clone())
+                } else {
+                    self.state
+                        .get_project_cached(hit_project)
+                        .map(|project| project.search)
+                };
+                engine.and_then(|engine| {
+                    if hit_project == req.project_id && hit_namespace == "memory" {
+                        _source_snapshot.as_ref().and_then(|view| {
+                            engine.recover_selected_source_hit(hit_project, view, h).ok().flatten()
+                        })
+                    } else {
+                        engine
+                        .get_doc_by_doc_id(
+                            hit_project,
+                            hit_namespace,
+                            if hit_project == req.project_id {
+                                gen_
+                            } else {
+                                0
+                            },
+                            &h.doc_id,
+                        )
+                        .ok()
+                        .flatten()
+                    }
+                })
+            } else {
+                None
+            };
+            if req.output_json {
+                json_hits.push(structured_response::Hit {
+                    project:hit_project,namespace:hit_namespace,source:ns,rank:offset+i+1,hit:h,
+                    content_requested:req.include_content,content:full_content.as_ref().map(|doc|doc.2.as_str()),
+                    max_chars:req.sanitized_max_content_chars_per_result(),
+                    symbols:if ns=="memory" {symbols_by_path.get(h.path.as_str()).map(Vec::as_slice)} else {None},
+                }.value());
+                continue;
+            }
             let mut recovery = serde_json::json!({"project_id":hit_project,"namespace":hit_namespace,"doc_id":h.doc_id});
             if hit_namespace == "memory" {
                 recovery["inject_rules"] = serde_json::json!(true);
@@ -513,38 +577,6 @@ impl Engram {
                 }
             }
 
-            let full_content = if req.include_content {
-                let engine = if hit_project == req.project_id {
-                    Some(ps.search.clone())
-                } else {
-                    self.state
-                        .get_project_cached(hit_project)
-                        .map(|project| project.search)
-                };
-                engine.and_then(|engine| {
-                    if hit_project == req.project_id && hit_namespace == "memory" {
-                        _source_snapshot.as_ref().and_then(|view| {
-                            engine.recover_selected_source_hit(hit_project, view, h).ok().flatten()
-                        })
-                    } else {
-                        engine
-                        .get_doc_by_doc_id(
-                            hit_project,
-                            hit_namespace,
-                            if hit_project == req.project_id {
-                                gen_
-                            } else {
-                                0
-                            },
-                            &h.doc_id,
-                        )
-                        .ok()
-                        .flatten()
-                    }
-                })
-            } else {
-                None
-            };
             if let Some((_, _, content, _, _)) = full_content {
                 hit_out.push_str("content:\n");
                 let limit = req.sanitized_max_content_chars_per_result();
@@ -577,13 +609,27 @@ impl Engram {
 
         let mut suffix = String::new();
         let mut guidance = false;
-        if let Some(policy) = source_policy.filter(|policy| policy.status != "absent" || policy.coverage != "complete") {
+        if let Some(policy) = source_policy.as_ref().filter(|policy| !req.output_json && (policy.status != "absent" || policy.coverage != "complete")) {
             suffix.push_str(&policy.render_markdown());
             guidance = true;
         }
         suffix.push_str("next: full_chunk supplies source content with applicable live repository guidance; resolve any policy omissions before editing. citation_chunk supplies exact stored-content identity, raw hash and bounded citation pages without injected guidance; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
         let freshness = self.freshness_footer(&req.project_id, gen_).await;
-        let (out, returned) = if req.max_tokens.is_some() {
+        let (out, returned) = if req.output_json {
+            let mut value=structured_response::envelope("search_memory",&req.project_id,&req.query,Some(gen_));
+            value["warnings"]=serde_json::json!(structured_warnings);
+            value["freshness"]=serde_json::json!(freshness);
+            value["semantic_quality"]=serde_json::json!(if req.semantic {structured_response::quality(ps.search.semantic_quality())} else {"not_used"});
+            value["guidance"]=serde_json::json!(source_policy);
+            if !hit_refs.is_empty() {
+                value["guidance_scope"]=serde_json::json!({"basis":"requested_page_including_budget_omitted_hits",
+                    "paths":hit_refs.iter().map(|hit|hit.path.as_str()).collect::<std::collections::BTreeSet<_>>()});
+            }
+            value["next_tools"]=serde_json::json!(["get_chunk","resolve_id","get_concept_footprint"]);
+            structured_response::finish(value,&json_hits,structured_response::Page {
+                offset:req.offset,window_limit:crate::models::requests::MAX_SEARCH_RESULTS,total:None,
+            },req.max_tokens)?
+        } else if req.max_tokens.is_some() {
             response_budget::finish(out, &hit_blocks, &suffix, &freshness, guidance, &req)?
         } else {
             out.push_str(&suffix);
@@ -627,6 +673,14 @@ impl Engram {
             let message = format!(
                 "result: no_hits\nrequested_offset: {}\nOffset is outside the top_k={top_k} ranking window. Increase top_k (max 200) or narrow scope and restart at offset=0. No search was run.\n",
                 req.offset);
+            if req.output_json {
+                let mut value=structured_response::envelope("vector_search",&req.project_id,&req.query,None);
+                value["status"]=serde_json::json!("no_hits");
+                value["search_executed"]=serde_json::json!(false);
+                value["message"]=serde_json::json!(message);
+                let page=structured_response::Page{offset:req.offset,window_limit:top_k,total:None};
+                return Ok(CallToolResult::success(vec![Content::text(structured_response::finish(value,&[],page,req.max_tokens)?.0)]));
+            }
             return Ok(CallToolResult::success(vec![Content::text(
                 response_budget::bounded_message(message, req.max_tokens)?)]));
         }
@@ -670,18 +724,6 @@ impl Engram {
         let window_len = hits.len();
         let hits = &hits[offset.min(window_len)..];
         let freshness = self.freshness_footer(&req.project_id, gen_).await;
-        if hits.is_empty() {
-            let message = if window_len == 0 {
-                "No vector search results. Ensure the project is indexed with a vector-capable embedding backend (not fts_only).\n".to_owned()
-            } else {
-                "result: no_hits; offset is past the end of this ranking window. Lower offset or widen top_k and restart at offset=0.\n".to_owned()
-            };
-            return Ok(CallToolResult::success(vec![Content::text(
-                response_budget::bounded_message(format!("{message}{}{freshness}",
-                    response_budget::vector_pagination(offset, 0, window_len, top_k)), req.max_tokens)?,
-            )]));
-        }
-
         let mut out = String::with_capacity(4096);
         // P0-2: a "pure semantic" tool built on the trigram stub is misleading
         // without this label.
@@ -693,13 +735,45 @@ impl Engram {
                  true semantic search.\n\n",
             );
         }
+        let structured_warnings=if req.output_json && !out.is_empty() {vec![out.trim().to_owned()]} else {Vec::new()};
+        if hits.is_empty() {
+            let message = if window_len == 0 {
+                "No vector search results. Ensure the project is indexed with a vector-capable embedding backend (not fts_only).\n".to_owned()
+            } else {
+                "result: no_hits; offset is past the end of this ranking window. Lower offset or widen top_k and restart at offset=0.\n".to_owned()
+            };
+            if req.output_json {
+                let mut value=structured_response::envelope("vector_search",&req.project_id,&req.query,Some(gen_));
+                value["status"]=serde_json::json!("no_hits");
+                value["message"]=serde_json::json!(message);
+                value["warnings"]=serde_json::json!(structured_warnings);
+                value["freshness"]=serde_json::json!(freshness);
+                value["semantic_quality"]=serde_json::json!(structured_response::quality(ps.search.semantic_quality()));
+                let page=structured_response::Page{offset:req.offset,window_limit:top_k,total:Some(window_len)};
+                return Ok(CallToolResult::success(vec![Content::text(structured_response::finish(value,&[],page,req.max_tokens)?.0)]));
+            }
+            return Ok(CallToolResult::success(vec![Content::text(
+                response_budget::bounded_message(format!("{message}{}{freshness}",
+                    response_budget::vector_pagination(offset, 0, window_len, top_k)), req.max_tokens)?,
+            )]));
+        }
+
         out.push_str(&format!(
             "Vector search results (namespace={}, top_k={}, mmr={}):\n\n",
             req.namespace, top_k, req.use_mmr
         ));
 
         let mut hit_blocks = Vec::with_capacity(hits.len());
+        let mut json_hits = Vec::new();
         for (i, h) in hits.iter().enumerate() {
+            if req.output_json {
+                let content=if req.include_content {ps.search.get_doc_by_pk(&h.pk).ok().flatten()} else {None};
+                json_hits.push(structured_response::Hit {
+                    project:&req.project_id,namespace:&req.namespace,source:&req.namespace,rank:offset+i+1,hit:h,
+                    content_requested:req.include_content,content:content.as_ref().map(|doc|doc.2.as_str()),max_chars,symbols:None,
+                }.value());
+                continue;
+            }
             let mut hit_out = String::new();
             // doc_id is what get_chunk takes. The truncation notice below has
             // always told callers to use it, but the result line never carried
@@ -748,7 +822,19 @@ impl Engram {
         }
 
         let suffix = "next: full_chunk retrieves content with applicable live repository guidance; citation_chunk retrieves exact stored content without injected guidance. Follow any returned citation continuation with the same project_id/namespace/doc_id.\n";
-        let out = if req.max_tokens.is_some() {
+        let out = if req.output_json {
+            let mut value=structured_response::envelope("vector_search",&req.project_id,&req.query,Some(gen_));
+            value["warnings"]=serde_json::json!(structured_warnings);
+            value["freshness"]=serde_json::json!(freshness);
+            value["semantic_quality"]=serde_json::json!(structured_response::quality(ps.search.semantic_quality()));
+            if req.namespace=="memory" {
+                value["guidance"]=serde_json::json!({"status":"recover_with_full_chunk","notes":"Each full_chunk action retrieves applicable live repository guidance; citation_chunk does not inject it."});
+            }
+            value["next_tools"]=serde_json::json!(["get_chunk"]);
+            structured_response::finish(value,&json_hits,structured_response::Page {
+                offset:req.offset,window_limit:top_k,total:Some(window_len),
+            },req.max_tokens)?.0
+        } else if req.max_tokens.is_some() {
             response_budget::finish_with(out, &hit_blocks, suffix, &freshness, false, req.max_tokens,
                 |returned| response_budget::vector_pagination(offset, returned, window_len, top_k))?.0
         } else {
