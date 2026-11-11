@@ -256,7 +256,10 @@ fn collect_dependency(
     excluded_paths: &[String],
     remaining: &mut usize,
 ) -> Option<&'static str> {
-    if excluded_paths.iter().any(|scope| super::area_evidence::within(path, scope)) {
+    if excluded_paths
+        .iter()
+        .any(|scope| super::area_evidence::within(path, scope))
+    {
         return Some("excluded_area_boundary");
     }
     if view(path, version, instructions, evidence, dependencies).is_some() {
@@ -717,6 +720,7 @@ pub(super) fn capture(
             "Undefined explicit labels, HTML/wiki/image references, patterns, URI encodings and heading fragments remain named gaps. ",
             "Symbol observations search only captured code: 1024 declaration candidates total, 256 per file, 256 mentions and four returned matches per mention, with observed counts/omissions. ",
             "Inline identifiers and plain text matching collected names are candidate references, not certified bindings or exhaustive prose discovery. ",
+            "Plain text requires exact declaration spelling; explicit inline-code VB identifiers retain case-insensitive lookup. ",
             "Unsupported/unavailable/truncated inventories leave coverage gaps even when no mention is found. Existing extractors provide positive line-range candidates only; VB uses source-only regex declaration lines without Roslyn. ",
             "No candidate or empty scan proves symbol absence, deletion, semantic identity or unchanged behavior. Compared excerpt hashes and candidate-location changes have only their literal observed meaning. ",
             "Whole-file LF/CRLF-only differences remain separate; raw hashes are exact. Move candidates cover collected exact-content paths only. ",

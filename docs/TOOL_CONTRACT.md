@@ -2,6 +2,8 @@
 
 ## Area instruction evidence and drafting
 
+Instruction reference manifests use exact declaration spelling for unformatted prose. They do not case-fold an ordinary phrase such as "resolved style" into a VB `Resolved` dependency. Explicit inline-code VB references retain case-insensitive candidate lookup, including ambiguous matches and unverified qualified suffixes. Exact-spelling prose matches remain navigation candidates; neither their presence nor their absence establishes semantic intent or exhaustive reference coverage.
+
 Use `pre_push_audit` with `instruction_maintenance` to collect an evidence pack and then check a drafting agent's proposal. Collection needs `base_commit` and `new_instruction_targets` (each names an absent Markdown path, separate provenance path and exact `area_scope`). Supply `area_context` for bounded indexed discovery, or explicit `evidence_paths`. Omit `draft` on the first request. Existing authored instructions can be reviewed through `instruction_paths`; they are not implicitly replaced by a new area draft.
 
 For submission, retain the collection inputs and set `draft.expected_packet_blake3` to the returned `packet_blake3`. Supply `draft.new_area_files` with grounded claims, their observed/authored/proposed classification, exact quoted citations, shared-rule references and unresolved decisions. Existing instruction targets also need explicit `draft.decisions`. A stale packet is rejected; recollect and review the changed evidence instead of merely replacing its hash. Unchanged citation hashes and quotes may be reused after confirming the current packet's scope and gaps.
