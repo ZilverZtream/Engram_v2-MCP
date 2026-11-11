@@ -1056,31 +1056,32 @@ async fn job1_cancel_nonexistent_job_returns_not_found() {
     );
 }
 
-/// JOB1/X6: the CancelledWithoutTombstone variant must exist in job_service.rs
-/// and the mark_checkpoint_cancelled function must write to checkpoint store.
-/// Structural: proves the tombstone path is implemented, not stubbed out.
+/// Unreadable metadata is not a confirmed cancellation or a fabricated job.
 #[test]
-fn x6_tombstone_persistence_path_is_implemented() {
-    let src = include_str!("../src/services/job_service.rs");
-
-    assert!(
-        src.contains("CancelledWithoutTombstone"),
-        "X6: job_service.rs must have CancelledWithoutTombstone variant — \
-         tombstone failure must produce an explicit audit signal, not be silently ignored"
-    );
-
-    assert!(
-        src.contains("mark_checkpoint_cancelled"),
-        "X6: job_service.rs must call mark_checkpoint_cancelled — \
-         the tombstone persistence function must exist in the cancellation path"
-    );
-
-    // The function must handle the case where tombstone write fails (cp_mark_ok = false).
-    assert!(
-        src.contains("cp_mark_ok"),
-        "X6: job_service.rs must check whether tombstone persistence succeeded \
-         (cp_mark_ok variable) and return CancelledWithoutTombstone when it fails"
-    );
+fn cancellation_metadata_errors_do_not_claim_settlement() -> anyhow::Result<()> {
+    let owned = tempfile::tempdir()?;
+    let result = {
+        let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
+        runtime.block_on(async {
+            let (state, _) = AppState::new(Config {
+                data_dir: owned.path().join("data"), embedding_backend: "fts_only".into(),
+                allowed_roots: vec![owned.path().to_path_buf()],
+                ..Default::default()
+            })?;
+            let outcome = engram_server::services::job_service::cancel_job_internal(&state, "invalid\0job").await;
+            anyhow::ensure!(matches!(outcome,
+                engram_server::services::job_service::CancellationOutcome::Unconfirmed { cancellation_signalled: false, .. }),
+                "Metadata failure was reported as confirmed cancellation: {outcome:?}");
+            anyhow::ensure!(state.registry.list_jobs(None)?.is_empty());
+            Ok::<(),anyhow::Error>(())
+        })
+    };
+    let cleanup = owned.close();
+    match (result, cleanup) {
+        (Err(error),Err(cleanup)) => Err(error.context(format!("Owned fixture cleanup failed: {cleanup}"))),
+        (Err(error),_) => Err(error),
+        (Ok(()),cleanup) => cleanup.map_err(Into::into),
+    }
 }
 
 /// JOB1: CheckpointStore must store and retrieve a Failed-phase checkpoint as

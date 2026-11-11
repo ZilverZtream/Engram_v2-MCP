@@ -22,6 +22,8 @@ mod repair_history_options;
 mod project_deletion;
 #[path = "source_publication_tests/diagnostic_selection.rs"]
 mod diagnostic_selection;
+#[path = "source_publication_tests/job_cancellation.rs"]
+mod job_cancellation;
 
 #[derive(Clone)]
 struct PublicationPause {
