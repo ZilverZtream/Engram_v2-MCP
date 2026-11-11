@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_YET_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-11T10:26:01.089131+00:00",
   "requirement": "EG13/S01 ordinary public one-file update preserves unrelated physical source/vector identities and avoids document re-embedding.",
   "product_failure": {
@@ -76,12 +76,107 @@
   "limits": [
     "Stored-row identity and provider calls do not measure containing-fragment or physical SSD writes.",
     "This does not close all S01 writers or the original19 storage gates.",
-    "Release build, packaged public verification and installed normal verification remain pending.",
     "Adjacent OpenAI dimension hardcode recorded under EG23; no public failure reproduced and no change included."
   ],
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111",
     "test_fixtures": "All owned fixtures removed after runtime/database/provider closure; both result inventories empty.",
-    "evidence": "Logs, receipts and release helpers retained here for delivery traceability."
+    "evidence": "Logs, receipts and release helpers retained here for delivery traceability.",
+    "retained_installed_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-32fa590b80e84e279defe31cd10b5559",
+    "installer_journals": [
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-32fa590b80e84e279defe31cd10b5559.00-prepared.json",
+        "sha256": "e984c4e6c010d5c400d375a5ebf36ba9333e136eaff2eff85c37753ba2a29be9",
+        "phase": "prepared"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-32fa590b80e84e279defe31cd10b5559.01-stage-verified.json",
+        "sha256": "3e8ea8a96cf30b4d2eb970800687c4ea42b9b66d3ef44c206da8eb29c3222d70",
+        "phase": "stage-verified"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-32fa590b80e84e279defe31cd10b5559.02-old-retired.json",
+        "sha256": "2add269adef79fa6037ee82772dd00a5bc7c6ad94e10ba06fa46c335df84b608",
+        "phase": "old-retired"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-32fa590b80e84e279defe31cd10b5559.03-candidate-active.json",
+        "sha256": "525f39947d61c018446adb7591ca7069431d2a9b18e4e32a0bb33f75a4cd8bbd",
+        "phase": "candidate-active"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-32fa590b80e84e279defe31cd10b5559.04-committed-no-start.json",
+        "sha256": "86e1b5ca462f35f260290a758660e3facdcc1a6d6bd7dc04a29862cc784188c8",
+        "phase": "committed-no-start"
+      }
+    ],
+    "cleanup_condition": "Package, backup, installer journals and evidence retained; no preexisting removal without exact-path approval. Candidate fixture and build-owned temp removed after closure. Empty test TEMP containers retained after policy rejected cleanup."
+  },
+  "deployed_at_utc": "2026-11-11T10:49:02.614531+00:00",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-ollama-dimension-shipping-20261111.json",
+      "sha256": "1e1660ab217007a6163c20b8905f8824badc24152151c2ace5f7b0a1949cc4d3"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\pair.json",
+      "sha256": "e9cdc6166778170431091c32cefef12eeff06c7e8dce92c9afd997c44492ee78"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\candidate\\acceptance.json",
+      "sha256": "5171ea767a3650b68cca26c7a89a0e371152faef22b8cf9a82a71800c595c8ce"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\normal\\acceptance.json",
+      "sha256": "28d40b70afe97a5c993588fb487d2b6a2f56c83d1fb99e65d84e6ed22be39e6b"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\install-result.json",
+      "sha256": "6e8f343292ef2337edecbf7f6179df93257a7236e6b5bd1e1a257e7d5b2649f5"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-ollama-dimension-config-hold-20261111.json.released.json",
+      "sha256": "32f0b163a69d14c0b51c01a6b863ff579847d343b06b87ba6f1070ae8f6f679c"
+    },
+    "release_helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-public-update-20261111\\release-helper-review.json",
+      "sha256": "a30f4e7ce5720b2747dc80d2fea6e500d163f746474d3a73fd0e7d8fd08c33bd"
+    },
+    "checks": {
+      "project_id": "7be02c9e-6a3e-4e22-9469-bd4ec72da160",
+      "configured_dimension": 4,
+      "initial_inputs": [
+        "pub fn sone_original() -> u32 { 17 }\n",
+        "pub fn sone_untouched() -> u32 { 31 }\n",
+        "# Indexing Report\n\n## Summary\n- Total files found: 2\n- Files indexed: 2\n- Files skipped: 0\n- Total chunks created: 2\n- Total bytes processed: 75 (0.00 MB)\n\n## Languages Detected\n- rust: 2\n\n## Graph Stats\n- Nodes by kind:\n  - function: 2\n- Edges by kind:\n"
+      ],
+      "update_inputs": [
+        "pub fn sone_replacement_changed() -> u32 { 203 }\n"
+      ],
+      "exact_citations": [
+        {
+          "path": "untouched.rs",
+          "raw_content_hash": "blake3-raw-utf8:d08fb4a9bec164d687acdf83a5a63b0d6e17907b5700e13b49748f4cf1abf07f",
+          "bytes": 38
+        },
+        {
+          "path": "changed.rs",
+          "raw_content_hash": "blake3-raw-utf8:f3738e8e7efc6c2bd17d5e98ca1bf5715287a396035e09f72681409da566006c",
+          "bytes": 49
+        }
+      ],
+      "scope": "Actual isolated public index/update constructor proof; physical row inventory is covered by the native/no-vector integration test, not this smoke"
+    },
+    "normal_checks": {
+      "request_sha256": "5b606d8c855c0a983d7348921f4c8da449484ac2d0cf95d55e90357420f55cdc",
+      "observed_commits": [
+        "e9ac0eb09b753bf89c2d98e2b0393aedb39bb33e",
+        "c705453f14565280faed033ba0dca97d93a2755b",
+        "a3fd4f417a3de17bbcbb63ce69d3d1d80352030d"
+      ],
+      "normal_existing_history_query": "PASS",
+      "scope": "Existing normal configured provider/history remains usable; no new production indexing"
+    },
+    "source_commit": "ce1c56e69c1da5dfbbb742b0aecf0bf474d3cf45"
   }
 }
