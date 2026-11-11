@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T22:39:06.051029+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T22:53:05.366008+00:00",
   "original_requirement": "EG15-17 generator ownership, complete overflow and manual/legacy scope preservation.",
   "implemented": "Complete authored rule blocks, nested exceptions and fenced examples survive critical-rule extraction and root overflow. Existing publication and authority behavior is retained.",
   "demonstrated_failure": {
@@ -82,7 +82,7 @@
       "sha256": "d8fdbfaf694a6e3ef73787eb6b6cddff07cfba2237d3c26188d5c5e202e180ad"
     }
   ],
-  "remaining": "Build and validate candidate/installed exact authored overflow; deploy and verify normal runtime. EG14 broader drafting/publication acceptance and the remaining original backlog are unfinished.",
+  "remaining": "Selected EG15-17 ownership, overflow and manual/legacy scope contract delivered with the retained consumer limitations. Full EG14 area-instruction publication, EG24/25 matched real-task benefit and the original backlog remain unfinished. No universal Markdown, native conditional-catalog path filtering, external historical import replay or independent CodeRabbit review claim.",
   "limitations": [
     "Initial public batch retained as FAIL at stale blocked-parent assertion after six passing cases; corrected follow-up confirms exact blocked behavior.",
     "Initial restricted Claude invocation did not load guidance; corrected project-settings invocation passed Site/Admin conditional scope interpretation with tools/hooks disabled. This is not native path-filtered loading or general agent-productivity evidence.",
@@ -92,6 +92,55 @@
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111",
     "retained": "Failure, acceptance, consumer, test, source/release evidence and fixture-seeder source/binary. Preserve preexisting folders.",
-    "cleanup": "New test and public fixture resources close before removal. Retained diagnostic artifacts are intentional until delivery evidence no longer needed."
+    "cleanup": "New test and public fixture resources close before removal. Retained diagnostic artifacts are intentional until delivery evidence no longer needed.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-4f476913b93e442ca77a48483e675af9",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "bd708e8f7e08f2c0882f3ab2e041e2c4cca20a41",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-root-exceptions.json",
+      "sha256": "7264a3ea0d53105724d9299694dbe706d022d21caea408ddbf09954474099e96"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\pair.json",
+      "sha256": "80b8ecd861985ccf5a51ed49a7b5c82cc8ac0510508615156b5f05296cada8a3"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\helper-review.json",
+      "sha256": "5230cce3d54c846d0b2926b4c16949e9a21f72483a4fc0a30165012c8be81b95"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\candidate\\acceptance.json",
+      "sha256": "ac1ec46b2cb4e98c23fed1d974582045b1d2465b70ad4c9e46cb3799d7ddbfed"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\installed\\acceptance.json",
+      "sha256": "72ad36bb9c8ca8be12bd4880fed98739d3c0406daa7524576981920086a71494"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\normal\\acceptance.json",
+      "sha256": "03454b651f37aed93e5ae605f9d5b2a10e4e9854bd39179c3099ff3679d8ca15"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\release-gates.json",
+      "sha256": "538e1e0778a8da3c2d885d09eb3f75e919c0bccc59e8aaa02691f3bd4d69b55b"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\install-result.json",
+      "sha256": "6e5aedb297a4f9b3e22d524b8b5ae884d1bef555d1a4d9273f731f75d926051c"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-root-exceptions-config-hold-20261111.json.released.json",
+      "sha256": "ba60b2af95c20b13a27d7d919717d7b902850eaf1896fc765ef028d8934f09c6"
+    },
+    "server_sha256": "5547de2babd5b42d1b15d5e56c632b3e237a8a32fa02757b2351aae264d0a8d9",
+    "manifest_sha256": "c288bee21703fb6d029fac0fc4042b48597477468cbcc5ada2fce3113d4d4ad9",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
   }
 }

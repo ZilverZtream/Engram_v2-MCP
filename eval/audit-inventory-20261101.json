@@ -637,55 +637,58 @@
     {
       "id": "EG-15",
       "finding": "Generated instruction-file ownership safety",
-      "ledger_disposition": "Implemented and locally verified; feature-specific publication/consumer acceptance pending",
-      "existing_evidence_and_next_gate": "peer_refresh_publication_recovery_cutoff_and_delivery_20261103; current20 native cases include prior15+new5 interrupted-recovery behavior functions, some cover multiple real boundaries. Broader generator source-input provenance not represented by existing publication API; final review/release/deploy remains.",
+      "ledger_disposition": "Required generator contract implemented and deployed; feature-specific installed evidence recorded",
+      "existing_evidence_and_next_gate": "Feature-specific final source review and installed acceptance recorded; CodeRabbit unavailable. Preserve historical evidence. See receipt limitations; no additional scope inferred complete.",
       "required_behavior": [
         "Preserve human, unreceipted and externally edited generated files across root, diverted, scoped and integration outputs.",
         "Refresh/removal requires exact owner/path/current-content evidence; stale proposals and interrupted publication preserve human work.",
         "Return proposed content or explicit skips on conflicts; verify actual output and cleanup behavior."
       ],
-      "closure_state": "Native actual NTFS20 publication cases now pass, including automatic directory/bundle-bound journal v2 reconciliation that restores exact prior receipt ownership and preserves human winners, altered evidence and unbound legacy journals. Unsupported-platform publication remains proposal/refusal; implementation code is in shipped lineage; feature-specific publication/deployed acceptance remains pending.",
+      "closure_state": "See generator delivery receipt for actual installed ownership, overflow, authority and conditional consumer checks. Authored root exceptions now survive exact complete-rule recovery. Broader EG14 publication and EG24/25 usefulness remain separate and unfinished.",
       "dependencies": [],
-      "implementation_state": "Reviewed bound interruption recovery + exact ownership rollback locally verified native20 cases. No current no-vector/release/deployed claim.",
+      "implementation_state": "20 native NTFS publication/interruption cases and installed public ownership/conflict/refresh checks passed; native/no-vector generator contract checks and release identities recorded.",
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "latest_no_vector_publication_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json"
     },
     {
       "id": "EG-16",
       "finding": "Generator overflow accounting",
-      "ledger_disposition": "Locally verified overflow accounting; feature-specific consumer acceptance pending",
-      "existing_evidence_and_next_gate": "Root overflow and original rule lineage remain recoverable through scoped companions or explicit omission/delivery accounting, including write failures. Final review/deployed validation and EG-24/25 task usefulness remain.",
+      "ledger_disposition": "Required generator contract implemented and deployed; feature-specific installed evidence recorded",
+      "existing_evidence_and_next_gate": "Feature-specific final source review and installed acceptance recorded; CodeRabbit unavailable. Preserve historical evidence. See receipt limitations; no additional scope inferred complete.",
       "required_behavior": [
         "Every root-overflow rule reaches a correctly scoped artifact or an explicit recoverable omission.",
         "Actual returned/written paths and counts match claims even at caps, write failures or disabled optional output."
       ],
-      "closure_state": "Verified locally in dated receipts: root overflow and original rule lineage remain recoverable in companions/ledger, with actual delivery paths and partial-write/conflict reporting. Implementation code is in shipped lineage. Remaining: feature-specific final review and deployed-runtime acceptance; real task usefulness remains EG-24/25.",
+      "closure_state": "See generator delivery receipt for actual installed ownership, overflow, authority and conditional consumer checks. Authored root exceptions now survive exact complete-rule recovery. Broader EG14 publication and EG24/25 usefulness remain separate and unfinished.",
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json"
     },
     {
       "id": "EG-17",
       "finding": "Scope of manual/legacy rules in generated instructions",
-      "ledger_disposition": "Locally verified scope preservation; consumer acceptance gates pending",
-      "existing_evidence_and_next_gate": "Manual exceptions, distinct legacy scopes, zero-match warnings and authority decisions preserve scope. Claude paths frontmatter contract is checked; actual consumer loading, final review and deployment remain.",
+      "ledger_disposition": "Required generator contract implemented and deployed; feature-specific installed evidence recorded",
+      "existing_evidence_and_next_gate": "Feature-specific final source review and installed acceptance recorded; CodeRabbit unavailable. Preserve historical evidence. See receipt limitations; no additional scope inferred complete.",
       "required_behavior": [
         "Manual/legacy generated rules retain directory/language/file scope and accepted exceptions.",
         "Different scopes are not merged into broader mandates; zero-match scope warns without widening or declaring policy wrong.",
         "Closed/fixed/rejected review workflow status is not automatically an accepted policy decision."
       ],
-      "closure_state": "Verified locally in dated receipts: manual exceptions/distinct legacy scopes and zero-match warnings survive; unknown authority is not promoted, workflow status does not invent policy acceptance. Consumer paths frontmatter validated locally. Implementation code is in shipped lineage. Remaining: feature-specific final review, actual Claude consumer loading and deployed-runtime acceptance.",
+      "closure_state": "See generator delivery receipt for actual installed ownership, overflow, authority and conditional consumer checks. Authored root exceptions now survive exact complete-rule recovery. Broader EG14 publication and EG24/25 usefulness remain separate and unfinished.",
       "dependencies": [],
       "consumer_format_subfinding": {
         "defect": "Generated Claude rule frontmatter used ignored globs field, causing scope loss",
         "primary_contract": "https://code.claude.com/docs/en/memory#rule-frontmatter-reference",
         "implementation": "Recognized paths JSON/YAML sequence, validated language pattern lists, malformed scopes rejected before publication",
         "evidence": "generated-rule-consumer-scope.json:52tests passed; fixtures empty",
-        "limit": "Contract tests verify generated data; no real Claude runtime loading was tested. Original rule identity/scope lineage, overflow routing and remaining documentation drift stay open."
+        "limit": "Actual Claude loaded the generated conditional catalog and returned correct Site/Admin rule IDs and exact exceptions in both controlled tasks. Native paths-filtered loading is not established by these tests; it remains outside this conditional-catalog claim."
       },
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json"
     },
     {
       "id": "EG-18",
@@ -9956,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "DELIVERED_SELECTED_EG15_EG17_CONTRACT",
       "original_requirement": "EG15-17: generated instruction ownership safety, complete root-overflow accounting, and preservation of manual/legacy scope and exceptions. These generator-specific requirements remain open after the bounded EG14 draft/QA handoff.",
       "observed_missing_behavior": "Installed public root-budget case preserved the authored CLAUDE.md but generated rules lost all 40 multiline exceptions. The existing renderer test bypassed the extractor by constructing multiline CriticalRule objects directly. Repair complete bullet extraction and validate the same authored input through candidate and installed public tools.",
       "existing_evidence": [
@@ -9980,7 +9983,7 @@
       ],
       "constraints": "No OciusX authored-policy publication, new approval UI, expanded area pilot, CodeMap/Blast work, catalog/ownership investigation beyond this existing generator requirement, or preexisting-folder deletion. One active implementation/acceptance item."
     },
-    "at_utc": "2026-11-11T22:11:35.695506+00:00",
+    "at_utc": "2026-11-11T22:53:05.366008+00:00",
     "reason": "Authoritative findings record shipped implementation and local publication/scope tests, but no feature-specific installed public acceptance or actual Claude consumer-loading acceptance. Verify those gaps on owned fixtures and fix only concrete failures; do not rerun completed EG14 drafting or widen its pilot.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10010,8 +10013,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG15-17 generator ownership, overflow and scope: installed public/consumer acceptance",
-    "next_user_visible_deliverable": "Generated root/overflow guidance preserves authored multiline exceptions; validate and deploy the reproduced EG16/17 fix.",
+    "active_original_item": "EG15-17 selected generator contract delivered; advance the next original unfinished item.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10025,7 +10028,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: inspected installed failing root-overflow evidence, completed publication suite, implemented complete authored-rule extraction and started focused regression validation",
+    "previous_goal_turn_classification": "Progress: authored exception-loss fixed,122final-sourcechecks passed, candidate/installed exact40-rule recovery passed, deployed and normal generation3147 verified; earlier ownership/scope/consumer evidence retained with limitations.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12578,10 +12581,12 @@
       "delivery_commit": "7e9c00369abef1d32912628359d4762b153d83f6"
     },
     "eg15_eg17_installed_20261111": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\execution-state.json",
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\root-baseline\\acceptance.json",
-      "receipt": "eval/eg15-eg17-generator-delivery-20261111.json"
+      "receipt": "eval/eg15-eg17-generator-delivery-20261111.json",
+      "source_commit": "bd708e8f7e08f2c0882f3ab2e041e2c4cca20a41",
+      "installed_server_sha256": "5547de2babd5b42d1b15d5e56c632b3e237a8a32fa02757b2351aae264d0a8d9"
     }
   }
 }
