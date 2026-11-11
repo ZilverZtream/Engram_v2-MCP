@@ -234,6 +234,7 @@ async fn user_hit_full_content_and_recovery_keep_project_namespace_identity() {
             search_scope: "knowledge".into(),
             semantic: false,
             include_user_memory: true,
+            max_tokens: None,
             include_content: true,
             max_content_chars_per_result: 2000,
             max_results: 20,

@@ -40,10 +40,10 @@
   ],
   "activation_note": "Replacement goal is active. Its original S10 immediate-next text is historical: S10 was deployed, S12/S13 selected installed checks passed, and the selected S14 source-read fix is now deployed. Full original backlog remains open; retained first_delivery describes the original EG14 contract and does not restart completed work.",
   "immediate_next_delivery": {
-    "finding": "S18",
-    "status": "SELECTED_CURRENT_INSTALLED_PAIR_PROCEDURES_VERIFIED",
-    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s18-installed-compatibility-20261111\\selected-contract.json",
-    "remaining": "Selected S18 current-pair procedures delivered; advance original queue. General compatibility/version-fence and other unfinished/held requirements remain explicit.",
-    "receipt": "eval/s18-installed-compatibility-validation-20261111.json"
+    "finding": "TODO P0-4",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\selected-contract.json",
+    "remaining": "Build/deploy and verify public candidate and installed search paging. Other tools, provider token accounting, JSON envelopes and broader P0-4 remain unfinished.",
+    "receipt": "eval\\p04-search-response-budget-delivery-20261111.json"
   }
 }

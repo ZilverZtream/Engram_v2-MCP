@@ -1,0 +1,97 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T16:22:59.245471+00:00",
+  "original_requirement": "TODO P0-4: caller response budgets, explicit truncation and pagination; context spent per search must be bounded without silent loss.",
+  "implemented": "Optional search_memory max_tokens bounds complete reply text using ceil(UTF-8 bytes/4). Whole-hit paging retains mandatory context and actionable citation recovery; too-small budgets report a usable minimum. SearchSession records only delivered hits.",
+  "demonstrated_failure": {
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\red-result.json",
+      "sha256": "431d97b70872ed24f1e22441c51876ddb1042404825404bfba037e53c99dc18a"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\red.log",
+      "sha256": "eaf097eb57e9a879809035189aab3f66fa34f4a1cdc014e5a622dfef3cf19a85"
+    },
+    "behavior": "Original schema rejected max_tokens; owned eight-file source reply was 20893 bytes without aggregate budgeting."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\final-search-result.json",
+          "sha256": "b629e5897ab4db18cad1e0186828a4fa1cd1c2683497d0be3cb0e7ac7b6b7d75"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\final-search.log",
+          "sha256": "7b416cec11eb173aad3f551c4bb7b8e2151f176e0d267cdc253a1907cf0d47b2"
+        },
+        "passed": 22
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\final-integration-result.json",
+          "sha256": "616d5275dd1fcda7a98fee3344f34e849dd07098ca719b4101db46aaaaded305"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\final-integration.log",
+          "sha256": "9d2eb98b4088a2ad096e56a1834fe1e78516a8f613bbbcffb7694092c800994c"
+        },
+        "passed": 10
+      }
+    ],
+    "feature_scope": "22 focused library checks and 10 integration checks in no-default-features build. Native candidate/installed public lexical and hybrid requests remain pending.",
+    "prior_runs": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\no-vector-result.json",
+        "sha256": "d10e30996cc350ec5d7bd8b047c539346e66e755918bcad43bd47e8c7f2e3188"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\worker-diagnosis-result.json",
+        "sha256": "0d7383eb276e1f3a520e1b3a6200a21259c802a669f46aa7f71c65a841b9be62"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\worker-valid-fixtures-result.json",
+        "sha256": "4ad952638b2b1526c18275c336170b27cb852481b40ea45b81187c1b128294fc"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\integration-result.json",
+        "sha256": "f667879a5932f4f7cef372e4a1b79f06c8163aede6a4e1322d3286dc19780ced"
+      }
+    ],
+    "interrupted_integration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\integration-interruption.json",
+      "sha256": "c883e042ffba1f179eb4555199f56b23e68a48179fb7075de2d1c28719234edb"
+    },
+    "interrupted_fixture": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\integration-cleanup.json",
+      "sha256": "76fc670356d1f583de7c51513fafd3f0d69b771bf148dd4d2e2f86ccfaf1d7ce"
+    }
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\source-review.json",
+    "sha256": "5707ce0c555242d1b0bf714ce10d2fd1407b1d87d318e303b8d2f1e58c2faaf7"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/search_tools.rs": "7f4f1fbb8657b1e40b6d9beb69a4702c64aef105ccde2e50d48b49d112ff8ae0",
+    "crates/engram_server/src/handlers/search_tools/lexical_worker_tests.rs": "4fb3a83d77bc2871b0e63d4f79c7c49c755f78e439971870143672a1cc4fb01d",
+    "crates/engram_server/src/models/requests.rs": "3e63c977083c6a1360635acf44c5a2e02ea03581f2e7ac0c852c4ddb3399c1e4",
+    "crates/engram_server/src/tools.rs": "8d602e18a88beb7efd4389335e80cc33ccc984c461d1ab41a6ad1481583ee169",
+    "crates/engram_server/tests/incremental_test.rs": "587f59a60e4216da5f20175cdbf04b359b9ada4889615e1db1ac9f73e0a26f82",
+    "crates/engram_server/tests/integration_test.rs": "e774a4e2af45c0b96fe78440c0b929d25fd61f149d1b4e8c6c8ca686666effea",
+    "crates/engram_server/tests/memory_p3_tests.rs": "72d76a90d121a7064b96cb6a13fb689f7b3dd47184813b66627093439ea2f8a3",
+    "crates/engram_server/tests/search_pagination_tests.rs": "a2a4340b8cca1fedc7df5d8482b3f08ff0f02aa445ca5d935913c85006138d32",
+    "crates/engram_server/tests/tool_surface_tier_tests.rs": "2c65ac8b5fc4bac806f2486a6ecbb3e97b4eacbbaeb4f3edf3de85062c66a881",
+    "crates/engram_server/src/handlers/search_tools/response_budget.rs": "3114991850d793cf3b3e55bf41151c04fbb50a4b2f82f87424b380f28953042d",
+    "crates/engram_server/src/handlers/search_tools/response_budget_tests.rs": "d199fb34f7c3e35aa75319a24555c8b203f04dd0d503a2ab2a869987b5de69c6"
+  },
+  "remaining": "Build/deploy and verify public candidate and installed search paging. Other tools, provider token accounting, JSON envelopes and broader P0-4 remain unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111",
+    "completed_test_fixtures_closed_and_removed": true,
+    "interrupted_fixture_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\integration-cleanup.json",
+      "sha256": "76fc670356d1f583de7c51513fafd3f0d69b771bf148dd4d2e2f86ccfaf1d7ce"
+    },
+    "retained": "Failed and successful logs, source snapshots, helpers and interrupted fixture retained. Automatic approval review rejected cleanup of the exact interrupted owned fixture; no alternate deletion attempted."
+  }
+}

@@ -9950,25 +9950,27 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_CURRENT_PAIR_PROCEDURES",
-      "original_requirement": "S18: Binary downgrade has a verified compatible materialization/recovery path, vector coverage and a successful subsequent edit.",
-      "current_missing_behavior": "November4 exact candidate/old source roundtrip, representable-policy roundtrip and adopted-authority refusal all passed. Current installed05609ecf release has no exact-pair proof; earlier not-run inventory text is stale. No new product defect asserted.",
-      "implementation_files": [],
-      "existing_implementation": [
-        "eval/downgrade_compatibility_workload.py",
-        "eval/downgrade_policy_preflight.py"
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "TODO P0-4: caller response budgets, explicit truncation and pagination; context spent per search must be bounded without silent loss.",
+      "current_missing_behavior": "search_memory accepts per-result content/result limits and offsets, but rejects an aggregate max_tokens parameter and concatenates all selected hit bodies, metadata and live guidance without a caller reply budget.",
+      "implementation_files": [
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/search_tools.rs",
+        "crates/engram_server/src/handlers/search_tools/response_budget.rs",
+        "crates/engram_server/src/handlers/search_tools/response_budget_tests.rs",
+        "crates/engram_server/src/tools.rs"
       ],
       "finite_acceptance": [
-        "Reuse unchanged accepted three-mode verifier and exact retained b762d3d4 old binary; no production data/config/installation mutation.",
-        "Current installed release materializes complete source, old executable reads/edits, current executable recovers explicitly and supports a subsequent edit with complete lexical/native coverage.",
-        "Representable manual/ordinary policy raw bytes survive the old writer. Unsupported adopted-alias authority refuses before materialization or old launch and preserves authority.",
-        "Retain historical evidence, exact binary/driver hashes, current reports and owned teardown; disclose operator-procedure scope and lack of application-enforced minimum version. Do not rerun passed modes without a relevant failure/change."
+        "Optional max_tokens estimates ceil(UTF-8 reply-text bytes / 4), with explicit accounting rather than claiming a provider tokenizer. Successful response text including metadata, pagination, guidance and freshness stays within four times the requested value. Absent budget preserves existing output.",
+        "Return complete ranked-hit blocks and recovery actions. Report budget omissions and next offset for the first omitted hit; preserve existing 200-result cap and mutable-ranking limitation. Never silently drop mandatory warnings or repository guidance; explain a budget too small for one complete hit plus mandatory context.",
+        "A real indexed Unicode-source fixture proves bounded replies, literal source recovery, correct pagination reconstruction, guidance retention, and search-session events containing only delivered hits. Run focused native/no-vector checks; avoid repeating unchanged broad suites.",
+        "Build/deploy and verify actual candidate and installed public search paging against independently known fixture source. Preserve production config/data; record complete delivery and advance."
       ],
-      "previous_delivery": "eval/s17-installed-process-exclusion-validation-20261111.json; bbed331",
-      "remaining_scope": "General arbitrary-version/knowledge/history compatibility and application-enforced version fence remain unproven; other original backlog and held resource work unchanged."
+      "remaining_scope": "Uniform budgets/envelopes on remaining tools, provider-specific token accounting, JSON envelope rollout and wider TODO P0-4 remain unfinished. EG24 regular live model CI and EG25 matched implementation/QA benefit remain open; no new model replay is being substituted for delivery.",
+      "previous_delivery": "eval/s18-installed-compatibility-validation-20261111.json; fc729b3"
     },
-    "at_utc": "2026-11-11T15:44:52.652031+00:00",
-    "reason": "S17 installed acceptance delivered. Original S18 three modes already passed historically; current-pair binding is the finite remaining selected step.",
+    "at_utc": "2026-11-11T16:22:59.245471+00:00",
+    "reason": "Selected storage acceptance delivered; held S15/S19 performance stays parked. EG24 model runner already exists and protocol CI is partial. Highest ready original P0 delivery is aggregate response budgeting, whose request/renderer gap is visible in current code.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9997,8 +9999,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "S18: verify the original exact-version compatibility procedure against the installed release.",
-    "next_user_visible_deliverable": "Installed-to-retained-old materialization/read/edit/return-repair/next-edit proof, preserving representable policy and refusing unsupported adopted authority.",
+    "active_original_item": "TODO P0-4: aggregate search response budget with complete-hit pagination and recovery.",
+    "next_user_visible_deliverable": "Agents can request a bounded search reply and continue from the first omitted hit without losing guidance or source recovery actions.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10012,7 +10014,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: S17 installed process exclusion and S18 current-pair original three-mode procedures passed; evidence pushed or prepared, all generated fixtures closed and removed.",
+    "previous_goal_turn_classification": "Progress: implemented aggregate search budget, corrected two fixture assumptions and rendering boundaries, completed selected checks; deployment remains pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12269,24 +12271,22 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "status": "DELIVERED_SELECTED_INSTALLED_ACCEPTANCE",
-      "original_requirement": "S17: Actual process exclusion covers independent publication and GC; process-local Arc counts are insufficient.",
-      "current_missing_behavior": "Existing native and no-vector process tests prove the source-view ownership behavior in test executables. The current installed release has no retained actual-executable witness for source Catalog exclusion of public update and GC followed by release/retry. No runtime defect is asserted.",
+      "status": "DELIVERED_SELECTED_CURRENT_PAIR_PROCEDURES",
+      "original_requirement": "S18: Binary downgrade has a verified compatible materialization/recovery path, vector coverage and a successful subsequent edit.",
+      "current_missing_behavior": "November4 exact candidate/old source roundtrip, representable-policy roundtrip and adopted-authority refusal all passed. Current installed05609ecf release has no exact-pair proof; earlier not-run inventory text is stale. No new product defect asserted.",
       "implementation_files": [],
       "existing_implementation": [
-        "crates/engram_index/src/hybrid/snapshots.rs",
-        "crates/engram_index/src/hybrid.rs",
-        "crates/engram_server/src/handlers/project_tools/source_publication_tests/process_exclusion.rs"
+        "eval/downgrade_compatibility_workload.py",
+        "eval/downgrade_policy_preflight.py"
       ],
       "finite_acceptance": [
-        "Reuse retained native/no-vector process evidence without rerunning the local matrix. Pin the current installed binary and existing helper-library inputs.",
-        "Create one owned indexed source fixture through the installed executable. An independent owned helper retains a real SourceSnapshotGuard after dropping its engine/runtime, with no Registry owner remaining.",
-        "Actual installed public update on a real edit and public incremental_indexing_gc must refuse specifically at source Catalog admission; published authority and physical source stores remain unchanged.",
-        "Release the sole guard, naturally close all helper handles, and retry the same public operations. Verify complete edited and inherited source/native identities, unchanged sibling identity and successful cold reopen.",
-        "Record exact executable and helper scope, preserve retained old-view/Registry cases as historical where not re-executed, and clean only owned fixture resources. No product rebuild absent a demonstrated runtime defect."
+        "Reuse unchanged accepted three-mode verifier and exact retained b762d3d4 old binary; no production data/config/installation mutation.",
+        "Current installed release materializes complete source, old executable reads/edits, current executable recovers explicitly and supports a subsequent edit with complete lexical/native coverage.",
+        "Representable manual/ordinary policy raw bytes survive the old writer. Unsupported adopted-alias authority refuses before materialization or old launch and preserves authority.",
+        "Retain historical evidence, exact binary/driver hashes, current reports and owned teardown; disclose operator-procedure scope and lack of application-enforced minimum version. Do not rerun passed modes without a relevant failure/change."
       ],
-      "previous_delivery": "eval/s14-admitted-source-read-delivery-20261111.json; delivery commit7a49d48",
-      "remaining_scope": "S14 aggregate/parser/native/provider allocation requirements, held S15/S19 performance work, S16 wider consistency, S18 compatibility and full original backlog remain unfinished."
+      "previous_delivery": "eval/s17-installed-process-exclusion-validation-20261111.json; bbed331",
+      "remaining_scope": "General arbitrary-version/knowledge/history compatibility and application-enforced version fence remain unproven; other original backlog and held resource work unchanged."
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -12393,6 +12393,11 @@
       "receipt": "eval/s18-installed-compatibility-validation-20261111.json",
       "status": "SELECTED_CURRENT_INSTALLED_PAIR_PROCEDURES_VERIFIED",
       "runtime_changes": false
+    },
+    "p04_search_response_budget_20261111": {
+      "receipt": "eval\\p04-search-response-budget-delivery-20261111.json",
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "full_p04_closed": false
     }
   }
 }

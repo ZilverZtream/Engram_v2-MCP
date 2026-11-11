@@ -66,6 +66,7 @@ async fn page(engram: &Engram, pid: &str, offset: usize, size: usize) -> String 
             search_scope: "knowledge".into(),
             semantic: false,
             include_user_memory: false,
+            max_tokens: None,
             offset,
             max_results: size,
             ..Default::default()

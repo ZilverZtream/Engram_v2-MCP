@@ -1357,6 +1357,12 @@ pub struct SearchMemoryRequest {
     /// knowledge, ranking inputs or time may change results. Default: 0.
     #[serde(default)]
     pub offset: usize,
+    /// Optional approximate token budget for the complete reply text, including
+    /// metadata, guidance and pagination: ceil(UTF-8 bytes / 4), not a provider
+    /// tokenizer or JSON transport size. Returns whole hits and the next offset;
+    /// rejects a budget too small for one hit plus mandatory context. Default: none.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
     #[serde(default = "default_true")]
     pub use_mmr: bool,
     /// Full-text search mode. Default: "strict".
@@ -2397,6 +2403,7 @@ impl Default for SearchMemoryRequest {
             namespace: default_namespace_memory(),
             max_results: default_top_k(),
             offset: 0,
+            max_tokens: None,
             use_mmr: true,
             fts_mode: FtsMode::default(),
             include_content: false,
