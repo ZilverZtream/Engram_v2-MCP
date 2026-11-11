@@ -40,9 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search, vector and grep response budgets are now deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "TODO P0-0",
-    "status": "EXISTING_FIX_VERIFIED_REGRESSION_COMPLETE",
-    "receipt": "eval\\p00-apostrophe-delivery-20261111.json",
-    "remaining": "Selected apostrophe acceptance complete; full original backlog remains open. Select next unfinished original requirement using current_execution_focus."
+    "finding": "TODO P0-4 search/vector JSON",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\selected-contract.json",
+    "remaining": "Build/deploy and verify actual candidate/installed MCP structured output. Other tools, provider-token accounting, durable cursors and full P0-4 remain unfinished.",
+    "receipt": "eval\\p04-search-json-delivery-20261111.json"
   }
 }

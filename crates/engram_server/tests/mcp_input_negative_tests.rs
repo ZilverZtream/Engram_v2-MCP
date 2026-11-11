@@ -300,6 +300,7 @@ fn mcp_neg_vector_search_sanitized_top_k_clamps_correctly() {
     use engram_server::models::requests::{MAX_SEARCH_RESULTS, VectorSearchRequest};
 
     let make_req = |top_k: usize| VectorSearchRequest {
+        output_json: false,
         project_id: "proj".into(),
         query: "test".into(),
         namespace: "code".into(),

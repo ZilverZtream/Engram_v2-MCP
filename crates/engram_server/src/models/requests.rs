@@ -1347,6 +1347,11 @@ fn default_find_merged_top() -> usize {
 pub struct SearchMemoryRequest {
     pub query: String,
     pub project_id: String,
+    /// Return the shared structured search envelope, with typed recovery
+    /// actions, warnings, guidance, truncation and offset metadata. Default false.
+    /// max_tokens includes the complete serialized JSON reply text when enabled.
+    #[serde(default)]
+    pub output_json: bool,
     #[serde(default = "default_namespace_memory")]
     pub namespace: String,
     #[serde(default = "default_top_k")]
@@ -2297,6 +2302,10 @@ pub struct AntipatternIndexRequest {
 #[serde(deny_unknown_fields)]
 pub struct VectorSearchRequest {
     pub project_id: String,
+    /// Return the shared structured search envelope. max_tokens includes all
+    /// serialized JSON metadata and complete hit records. Default false.
+    #[serde(default)]
+    pub output_json: bool,
     /// The text to embed and search for semantically.
     pub query: String,
     /// Namespace to search within (default "memory").
@@ -2421,6 +2430,7 @@ impl Default for SearchMemoryRequest {
         Self {
             query: String::new(),
             project_id: String::new(),
+            output_json: false,
             namespace: default_namespace_memory(),
             max_results: default_top_k(),
             offset: 0,
