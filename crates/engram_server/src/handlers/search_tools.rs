@@ -620,6 +620,16 @@ impl Engram {
         req: VectorSearchRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        response_budget::token_bytes(req.max_tokens)?;
+        let top_k = req.sanitized_top_k();
+        let offset = req.offset.min(crate::models::requests::MAX_SEARCH_RESULTS);
+        if offset >= top_k {
+            let message = format!(
+                "result: no_hits\nrequested_offset: {}\nOffset is outside the top_k={top_k} ranking window. Increase top_k (max 200) or narrow scope and restart at offset=0. No search was run.\n",
+                req.offset);
+            return Ok(CallToolResult::success(vec![Content::text(
+                response_budget::bounded_message(message, req.max_tokens)?)]));
+        }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let (gen_, _source_snapshot) = if req.namespace == "memory" {
             let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
@@ -631,7 +641,6 @@ impl Engram {
             }
             (0, None)
         };
-        let top_k = req.sanitized_top_k();
         let max_chars = req.sanitized_max_content_chars();
         let timeout_ms = self.state.cfg.vector_search_timeout_ms;
 
@@ -658,9 +667,18 @@ impl Engram {
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let window_len = hits.len();
+        let hits = &hits[offset.min(window_len)..];
+        let freshness = self.freshness_footer(&req.project_id, gen_).await;
         if hits.is_empty() {
+            let message = if window_len == 0 {
+                "No vector search results. Ensure the project is indexed with a vector-capable embedding backend (not fts_only).\n".to_owned()
+            } else {
+                "result: no_hits; offset is past the end of this ranking window. Lower offset or widen top_k and restart at offset=0.\n".to_owned()
+            };
             return Ok(CallToolResult::success(vec![Content::text(
-                "No vector search results. Ensure the project is indexed with a vector-capable embedding backend (not fts_only).",
+                response_budget::bounded_message(format!("{message}{}{freshness}",
+                    response_budget::vector_pagination(offset, 0, window_len, top_k)), req.max_tokens)?,
             )]));
         }
 
@@ -680,13 +698,15 @@ impl Engram {
             req.namespace, top_k, req.use_mmr
         ));
 
+        let mut hit_blocks = Vec::with_capacity(hits.len());
         for (i, h) in hits.iter().enumerate() {
+            let mut hit_out = String::new();
             // doc_id is what get_chunk takes. The truncation notice below has
             // always told callers to use it, but the result line never carried
             // one — so every hit was a dead end.
-            out.push_str(&format!(
+            hit_out.push_str(&format!(
                 "[{}] similarity={:.4} path={} lines={}-{} doc_id={} chunk_id={}\n",
-                i + 1,
+                offset + i + 1,
                 h.score,
                 h.path,
                 h.start_line,
@@ -694,23 +714,49 @@ impl Engram {
                 h.doc_id,
                 h.chunk_id
             ));
+            let mut recovery = serde_json::json!({
+                "project_id":req.project_id,"namespace":req.namespace,"doc_id":h.doc_id
+            });
+            let mut citation = recovery.clone();
+            citation["citation"] = serde_json::json!({});
+            if req.namespace == "memory" {
+                recovery["inject_rules"] = serde_json::json!(true);
+            }
+            hit_out.push_str(&format!("full_chunk: get_chunk({recovery})\ncitation_chunk: get_chunk({citation})\n"));
 
-            if req.include_content
-                && let Ok(Some((_, _, content, _, _))) = ps.search.get_doc_by_pk(&h.pk)
-            {
+            let content = if req.include_content {
+                ps.search.get_doc_by_pk(&h.pk).ok().flatten()
+            } else { None };
+            if let Some((_, _, content, _, _)) = content {
                 if content.chars().count() > max_chars {
-                    out.push_str(&content.chars().take(max_chars).collect::<String>());
-                    out.push_str(&format!(
-                        "... [truncated at {max_chars} chars — call get_chunk(doc_id) for the full chunk]\n"
+                    hit_out.push_str(&content.chars().take(max_chars).collect::<String>());
+                    hit_out.push_str(&format!(
+                        "... [truncated at {max_chars} chars; use full_chunk above]\n"
                     ));
                 } else {
-                    out.push_str(&content);
-                    out.push('\n');
+                    hit_out.push_str(&content);
+                    hit_out.push('\n');
                 }
+            } else if req.include_content {
+                hit_out.push_str("content_status: unavailable; use full_chunk above\n");
+            }
+            if req.max_tokens.is_some() {
+                hit_blocks.push(hit_out);
+            } else {
+                out.push_str(&hit_out);
             }
         }
 
-        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        let suffix = "next: full_chunk retrieves content with applicable live repository guidance; citation_chunk retrieves exact stored content without injected guidance. Follow any returned citation continuation with the same project_id/namespace/doc_id.\n";
+        let out = if req.max_tokens.is_some() {
+            response_budget::finish_with(out, &hit_blocks, suffix, &freshness, false, req.max_tokens,
+                |returned| response_budget::vector_pagination(offset, returned, window_len, top_k))?.0
+        } else {
+            out.push_str(suffix);
+            out.push_str(&response_budget::vector_pagination(offset, hits.len(), window_len, top_k));
+            out.push_str(&freshness);
+            out
+        };
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 

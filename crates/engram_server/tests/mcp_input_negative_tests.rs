@@ -304,6 +304,8 @@ fn mcp_neg_vector_search_sanitized_top_k_clamps_correctly() {
         query: "test".into(),
         namespace: "code".into(),
         top_k,
+        offset: 0,
+        max_tokens: None,
         use_mmr: false,
         include_path_prefixes: None,
         exclude_path_prefixes: None,

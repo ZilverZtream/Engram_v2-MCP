@@ -514,7 +514,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Vector-only similarity search (no lexical fusion). Quality depends on the configured embedding backend — the response states which tier is active. Prefer search_memory for most queries."
+        description = "Vector-only similarity search (no lexical fusion). Quality depends on the configured embedding backend — the response states which tier is active. Optional max_tokens bounds complete reply text using a UTF-8 estimate. Follow next_page offset within the same top_k ranking window; keep query, filters, top_k and use_mmr fixed. Full_chunk retrieves content with live repository guidance; citation_chunk recovers exact stored source. Prefer search_memory for most queries."
     )]
     pub async fn vector_search(
         &self,

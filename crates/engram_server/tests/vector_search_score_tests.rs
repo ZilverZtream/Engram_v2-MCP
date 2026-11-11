@@ -81,6 +81,8 @@ async fn search(engram: &engram_server::Engram, pid: &str, query: &str) -> Strin
             query: query.to_string(),
             namespace: "memory".into(),
             top_k: 10,
+            offset: 0,
+            max_tokens: None,
             use_mmr: false,
             include_path_prefixes: None,
             exclude_path_prefixes: None,

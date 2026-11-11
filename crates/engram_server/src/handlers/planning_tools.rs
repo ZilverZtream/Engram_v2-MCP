@@ -10354,6 +10354,8 @@ impl Engram {
                 query: retrieval_story.clone(),
                 namespace: "memory".to_string(),
                 top_k: 40,
+                offset: 0,
+                max_tokens: None,
                 use_mmr: true,
                 include_path_prefixes: None,
                 exclude_path_prefixes: None,

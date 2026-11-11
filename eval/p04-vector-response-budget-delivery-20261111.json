@@ -1,0 +1,76 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T16:56:46.186069+00:00",
+  "original_requirement": "TODO P0-4: aggregate response budgets, explicit truncation and recoverable pagination on remaining hot tools.",
+  "implemented": "Optional vector_search max_tokens and offset bound complete reply text and page within a fixed top_k ranking window. Shared UTF-8 estimate, complete hit records, explicit window end, backend warning/freshness, exact citations and live-guidance recovery are preserved.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\baseline\\observation.json",
+      "sha256": "b8a18d88de53cebd36fb5dd1efc0c10e87194363a61ee5d5dd8ab8bb8c95c386"
+    },
+    "driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\baseline.py",
+      "sha256": "e0b6ae0b4a4268b34fc9a5f947b3b427e4addfee44d7009ab401f5ff3b9b2a66"
+    },
+    "behavior": "Actual installed native vector replies were16080/16078UTF-8bytes with MMR off/on; exact source recovery passed while max_tokens and offset were rejected by the published schema."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\search-shared-result.json",
+          "sha256": "39c67bfad642876eb0a1aea7909af84aaef7cc98b078ff4754abfead0cc7db90"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\search-shared.log",
+          "sha256": "40ec3ad0055ef1c478400341351768e95bb464f7d1338f746e88df7bcdb455e9"
+        },
+        "passed": 22
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\vector-no-vector-result.json",
+          "sha256": "d6eb8a3183efe9bcc5536f66a1a3cfa7f197652f86bb9356ae83b42e2ce5352d"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\vector-no-vector.log",
+          "sha256": "dfa5e7830f9379941b2225905802002fda7696b9067cf101a919edef9b665933"
+        },
+        "passed": 23
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\vector-native-result.json",
+          "sha256": "0838165dac78ebe12a62b71edc169a150b844d9d7774aa68dbf4df23bb71d213"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\vector-native.log",
+          "sha256": "ef86b5e1e80f1c69a14932b8fd8a8ff19afce7fda605c6e23543156eff4f3080"
+        },
+        "passed": 4
+      }
+    ],
+    "feature_scope": "Shared search library regressions in no-default-features; real vector handler boundary checks in lexical-only build; native twelve-source/eight-result paging with MMR off/on and existing vector score checks. Public candidate/installed verification remains pending."
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\source-review.json",
+    "sha256": "04c6434a46196c223b41e792176f19c610ead41212987a847017aae58a24cbd2"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/planning_tools.rs": "b4cf67ff9acc3a8705973ace023b42977e21af4de1cab6cd8270c2802624f92c",
+    "crates/engram_server/src/handlers/search_tools.rs": "a0776cac00a5ed32ad2c075a60ae69fb528e7188144257cab4307144db24dd0b",
+    "crates/engram_server/src/handlers/search_tools/response_budget.rs": "9a7dd5366382bb98ed41b8e5e299ffa73c3730dea5f9bfd09c78dfc20938e819",
+    "crates/engram_server/src/models/requests.rs": "468c24da1c2c82212e7ffb96ebfc26452d1a45d281a1f906dba8cb508f2f943c",
+    "crates/engram_server/src/tools.rs": "60ce4fde7e45989e1efaff443500cf7dc0730e5de22622e5e38738c98387342a",
+    "crates/engram_server/tests/mcp_input_negative_tests.rs": "6b5f19f589f1605c243b74c08b1b424e08553d8ec736d21a1213d4b903ce4f57",
+    "crates/engram_server/tests/vector_search_score_tests.rs": "1e6a49b03018ed3a0fa303a896ce9909b7106c816242fd6ae50f41357d549cc8",
+    "crates/engram_server/tests/vector_response_budget_tests.rs": "7a59140c6888be69e7a478295730e925654f9956b12e4dcb7dffbbac69eabfa8"
+  },
+  "remaining": "Build/deploy and verify native candidate/installed public vector paging. Other tools, provider token accounting, uniform JSON and durable cursors remain unfinished; no full P0-4 closure.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111",
+    "completed_test_fixtures_closed_and_removed": true,
+    "baseline_owned_fixture_closed_and_removed": true,
+    "retained": "Logs, source review and helpers retained here. Prior search-budget case retains its policy-rejected interrupted fixture; this case does not delete or claim cleanup of it."
+  }
+}
