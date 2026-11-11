@@ -1,0 +1,155 @@
+{
+  "status": "SOURCE_VALIDATED_PENDING_DEPLOYMENT",
+  "at_utc": "2026-11-11T09:11:12.014443+00:00",
+  "requirement": "EG20/EG21 usable history routing with preserved historical scope and truthful retrieval/rerank capability.",
+  "change": "Text history now labels lexical-only, degraded trigram or semantic vector capability instead of asserting that lexical and vector channels both contributed.",
+  "reproduction": "fts_only public short-query output falsely claimed fused lexical+vector order; the strengthened assertion failed before the source fix.",
+  "installed_baseline": {
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\git-oracle.json",
+      "sha256": "c607665a3570846b91c9d25f08839c9545f2ec0142fc31f9037901f4b46f6a37"
+    },
+    "observations": {
+      "included": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\result.json",
+          "sha256": "4c824fb7d518a67ce8552c2a110a623c0477d15b012868781f9f8dc6581841e9"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\included\\02-request.json",
+          "sha256": "839d6f87910f7d2c6642cef06750e00ccd7beba91ce92cc4ac113e8c72aabd3e"
+        },
+        "observation": {
+          "seconds": 40.49030020000646,
+          "bytes": 1533,
+          "mode": "included"
+        }
+      },
+      "before": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\before\\result.json",
+          "sha256": "178c1e7d1ade9ae580e2c2d877af1b3528f8b7a0ba9e9482ab1fbb4e746f93a5"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\before\\02-request.json",
+          "sha256": "4e327caa5311a0c6bad2cd0dc7a89dbe430c44fcc51025d1cec5695d1c17406a"
+        },
+        "observation": {
+          "seconds": 0.10408379998989403,
+          "bytes": 234,
+          "mode": "before"
+        }
+      },
+      "excluded": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\excluded\\result.json",
+          "sha256": "99b17b5d90e2e73b51c766236be70bb19bc24313ebd82670a1c6bba383eb14be"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\excluded\\02-request.json",
+          "sha256": "bb252417d28dbe216e1aa01105c72eca468d0e0aac983326d9b02e0ee9aaf4d5"
+        },
+        "observation": {
+          "seconds": 0.05187820002902299,
+          "bytes": 234,
+          "mode": "excluded"
+        }
+      },
+      "date-before": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\date-before\\result.json",
+          "sha256": "99b17b5d90e2e73b51c766236be70bb19bc24313ebd82670a1c6bba383eb14be"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\date-before\\02-request.json",
+          "sha256": "510f9fcb945f9b7d5c6781772e32c5e4559db0b00a25166174d0ef07a1ef5efa"
+        },
+        "observation": {
+          "seconds": 0.10918670002138242,
+          "bytes": 234,
+          "mode": "date-before"
+        }
+      },
+      "text": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\text\\result.json",
+          "sha256": "37c3dd61e00e34f3f71f325b631ab2f0a1175c5e18738e42478a2d0b6386f96a"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\text\\02-request.json",
+          "sha256": "616a3159c2827a80080ac75d769891314d23640f574674480881b1e9563ddb09"
+        },
+        "observation": {
+          "seconds": 6.409207599994261,
+          "bytes": 87,
+          "mode": "text"
+        }
+      },
+      "text-indexed": {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\text-indexed\\result.json",
+          "sha256": "ffbe5bc77807cb5fea4b9fff700583c9695bffe16741a5266ace238fbe9451f6"
+        },
+        "request": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111\\text-indexed\\02-request.json",
+          "sha256": "5b606d8c855c0a983d7348921f4c8da449484ac2d0cf95d55e90357420f55cdc"
+        },
+        "observation": {
+          "seconds": 3.0293805000255816,
+          "bytes": 2737,
+          "mode": "text-indexed"
+        }
+      }
+    },
+    "independent_oracle": "Git commit, author, timestamp, changed files and ancestry; the indexed text result set was independently checked for reachability."
+  },
+  "tests": {
+    "red": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\red-result.json",
+      "sha256": "f682eec8ea86d3ad9e939084b1cac719af9e14e7d6338f7de631e1fb36e20599"
+    },
+    "red_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\red.log",
+      "sha256": "3144a32cb3a9ccb2c82c09eb533b580cda007537a816054492650243cab7742b"
+    },
+    "green": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\green-serial-result.json",
+      "sha256": "5ef84a2c74e91d3c6940f7ccce20b3780df51fb5b040b9a07651e8c6379f36c4"
+    },
+    "green_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\green-serial.log",
+      "sha256": "93d51405d993569ba3a4a444914643ad114bd9fa0e6d04d76b44c7bc990f734e"
+    },
+    "passed": 8,
+    "failed": 0,
+    "fixture_entries": [],
+    "initial_parallel": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\green-result.json",
+      "sha256": "f682eec8ea86d3ad9e939084b1cac719af9e14e7d6338f7de631e1fb36e20599"
+    },
+    "initial_parallel_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\green.log",
+      "sha256": "1def05240bbf9d60bc63bd3035f2d7fc421e4690c313105b24db5761d3aa5fdb"
+    },
+    "initial_parallel_outcome": "3 passed, 5 fixture setup failures: concurrent VB parser authority refused. No retained fixtures. Same tests rerun serially without source changes."
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\review.json",
+    "sha256": "be2fba48b38d3e791c7839d700c3e24e4efce8f9c5e8aa5974559135ed1ae735"
+  },
+  "retained_evidence": "eval/audit-inventory-20261101.json execution_evidence_20261101.breadth_reset_and_instruction_update_20261102: native/no-vector routing, historical filters, lazy zero-budget skip and slow-provider timeout/fallback. Not re-executed for this label-only delta.",
+  "limits": [
+    "Zero rerank budget does not bound baseline retrieval: real matching precedent request took 40.49 seconds. No end-to-end latency or ranking-quality improvement claimed.",
+    "The fully filtered indexed text query returned no hits; the same natural-language precedent query returned the Git-backed change. A broader indexed text query returned that change at rank2.",
+    "No live slow-provider fault injection or installed no-vector configuration change; retained local tests establish those separate behaviors.",
+    "No storage/index/sidecar changes and no closure claim for the original full19 gates."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111",
+    "baseline_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111",
+    "retention": "Retain delivery evidence for review. Owned test fixture roots empty. No preexisting folders deleted."
+  },
+  "deployment": {
+    "installed": false
+  }
+}

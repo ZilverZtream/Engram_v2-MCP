@@ -2054,10 +2054,21 @@ impl Engram {
             ))]));
         }
 
+        // Engine capability does not establish that both retrieval channels
+        // contributed to this particular query's results.
+        let retrieval = match ps.search.semantic_quality() {
+            engram_index::hybrid::SemanticQuality::Off => "lexical retrieval (vectors disabled)",
+            engram_index::hybrid::SemanticQuality::DegradedTrigram => {
+                "retrieval capability: lexical + degraded trigram vectors"
+            }
+            engram_index::hybrid::SemanticQuality::Semantic => {
+                "retrieval capability: lexical + semantic vectors"
+            }
+        };
         let mut out = String::with_capacity(4096);
         out.push_str(&format!(
             "History search results ({} commits from {} matching documents, gen {gen_}{scope}; \
-             ranked by fused lexical+vector order):\n",
+             {retrieval}):\n",
             groups.len(),
             hits.len(),
         ));
