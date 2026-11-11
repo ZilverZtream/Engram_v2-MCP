@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_LOCAL_VALIDATION_PASSED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-11T12:09:24.881188+00:00",
   "original_requirement": "EG13/S05: competing foreground/background updates validate their base and cannot overwrite a newer head; physical deletion versus unfinished workers/cached incarnations was an explicit remaining gap.",
   "demonstrated_failure": {
@@ -132,7 +132,6 @@
     }
   ],
   "limits": [
-    "Release build, isolated public MCP verification and installed verification remain pending.",
     "Original S05 remains partial: this is a bounded deletion/publication lifecycle delivery, not proof of every store-commit, crash, physical catalog replacement or cross-platform cross-process boundary.",
     "Physical cleanup failure can follow registry/graph removal; the returned error identifies partial cleanup and supports retry by ID.",
     "No external CodeRabbit review was performed; trusted CLI was unauthenticated. Independent local source and helper reviews are retained."
@@ -144,6 +143,110 @@
       "sha256": "b1c4cdc28111dcfb24e03521ac12e6270dad1d175cf6a001680091080977a98e"
     },
     "fixtures": "All completed test fixture inventories are empty. Runtime shutdown precedes fixture cleanup, including failure/unwinding.",
-    "retained": "Test logs, review receipts, empty runner TEMP containers and prepared release helpers. No preexisting directory cleanup."
+    "retained": "Test logs, review receipts, empty runner TEMP containers and prepared release helpers. No preexisting directory cleanup.",
+    "retained_installed_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ef218c101b134e4fbb4596ac30ba7fa3",
+    "installer_journals": [
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-ef218c101b134e4fbb4596ac30ba7fa3.00-prepared.json",
+        "sha256": "ec24f7e58a3b4e3f3b9cdcef20c6ef2ce31415a2a554d9f9189e85c563c1556b",
+        "phase": "prepared"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-ef218c101b134e4fbb4596ac30ba7fa3.01-stage-verified.json",
+        "sha256": "0e0209ac2a56a8245816f77c929d0d77ccf4783880c94c881c051c65afe81c2e",
+        "phase": "stage-verified"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-ef218c101b134e4fbb4596ac30ba7fa3.02-old-retired.json",
+        "sha256": "ddc5d34345a109cfddca529939309dcc42c1c5fe945cd562766ff93c567251da",
+        "phase": "old-retired"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-ef218c101b134e4fbb4596ac30ba7fa3.03-candidate-active.json",
+        "sha256": "ac023bf7f1063b88af4ffcd512fb0cffedbd0f541afe717e651b92c6930abff9",
+        "phase": "candidate-active"
+      },
+      {
+        "journal": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-ef218c101b134e4fbb4596ac30ba7fa3.04-committed-no-start.json",
+        "sha256": "a6e201b032b5951943e60a2784c901a2086e6a325ce252be755c40fa0b5d0b8b",
+        "phase": "committed-no-start"
+      }
+    ],
+    "cleanup_condition": "Package, backup, installer journals and evidence retained; no preexisting removal without exact-path approval. Candidate fixture and build-owned temp removed after closure. Empty test TEMP containers and evidence retained for review; no preexisting cleanup performed."
+  },
+  "deployed_at_utc": "2026-11-11T12:37:28.032596+00:00",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-shipping-20261111.json",
+      "sha256": "306da7128748f48fca87018ae570afb827842c7bc3b4fda84e9cd755f2c098e5"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\pair.json",
+      "sha256": "a84b21fd32daaa733c87305e1545b1960ab732065d8dd29afc80efeba00a6f58"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\candidate-v2\\acceptance.json",
+      "sha256": "75df86e3b4debb2d0bbfee0d6817cf1f117f2553e2adaae86ce0cc8a2c78d225"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\normal\\acceptance.json",
+      "sha256": "f5ef2de869ef3a44c4158dc99748b296558079ea6ec7ca8f0a08e9eaa8d8c31b"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\install-result.json",
+      "sha256": "e3e7c4356e91037049b5adf23550656135dd57e578e1709284ad6125f6edfa20"
+    },
+    "hold_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-config-hold-20261111.json.released.json",
+      "sha256": "78986a912606834998f935f551c9655ea4955e51c015df7a9c83f8a89c63b915"
+    },
+    "release_helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\helper-review-v2.json",
+      "sha256": "8cd6ff79a4b5f59c7710c61f54865248dd8869532ee4fa2982d11cbfca9a0c81"
+    },
+    "checks": {
+      "deleted_project": "12af637d-e706-41db-b878-cd580569ec13",
+      "fresh_project": "bca8179b-dbc4-435a-9a2b-76d2acc7aa66",
+      "configured_dimension": 4,
+      "delete_waited_for_actual_embedding_worker": true,
+      "delete_request_id": 5,
+      "concurrent_requests_drained": true,
+      "update_request_id": 4,
+      "source_files_preserved_by_deletion": true,
+      "no_deleted_project_job_records": true,
+      "fresh_registration_exact_citations": [
+        {
+          "path": "changed.rs",
+          "raw_content_hash": "blake3-raw-utf8:20f54f1f811284ec386765cedee2ae082952164a7ca942d8e1a602390b3ea9c5",
+          "bytes": 50
+        },
+        {
+          "path": "untouched.rs",
+          "raw_content_hash": "blake3-raw-utf8:24bab73c01d72b0df67aaeca603c7b4cdd111b202c895835474acfaf66df4d1d",
+          "bytes": 39
+        }
+      ],
+      "both_project_store_directories_removed": true,
+      "scope": "Actual candidate MCP foreground update(wait=true)/delete pair remains pending while exact NEW embedding is held, then both settle after release; fresh public registration recovers NEW+B exactly and both deletions remove stores/jobs. Deterministic integration tests establish internal lock ordering; this witness establishes public pending/completion behavior."
+    },
+    "normal_checks": {
+      "request_sha256": "5b606d8c855c0a983d7348921f4c8da449484ac2d0cf95d55e90357420f55cdc",
+      "observed_commits": [
+        "e9ac0eb09b753bf89c2d98e2b0393aedb39bb33e",
+        "c705453f14565280faed033ba0dca97d93a2755b",
+        "a3fd4f417a3de17bbcbb63ce69d3d1d80352030d"
+      ],
+      "normal_existing_history_query": "PASS",
+      "scope": "Existing normal configured provider/history remains usable; no new production indexing"
+    },
+    "source_commit": "611321eb1451f1d0a5a5ce71d7a8e82fe2cf1ebe",
+    "initial_verifier_disposition": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\candidate-v1-disposition.json",
+      "sha256": "8c2169a7fc391d30df7da8b30ce50ddad799606ffe76af4ecdedc86866e8762b"
+    },
+    "initial_failed_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\candidate\\acceptance.json",
+      "sha256": "ad4477da7e16ab423710d5bf57e99ef70342d661ea3f2785fb89ca101f2922b5"
+    }
   }
 }

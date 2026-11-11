@@ -986,7 +986,7 @@
     {
       "id": "S05",
       "required_behavior": "Competing foreground/background updates validate their base and cannot overwrite a newer head.",
-      "state": "Partial: retained exact raw-head/revision/source-identity CAS and numeric ABA/delete-recreate coverage; scoped physical project deletion now serializes publication/runtime/job admission, drains jobs, refuses live catalog owners, survives RPC cancellation and reports cleanup failure with retry. Seven desired deletion cases plus normal initial registration pass in native/no-vector builds. Runtime release pending; all remaining store-commit/crash/incarnation boundaries are not claimed complete."
+      "state": "Partial: retained exact raw-head/revision/source-identity CAS and ABA/delete-recreate protection, plus deployed project deletion serialization, cooperative job drain, live catalog refusal, RPC-cancellation survival and explicit cleanup-error retry. Seven deletion cases and initial registration pass in native/no-vector builds; actual candidate MCP deletion waits for held embedding work, removes stores/jobs, then fresh registration returns exact source. Original all-writer/crash/incarnation boundaries remain unfinished."
     },
     {
       "id": "S06",
@@ -9934,7 +9934,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "LOCAL_VALIDATION_PASSED_RELEASE_PENDING",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement": "EG13/S05 competing foreground/background updates validate their base and cannot overwrite a newer head.",
       "current_missing_behavior": "Concrete S05 gap: handle_delete_project does not acquire the update lane, removes the shared mutex while callers may hold/wait on it, hard-aborts jobs whose blocking storage work may survive, and reports success despite remove_dir_all failure. Reproduce deletion overtaking an actual paused foreground publisher, then serialize deletion and preserve the lane. Retained-reader/native-worker lifetime boundaries remain explicit until demonstrated.",
       "implementation_files": [
@@ -9957,7 +9957,7 @@
       ],
       "previous_delivery": "eval/s04-native-publication-validation-20261111.json",
       "already_inspected": "S05 ledger state; current foreground rejected-CAS test preserves competing directory identity in actual native and no-vector configurations.",
-      "delivery": "eval/s05-project-deletion-delivery-20261111.json; release build, candidate public MCP and installed normal verification are the next steps. Keep S05 selected until delivery."
+      "delivery": "Delivered: eval/s05-project-deletion-delivery-20261111.json. Proceed to the next ready original indexing/reliability item; preserve original S05 unfinished boundaries."
     },
     "at_utc": "2026-11-11T11:34:43.155811+00:00",
     "reason": "Actual native/no-vector foreground publication outcome gap delivered and pushed a7be276. Advance original S05 competing-update base/identity protection.",
