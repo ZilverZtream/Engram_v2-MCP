@@ -4,7 +4,7 @@ use engram_index::HybridHit;
 use rmcp::ErrorData as McpError;
 use serde_json::{Value, json};
 
-pub(super) struct Page {
+pub(crate) struct Page {
     pub offset: usize,
     pub window_limit: usize,
     /// Known vector ranking-window count, never the total corpus match count.
@@ -72,7 +72,7 @@ fn encode(value: &Value) -> Result<String,McpError> {
 }
 
 /// Keep metadata and whole records, accounting for JSON escaping and commas.
-pub(super) fn finish(base: Value, hits: &[Value], page: Page, tokens: Option<usize>) -> Result<(String,usize),McpError> {
+pub(crate) fn finish(base: Value, hits: &[Value], page: Page, tokens: Option<usize>) -> Result<(String,usize),McpError> {
     let limit=response_budget::token_bytes(tokens)?;
     let mut header=encode(&base)?;
     header.pop(); header.push_str(",\"results\":[");
@@ -89,14 +89,15 @@ pub(super) fn finish(base: Value, hits: &[Value], page: Page, tokens: Option<usi
         let omitted=hits.len()-count;
         let content_truncated=hits[..count].iter().any(|hit|hit["content_truncated"]==true);
         let snippets_truncated=hits[..count].iter().any(|hit|hit["snippet_truncated"]==true);
+        let files_truncated=hits[..count].iter().any(|hit|hit["files_truncated"]==true);
         let metadata=json!({"response_page":{"offset":page.offset,"returned":count,"requested_hits":hits.len(),
             "next_offset":next,"window_limit":page.window_limit,"total_count":page.total,
             "total_count_scope":if page.total.is_some(){"bounded_ranking_window"}else{"not_computed"},
             "window_end":next.is_none(),"has_more":if omitted>0 || (page.total.is_some() && next.is_some()){Some(true)}else if next.is_none(){Some(false)}else{None},
             "snapshot":false,"scope":"Keep query, filters, scope, result limits and ranking options fixed. Offset is not a durable cursor; mutable inputs may change results. Window end does not prove corpus completeness."},
             "response_budget":budget.map(|max_tokens|json!({"max_tokens":max_tokens,"accounting":"ceil(utf8_text_bytes/4)","omitted_from_requested_page":omitted,"truncated":omitted>0})),
-            "truncated":omitted>0 || content_truncated || snippets_truncated,
-            "truncation":{"whole_hits_omitted":omitted,"included_content_truncated":content_truncated,"snippets_truncated":snippets_truncated}});
+            "truncated":omitted>0 || content_truncated || snippets_truncated || files_truncated,
+            "truncation":{"whole_hits_omitted":omitted,"included_content_truncated":content_truncated,"snippets_truncated":snippets_truncated,"file_lists_truncated":files_truncated}});
         let metadata=encode(&metadata)?;
         Ok(format!("],{}",&metadata[1..]))
     };

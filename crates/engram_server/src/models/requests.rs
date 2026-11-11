@@ -1923,6 +1923,19 @@ pub struct IndexGitHistoryRequest {
 pub struct SearchHistoryRequest {
     pub query: String,
     pub project_id: String,
+    /// Optional complete response budget, estimated as ceil(UTF-8 text bytes/4).
+    /// Includes metadata and JSON escaping. A whole record must fit; otherwise
+    /// the request refuses with a minimum budget. This is not provider tokenization.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Return typed records, recovery actions and explicit bounded-window totals.
+    #[serde(default)]
+    pub output_json: bool,
+    /// Skip records inside the same selected `limit` window (0..=200).
+    /// Keep query, filters, limit and ranking options fixed. Mutable inputs and
+    /// optional LLM reranking can change ordering; this is not a snapshot cursor.
+    #[serde(default)]
+    pub offset: usize,
     #[serde(default)]
     pub file_filter: Option<String>,
     #[serde(default)]

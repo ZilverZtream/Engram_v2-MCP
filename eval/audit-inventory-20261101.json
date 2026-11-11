@@ -9956,39 +9956,30 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_CURRENT_INSTALLED_POLICY_LIFECYCLE_ACCEPTANCE",
-      "original_requirement": "EG-06/07/08: authored policy scope, context and source-owned lifecycle survive import, refresh, missing input and attempted generalization.",
-      "selected_tools": [
-        "ingest_quality_gates",
-        "list_repo_rules",
-        "get_chunk",
-        "search_memory",
-        "pre_commit_review",
-        "distill_quality_gates"
-      ],
-      "observed_gap": "Original native/no-vector publication, registry and parser checks were retained, but these findings have no current_installed_delivery. The installed EG01 case explicitly did not mutate policy sources. Current product behavior must be observed before choosing any code fix.",
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "TODO P0-4: optional whole-response token budgets, explicit truncation/pagination and structured output across tools. This delivery covers search_history text and precedent modes.",
+      "observed_source_gap": "SearchHistoryRequest has no max_tokens or output_json. Text mode builds an unbounded complete reply including full subject lines, shows12matched paths with only a +N marker, and truncates content with no literal full-history recovery. Existing EG20/21 capability and historical-scope behavior is deployed and must be preserved.",
       "existing_evidence": [
-        "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
-        "eval/eg01-installed-policy-delivery-20261111.json",
-        "crates/engram_server/tests/ingest_clear_existing_tests.rs",
-        "crates/engram_server/tests/ingest_clear_existing_tests/publication_behavior.rs"
+        "TODO.md P0-4 remains partial",
+        "eval/eg20-history-capability-delivery-20261111.json",
+        "eval/p04-search-json-delivery-20261111.json",
+        "eval/p04-document-response-delivery-20261111.json"
       ],
       "implementation_files": [
-        "crates/engram_server/src/handlers/quality_gate_tools.rs",
-        "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_index/src/quality_gates.rs",
-        "crates/engram_server/src/services/project_service.rs"
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/src/handlers/search_tools/response_budget.rs",
+        "crates/engram_server/src/handlers/search_tools/structured_response.rs"
       ],
       "finite_acceptance": [
-        "Using the current installed native binary and one owned private project, independently authored same-basename JSON sources retain separate origins and explicit scopes; similarly prefixed siblings do not inherit enforcement. Exact original qualifications remain recoverable.",
-        "Refresh/narrow/reorder/remove one source without retiring another source identical mandate. Malformed or missing replacements with clear_existing must refuse before destructive publication. Actual public rule inventory, review and recovery responses establish the outcome.",
-        "Changed/deleted authored input withholds authority and exposes incomplete coverage until refresh; deleted historical finding export remains valid historical evidence. Whole-corpus clear preserves independent registry authority while disclosing missing search coverage.",
-        "Authored distillation refuses before any model call and recommends context-preserving ingestion. Supported manual rule changes cannot seize source ownership. Existing deterministic race/CAS/cold-reopen receipts remain separate from current public serial acceptance; do not claim power-loss proof.",
-        "If these finite public checks pass, record the installed behavior without another product rewrite or rebuild. If they reveal a concrete defect, fix only that original requirement, run relevant regression tests, build/deploy and recheck affected cases. Preserve original broader unfinished gates and advance."
+        "Observe installed public text and precedent replies and schema on one owned real Git history with independently captured commit IDs, authored messages, source changes and timestamps. Preserve this baseline.",
+        "Both modes honor optional max_tokens over complete UTF8 reply text, including JSON escaping and capability/scope/rerank/coverage metadata. Output_json exposes typed results and honest bounded-window totals/truncation. Too-small or invalid budgets return actionable refusal, not stripped warning metadata.",
+        "Page whole history records within the existing selected limit/window without changing retrieval or ranking. Truncated preview and displayed-file omissions have explicit identity-bound recovery where evidence exists; unavailable recovery is disclosed. Preserve author/date/path/as_of_rev restrictions and published-change grouping; do not invent unindexed history or a durable corpus cursor.",
+        "Use relevant native/no-vector checks and actual public candidate/installed text/precedent calls against independent Git source/message bytes and historical exclusions. Preserve default legacy behavior, retrieval capability and configured rerank behavior. Build/deploy only the tested change, record limits and advance."
       ],
-      "constraints": "No production policy/source mutation, new pilot, broad audit, CodeMap/Blast work or TODO16c substitution. Reuse existing owned MCP transport; close processes/readers/database handles before new fixture cleanup."
+      "constraints": "No new generic transport/middleware or snapshot-store project; reuse existing reply-budget and citation recovery mechanisms. EG20/21 ranking/capability improvements are not reopened. CodeMap/Blast and TODO16c remain unselected. Full P0-4 beyond this tool remains open."
     },
-    "at_utc": "2026-11-11T20:26:01.130876+00:00",
+    "at_utc": "2026-11-11T20:48:58.824025+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10018,8 +10009,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-06/07/08 installed policy lifecycle: selected acceptance delivered",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not repeat installed policy lifecycle or CodeMap/Blast work without a concrete regression.",
+    "active_original_item": "P0-4 search_history complete response budgets and structured recovery",
+    "next_user_visible_deliverable": "Budgeted text/JSON history search results with explicit omissions and exact recovery, preserving historical scope.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10033,7 +10024,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: current installed policy lifecycle passed11public cases;13retained positive/negative reviews verified actual gate completion; exact source bytes and head preserved; owned fixture removed. No product rewrite/rebuild required.",
+    "previous_goal_turn_classification": "Progress: selected history response contract implemented and focused native/no-vector acceptance completed; public release acceptance pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12491,7 +12482,44 @@
       "status": "CURRENT_INSTALLED_POLICY_LIFECYCLE_VERIFIED",
       "receipt": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json",
       "runtime_server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769",
-      "runtime_change_required": false
+      "runtime_change_required": false,
+      "delivered_contract": {
+        "status": "DELIVERED_CURRENT_INSTALLED_POLICY_LIFECYCLE_ACCEPTANCE",
+        "original_requirement": "EG-06/07/08: authored policy scope, context and source-owned lifecycle survive import, refresh, missing input and attempted generalization.",
+        "selected_tools": [
+          "ingest_quality_gates",
+          "list_repo_rules",
+          "get_chunk",
+          "search_memory",
+          "pre_commit_review",
+          "distill_quality_gates"
+        ],
+        "observed_gap": "Original native/no-vector publication, registry and parser checks were retained, but these findings have no current_installed_delivery. The installed EG01 case explicitly did not mutate policy sources. Current product behavior must be observed before choosing any code fix.",
+        "existing_evidence": [
+          "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
+          "eval/eg01-installed-policy-delivery-20261111.json",
+          "crates/engram_server/tests/ingest_clear_existing_tests.rs",
+          "crates/engram_server/tests/ingest_clear_existing_tests/publication_behavior.rs"
+        ],
+        "implementation_files": [
+          "crates/engram_server/src/handlers/quality_gate_tools.rs",
+          "crates/engram_server/src/handlers/project_tools.rs",
+          "crates/engram_index/src/quality_gates.rs",
+          "crates/engram_server/src/services/project_service.rs"
+        ],
+        "finite_acceptance": [
+          "Using the current installed native binary and one owned private project, independently authored same-basename JSON sources retain separate origins and explicit scopes; similarly prefixed siblings do not inherit enforcement. Exact original qualifications remain recoverable.",
+          "Refresh/narrow/reorder/remove one source without retiring another source identical mandate. Malformed or missing replacements with clear_existing must refuse before destructive publication. Actual public rule inventory, review and recovery responses establish the outcome.",
+          "Changed/deleted authored input withholds authority and exposes incomplete coverage until refresh; deleted historical finding export remains valid historical evidence. Whole-corpus clear preserves independent registry authority while disclosing missing search coverage.",
+          "Authored distillation refuses before any model call and recommends context-preserving ingestion. Supported manual rule changes cannot seize source ownership. Existing deterministic race/CAS/cold-reopen receipts remain separate from current public serial acceptance; do not claim power-loss proof.",
+          "If these finite public checks pass, record the installed behavior without another product rewrite or rebuild. If they reveal a concrete defect, fix only that original requirement, run relevant regression tests, build/deploy and recheck affected cases. Preserve original broader unfinished gates and advance."
+        ],
+        "constraints": "No production policy/source mutation, new pilot, broad audit, CodeMap/Blast work or TODO16c substitution. Reuse existing owned MCP transport; close processes/readers/database handles before new fixture cleanup."
+      }
+    },
+    "p04_history_response_20261111": {
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "receipt": "eval\\p04-history-response-delivery-20261111.json"
     }
   }
 }

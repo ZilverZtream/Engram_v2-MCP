@@ -6,7 +6,7 @@ pub(super) fn bytes(req: &SearchMemoryRequest) -> Result<Option<usize>, McpError
     token_bytes(req.max_tokens)
 }
 
-pub(super) fn token_bytes(max_tokens: Option<usize>) -> Result<Option<usize>, McpError> {
+pub(crate) fn token_bytes(max_tokens: Option<usize>) -> Result<Option<usize>, McpError> {
     max_tokens.map(|tokens| {
         tokens.checked_mul(4).filter(|bytes| *bytes > 0).ok_or_else(||
             McpError::invalid_params("max_tokens must be positive and fit the UTF-8 byte estimate", None))
@@ -23,7 +23,7 @@ pub(super) fn message(output: String, req: &SearchMemoryRequest) -> Result<Strin
     bounded_message(output, req.max_tokens)
 }
 
-pub(super) fn bounded_message(output: String, max_tokens: Option<usize>) -> Result<String, McpError> {
+pub(crate) fn bounded_message(output: String, max_tokens: Option<usize>) -> Result<String, McpError> {
     if token_bytes(max_tokens)?.is_some_and(|limit| output.len() > limit) {
         return Err(too_small(output.len()));
     }
@@ -62,7 +62,7 @@ pub(super) fn vector_pagination(offset: usize, returned: usize, window_len: usiz
     format!("{position}ranking_window: top_k={top_k}; pagination is not a snapshot of mutable ranking inputs.\n")
 }
 
-pub(super) fn finish_with(
+pub(crate) fn finish_with(
     mut header: String,
     hits: &[String],
     suffix: &str,
