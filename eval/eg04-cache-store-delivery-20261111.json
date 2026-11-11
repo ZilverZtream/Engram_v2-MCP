@@ -1,0 +1,95 @@
+{
+  "status": "DELIVERED_CORRECTNESS_RECONCILED",
+  "at_utc": "2026-11-11T10:02:05.722454+00:00",
+  "requirement": "EG04 bounded cache/store lifetime correctness and bounded snapshot copy; real-edit cost tracked separately in EG13.",
+  "disposition": "No concrete remaining non-performance correctness defect established. Retained tests and current deployed source cover the original mechanisms; no duplicate workload or new implementation needed.",
+  "retained_behavior": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-bounded-session-pressure-and-lifetime.json",
+        "sha256": "98e25c4834ab77b17b07ad1f9368269c204407a09565b102944e83c75b3aa274"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-bounded-session-pressure-and-lifetime.log",
+        "sha256": "909546051c5023a890d4070a301906d4f308d7ebb7efd8d38c4fcd8f6e030ed9"
+      },
+      "passed": 2,
+      "new_fixture_leftovers": 0,
+      "retained_fixtures_unchanged": true
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-pressure-query-order-and-engine-recovery-final.json",
+        "sha256": "99be1e05a15355fd108537b61e8954578733522f98b44e14104d3798aa2a65e8"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-pressure-query-order-and-engine-recovery-final.log",
+        "sha256": "1c4c8d3aea44638450983ce117dc96f491b1b655e5d15f5a063736d1c167d047"
+      },
+      "passed": 15,
+      "new_fixture_leftovers": 0,
+      "retained_fixtures_unchanged": true
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-source-leases-edit-and-collection-final.json",
+        "sha256": "1a4a5f44976bb83bd50bd6002fb8ae9726f00a6372b9dfa46e176ec6716f7874"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg04-source-leases-edit-and-collection-final.log",
+        "sha256": "316a06011110f5f2c74a231176fb1f42c0dc38b7d2b5f1785fcb141362b12527"
+      },
+      "passed": 5,
+      "new_fixture_leftovers": 0,
+      "retained_fixtures_unchanged": true
+    }
+  ],
+  "ignored_helper": "Pressure/recovery run reports one ignored standalone catalog_process_child helper; its owning cross-process test passes. Counts are per retained run, not unique new tests.",
+  "current_source": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_core\\src\\storage.rs",
+      "sha256": "dc4fbbe5e506ac91a7a45092928fc6ce1e3ccb9fc71d7f851cce2104067bcbbe"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\vector.rs",
+      "sha256": "c6dd44676e7f39f900aac0ca90b6c5113596634e089f26c412f9c742f107319a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid.rs",
+      "sha256": "bafd31b503d8b48f7b034bbc0bf83095e07013054fef29083b689cce4be61f79"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid\\native_store.rs",
+      "sha256": "adc645757ae4a60786955d15373c8370775205e4b6720328a80f6c48bd3b3184"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\state.rs",
+      "sha256": "6459deb3ca8257904c0f21f645d8fd3d7e71f624635a9b07b1f6e621d581b637"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\services\\project_service.rs",
+      "sha256": "b41bbf00cf86522e3b7c1d0d23f4d7391542873d567393a0fe2009c467f33ada"
+    }
+  ],
+  "deployed_build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-shipping-20261111.json",
+    "sha256": "0aff17e4e381de09cc14927037d8aeb570f59b6ddbdd9a2a10546cdb81ae63f6"
+  },
+  "installed_pair": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\pair.json",
+    "sha256": "cfbae122816e2c844ffc0b617d244cb6349ebe8f533419497bd216e1b75da959"
+  },
+  "corroborating_installed_noop": "eval/eg03-installed-watcher-delivery-20261111.json",
+  "mechanisms": [
+    "Explicit redb cache budgets: metadata16MiB/documents32MiB/graph+embedding128MiB.",
+    "Connection-owned native sessions: index64MiB/metadata32MiB weighted budgets, retained across intended session rotation.",
+    "Cached project runtimes with serialized initialization; shared checkpoint/progress stores.",
+    "One snapshot scan, bounded copy batches and one bulk writer finalization."
+  ],
+  "limits": [
+    "Configured cache capacities are not whole-process memory bounds.",
+    "No new pressure or performance execution; prior sustained memory/resource target remains unfinished.",
+    "EG13 physical source rewriting and all19 storage gates remain separately accounted; this receipt does not close them."
+  ],
+  "resources": "Read-only reconciliation; no new fixture/process or preexisting deletion."
+}

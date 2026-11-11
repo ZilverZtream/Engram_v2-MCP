@@ -308,13 +308,13 @@
     {
       "id": "EG-04",
       "finding": "Repeated copy searches/writer shutdowns and oversized database cache allowances",
-      "ledger_disposition": "Fixed and deployed in `ebbc03b`",
+      "ledger_disposition": "Bounded-cache/store-lifetime correctness delivered; separate resource gates unfinished",
       "existing_evidence_and_next_gate": "Streaming snapshot-copy and persistent-store checks. Actual source edits still copy unchanged chunks.",
       "required_behavior": [
         "Repeated reads and store reloads retain bounded caches and do not reopen/shutdown persistent writers unnecessarily.",
         "Real-edit rewriting is measured and remains separately tracked in EG-13."
       ],
-      "closure_state": "Prior streaming/pagecache changesdeployed. NewPageRankretention39checks+native250resourceimprovement verifiedlocally. Explicit64/32MiB nativeconnectionpolicy20compatibilitychecks+realcachepressure/Weaklifetimes+matchedsmallworkloadcostverifiedlocally; no whole-appplateauclaim. Full original19/resource gates remain open; implementation is included in later deployed lineage.",
+      "closure_state": "Retained pressure/lifetime2, query/recovery15 and source lease/edit5 checks verified against receipts/logs. Current cache/runtime/copy source matches installed shipping build. No new correctness defect established and no duplicate workloads run. Whole-app plateau and EG13 real-edit rewrite/all19 gate requirements remain separate.",
       "dependencies": [],
       "current_generation_retention_evidence": "execution_evidence_20261101.pagerank_generation_retention_20261102",
       "current_resource_evidence": "execution_evidence_20261101.pagerank_actual_sustained_resources_20261102",
@@ -323,7 +323,8 @@
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
       },
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "latest_delivery_reconciliation": "eval/eg04-cache-store-delivery-20261111.json"
     },
     {
       "id": "EG-05",
@@ -9912,27 +9913,34 @@
       "status": "INSTALLED_CORRECTNESS_VERIFIED",
       "no_runtime_source_change": true,
       "remaining": "Sustained-resource acceptance and original broader gates remain unfinished; no additional performance investigation selected."
+    },
+    "eg04_cache_store_delivery_reconciled_20261111": {
+      "receipt": "eval/eg04-cache-store-delivery-20261111.json",
+      "status": "DELIVERED_CORRECTNESS_RECONCILED",
+      "new_tests_run": false,
+      "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-11T09:57:16.035449+00:00",
+  "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG04: repeated reads/store reloads retain bounded caches and do not reopen/shutdown persistent writers unnecessarily; real-edit rewriting stays separately tracked in EG13.",
-      "current_missing_behavior": "Retained cache pressure/Weak lifetime, no-op reopen, PageRank and native workload evidence exists, and code is deployed. Reconcile once against this original correctness contract before selecting any additional action; do not reopen held performance/storage redesign investigations.",
+      "original_requirement": "EG13/S01: one real file edit rewrites no unrelated chunk bodies or vectors; record physical revision identity and embedding calls, covering native and no-vector configurations.",
+      "current_missing_behavior": "The S01 summary remains partial, while later direct/public source evidence may already cover parts of it. Inspect this gate only and identify a concrete uncovered behavior before implementing or replaying; do not broaden into19gate audit or performance experiments.",
       "implementation_files": [
         "crates/engram_index/src/hybrid.rs",
-        "crates/engram_server/src/state.rs"
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_index/tests/source_snapshot_reuse_test.rs"
       ],
       "finite_acceptance": [
-        "Inspect retained current policy/lifetime/no-op behavior receipts and relevant implementation once.",
-        "If original correctness behavior is already covered and shipped, record its disposition without repeating workloads.",
-        "Fix only a specific demonstrated remaining correctness failure; leave whole-app plateau, sustained resource and real-edit rewrite requirements in their own original records.",
-        "Do not expand into additional performance tuning, SSD/kernel attribution or deletion of preexisting folders."
+        "Reconcile existing S01 actual physical revision and embedding-work evidence against current shared source writer paths once.",
+        "Retain covered native/no-vector and inherited-reader cases; no duplicate workload without relevant gap.",
+        "If an original contract gap remains, record exact path and desired-behavior check, implement only necessary fix, verify and deliver.",
+        "Do not equate unchanged document IDs/counts with unchanged physical chunks/vectors; preserve original remaining storage/resource requirements."
       ],
-      "previous_delivery": "eval/eg03-installed-watcher-delivery-20261111.json"
+      "previous_delivery": "eval/eg04-cache-store-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T09:57:16.035449+00:00",
-    "reason": "EG03 finite installed correctness acceptance passed; preserve separate resource shortfall and advance original EG04 cache/store correctness.",
+    "at_utc": "2026-11-11T10:02:05.722454+00:00",
+    "reason": "EG04 original bounded-cache/store correctness already supported by retained behavior and deployed source; avoid repeated workload and advance original source-revision storage gate S01.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9961,8 +9969,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG04: bounded caches and persistent-writer/store lifetimes.",
-    "next_user_visible_deliverable": "Repeated reads/reloads preserve bounded retained caches and avoid unnecessary persistent-writer reopen/shutdown.",
+    "active_original_item": "EG13/S01: unchanged source bodies/vectors survive a real unrelated file edit.",
+    "next_user_visible_deliverable": "Incremental edits retain unrelated physical source revisions and vectors, with exact embedding-work evidence.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -9976,7 +9984,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: installed no-op/noise/edit/rename/delete acceptance passed; exact stored content and cleanup verified, failed fixture setup retained.",
+    "previous_goal_turn_classification": "Progress: EG04 original correctness disposition reconciled from retained receipts/logs and current deployed source; broad resource gates remain open.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
