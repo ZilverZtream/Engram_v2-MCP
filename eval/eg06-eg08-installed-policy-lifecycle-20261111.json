@@ -1,0 +1,113 @@
+{
+  "status": "CURRENT_INSTALLED_POLICY_LIFECYCLE_VERIFIED",
+  "at_utc": "2026-11-11T20:26:01.130876+00:00",
+  "original_requirements": [
+    "EG-06 authored scope and independent source identity",
+    "EG-07 full authored context without model generalization",
+    "EG-08 source-owned lifecycle and stale-authority disclosure"
+  ],
+  "runtime_server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769",
+  "runtime_manifest_sha256": "f4ac63b7b6ede5fcadd9c4cea8532bf8459654002d8e4683a2d2456fa6b81d49",
+  "all_manifest_assets_verified": 215,
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg06-eg08-installed-20261111\\installed\\acceptance.json",
+    "sha256": "786e2c70fcbfc578b9e987c1bfae11d975d15cf1bf92d012ace00ce162f0b54f"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg06-eg08-installed-20261111\\installed\\source-oracle.json",
+    "sha256": "2d241d9a229b1fa14d38a976847f63847edefb45ff7c049dea3564c2603c7e2c"
+  },
+  "wire_manifest": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg06-eg08-installed-20261111\\wire-manifest.json",
+    "sha256": "50c684d09efc620a45a3d6a9e133b343be2c6901a1e1479908bbe6c4be794431"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg06-eg08-installed-20261111\\review.json",
+    "sha256": "a531182779e39775da93c7e9a712d3ea36fa25ff030e51f69b2cf6d107487681"
+  },
+  "current_public_cases": [
+    "same_basename_scopes",
+    "source_owner_protects_manual_write",
+    "qualified_context_and_no_distillation",
+    "invalid_missing_preserve_publication",
+    "changed_source_withholds_authority",
+    "deleted_source_refusal_and_refresh",
+    "narrowing_retires_global_scope",
+    "reorder_remove_preserves_other_source",
+    "corpus_clear_discloses_missing_search",
+    "search_coverage_restored",
+    "historical_export_deletion"
+  ],
+  "review_decisions_checked": 13,
+  "historical_tests": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-publication-boundaries-source-errors-final.json",
+        "sha256": "9ad4d8e9c19b1e41474bf9529ddadaf2fce100c5b3c5ec8b776c5f45af251ecb"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-publication-boundaries-source-errors-final.log",
+        "sha256": "ea7a9a80af7cb2879593dd0806cbea2a4ce5c6ca5efd8e7ab89db3518316f538"
+      },
+      "passed": 30,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-publication-boundaries-source-errors-final.json",
+        "sha256": "d9d5c2ab22976c5376845662f9903f2dfb95565a491de80cd372b1b8c9d032e6"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-publication-boundaries-source-errors-final.log",
+        "sha256": "8ca62efed3ebc7078aa036618b82af423b93d49947549d66a6c1f28ba72c175a"
+      },
+      "passed": 30,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-real-rule-transactions-and-parser-contracts.json",
+        "sha256": "d9043740344d7e560dae191711c286aba3042b3751f28b2683a913ce41f9fb0d"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-eg06-eg08-real-rule-transactions-and-parser-contracts.log",
+        "sha256": "cc4fee4ec428977399b727b6c2ff4731e9fc44aeb6e3c7f6a4a9e2913bee11ee"
+      },
+      "passed": 33,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-real-rule-transactions-and-parser-contracts.json",
+        "sha256": "886a1ab74d691524a89bb498f20314d31ae47825fdfa7b1070bdc56c25df107e"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-eg06-eg08-real-rule-transactions-and-parser-contracts.log",
+        "sha256": "368be9644f70ebd39d899a6983d7d837a88314183a34e09caf7306effcc3da97"
+      },
+      "passed": 33,
+      "scope": "Retained prior native/no-vector deterministic publication, ownership and parser checks; not rerun or represented as a current power-loss test."
+    }
+  ],
+  "demonstrated": [
+    "Same-basename JSON sources preserve distinct origins and maps/billing scopes. Actual review enforces in both intended areas but not maps-old or reports.",
+    "Qualified Markdown including its final exception and original CRLF/Unicode bytes remains complete in text/citation recovery; no automatic mandate is promoted, and authored-policy distillation refuses with an ingest_quality_gates handoff.",
+    "Malformed and missing imports with clear_existing refuse without changing raw rule rows or the observed policy search identities. Supported manual writes cannot overwrite a source-owned rule.",
+    "Changed authored input withholds its old mandate and reports INCOMPLETE policy coverage. Stale imported bytes remain recoverable; deleting/restoring/reimporting the input preserves ownership and restores current coverage.",
+    "Global-to-area narrowing, reordering and removal retire obsolete source rules while preserving another source identical mandate. Whole-corpus clearing retains independent valid registry constraints and explicitly reports missing search coverage until reimport.",
+    "A deleted historical export remains historical evidence. The four independently written Rust source files and selected source head remain unchanged throughout quality-policy updates."
+  ],
+  "runtime_change_required": false,
+  "limits": [
+    "This closes current installed serial policy-lifecycle acceptance, not every original storage gate.",
+    "Original controlled concurrency/CAS/cold-reopen checks are retained evidence; this run did not execute an abrupt-crash or power-loss matrix.",
+    "Only repo_rules ran in pre_commit_review. No complete review, semantic policy compliance, external LLM execution or productivity improvement is claimed.",
+    "Private synthetic sources exercise the original lifecycle contract. Existing real OciusX policy delivery is separately recorded in eval/eg01-installed-policy-delivery-20261111.json."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg06-eg08-installed-20261111",
+    "owned_resources_closed": true,
+    "owned_fixture_removed": true,
+    "retained": "Scripts, wire/source oracle and receipts retained for delivery review. Historical retained fixtures and preexisting folders untouched; no production daemon restart or configuration change."
+  }
+}

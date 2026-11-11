@@ -347,10 +347,12 @@
         "Same-basename authored sources remain distinct; explicit JSON scopes survive promotion and source replacement.",
         "Malformed replacements preserve existing rows; scope dialect compatibility and legacy ambiguities remain explicit."
       ],
-      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
+      "closure_state": "Original implementation is shipped. Current installed public serial acceptance passed11policy lifecycle cases, including exact qualified-context recovery and positive/negative scoped enforcement. Prior126native/no-vector publication/registry/parser checks retained. Abrupt-crash/power-loss and full19storage gates remain separate; no broad usefulness claim.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "closure_state_before_installed_acceptance_20261111": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
+      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json"
     },
     {
       "id": "EG-07",
@@ -360,11 +362,13 @@
       "required_behavior": [
         "Authored prose is not generalized by model distillation; full qualifications and existing raw-output/Markdown contracts survive."
       ],
-      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
+      "closure_state": "Original implementation is shipped. Current installed public serial acceptance passed11policy lifecycle cases, including exact qualified-context recovery and positive/negative scoped enforcement. Prior126native/no-vector publication/registry/parser checks retained. Abrupt-crash/power-loss and full19storage gates remain separate; no broad usefulness claim.",
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "closure_state_before_installed_acceptance_20261111": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
+      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json"
     },
     {
       "id": "EG-08",
@@ -377,10 +381,12 @@
         "Concurrent manual edits and source replacements are protected; interrupted publication converges.",
         "Whole-corpus clear invalidates other sources searchable completeness; generation does not promote stale managed rules."
       ],
-      "closure_state": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
+      "closure_state": "Original implementation is shipped. Current installed public serial acceptance passed11policy lifecycle cases, including exact qualified-context recovery and positive/negative scoped enforcement. Prior126native/no-vector publication/registry/parser checks retained. Abrupt-crash/power-loss and full19storage gates remain separate; no broad usefulness claim.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "closure_state_before_installed_acceptance_20261111": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
+      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json"
     },
     {
       "id": "EG-09",
@@ -9950,25 +9956,39 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_P112_ADP_CONFIDENCE_CONSUMPTION",
-      "original_requirement": "TODO P1-12: consume extraction confidence metadata in ADP Gate1, rather than treating weakly resolved and verified relationships alike.",
-      "selected_tool": "autonomous_decision_gate extraction-confidence evidence",
-      "observed_source_gap": "Installed3ad27e42 skipped Gate1 for three independently authored indexed targets. The separate SQL confidence call returned0.685 for the C# SQL source. Current orchestration inspects only six file-node adjacency counts, derives0.55..0.95 from their presence and ignores method-edge confidence metadata. The baseline overall Allow was shadow-mode policy, not evidence of enforced allowance.",
+      "status": "DELIVERED_CURRENT_INSTALLED_POLICY_LIFECYCLE_ACCEPTANCE",
+      "original_requirement": "EG-06/07/08: authored policy scope, context and source-owned lifecycle survive import, refresh, missing input and attempted generalization.",
+      "selected_tools": [
+        "ingest_quality_gates",
+        "list_repo_rules",
+        "get_chunk",
+        "search_memory",
+        "pre_commit_review",
+        "distill_quality_gates"
+      ],
+      "observed_gap": "Original native/no-vector publication, registry and parser checks were retained, but these findings have no current_installed_delivery. The installed EG01 case explicitly did not mutate policy sources. Current product behavior must be observed before choosing any code fix.",
+      "existing_evidence": [
+        "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
+        "eval/eg01-installed-policy-delivery-20261111.json",
+        "crates/engram_server/tests/ingest_clear_existing_tests.rs",
+        "crates/engram_server/tests/ingest_clear_existing_tests/publication_behavior.rs"
+      ],
       "implementation_files": [
-        "crates/engram_server/src/services/extraction_evidence.rs",
-        "crates/engram_server/src/services/evidence_orchestration.rs",
-        "crates/engram_server/src/services/autonomous_decision_service.rs",
-        "crates/engram_server/build.rs"
+        "crates/engram_server/src/handlers/quality_gate_tools.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_index/src/quality_gates.rs",
+        "crates/engram_server/src/services/project_service.rs"
       ],
       "finite_acceptance": [
-        "Gate1 consumes valid producer confidence on observed semantic edges of exact target files, including method nodes. Use selected source revision membership and explicit bounded coverage; preserve missing metadata/endpoints/revisions as gaps.",
-        "A weak observed score cannot be hidden by many strong edges or a higher caller override. Incomplete/no evidence forces abstention for this gate. Valid low caller evidence can still deny; empty-target legacy caller-only operation remains explicit. Reject non-finite/out-of-range caller scores.",
-        "Expose bounded source/target/kind/resolution witnesses and coverage in JSON and text; preserve them in immutable decision reports and evidence hashes. Gate implementation identity includes the new scorer.",
-        "Relevant no-vector/native behavior checks and actual candidate/installed public calls distinguish independently authored resolved and unresolved source cases; validate unknown metadata, caps, stale revisions, low/high override and rollout/kill-switch compatibility. Build/deploy and advance; no graph extractor, CodeMap, Blast Radius or other-gate redesign."
+        "Using the current installed native binary and one owned private project, independently authored same-basename JSON sources retain separate origins and explicit scopes; similarly prefixed siblings do not inherit enforcement. Exact original qualifications remain recoverable.",
+        "Refresh/narrow/reorder/remove one source without retiring another source identical mandate. Malformed or missing replacements with clear_existing must refuse before destructive publication. Actual public rule inventory, review and recovery responses establish the outcome.",
+        "Changed/deleted authored input withholds authority and exposes incomplete coverage until refresh; deleted historical finding export remains valid historical evidence. Whole-corpus clear preserves independent registry authority while disclosing missing search coverage.",
+        "Authored distillation refuses before any model call and recommends context-preserving ingestion. Supported manual rule changes cannot seize source ownership. Existing deterministic race/CAS/cold-reopen receipts remain separate from current public serial acceptance; do not claim power-loss proof.",
+        "If these finite public checks pass, record the installed behavior without another product rewrite or rebuild. If they reveal a concrete defect, fix only that original requirement, run relevant regression tests, build/deploy and recheck affected cases. Preserve original broader unfinished gates and advance."
       ],
-      "remaining_scope": "Producer scores do not establish parser recall, runtime behavior, working-tree freshness or overall edit safety. Broader P0-4, EG14 and original backlog remain open."
+      "constraints": "No production policy/source mutation, new pilot, broad audit, CodeMap/Blast work or TODO16c substitution. Reuse existing owned MCP transport; close processes/readers/database handles before new fixture cleanup."
     },
-    "at_utc": "2026-11-11T20:15:08.730693+00:00",
+    "at_utc": "2026-11-11T20:26:01.130876+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9998,8 +10018,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P1-12 ADP confidence consumption delivered; advance the next original requirement.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "EG-06/07/08 installed policy lifecycle: selected acceptance delivered",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not repeat installed policy lifecycle or CodeMap/Blast work without a concrete regression.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10013,7 +10033,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: ADP confidence consumption built, candidate and installed public evidence verified, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: current installed policy lifecycle passed11public cases;13retained positive/negative reviews verified actual gate completion; exact source bytes and head preserved; owned fixture removed. No product rewrite/rebuild required.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12446,7 +12466,32 @@
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "receipt": "eval\\p112-adp-confidence-delivery-20261111.json",
       "source_commit": "a9b357d60406ab737c24d318625d6fdf6e543ba1",
-      "installed_server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769"
+      "installed_server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769",
+      "delivered_contract": {
+        "status": "DELIVERED_P112_ADP_CONFIDENCE_CONSUMPTION",
+        "original_requirement": "TODO P1-12: consume extraction confidence metadata in ADP Gate1, rather than treating weakly resolved and verified relationships alike.",
+        "selected_tool": "autonomous_decision_gate extraction-confidence evidence",
+        "observed_source_gap": "Installed3ad27e42 skipped Gate1 for three independently authored indexed targets. The separate SQL confidence call returned0.685 for the C# SQL source. Current orchestration inspects only six file-node adjacency counts, derives0.55..0.95 from their presence and ignores method-edge confidence metadata. The baseline overall Allow was shadow-mode policy, not evidence of enforced allowance.",
+        "implementation_files": [
+          "crates/engram_server/src/services/extraction_evidence.rs",
+          "crates/engram_server/src/services/evidence_orchestration.rs",
+          "crates/engram_server/src/services/autonomous_decision_service.rs",
+          "crates/engram_server/build.rs"
+        ],
+        "finite_acceptance": [
+          "Gate1 consumes valid producer confidence on observed semantic edges of exact target files, including method nodes. Use selected source revision membership and explicit bounded coverage; preserve missing metadata/endpoints/revisions as gaps.",
+          "A weak observed score cannot be hidden by many strong edges or a higher caller override. Incomplete/no evidence forces abstention for this gate. Valid low caller evidence can still deny; empty-target legacy caller-only operation remains explicit. Reject non-finite/out-of-range caller scores.",
+          "Expose bounded source/target/kind/resolution witnesses and coverage in JSON and text; preserve them in immutable decision reports and evidence hashes. Gate implementation identity includes the new scorer.",
+          "Relevant no-vector/native behavior checks and actual candidate/installed public calls distinguish independently authored resolved and unresolved source cases; validate unknown metadata, caps, stale revisions, low/high override and rollout/kill-switch compatibility. Build/deploy and advance; no graph extractor, CodeMap, Blast Radius or other-gate redesign."
+        ],
+        "remaining_scope": "Producer scores do not establish parser recall, runtime behavior, working-tree freshness or overall edit safety. Broader P0-4, EG14 and original backlog remain open."
+      }
+    },
+    "eg06_eg08_installed_lifecycle_20261111": {
+      "status": "CURRENT_INSTALLED_POLICY_LIFECYCLE_VERIFIED",
+      "receipt": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json",
+      "runtime_server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769",
+      "runtime_change_required": false
     }
   }
 }
