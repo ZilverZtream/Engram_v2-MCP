@@ -1,0 +1,90 @@
+{
+  "status": "SELECTED_CURRENT_INSTALLED_PAIR_PROCEDURES_VERIFIED",
+  "at_utc": "2026-11-11T15:44:52.652031+00:00",
+  "original_requirement": "S18: Binary downgrade has a verified compatible materialization/recovery path, vector coverage and a successful subsequent edit.",
+  "runtime_changes": false,
+  "production_downgrade_performed": false,
+  "binaries": {
+    "new": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "sha256": "05609ecfe805f3e3943ed8c406a1c5a0376363e480305e2e4ccc41b49d4ad0dd"
+    },
+    "old": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c2586c4f0eae44c3b39b1e7861a5b24a\\engram_server.exe",
+      "sha256": "b762d3d4a10b2b3a722fa90be07ae957c9d72c99f78609b57319e02e4e366bdd"
+    }
+  },
+  "unchanged_original_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_compatibility_workload.py",
+    "sha256": "44e482ffb6dfd8b4aeeb6b86764309ef5ce2e157c9ba0a81f8fb2432addb5f23"
+  },
+  "policy_preflight": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\downgrade_policy_preflight.py",
+    "sha256": "45f115a9f2478c3c5d8c3bf015d0e8c5b7bb13fafa8b170caaa44fc54bebed71"
+  },
+  "resource_helper": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\edit_resource_workload.py",
+    "sha256": "4db263193a6f8b86f97736fa0aa99a484059dc3bf321f18dc3809f3fcee98fa0"
+  },
+  "historical_three_mode_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s18-final-three-modes-20261104.json",
+    "sha256": "12c2f1c6aa75c980cc83070b737bc7ffb524d9aaae38ac788c0ceb438f60a989"
+  },
+  "modes": [
+    {
+      "mode": "source-roundtrip",
+      "report": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s18-installed-compatibility-20261111\\source-roundtrip\\report.json",
+        "sha256": "50dc9c5f381157cc35f25dbd8a797edfc25272c7ba429f1a8ae46893add7637a"
+      },
+      "outcome": "candidate_procedure_passed",
+      "seconds": 5.681038700044155,
+      "children": 3,
+      "all_returncodes_zero": true,
+      "fixture_removed": true,
+      "readers_joined": true,
+      "old_child_started": true
+    },
+    {
+      "mode": "representable-policy-roundtrip",
+      "report": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s18-installed-compatibility-20261111\\representable-policy-roundtrip\\report.json",
+        "sha256": "722162e5c6a5c5664cb0f8eb784c506d79856ac4f4872f94a5211d4f4a8038a9"
+      },
+      "outcome": "candidate_procedure_passed",
+      "seconds": 4.553687700012233,
+      "children": 3,
+      "all_returncodes_zero": true,
+      "fixture_removed": true,
+      "readers_joined": true,
+      "old_child_started": true
+    },
+    {
+      "mode": "adopted-authority-refusal",
+      "report": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s18-installed-compatibility-20261111\\adopted-authority-refusal\\report.json",
+        "sha256": "6e732d3f9a6d0b1dfc7fc63326fa1b8aca0e98b02cac14b4198241027c323959"
+      },
+      "outcome": "unsupported_adopted_authority_refusal_passed",
+      "seconds": 2.1101169000030495,
+      "children": 1,
+      "all_returncodes_zero": true,
+      "fixture_removed": true,
+      "readers_joined": true,
+      "old_child_started": false
+    }
+  ],
+  "demonstrated_behavior": "Exact installed/retained-old pair passes source materialization, old read/edit, explicit return refusal/full repair and subsequent edit; recognized manual/ordinary policy raw bytes survive old writer; adopted legacy aliases refuse before old launch and preserve authority.",
+  "coverage_scope": "Eight fixture source files; independent expected declaration per file is checked in lexical and native results, including after old edit, current full repair and next edit. This is not exhaustive recovery of every chunk body.",
+  "limits": "Operator/harness procedure for exact05609ecf/b762d3d4 binaries only. Direct old executable launch bypasses the preflight. No application-enforced minimum version, arbitrary-version/knowledge/history compatibility, crash guarantee or production data transition is claimed.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s18-installed-compatibility-20261111",
+    "fixtures_removed": 3,
+    "server_children_reaped": 7,
+    "all_server_returncodes_zero": true,
+    "readers_joined": true,
+    "process_handles_closed_by_original_driver": true,
+    "retained": "Reports, logs, source contract and resource ownership record; exact old binary stays in its preexisting complete installation backup."
+  },
+  "full_backlog_complete": false
+}
