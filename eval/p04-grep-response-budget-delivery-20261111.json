@@ -1,0 +1,65 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T17:31:07.925713+00:00",
+  "original_requirement": "TODO P0-4: caller response budgets, truncation metadata and recoverable pagination on hot tools, including structured JSON output.",
+  "implemented": "Optional grep_project max_tokens bounds complete UTF-8 Markdown or serialized JSON reply text; whole-match continuation within the same max_results window retains warnings, coverage, freshness and recovery actions. Default Markdown clipping/approximate limit is preserved with explicit next offset.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\baseline-v2\\observation.json",
+      "sha256": "f5616cd4ab1b8c8a58ac17a00c0715927d4a64d935baf4756aaa12cd23fde6cc"
+    },
+    "driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\baseline.py",
+      "sha256": "34ef35bc60dd08bf0bddcd7722b238d0c3b947daccccdc36e630a85977d46a81"
+    },
+    "behavior": "Actual installed Markdown5254bytes hid11matches; JSON46781bytes returned all12. Both rejected max_tokens and offset; independent current-source excerpt/hash recovery succeeded.",
+    "initial_driver_correction": "First baseline incorrectly assumed Markdown>8192bytes; retained failed run and exact v1driver. Same fixture then checked against4096-byte caller budget; no product change to establish baseline.",
+    "initial_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\baseline\\observation.json",
+      "sha256": "5ea6791d2f5e29d6ad7fbeb190e95f818139b14027d56737346594d9184cccaa"
+    },
+    "initial_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\baseline-v1.py",
+      "sha256": "cdb0e154c26d1d3733ed174aea8f14727a1469d39d8d2bc19b47d4bb5b49e447"
+    }
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\grep-final-result.json",
+          "sha256": "59adc8496a7bfbfdebffaecbf88c1ad2cbfa8cd340f23284132d61ebb3803cfd"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\grep-final.log",
+          "sha256": "c50116bb59859b4c37fce117483493757dd740dcd503337cbc644e5d2f3d0225"
+        },
+        "passed": 25
+      }
+    ],
+    "earlier_pass": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\grep-no-vector-result.json",
+      "sha256": "3efa36a5566427be52a0c6902cb58e336b7cff25a4e3f01b3fff9cb0dacafd01"
+    },
+    "feature_scope": "25 no-default-features integration checks: existing24grep freshness/recovery/filter/regex checks and new real indexed+working-tree Markdown/JSON budget/window/recovery contract. Native candidate/installed MCP verification remains pending."
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\source-review.json",
+    "sha256": "7f573a226d31f20dea3524ef209f8ead9cb9621c16935c752693b0896b6957e9"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/grep_tools.rs": "7a372f2198ceaff2831817fc8750894ed57379447cceb899b69569de053cc6c6",
+    "crates/engram_server/src/models/requests.rs": "d900248418c52b4936530069bd27fafcd52c3544524d71285b51857584abd427",
+    "crates/engram_server/src/tools.rs": "e760cafb350ea7b641c2122a454a0c89160c9924347d747bb7172393e3e52bd2",
+    "crates/engram_server/tests/grep_freshness_tests.rs": "25f22b3c47444a9641ca00ec7496ec9f2bf7bbd4e2c19f3e45122fad082f810c",
+    "crates/engram_server/src/handlers/grep_tools/response_budget.rs": "5eceefb99ef61f499e788b3b8e47efc2b4f57e1cb2381564458be1d9e3c4b2d1",
+    "crates/engram_server/tests/grep_response_budget_tests.rs": "f5e3945237cb76fd8901d8bb20ba0d84673fb80a8711b229d9f22bcc92f72f1a"
+  },
+  "remaining": "Build/deploy and verify native candidate/installed public grep behavior. Other tools, provider-specific token counts, uniform envelopes beyond grep, durable cursors and full P0-4 remain unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111",
+    "completed_test_fixtures_closed_and_removed": true,
+    "baseline_owned_fixtures_closed_and_removed": true,
+    "retained": "Logs, source reviews and helpers retained here. Prior search-budget interrupted fixture remains retained after policy-rejected cleanup; this case does not touch it."
+  }
+}

@@ -15,6 +15,8 @@ use crate::handlers::validate_project_id;
 use crate::models::requests::GrepProjectRequest;
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
+#[path = "grep_tools/response_budget.rs"]
+mod response_budget;
 
 /// Read every indexed file's recorded (size, mtime) from the code graph.
 ///
@@ -197,6 +199,7 @@ impl Engram {
         req: GrepProjectRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        response_budget::byte_limit(req.max_tokens)?;
         if req.regex {
             engram_index::grep::compile_regex(&req.pattern, req.case_sensitive, req.multiline)
                 .map_err(|error| McpError::invalid_params(
@@ -327,7 +330,7 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
-        let mut body = if req.output_json {
+        let json = if req.output_json {
             let mut value = serde_json::to_value(&result)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             value["project_id"] = serde_json::json!(req.project_id);
@@ -373,21 +376,13 @@ impl Engram {
                 }
             }
             if has_current_source { value["current_source_recovery_scope"]=serde_json::json!(CURRENT_SOURCE_SCOPE); }
-            serde_json::to_string(&value)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            Some(value)
         } else {
-            render_markdown(
-                &result,
-                &req.pattern,
-                req.regex,
-                &req.project_id,
-                &req.namespace,
-                max_results,
-            )
+            None
         };
-        if !req.output_json {
-            body.push_str(&self.freshness_footer(&req.project_id, generation).await);
-        }
+        let freshness = if req.output_json { String::new() }
+            else { self.freshness_footer(&req.project_id, generation).await };
+        let body = response_budget::render(&result, &req, json, &freshness)?;
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 }
@@ -511,14 +506,22 @@ fn current_source_recovery(project: &str, namespace: &str, path: &str, line: u32
             "file_path":path,"context_lines":0,"output_json":true}}}))
 }
 
-fn render_markdown(
+struct MarkdownParts {
+    header: String,
+    hits: Vec<String>,
+    footer: String,
+}
+
+fn markdown_parts(
     r: &engram_index::grep::GrepResult,
     pattern: &str,
     regex: bool,
     project_id: &str,
     namespace: &str,
     result_limit: usize,
-) -> String {
+    offset: usize,
+    match_bytes: usize,
+) -> MarkdownParts {
     use std::fmt::Write as _;
     let mut out = String::with_capacity(1024 + r.matches.len() * 128);
     let tier_label = match r.tier_used {
@@ -567,7 +570,7 @@ fn render_markdown(
              inspect eligible working-tree files; freshness off and knowledge namespaces use the index. \
              Check the scope, exclusions and coverage warnings before concluding the string is absent.\n",
         );
-        return out;
+        return MarkdownParts { header: out, hits: Vec::new(), footer: String::new() };
     }
     out.push_str("## Matches\n\n");
     // A hit inside a minified/generated line used to dump the ENTIRE line —
@@ -581,18 +584,15 @@ fn render_markdown(
         let clipped: String = s.chars().take(MAX).collect();
         std::borrow::Cow::Owned(format!("{clipped}…[+{} chars]", s.chars().count() - MAX))
     }
-    // Byte budget: even under the match-count cap, a pattern hitting many long
-    // lines can still emit a large block, and a review makes dozens of greps
-    // whose output accumulates in the model's request until it overflows (the
-    // HTTP 400 this guards against). Stop rendering matches past the budget and
-    // tell the caller how to get the rest.
-    const MATCHES_BUDGET: usize = 3_000;
-    let matches_start = out.len();
-    let mut shown = 0usize;
-    for m in &r.matches {
-        if shown > 0 && out.len() - matches_start > MATCHES_BUDGET {
-            break;
-        }
+    let header = out;
+    let mut hits = Vec::with_capacity(r.matches.len());
+    let mut rendered_bytes = 0usize;
+    for m in r.matches.iter().skip(offset) {
+        // A complete prefix whose records alone exceed the reply budget can
+        // never fit after mandatory metadata is added. Retain the first record
+        // even when oversized so the caller receives an actionable minimum.
+        if !hits.is_empty() && rendered_bytes > match_bytes { break; }
+        let mut out = String::new();
         for (i, before) in m.context_before.iter().enumerate() {
             let ln = (m.line as usize).saturating_sub(m.context_before.len() - i);
             let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(before));
@@ -632,19 +632,10 @@ fn render_markdown(
             let _ = writeln!(out, "    {}:{}: {}", m.file_path, ln, clip(after));
         }
         out.push('\n');
-        shown += 1;
+        rendered_bytes += out.len();
+        hits.push(out);
     }
-    if shown < r.matches.len() {
-        let _ = writeln!(
-            out,
-            "\n_… {} more match(es) from this result not shown (Markdown output budget reached). \
-             Repeat the same request with `output_json: true` to recover these matches and their \
-             retrieval arguments. Search/result caps and coverage warnings still apply; JSON does \
-             not establish exhaustive corpus coverage. Narrow the pattern or pass `path_prefix` \
-             when the search itself is capped._",
-            r.matches.len() - shown
-        );
-    }
+    let mut out = String::new();
     if namespace=="memory" { let _=writeln!(out,"\n{CURRENT_SOURCE_SCOPE}"); }
-    out
+    MarkdownParts { header, hits, footer: out }
 }

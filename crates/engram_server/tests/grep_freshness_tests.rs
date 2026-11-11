@@ -286,6 +286,8 @@ fn grep_request(pid: &str, pattern: &str, freshness: &str) -> engram_server::Gre
         context_before: 0,
         context_after: 0,
         max_results: 200,
+        offset: 0,
+        max_tokens: None,
         freshness: freshness.to_string(),
         namespace: "memory".into(),
         output_json: false,

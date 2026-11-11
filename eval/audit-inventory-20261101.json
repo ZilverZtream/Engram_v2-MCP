@@ -9950,38 +9950,28 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_VECTOR_CONTRACT_FULL_P04_PARTIAL",
-      "original_requirement": "TODO P0-4: aggregate response budgets, explicit truncation and recoverable pagination on remaining hot tools.",
-      "selected_tool": "vector_search",
-      "observed_source_gap": "VectorSearchRequest exposes top_k and max_content_chars but no aggregate max_tokens or offset. handle_vector_search concatenates selected hit content and backend warning/freshness without a caller response budget. Published current tools/list schema is retained in the preceding search-budget acceptance wire.",
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "TODO P0-4: caller response budgets, truncation metadata and recoverable pagination on hot tools, including structured JSON output.",
+      "selected_tool": "grep_project",
+      "baseline": "baseline-v2/observation.json: actual installed Markdown5254bytes with11matches hidden, JSON46781bytes with all12matches; exact current-source recovery checked against independent file contents/hash. Both max_tokens and offset rejected. First baseline incorrectly assumed Markdown exceeded8KiB; failed receipt and exact driver preserved, fixture cleaned.",
       "implementation_files": [
         "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/handlers/search_tools/response_budget.rs",
+        "crates/engram_server/src/handlers/grep_tools.rs",
+        "crates/engram_server/src/handlers/grep_tools/response_budget.rs",
         "crates/engram_server/src/tools.rs"
       ],
       "finite_acceptance": [
-        "First demonstrate actual installed vector_search aggregate reply size against independently written Unicode source; verify baseline citation recovery and rejection of unsupported budget/offset parameters.",
-        "Optional max_tokens uses the same explicitly estimated ceil(UTF-8 text bytes / 4), counting all returned headers, complete hit records, warnings, recovery actions, pagination and freshness. Reject unusable/overflow budgets with actionable guidance.",
-        "Offset resumes within the same bounded top_k ranking window; callers keep query, filters, top_k and MMR fixed. Budget omissions must not skip hits. Report the window end and how to widen/restart up to the existing 200 cap; do not imply completeness beyond that window or snapshot mutable ranking.",
-        "Preserve the existing retrieval/MMR candidate pool while paging: never widen engine top_k per offset, since doing so can change MMR selection and skip or duplicate results. Default retrieval behavior stays unchanged.",
-        "Returned hits expose complete get_chunk recovery arguments, including project_id, namespace and doc_id. Exact citation recovery matches independent source bytes/hash; source-edit recovery requests live repository guidance.",
-        "Focused behavior checks cover lexical-only/no-hit refusal, invalid/cap offsets, minimum-budget retry, and actual native vector paging with MMR both off and on. Build, verify candidate and installed public behavior, deploy, record evidence, then advance."
+        "Optional max_tokens estimates ceil(UTF-8 complete reply-text bytes/4). Count all Markdown or serialized JSON metadata, warnings, recovery actions, context and freshness. Preserve valid complete JSON and whole rendered match records.",
+        "Offset continues within the same bounded max_results search window. Keep pattern, filters, freshness, context and max_results fixed; do not expand candidate scans or silently turn a bounded grep into exhaustive search. Report returned count, omitted matches, next offset and window end; mutable source is not snapshotted across calls.",
+        "Preserve coverage, result-limit and stale/overlay warnings from the entire requested window when budget omits matches. Retain current-source and indexed-citation actions and their scope caveats. A budget too small for mandatory metadata plus one match gives an actionable minimum; empty pages and invalid budgets are bounded/refused correctly.",
+        "Default Markdown retains its existing per-line clipping and approximate3000-byte matches limit, while exposing continuation for hidden matches. Explicit max_tokens replaces that approximate match limit with a whole-reply bound. Unbudgeted JSON still returns all requested matches.",
+        "Actual owned fixtures prove complete-window reconstruction and independent source recovery in Markdown and JSON; include changed/new working-tree matches and stale coverage warnings. Verify focused regressions, build/deploy, run candidate and installed MCP checks, record evidence and advance."
       ],
-      "remaining_scope": "Other tools, uniform output_json envelopes, provider-specific token counts, durable snapshot cursors and full P0-4 remain unfinished. No CodeMap/Blast improvement, model replay, broad audit or performance investigation is included.",
-      "previous_delivery": "eval/p04-search-response-budget-delivery-20261111.json; source a7409fe; evidence d2cd2f5; installed b5b9640c32ba2ef9e58c7383446888f5400671bae736f0416ef172c42ac0664c",
-      "baseline_observation": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\baseline\\observation.json",
-        "sha256": "b8a18d88de53cebd36fb5dd1efc0c10e87194363a61ee5d5dd8ab8bb8c95c386",
-        "reply_bytes": [
-          16080,
-          16078
-        ],
-        "recovery": "All eight returned bodies recovered exactly in both MMR modes; installed schema rejects max_tokens and offset."
-      }
+      "remaining_scope": "Other tools, provider-specific tokenizer counts, uniform envelopes beyond grep, durable snapshot cursors and full P0-4 remain unfinished. Source-scan allocation/performance work and CodeMap/Blast remain outside this delivery.",
+      "previous_delivery": "Vector budget source18a6e87, deployed evidencea482cce; installed42ddcd36991959182aad4fdeda18e9fa16ce2b03dfd211757f7273af784f4f57"
     },
-    "at_utc": "2026-11-11T17:12:38.360290+00:00",
-    "reason": "search_memory selected budget delivery is deployed; vector_search still lacks an aggregate budget and continuation despite exposing large per-hit limits. Confirm actual output against independent source before implementation.",
+    "at_utc": "2026-11-11T17:31:07.925713+00:00",
+    "reason": "Installed grep Markdown hides11matches behind an approximate limit with no offset; JSON returns46781bytes without a caller budget. Existing recovery works and must be preserved.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10010,8 +10000,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 vector response budget: selected contract delivered; broader response-budget requirements remain open.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "TODO P0-4: grep_project whole-reply Markdown/JSON budgets and recoverable match-window pagination.",
+    "next_user_visible_deliverable": "Bound complete grep replies and retain warning/recovery metadata across match pages, then verify and deploy.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10025,7 +10015,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: vector response budget built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: grep Markdown/JSON budgets and continuation implemented;25focused checks passed after review fix. Deployment pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12418,6 +12408,11 @@
       "full_p04_closed": false,
       "source_commit": "18a6e87400318b939b2669c6c2fd2a0182a73daa",
       "installed_server_sha256": "42ddcd36991959182aad4fdeda18e9fa16ce2b03dfd211757f7273af784f4f57"
+    },
+    "p04_grep_response_budget_20261111": {
+      "receipt": "eval\\p04-grep-response-budget-delivery-20261111.json",
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "full_p04_closed": false
     }
   }
 }
