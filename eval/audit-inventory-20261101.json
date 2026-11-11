@@ -9950,7 +9950,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_DOCUMENT_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4: optional max_tokens across tool responses, structured output, explicit truncation and recoverable pagination.",
       "selected_tool": "get_chunk and read_memory_bank complete document responses",
       "observed_source_gap": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
@@ -9969,7 +9969,7 @@
       ],
       "remaining_scope": "Broader P0-4 tools, full uniform envelope rollout and durable corpus cursors remain open. No retrieval tuning or CodeMap/Blast work."
     },
-    "at_utc": "2026-11-11T19:04:04.288531+00:00",
+    "at_utc": "2026-11-11T19:22:41.472872+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9999,8 +9999,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 document reply budgets and structured recovery",
-    "next_user_visible_deliverable": "Bound get_chunk/read_memory_bank complete replies and recover exact omitted stored content.",
+    "active_original_item": "P0-4 document response: selected contract delivered; broader response-budget requirements remain open.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10014,7 +10014,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: document response budgets implemented;16focused checks passed. Public acceptance and deployment pending.",
+    "previous_goal_turn_classification": "Progress: document responses built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12433,9 +12433,11 @@
       "status": "OBSERVED_MISSING_DOCUMENT_BUDGETS"
     },
     "p04_document_response_20261111": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "receipt": "eval\\p04-document-response-delivery-20261111.json",
-      "full_p04_closed": false
+      "full_p04_closed": false,
+      "source_commit": "6da396f070e744d416704d679c8755ef9df77541",
+      "installed_server_sha256": "3ad27e427db6c5bcd3a9477fc6f1b205e70b1a6b8f0e0f65df6fcb11058ef3c5"
     }
   }
 }

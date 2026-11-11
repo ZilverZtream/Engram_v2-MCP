@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T19:04:04.288531+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T19:22:41.472872+00:00",
   "original_requirement": "TODO P0-4: consistent structured replies, budgets, truncation metadata and recoverable pagination.",
   "implemented": "Root max_tokens and output_json on get_chunk/read_memory_bank. Shared complete UTF8 reply accounting retains source freshness, provenance and guidance. Raw document pages return literal hash-bound citation actions; open-ended citations page whole lines or code points. Explicit ranges, quote proofs and transformed content remain indivisible and expose actionable minimum budgets.",
   "demonstrated_failure": {
@@ -89,10 +89,484 @@
     "crates/engram_server/tests/stored_citation_tests.rs": "e5f6a3912f7a4943557e3137aec6fc96401102810acd5890b18d0d35d8ed83d1",
     "crates/engram_server/tests/vector_search_score_tests.rs": "deb5ae7706bb69bde1b967605cff5b1bda317031222146be967c0a7bbe9217ab"
   },
-  "remaining": "Build/deploy and verify public candidate/installed replies against independent source and memory bytes. Other tools, durable corpus cursors, provider tokens and full P0-4 remain open.",
+  "remaining": "Selected get_chunk/read_memory_bank complete reply budgets and structured recovery delivered. Other tools, uniform envelopes across the full surface, provider-specific tokenization, durable corpus cursors and full P0-4 remain unfinished.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111",
     "test_and_baseline_fixtures_closed_and_removed": true,
-    "retained": "Baseline, test logs, helper scripts and review retained as evidence. Earlier policy-rejected cleanup fixture untouched."
+    "retained": "Baseline, test logs, helper scripts and review retained as evidence. Earlier policy-rejected cleanup fixture untouched.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-869c76b39e60432c84ce0ad7d7c6e60c",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "6da396f070e744d416704d679c8755ef9df77541",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-shipping-20261111.json",
+      "sha256": "88a05c3f58de395cfc3c58331df478c7d7a6698fc0dbf8a2d8bdd919625f98bd"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\pair.json",
+      "sha256": "1d91dc36e58553255b6ec50b095abb2e70ba065c7f93e947221f01fd1fb49490"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\helper-review.json",
+      "sha256": "bd8b322deedd8b285f1cc88f2fe0400bcfd2a6dc546ec9dd3449014764c7c3e8"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\candidate\\acceptance.json",
+      "sha256": "64821884cbda4959d745c06454f18aac711e8d60ebb656a028d673ffd6c0269b"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\installed\\acceptance.json",
+      "sha256": "f330188d9f59d6e4ee14075ee13b12f34ffb9451af29172e168ee2f1a8a8649d"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\normal\\acceptance.json",
+      "sha256": "0599e673c486975dba8d1c4acbf0f21f22701ad663fc1d59b114727ab4ceb8f4"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\release-gates.json",
+      "sha256": "a1f7bfc4ee92e9de6bfce23e6ddb4af18048b6fc3d58bfdcab64a499a73a1f6d"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\install-result.json",
+      "sha256": "c1d348c2245b5abd6772bb3b74fa7adb3917107a51213015d876d96a35cfdb5d"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-config-hold-20261111.json.released.json",
+      "sha256": "dfb78e4428d4bdf36ad5864999bca979c040e2ed5f7fcd7c99eb27c8c5b2a6ed"
+    },
+    "server_sha256": "3ad27e427db6c5bcd3a9477fc6f1b205e70b1a6b8f0e0f65df6fcb11058ef3c5",
+    "manifest_sha256": "11021b4b262312ea933b51eb0ab9443f3a258e970fc761da6301aa50e810413e",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "demonstrated_public_behavior": {
+    "runs": {
+      "candidate": [
+        {
+          "tool": "get_chunk",
+          "identity": {
+            "project_id": "2c22dfc3-3b84-48fc-891d-efafa8be096f",
+            "namespace": "memory",
+            "doc_id": "7852d5903d3f92a85828a70bea96525d9263564f38fbdb1714d61e08c0566212"
+          },
+          "stored_bytes": 1964,
+          "unbudgeted_text_bytes": 2294,
+          "modes": [
+            {
+              "output_json": false,
+              "pages": [
+                2520
+              ],
+              "minimum": 224,
+              "minimum_reply_bytes": 896,
+              "reconstructed_hash": "blake3-raw-utf8:e7527b470abd4f21ec85ff375c3084391ebde914e032c6de35590906d52cb046"
+            },
+            {
+              "output_json": true,
+              "pages": [
+                3219
+              ],
+              "minimum": 347,
+              "minimum_reply_bytes": 1388,
+              "reconstructed_hash": "blake3-raw-utf8:e7527b470abd4f21ec85ff375c3084391ebde914e032c6de35590906d52cb046"
+            }
+          ],
+          "line_page_bytes": [
+            3396
+          ],
+          "explicit_range_minimum": 355
+        },
+        {
+          "tool": "read_memory_bank",
+          "identity": {
+            "project_id": "2c22dfc3-3b84-48fc-891d-efafa8be096f",
+            "section": "budget"
+          },
+          "stored_bytes": 114000,
+          "unbudgeted_text_bytes": 114209,
+          "modes": [
+            {
+              "output_json": false,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                6505
+              ],
+              "minimum": 176,
+              "minimum_reply_bytes": 704,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            },
+            {
+              "output_json": true,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8192,
+                8192,
+                7954
+              ],
+              "minimum": 295,
+              "minimum_reply_bytes": 1180,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            }
+          ],
+          "line_page_bytes": [
+            8181,
+            8187,
+            8188,
+            8188,
+            8188,
+            8188,
+            8190,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8192,
+            8150,
+            8022
+          ],
+          "explicit_range_minimum": 367
+        },
+        {
+          "tool": "read_memory_bank",
+          "identity": {
+            "project_id": "__user__",
+            "section": "budget"
+          },
+          "stored_bytes": 114000,
+          "unbudgeted_text_bytes": 114209,
+          "modes": [
+            {
+              "output_json": false,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8189,
+                8192,
+                8191,
+                8192,
+                8192,
+                8192,
+                8192,
+                5962
+              ],
+              "minimum": 169,
+              "minimum_reply_bytes": 676,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            },
+            {
+              "output_json": true,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8192,
+                8191,
+                8192,
+                8192,
+                8189,
+                8192,
+                8191,
+                8192,
+                8192,
+                8189,
+                8192,
+                8191,
+                8192,
+                8192,
+                8192,
+                7399
+              ],
+              "minimum": 281,
+              "minimum_reply_bytes": 1124,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            }
+          ],
+          "line_page_bytes": [
+            8153,
+            8159,
+            8160,
+            8160,
+            8160,
+            8160,
+            8162,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8164,
+            8165,
+            7951
+          ],
+          "explicit_range_minimum": 360
+        }
+      ],
+      "installed": [
+        {
+          "tool": "get_chunk",
+          "identity": {
+            "project_id": "4a54f0be-e84e-4405-8c56-34bb1e5eb445",
+            "namespace": "memory",
+            "doc_id": "7852d5903d3f92a85828a70bea96525d9263564f38fbdb1714d61e08c0566212"
+          },
+          "stored_bytes": 1964,
+          "unbudgeted_text_bytes": 2294,
+          "modes": [
+            {
+              "output_json": false,
+              "pages": [
+                2520
+              ],
+              "minimum": 224,
+              "minimum_reply_bytes": 896,
+              "reconstructed_hash": "blake3-raw-utf8:e7527b470abd4f21ec85ff375c3084391ebde914e032c6de35590906d52cb046"
+            },
+            {
+              "output_json": true,
+              "pages": [
+                3219
+              ],
+              "minimum": 347,
+              "minimum_reply_bytes": 1388,
+              "reconstructed_hash": "blake3-raw-utf8:e7527b470abd4f21ec85ff375c3084391ebde914e032c6de35590906d52cb046"
+            }
+          ],
+          "line_page_bytes": [
+            3396
+          ],
+          "explicit_range_minimum": 355
+        },
+        {
+          "tool": "read_memory_bank",
+          "identity": {
+            "project_id": "4a54f0be-e84e-4405-8c56-34bb1e5eb445",
+            "section": "budget"
+          },
+          "stored_bytes": 114000,
+          "unbudgeted_text_bytes": 114209,
+          "modes": [
+            {
+              "output_json": false,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                6505
+              ],
+              "minimum": 176,
+              "minimum_reply_bytes": 704,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            },
+            {
+              "output_json": true,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8191,
+                8192,
+                8190,
+                8192,
+                8191,
+                8192,
+                8192,
+                8192,
+                7954
+              ],
+              "minimum": 295,
+              "minimum_reply_bytes": 1180,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            }
+          ],
+          "line_page_bytes": [
+            8181,
+            8187,
+            8188,
+            8188,
+            8188,
+            8188,
+            8190,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8191,
+            8192,
+            8150,
+            8022
+          ],
+          "explicit_range_minimum": 367
+        },
+        {
+          "tool": "read_memory_bank",
+          "identity": {
+            "project_id": "__user__",
+            "section": "budget"
+          },
+          "stored_bytes": 114000,
+          "unbudgeted_text_bytes": 114209,
+          "modes": [
+            {
+              "output_json": false,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8192,
+                8189,
+                8192,
+                8191,
+                8192,
+                8192,
+                8192,
+                8192,
+                5962
+              ],
+              "minimum": 169,
+              "minimum_reply_bytes": 676,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            },
+            {
+              "output_json": true,
+              "pages": [
+                8192,
+                8192,
+                8192,
+                8192,
+                8191,
+                8192,
+                8192,
+                8189,
+                8192,
+                8191,
+                8192,
+                8192,
+                8189,
+                8192,
+                8191,
+                8192,
+                8192,
+                8192,
+                7399
+              ],
+              "minimum": 281,
+              "minimum_reply_bytes": 1124,
+              "reconstructed_hash": "blake3-raw-utf8:bc74acfdca623268578d2d1574d7776822d11b410ca21c600c8a65d5fbeb8b8c"
+            }
+          ],
+          "line_page_bytes": [
+            8153,
+            8159,
+            8160,
+            8160,
+            8160,
+            8160,
+            8162,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8163,
+            8164,
+            8165,
+            7951
+          ],
+          "explicit_range_minimum": 360
+        }
+      ]
+    },
+    "scope": "Selected source chunk checked against independently written physical source lines; chunk identity does not imply whole-file content. Original project and user memory sections each contain 114,000 stored bytes. Their 114,209-byte default replies reconstruct exactly via 19 pages of at most 8,192 UTF-8 reply bytes. Source chunk is 1,964 stored bytes and fits the selected 8 KiB budget; minimum-budget retry also checked. Transformed content and live guidance remain indivisible. Bytewise correctness, not general agent productivity or provider-token count, is demonstrated."
   }
 }
