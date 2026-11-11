@@ -431,46 +431,58 @@ async fn hybrid_lexical_search_empty_project_returns_empty() {
     assert!(hits.is_empty(), "empty project must return 0 hits");
 }
 
-/// ENG-2026-FTS-APOS: a query containing an apostrophe (contraction) must not
-/// make lexical_search error. Tantivy's query parser treats `'` as a grammar
-/// token, so before escaping it, parse_query returned Err(SyntaxError) — which
-/// propagated out of lexical_search and aborted the whole hybrid search()
-/// before the vector arm ran. Found via the pilot eval: NL stories like "The
-/// camera icon doesn't go back to dimmed" returned 0 hits from search_memory.
-#[tokio::test]
-async fn lexical_search_tolerates_apostrophe_in_query() {
-    let tmp = tempfile::TempDir::new().expect("tempdir");
-    let engine = open_engine(&tmp).await;
-    let cancel = CancellationToken::new();
-
-    engine
-        .index_docs(
-            "proj-apos",
-            &[make_doc(
-                "d1",
-                "src/camera.rs",
-                "functions",
-                "fn dim_camera() { /* the icon doesn't go back to dimmed */ }",
-            )],
-            &cancel,
-        )
-        .await
-        .expect("index");
-
-    for mode in ["loose", "strict"] {
-        let mut q = fts_query("proj-apos", "functions", "camera doesn't dim");
-        q.fts_mode = mode.into();
-        let hits = engine.lexical_search(&q).unwrap_or_else(|e| {
-            panic!("lexical_search must not error on an apostrophe query ({mode}): {e}")
-        });
-        // loose (OR-of-terms) must match on "camera"/"dim"; strict is
-        // best-effort under the trigram tokenizer but must at least not error.
-        if mode == "loose" {
-            assert!(
-                !hits.is_empty(),
-                "loose query containing an apostrophe must return hits, got 0"
-            );
+/// ENG-2026-FTS-APOS: contractions and possessives must return matching
+/// evidence through lexical and full hybrid search, in both query modes.
+/// A parser error previously aborted hybrid search before its vector arm ran.
+#[test]
+fn lexical_and_hybrid_search_tolerate_apostrophes() -> anyhow::Result<()> {
+    let tmp = tempfile::TempDir::new()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread()
+        .worker_threads(2)
+        .enable_all()
+        .build()?;
+    let result = runtime.block_on(async {
+        let engine = open_engine(&tmp).await;
+        let cancel = CancellationToken::new();
+        let cases = [
+            ("camera", "camera doesn't dim", "src/camera.rs"),
+            ("parser", "parser can't continue", "src/parser.rs"),
+            ("preferences", "user's colour preference", "src/preferences.rs"),
+        ];
+        let mut documents = cases
+            .iter()
+            .map(|(id, query, path)| make_doc(id, path, "functions", query))
+            .collect::<Vec<_>>();
+        documents.push(make_doc(
+            "unrelated", "src/unrelated.rs", "functions", "network handshake",
+        ));
+        engine.index_docs("proj-apos", &documents, &cancel).await?;
+        for (expected_id, query, _) in cases {
+            for mode in ["loose", "strict"] {
+                let mut q = fts_query("proj-apos", "functions", query);
+                q.fts_mode = mode.into();
+                let lexical = engine.lexical_search(&q)?;
+                anyhow::ensure!(
+                    lexical.iter().any(|hit| hit.doc_id == expected_id),
+                    "lexical search lost the matching document for {query:?} ({mode})"
+                );
+                let hybrid = engine.search(&q, None, &cancel).await?;
+                anyhow::ensure!(
+                    hybrid.iter().any(|hit| hit.doc_id == expected_id),
+                    "hybrid search lost the matching document for {query:?} ({mode})"
+                );
+            }
         }
+        Ok::<(), anyhow::Error>(())
+    });
+    // Background index/vector owners stop before the directory is removed,
+    // including failures from the asynchronous assertions above.
+    drop(runtime);
+    let cleanup = tmp.close();
+    match (result, cleanup) {
+        (Err(error), Err(cleanup)) => Err(error.context(format!("Fixture cleanup: {cleanup}"))),
+        (Err(error), _) => Err(error),
+        (Ok(()), cleanup) => cleanup.map_err(Into::into),
     }
 }
 

@@ -1,0 +1,55 @@
+{
+  "status": "EXISTING_FIX_VERIFIED_REGRESSION_COMPLETE",
+  "at_utc": "2026-11-11T17:56:50.738416+00:00",
+  "original_requirement": "TODO P0-0: apostrophe queries must not fail parsing or abort hybrid search; lexical and full search return matching evidence in loose and strict modes.",
+  "original_production_fix_commit": "22a566881c565c70d5de7b4d1e8e50a425d3c242",
+  "production_code_changed": false,
+  "installed_server_sha256": "7b70db0f06707713c8d93b7efab68bb7465ae8b3835cfb95e8679c59575c2b75",
+  "runtime_deployment_required": false,
+  "implementation": "Strengthened the existing regression with contractions and a possessive, required expected document hits for lexical/full hybrid search in both query modes, and made fixture runtime cleanup explicit.",
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\source-review.json",
+    "sha256": "7fe01aa84bcb8b843846ef6e5806e1cfcf265093e7d75e13e20537fe042906cd"
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\apostrophe-no-vector-result.json",
+          "sha256": "4a6a807b98256a7fc024cc0dc42f5aeffca96e7d84a9ac653f31b3f06bae6c68"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\apostrophe-no-vector.log",
+          "sha256": "8fd8c905785bc1db0e4513ec492ccdebe896cbec28a1acea17e8f46b2e706669"
+        },
+        "passed": 1
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\apostrophe-native-result.json",
+          "sha256": "1227632a56f4f275bfdef5e2918762ef9a7b104bec54aabd0985cf165bd60134"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\apostrophe-native.log",
+          "sha256": "6d0012ad4697ec84d2f300d0a6c2da603f9b03eedb84560ca11175a1f3cb1152"
+        },
+        "passed": 1
+      }
+    ],
+    "installed_public": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\installed\\acceptance.json",
+      "sha256": "83b215d28cae0360a3fdae8fea722a6474100d29efb2b621bbb4922c399b5474"
+    },
+    "installed_query_cases": 12,
+    "independent_source_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111\\installed\\source-oracle.json",
+      "sha256": "6b10a6bdb0ab8b9c1905ac1999257ece71fe38e129447b9407d70b20ef764dd5"
+    }
+  },
+  "remaining": "Other TODO items, broader P0-4 and the original full backlog remain unfinished. Native checks use the local projection backend, not a remote embedding provider; no general retrieval-quality claim.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p00-apostrophe-acceptance-20261111",
+    "owned_public_and_test_fixtures_closed_and_removed": true,
+    "retained": "Source oracle, wire responses, logs, review and helpers retained as delivery evidence. No production restart/config change or preexisting deletion."
+  }
+}
