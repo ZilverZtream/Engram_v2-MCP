@@ -1464,6 +1464,17 @@ pub struct GrepProjectRequest {
     /// Cap on returned matches, clamped to 1..1000. Default: 20.
     #[serde(default = "default_grep_max_results")]
     pub max_results: usize,
+    /// Offset within the same bounded max_results window. Keep pattern,
+    /// filters, context, freshness and max_results fixed across pages.
+    /// Current source/ranking is not snapshotted across requests.
+    #[serde(default)]
+    pub offset: usize,
+    /// Optional whole reply-text budget: ceil(UTF-8 bytes / 4), including
+    /// serialized JSON or Markdown metadata, warnings and recovery actions.
+    /// This is not provider-token or MCP transport-envelope accounting.
+    /// Returns whole match records; too-small budgets report a usable minimum.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
     /// Source freshness: "strict" (default) hash-checks and overlays changed/new
     /// files; "warn" overlays size/mtime changes and new files; "off" uses only
     /// the index. Overlays honor regex, context (max 100 lines), path and language

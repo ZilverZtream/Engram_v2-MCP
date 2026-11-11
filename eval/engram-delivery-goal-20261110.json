@@ -40,9 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search and vector response budgets is now deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "P0-4",
-    "receipt": "eval\\p04-vector-response-budget-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected vector budget delivery is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "finding": "TODO P0-4 grep_project",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\selected-contract.json",
+    "remaining": "Build/deploy and verify native candidate/installed public grep behavior. Other tools, provider-specific token counts, uniform envelopes beyond grep, durable cursors and full P0-4 remain unfinished.",
+    "receipt": "eval\\p04-grep-response-budget-delivery-20261111.json"
   }
 }
