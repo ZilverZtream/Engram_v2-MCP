@@ -550,6 +550,26 @@ fn verify_source_bytes(path: &Path, initial: &std::fs::Metadata) -> anyhow::Resu
     Ok(Some(VerifiedSourceBytes { hash: hasher.finalize().to_hex().to_string(), mtime_ns: stamp, size: read }))
 }
 
+/// Rebuild-only publication must still describe exactly the indexed bytes.
+/// Reuse the bounded content verifier; no stat cache or source writer is opened.
+pub(crate) fn verify_graph_rebuild_bytes(
+    root: &Path,
+    files: &[engram_graph::Node],
+    cancel: &tokio_util::sync::CancellationToken,
+) -> anyhow::Result<()> {
+    for file in files {
+        anyhow::ensure!(!cancel.is_cancelled(), "Graph rebuild cancelled before publication");
+        let path = engram_core::safe_join(root, file.file_path.as_str())?;
+        let initial = std::fs::metadata(&path)?;
+        let observed = verify_source_bytes(&path, &initial)?
+            .ok_or_else(|| anyhow::anyhow!("Source changed while verifying {}; run update_project", file.file_path))?;
+        let expected = file.metadata.as_ref().and_then(|m| m.get("file_hash")).and_then(|h| h.as_str());
+        anyhow::ensure!(expected == Some(observed.hash.as_str()),
+            "Source content changed for {}; run update_project before graph_only repair", file.file_path);
+    }
+    Ok(())
+}
+
 async fn scan_incremental_changes(
     state: &AppState,
     project_id: &str,

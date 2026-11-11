@@ -9,6 +9,7 @@ use crate::services::{graph_service, ingest_service, job_service, project_servic
 use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
 mod instruction_observation;
+mod graph_rebuild;
 #[cfg(test)]
 #[path = "project_tools/memory_retention_tests.rs"]
 mod memory_retention_tests;
@@ -3785,8 +3786,8 @@ impl Engram {
         // full reindex — minutes of work, and every doc_id the caller was
         // holding went stale with the generation bump — while a typo'd scope
         // did the same instead of erroring.
-        let purge_graph_first = match req.scope.to_ascii_lowercase().as_str() {
-            "full" => false,
+        match req.scope.to_ascii_lowercase().as_str() {
+            "full" => {},
             // Vector recovery rebuilds from retained stored text without
             // changing source generations or rereading project files.
             scope @ ("tantivy_only" | "vector_only" | "initialize_vectors") => {
@@ -3808,11 +3809,18 @@ impl Engram {
 {msg}"
                 ))]));
             }
-            // graph_only purges the graph and then falls through to the
-            // indexing pass below, because that pass is what REBUILDS it.
-            // Delegating to repair_project_scoped("graph_only") would delete
-            // the graph and return Ok without rebuilding anything.
-            "graph_only" => true,
+            "graph_only" => {
+                if req.wipe_and_reindex {
+                    return Err(McpError::invalid_params(
+                        "graph_only preserves search/history and cannot be combined with wipe_and_reindex", None,
+                    ));
+                }
+                let cancel = tokio_util::sync::CancellationToken::new();
+                let _cancel_on_drop = cancel.clone().drop_guard();
+                let message = self.rebuild_project_graph(&pid, &cancel).await
+                    .map_err(|error| McpError::internal_error(format!("Graph rebuild failed: {error:#}"), None))?;
+                return Ok(CallToolResult::success(vec![Content::text(message)]));
+            }
             other => {
                 return Err(McpError::invalid_params(
                     format!(
@@ -3832,7 +3840,7 @@ impl Engram {
             .await
         {
             Ok(base) => SourceRepairBase::Published(base),
-            Err(original) if !purge_graph_first && !req.wipe_and_reindex => {
+            Err(original) if !req.wipe_and_reindex => {
                 let registry = self.state.registry.clone();
                 let project = pid.clone();
                 let recovery = tokio::task::spawn_blocking(move ||
@@ -3920,11 +3928,6 @@ impl Engram {
             }
         };
         let recovered = matches!(&publication, SourceRepairPublication::Recovered(_));
-
-        if purge_graph_first {
-            tracing::info!(project_id = %pid, "repair_project(graph_only): purging graph before rebuild");
-            self.state.graph.delete_project_data(&pid).ok();
-        }
 
         if req.wipe_and_reindex {
             self.state.projects.remove(&pid);

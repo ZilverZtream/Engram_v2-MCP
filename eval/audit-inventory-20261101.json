@@ -9978,7 +9978,7 @@
       ],
       "constraints": "One active implementation item. No CodeMap/Blast feature work, broad performance/ownership project, new approval UI, production source edits or deletion of preexisting folders. Keep TODO16c and unrelated discoveries recorded, without displacing16b."
     },
-    "at_utc": "2026-11-11T22:55:53.280321+00:00",
+    "at_utc": "2026-11-11T23:48:04.256835+00:00",
     "reason": "Authoritative findings record shipped implementation and local publication/scope tests, but no feature-specific installed public acceptance or actual Claude consumer-loading acceptance. Verify those gaps on owned fixtures and fix only concrete failures; do not rerun completed EG14 drafting or widen its pilot.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10023,7 +10023,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: EG15-17 selected generator fix deployed and verified; advanced next original accepted indexing requirement.",
+    "previous_goal_turn_classification": "Progress: TODO16b implementation and focused native/no-vector acceptance completed; release/public installation acceptance remains.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12591,12 +12591,44 @@
       "installed_server_sha256": "5547de2babd5b42d1b15d5e56c632b3e237a8a32fa02757b2351aae264d0a8d9"
     },
     "p116b_rebuild_graph_20261111": {
-      "status": "INSTALLED_BASELINE_CONFIRMED_READY_FOR_IMPLEMENTATION",
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
       "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\execution-state.json",
       "baseline": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\baseline\\acceptance.json",
         "sha256": "05270ad898bdcf1cc9e426cd56fa1b4024aad06c2a5dbc620cbb8eb16e5e6558"
-      }
+      },
+      "implemented": [
+        "The existing graph_only repair routes through complete shared extraction without search writers, embeddings, source publication or Git replay.",
+        "Prepared graph keeps original per-file revisions; existing resolution runs in an owned isolated graph before atomic replacement.",
+        "One graph transaction retires extracted rows, preserves learned/history relationships, remaps unique successors, reports retired ambiguous endpoints and refuses collisions without partial writes.",
+        "Source selection, indexed hashes, chunk settings, cancellation and final disk checks gate replacement; ranking workers drain before same-generation cache invalidation."
+      ],
+      "validation": [
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\handler-native-v3-result.json",
+          "sha256": "98eb79b33a7405a263e991862ecb92d577f88f98ba74c9dfbfb2af6ccbb5b234"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\handler-native-final-result.json",
+          "sha256": "dd94f9cae76cf288f3b3dada2a65b27f4448b1a3e1864eb8fefeacfcf20cdb1b"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\replacement-final-result.json",
+          "sha256": "28795c64ba9b05e3b1dff33862db654b0234d9176b5a346971b674a8411d1ab7"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\native-final-contract-result.json",
+          "sha256": "de690c4977a2db5b3876b85c2d8b01598ab00038860e34959b77adad0c81f7a5"
+        }
+      ],
+      "native_evidence": "Native checks passed: five graph replacement cases, one extraction storage/provider case, four handler/preparation cases and two original full-repair history cases. Final combined native run passed all six server cases. No-vector checks remain.",
+      "remaining": [
+        "Release build/package.",
+        "Candidate and installed public MCP checks.",
+        "Deployment and normal installed runtime identity verification."
+      ],
+      "limitations": "No production rebuild performed, no measured large-project speedup, no complete backlog/19-gate/EG14 claim.",
+      "delivery_receipt": "eval/p116b-graph-rebuild-delivery-20261112.json"
     }
   }
 }

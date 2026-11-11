@@ -100,12 +100,30 @@ pub struct SkipLedger {
     pub skipped: Vec<(String, String)>,
 }
 
-pub async fn process_ingest_stats(
+/// Fully prepared source graph. Keep reservations with the owned rows until
+/// their publication worker has finished, including caller cancellation.
+pub(crate) struct PreparedIngestGraph {
+    pub nodes: Vec<engram_graph::Node>,
+    pub edges: Vec<engram_graph::Edge>,
+    _graph_reservation: AllocationGuard,
+    _interface_reservation: Option<AllocationGuard>,
+    _source_call_reservation: Option<AllocationGuard>,
+}
+
+pub(crate) async fn prepare_ingest_graph(
     state: &AppState,
     project_id: &str,
     generation: u64,
     stats: &engram_index::IngestStats,
-) -> anyhow::Result<()> {
+    revisions: Option<&std::collections::BTreeMap<String, u64>>,
+) -> anyhow::Result<PreparedIngestGraph> {
+    let revision_for = |path: &str| -> anyhow::Result<u64> {
+        match revisions {
+            Some(revisions) => revisions.get(path).copied()
+                .ok_or_else(|| anyhow::anyhow!("No selected source revision for {path}")),
+            None => Ok(generation),
+        }
+    };
     let mut inherited_wiring = super::webforms_bindings::inherited_handles(state, project_id, generation, stats).await?;
     let mut input_edge_kind_counts: std::collections::HashMap<String, usize> =
         std::collections::HashMap::new();
@@ -159,6 +177,7 @@ pub async fn process_ingest_stats(
     }
 
     for rel_path in &stats.all_files {
+        let generation = revision_for(rel_path.as_str())?;
         if !is_safe_project_relative_path(rel_path.as_str()) {
             let reason = if std::path::Path::new(rel_path.as_str()).is_absolute() {
                 "absolute path rejected"
@@ -217,6 +236,7 @@ pub async fn process_ingest_stats(
 
     let mut file_contains_edges: Vec<engram_graph::Edge> = Vec::new();
     for (rel_path, sym) in &stats.symbols {
+        let generation = revision_for(rel_path.as_str())?;
         if !is_safe_project_relative_path(rel_path.as_str()) {
             anyhow::bail!(
                 "process_ingest_stats: unsafe relative path in symbols: {}",
@@ -425,6 +445,7 @@ pub async fn process_ingest_stats(
     // useful evidence of an undefined bundle, while declaration ownership lets
     // incremental stale-node cleanup remove obsolete members safely.
     for (rel_path, edge) in &stats.edges {
+        let generation = revision_for(rel_path.as_str())?;
         if edge.source_kind != "asset_bundle" || !edge.source_name.starts_with("bundle:") {
             continue;
         }
@@ -706,6 +727,7 @@ pub async fn process_ingest_stats(
     let mut edges = Vec::with_capacity(stats.edges.len());
     let mut event_producers = std::collections::HashMap::new();
     for (edge_index, (rel_path, edge)) in stats.edges.iter().enumerate() {
+        let generation = revision_for(rel_path.as_str())?;
         if !is_safe_project_relative_path(rel_path.as_str()) {
             anyhow::bail!(
                 "process_ingest_stats: unsafe relative path in edges: {}",
@@ -1360,11 +1382,30 @@ pub async fn process_ingest_stats(
         );
     }
 
-    if !nodes.is_empty() || !edges.is_empty() {
+    Ok(PreparedIngestGraph {
+        nodes,
+        edges,
+        _graph_reservation: _graph_build_guard,
+        _interface_reservation,
+        _source_call_reservation,
+    })
+}
+
+pub async fn process_ingest_stats(
+    state: &AppState,
+    project_id: &str,
+    generation: u64,
+    stats: &engram_index::IngestStats,
+) -> anyhow::Result<()> {
+    let prepared = prepare_ingest_graph(state, project_id, generation, stats, None).await?;
+    if !prepared.nodes.is_empty() || !prepared.edges.is_empty() {
         let graph = state.graph.clone();
         let pid = project_id.to_string();
         match tokio::task::spawn_blocking(move || {
-            graph.upsert_nodes_and_edges(&pid, &nodes, &edges)
+            // Capture the whole owner, not only nodes/edges through Rust's
+            // disjoint field captures: reservations outlive an aborted caller.
+            let prepared = prepared;
+            graph.upsert_nodes_and_edges(&pid, &prepared.nodes, &prepared.edges)
         })
         .await
         {
@@ -1491,6 +1532,57 @@ fn merge_call_site_metadata(
             "call_site_lines".into(),
             serde_json::json!(lines.into_iter().take(128).collect::<Vec<_>>()),
         );
+    }
+}
+
+#[cfg(test)]
+mod prepared_graph_tests {
+    use super::*;
+    use engram_core::RelPath;
+    use std::collections::BTreeMap;
+    use std::sync::Arc;
+
+    #[tokio::test]
+    async fn graph_rebuild_selected_revisions_stay_attached_without_publishing() -> anyhow::Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let result = async {
+            let (state, _events) = AppState::new(engram_core::Config {
+                data_dir: temporary.path().join("data"),
+                allowed_roots: vec![temporary.path().to_path_buf()],
+                embedding_backend: "fts_only".into(),
+                ..Default::default()
+            })?;
+            let mut stats = engram_index::IngestStats::default();
+            for (path, name) in [("old.cs", "Existing"), ("recent.cs", "Recent")] {
+                let path = Arc::new(RelPath::new(path));
+                stats.all_files.push((*path).clone());
+                stats.symbols.push((path, engram_index::ExtractedSymbol {
+                    name: name.into(), kind: "function".into(),
+                    start_line: 1, end_line: 2, metadata: None,
+                }));
+            }
+            let revisions = BTreeMap::from([("old.cs".into(), 2), ("recent.cs".into(), 7)]);
+            let prepared = prepare_ingest_graph(&state, "project", 9, &stats, Some(&revisions)).await?;
+            assert_eq!(prepared.nodes.len(), 4);
+            assert_eq!(prepared.edges.len(), 2);
+            for node in &prepared.nodes {
+                assert_eq!(node.generation, revisions[node.file_path.as_str()]);
+            }
+            for edge in &prepared.edges {
+                let source = prepared.nodes.iter().find(|node| node.node_id == edge.source_id).unwrap();
+                assert_eq!(edge.generation, source.generation);
+            }
+            assert_eq!(state.graph.count_nodes("project")?, 0, "Preparation must leave the published graph intact");
+            let incomplete = BTreeMap::from([("old.cs".into(), 2)]);
+            assert!(prepare_ingest_graph(&state, "project", 9, &stats, Some(&incomplete)).await.is_err());
+            assert_eq!(state.graph.count_nodes("project")?, 0);
+            drop(prepared);
+            process_ingest_stats(&state, "project", 9, &stats).await?;
+            assert_eq!(state.graph.count_nodes("project")?, 4, "Ordinary ingestion still publishes its prepared graph");
+            Ok(())
+        }.await;
+        temporary.close()?;
+        result
     }
 }
 

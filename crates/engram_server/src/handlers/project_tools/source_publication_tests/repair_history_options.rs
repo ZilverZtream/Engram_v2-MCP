@@ -33,7 +33,7 @@ async fn seed(temp: &Path) -> Result<(Engram, [Oid; 3])> {
     drop(git);
     let ps = app.ensure_project_runtime(PROJECT).await.map_err(|error| anyhow::anyhow!("{error}"))?;
     let stats = ps.search.index_files(PROJECT, "memory", 1, &root,
-        vec![root.join("source.rs")], 100, &CancellationToken::new(), |_, _| {}).await?;
+        vec![root.join("source.rs")], app.state.cfg.max_chunks_per_file, &CancellationToken::new(), |_, _| {}).await?;
     app.process_ingest_stats(PROJECT, 1, &stats).await.map_err(|error| anyhow::anyhow!("{error}"))?;
     let legacy = app.state.registry.capture_source_head(PROJECT)?;
     ensure!(app.state.registry.attest_legacy_source_head(&legacy)?);
@@ -101,7 +101,7 @@ fn zero_git_cap_repairs_source_without_jobs_history_policy_or_watermark_writes()
             // Check the durable job list as well as currently running owners:
             // a fast completed writer must not evade the zero-work contract.
             finish_owned_jobs(&app).await;
-            ensure!(response.contains("max_commits=0") && response.contains("skipped"), "{scope}: {response}");
+            ensure!(response.contains("skipped") && response.contains(if scope == "graph_only" { "graph_only" } else { "max_commits=0" }), "{scope}: {response}");
             ensure!(app.state.registry.list_jobs(Some(PROJECT))?.is_empty(),
                 "{scope}: zero-cap repair created a durable Git job");
             ensure!(app.state.active_jobs.read().await.is_empty());
@@ -131,7 +131,7 @@ fn zero_git_cap_repairs_source_without_jobs_history_policy_or_watermark_writes()
 
 #[test]
 fn requested_one_commit_cap_and_antipattern_switch_control_actual_git_followup() -> Result<()> {
-    for scope in ["full", "graph_only"] {
+    for scope in ["full"] {
         for enabled in [false, true] {
             let temp = tempfile::tempdir()?;
             let runtime = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;

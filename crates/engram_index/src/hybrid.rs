@@ -28,6 +28,8 @@ mod native_store;
 mod reader_experiment;
 #[cfg(test)]
 mod selected_source_recovery_tests;
+#[cfg(test)]
+mod graph_extraction_tests;
 mod selected_source_membership;
 pub use selected_source_membership::{SelectedSourceNavigation, SelectedSourceRevisionLookup, SelectedSourceSummary};
 #[cfg(all(test, feature = "vector"))]
@@ -187,6 +189,15 @@ pub struct SourceSnapshotGuard {
 }
 
 impl SourceSnapshotGuard {
+    /// Complete immutable selection for operations that must cover every file,
+    /// including files with no search chunks. None denotes a legacy generation.
+    pub fn selected_file_revisions(&self) -> Option<&std::collections::BTreeMap<String, u64>> {
+        match &self._snapshot.selection {
+            snapshots::Selection::Files(files) => Some(files),
+            snapshots::Selection::Legacy(_) => None,
+        }
+    }
+
     /// Legacy source cannot authorize snapshot GC before migration.
     pub fn is_managed(&self) -> bool {
         matches!(self._snapshot.selection, snapshots::Selection::Files(_))
@@ -2727,6 +2738,45 @@ impl HybridSearchEngine {
         files: Vec<PathBuf>,
         max_chars_per_chunk: usize,
         cancel: &CancellationToken,
+        progress_cb: F,
+    ) -> anyhow::Result<IngestStats>
+    where
+        F: FnMut(usize, usize) + Send,
+    {
+        self.process_source_files(project_id, namespace, generation, root, files,
+            max_chars_per_chunk, cancel, true, progress_cb).await
+    }
+
+    /// Re-run the same admitted parsers and enrichment passes without opening
+    /// a search writer, chunking documents, or contacting the embedder. The
+    /// caller validates the complete result before publishing graph changes.
+    pub async fn extract_graph_files<F>(
+        &self,
+        project_id: &str,
+        root: &Path,
+        files: Vec<PathBuf>,
+        max_chars_per_chunk: usize,
+        cancel: &CancellationToken,
+        progress_cb: F,
+    ) -> anyhow::Result<IngestStats>
+    where
+        F: FnMut(usize, usize) + Send,
+    {
+        self.process_source_files(project_id, "memory", 0, root, files,
+            max_chars_per_chunk, cancel, false, progress_cb).await
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    async fn process_source_files<F>(
+        &self,
+        project_id: &str,
+        namespace: &str,
+        generation: u64,
+        root: &Path,
+        files: Vec<PathBuf>,
+        max_chars_per_chunk: usize,
+        cancel: &CancellationToken,
+        index_documents: bool,
         mut progress_cb: F,
     ) -> anyhow::Result<IngestStats>
     where
@@ -2745,7 +2795,11 @@ impl HybridSearchEngine {
         };
         let mutation = self.begin_project_mutation(project_id)?;
         let scoped = self.with_mutation(&mutation)?;
-        let mut guard = scoped.create_bulk_writer_async(project_id, cancel).await?;
+        let mut guard = if index_documents {
+            Some(scoped.create_bulk_writer_async(project_id, cancel).await?)
+        } else {
+            None
+        };
         use rayon::prelude::*;
 
         let mut stats = IngestStats {
@@ -3140,6 +3194,9 @@ impl HybridSearchEngine {
                             }
                         }
 
+                        if !index_documents {
+                            return Ok((local_stats, local_docs));
+                        }
                         let mut chunks =
                             chunking::semantic_chunk_lines(&text, max_chars_per_chunk, &syms);
 
@@ -3215,10 +3272,11 @@ impl HybridSearchEngine {
 
             batch.extend(chunk_docs);
             if batch.len() >= 512 {
-                Self::write_docs_to_writer(&fields, &mut guard, project_id, &batch)?;
+                let guard = guard.as_mut().expect("document batches require a search writer");
+                Self::write_docs_to_writer(&fields, guard, project_id, &batch)?;
                 guard.maybe_commit(1000)?;
                 scoped
-                    .embed_and_upsert_vectors_with_writer(&mut guard, project_id, &batch, cancel)
+                    .embed_and_upsert_vectors_with_writer(guard, project_id, &batch, cancel)
                     .await?;
                 batch.clear();
             }
@@ -3228,14 +3286,19 @@ impl HybridSearchEngine {
         }
 
         if !batch.is_empty() && !cancel.is_cancelled() {
-            Self::write_docs_to_writer(&fields, &mut guard, project_id, &batch)?;
+            let guard = guard.as_mut().expect("document batches require a search writer");
+            Self::write_docs_to_writer(&fields, guard, project_id, &batch)?;
             scoped
-                .embed_and_upsert_vectors_with_writer(&mut guard, project_id, &batch, cancel)
+                .embed_and_upsert_vectors_with_writer(guard, project_id, &batch, cancel)
                 .await?;
         }
 
         // Single merge wait for the entire run.
-        guard.finish()?;
+        if let Some(guard) = guard {
+            guard.finish()?;
+        } else {
+            anyhow::ensure!(!cancel.is_cancelled(), "Graph extraction cancelled; no graph was published");
+        }
 
         let mut extracted_edge_kind_counts: std::collections::HashMap<String, usize> =
             std::collections::HashMap::new();

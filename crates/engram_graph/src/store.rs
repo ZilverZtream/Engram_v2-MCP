@@ -10,6 +10,8 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 mod atomic_learning;
+mod source_rebuild;
+pub use source_rebuild::SourceGraphReplacement;
 use atomic_learning::{increment_edges_in_tx, upsert_nodes_in_tx};
 
 mod source_stat;
