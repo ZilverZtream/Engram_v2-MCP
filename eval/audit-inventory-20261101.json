@@ -282,7 +282,8 @@
       "closure_state": "Local acceptance verified both builds144 executions total; implementation subsequently included in published/deployed lineage. Feature-specific deployed acceptance and original full-audit gates remain unclosed.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg02_deferred_omission_delivery_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111"
     },
     {
       "id": "EG-03",
@@ -527,7 +528,8 @@
       ],
       "closure_state": "Current native correctly selected8 Windows response-delivery cases pass including deep owned data path exact recovery. Historical actual94961B/five-page MCP proof retained; Nov2 wrong-filter50 totals explicitly excluded from delivery proof. Included in later shipped lineage; current deployed-path/long-path revalidation and original residual gates are not established by package inclusion.",
       "dependencies": [],
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111"
     },
     {
       "id": "EG-13",
@@ -9832,27 +9834,39 @@
       "receipt": "eval/eg01-installed-policy-delivery-20261111.json",
       "behavior": "Real OciusX source: seven independently discovered guidance documents delivered identically across direct consumers, five complete inline and two recovered with exact hashes. JSON/Markdown planning recovery exact; citation unchanged by guidance. No runtime change needed.",
       "limits": "Original edge-case/historical acceptance remains separately supported by retained local suites. This real installed case is not full original gate closure or comparative productivity evidence."
+    },
+    "eg02_installed_recovery_delivery_20261111": {
+      "status": "CURRENT_INSTALLED_BOUNDED_DELIVERY_VERIFIED",
+      "receipt": "eval/eg02-installed-recovery-delivery-20261111.json",
+      "behavior": "Two real captured formats recover 147800/98400 exact bytes, preserve 63/64 mandatory rows and 33/32 omission counts. Compact reserialized MCP envelopes peak at 26609/21913 bytes under40960. No runtime change needed.",
+      "limits": [
+        "Compact UTF-8 JSON envelopes reserialized from captured frames; raw wire lines were not retained by the existing transport.",
+        "No configured hard rules in this real project; nonempty hard-ID pressure remains covered only by retained local tests.",
+        "No new source mutation or deep-path fixture execution; existing immutable/mutation and Windows-path evidence is separate.",
+        "JSON and Markdown are distinct planning captures, not a claim of deterministic identical candidates."
+      ]
     }
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG02/EG12: entire change-set delivery stays bounded, preserves reconciliation identities, and recovers exact immutable bytes under Windows paths.",
-      "current_missing_behavior": "Original item leaves installed recovery acceptance open. Reuse the just-captured two real planning responses and retained Windows/mutation local evidence; reconcile mandatory identities and whole serialized response bounds before deciding if any gap remains.",
+      "original_requirement": "EG19: bounded relevant prior rulings retain scope, decision evidence and revision applicability; findings stay visible and materially changed code never inherits blanket suppression.",
+      "current_missing_behavior": "Original item leaves current installed decision context acceptance and authority/applicability gaps open. Inspect the current real review response and retained standalone-decision implementation once, then fix any demonstrated delivery gap.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/change_set_delivery.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs"
+        "crates/engram_server/src/handlers/review_tools/prior_context.rs",
+        "crates/engram_server/src/handlers/review_tools.rs",
+        "crates/engram_core/src/registry/review_discussion.rs"
       ],
       "finite_acceptance": [
-        "For both captured JSON and Markdown responses, every full serialized RPC response fits the declared bound, and paged UTF-8 recovery matches original bytes/BLAKE3.",
-        "Mandatory reconciliation/checkpoint identities and omission counts survive the bounded manifest and match recovered content.",
-        "Retain exact immutable-after-change and deep Windows path local evidence; do not claim fresh source-mutation or long-path execution from these live captures.",
-        "Fix a demonstrated gap; otherwise record installed delivery once and advance decision-aware review."
+        "Use a real existing OciusX discussion/decision record and independent source evidence to verify current review output.",
+        "Review states provenance, scope/revision limits and exact recovery for omitted discussion; does not manufacture authority.",
+        "Existing findings remain visible with prior decisions present, and insufficient historical/scope evidence is explicit.",
+        "Implement any concrete gap, run relevant checks and verify installed behavior before advancing history routing."
       ],
-      "previous_delivery": "eval/eg01-installed-policy-delivery-20261111.json"
+      "previous_delivery": "eval/eg02-installed-recovery-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T08:10:17.665895+00:00",
-    "reason": "EG01 current installed consumer parity passed with independent scope/source evidence and complete omission recovery. Advance original queue without repeated policy calls.",
+    "at_utc": "2026-11-11T08:13:20.927317+00:00",
+    "reason": "Captured installed bounded recovery passed finite acceptance; advance original decision-aware review without more planning replays.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9881,8 +9895,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG02/EG12: complete installed bounded response/recovery acceptance using the captured real planning responses.",
-    "next_user_visible_deliverable": "Large change-set responses preserve actionable identities and recover complete exact evidence within the advertised response budget.",
+    "active_original_item": "EG19: decision-aware review context and honest applicability.",
+    "next_user_visible_deliverable": "Review supplies recoverable prior discussion with honest applicability and preserves current findings.",
     "following_original_items": [
       "EG02/EG12 bounded change-set delivery and exact recovery",
       "EG19 decision-aware review; EG20/21 history; EG18 tool presets",
@@ -9897,7 +9911,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: installed real scoped-guidance delivery verified across eight consumer/format calls plus exact source citation; 13 planning recovery pages and two full omitted-policy reads passed hash checks.",
+    "previous_goal_turn_classification": "Progress: installed response budget/identity/recovery acceptance completed using existing captures; advancing EG19.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12154,21 +12168,19 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "original_requirement": "EG01: applicable complete authored guidance reaches planning, editing, retrieval and review with correct scope and source identities.",
-      "current_missing_behavior": "Local native/no-vector parity and edge cases are recorded; original finding still lacks feature-specific installed consumer acceptance. Use one real OciusX source path and independent applicable-policy oracle; fix only an observed delivery gap.",
+      "original_requirement": "EG02/EG12: entire change-set delivery stays bounded, preserves reconciliation identities, and recovers exact immutable bytes under Windows paths.",
+      "current_missing_behavior": "Original item leaves installed recovery acceptance open. Reuse the just-captured two real planning responses and retained Windows/mutation local evidence; reconcile mandatory identities and whole serialized response bounds before deciding if any gap remains.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/handlers/review_tools.rs",
-        "crates/engram_server/src/services/project_policy.rs"
+        "crates/engram_server/src/handlers/change_set_delivery.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs"
       ],
       "finite_acceptance": [
-        "For one existing OciusX source path, derive applicable authored guide set from actual source and scope metadata.",
-        "Installed planning, editing, retrieval and review return that complete policy or honest bounded recovery with correct identities.",
-        "Preserve source citation bodies/freshness and historical-policy boundaries; reuse existing edge-case evidence without rerunning passed suites absent a relevant change.",
-        "Implement and verify any concrete missing behavior, then advance original change-set recovery work."
+        "For both captured JSON and Markdown responses, every full serialized RPC response fits the declared bound, and paged UTF-8 recovery matches original bytes/BLAKE3.",
+        "Mandatory reconciliation/checkpoint identities and omission counts survive the bounded manifest and match recovered content.",
+        "Retain exact immutable-after-change and deep Windows path local evidence; do not claim fresh source-mutation or long-path execution from these live captures.",
+        "Fix a demonstrated gap; otherwise record installed delivery once and advance decision-aware review."
       ],
-      "previous_delivery": "eval/eg31-installed-maintenance-delivery-20261111.json"
+      "previous_delivery": "eval/eg01-installed-policy-delivery-20261111.json"
     }
   }
 }
