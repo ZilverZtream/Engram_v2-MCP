@@ -1813,6 +1813,57 @@ async fn background_postcommit_cancellation_or_cleanup_failure_reports_visible_c
     }
 }
 
+async fn complete_foreground_source(
+    search: &engram_index::HybridSearchEngine,
+    generation: u64,
+    marker: &str,
+    expected: &str,
+) -> anyhow::Result<String> {
+    use anyhow::ensure;
+    let held = search.pin_source_generation(PROJECT, generation)?;
+    let selected = query(generation, marker);
+    let lexical = search.lexical_search(&selected)?;
+    ensure!(
+        lexical.len() == 1 && search.count_docs_in_generation(PROJECT, "memory", generation)? == 1,
+        "Published source must contain exactly the complete known fixture file"
+    );
+    let hit = &lexical[0];
+    let (path, _, body, first, last) = search
+        .recover_selected_source_hit(PROJECT, &held, hit)?
+        .ok_or_else(|| anyhow::anyhow!("Published source body is missing"))?;
+    ensure!(
+        path.as_str() == "source.rs" && body == expected && first == 1 && last == 1,
+        "Published source bytes or line range differ from independent fixture input"
+    );
+    ensure!(
+        hit.pk == engram_core::build_pk(PROJECT, "memory", generation, &hit.doc_id),
+        "This changed source must belong to the expected physical revision"
+    );
+    #[cfg(feature = "vector")]
+    {
+        let vectors = search
+            .vector_search(&selected, &CancellationToken::new())
+            .await?;
+        ensure!(
+            vectors.len() == 1 && vectors[0].pk == hit.pk,
+            "Native vector selection must match the complete published lexical revision"
+        );
+        ensure!(
+            search
+                .vector_generation_inventory(PROJECT, Some("memory"), generation)
+                .await?
+                == (1, std::collections::BTreeSet::from(["source.rs".into()])),
+            "Native source coverage must contain exactly the published fixture file"
+        );
+    }
+    #[cfg(not(feature = "vector"))]
+    ensure!(
+        search.document_embedding_identity().is_none() && search.count_vectors(PROJECT).await? == 0,
+        "The actual no-vector build must remain lexical-only"
+    );
+    Ok(hit.pk.clone())
+}
+
 // One owned runtime drains actual async/blocking work before fixture removal,
 // including early errors. Hooks pause a real public wait=true source update;
 // they do not retain storage/source admission on behalf of the test.
@@ -1822,7 +1873,9 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
     let outcome = {
         let runtime = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
         runtime.block_on(async {
-            let engram = fixture_at(owned.path(), "fts_only");
+            let engram = fixture_at(owned.path(), if cfg!(feature="vector") { "local" } else { "fts_only" });
+            let original_source = std::fs::read_to_string(owned.path().join("repo/source.rs"))?;
+            let replacement_source = "pub fn foreground_published_marker() -> u32 { 33 }\n";
             engram.handle_repair_project(serde_json::from_value(json!({
                 "project_id":PROJECT,"scope":"full","max_commits":1,"index_antipatterns":false
             }))?).await?;
@@ -1834,6 +1887,7 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
             // mutation pin. A competing identity correction must not force
             // this observer to reload the runtime against the new directory.
             let ps = engram.ensure_project_runtime(PROJECT).await?;
+            let original_pk = complete_foreground_source(&ps.search, previous, "new_marker", &original_source).await?;
             let legacy_id = "foreground-removed-published-declaration";
             engram.state.graph.upsert_nodes(PROJECT, &[engram_graph::Node {
                 node_id:legacy_id.into(),node_type:"function".into(),name:"old_declaration".into(),
@@ -1843,8 +1897,7 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
             if step == "purge settlement" {
                 engram.state.registry.set_meta(PROJECT,"purge_pending",&previous.to_string())?;
             }
-            std::fs::write(owned.path().join("repo/source.rs"),
-                "pub fn foreground_published_marker() -> u32 { 33 }\n")?;
+            std::fs::write(owned.path().join("repo/source.rs"), replacement_source)?;
             let pause = ForegroundPublicationPause {
                 project:PROJECT.into(),after_commit,cancel:step=="cancellation",
                 fail_step:(!matches!(step,"cancellation"|"rejected CAS")).then_some(step),
@@ -1891,8 +1944,7 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
                 ensure!(report.contains("status: degraded") && report.contains(&format!("active_generation: {generation}"))
                     && report.contains(&format!("Source generation {generation}")) && report.contains("published"),
                     "Postcommit failure did not identify the committed degraded result: {report}");
-                ensure!(!ps.search.lexical_search(&query(generation,"foreground_published_marker"))?.is_empty(),
-                    "The committed source must remain complete and searchable");
+                complete_foreground_source(&ps.search, generation, "foreground_published_marker", replacement_source).await?;
                 let old_exists=engram.state.graph.get_node(PROJECT,legacy_id)?.is_some();
                 match step {
                     "cancellation"=>ensure!(report.contains("published before cancellation"),"{report}"),
@@ -1916,6 +1968,8 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
                     && ps.search.lexical_search(&query(previous,"foreground_published_marker"))?.is_empty()
                     && engram.state.graph.get_node(PROJECT,legacy_id)?.is_some(),
                     "Precommit failure changed the complete selected source or published graph declarations");
+                ensure!(complete_foreground_source(&ps.search, previous, "new_marker", &original_source).await? == original_pk,
+                    "Prepublication refusal must preserve the original physical source revision");
                 let refusal=response.as_ref().err().unwrap().to_string();
                 if step=="cancellation" {
                     ensure!(refusal.contains("update cancelled before source generation publication"),"{refusal}");
@@ -1927,6 +1981,7 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
                         && !ps.search.lexical_search(&query(current,"foreground_published_marker"))?.is_empty()
                         && engram.state.graph.get_node(PROJECT,legacy_id)?.is_none(),
                         "A public retry must converge after cancellation without retaining stale declarations");
+                    complete_foreground_source(&ps.search, current, "foreground_published_marker", replacement_source).await?;
                 } else {
                     ensure!(refusal.contains("source generation changed while this update was staged"),"{refusal}");
                     ensure!(!engram.state.registry.source_head_is_current(&head)?
@@ -1934,6 +1989,10 @@ fn foreground_publication_case(after_commit: bool, step: &'static str) -> anyhow
                         "A rejected CAS must preserve the competing identity correction, never restore an old token by ABA");
                 }
             }
+            eprintln!("FOREGROUND_PUBLICATION_COMPLETENESS {}", json!({
+                "native_vectors":cfg!(feature="vector"),"after_commit":after_commit,"step":step,
+                "previous_generation":previous,"final_generation":engram.state.registry.active_source_generation(PROJECT)?
+            }));
             finish_owned_jobs(&engram).await;
             drop(ps);drop(engram);
             Ok::<(),anyhow::Error>(())
