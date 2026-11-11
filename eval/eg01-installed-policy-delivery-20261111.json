@@ -1,0 +1,91 @@
+{
+  "status": "CURRENT_INSTALLED_SCOPED_DELIVERY_VERIFIED",
+  "at_utc": "2026-11-11T08:10:17.665895+00:00",
+  "requirement": "EG01 scoped authored guidance reaches planning, editing, retrieval and review with exact complete bodies or explicit hash-bound recovery.",
+  "target": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+  "runtime_server_sha256": "2d27d075ba064f5b63cf3b1b5dedbead0b2cd1e208e5d679779442ab3d40cc5f",
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\acceptance.json",
+    "sha256": "795882f929e8b89773fadc16985fa08be72d97efd9cf36c92517bce5db7a5e36"
+  },
+  "independent_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\independent-oracle.json",
+    "sha256": "888e33fdf0c9c103ae7e330fdcb4f9fae86c982239e9545c5502ec711f2f4183"
+  },
+  "consumer_responses": {
+    "search": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\search\\result.json",
+      "sha256": "940377d61470ff8db08a280b0c86fde3ebe2fc7dd3cead94a50752a5f1526c5c"
+    },
+    "chunk-retry": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\chunk-retry\\result.json",
+      "sha256": "3eb287457e01c9f70bbe721ddde2fcf0dc1423c79eb8439953932a74e19ebb34"
+    },
+    "citation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\citation\\result.json",
+      "sha256": "0b42e54bc2cc2a7e65fb8200aa508d66c3ff4214083f81fc9e30ef52f0c7686e"
+    },
+    "prepare-json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\prepare-json\\result.json",
+      "sha256": "0fc00d45d5887d96f0d4c840b36ad00884e288e71825acf25c87907ace9b0ccb"
+    },
+    "prepare-md": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\prepare-md\\result.json",
+      "sha256": "34a18ea8301cb98de30d65140d5bbd3dcef5736f1b67b86fc5226746ff4cdfc8"
+    },
+    "review-json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\review-json\\result.json",
+      "sha256": "00f2f203f87b1a992790b8064798ba98515c6b0550905e6e19bbcc98a842c79c"
+    },
+    "review-md": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\review-md\\result.json",
+      "sha256": "8d8295704f65d2b165a23aab71f556fe6eafb73fd49df979bca18615687f5fb0"
+    },
+    "plan-json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-json\\result.json",
+      "sha256": "ce89af50d3af587163e2d3bcaf07845255d4ff7a21a26e66be023d51aca4d141"
+    },
+    "plan-md": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-md\\result.json",
+      "sha256": "daba25ac5d182df52221c934fd114b3cf2094a2d3544b3e83918613a25535ab8"
+    }
+  },
+  "recovered_planning": {
+    "json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-recovered.json",
+      "sha256": "1338c024e77e69840bf10311c5c74abeb84175aa45b1c54215c0b63628c46d89"
+    },
+    "markdown": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-recovered.md",
+      "sha256": "f3985e4a6dcab832f54b3f1acdc17d23e964717501ab9c4a822cdd370f2373f3"
+    },
+    "json_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-recovery-rest\\acceptance.json",
+      "sha256": "8ca86ee8146d0e6874424e9e9bfccd291773510bbdabbe64b1d2275467edb630"
+    },
+    "markdown_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\plan-md-recovery\\acceptance.json",
+      "sha256": "68878b521af2161908d856fdb9fa33f03181069952151b1b10e7ab2320ee5b84"
+    }
+  },
+  "result": {
+    "direct_guidance_documents": 7,
+    "inline_complete": 5,
+    "oversized_recovered_complete": 2,
+    "planning_additional_candidate_guidance_disclosed": true,
+    "citation_bytes": 2209,
+    "runtime_change_required": false
+  },
+  "limits": [
+    "All review gates deliberately skipped; this check establishes policy delivery, not code correctness.",
+    "Generated observations remain document evidence, not authenticated authority or permission to override authored exceptions.",
+    "No current-source mutation, historical-policy replay or new combinatorial edge-case suite ran. Existing local tests remain separate evidence.",
+    "The initial concurrent full_chunk request was explicitly refused while the VB parser was busy; sequential retry succeeded."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111",
+    "purpose": "RPC inputs/responses, complete recovered policy and planning evidence.",
+    "retention": "Retain for delivery review; all client pipe handles closed, no owned fixture/daemon created and no authored source written. Planning creates normal managed response snapshots with advertised 24-hour/32-newer-snapshot retention. No preexisting files deleted."
+  },
+  "remaining": "Original edge-case/historical acceptance remains separately supported by retained local suites. This real installed case is not full original gate closure or comparative productivity evidence."
+}
