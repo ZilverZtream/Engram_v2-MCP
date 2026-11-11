@@ -406,6 +406,13 @@ pub struct HybridSearchEngine {
 }
 
 impl HybridSearchEngine {
+    /// Run destructive project cleanup only after every engine, detached worker
+    /// and source-only reader releases this source catalog. The caller must also
+    /// serialize registry admission/runtime opening for the project.
+    pub fn with_closed_source_index<T>(tantivy_dir: &Path, cleanup: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
+        snapshots::Catalog::with_closed_index(tantivy_dir, cleanup)
+    }
+
     /// Non-atomic in-memory observations. Does not open a table, pin a snapshot
     /// or drain native cache tasks; the latter would perturb the measurement.
     pub fn retention_observation(&self, project: &str) -> serde_json::Value {

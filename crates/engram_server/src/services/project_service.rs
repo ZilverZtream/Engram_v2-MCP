@@ -67,19 +67,9 @@ pub async fn ensure_project_runtime(
 ) -> Result<ProjectState, EngramError> {
     validate_project_id(project_id)?;
 
-    if let Some(p) = state.get_project_cached(project_id) {
-        p.search.bind_source_registry(&state.registry)?;
-        return Ok(p);
-    }
-
-    let runtime_lock = state
-        .project_runtime_locks
-        .write()
-        .await
-        .entry(project_id.to_string())
-        .or_insert_with(|| std::sync::Arc::new(tokio::sync::Mutex::new(())))
-        .clone();
-    let _initializing = runtime_lock.lock().await;
+    // Deletion owns this same lane through cache eviction and physical cleanup.
+    // Cache hits must not hand out a fresh owner after deletion admission.
+    let _initializing = state.acquire_project_runtime_lock(project_id).await;
     if let Some(p) = state.get_project_cached(project_id) {
         p.search.bind_source_registry(&state.registry)?;
         return Ok(p);

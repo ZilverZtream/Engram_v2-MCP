@@ -986,7 +986,7 @@
     {
       "id": "S05",
       "required_behavior": "Competing foreground/background updates validate their base and cannot overwrite a newer head.",
-      "state": "Partial: exact raw head pluspersistentunique revisions/sourceidentity fence allsourcepublicationworkers; atomicregistration0 andnumericABA/delete-recreate cases verified. Physicaldeletion/nativeworker/cachedincarnationstraddles andallremainingCASfaultboundaries open."
+      "state": "Partial: retained exact raw-head/revision/source-identity CAS and numeric ABA/delete-recreate coverage; scoped physical project deletion now serializes publication/runtime/job admission, drains jobs, refuses live catalog owners, survives RPC cancellation and reports cleanup failure with retry. Seven desired deletion cases plus normal initial registration pass in native/no-vector builds. Runtime release pending; all remaining store-commit/crash/incarnation boundaries are not claimed complete."
     },
     {
       "id": "S06",
@@ -9934,30 +9934,33 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_NATIVE_PUBLICATION_COVERAGE",
-      "original_requirement": "S04 required stores and source seal precede authoritative publication; related S10 cancellation/failure preserves a complete old or new source head and retry converges.",
-      "current_missing_behavior": "Selected actual-native publication outcome gap closed in both configurations, without a production defect or runtime change. Original broader commit/seal/CAS/crash/partial-native-upsert scope remains explicit.",
+      "status": "LOCAL_VALIDATION_PASSED_RELEASE_PENDING",
+      "original_requirement": "EG13/S05 competing foreground/background updates validate their base and cannot overwrite a newer head.",
+      "current_missing_behavior": "Concrete S05 gap: handle_delete_project does not acquire the update lane, removes the shared mutex while callers may hold/wait on it, hard-aborts jobs whose blocking storage work may survive, and reports success despite remove_dir_all failure. Reproduce deletion overtaking an actual paused foreground publisher, then serialize deletion and preserve the lane. Retained-reader/native-worker lifetime boundaries remain explicit until demonstrated.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/project_tools/source_publication_tests.rs"
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_index/src/hybrid/snapshots.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/src/services/project_service.rs",
+        "crates/engram_server/src/services/integrity_service.rs",
+        "crates/engram_server/src/state.rs",
+        "crates/engram_server/src/actors/immune.rs",
+        "crates/engram_server/src/actors/dreamer.rs",
+        "crates/engram_server/src/handlers/project_tools/source_publication_tests.rs",
+        "crates/engram_server/src/handlers/project_tools/source_publication_tests/project_deletion.rs"
       ],
       "finite_acceptance": [
-        "Reuse existing foreground pause/failure controls and public repair/update handlers; exercise actual local native-vector backend in native builds and lexical backend in no-vector builds.",
-        "Check complete known source bodies plus agreement of lexical/native physical selections for retained old heads after pre-publication cancellation/refused CAS, and committed new heads after post-publication finalization failure/cancellation.",
-        "Preserve existing exact degraded-generation/step reporting, competing-directory identity protection and valid cancellation retry requirements.",
-        "Run only the existing relevant foreground pre/post publication cases in both configurations; do not create new fault-injection infrastructure, crash matrix, performance workload or hooks unless a concrete delivery-blocking gap requires it.",
-        "Close all fixture jobs, handles and runtime before owned directory teardown, including errors. Implement production changes only on demonstrated failure.",
-        "Retain existing native worker/finalizer evidence and keep all-writer/abrupt-crash/partial-native-upsert scope open without calling these focused cases full S04/S10 closure."
+        "Demonstrated public deletion/publication race fixed; seven bounded deletion lifecycle cases pass in native/no-vector builds with fixture cleanup.",
+        "Normal foreground/background initial registration passes in both builds.",
+        "Ship reviewed runtime change; candidate actual public deletion waits for held embedding worker and removes stores/jobs, then fresh registration returns exact source.",
+        "Preserve production data and config; validate installed normal service and retain original unfinished S05 scope."
       ],
-      "previous_delivery": "eval/s03-supported-identity-delivery-20261111.json",
-      "already_inspected": [
-        "S04/S10 ledger states and s04_s10_current_source_and_saved_ordering_reconciliation_20261103",
-        "foreground_publication_case uses fts_only; existing callback before seal and after authoritative CAS",
-        "Foreground implementation seals after cancellation check, CAS-publishes under extraction fence, then reports finalization failures as committed degraded outcomes"
-      ],
-      "delivery": "eval/s04-native-publication-validation-20261111.json"
+      "previous_delivery": "eval/s04-native-publication-validation-20261111.json",
+      "already_inspected": "S05 ledger state; current foreground rejected-CAS test preserves competing directory identity in actual native and no-vector configurations.",
+      "delivery": "eval/s05-project-deletion-delivery-20261111.json; release build, candidate public MCP and installed normal verification are the next steps. Keep S05 selected until delivery."
     },
-    "at_utc": "2026-11-11T11:22:19.162207+00:00",
-    "reason": "S03 supported source/embedding identity checks delivered and pushed1a787d2. Advance original S04/S10 publication boundary gap without reopening covered worker/Drop routes.",
+    "at_utc": "2026-11-11T11:34:43.155811+00:00",
+    "reason": "Actual native/no-vector foreground publication outcome gap delivered and pushed a7be276. Advance original S05 competing-update base/identity protection.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
