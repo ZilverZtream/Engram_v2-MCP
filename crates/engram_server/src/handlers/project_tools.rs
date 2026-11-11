@@ -2937,10 +2937,7 @@ impl Engram {
         let Some(rec) = rec else {
             return Err(McpError::invalid_params("Unknown project", None));
         };
-        let gen_ = self
-            .get_active_generation(&req.project_id)
-            .await
-            .unwrap_or(1);
+        let gen_ = self.get_active_generation(&req.project_id).await?;
         Ok(CallToolResult::success(vec![Content::text(format!(
             "project_id: {}\nname: {}\ndirectory: {}\nactive_generation: {}",
             rec.project_id, rec.project_name, rec.directory, gen_

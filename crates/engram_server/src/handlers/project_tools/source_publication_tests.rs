@@ -20,6 +20,8 @@ mod process_exclusion;
 mod repair_history_options;
 #[path = "source_publication_tests/project_deletion.rs"]
 mod project_deletion;
+#[path = "source_publication_tests/diagnostic_selection.rs"]
+mod diagnostic_selection;
 
 #[derive(Clone)]
 struct PublicationPause {

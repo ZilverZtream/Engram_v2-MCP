@@ -1,0 +1,57 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T13:08:10.259764+00:00",
+  "original_requirement": "S07: public diagnostics agree with authoritative logical source selection.",
+  "demonstrated_failure": {
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\red-behavior-result.json",
+      "sha256": "a512cdd93d783e901a9ae9c561e129d729432cad9055d35b2d4a1b3d01a8a3e8"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\red-behavior.log",
+      "sha256": "542ff707d123628f7d4793143da099a4de712c932343c468d60981fb68c1054d"
+    },
+    "behavior": "Actual project_info handler reported successful active_generation:1 for broken-head metadata after real repair publication."
+  },
+  "implemented": "Propagate the existing get_active_generation error; do not fabricate a valid generation on failed source admission.",
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\fixed-no-vector-result.json",
+          "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\fixed-no-vector.log",
+          "sha256": "a22938d6a2cf870d5a6219866ad371afc4dd5097950467de415d3fd1e285369c"
+        }
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\fixed-native-result.json",
+          "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\fixed-native.log",
+          "sha256": "8a479f2a54e6650ce0c5e2718f33822dcdb641ed8ccfaf3493aaef75bd8b2f04"
+        }
+      }
+    ],
+    "tests_per_build": 2,
+    "scenarios": [
+      "Real repair publication reports its actual head; malformed, overflowing and required-but-missing heads preserve source admission errors and remain unmodified; restored heads report correctly.",
+      "Legacy cold absence reports1 without storing authority; registered unpublished reports0; unknown projects refuse without creation."
+    ],
+    "scope": "Both native-feature and no-default-features binaries; these metadata/diagnostic fixtures deliberately use fts_only. No vector correctness claim."
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\independent-review.json",
+    "sha256": "99c241af3770d8415f40f46234cbbe5cedd6197ce3e9b8764b79fd92239e6030"
+  },
+  "remaining": "Build release, verify actual candidate and installed MCP diagnostics, deploy and record installed identity. Full original S07 top-k/count/path/citation coverage remains partial.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111",
+    "owned_test_fixtures_closed_and_removed": true,
+    "retained": "Logs, compiler output/helper, receipts and empty runner containers retained here for delivery evidence. No preexisting-folder deletion."
+  }
+}
