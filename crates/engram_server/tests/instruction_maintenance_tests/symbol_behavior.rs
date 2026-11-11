@@ -107,6 +107,105 @@ const TWO_FUNCTIONS: &str =
     "pub fn Important() -> i32 {\n    10\n}\n\npub fn Other() -> i32 {\n    20\n}\n";
 
 #[tokio::test]
+async fn prose_case_collisions_do_not_create_vb_dependencies_but_explicit_names_still_do() {
+    let (temporary, engram, mut request) = fixture();
+    let root = temporary.path().join("repo");
+    let source = "Public Class Resolved\n    Public Value As Integer = 1\nEnd Class\n";
+    for (name, text) in [
+        ("prose", "Keep the resolved style when exporting.\n"),
+        ("explicit", "Preserve `resolved` for callers.\n"),
+        ("named", "Resolved carries the selected value.\n"),
+    ] {
+        std::fs::write(root.join(format!("rules/{name}.md")), text).unwrap();
+    }
+    std::fs::write(root.join("Site/model.vb"), source).unwrap();
+    request["instruction_maintenance"]["base_commit"] = json!(commit(&root));
+    request["instruction_maintenance"]["instruction_paths"] =
+        json!(["rules/prose.md", "rules/explicit.md", "rules/named.md"]);
+    request["instruction_maintenance"]["evidence_paths"] = json!(["Site/model.vb"]);
+    std::fs::write(root.join("Site/model.vb"), source.replace("= 1", "= 2")).unwrap();
+
+    let report = call(&engram, request).await.unwrap();
+    let manifest = &report["packet"]["instruction_manifest"];
+    let prose = root_state(manifest, "rules/prose.md");
+    assert_eq!(prose["status"], "no_collected_dependency_changes");
+    assert!(
+        prose["symbol_reference_indices"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
+    for path in ["rules/explicit.md", "rules/named.md"] {
+        let state = root_state(manifest, path);
+        assert_eq!(state["status"], "review_changed_dependencies");
+        assert_eq!(
+            state["symbol_changes"][0]["status"],
+            "candidate_file_changed_body_coverage_unavailable"
+        );
+        assert_eq!(
+            state["symbol_changes"][0]["after_candidates"][0]["name"],
+            "Resolved"
+        );
+    }
+    assert_eq!(report["authored_files_written"], 0);
+    drop(engram);
+    temporary.close().unwrap();
+}
+
+#[tokio::test]
+async fn exact_prose_candidate_does_not_pull_in_a_differently_cased_vb_declaration() {
+    let (temporary, engram, mut request) = fixture();
+    let root = temporary.path().join("repo");
+    let vb = "Public Class Resolved\n    Public Value As Integer = 1\nEnd Class\n";
+    std::fs::write(
+        root.join("rules/area.md"),
+        "Use resolved for this operation.\n",
+    )
+    .unwrap();
+    std::fs::write(root.join("rules/explicit.md"), "Inspect `resolved`.\n").unwrap();
+    std::fs::write(root.join("Site/model.vb"), vb).unwrap();
+    std::fs::write(
+        root.join("Site/logic.rs"),
+        "pub fn resolved() -> i32 { 10 }\n",
+    )
+    .unwrap();
+    request["instruction_maintenance"]["base_commit"] = json!(commit(&root));
+    request["instruction_maintenance"]["instruction_paths"] =
+        json!(["rules/area.md", "rules/explicit.md"]);
+    request["instruction_maintenance"]["evidence_paths"] =
+        json!(["Site/model.vb", "Site/logic.rs"]);
+    std::fs::write(root.join("Site/model.vb"), vb.replace("= 1", "= 2")).unwrap();
+
+    let report = call(&engram, request).await.unwrap();
+    let manifest = &report["packet"]["instruction_manifest"];
+    assert_eq!(
+        root_state(manifest, "rules/area.md")["status"],
+        "no_collected_dependency_changes"
+    );
+    let references = manifest["symbol_references"].as_array().unwrap();
+    for path in ["rules/area.md", "rules/explicit.md"] {
+        for version in ["before", "after"] {
+            assert!(references.iter().any(|reference| {
+                reference["source_path"] == path && reference["version"] == version
+            }));
+        }
+    }
+    for reference in references {
+        let candidates = reference["candidates"].as_array().unwrap();
+        if reference["source_path"] == "rules/area.md" {
+            assert_eq!(candidates.len(), 1);
+            assert_eq!(candidates[0]["path"], "Site/logic.rs");
+        } else {
+            assert_eq!(reference["source_path"], "rules/explicit.md");
+            assert_eq!(candidates.len(), 2);
+            assert_eq!(reference["status"], "ambiguous_symbol_candidates");
+        }
+    }
+    drop(engram);
+    temporary.close().unwrap();
+}
+
+#[tokio::test]
 async fn symbol_body_evidence_distinguishes_a_referenced_change_from_an_unrelated_body_edit() {
     let (temporary, engram, mut request) = fixture();
     let root = temporary.path().join("repo");

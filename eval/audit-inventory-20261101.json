@@ -9814,21 +9814,22 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "original_requirement": "EG27 manifests expose source/hash/scope, linked files/symbols, base commit and relevant changes in health/update; preserve historical guidance and distinguish unrelated edits.",
-      "current_missing_behavior": "Feature-specific deployed relevance/noise acceptance remains unverified in original finding; first use retained cases/current source, not a fresh broad audit.",
+      "current_missing_behavior": "Ordinary prose is case-folded as VB code, so resolved/style and render prose enter symbol dependencies. Current deployed output and exact source excerpts reproduce this.",
       "implementation_files": [
         "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
         "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
         "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
       ],
       "finite_acceptance": [
-        "Deployed project_health exposes explicit instruction reference state and exact source/evidence identity.",
-        "Existing rename/dependent-change case flags the affected instruction with evidence; unrelated body-only edit does not invalidate unrelated guidance.",
-        "Historical/reference/cycle/omission cases retain original source authority and explicit gaps."
+        "Actual current OciusX packets no longer add resolved->Resolved, render->Render or API->api solely by prose case folding.",
+        "Backticked VB names remain case-insensitive; exact-spelling prose references, historical rename detection and independent coverage gaps remain.",
+        "A VB file change does not flag an unrelated prose-only guide; explicit and exact-spelling references still disclose the changed candidate file.",
+        "Relevant maintenance suite passes and changed production behavior is deployed/verified before closing this slice."
       ],
       "previous_delivery": "eval/eg14-draft-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T07:05:38.304027+00:00",
-    "reason": "Retained EG14 draft submitted to installed engine, repeated identically, stale proposal refused; existing OX QA draft stage completed and its output reviewed/corrected. Bounded delivery recorded; full EG14 and separate generator acceptance remain open. Advance next ready original item instead of expanding the pilot.",
+    "at_utc": "2026-11-11T07:26:24.218488+00:00",
+    "reason": "EG27 actual health prose-collision defect reproduced and fixed. Native maintenance47PASS plus strengthened matching-case1PASS; independent source review has no remaining actionable finding. Release build/deployment remains required.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9857,8 +9858,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-27: instruction evidence freshness and reference drift through deployed health/update; then EG-31 maintenance.",
-    "next_user_visible_deliverable": "Verify existing health/update manifest against original rename/unrelated-edit/historical criteria; fix only a concrete missing behavior, then complete its delivery.",
+    "active_original_item": "EG-27 prose reference correction: finish release and actual installed health verification; do not advance to another feature yet.",
+    "next_user_visible_deliverable": "Installed health reports omit case-fold-only prose matches while preserving explicit references, source identity and coverage gaps.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9872,7 +9873,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: installed EG14 submission/repeat/stale acceptance and existing OX QA draft stage completed; reviewed 89-line draft and separate provenance delivered. No production Rust change claimed.",
+    "previous_goal_turn_classification": "Progress: reproduced installed defect, added failing wanted-behavior regression, implemented correction, passed47-case suite and corrected-test rerun; deployment pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

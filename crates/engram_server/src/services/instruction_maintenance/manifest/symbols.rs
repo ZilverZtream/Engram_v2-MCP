@@ -337,9 +337,11 @@ pub(super) fn capture(
                                 start.get_or_insert(at);
                             } else if let Some(first) = start.take() {
                                 let token = raw[first..at].trim_end_matches(['.', ':']);
+                                // Prose is not VB source: folding "resolved
+                                // style" into the type Resolved invents a
+                                // dependency. Explicit code retains VB lookup.
                                 if identifier(token)
-                                    && (lookup.contains_key(&token.replace("::", "."))
-                                        || vb_lookup.contains_key(&token.to_ascii_lowercase()))
+                                    && lookup.contains_key(&token.replace("::", "."))
                                 {
                                     mentions.push((
                                         span.start + first,
@@ -368,6 +370,7 @@ pub(super) fn capture(
                         .chain(
                             vb_lookup
                                 .get(&canonical.to_ascii_lowercase())
+                                .filter(|_| form == "inline_code")
                                 .into_iter()
                                 .flatten()
                                 .copied(),
@@ -385,6 +388,7 @@ pub(super) fn capture(
                             .chain(
                                 vb_lookup
                                     .get(&short.to_ascii_lowercase())
+                                    .filter(|_| form == "inline_code")
                                     .into_iter()
                                     .flatten()
                                     .copied(),

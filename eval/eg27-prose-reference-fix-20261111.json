@@ -1,0 +1,74 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_RELEASE_PENDING",
+  "at_utc": "2026-11-11T07:26:24.218488+00:00",
+  "requirement": "EG27: instruction reference changes must not be invented by folding ordinary prose as case-insensitive VB code.",
+  "observed_before": {
+    "installed_health": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-current-health-20261111\\map-file-layers.json",
+        "sha256": "f61e2e813756a6559216485ac69f08955b16cc64ed8078231aa53f53a888b477"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-current-health-20261111\\reporting.json",
+        "sha256": "f988402b91b0182be419509e374ecba036b8ec14043f3f5fcc179b96b894fa96"
+      }
+    ],
+    "source_confirmed_examples": [
+      "resolved style -> VB Resolved",
+      "styles are found, resolved or interpreted -> VB Resolved",
+      "response handlers render HTML -> VB Render overloads"
+    ],
+    "regression": "Changing a VB class file wrongly set an unrelated prose guide to review_changed_dependencies."
+  },
+  "change": "Unformatted prose requires exact declaration spelling during discovery and matching. Inline-code VB names retain case-insensitive matching, including ambiguity and qualified suffix candidates. Existing bounds and incomplete-coverage semantics remain.",
+  "tests": {
+    "red": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\red-result.json",
+      "sha256": "a512cdd93d783e901a9ae9c561e129d729432cad9055d35b2d4a1b3d01a8a3e8"
+    },
+    "full_maintenance_suite": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\green-result.json",
+      "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+    },
+    "full_suite_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\green.log",
+      "sha256": "ee301c51c140b6ccfba6f4bb8cbb6dc5065fe4d69e191aadf3e2df18a2e6680e"
+    },
+    "passed": 47,
+    "failed": 0,
+    "review_strengthened_case": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\review-test-result.json",
+      "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+    },
+    "review_strengthened_case_log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\review-test.log",
+      "sha256": "896ee17c3d6ff3be6c3a50279967e14036f45028df6f0c20383e80275850c7ec"
+    },
+    "fixture_entries_remaining": []
+  },
+  "review": {
+    "initial": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\independent-review.json",
+      "sha256": "facac788e284b0e27bf4161832c3d94e5753e57ab24b557b01b8fb76a006e1aa"
+    },
+    "final": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\final-review.json",
+      "sha256": "0bfd9e81bbbef1e839932f42af8423ca178e69260abc8fd361afc07501ce0f86"
+    },
+    "coderabbit": "auth status returned authenticated=false; no CodeRabbit review ran."
+  },
+  "deployment": {
+    "installed": false,
+    "next": "Build release using existing shipping_empty_type_build_20261110.py, then verify same actual OciusX health requests and deploy complete server/unchanged-sidecar pair.",
+    "build_label": "eg27-prose-case-shipping-20261111"
+  },
+  "limits": [
+    "Exact-spelling ordinary words can still be candidate references; semantic intent is not established.",
+    "Unformatted case-variant VB mentions are outside this bounded discovery; mark names as inline code for case-insensitive lookup.",
+    "No full EG27/31 or original19-gate closure is claimed."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111",
+    "retention": "Retain logs, review and acceptance artifacts until delivery review. New red-temp/green-temp/review-temp directories are empty; fixture teardown succeeded. Installed service and preexisting folders unchanged."
+  }
+}
