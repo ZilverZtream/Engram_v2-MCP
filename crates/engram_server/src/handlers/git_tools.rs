@@ -1,4 +1,5 @@
-use crate::handlers::validate_project_id;
+use crate::handlers::{validate_project_id, history_response};
+use serde_json::json;
 use crate::models::{
     AnalyzeRevertsRequest, AnalyzeTemporalCouplingsRequest, GitHistoryMode, IndexGitHistoryRequest,
     IngestZipHistoryRequest, SearchHistoryRequest,
@@ -1872,13 +1873,16 @@ impl Engram {
         };
         let order = result.ranked;
 
-        let mut out = format!(
+        let header = format!(
             "Precedents: {} of {total} published changes ({label}); ranked by whole-change \
              {baseline_tier} cards, {how}. Bulk changes of over {} files are excluded.\n",
             order.len().min(limit),
             cards::BULK_FILES,
         );
+        let mut blocks = Vec::new();
+        let mut rows = Vec::new();
         for (i, card) in order.iter().take(limit).enumerate() {
+            let mut out = String::new();
             out.push_str(&format!("\n--- #{} ---\ncommit: {}\n", i + 1, card.oid));
             if !card.author.is_empty() {
                 out.push_str(&format!("author: {}\n", card.author));
@@ -1904,10 +1908,32 @@ impl Engram {
                     .collect();
                 out.push_str(&format!("content:\n{}\n", body.trim_end()));
             }
+            // The card is deliberately lossy; never describe its clipped
+            // description or non-generated file list as complete Git history.
+            let stored = ps.search.stored_doc_at_path(&req.project_id, "history", &format!("commit:{}",card.oid))
+                .map_err(|e|McpError::internal_error(e.to_string(),None))?;
+            let doc_id = stored.as_ref().map(|doc|engram_core::DocIdStr::compute(
+                &doc.path,0,0,&engram_core::ContentHash::compute(doc.content.as_bytes())).0);
+            let recovery = history_response::recovery(&req.project_id,Some(&card.oid),doc_id.as_deref());
+            let preview:String=card.description.chars().take(req.max_content_chars).collect();
+            let content_truncated = preview.chars().count()<card.description.chars().count()
+                || card.description.chars().count()>=1500;
+            let files_truncated=card.file_count>12;
+            history_response::append_recovery(&mut out,&recovery,content_truncated || files_truncated);
+            out.push_str("coverage: precedent card description <=1500 chars; non-generated files <=40 before display; full Git recovery may include additional paths.\n");
+            rows.push(json!({"rank":i+1,"commit":card.oid,"author":card.author,"timestamp":card.timestamp,
+                "message":card.title,"content":if req.max_content_chars>0 {Some(preview)} else {None},
+                "content_truncated":content_truncated,"content_coverage":"card description; complete original body not established",
+                "files":card.files.iter().take(12).collect::<Vec<_>>(),"file_count":card.file_count,
+                "files_truncated":files_truncated,"files_scope":"non-generated changed files, not query-matched paths",
+                "recovery":recovery}));
+            blocks.push(out);
         }
-        Ok(CallToolResult::success(vec![Content::text(
-            out.trim_end().to_string(),
-        )]))
+        history_response::finish(&req,header,&blocks,&rows,json!({"mode":"precedent",
+            "scope":label,"resolved_revision":tip.to_string(),"retrieval_capability":baseline_tier,
+            "rerank":how,"eligible_changes_before_bulk_exclusion":total,
+            "bulk_changes_excluded_over_files":cards::BULK_FILES,
+            "active_generation":null}))
     }
 
     /// Typed history results shared with planning; never recover identities from rendered prose.
@@ -1978,11 +2004,13 @@ impl Engram {
         &self,
         mut req: SearchHistoryRequest,
     ) -> Result<CallToolResult, McpError> {
+        history_response::validate(&req)?;
         req.validated_rerank_timeout_ms()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         if history_mode(req.mode.as_deref(), &req.query)? == HistoryMode::Precedent {
             return self.handle_precedents(req).await;
         }
+        let response_req = req.clone();
         let content_limit = req.max_content_chars;
         let project_id = req.project_id.clone();
         // Resolved again for its label and publishers: the walk is cached.
@@ -2048,12 +2076,6 @@ impl Engram {
             }
         }
 
-        if groups.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "No history hits found{scope}."
-            ))]));
-        }
-
         // Engine capability does not establish that both retrieval channels
         // contributed to this particular query's results.
         let retrieval = match ps.search.semantic_quality() {
@@ -2065,14 +2087,16 @@ impl Engram {
                 "retrieval capability: lexical + semantic vectors"
             }
         };
-        let mut out = String::with_capacity(4096);
-        out.push_str(&format!(
+        let header = if groups.is_empty() { format!("No history hits found{scope}; {retrieval}.\n") } else { format!(
             "History search results ({} commits from {} matching documents, gen {gen_}{scope}; \
              {retrieval}):\n",
             groups.len(),
             hits.len(),
-        ));
+        ) };
+        let mut blocks=Vec::new();
+        let mut rows=Vec::new();
         for (i, group) in groups.iter().enumerate() {
+            let mut out=String::new();
             out.push_str(&format!("\n--- #{} ---\n", i + 1));
             // The commit-message document carries author, date and message
             // even when only the commit's diffs matched.
@@ -2093,7 +2117,7 @@ impl Engram {
                 .as_ref()
                 .and_then(|d| d.author.clone())
                 .or_else(|| fallback().and_then(|d| d.author));
-            if let Some(author) = author {
+            if let Some(author) = &author {
                 out.push_str(&format!("author: {author}\n"));
             }
             let timestamp = stored
@@ -2164,11 +2188,33 @@ impl Engram {
                 }
                 out.push('\n');
             }
+            let doc_id=stored.as_ref().and_then(|doc| {
+                if group.commit.is_some() {
+                    Some(engram_core::DocIdStr::compute(&doc.path,0,0,
+                        &engram_core::ContentHash::compute(doc.content.as_bytes())).0)
+                } else {
+                    hits.iter().find(|hit|hit.pk==group.first_pk).map(|hit|hit.doc_id.clone())
+                }
+            });
+            let recovery=history_response::recovery(&project_id,group.commit.as_deref(),doc_id.as_deref());
+            let preview=body.map(|body|body.chars().take(content_limit).collect::<String>());
+            let content_truncated=body.is_some_and(|body|body.chars().count()>content_limit);
+            let files_truncated=group.files.len()>12;
+            history_response::append_recovery(&mut out,&recovery,content_truncated || files_truncated);
+            rows.push(json!({"rank":i+1,"commit":group.commit,"path":group.key,"author":author,"timestamp":timestamp,
+                "message":body.and_then(|b|b.lines().map(|l|l.trim().trim_start_matches('#').trim()).find(|l|!l.is_empty())),
+                "content":if content_limit>0 {preview} else {None},"content_truncated":content_truncated,
+                "content_coverage":if stored.is_some(){"indexed document"}else{"publisher summary only; indexed body unavailable"},
+                "files":group.files.iter().take(12).collect::<Vec<_>>(),"matched_file_count":group.files.len(),
+                "files_truncated":files_truncated,"files_scope":"matched diffs in retrieved document pool, not all changed files",
+                "matched":{"message":group.message_matched,"merged_pr_record":group.record_matched,
+                    "diff_count":group.files.len(),"folded_branch_commits":group.folded},"recovery":recovery}));
+            blocks.push(out);
         }
 
-        Ok(CallToolResult::success(vec![Content::text(
-            out.trim().to_string(),
-        )]))
+        history_response::finish(&response_req,header,&blocks,&rows,json!({"mode":"text",
+            "scope":scope,"active_generation":gen_,"retrieval_capability":retrieval,
+            "matching_documents_in_retrieved_pool":hits.len(),"rerank":null}))
     }
 
     pub async fn handle_analyze_temporal_couplings(

@@ -1,0 +1,75 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T20:48:58.824025+00:00",
+  "original_requirement": "TODO P0-4 complete response budgets, explicit truncation/paging and structured output; selected search_history text and precedent modes.",
+  "implemented": "Optional max_tokens bounds the entire UTF8 reply at bytes/4. output_json exposes typed records and bounded-window metadata. offset pages whole records within existing limit. Required scope/capability/rerank/recovery context is retained; too-small requests refuse with an actionable minimum. Exact indexed document and Git object recovery disclose clipped cards and partial matched-file coverage.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\baseline-v2\\acceptance.json",
+      "sha256": "491670614684619e3780af947eb618a7ab2c0fdbe82f23a341f90602aa5154fd"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\baseline-v2\\git-oracle.json",
+      "sha256": "9fd4b7c5f6932ed0623628c906101894fd34aa4c2e589c7cda4ea4faf3d9d815"
+    },
+    "behavior": "Installed native text/precedent replies were8804/8771bytes despite80character previews; budgets,JSON,paging refused; no recovery. Three independent local Git commits."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\history-native-serial-result.json",
+          "sha256": "543da2758e7012af2a320de23a42aa5212051b55208bacc326366e507e5738ea"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\history-native-serial.log",
+          "sha256": "0151f0ef7c0781b61551b5c3d892ee9bfcc45cd47f4f6464094503dd23a494d2"
+        },
+        "passed": 11
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\history-no-vector-result.json",
+          "sha256": "3408dc8d5d76ec29fe9265724a34adc1fd1f63e7dd6ab61019fad2444cd25ab9"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\history-no-vector.log",
+          "sha256": "72b2cabf94563bf4f4667802ce722d69ce9ccb455d92a6ae742193175c5ddfb4"
+        },
+        "passed": 11
+      }
+    ],
+    "total_passed": 22,
+    "initial_concurrent_parser_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\history-native-result.json",
+      "sha256": "33879ff5fb0c72678b961b1de21834185e4d203543880b8949021d12cc84ff32"
+    }
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\source-review.json",
+    "sha256": "82cf36546b5c0a74ed8f31a3eed10d0d53b11648dc949ba4a39f25968bb3a2a8"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/git_tools.rs": "f12813ab4990ac5ceca8df6bb1cf06031badb1f3f984ac3f30a9e0dc95798af2",
+    "crates/engram_server/src/handlers/history_response.rs": "d8eff08934a381e72f0a3582b1ae89bad1d98ef23d907770ebb38e3846b6732d",
+    "crates/engram_server/src/handlers/mod.rs": "4fd386cbc7dccb4443669675e03bf5f86c75e3be05f9c8992333548408a827ba",
+    "crates/engram_server/src/handlers/planning_tools.rs": "c0684c66ce4ba808d238159e43d1d971f77a4cec010a9b4bb6dbf0d737ba25c9",
+    "crates/engram_server/src/handlers/search_tools.rs": "1d91fa7b754c81f08b5bf1ee230a670ead2c31fe7df26b2612d8ac69c61b86a3",
+    "crates/engram_server/src/handlers/search_tools/response_budget.rs": "ff233dc3ded1eb04daca85a4a77b07c59c7d90c9e89813f05a2fbd303b70c34e",
+    "crates/engram_server/src/handlers/search_tools/structured_response.rs": "391c762417a13ac72713cfafbbb205cdcdcd8061f74c81a4fc4853903d8b0663",
+    "crates/engram_server/src/models/requests.rs": "efcc931680586f8911bbbdc1c7df891506257e10ad4322ef3ae4462e06257464",
+    "crates/engram_server/src/tools.rs": "8c6fe35436c90b826f4b2cb8aad58d98f3a4cb93010d775d0904b0feff28cd8b",
+    "crates/engram_server/tests/history_response_tests.rs": "2498b4bbe688a6f5ca2e85f8b9bbb484ca7f7c9981bbe0e396813a37d4ccb340",
+    "crates/engram_server/tests/integration_test.rs": "288fc90d0d6770ec64169ec4bd4862937f875de292365dcf564246c3a3c93647"
+  },
+  "remaining": "Build, execute candidate/installed public Git recovery and budget acceptance, deploy and record. Other tools, provider-specific tokenization, durable cursors and full P0-4 remain unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111",
+    "accepted_test_and_baseline_fixtures_closed_and_removed": true,
+    "retained_cleanup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\baseline\\cleanup.json",
+      "sha256": "6628415489c1ccaa1bc73b234387cedf41a57111dc9ca002380eef7edb4e7d8c"
+    },
+    "retained": "Baseline, failed concurrency receipt, logs and helpers retained. Policy-rejected failed fixture remains untouched."
+  }
+}

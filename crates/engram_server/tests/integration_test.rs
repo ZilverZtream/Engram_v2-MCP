@@ -2180,6 +2180,7 @@ async fn test_search_history() {
     // 3. Search History (query only)
     let search_res = engram
         .search_history(Parameters(engram_server::SearchHistoryRequest {
+            max_tokens: None, output_json: false, offset: 0,
             project_id: project_id.to_string(),
             query: "feature".into(),
             file_filter: None,
@@ -2212,6 +2213,7 @@ async fn test_search_history() {
     // 4. Search History (author filter)
     let search_res = engram
         .search_history(Parameters(engram_server::SearchHistoryRequest {
+            max_tokens: None, output_json: false, offset: 0,
             project_id: project_id.to_string(),
             query: "fix".into(),
             file_filter: None,

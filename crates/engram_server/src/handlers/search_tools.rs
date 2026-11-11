@@ -20,9 +20,9 @@ mod lexical_worker_tests;
 #[path = "search_tools/response_budget_tests.rs"]
 mod response_budget_tests;
 #[path = "search_tools/response_budget.rs"]
-mod response_budget;
+pub(crate) mod response_budget;
 #[path = "search_tools/structured_response.rs"]
-mod structured_response;
+pub(crate) mod structured_response;
 
 /// P0-8: inclusive line-range overlap. Zero-valued ranges mean "unknown"
 /// and never overlap anything.
