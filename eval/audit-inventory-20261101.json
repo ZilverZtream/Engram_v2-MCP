@@ -978,9 +978,10 @@
     {
       "id": "S04",
       "required_behavior": "Every full, incremental, repair and recovery writer commits required stores and seals before authoritative CAS publication.",
-      "state": "Partial: source-bound contexts/admission and ordered same-PK payload identity, real native cancellation and Drop finalizer ownership have dated passing behavior receipts. Current traced source writer failures do not publish unsealed candidates. Full commit/seal/CAS/crash fault coverage and final feature/release validation remain; do not treat already-tested ordering/Drop routes as wholly unimplemented.",
+      "state": "Partial: foreground public full-initialization/update interruption coverage now uses actual native vectors and actual no-vector builds, checking complete source bodies and physical lexical/native agreement. Prior source-bound admission/ordered worker/finalizer evidence retained. All-writer and individual store commit/seal/CAS/crash boundaries remain open.",
       "prior_state_before_reconciliation_20261103": "Partial: reproduced late admission rejection after lexical commit fixed using actual project/root-bound contexts, including public bulk history consumption. Native27 and server13 pass. Same-PK cross-store ordering, all worker/Drop commit ownership and broader store/selector failure atomicity remain open.",
-      "latest_boundary_reconciliation": "execution_evidence_20261101.s04_s10_current_source_and_saved_ordering_reconciliation_20261103"
+      "latest_boundary_reconciliation": "execution_evidence_20261101.s04_s10_current_source_and_saved_ordering_reconciliation_20261103",
+      "current_foreground_native_and_no_vector": "eval/s04-native-publication-validation-20261111.json"
     },
     {
       "id": "S05",
@@ -1022,11 +1023,12 @@
     {
       "id": "S10",
       "required_behavior": "Cancellation and faults around each commit, seal and CAS preserve a complete old or new head; retries converge.",
-      "state": "Partial: current native real foreground pre/post-CAS behavior now verifies strict refusal before publication and truthful committed-generation degraded outcomes after cleanup/debt/resolver failure or cancellation. Earlier worker/finalizer/repair proofs retained. Current no-vector/newS12/crash/fault/final release scope remains open.",
+      "state": "Partial:7foreground pre/post-publication scenarios now pass in actual native-vector and no-vector configurations: strict prepublication refusal/valid cancellation retry and truthful committed-generation degraded outcomes after cancellation or finalization failure, with complete source body/physical identity checks. Broader all-writer/crash/fault scope remains open.",
       "prior_state_before_reconciliation_20261103": "Partial: actual native write/request cancellation plus owned public repair service lock/indexing-slot lifetime and revision-checked durable settlement are verified. All other commit/seal/CAS/crash/warning-finalization fault boundaries remain open.",
       "latest_boundary_reconciliation": "execution_evidence_20261101.s04_s10_current_source_and_saved_ordering_reconciliation_20261103",
       "latest_foreground_reporting_source": "execution_evidence_20261101.s10_foreground_post_cas_reporting_source_applied_20261104",
-      "latest_foreground_behavior": "execution_evidence_20261101.native_standalone_decisions_foreground_and_server_process_behavior_20261104"
+      "latest_foreground_behavior": "execution_evidence_20261101.native_standalone_decisions_foreground_and_server_process_behavior_20261104",
+      "current_foreground_native_and_no_vector": "eval/s04-native-publication-validation-20261111.json"
     },
     {
       "id": "S11",
@@ -9932,43 +9934,30 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SUPPORTED_IDENTITY_VALIDATION",
-      "original_requirement": "EG13/S03 extraction/source-version and embedding configuration identity prevent incompatible inheritance.",
-      "current_missing_behavior": "Selected supported identity deployment gap resolved by current-source checks with pinned installed companion and current embedding isolation/recovery checks. Broader semantic-input limitations remain explicit.",
+      "status": "DELIVERED_NATIVE_PUBLICATION_COVERAGE",
+      "original_requirement": "S04 required stores and source seal precede authoritative publication; related S10 cancellation/failure preserves a complete old or new source head and retry converges.",
+      "current_missing_behavior": "Selected actual-native publication outcome gap closed in both configurations, without a production defect or runtime change. Original broader commit/seal/CAS/crash/partial-native-upsert scope remains explicit.",
       "implementation_files": [
-        "crates/engram_index/src/source_contract.rs",
-        "crates/engram_index/src/vb_extractor.rs",
-        "crates/engram_server/tests/source_index_migration_tests/extraction_identity.rs",
-        "crates/engram_server/tests/source_index_migration_tests/vb_parser_identity.rs",
-        "tools/vb_roslyn_sidecar"
+        "crates/engram_server/src/handlers/project_tools/source_publication_tests.rs"
       ],
       "finite_acceptance": [
-        "Read relevant retained receipts/logs and exact tested source/sidecar pins once; preserve original failed-run and corrected-followup distinctions.",
-        "Compare supported identity paths and current installed package/source; do not claim older local evidence verifies later changed behavior without reconciliation.",
-        "Reuse completed actual native/no-vector configuration/provenance/migration checks; if a concrete installed-path gap remains, perform one bounded owned public source-identity migration/noop check needed to resolve it.",
-        "Record actual implemented/validated/deployed scope and preserve external reference/options and unreported-peer limitations; no new semantic-equivalence promise or parser investigation.",
-        "No CodeMap/Blast work, expanded performance experiments, or unrelated catalog/ownership work. Deliver supported identity evidence or necessary concrete fix, then advance."
+        "Reuse existing foreground pause/failure controls and public repair/update handlers; exercise actual local native-vector backend in native builds and lexical backend in no-vector builds.",
+        "Check complete known source bodies plus agreement of lexical/native physical selections for retained old heads after pre-publication cancellation/refused CAS, and committed new heads after post-publication finalization failure/cancellation.",
+        "Preserve existing exact degraded-generation/step reporting, competing-directory identity protection and valid cancellation retry requirements.",
+        "Run only the existing relevant foreground pre/post publication cases in both configurations; do not create new fault-injection infrastructure, crash matrix, performance workload or hooks unless a concrete delivery-blocking gap requires it.",
+        "Close all fixture jobs, handles and runtime before owned directory teardown, including errors. Implement production changes only on demonstrated failure.",
+        "Retain existing native worker/finalizer evidence and keep all-writer/abrupt-crash/partial-native-upsert scope open without calling these focused cases full S04/S10 closure."
       ],
-      "previous_delivery": "eval/s02-public-revision-completeness-validation-20261111.json",
-      "already_read_ledger_evidence": [
-        "s03_captured_chunk_configuration_20261103",
-        "s03_actual_loaded_parser_and_owned_teardown_20261103",
-        "s03_s06_context_fence_and_precommit_lifetimes_20261103",
-        "peer_refresh_publication_recovery_cutoff_and_delivery_20261103",
-        "no_vector_alias_v4_publication_and_tool_milestone_20261103"
+      "previous_delivery": "eval/s03-supported-identity-delivery-20261111.json",
+      "already_inspected": [
+        "S04/S10 ledger states and s04_s10_current_source_and_saved_ordering_reconciliation_20261103",
+        "foreground_publication_case uses fts_only; existing callback before seal and after authoritative CAS",
+        "Foreground implementation seals after cancellation check, CAS-publishes under extraction fence, then reports finalization failures as committed degraded outcomes"
       ],
-      "current_installed_pair": "eval/s01-public-update-validation-20261111.json",
-      "selected_checks": [
-        "source_index_migration_tests::extraction_identity (2 cases)",
-        "source_index_migration_tests::vb_parser_identity (2 explicit real-companion cases)"
-      ],
-      "repeat_justification": "Relevant identity implementation and sidecar assets changed since retained S03 runs; current deployed-asset public migration coverage not established by those older receipts.",
-      "source_identity_result": "Four public migration/configuration/noop cases pass in native and actual no-vector builds against pinned installed sidecar; both fixture inventories empty.",
-      "remaining_embedding_identity_validation": "Completed:3existing current-native identity cases pass with unchanged source and empty fixture inventory.",
-      "delivery": "eval/s03-supported-identity-delivery-20261111.json"
+      "delivery": "eval/s04-native-publication-validation-20261111.json"
     },
-    "at_utc": "2026-11-11T11:06:42.316826+00:00",
-    "reason": "S02 public shrink/delete gap validated in native/no-vector builds and pushed5902f4c. Advance original S03 supported identity delivery, preserving unsupported semantic-input limitations.",
+    "at_utc": "2026-11-11T11:22:19.162207+00:00",
+    "reason": "S03 supported source/embedding identity checks delivered and pushed1a787d2. Advance original S04/S10 publication boundary gap without reopening covered worker/Drop routes.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {

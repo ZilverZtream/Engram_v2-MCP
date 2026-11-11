@@ -1,0 +1,167 @@
+{
+  "status": "PUBLICATION_OUTCOMES_VALIDATED_ON_DEPLOYED_RUNTIME_SOURCE",
+  "at_utc": "2026-11-11T11:33:00.828034+00:00",
+  "requirement": "S04/S10 source publication preserves a complete old or new head and reports the committed outcome accurately.",
+  "gap_closed": "Existing foreground interruption fixtures used fts_only even in native feature builds. They now use local native vectors in native builds and explicitly verify absent vector identity/data in no-vector builds.",
+  "production_change": "None; strengthened existing two acceptance functions with actual native-store and complete-body checks.",
+  "checks": [
+    {
+      "configuration": "native",
+      "intended_test_functions_passed": 2,
+      "intended_scenarios_passed": 7,
+      "raw_test_functions_passed": 3,
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s04-native-publication-20261111\\native-result.json",
+        "sha256": "a715e2931acc375c19a94a63db5213be5221e78490c93eb1bbb7e6e808c96554"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s04-native-publication-20261111\\native.log",
+        "sha256": "207be53123a3f89cb0fdec4ad04599508af55bc8521ddea954ae8848c5250752"
+      },
+      "observations": [
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "cancellation"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "source purge"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "purge settlement"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "scoped graph cleanup"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "App_Code derived-edge refresh"
+        },
+        {
+          "after_commit": false,
+          "final_generation": 3,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "cancellation"
+        },
+        {
+          "after_commit": false,
+          "final_generation": 2,
+          "native_vectors": true,
+          "previous_generation": 2,
+          "step": "rejected CAS"
+        }
+      ]
+    },
+    {
+      "configuration": "no-vector",
+      "intended_test_functions_passed": 2,
+      "intended_scenarios_passed": 7,
+      "raw_test_functions_passed": 2,
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s04-native-publication-20261111\\no-vector-result.json",
+        "sha256": "fc27a861a16ca02c88bd14a060e6401e51282153f7a3e40d56860749458a5c4c"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s04-native-publication-20261111\\no-vector.log",
+        "sha256": "801c91cd930aa47a7568a9bb8043324df34110240f950eda5754b5c88bcd2927"
+      },
+      "observations": [
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "cancellation"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "source purge"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "purge settlement"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "scoped graph cleanup"
+        },
+        {
+          "after_commit": true,
+          "final_generation": 3,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "App_Code derived-edge refresh"
+        },
+        {
+          "after_commit": false,
+          "final_generation": 3,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "cancellation"
+        },
+        {
+          "after_commit": false,
+          "final_generation": 2,
+          "native_vectors": false,
+          "previous_generation": 2,
+          "step": "rejected CAS"
+        }
+      ]
+    }
+  ],
+  "wanted_behavior": [
+    "Initial full repair produces exact known source body/range and physical revision, with native vector and lexical identity/coverage agreement.",
+    "Prepublication cancellation and refused CAS preserve complete original source and physical identity. A valid cancellation retry converges to complete replacement source; competing directory correction is preserved on rejected CAS.",
+    "After authoritative publication, cancellation or purge/settlement/graph/derived-edge finalization failure retains complete replacement source and reports its actual committed generation, degraded status and exact incomplete step.",
+    "Known fixture source bytes independently determine expected recovered body; selected lexical count and native physical selection prevent a mere marker hit from masquerading as complete source."
+  ],
+  "incidental_native_case": "The first filter also selected foreground_and_background_registration_publish_their_own_complete_initial_generation, which passed. It is not counted as one of the two intended native-vector functions and was excluded from the no-vector run.",
+  "runtime_binding": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s04-native-publication-20261111\\runtime-source-binding.json",
+    "sha256": "fa6c3c706c14196aa64500f3e15b9b2fd1b8eebbc1acc292e9a87241173f1cb6"
+  },
+  "source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools\\source_publication_tests.rs",
+    "sha256": "bf5579e51cb33c8651d4729fb64e914e49f6899f4da22a0e988db93502bcf8f0"
+  },
+  "installed_delivery": "eval/s01-public-update-validation-20261111.json",
+  "review": "Local review checked original independent fixture text, complete physical source/vector comparison, existing public interruption controls, preserved exact outcome/identity assertions, and runtime-before-TempDir teardown. No external review pass claimed.",
+  "limits": [
+    "Hooks remain before sealing and after authoritative CAS; complete body/vector results are checked after request settlement. This does not directly observe every individual store commit or inject every intermediate storage fault.",
+    "All-writer, abrupt-crash, partial-native-upsert and broader recovery fault coverage remain open.",
+    "No full S04/S10 or all19-gate closure, performance claim, or new installed MCP transport execution."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s04-native-publication-20261111",
+    "fixture_leftovers": 0,
+    "closure": "Request jobs settle and runtime teardown precedes explicit fixture close; both result inventories empty.",
+    "retention": "Logs, result/source-binding receipts and empty runner TEMP containers retained. No preexisting folders deleted."
+  }
+}
