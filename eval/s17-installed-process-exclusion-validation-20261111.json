@@ -1,0 +1,119 @@
+{
+  "status": "SELECTED_INSTALLED_PROCESS_EXCLUSION_VERIFIED",
+  "at_utc": "2026-11-11T15:39:34.860068+00:00",
+  "original_requirement": "S17: Actual process exclusion covers independent publication and GC; process-local Arc counts are insufficient.",
+  "runtime_changes": false,
+  "installed_server_sha256": "05609ecfe805f3e3943ed8c406a1c5a0376363e480305e2e4ccc41b49d4ad0dd",
+  "installed_manifest_sha256": "ac039bfbec884b4098c6af92e36bf64cf3713fc040fd2d277d0a2396140c866c",
+  "all_manifest_assets_verified": 215,
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\local\\acceptance.json",
+    "sha256": "042b501c61e1d2b3bdfa5fc30fcfdb8b41b5ac82707c0cc085324be52140dd8a"
+  },
+  "helper_build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\helper-build-v3-result.json",
+    "sha256": "bae625c03e64eb4cb974af1a7f6695eefe72a89f2325410c536a71a0a901bf87"
+  },
+  "helper_source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\source-owner.rs",
+    "sha256": "0ea6db8daba48b006112599d6f1af6dfb8251b8603d0522fa16a3bdba4d85151"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\verify-installed.py",
+    "sha256": "9702ebb023b61b9266461e27580c2af8c68d049ea35d24821397e2f4da2d937e"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\review.json",
+    "sha256": "ab63585d696068ec8472e38596c3d1e01b81b5306459d03b68aaf73ec034395b"
+  },
+  "retained_local_evidence": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-standalone-decisions-foreground-outcomes-and-server-process-batch-20261104.json",
+        "sha256": "75813c68974a3b48784621823743ecbb651bd169c848783e80a1c75366063ff9"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-standalone-decisions-foreground-outcomes-and-server-process-batch-20261104.log",
+        "sha256": "fb627073cc55da2acfddf515f92438d72cd8a98b56bdea78d6b07d5f975dfd6d"
+      },
+      "selected_test": "independent_server_process_cannot_publish_registry_head_or_gc_until_the_sole_source_view_releases ... ok",
+      "source_comparison": [
+        {
+          "path": "crates/engram_server/src/handlers/project_tools/source_publication_tests/process_exclusion.rs",
+          "historical": "7d0661ba56f20b82fe52c47ddebda2749704b52ccec1156ee148fbfe3173e50c",
+          "current": "b85bab33560594ade813d0f3b7946f2b81c45b46571af94272df9d1f16aa141b",
+          "equal": false
+        },
+        {
+          "path": "crates/engram_index/src/hybrid/snapshots.rs",
+          "historical": "6d7c6915e1d062a45f6f592cb1396784bd6dca9418f99a72574bdf0c684280e1",
+          "current": "172a8d3aacf92ba5eaf99e76118435854df7ee38b87635a1c42ccb0c66c110d2",
+          "equal": false
+        },
+        {
+          "path": "crates/engram_index/src/hybrid.rs",
+          "historical": "361d09c08719015602ab0724c5739c6d22a89bbb732fad843662c262aaf7d926",
+          "current": "56f9ae68cfc3f206a7c79e3470c298eab7b7b50a453b9b3c8659e3f31749c2dd",
+          "equal": false
+        }
+      ],
+      "scope": "Retained historical native/no-vector Registry and sole old-view cases; not a rerun or whole current matrix claim."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-storage-ask-discussion-and-core-milestone-20261104.json",
+        "sha256": "69810c46df55f89526c8cdeb40d56992bbbf8938a18728a2b68272c6d733d008"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-storage-ask-discussion-and-core-milestone-20261104.log",
+        "sha256": "308130dad0986a816063c857c7a11f062875063198529148ef3ebe2206471364"
+      },
+      "selected_test": "independent_server_process_cannot_publish_registry_head_or_gc_until_the_sole_source_view_releases ... ok",
+      "source_comparison": [
+        {
+          "path": "crates/engram_server/src/handlers/project_tools/source_publication_tests/process_exclusion.rs",
+          "historical": "b85bab33560594ade813d0f3b7946f2b81c45b46571af94272df9d1f16aa141b",
+          "current": "b85bab33560594ade813d0f3b7946f2b81c45b46571af94272df9d1f16aa141b",
+          "equal": true
+        },
+        {
+          "path": "crates/engram_index/src/hybrid/snapshots.rs",
+          "historical": "65215f8e0570cba6fa41654fcebbd6ca703b639b6343d232b1e5856d26144176",
+          "current": "172a8d3aacf92ba5eaf99e76118435854df7ee38b87635a1c42ccb0c66c110d2",
+          "equal": false
+        },
+        {
+          "path": "crates/engram_index/src/hybrid.rs",
+          "historical": "7674fbf721d67ccdd87d4c6b597667477289ad4924cb64bf6904f82420b3d415",
+          "current": "56f9ae68cfc3f206a7c79e3470c298eab7b7b50a453b9b3c8659e3f31749c2dd",
+          "equal": false
+        }
+      ],
+      "scope": "Retained historical native/no-vector Registry and sole old-view cases; not a rerun or whole current matrix claim."
+    }
+  ],
+  "demonstrated_behavior": "Actual installed native public update and GC refuse a sole foreign current-generation SourceSnapshotGuard after its engine/runtime/Registry close. Authority and all physical project stores remain unchanged; after release the same operations succeed, exact edited and inherited source/native identities recover and cold reopen agrees.",
+  "limits": "Actual installed native server versus no-vector helper holding a current-generation source guard. Older-view and Registry-exclusive scenarios remain covered by retained local tests, not re-executed here. No production data/config access, no runtime changes, no global multi-version graph consistency or full backlog closure.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111",
+    "owned_fixture_closed_and_removed": true,
+    "servers_naturally_closed": 4,
+    "helpers_naturally_closed": 2,
+    "git_initializer_closed": true,
+    "helper_compiler_closed": true,
+    "latest_compiler_temp_removed": true,
+    "prior_linker_temp_removed": true,
+    "retained": "Evidence, helper binary/source/symbols and failed compiler receipts; preserve until evidence-retirement approval."
+  },
+  "prior_helper_build_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\helper-build-result.json",
+      "sha256": "064a82a1d07a2365cdeaf8650e806a4cb0a952c48ef3fc4256d5ef3e4f3eac84"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s17-installed-process-exclusion-20261111\\helper-build-v2-result.json",
+      "sha256": "56dd90968a0b40a82a87c8341e1ad5dda951ebef212973a99046dc9a791a7b52"
+    }
+  ],
+  "full_backlog_complete": false
+}
