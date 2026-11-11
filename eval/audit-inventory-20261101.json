@@ -9851,22 +9851,21 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "original_requirement": "EG19: bounded relevant prior rulings retain scope, decision evidence and revision applicability; findings stay visible and materially changed code never inherits blanket suppression.",
-      "current_missing_behavior": "Original item leaves current installed decision context acceptance and authority/applicability gaps open. Inspect the current real review response and retained standalone-decision implementation once, then fix any demonstrated delivery gap.",
+      "current_missing_behavior": "Actual installed OciusX prior_review_context omits indexed PR2053 threads34040/34068 under serialized_response_budget with only review_id/path/reason. Exact doc_id/hash/recovery is discarded, so generic get_review_precedents requires a fresh relevance search rather than recovering the selected omitted stored summary.",
       "implementation_files": [
         "crates/engram_server/src/handlers/review_tools/prior_context.rs",
-        "crates/engram_server/src/handlers/review_tools.rs",
-        "crates/engram_core/src/registry/review_discussion.rs"
+        "crates/engram_server/tests/review_prior_context_tests.rs"
       ],
       "finite_acceptance": [
-        "Use a real existing OciusX discussion/decision record and independent source evidence to verify current review output.",
-        "Review states provenance, scope/revision limits and exact recovery for omitted discussion; does not manufacture authority.",
-        "Existing findings remain visible with prior decisions present, and insufficient historical/scope evidence is explicit.",
-        "Implement any concrete gap, run relevant checks and verify installed behavior before advancing history routing."
+        "Budget-omitted indexed prior-review records offer an executable exact get_chunk citation action with the captured stored-content hash.",
+        "Follow the returned action through any continuation to recover complete stored summary bytes; original legacy discussion remains explicitly unavailable, not reconstructed.",
+        "The prior-review context remains within16KiB and findings stay visible; scope/revision applicability and automatic-suppression limits remain explicit.",
+        "Test desired behavior before/after, review changes, then release and verify the actual installed OciusX omitted-summary recovery before advancing history routing."
       ],
       "previous_delivery": "eval/eg02-installed-recovery-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T08:13:20.927317+00:00",
-    "reason": "Captured installed bounded recovery passed finite acceptance; advance original decision-aware review without more planning replays.",
+    "at_utc": "2026-11-11T08:26:36.884992+00:00",
+    "reason": "Exact omitted-summary recovery implemented after public RED failure; full6-case prior-review suite passes, fixtures empty, parent source review complete. Release/deployment remains required.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9895,8 +9894,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG19: decision-aware review context and honest applicability.",
-    "next_user_visible_deliverable": "Review supplies recoverable prior discussion with honest applicability and preserves current findings.",
+    "active_original_item": "EG19 omitted-summary recovery: finish release and actual installed OciusX recovery verification.",
+    "next_user_visible_deliverable": "Agent follows the exact omitted PR2053:34068 summary citation and recovers predeployment hash-bound bytes.",
     "following_original_items": [
       "EG02/EG12 bounded change-set delivery and exact recovery",
       "EG19 decision-aware review; EG20/21 history; EG18 tool presets",
@@ -9911,7 +9910,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: installed response budget/identity/recovery acceptance completed using existing captures; advancing EG19.",
+    "previous_goal_turn_classification": "Progress: real omission gap isolated, failing public regression reproduced, production fix implemented,6-case suite passed with zero fixture leftovers; release pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
