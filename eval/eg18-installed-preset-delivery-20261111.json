@@ -1,0 +1,78 @@
+{
+  "status": "INSTALLED_VERIFIED",
+  "at_utc": "2026-11-11T09:44:42.005151+00:00",
+  "requirement": "EG18 optional Core dependency closure with Full default and OciusX/.NET capabilities preserved.",
+  "implementation": "Existing implementation verified on installed2c4d170f/c2aaeb81 package; no new preset code needed.",
+  "installed_pair": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\pair.json",
+    "sha256": "cfbae122816e2c844ffc0b617d244cb6349ebe8f533419497bd216e1b75da959"
+  },
+  "core_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\core\\acceptance.json",
+    "sha256": "f5fe2c2fc6457ab14e1c854b67e22f477f66194e0ffde812c144d9df9bba3f0b"
+  },
+  "full_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\full\\acceptance.json",
+    "sha256": "14cedd14d404521e990b1e0529df40a565d4aba4090af25c5704a08ee2b3f35c"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\verify-installed-core.py",
+    "sha256": "3a05f60488ed9b81efd6ecbadba7263dbc4fb5463e98e03da98300a000e3b6e1"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\parent-review.json",
+    "sha256": "e626b8660b66bb98bcc2abd61ec2c9e3623705bd472e577923a83b9924510eef"
+  },
+  "checks": {
+    "core_discovery_and_schemas": "PASS",
+    "stored_code": {
+      "status": "PASS",
+      "identity": {
+        "doc_id": "93a261c717ce3439368022e3d94fb6f27a0a05295466183990902f9b1d3968bf",
+        "namespace": "memory",
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      },
+      "raw_content_hash": "blake3-raw-utf8:a8900ae2c11274d9aa0c97774cb566cdd32d79dfbc97618e55541a7c62cde9a0",
+      "bytes": 2333
+    },
+    "memory_section": {
+      "status": "PASS",
+      "identity": {
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+        "section": "wiki/Project-Knowledge/Map-layers-and-GIS-integrations"
+      },
+      "raw_content_hash": "blake3-raw-utf8:a8e49a2da61843a1beb765dfb649cf6ca4eae3272e185e7d9b737252d8d1c179",
+      "bytes": 4181
+    },
+    "current_source": {
+      "status": "PASS",
+      "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+      "sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53",
+      "source_file_hash": "5877f0e6cea9da7168f425308486f086370999c8b7016f85982a902e07149a34",
+      "line_start": 11,
+      "line_end": 130
+    }
+  },
+  "core_tools": 32,
+  "full_tools": 150,
+  "retained_local_evidence": "execution_evidence_20261101.native_ask_and_core_recovery_coherent_followup_20261104 and no_vector_storage_ask_discussion_core_milestone_terminal_20261104; actual-MCP lifecycle/discussion recovery and independent review retained without new reruns.",
+  "limits": [
+    "Current installed acceptance exercises discovery, code and memory citation recovery and one current-source action; it does not prove every specialist handoff exists in Core.",
+    "Production job start/cancel and stored decision mutation were not exercised; local behavior evidence is retained separately.",
+    "No new development/QA/migration profiles claimed."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111",
+    "owned_runtime_closed": true,
+    "private_core_config_removed": true,
+    "owned_tmp_removed": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "normal_config_bytes_unchanged": true,
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-config-hold-20261111.json.released.json",
+      "sha256": "08e9f0142fec54ee67e975d0fe49b05749d4355997a166ed879873104220ee87"
+    },
+    "normal_full_restored": true,
+    "retention": "Retain transcripts and receipts for delivery review. No preexisting folders deleted."
+  }
+}

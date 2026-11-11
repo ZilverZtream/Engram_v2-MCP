@@ -682,15 +682,15 @@
     {
       "id": "EG-18",
       "finding": "Core tool preset dependency closure",
-      "ledger_disposition": "Implemented and included in shipped lineage; feature-specific Core-client acceptance remains open",
+      "ledger_disposition": "Installed Core32 dependency chain and normal Full150 discovery verified",
       "existing_evidence_and_next_gate": "core-client-job-lifecycle-and-citations.json/log:5PASS136.912s; source stable, fixtures empty. Core32 includes project discovery/get_chunk/memory/job lifecycle. Other specialist handoffs require full profile, not equivalence. Current deployed behavior remains to verify.",
       "required_behavior": [
         "Limited MCP tools/list permits project discovery and resolution of advertised citations/context dependencies including get_chunk and memory-bank reads.",
         "Full discovery remains default and OciusX .NET capabilities remain available."
       ],
-      "closure_state": "Local actual-MCP-client five-case receipt inspected: project discovery, exact search/memory citation recovery, async job lifecycle, default full discovery and legacy schemas passed Nov1; no new execution in this reconciliation. Implementation included in deployed79c lineage; feature-specific source review and complete Core-client deployed acceptance remain unclosed.",
+      "closure_state": "Installed Core project discovery,2333B stored code citation,4181B memory section citation and current-source recovery independently checked. Full150 retains Core schemas and .NET capabilities. Native/no-vector actual-MCP job lifecycle and discussion recovery retained separately; no universal specialized-handoff equivalence claimed.",
       "dependencies": [],
-      "implementation_state": "Implemented and real-MCP-client verified in WIP; final independent review and deployed-runtime verification remain pending.",
+      "implementation_state": "Existing implementation deployed; feature-specific installed Core/Full acceptance completed.",
       "profile_evidence": {
         "receipt": "core-client-job-lifecycle-and-citations.json",
         "cases": 5,
@@ -716,7 +716,8 @@
         "limit": "Specialized tools are not equivalent to retained core tools. Other response handoffs explicitly require full-profile activation where applicable. Backend/data readiness remains separate from advertisement."
       },
       "latest_core_recovery_evidence": "execution_evidence_20261101.native_ask_and_core_recovery_coherent_followup_20261104 and no_vector_storage_ask_discussion_core_milestone_terminal_20261104",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "latest_installed_delivery": "eval/eg18-installed-preset-delivery-20261111.json"
     },
     {
       "id": "EG-19",
@@ -9867,37 +9868,64 @@
         "No live slow-provider fault injection or installed no-vector configuration change; retained local tests establish those separate behaviors.",
         "No storage/index/sidecar changes and no closure claim for the original full19 gates."
       ]
+    },
+    "eg18_installed_preset_delivery_20261111": {
+      "receipt": "eval/eg18-installed-preset-delivery-20261111.json",
+      "status": "INSTALLED_VERIFIED",
+      "checks": {
+        "core_discovery_and_schemas": "PASS",
+        "stored_code": {
+          "status": "PASS",
+          "identity": {
+            "doc_id": "93a261c717ce3439368022e3d94fb6f27a0a05295466183990902f9b1d3968bf",
+            "namespace": "memory",
+            "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+          },
+          "raw_content_hash": "blake3-raw-utf8:a8900ae2c11274d9aa0c97774cb566cdd32d79dfbc97618e55541a7c62cde9a0",
+          "bytes": 2333
+        },
+        "memory_section": {
+          "status": "PASS",
+          "identity": {
+            "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+            "section": "wiki/Project-Knowledge/Map-layers-and-GIS-integrations"
+          },
+          "raw_content_hash": "blake3-raw-utf8:a8e49a2da61843a1beb765dfb649cf6ca4eae3272e185e7d9b737252d8d1c179",
+          "bytes": 4181
+        },
+        "current_source": {
+          "status": "PASS",
+          "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+          "sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53",
+          "source_file_hash": "5877f0e6cea9da7168f425308486f086370999c8b7016f85982a902e07149a34",
+          "line_start": 11,
+          "line_end": 130
+        }
+      },
+      "core_tools": 32,
+      "full_tools": 150,
+      "no_source_change": true
     }
   },
-  "last_updated_at": "2026-11-11T09:37:51.589264+00:00",
+  "last_updated_at": "2026-11-11T09:44:42.005151+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG18: limited MCP discovery permits project selection and exact citation/context recovery; Full remains default with OciusX/.NET capabilities.",
-      "current_missing_behavior": "Retained actual-MCP native/no-vector and scoped review evidence already exists. Installed binary under a real Core configuration has not completed the finite discovery/recovery chain. No new preset implementation indicated.",
+      "original_requirement": "EG03: ignored/storage events schedule no work; unchanged refresh retains its source head; changes during indexing converge; deletion/rename remain correct under Windows path forms.",
+      "current_missing_behavior": "Local native/no-vector actor and public tests plus later deployed edit evidence exist. Reconcile that evidence once against this contract; execute only a specific uncovered installed behavior, without additional performance tuning or storage redesign.",
       "implementation_files": [
-        "crates/engram_server/src/tool_surface.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_core/src/config.rs"
+        "crates/engram_server/src/actors/watcher.rs",
+        "crates/engram_server/src/handlers/project_tools.rs"
       ],
       "finite_acceptance": [
-        "Installed Core session advertises current32 tools with usable schemas and initialization guidance.",
-        "Discover OciusX, follow returned stored code citation and memory-section action through advertised tools; compare exact identities, ranges and hashes.",
-        "Follow one returned current-source action and compare source bytes/hash independently.",
-        "Keep local lifecycle/review-recovery evidence separate; do not mutate production indexing or memory.",
-        "Normal Full session preserves Core schemas and existing .NET capabilities. Close owned runtime/config and preserve project data; empty branches remain unproven."
+        "Use retained original actor and public tests for covered noise/no-op/race/path behavior; do not repeat passed cases without a demonstrated gap.",
+        "For any missing installed behavior, compare public search/recovery with independent edited/renamed/deleted file evidence; source/node counts alone do not establish delivery.",
+        "Use only owned fixtures or already-authorized scoped work; preserve OciusX authored sources and normal configuration, close handles and clean new fixtures.",
+        "Record concrete gap and finite protocol before implementation; fix only a reproduced failure, verify, deliver and advance."
       ],
-      "previous_delivery": "eval/eg20-history-capability-delivery-20261111.json",
-      "prepared_verifier": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\verify-installed-core.py",
-        "sha256": "3a05f60488ed9b81efd6ecbadba7263dbc4fb5463e98e03da98300a000e3b6e1"
-      },
-      "verifier_review": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\parent-review.json",
-        "sha256": "e626b8660b66bb98bcc2abd61ec2c9e3623705bd472e577923a83b9924510eef"
-      }
+      "previous_delivery": "eval/eg18-installed-preset-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T09:37:51.589264+00:00",
-    "reason": "EG20/21 finite installed history acceptance and concrete capability-label fix delivered. Advance original Core preset dependency closure.",
+    "at_utc": "2026-11-11T09:44:42.005151+00:00",
+    "reason": "Installed Core/Full finite dependency-chain acceptance passed with owned resources cleaned and normal Full restored. Advance original watcher/incremental-refresh reliability acceptance.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9926,10 +9954,10 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG18: installed Core preset discovery and evidence recovery.",
-    "next_user_visible_deliverable": "An installed Core client can discover the project and follow returned stored/current evidence actions using its advertised tools.",
+    "active_original_item": "EG03: watcher noise, unchanged refresh and source-edit convergence delivery.",
+    "next_user_visible_deliverable": "Refresh and watcher operations preserve unchanged source and converge to actual edited/renamed/deleted files.",
     "following_original_items": [
-      "Remaining accepted indexing/reliability requirements",
+      "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
     ],
     "parked_supporting_work": [
@@ -9941,7 +9969,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: release passed; package installed; candidate and normal history query verified; service restored and owned build/candidate resources cleaned.",
+    "previous_goal_turn_classification": "Progress: history release installed/verified, Core32 and Full150 real protocol acceptance passed; source and memory recovery checked and service restored.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
