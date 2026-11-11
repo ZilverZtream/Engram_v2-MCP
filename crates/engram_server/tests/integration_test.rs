@@ -1646,6 +1646,8 @@ async fn test_get_chunk_hardening() {
     // 3. Get Chunk without rules
     let get_res = engram
         .get_chunk(Parameters(engram_server::GetChunkRequest {
+                max_tokens: None,
+                output_json: false,
                 citation: None,
             project_id: project_id.to_string(),
             doc_id: doc_id.clone(),
@@ -1681,6 +1683,8 @@ async fn test_get_chunk_hardening() {
 
     let get_res = engram
         .get_chunk(Parameters(engram_server::GetChunkRequest {
+                max_tokens: None,
+                output_json: false,
                 citation: None,
             project_id: project_id.to_string(),
             doc_id,

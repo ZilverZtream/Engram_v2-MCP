@@ -111,6 +111,8 @@ async fn test_dup_content_does_not_overwrite() {
     for did in &doc_ids {
         let get_res = engram
             .get_chunk(Parameters(GetChunkRequest {
+                max_tokens: None,
+                output_json: false,
                 citation: None,
                 project_id: project_id.to_string(),
                 doc_id: did.clone(),

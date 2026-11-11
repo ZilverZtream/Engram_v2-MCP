@@ -18,7 +18,7 @@ async fn fixture() -> (tempfile::TempDir, AppState, Engram) {
     .unwrap();
     state
         .registry
-        .put_project(&ProjectRecord {
+        .register_source_project(&ProjectRecord {
             project_id: PID.into(),
             project_name: PID.into(),
             project_type: "general".into(),
@@ -27,10 +27,6 @@ async fn fixture() -> (tempfile::TempDir, AppState, Engram) {
             updated_at_ms: 0,
             reindex_required_since_ms: None,
         })
-        .unwrap();
-    state
-        .registry
-        .set_meta(PID, "active_generation", "1")
         .unwrap();
     project_service::ensure_project_runtime(&state, PID)
         .await
@@ -65,13 +61,19 @@ async fn seed(state: &AppState, body: &str, namespace: &str) -> String {
         doc_id: id.clone(),
         content_hash: hash.0,
     };
-    state
-        .get_project_cached(PID)
-        .unwrap()
-        .search
+    let runtime = state.get_project_cached(PID).unwrap();
+    let initial = state.registry.capture_source_head(PID).unwrap();
+    if namespace == "memory" {
+        runtime.search.prepare_full_source_snapshot(PID, 0, 1, &[RelPath::new("quote.txt")], &CancellationToken::new()).await.unwrap();
+    }
+    runtime.search
         .index_docs(PID, &[d], &CancellationToken::new())
         .await
         .unwrap();
+    if namespace == "memory" {
+        runtime.search.seal_source_snapshot(PID, 1).unwrap();
+        assert!(state.registry.publish_source_head(&initial, 1).unwrap());
+    }
     id
 }
 
@@ -162,7 +164,8 @@ async fn chunk_pages_recover_legacy_truncation_and_reject_transformations() {
                 .await
                 .unwrap(),
         );
-        assert_eq!(p["metadata"]["active_generation"], 1);
+        // Global mutable knowledge is independent of the source generation.
+        assert_eq!(p["metadata"]["active_generation"], 0);
         assert!(p["metadata"].get("document_generation").is_none());
         recovered.push_str(p["content"].as_str().unwrap());
         if p["continuation"].is_null() {
@@ -194,7 +197,7 @@ async fn citation_still_withholds_stale_source_even_when_raw_stored_hash_matches
     let body = "exact source\n";
     let id = seed(&state, body, "memory").await;
     std::fs::write(t.path().join("quote.txt"), body).unwrap();
-    state.graph.upsert_nodes(PID,&[engram_graph::Node {node_id:"file:quote.txt".into(),node_type:"file".into(),name:"quote.txt".into(),namespace:"code".into(),language:"text".into(),file_path:RelPath::new("quote.txt"),start_line:1,end_line:1,generation:1,metadata:Some(json!({"file_hash":blake3::hash(body.as_bytes()).to_hex().to_string(),"source_index_version":engram_index::SOURCE_INDEX_VERSION}))}]).unwrap();
+    state.graph.upsert_nodes(PID,&[engram_graph::Node {node_id:"file:quote.txt".into(),node_type:"file".into(),name:"quote.txt".into(),namespace:"code".into(),language:"text".into(),file_path:RelPath::new("quote.txt"),start_line:1,end_line:1,generation:1,metadata:Some(json!({"file_hash":blake3::hash(body.as_bytes()).to_hex().to_string(),"source_index_version":engram_index::SOURCE_INDEX_VERSION,"source_extraction_identity":engram_index::SourceExtractionIdentity::for_chunk_target(state.cfg.max_chunks_per_file)}))}]).unwrap();
     let req = json!({"project_id":PID,"namespace":"memory","doc_id":id,"citation":{"expected_raw_hash":format!("blake3-raw-utf8:{}",blake3::hash(body.as_bytes()).to_hex()),"verify_quote":"exact source"}});
     let fresh = decoded(
         e.handle_get_chunk(serde_json::from_value(req.clone()).unwrap())

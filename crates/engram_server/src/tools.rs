@@ -534,7 +534,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Fetch stored chunk content by doc_id. Default text has a 40000-byte content cap; logical_slice and repo-rule injection are optional. For exact stored UTF-8 line/byte pages and raw hashes, pass citation: {}, then its hash-bound continuation with the same project_id/namespace/doc_id; citation cannot use transformations. JSON escaping can expand response size. Re-search if the document identity is no longer available after indexing."
+        description = "Fetch stored chunk content by doc_id. Default text has a 40000-byte content cap; logical_slice and repo-rule injection are optional. For exact stored UTF-8 line/byte pages and raw hashes, pass citation: {}, then its hash-bound continuation with the same project_id/namespace/doc_id; citation cannot use transformations. Optional max_tokens bounds complete serialized text including JSON escaping and guidance. output_json returns a structured document envelope. Follow response_page.next for hash-bound recovery; transformed output is indivisible. Re-search if the document identity is no longer available after indexing."
     )]
     pub async fn get_chunk(
         &self,
@@ -574,7 +574,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; 40000-byte selected-content budget (JSON escaping can expand response)."
+        description = "Read one memory bank section by name. Discover sections with search_memory(search_scope=knowledge): memory hits return full_section and citation_section recovery arguments. The full profile also offers list_memory_bank. Optional citation returns exact stored UTF-8 content and hash-bound line/byte pages as JSON; Optional max_tokens bounds complete Markdown or JSON replies including provenance and escaping; output_json returns a structured document envelope. Follow response_page.next for hash-bound recovery. Explicit citation ranges and quote proofs remain indivisible."
     )]
     pub async fn read_memory_bank(
         &self,

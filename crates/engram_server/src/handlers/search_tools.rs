@@ -847,6 +847,7 @@ impl Engram {
     }
 
     pub async fn handle_get_chunk(&self, req: GetChunkRequest) -> Result<CallToolResult, McpError> {
+        crate::services::document_response::byte_limit(req.max_tokens)?;
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let (gen_, _source_snapshot) = if req.namespace == "memory" {
@@ -939,14 +940,15 @@ impl Engram {
                     None,
                 ));
             }
-            let page = crate::services::stored_citation::render(
+            let page = crate::services::document_response::citation(
                 &content,
                 citation,
                 serde_json::json!({"project_id":req.project_id,"namespace":req.namespace,"doc_id":req.doc_id}),
                 serde_json::json!({"path":path.as_str(),"language":lang,"active_generation":gen_,"indexed_range":{"start":start_line,"end":end_line},"indexed_range_scope":"index_metadata_not_citation_coordinates_or_source_proof","source_freshness":source_status}),
+                req.max_tokens,
             )?;
             return Ok(CallToolResult::success(vec![Content::text(
-                page.to_string(),
+                page,
             )]));
         }
 
@@ -971,6 +973,48 @@ impl Engram {
                 .await;
         }
 
+        // Compute confidence footer for WebForms files.
+        let confidence_footer = self.confidence_footer(&path, &lang);
+
+        let prefix = format!(
+            "path: {}\ndoc_id: {}\nnamespace: {}\nlanguage: {}\nlines: {}-{}\nactive_generation: {}\n\n",
+            path, req.doc_id, req.namespace, lang, start_line, end_line, gen_
+        );
+        let mut suffix = format!("\nsource_freshness: {source_status}\n");
+        let mut guidance = serde_json::Value::Null;
+        // Repository guidance is a separate live-evidence section, never part
+        // of the indexed source body or the exact stored citation payload.
+        if req.inject_rules && req.namespace == "memory" {
+            let policy_root = ps.info.directory.clone();
+            let target = path.as_str().to_string();
+            let policy = tokio::task::spawn_blocking(move || {
+                let root = std::path::Path::new(&policy_root);
+                let is_source = engram_core::safe_join(root, &target)
+                    .is_ok_and(|path| path.is_file());
+                is_source.then(|| crate::services::project_policy::resolve(root, &[target], &[]))
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if let Some(policy) = policy.filter(|policy| policy.status != "absent") {
+                suffix.push_str(&policy.render_markdown());
+                guidance = serde_json::to_value(&policy).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            }
+        }
+        suffix.push_str(&confidence_footer);
+        let freshness = self.freshness_footer(&req.project_id, gen_).await;
+        suffix.push_str(&freshness);
+        if req.max_tokens.is_some() || req.output_json {
+            let output = crate::services::document_response::Document {
+                tool: "get_chunk", content: &display_content,
+                identity: serde_json::json!({"project_id":req.project_id,"namespace":req.namespace,"doc_id":req.doc_id}),
+                metadata: serde_json::json!({"path":path.as_str(),"language":lang,"active_generation":gen_,
+                    "indexed_range":{"start":start_line,"end":end_line},"indexed_range_scope":"index_metadata_not_citation_coordinates_or_source_proof",
+                    "source_freshness":source_status,"freshness":freshness,"confidence":confidence_footer,"guidance":guidance,
+                    "inject_rules":req.inject_rules,"logical_slice":req.logical_slice}),
+                prefix: &prefix, suffix: &suffix,
+                transformed: req.inject_rules || req.logical_slice.as_deref().is_some_and(|s| !s.is_empty() && s != "all"),
+                content_cap: Some(40_000),
+            }.render(req.max_tokens, req.output_json)?;
+            return Ok(CallToolResult::success(vec![Content::text(output)]));
+        }
         // Safety cap: a chunk is normally a bounded window (a method/section),
         // but a pathological unsplit chunk (a giant generated/designer file)
         // could blow the caller's request budget the way an uncapped grep did.
@@ -991,31 +1035,7 @@ impl Engram {
             ));
         }
 
-        // Compute confidence footer for WebForms files.
-        let confidence_footer = self.confidence_footer(&path, &lang);
-
-        let mut output = format!(
-            "path: {}\ndoc_id: {}\nnamespace: {}\nlanguage: {}\nlines: {}-{}\nactive_generation: {}\n\n{}",
-            path, req.doc_id, req.namespace, lang, start_line, end_line, gen_, display_content
-        );
-        output.push_str(&format!("\nsource_freshness: {source_status}\n"));
-        // Repository guidance is a separate live-evidence section, never part
-        // of the indexed source body or the exact stored citation payload.
-        if req.inject_rules && req.namespace == "memory" {
-            let policy_root = ps.info.directory.clone();
-            let target = path.as_str().to_string();
-            let policy = tokio::task::spawn_blocking(move || {
-                let root = std::path::Path::new(&policy_root);
-                let is_source = engram_core::safe_join(root, &target)
-                    .is_ok_and(|path| path.is_file());
-                is_source.then(|| crate::services::project_policy::resolve(root, &[target], &[]))
-            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if let Some(policy) = policy.filter(|policy| policy.status != "absent") {
-                output.push_str(&policy.render_markdown());
-            }
-        }
-        output.push_str(&confidence_footer);
-        output.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        let output = format!("{prefix}{display_content}{suffix}");
 
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }

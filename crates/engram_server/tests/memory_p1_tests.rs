@@ -261,6 +261,8 @@ async fn related_files_and_read_header() {
 
     let res = engram
         .read_memory_bank(Parameters(engram_server::ReadMemoryBankRequest {
+            max_tokens: None,
+            output_json: false,
             citation: None,
             project_id: pid.clone(),
             section: "wiring".into(),

@@ -67,3 +67,4 @@ pub mod validation_mapping_service;
 pub mod viewstate_service;
 
 pub mod stored_citation;
+pub mod document_response;

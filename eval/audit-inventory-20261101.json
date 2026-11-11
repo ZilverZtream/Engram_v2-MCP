@@ -9950,26 +9950,27 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_SEARCH_JSON_CONTRACT_FULL_P04_PARTIAL",
-      "original_requirement": "TODO P0-4: consistent output_json, response envelopes, budgets, truncation metadata and recoverable pagination across tools.",
-      "selected_tool": "search_memory and vector_search structured responses",
-      "observed_source_gap": "Installed7b70db0f returns text and rejects output_json on lexical/hybrid search_memory and vector_search. Three actual calls recovered all8independent sources through existing literal citation actions; JSON field is absent in tools/list.",
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "TODO P0-4: optional max_tokens across tool responses, structured output, explicit truncation and recoverable pagination.",
+      "selected_tool": "get_chunk and read_memory_bank complete document responses",
+      "observed_source_gap": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
       "implementation_files": [
         "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/services/document_response.rs",
         "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/handlers/search_tools/structured_response.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
         "crates/engram_server/src/tools.rs"
       ],
       "finite_acceptance": [
-        "Optional output_json defaults false. Both search tools return the same versioned structured envelope with typed result identities, scores, paths/lines, content/snippet truncation, literal recovery actions, warnings, freshness and explicit pagination.",
-        "Structured search retains scoped live guidance, including omitted/unresolved sources and original requested-page scope under budget omissions. Mixed project/user knowledge retains its actual project_id/namespace and memory-bank section recovery. Vector retains applicable-guidance recovery.",
-        "max_tokens bounds complete serialized UTF-8 reply text including JSON escaping and metadata. Omit only whole hits, retain mandatory warnings/guidance, expose exact next offset and minimum-budget retry. Unknown totals remain unknown; bounded vector totals never claim corpus completeness. Empty and out-of-window replies also remain structured and bounded.",
-        "Preserve existing Markdown behavior, ranking, fixed candidate windows, source ownership and SearchSession delivery-only observations. Relevant regressions plus independent public candidate/installed recovery prove the selected output contract; build/deploy and advance."
+        "Both readers accept root max_tokens and output_json. Default behavior stays compatible. Complete serialized reply text fits ceil(UTF8 bytes/4), including provenance, source freshness, guidance and JSON escaping.",
+        "Raw structured and budgeted text reads page at UTF8 boundaries with literal hash-bound citation recovery. Open-ended citations page at requested whole-line or UTF8 boundaries; explicit ranges and quote proofs remain complete or return actionable minimum budget. Preserve raw bytes and hashes across pages; changed content fails closed.",
+        "Rule-injected/logically sliced output retains complete transformed content and guidance or returns an actionable minimum. Never label transformed content as raw stored evidence. Invalid budgets fail; missing sections remain explicit.",
+        "Run relevant behavior and compatibility checks; public candidate/installed calls reconstruct independent source and original memory content, retain guidance and reject stale hash recovery. Build, deploy, record evidence, advance."
       ],
-      "remaining_scope": "Other tools, provider tokenization, durable cursors, full uniform-envelope rollout and full P0-4 remain unfinished. No retrieval/performance tuning or CodeMap/Blast work."
+      "remaining_scope": "Broader P0-4 tools, full uniform envelope rollout and durable corpus cursors remain open. No retrieval tuning or CodeMap/Blast work."
     },
-    "at_utc": "2026-11-11T18:40:38.498430+00:00",
-    "reason": "Installed7b70db0f returns text and rejects output_json on lexical/hybrid search_memory and vector_search. Three actual calls recovered all8independent sources through existing literal citation actions; JSON field is absent in tools/list.",
+    "at_utc": "2026-11-11T19:04:04.288531+00:00",
+    "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9998,8 +9999,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 structured search: selected contract delivered; broader response-budget requirements remain open.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "P0-4 document reply budgets and structured recovery",
+    "next_user_visible_deliverable": "Bound get_chunk/read_memory_bank complete replies and recover exact omitted stored content.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10013,7 +10014,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: structured search/vector responses built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: document response budgets implemented;16focused checks passed. Public acceptance and deployment pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12426,6 +12427,15 @@
       "full_p04_closed": false,
       "source_commit": "6baacf164d8b5ad348b90fb927be1af91cae3c33",
       "installed_server_sha256": "320e55189cc2f3f84116e004b14a95336cc795666d41e990d3d805b84fd0e89a"
+    },
+    "p04_document_response_baseline_20261111": {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\baseline\\acceptance.json",
+      "status": "OBSERVED_MISSING_DOCUMENT_BUDGETS"
+    },
+    "p04_document_response_20261111": {
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "receipt": "eval\\p04-document-response-delivery-20261111.json",
+      "full_p04_closed": false
     }
   }
 }

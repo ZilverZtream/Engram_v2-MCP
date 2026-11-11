@@ -1511,6 +1511,14 @@ fn default_grep_freshness() -> String {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetChunkRequest {
+    /// Complete reply budget, estimated as ceil(UTF-8 text bytes / 4).
+    /// Raw content pages retain hash-bound citation recovery. Transformed
+    /// content and guidance are indivisible; too-small budgets give a minimum.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Structured document envelope. Citation requests always return JSON.
+    #[serde(default)]
+    pub output_json: bool,
     pub project_id: String,
     /// Per-instance document identity (required).
     pub doc_id: String,
@@ -1668,6 +1676,13 @@ pub struct MemorySectionRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReadMemoryBankRequest {
+    /// Complete reply budget, estimated as ceil(UTF-8 text bytes / 4).
+    /// Follow response_page.next for exact hash-bound citation recovery.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Structured document envelope. Citation requests always return JSON.
+    #[serde(default)]
+    pub output_json: bool,
     pub project_id: String,
     pub section: String,
     /// Exact stored content, raw UTF-8 hash and bounded range as JSON.
