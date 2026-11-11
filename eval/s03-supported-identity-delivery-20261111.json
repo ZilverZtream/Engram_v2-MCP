@@ -1,0 +1,143 @@
+{
+  "status": "SUPPORTED_IDENTITY_BEHAVIOR_VERIFIED_WITH_INSTALLED_SIDECAR",
+  "at_utc": "2026-11-11T11:16:58.157490+00:00",
+  "requirement": "EG13/S03 extraction/source-version and embedding configuration identity prevent incompatible inheritance.",
+  "production_change": "None in this item. Reconciled delivery and refreshed existing focused acceptance after relevant source and companion-asset changes.",
+  "source_migration_checks": [
+    {
+      "configuration": "no-vector",
+      "passed": 4,
+      "start": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\no-vector-start.json",
+        "sha256": "e15c1db31910c1286875d2cbc6586e0a785a7b628e86fe2dfce8398f55b689e7"
+      },
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\no-vector-result.json",
+        "sha256": "e783abf8b65fb4b279d7ad63320577acb0c47ec449f3d28a812bafe7f013c28e"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\no-vector.log",
+        "sha256": "0b3efbc2da497d8f4fd84200098431eca1035bb6bde85ecabd2877553e48777d"
+      }
+    },
+    {
+      "configuration": "native",
+      "passed": 4,
+      "start": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\native-start.json",
+        "sha256": "4a8b264d8ed795346c0ae77630741f548a50f5eb5323b45e7098fb95906f5068"
+      },
+      "result": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\native-result.json",
+        "sha256": "7de9e070be79e40853fc189ec26b25b34c867270e24c9871b65c70bea21bba5c"
+      },
+      "log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\native.log",
+        "sha256": "69e6ccc6bbf1954e10bacbbeb877235d4156dcd8ad086062bfebffdc40a26c5c"
+      }
+    }
+  ],
+  "embedding_identity_checks": {
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\embedding-native-result.json",
+      "sha256": "6c651f6e3ad9cdd0dbc3c23690b754f506847ea16695a5f16d312702b08584e1"
+    },
+    "passed": 3,
+    "cases": [
+      {
+        "name": "embed_cache::tests::shared_cache_never_substitutes_another_provider_or_embedding_space",
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\embedding-native-0.log",
+          "sha256": "a2f969266ad2e61197da12477c71f1f2ddddbf086c1b8ec0cfece1b18efc9336"
+        }
+      },
+      {
+        "name": "embed_cache::tests::credential_rotation_and_equivalent_endpoint_keep_cached_embeddings",
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\embedding-native-1.log",
+          "sha256": "55cdf4a6e3ecc2c9140a97966934d521fc4ca4c89929430eb5bd4fe51a6c8e9b"
+        }
+      },
+      {
+        "name": "hybrid::vector_initialization::tests::vector_recovery_keeps_inflight_query_on_its_original_provider_and_rejects_stale_writers",
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111\\embedding-native-2.log",
+          "sha256": "f71d39e5f8f8f405c01fe815541737d846f0f7ee8ca2e35265a2180b0160831d"
+        }
+      }
+    ]
+  },
+  "verified_behavior": [
+    "Changing only chunk-target configuration reextracts unchanged bytes/mtime once; complete old-reader data and authored knowledge survive. Same configuration cold reopen is no-op; later companion edit inherits migrated physical source identities.",
+    "Persisted fallback parser receipt migrates once to actual loaded installed Roslyn identity, including zero-symbol VB input; later updates retain migrated VB physical identities.",
+    "Known source-limit fallback under a verified parser remains a no-op without generation, physical-identity or child-process churn. Aggregate-source refusal preserves the head and valid retry converges.",
+    "Different endpoint, port, path, model, dimension, deployment query, provider variant cannot substitute cached vectors. Equivalent endpoint/credential rotation preserves compatible cache results.",
+    "Vector recovery keeps an in-flight query on its original provider and rejects stale-writer mutation after replacement."
+  ],
+  "deployment_binding": {
+    "server": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "sha256": "6576e9a22fc44ec2ebc32661c240a4d763804e255c9f6a0fa95ecce8824c61a1"
+    },
+    "manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "384b92390488a1309aa2344542def0d64c2cfcf7f727f2e4dce0216274d708c5"
+    },
+    "sidecar_exe": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\sidecar\\vb_roslyn_sidecar-win-x64.exe",
+      "sha256": "d362f0279aacca5fd06d6800fcb784123c0d38278fe710a3c8cd70b7e377eef6"
+    },
+    "sidecar_dll": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\sidecar\\vb_roslyn_sidecar-win-x64.dll",
+      "sha256": "9553b9e19d75de6756ee5aa60da4e3fd2880e9c19786f1596509e0846d272374"
+    },
+    "release_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s01-ollama-dimension-shipping-20261111.json",
+      "sha256": "1e1660ab217007a6163c20b8905f8824badc24152151c2ace5f7b0a1949cc4d3"
+    },
+    "production_sources_match_release": true,
+    "only_test_module_difference": [
+      "crates/engram_server/src/handlers/project_tools/source_publication_tests/revision_completeness.rs"
+    ],
+    "installed_delivery": "eval/s01-public-update-validation-20261111.json"
+  },
+  "repeat_reason": "Older S03 receipts predated identity implementation/sidecar changes. Current provenance Rust paths match later native receipts, but their sidecar assets differ from installed EXE/DLL. Cache/recovery source also differs from retained identity snapshots. Only existing relevant4-per-build plus3native checks were rerun.",
+  "retained_evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-s03-captured-extraction-identity-owned-knowledge.json",
+      "sha256": "23d37d8d1439b3383726417e13ad5f4e336471479d3fb6131f0e654640af7b50"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-v4-production-path-five-followup-20261103.json",
+      "sha256": "0a4dd27c500cd585e18351b9670f6ff92438c2ba0c4b027c8982d3d9f245de16"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-compiler-context-public-migration-v2-20261110.json",
+      "sha256": "34b56732dd4e2942efe16d34a72ec28bd4b2e91a1c22c1c2f9edc9142940c82f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-http-context-provenance-native-v2-20261110.json",
+      "sha256": "857e0b20f095790c75825a2f897d628e2368efebbbfb03a5666a1b3576973785"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\endpoint-embedding-cache-isolation.json",
+      "sha256": "ecb2777b6c47fa1dc42938215b513a8063b2a6c46e8fb1d627265b721132ec00"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\replacement-vector-routing-complete-guards.json",
+      "sha256": "06e76f13e27b7a1a0bcf0a6a168962fc0f6d2ba0e28ab88712844963ae0737ee"
+    }
+  ],
+  "limits": [
+    "Public handlers run in current-source test binaries with the actual installed sidecar; these runs do not claim installed MCP transport execution.",
+    "The fixture sets a1MiB source cap to bound fallback verification; production configuration remains unchanged.",
+    "No claim of complete external-reference/compiler-option/unreported-peer coverage or project-wide semantic equivalence.",
+    "No full19gate closure, physical-write/resource claim, or new CodeMap/Blast evaluation."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s03-installed-identity-20261111",
+    "fixture_leftovers": 0,
+    "closure": "Existing fixtures drain jobs/runtime and parser ownership before cleanup; all3result inventories empty.",
+    "retention": "Logs, start/result receipts and empty runner TEMP containers retained as evidence. No preexisting folders deleted."
+  }
+}

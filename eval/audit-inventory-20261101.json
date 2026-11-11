@@ -969,10 +969,11 @@
     {
       "id": "S03",
       "required_behavior": "Extraction/source-version and embedding configuration identity prevent incompatible inheritance.",
-      "state": "Partial: format7/configuration identity, actual loaded v4 Roslyn parser provenance, cold receipt migration, stable fallback/noop and full admitted peer inventory/warm/cold/cancel contracts now have native and actual no-vector local behavior evidence. Final packaging/release/deployed pair and unsupported external references/options remain explicit; do not claim project-wide semantic equivalence.",
+      "state": "Supported identity delivery reconciled:4native+4actual-no-vector public configuration/parser migration/noop checks pass against installed sidecar EXE/DLL;3current-native embedding-space cache/recovery guards pass. Production source matches installed release. Complete external-reference/compiler-option/unreported-peer semantic coverage is not established; no full19 closure.",
       "evidence": "endpoint-embedding-cache-isolation.json: seven cache cases; replacement-vector-routing-complete-guards.json: eleven recovery cases. Unchanged build inputs and no retained fixtures.",
       "latest_vb_compilation_evidence": "peer_refresh_publication_recovery_cutoff_and_delivery_20261103: native actualv3 parser identity/prepared-peer warm/cold/legacy/restart contracts and public cold migration/stable fallback no-op pass. Explicit admitted VB inventory threaded full/initial/foreground/background shared helpers. Other configurations/release/deploy and external references/options remain.",
-      "latest_actual_no_vector_v4_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103"
+      "latest_actual_no_vector_v4_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
+      "current_delivery": "eval/s03-supported-identity-delivery-20261111.json"
     },
     {
       "id": "S04",
@@ -9931,26 +9932,43 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_ACCEPTANCE_COVERAGE",
-      "original_requirement": "EG13/S02: complete immutable multi-chunk revisions survive shrinking, deletion, rename and partial extraction/vector failure.",
-      "current_missing_behavior": "Selected public shrink/delete gap verified in both configurations; no runtime defect observed or production-code change needed. Distinct partial-native-upsert failure scope remains explicitly open.",
+      "status": "DELIVERED_SUPPORTED_IDENTITY_VALIDATION",
+      "original_requirement": "EG13/S03 extraction/source-version and embedding configuration identity prevent incompatible inheritance.",
+      "current_missing_behavior": "Selected supported identity deployment gap resolved by current-source checks with pinned installed companion and current embedding isolation/recovery checks. Broader semantic-input limitations remain explicit.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/project_tools/source_publication_tests/revision_completeness.rs"
+        "crates/engram_index/src/source_contract.rs",
+        "crates/engram_index/src/vb_extractor.rs",
+        "crates/engram_server/tests/source_index_migration_tests/extraction_identity.rs",
+        "crates/engram_server/tests/source_index_migration_tests/vb_parser_identity.rs",
+        "tools/vb_roslyn_sidecar"
       ],
       "finite_acceptance": [
-        "One actual multi-chunk Rust source and unchanged sibling; public full preparation followed by real filesystem shrink and ordinary public update, then deletion and public update.",
-        "Every selected source line/body is checked against independent fixture text; shrunk/deleted obsolete chunks must be absent and untouched physical PK/body/ranges unchanged.",
-        "Held initial and intermediate snapshots retain complete exact bodies through update collection; cold AppState reopen recovers the final sibling-only revision.",
-        "Run only the new contract in native and actual no-vector builds. Reuse retained rename and extraction/embedding-failure evidence.",
-        "Close jobs, database owners and runtime before owned fixture teardown on success and unwind. Fix runtime code only if the new wanted-behavior check demonstrates a defect.",
-        "Bind passing behavior to deployed source; preserve the separate partial-native-upsert failure limitation and all other unfinished gates."
+        "Read relevant retained receipts/logs and exact tested source/sidecar pins once; preserve original failed-run and corrected-followup distinctions.",
+        "Compare supported identity paths and current installed package/source; do not claim older local evidence verifies later changed behavior without reconciliation.",
+        "Reuse completed actual native/no-vector configuration/provenance/migration checks; if a concrete installed-path gap remains, perform one bounded owned public source-identity migration/noop check needed to resolve it.",
+        "Record actual implemented/validated/deployed scope and preserve external reference/options and unreported-peer limitations; no new semantic-equivalence promise or parser investigation.",
+        "No CodeMap/Blast work, expanded performance experiments, or unrelated catalog/ownership work. Deliver supported identity evidence or necessary concrete fix, then advance."
       ],
-      "previous_delivery": "eval/s01-public-update-validation-20261111.json",
-      "evidence_already_inspected": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/s02-next-scope-20261111.json",
-      "delivery": "eval/s02-public-revision-completeness-validation-20261111.json"
+      "previous_delivery": "eval/s02-public-revision-completeness-validation-20261111.json",
+      "already_read_ledger_evidence": [
+        "s03_captured_chunk_configuration_20261103",
+        "s03_actual_loaded_parser_and_owned_teardown_20261103",
+        "s03_s06_context_fence_and_precommit_lifetimes_20261103",
+        "peer_refresh_publication_recovery_cutoff_and_delivery_20261103",
+        "no_vector_alias_v4_publication_and_tool_milestone_20261103"
+      ],
+      "current_installed_pair": "eval/s01-public-update-validation-20261111.json",
+      "selected_checks": [
+        "source_index_migration_tests::extraction_identity (2 cases)",
+        "source_index_migration_tests::vb_parser_identity (2 explicit real-companion cases)"
+      ],
+      "repeat_justification": "Relevant identity implementation and sidecar assets changed since retained S03 runs; current deployed-asset public migration coverage not established by those older receipts.",
+      "source_identity_result": "Four public migration/configuration/noop cases pass in native and actual no-vector builds against pinned installed sidecar; both fixture inventories empty.",
+      "remaining_embedding_identity_validation": "Completed:3existing current-native identity cases pass with unchanged source and empty fixture inventory.",
+      "delivery": "eval/s03-supported-identity-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T10:50:53.754420+00:00",
-    "reason": "S01 selected public-update/Ollama fix deployed and pushed; advance original S02 finite remaining public shrink/delete coverage using already-inspected evidence.",
+    "at_utc": "2026-11-11T11:06:42.316826+00:00",
+    "reason": "S02 public shrink/delete gap validated in native/no-vector builds and pushed5902f4c. Advance original S03 supported identity delivery, preserving unsupported semantic-input limitations.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
