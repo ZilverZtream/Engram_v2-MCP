@@ -9950,7 +9950,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_SEARCH_JSON_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4: consistent output_json, response envelopes, budgets, truncation metadata and recoverable pagination across tools.",
       "selected_tool": "search_memory and vector_search structured responses",
       "observed_source_gap": "Installed7b70db0f returns text and rejects output_json on lexical/hybrid search_memory and vector_search. Three actual calls recovered all8independent sources through existing literal citation actions; JSON field is absent in tools/list.",
@@ -9968,7 +9968,7 @@
       ],
       "remaining_scope": "Other tools, provider tokenization, durable cursors, full uniform-envelope rollout and full P0-4 remain unfinished. No retrieval/performance tuning or CodeMap/Blast work."
     },
-    "at_utc": "2026-11-11T18:23:30.822843+00:00",
+    "at_utc": "2026-11-11T18:40:38.498430+00:00",
     "reason": "Installed7b70db0f returns text and rejects output_json on lexical/hybrid search_memory and vector_search. Three actual calls recovered all8independent sources through existing literal citation actions; JSON field is absent in tools/list.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9998,8 +9998,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO P0-4: structured search_memory and vector_search responses with complete budgets and recovery.",
-    "next_user_visible_deliverable": "Agents can consume structured results and recovery actions without parsing Markdown while retaining budgets, warnings and guidance.",
+    "active_original_item": "P0-4 structured search: selected contract delivered; broader response-budget requirements remain open.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10013,7 +10013,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: structured search/vector responses implemented;51focused checks passed, deployment pending.",
+    "previous_goal_turn_classification": "Progress: structured search/vector responses built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12421,9 +12421,11 @@
       "installed_server_sha256": "7b70db0f06707713c8d93b7efab68bb7465ae8b3835cfb95e8679c59575c2b75"
     },
     "p04_search_json_20261111": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "receipt": "eval\\p04-search-json-delivery-20261111.json",
-      "full_p04_closed": false
+      "full_p04_closed": false,
+      "source_commit": "6baacf164d8b5ad348b90fb927be1af91cae3c33",
+      "installed_server_sha256": "320e55189cc2f3f84116e004b14a95336cc795666d41e990d3d805b84fd0e89a"
     }
   }
 }

@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T18:23:30.822843+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T18:40:38.498430+00:00",
   "original_requirement": "TODO P0-4: consistent structured responses, budgets, truncation metadata and recoverable pagination.",
   "implemented": "Optional output_json for search_memory/vector_search returns a shared versioned envelope with typed hits, literal recovery, warnings, live guidance/scope, freshness and explicit pagination. Whole serialized JSON budgets preserve complete records and mandatory context; content/snippet truncation is explicit. Original default Markdown remains.",
   "demonstrated_failure": {
@@ -73,10 +73,157 @@
     "crates/engram_server/tests/search_json_tests.rs": "f5ffa6edde0d4e58512e9f6b6bca951ae0af08a017c076f94118d1d88fb015d4",
     "crates/engram_server/tests/vector_search_score_tests.rs": "450ab38e4f8d9428c4c48845bd9984566bd414337dcd5379a3bb7200ea996964"
   },
-  "remaining": "Build/deploy and verify actual candidate/installed MCP structured output. Other tools, provider-token accounting, durable cursors and full P0-4 remain unfinished.",
+  "remaining": "Selected search_memory/vector_search structured responses delivered. Other tools, uniform envelopes across the full surface, provider-specific token accounting, durable snapshot cursors and full P0-4 remain unfinished.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111",
     "test_and_baseline_fixtures_closed_and_removed": true,
-    "retained": "Baseline, logs, review and helpers retained here. Earlier policy-rejected cleanup fixture remains untouched."
+    "retained": "Baseline, logs, review and helpers retained here. Earlier policy-rejected cleanup fixture remains untouched.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-de86ac3374a04ce2ae5f2f068c3e149d",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "6baacf164d8b5ad348b90fb927be1af91cae3c33",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-shipping-20261111.json",
+      "sha256": "fdab9884581f21504c9f31a6ba5ee0c8908794a287bfeb0b87db3b9e653a8a7e"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\pair.json",
+      "sha256": "1a7a4468639763c110df191f72d585b0a348c492c58bdf746962afa7a8585eb7"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\helper-review.json",
+      "sha256": "fc0ed0196072e3a161b6df8971a120c04f2c67211f067506b3113492cbc7829b"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\candidate\\acceptance.json",
+      "sha256": "3e8479b25d988d81d5cac63e2cce8e0b1288170704a03760182a91113144ccde"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\installed\\acceptance.json",
+      "sha256": "1dfdfcf22a67fdb65d172fb221b197440ddafc795efbf310bd041cf68d41fb11"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\normal\\acceptance.json",
+      "sha256": "ed20fcbbcab8fe4b08b503e395137ab20dff32dbc927fa814d05ea48e5206148"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\release-gates.json",
+      "sha256": "9ce3ade003e49afb977cefd548163045b3661ed918a167328f4aa054809dd029"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\install-result.json",
+      "sha256": "6f80c5399b6f0c5d66f0e15a5555b0b8c991a342e3b83dd8eb2bf254d4266ad8"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-config-hold-20261111.json.released.json",
+      "sha256": "c539d3f56dd1d280b22fb8c036b49eec52d11b3a2822e3a338ef994571c3b90b"
+    },
+    "server_sha256": "320e55189cc2f3f84116e004b14a95336cc795666d41e990d3d805b84fd0e89a",
+    "manifest_sha256": "28811d782eb5dce40f73fe7fb755f654bfa0b99f69a7438a832fc32444099538",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "public_verifier_correction": {
+    "reason": "Initial verifier compared Windows-written guidance with LF template bytes. Actual returned CRLF content matches the independent before-read file SHA256. Corrected verifier reads and records raw fixture bytes before any tool calls; no product code or fixture newline change. Candidate and installed checks then passed.",
+    "failed_run": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\candidate-driver-v1\\acceptance.json",
+      "sha256": "567b47f70034de6eb33e2c9e822234caf241f1f9f94ee5011c964fe4d767da98"
+    },
+    "original_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\verify-runtime-v1.py",
+      "sha256": "8948186a630c8c945941d910383cea1653dd303c6c71c615b9bb86581cf8c7a2"
+    },
+    "independent_source_confirmation": {
+      "response": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-json-20261111\\candidate-driver-v1\\wire\\0007-response.json",
+        "sha256": "47194142ee04dbdccbbc5d5ca37778a24e881a1cccfdd75ca870913b8c4244d9"
+      },
+      "independent_before_read_sha256": "72d2d08064785b83a7656463bd0992ab862750f9a2142ef376ca5b5545c84ee7"
+    },
+    "preservation": "Failed candidate directory retained as candidate-driver-v1 after owned resources closed/fixture removed; original recorded wire paths retain their earlier location."
+  },
+  "demonstrated_installed_behavior": [
+    {
+      "tool": "search_memory",
+      "semantic": false,
+      "use_mmr": false,
+      "unbudgeted_json_bytes": 33608,
+      "page_bytes": [
+        8012,
+        7989,
+        7948,
+        7917,
+        7890,
+        7862
+      ],
+      "returned_hits": 12,
+      "minimum_retry_tokens": 1361
+    },
+    {
+      "tool": "search_memory",
+      "semantic": true,
+      "use_mmr": false,
+      "unbudgeted_json_bytes": 33846,
+      "page_bytes": [
+        5665,
+        5651,
+        5634,
+        5623,
+        8172,
+        8146,
+        8114,
+        8087
+      ],
+      "returned_hits": 12,
+      "minimum_retry_tokens": 1417
+    },
+    {
+      "tool": "vector_search",
+      "semantic": true,
+      "use_mmr": false,
+      "unbudgeted_json_bytes": 21195,
+      "page_bytes": [
+        6599,
+        6597,
+        6601,
+        6602
+      ],
+      "returned_hits": 8,
+      "minimum_retry_tokens": 1038
+    },
+    {
+      "tool": "vector_search",
+      "semantic": true,
+      "use_mmr": true,
+      "unbudgeted_json_bytes": 21198,
+      "page_bytes": [
+        6599,
+        6597,
+        6601,
+        6605
+      ],
+      "returned_hits": 8,
+      "minimum_retry_tokens": 1038
+    }
+  ],
+  "demonstrated_memory_recovery": {
+    "bytes": 3523,
+    "recovered": [
+      {
+        "project_id": "a50b255b-b3b8-42bc-b78c-79afda4149f4",
+        "namespace": "memory_bank",
+        "doc_id": "87c5f0a6bc0ecba8f1001a84310533c80a9181342eb9ad2f49baab36e118d0bd"
+      },
+      {
+        "project_id": "__user__",
+        "namespace": "memory_bank",
+        "doc_id": "76d90ff806230d70e79bcb901281f30076aa4fcd07d4612661d4e5cddd71ea89"
+      }
+    ]
   }
 }
