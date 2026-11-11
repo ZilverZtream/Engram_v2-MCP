@@ -103,69 +103,11 @@ async fn load_project_runtime(
     state: &AppState,
     project_id: &str,
 ) -> anyhow::Result<Option<crate::state::ProjectState>> {
-    if let Some(p) = state.get_project_cached(project_id) {
-        return Ok(Some(p));
+    match crate::services::project_service::ensure_project_runtime(state, project_id).await {
+        Ok(project) => Ok(Some(project)),
+        Err(crate::error::EngramError::ProjectNotFound(_)) => Ok(None),
+        Err(error) => Err(error.into()),
     }
-    let reg = state.registry.clone();
-    let pid = project_id.to_string();
-    let rec = tokio::task::spawn_blocking(move || reg.get_project(&pid))
-        .await
-        .map_err(|e| {
-            anyhow::anyhow!(
-                "ENG-AUD-2026-S13-0001: spawn_blocking panicked in dreamer registry lookup: {e}"
-            )
-        })?
-        .map_err(|e| anyhow::anyhow!("ENG-AUD-2026-S13-0001: registry get_project failed: {e}"))?;
-    let Some(rec) = rec else {
-        return Ok(None);
-    };
-
-    let tantivy_dir = state
-        .cfg
-        .data_dir
-        .join("projects")
-        .join(project_id)
-        .join("tantivy");
-    let lancedb_dir = state
-        .cfg
-        .data_dir
-        .join("projects")
-        .join(project_id)
-        .join("lancedb");
-    std::fs::create_dir_all(&tantivy_dir).map_err(|e| {
-        anyhow::anyhow!(
-            "ENG-AUD-S1-0002: failed to create tantivy dir {:?}: {e}",
-            tantivy_dir
-        )
-    })?;
-    std::fs::create_dir_all(&lancedb_dir).map_err(|e| {
-        anyhow::anyhow!(
-            "ENG-AUD-S1-0002: failed to create lancedb dir {:?}: {e}",
-            lancedb_dir
-        )
-    })?;
-
-    let search = engram_index::HybridSearchEngine::new_with_budget(
-        tantivy_dir.clone(),
-        lancedb_dir.clone(),
-        &state.cfg,
-        Some(state.memory_budget.clone()),
-    )
-    .await?;
-    let ps = crate::state::ProjectState {
-            pagerank_cache: Default::default(),
-        info: crate::state::ProjectInfo {
-            project_id: project_id.to_string(),
-            project_name: rec.project_name,
-            project_type: rec.project_type,
-            directory: rec.directory,
-            tantivy_dir,
-            lancedb_dir,
-        },
-        search: std::sync::Arc::new(search),
-    };
-    state.put_project_cached(ps.clone()).await;
-    Ok(Some(ps))
 }
 /// Fetch the active generation from the registry.
 /// Returns Err on spawn failure or registry/parse error (ENG-AUD-2026-0003).

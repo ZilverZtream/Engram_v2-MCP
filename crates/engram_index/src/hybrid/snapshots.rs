@@ -188,6 +188,36 @@ pub(super) struct Catalog {
 static CATALOGS: LazyLock<Mutex<HashMap<PathBuf, Weak<Catalog>>>> = LazyLock::new(|| Mutex::new(HashMap::new()));
 
 impl Catalog {
+    pub(super) fn with_closed_index<T>(tantivy_dir: &Path, cleanup: impl FnOnce() -> anyhow::Result<T>) -> anyhow::Result<T> {
+        let parent = match std::fs::canonicalize(tantivy_dir) {
+            Ok(parent) => parent,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => return cleanup(),
+            Err(error) => return Err(error.into()),
+        };
+        // Keep local cold opens out until physical cleanup finishes. A lease
+        // alone owns this catalog even after the runtime cache was evicted.
+        let catalogs = CATALOGS.lock().map_err(|_| anyhow::anyhow!("snapshot catalog registry poisoned"))?;
+        anyhow::ensure!(catalogs.get(&parent.join("source-snapshots")).is_none_or(|owner| owner.strong_count() == 0),
+            "Project source index still has active readers or workers; retry delete_project after they finish");
+        let lock_path = engram_core::safe_join(&parent, ".source-snapshot-catalog.lock")?;
+        let mut options = std::fs::OpenOptions::new();
+        options.read(true).write(true).create(true).truncate(false);
+        #[cfg(windows)]
+        {
+            use std::os::windows::fs::OpenOptionsExt;
+            // Our lock must survive unlinking; live catalog owners deliberately
+            // omit delete sharing and therefore refuse this cleanup admission.
+            options.share_mode(0x00000001 | 0x00000002 | 0x00000004);
+        }
+        let lock = options.open(lock_path)?;
+        fs2::FileExt::try_lock_exclusive(&lock)
+            .map_err(|error| anyhow::anyhow!("Project source index is in use; retry delete_project after its owner closes: {error}"))?;
+        let result = cleanup();
+        drop(lock);
+        drop(catalogs);
+        result
+    }
+
     /// Read in-memory ownership only. No disk reads, pinning, pruning or cache
     /// maintenance. Bounds keep a diagnostics request from scanning huge views.
     pub fn retention_observation(&self, project: &str) -> serde_json::Value {

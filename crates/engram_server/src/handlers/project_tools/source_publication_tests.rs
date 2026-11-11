@@ -18,6 +18,8 @@ mod full_recovery;
 mod process_exclusion;
 #[path = "source_publication_tests/repair_history_options.rs"]
 mod repair_history_options;
+#[path = "source_publication_tests/project_deletion.rs"]
+mod project_deletion;
 
 #[derive(Clone)]
 struct PublicationPause {

@@ -1,0 +1,149 @@
+{
+  "status": "IMPLEMENTED_LOCAL_VALIDATION_PASSED_RELEASE_PENDING",
+  "at_utc": "2026-11-11T12:09:24.881188+00:00",
+  "original_requirement": "EG13/S05: competing foreground/background updates validate their base and cannot overwrite a newer head; physical deletion versus unfinished workers/cached incarnations was an explicit remaining gap.",
+  "demonstrated_failure": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\red-result.json",
+      "sha256": "a512cdd93d783e901a9ae9c561e129d729432cad9055d35b2d4a1b3d01a8a3e8"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\red.log",
+      "sha256": "b3926b65433de889c034680d3293b4fcf86477a7ff6f6e9c4b1245f53ee81c76"
+    },
+    "outcome": "Actual public foreground update paused before publication: delete_project returned success while removing the project record, published head and update mutex before the update settled. Owned fixture cleanup was empty."
+  },
+  "implemented": [
+    "Deletion preserves the existing update lane and serializes runtime opening, cache eviction and physical cleanup.",
+    "Cooperatively cancel and join captured jobs before taking their update lane; the entire deletion task and blocking cleanup survive RPC cancellation.",
+    "Serialize index/update job registration with runtime admission; recheck genuinely tracked running jobs before cleanup. Late admissions refuse with retry; stale persisted running rows after restart do not block deletion forever.",
+    "Refuse cleanup before registry/graph mutation while cached, evicted, cloned, detached-operation or source-only catalog owners remain; hold local catalog admission and existing process file lock during deletion.",
+    "Dreamer, immune and integrity cold opens share runtime admission; queued initial-index jobs recheck cancellation/registration before creating stores. GC retains its already-serialized uncached loader.",
+    "Disable watches after storage admission. Propagate physical removal errors with delete-by-ID retry; never report failed cleanup as successful deletion."
+  ],
+  "validation": {
+    "deletion_cases_per_build": 7,
+    "builds": [
+      "native vector feature",
+      "actual no-default-features"
+    ],
+    "cases": [
+      "Foreground publication must settle before deletion; stable mutex retained; stores absent after success; identical ID re-registration indexes complete replacement source.",
+      "Source-only reader after engine/cache release refuses deletion without changing published data; release allows retry.",
+      "Queued index job is cancelled and joined without recreating stores or job records.",
+      "Cancelling delete RPC during job drain still finishes the owned deletion.",
+      "Late background job admission refuses destructive cleanup, settles, and permits retry; new job registration after deletion fails without creating metadata.",
+      "Actual AppState close/reopen permits cleanup of an ownerless persisted running job.",
+      "Windows exclusive file-handle obstruction causes explicit physical-cleanup error; retry after release removes remaining directory."
+    ],
+    "native_scope": "Foreground/source-reader/late-update cases use actual local native vector storage, with complete source body/PK/vector membership checks. Queued jobs are cancelled before opening stores. Stale-job and filesystem-obstruction fixtures intentionally use fts_only in either compiled build.",
+    "registration_regression": "Existing foreground_and_background_registration_publish_their_own_complete_initial_generation passes in native and no-vector builds.",
+    "runs": [
+      {
+        "name": "native",
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\native-result.json",
+          "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\native.log",
+          "sha256": "3d09d81c7a6bc09b854f28546e0158c58cdb671f7b87a22dd9f182437ac817ad"
+        }
+      },
+      {
+        "name": "native-registration",
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\native-registration-result.json",
+          "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\native-registration.log",
+          "sha256": "87078d71737addcc324cd6adcf0742683c5cf77eefad333016420d417840bbc3"
+        }
+      },
+      {
+        "name": "no-vector-complete",
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\no-vector-complete-result.json",
+          "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\no-vector-complete.log",
+          "sha256": "cb4c3190aafb35150a206d4217f6340039614056d9019c54a5e48abc8a2d92a1"
+        }
+      },
+      {
+        "name": "no-vector-registration",
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\no-vector-registration-result.json",
+          "sha256": "9407538e2f90e08d7c028892916532119dd6a1b78a9f947c88cd898597ea4721"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\no-vector-registration.log",
+          "sha256": "78804743bad04a1fb6e671c560eeefa2250989101214bc68ed28e113673a7551"
+        }
+      }
+    ]
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\independent-review.json",
+    "sha256": "d2b0b88d94b2557cc86997096d22e7c1b19eccc1f4bfeea1c0e81c3df785138b"
+  },
+  "source_files": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid.rs",
+      "sha256": "6f6334f30fd4b081cb5ba8dfad18204c59719884c8add88d44d57056eadfce9e"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid\\snapshots.rs",
+      "sha256": "172a8d3aacf92ba5eaf99e76118435854df7ee38b87635a1c42ccb0c66c110d2"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools.rs",
+      "sha256": "e527734c08b3f2a8b10432a72b31908376747bcea00f5a6c9c0d8a91843683b6"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\services\\project_service.rs",
+      "sha256": "a974fb233169259d3d90ad4fa29842d0e9ee12119d42ba1fc951a73cf104709c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\services\\integrity_service.rs",
+      "sha256": "c2abd8e0bebe0805feabab6c7956d0db29add2052572d2d52d61e75a71a1fa3a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\state.rs",
+      "sha256": "25d74a8fc963a74d8fef6f711889726c29531d081668f1085ee7c7c32ca3ed14"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\actors\\immune.rs",
+      "sha256": "6b080463bd761beaba77caea83f4eaf8b03684c03d8da81cab4b11c88d389176"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\actors\\dreamer.rs",
+      "sha256": "7d83557b9b605f68a90e8fc77bf85addcc0adbfc54264ebde21d3836fa5b2bf8"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools\\source_publication_tests.rs",
+      "sha256": "01fd282bbee6d6f372dbf9588c9029245b08fb9456a8db3afbc65ac45e3696b8"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools\\source_publication_tests\\project_deletion.rs",
+      "sha256": "6775693da3a5aeadebc5b3f8aa3e3fd1860c74887eb207c7f4a4cf5102d1c639"
+    }
+  ],
+  "limits": [
+    "Release build, isolated public MCP verification and installed verification remain pending.",
+    "Original S05 remains partial: this is a bounded deletion/publication lifecycle delivery, not proof of every store-commit, crash, physical catalog replacement or cross-platform cross-process boundary.",
+    "Physical cleanup failure can follow registry/graph removal; the returned error identifies partial cleanup and supports retry by ID.",
+    "No external CodeRabbit review was performed; trusted CLI was unauthenticated. Independent local source and helper reviews are retained."
+  ],
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111",
+    "ownership": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s05-project-deletion-20261111\\ownership.json",
+      "sha256": "b1c4cdc28111dcfb24e03521ac12e6270dad1d175cf6a001680091080977a98e"
+    },
+    "fixtures": "All completed test fixture inventories are empty. Runtime shutdown precedes fixture cleanup, including failure/unwinding.",
+    "retained": "Test logs, review receipts, empty runner TEMP containers and prepared release helpers. No preexisting directory cleanup."
+  }
+}

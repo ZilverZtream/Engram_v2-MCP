@@ -112,58 +112,8 @@ fn warn_once_missing_root(project_id: &str, directory: &std::path::Path) {
 async fn get_or_open_project(
     state: &AppState,
     project_id: &str,
-    rec: &engram_core::ProjectRecord,
 ) -> anyhow::Result<crate::state::ProjectState> {
-    if let Some(p) = state.get_project_cached(project_id) {
-        return Ok(p);
-    }
-    let tantivy_dir = state
-        .cfg
-        .data_dir
-        .join("projects")
-        .join(project_id)
-        .join("tantivy");
-    let lancedb_dir = state
-        .cfg
-        .data_dir
-        .join("projects")
-        .join(project_id)
-        .join("lancedb");
-    std::fs::create_dir_all(&tantivy_dir).map_err(|e| {
-        anyhow::anyhow!(
-            "ENG-AUD-2026-S07-0001: failed to create tantivy dir {:?}: {e}",
-            tantivy_dir
-        )
-    })?;
-    std::fs::create_dir_all(&lancedb_dir).map_err(|e| {
-        anyhow::anyhow!(
-            "ENG-AUD-2026-S07-0001: failed to create lancedb dir {:?}: {e}",
-            lancedb_dir
-        )
-    })?;
-
-    let search = engram_index::HybridSearchEngine::new_with_budget(
-        tantivy_dir.clone(),
-        lancedb_dir.clone(),
-        &state.cfg,
-        Some(state.memory_budget.clone()),
-    )
-    .await?;
-
-    let ps = crate::state::ProjectState {
-            pagerank_cache: Default::default(),
-        info: crate::state::ProjectInfo {
-            project_id: project_id.to_string(),
-            project_name: rec.project_name.clone(),
-            project_type: rec.project_type.clone(),
-            directory: rec.directory.clone(),
-            tantivy_dir,
-            lancedb_dir,
-        },
-        search: std::sync::Arc::new(search),
-    };
-    state.put_project_cached(ps.clone()).await;
-    Ok(ps)
+    Ok(crate::services::project_service::ensure_project_runtime(state, project_id).await?)
 }
 
 /// Scan a single project for new revert commits and index anti-patterns.
@@ -262,7 +212,7 @@ async fn scan_project_reverts(
             "ImmuneActor: indexing anti-pattern documents from reverts"
         );
 
-        let project = get_or_open_project(state, project_id, &rec).await?;
+        let project = get_or_open_project(state, project_id).await?;
 
         // Determine current generation.
         let active_gen: u64 = {

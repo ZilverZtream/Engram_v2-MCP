@@ -1048,6 +1048,8 @@ impl Engram {
                 p.project_id, p.project_name, p.directory, advice
             ))]));
         }
+        let runtime = self.state.acquire_project_runtime_lock(&project_id).await;
+        self.ensure_project_record(&project_id).await?;
         let project_root = self.state.cfg.data_dir.join("projects").join(&project_id);
         let tantivy_dir = project_root.join("tantivy");
         let lancedb_dir = project_root.join("lancedb");
@@ -1095,6 +1097,8 @@ impl Engram {
                 search: search.clone(),
             })
             .await;
+
+        drop(runtime);
 
         if req.wait {
             let _update_guard = self.state.acquire_project_update_lock(&project_id).await;
@@ -1314,6 +1318,11 @@ impl Engram {
         tantivy_dir: PathBuf,
         lancedb_dir: PathBuf,
     ) -> Result<String, McpError> {
+        // Serialize job registration with deletion's final admission check.
+        // Keep this until the job handle and cancellation token are tracked.
+        let _runtime = self.state.acquire_project_runtime_lock(&project_id).await;
+        self.ensure_project_record(&project_id).await?;
+
         // Enforce concurrency limit BEFORE creating the job record so that a
         // rejected request never leaves a phantom "running" entry in the registry.
         let state_for_spawn = self.state.clone();
@@ -1402,13 +1411,15 @@ impl Engram {
                 .acquire_project_update_lock(&project_id_for_job)
                 .await;
 
-            let search_init = engram_index::HybridSearchEngine::new_with_budget(
-                tantivy_dir,
-                lancedb_dir,
-                &state_for_spawn.cfg,
-                Some(state_for_spawn.memory_budget.clone()),
-            )
-            .await;
+            let search_init = async {
+                anyhow::ensure!(!token.is_cancelled(), "index cancelled before storage admission");
+                anyhow::ensure!(reg2.get_project(&project_id_for_job)?.is_some(),
+                    "Project was deleted before index storage admission");
+                engram_index::HybridSearchEngine::new_with_budget(
+                    tantivy_dir, lancedb_dir, &state_for_spawn.cfg,
+                    Some(state_for_spawn.memory_budget.clone()),
+                ).await
+            }.await;
             let max_chunks = state_for_spawn.cfg.max_chunks_per_file;
 
             let mut _storage_mutation = None;
@@ -1747,6 +1758,11 @@ impl Engram {
         index_antipatterns: bool,
         reindex_paths: Vec<String>,
     ) -> Result<String, McpError> {
+        // Serialize job registration with deletion's final admission check.
+        // Keep this until the job handle and cancellation token are tracked.
+        let _runtime = self.state.acquire_project_runtime_lock(&project_id).await;
+        self.ensure_project_record(&project_id).await?;
+
         let job_id = Uuid::new_v4().to_string();
         let now = now_ms();
         let jr = JobRecord {
@@ -4073,75 +4089,82 @@ impl Engram {
         req: ProjectIdRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
-        let pid = req.project_id;
+        let caller = Engram::new(self.state.clone());
+        // Job draining also survives caller cancellation, not just filesystem
+        // cleanup: dropping a JoinHandle must never stand in for settlement.
+        tokio::spawn(async move { caller.delete_project_settled(req.project_id).await })
+            .await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+    }
 
-        // Fix 9: Signal and abort every active job for this project before
-        // destroying its database entries. Without this, orphaned tasks continue
-        // to read and write the now-deleted data, recreating deleted directories
-        // and leaving the system in a ghost state.
+    async fn delete_project_settled(&self, pid: String) -> Result<CallToolResult, McpError> {
+
+        // Signal first, then drain without holding the update lane: a queued
+        // job needs that lane to observe cancellation and settle its workers.
+        let registry = self.state.registry.clone();
+        let project = pid.clone();
+        let jobs = tokio::task::spawn_blocking(move || registry.list_jobs(Some(&project)))
+            .await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        let running: Vec<_> = jobs.into_iter().filter(|job| job.status == "running")
+            .map(|job| job.job_id).collect();
         {
-            let reg = self.state.registry.clone();
-            let pid_c = pid.clone();
-            let running_ids: Vec<String> =
-                tokio::task::spawn_blocking(move || reg.list_jobs(Some(&pid_c)))
-                    .await
-                    .ok()
-                    .and_then(|r| r.ok())
-                    .unwrap_or_default()
-                    .into_iter()
-                    .filter(|j| j.status == "running")
-                    .map(|j| j.job_id)
-                    .collect();
-
-            if !running_ids.is_empty() {
-                // Collect tokens without holding the lock across awaits.
-                let tokens_to_cancel: Vec<tokio_util::sync::CancellationToken> = {
-                    let guard = self.state.cancellation_tokens.read().await;
-                    running_ids
-                        .iter()
-                        .filter_map(|jid| guard.get(jid).cloned())
-                        .collect()
-                };
-                // Signal cooperative cancellation first.
-                for tok in &tokens_to_cancel {
-                    tok.cancel();
-                }
-                // Then hard-abort the JoinHandles and remove them from maps.
-                {
-                    let mut handles = self.state.active_jobs.write().await;
-                    for jid in &running_ids {
-                        if let Some(h) = handles.remove(jid) {
-                            h.abort();
-                        }
-                    }
-                }
-                {
-                    let mut tokens = self.state.cancellation_tokens.write().await;
-                    for jid in &running_ids {
-                        tokens.remove(jid);
-                    }
-                }
+            let tokens = self.state.cancellation_tokens.read().await;
+            for job in &running {
+                if let Some(token) = tokens.get(job) { token.cancel(); }
             }
         }
+        let handles: Vec<_> = {
+            let mut handles = self.state.active_jobs.write().await;
+            running.iter().filter_map(|job| handles.remove(job)).collect()
+        };
+        for handle in handles {
+            // A failed task may have left an owned blocking worker. Catalog
+            // admission below still refuses cleanup until that owner finishes.
+            handle.await.map_err(|error| McpError::internal_error(
+                format!("Project job did not settle normally: {error}; retry delete_project after cleanup finishes"), None))?;
+        }
 
-        // The data directory for a project is usually at {data_dir}/projects/{pid}
-        let project_dir = self.state.cfg.data_dir.join("projects").join(&pid);
-
-        self.state.projects.remove(&pid);
-        self.state.project_update_locks.write().await.remove(&pid);
-        self.state
-            .registry
-            .delete_all_for_project(&pid)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        self.state
-            .graph
-            .delete_project_data(&pid)
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        // MCP1-n3v6: call remove_dir_all directly — skipping the .exists() pre-check
-        // removes the TOCTOU window between the check and the removal.
-        // remove_dir_all is idempotent: NotFound is silently discarded via let _ =.
-        let _ = std::fs::remove_dir_all(&project_dir);
+        let update = self.state.acquire_project_update_lock(&pid).await;
+        let runtime = self.state.acquire_project_runtime_lock(&pid).await;
+        let tracked_jobs: std::collections::HashSet<String> = {
+            let handles = self.state.active_jobs.read().await;
+            let tokens = self.state.cancellation_tokens.read().await;
+            handles.keys().chain(tokens.keys()).cloned().collect()
+        };
+        let state = self.state.clone();
+        let project = pid.clone();
+        // The worker owns both lanes even if the requesting RPC is dropped.
+        tokio::task::spawn_blocking(move || -> anyhow::Result<()> {
+            let _update = update;
+            let _runtime = runtime;
+            // Registration takes the runtime lane too. A job admitted after
+            // our first snapshot must settle before a later deletion attempt;
+            // it cannot recreate its final job/checkpoint rows after success.
+            // A persisted running row alone is not a live job after restart.
+            // Detached storage owners are checked by catalog admission below.
+            anyhow::ensure!(!state.registry.list_jobs(Some(&project))?.iter()
+                .any(|job| job.status == "running" && tracked_jobs.contains(&job.job_id)),
+                "A project job entered while deletion was waiting; retry delete_project after it finishes");
+            state.projects.remove(&project);
+            state.project_lru.remove(&project);
+            let project_dir = state.cfg.data_dir.join("projects").join(&project);
+            engram_index::HybridSearchEngine::with_closed_source_index(&project_dir.join("tantivy"), || {
+                state.registry.disable_project_watches(&project, now_ms())?;
+                let _ = state.events_tx.send(AppEvent::WatchUpdate {
+                    project_id: project.clone(), directory: String::new(), enabled: false,
+                });
+                state.registry.delete_all_for_project(&project)?;
+                state.graph.delete_project_data(&project)?;
+                match std::fs::remove_dir_all(&project_dir) {
+                    Ok(()) => Ok(()),
+                    Err(error) if error.kind() == std::io::ErrorKind::NotFound => Ok(()),
+                    Err(error) => Err(anyhow::anyhow!(
+                        "Project metadata removed but physical cleanup failed for {}: {error}; retry delete_project with project_id {project}",
+                        project_dir.display())),
+                }
+            })
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::internal_error(format!("{error:#}"), None))?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
             "✅ Deleted project_id: {pid}"

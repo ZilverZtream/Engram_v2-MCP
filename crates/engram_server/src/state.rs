@@ -340,6 +340,14 @@ impl AppState {
         lock.try_lock_owned().ok()
     }
 
+    /// Shared by opening and deleting runtimes. Keep the lane stable for waiters.
+    pub async fn acquire_project_runtime_lock(&self, project_id: &str) -> tokio::sync::OwnedMutexGuard<()> {
+        let lock = self.project_runtime_locks.write().await
+            .entry(project_id.to_string())
+            .or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone();
+        lock.lock_owned().await
+    }
+
     pub fn get_project_cached(&self, project_id: &str) -> Option<ProjectState> {
         let cached = self.projects.get(project_id).map(|r| r.value().clone());
         if cached.is_some() {
