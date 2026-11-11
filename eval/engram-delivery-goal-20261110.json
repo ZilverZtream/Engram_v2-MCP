@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 reply budgets and P1-12 confidence consumption are deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "P1-12",
-    "receipt": "eval\\p112-adp-confidence-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected ADP confidence consumption is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "finding": "EG-06/07/08",
+    "status": "CURRENT_INSTALLED_POLICY_LIFECYCLE_VERIFIED",
+    "receipt": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json",
+    "remaining": "Selected installed-policy acceptance complete. Continue remaining original requirements; full original scope, partial EG14 and full storage gates remain open."
   }
 }
