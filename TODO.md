@@ -42,7 +42,7 @@ These degrade or improve *every single interaction*. Nothing below matters until
   WebForms/migration tools behind project type so a Rust project sees ~50 relevant tools,
   not 114 (see #28).
 
-- [~] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L) — *partial 2026-06-12: utils::envelope footer + labeled truncation markers on the hot read tools (search_memory, vector_search, get_chunk, find_symbol_references, grep_project). Remaining: max_tokens request param, cursors, and rollout to the other ~180 handlers.*
+- [~] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L) — *partial: existing envelope footers and labeled truncation markers on hot read tools. Deployed 2026-11-11: search_memory accepts optional max_tokens, estimates ceil(UTF-8 reply-text bytes / 4), and pages complete hits while retaining guidance, warnings, recovery actions and freshness. Too-small budgets report a usable minimum; no budget preserves default output. Candidate and installed lexical/hybrid MCP checks recovered all eight fixture sources exactly. See eval/p04-search-response-budget-delivery-20261111.json. Remaining: budgets on other tools, uniform JSON envelopes and cursor rollout; provider-token accounting is not claimed.*
   All 13 handler files (~193 handlers). Responses are heterogeneous markdown/text with
   silent truncation (`graph_tools.rs` hardcoded limits, `access_layer_tools.rs` 30KB+
   contexts, unbounded migration reports). Define one envelope: optional `max_tokens`

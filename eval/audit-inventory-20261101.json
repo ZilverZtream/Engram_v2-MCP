@@ -9950,7 +9950,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_SEARCH_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4: caller response budgets, explicit truncation and pagination; context spent per search must be bounded without silent loss.",
       "current_missing_behavior": "search_memory accepts per-result content/result limits and offsets, but rejects an aggregate max_tokens parameter and concatenates all selected hit bodies, metadata and live guidance without a caller reply budget.",
       "implementation_files": [
@@ -9969,7 +9969,7 @@
       "remaining_scope": "Uniform budgets/envelopes on remaining tools, provider-specific token accounting, JSON envelope rollout and wider TODO P0-4 remain unfinished. EG24 regular live model CI and EG25 matched implementation/QA benefit remain open; no new model replay is being substituted for delivery.",
       "previous_delivery": "eval/s18-installed-compatibility-validation-20261111.json; fc729b3"
     },
-    "at_utc": "2026-11-11T16:22:59.245471+00:00",
+    "at_utc": "2026-11-11T16:37:27.920778+00:00",
     "reason": "Selected storage acceptance delivered; held S15/S19 performance stays parked. EG24 model runner already exists and protocol CI is partial. Highest ready original P0 delivery is aggregate response budgeting, whose request/renderer gap is visible in current code.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9999,8 +9999,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO P0-4: aggregate search response budget with complete-hit pagination and recovery.",
-    "next_user_visible_deliverable": "Agents can request a bounded search reply and continue from the first omitted hit without losing guidance or source recovery actions.",
+    "active_original_item": "P0-4 search response budget: selected contract delivered; broader response-budget requirements remain open.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10014,7 +10014,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: implemented aggregate search budget, corrected two fixture assumptions and rendering boundaries, completed selected checks; deployment remains pending.",
+    "previous_goal_turn_classification": "Progress: search response budget built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12396,8 +12396,10 @@
     },
     "p04_search_response_budget_20261111": {
       "receipt": "eval\\p04-search-response-budget-delivery-20261111.json",
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "full_p04_closed": false
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "full_p04_closed": false,
+      "source_commit": "a7409fe8f08e8ed401df3eb605e878a11c34bf3c",
+      "installed_server_sha256": "b5b9640c32ba2ef9e58c7383446888f5400671bae736f0416ef172c42ac0664c"
     }
   }
 }

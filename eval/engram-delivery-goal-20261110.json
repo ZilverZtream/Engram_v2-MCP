@@ -38,12 +38,11 @@
     "Rebuilding OX QA approval/publication or OX Dev orchestration.",
     "System forensics or deletion of preexisting folders."
   ],
-  "activation_note": "Replacement goal is active. Its original S10 immediate-next text is historical: S10 was deployed, S12/S13 selected installed checks passed, and the selected S14 source-read fix is now deployed. Full original backlog remains open; retained first_delivery describes the original EG14 contract and does not restart completed work.",
+  "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search response budget is now deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "TODO P0-4",
-    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\selected-contract.json",
-    "remaining": "Build/deploy and verify public candidate and installed search paging. Other tools, provider token accounting, JSON envelopes and broader P0-4 remain unfinished.",
-    "receipt": "eval\\p04-search-response-budget-delivery-20261111.json"
+    "finding": "P0-4",
+    "receipt": "eval\\p04-search-response-budget-delivery-20261111.json",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "remaining": "Selected search budget delivery is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
   }
 }
