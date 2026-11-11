@@ -187,6 +187,8 @@ async fn results_carry_a_doc_id_for_get_chunk() {
     // And it must actually resolve.
     engram
         .get_chunk(Parameters(engram_server::GetChunkRequest {
+                max_tokens: None,
+                output_json: false,
                 citation: None,
             project_id: pid.clone(),
             doc_id,

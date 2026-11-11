@@ -41,8 +41,8 @@
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search/vector/grep budgets and structured search/vector responses are deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
     "finding": "P0-4",
-    "receipt": "eval\\p04-search-json-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected search/vector JSON delivery is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "receipt": "eval\\p04-document-response-delivery-20261111.json",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "remaining": "Build/deploy and verify public candidate/installed replies against independent source and memory bytes. Other tools, durable corpus cursors, provider tokens and full P0-4 remain open."
   }
 }

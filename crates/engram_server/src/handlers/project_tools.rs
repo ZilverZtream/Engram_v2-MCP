@@ -4974,6 +4974,7 @@ impl Engram {
         &self,
         req: crate::models::ReadMemoryBankRequest,
     ) -> Result<CallToolResult, McpError> {
+        crate::services::document_response::byte_limit(req.max_tokens)?;
         self.validate_memory_read_project(&req.project_id).await?;
         let sec = self
             .state
@@ -4987,7 +4988,11 @@ impl Engram {
                     None,
                 ));
             }
-            return Ok(CallToolResult::success(vec![Content::text("Not found.")]));
+            let text = if req.output_json {
+                serde_json::json!({"schema_version":1,"tool":"read_memory_bank","status":"not_found",
+                    "identity":{"project_id":req.project_id,"section":req.section},"content":null,"truncated":false}).to_string()
+            } else { "Not found.".into() };
+            return Ok(CallToolResult::success(vec![Content::text(crate::services::document_response::complete(text, req.max_tokens)?)]));
         };
         // Prepend a compact provenance header so an agent sees the record's
         // metadata — kind, author, age, tags, subject, and the
@@ -5045,18 +5050,29 @@ impl Engram {
         } else {
             header.push_str("subject freshness: UNKNOWN (no related files recorded)\n");
         }
+        let identity = serde_json::json!({"project_id":req.project_id,"section":s.section_id});
+        let metadata = serde_json::json!({"title":s.title,"updated_at_ms":s.updated_at_ms,"created_at_ms":s.created_at_ms,
+            "kind":s.kind,"author":s.author,"tags":s.tags,"related_files":s.related_files,"provenance_and_freshness":header});
         if let Some(citation) = &req.citation {
-            let page = crate::services::stored_citation::render(
+            let page = crate::services::document_response::citation(
                 &s.content,
                 citation,
-                serde_json::json!({"project_id":req.project_id,"section":s.section_id}),
-                serde_json::json!({"title":s.title,"updated_at_ms":s.updated_at_ms,"created_at_ms":s.created_at_ms,"kind":s.kind,"author":s.author,"tags":s.tags,"related_files":s.related_files,"provenance_and_freshness":header}),
+                identity,
+                metadata,
+                req.max_tokens,
             )?;
             return Ok(CallToolResult::success(vec![Content::text(
-                page.to_string(),
+                page,
             )]));
         }
         header.push_str("---\n");
+        if req.max_tokens.is_some() || req.output_json {
+            let output = crate::services::document_response::Document {
+                tool: "read_memory_bank", content: &s.content, identity, metadata,
+                prefix: &header, suffix: "", transformed: false, content_cap: Some(40_000),
+            }.render(req.max_tokens, req.output_json)?;
+            return Ok(CallToolResult::success(vec![Content::text(output)]));
+        }
         header.push_str(&s.content);
         Ok(CallToolResult::success(vec![Content::text(header)]))
     }

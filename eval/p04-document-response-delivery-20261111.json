@@ -1,0 +1,98 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T19:04:04.288531+00:00",
+  "original_requirement": "TODO P0-4: consistent structured replies, budgets, truncation metadata and recoverable pagination.",
+  "implemented": "Root max_tokens and output_json on get_chunk/read_memory_bank. Shared complete UTF8 reply accounting retains source freshness, provenance and guidance. Raw document pages return literal hash-bound citation actions; open-ended citations page whole lines or code points. Explicit ranges, quote proofs and transformed content remain indivisible and expose actionable minimum budgets.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\baseline\\acceptance.json",
+      "sha256": "91e8720125d37680410466276c8f6f2d88a0cdacd6d3e16b13b982d85a4b0923"
+    },
+    "driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\baseline.py",
+      "sha256": "7e98eb6ad7911d5f579262105f46afe33c8d2f31f9051a48c0a98c9cbfeb90d3"
+    },
+    "behavior": "Installed320e55189 rejected root max_tokens/output_json for both readers. Actual memory text128158B and citation47499B for40000selected bytes; independent source and section hashes checked."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-no-vector-accepted-result.json",
+          "sha256": "764595b95145e33b998b0158749b05f80e93da2b72ebed055219143a1fa4c90b"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-no-vector-accepted.log",
+          "sha256": "32eaa50073b35323a149553a8cc61d566edc05b662520ea7fda7ba7c9bdb40ef"
+        },
+        "passed": 6
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-native-result.json",
+          "sha256": "f77e38dd3cef89dd5c37ddcb46a2b29b2d37b57b88d6a917b393f3cde53a3314"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-native.log",
+          "sha256": "672b9232cd618d9a1e708dbb83866b4b5403bdf95d45db290f53f80ed2de035e"
+        },
+        "passed": 7
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-shared-result.json",
+          "sha256": "ea9fa88452b53a0d1cab7ea65f0665f9c52a0487c5ea18cf98b7e78c44580ce6"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-shared.log",
+          "sha256": "6791766d1070cc21bda36648d633213a8dc0adb54d043e5722c1647436482a4b"
+        },
+        "passed": 3
+      }
+    ],
+    "total_passed": 16,
+    "retained_failed_fixture_attempts": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-no-vector-result.json",
+        "sha256": "52ae68f1572d6563697c7aabd257436b24bb73971d7307e9207a40200c2934dd"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-no-vector-final-result.json",
+        "sha256": "f40045926941848df748bcf43eebd9f5bb4b6859decd3f49e69cd1fdba80f837"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\document-no-vector-verified-result.json",
+        "sha256": "6913a32c3bb7f2b4eee0ab4e336d2f1f59915fa570b3c827fef32d467b2466c7"
+      }
+    ],
+    "corrections": [
+      "Initial integration oracle assumed one source chunk was the whole 450-line function. Corrected oracle slices independently written source lines by selected range; memory fixtures still require multiple pages and exact reconstruction. No extraction/product normalization change.",
+      "Older stored-citation fixtures predated managed source snapshots. Updated fixture registration and prepare/seal/publication plus extraction identity; knowledge generation asserted0. Production guards unchanged. First registration correction exposed legacy default head1; managed registration now supplies the intended initial head0."
+    ]
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111\\source-review.json",
+    "sha256": "219edd27851e41da3e870adf6f531cd504b842421b09c069053f9c2b60646283"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/project_tools.rs": "66f95d87161098677b1d6b210266b83150649e1a49f2a8f4136aa69b7bfadd41",
+    "crates/engram_server/src/handlers/search_tools.rs": "e1b2346333501166f8e65f1647bb5848ef36db1016842466069459c6c9b0896c",
+    "crates/engram_server/src/models/requests.rs": "8effa660c39a8657c61501c392f0e86ba8166ecbc2ef3bdb24c01c6276ccbf80",
+    "crates/engram_server/src/services/document_response.rs": "7165c53bc8abeeda9721cd0ba19397925e2bfa98f43b8f63ead130be0bbf459c",
+    "crates/engram_server/src/services/mod.rs": "65912bac2719e098fa17dee780403180022decce609a1e2715a9f11d058d4d47",
+    "crates/engram_server/src/tools.rs": "30834de7b13ea92b326aa593a5b9f7f9273ebb3131b0ea603b63dc0b0c2b45c7",
+    "crates/engram_server/tests/audit_regressions/dup_content_does_not_overwrite.rs": "676f6f0a63a54f250945dd6fe3b2e939a716569c2994af5218836c1c5c88670c",
+    "crates/engram_server/tests/document_response_tests.rs": "35dace4259a1acf4ea686f4f54c1667e2ec245d8d5025f92d2c278f27034f851",
+    "crates/engram_server/tests/indexing_report_test.rs": "c96a8886d5549beb5922b207d900534fcac518b8317313b7e95ce84ef859b9fe",
+    "crates/engram_server/tests/integration_test.rs": "cdf5651148e250251208903b3f072300fec40c5461d7a63b7a524072ec58addc",
+    "crates/engram_server/tests/memory_p1_tests.rs": "b4e0aafbbf6bf1bcc667f4ac40c135abfdbc74116f6ad2c16c03b761b4e7b1eb",
+    "crates/engram_server/tests/stored_citation_tests.rs": "e5f6a3912f7a4943557e3137aec6fc96401102810acd5890b18d0d35d8ed83d1",
+    "crates/engram_server/tests/vector_search_score_tests.rs": "deb5ae7706bb69bde1b967605cff5b1bda317031222146be967c0a7bbe9217ab"
+  },
+  "remaining": "Build/deploy and verify public candidate/installed replies against independent source and memory bytes. Other tools, durable corpus cursors, provider tokens and full P0-4 remain open.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-document-response-20261111",
+    "test_and_baseline_fixtures_closed_and_removed": true,
+    "retained": "Baseline, test logs, helper scripts and review retained as evidence. Earlier policy-rejected cleanup fixture untouched."
+  }
+}
