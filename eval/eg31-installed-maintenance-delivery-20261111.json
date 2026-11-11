@@ -1,0 +1,59 @@
+{
+  "status": "CURRENT_INSTALLED_CONFLICT_DELIVERY_VERIFIED",
+  "at_utc": "2026-11-11T08:02:23.645345+00:00",
+  "requirement": "EG31: grounded maintenance disposition preserves authored policy and accepted exceptions, distinguishes code defect from policy change, and rejects stale proposal bases.",
+  "runtime_server_sha256": "2d27d075ba064f5b63cf3b1b5dedbead0b2cd1e208e5d679779442ab3d40cc5f",
+  "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+  "base_commit": "a62e8b774bef0e979a1444dd79182971d4286a8d",
+  "packet_blake3": "a7a653f8ccec9c3806bacf60bbeae8fd430872651e6409ae3dd7d7067c2b5d89",
+  "proposal_blake3": "a159224bd3c6faabe164a9d43b3518f8c24e895a51ae98dd63e04fdce338e700",
+  "artifacts": {
+    "collection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\collect\\report.json",
+      "sha256": "71b8f860364f35ad670c1288757db7564d9dbf2bf78f46994e4b1b49b8991319"
+    },
+    "source_oracles": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\collect\\acceptance.json",
+      "sha256": "440274fac218ada7747aae21186f01ccc3b05026d6cbd733fd03097fd3c37e25"
+    },
+    "corrected_request": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\corrected-draft-request.json",
+      "sha256": "1bb742ff10611eec8b2a296c8dfb5021842e8afd228bb7d06d60142b689b29c5"
+    },
+    "validated_proposal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\validate-corrected\\report.json",
+      "sha256": "9b11f0929bb7e4c8aea69280f06c92026ebd543e0a28c9ef6ba4155613ea42e6"
+    },
+    "installed_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\validate-corrected\\acceptance.json",
+      "sha256": "4f8c760dbdfb8387b384df804135174760e5b7c6ff29982a77829b858b330e95"
+    },
+    "stale_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\stale\\acceptance.json",
+      "sha256": "a083c31e88e283c36111dc328f57e49b5e21490d81836b54a9d79901ebf30330"
+    },
+    "independent_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111\\independent-review.json",
+      "sha256": "9102b40693b39b13c23d2e33906eff7c41d5567c4dd82def01d00294e526dc16"
+    }
+  },
+  "result": {
+    "outcome": "conflict",
+    "authored_files_written": 0,
+    "guide_byte_identical": true,
+    "preserved_fragments_cover_complete_guide": true,
+    "policy_diff": "",
+    "rationale": "Flag a present source-level code/policy conflict and retain the complete authored instruction without edits. Before code reads an id directly from Style; after code calls GetKmlStyleId, which also accepts the wrapping CascadingStyle id and passes that style into ParseKmlStyle. This can change resolved styles written in stored vskg_options for affected KML/KMZ sources. CurrentConversionVersion remains 1 in both snapshots. GetCurrentVersionRows selects version-1 rows and ShouldConvertLayer skips conversion when converted rows already exist; ConvertLayerForJob skips conversion and returns whether converted rows exist. Consequently an already-converted affected file can retain the older result until its rows are cleared, despite the current instruction requiring a version increment when stored style interpretation can differ. The current rule is relevant and should be preserved; implementation behavior is not an accepted reason to weaken it. Propose a separately reviewed code correction from CurrentConversionVersion 1 to 2, subject to current dependency revalidation and an affected previously-converted-file check; this instruction proposal applies no code or policy change. Temporal qualification: the complete requested-base instruction has no KML/KMZ Conversion Version section, while current guidance does. Read-only historical inspection identifies the style fix as PR2067 and the later version instruction as PR2075. This is a present conflict, not a finding that PR2067 violated a then-existing version instruction or a complete historical shipping replay. The packet supports the literal source-path mechanism; it does not establish production cached rows, deployment state, observed user impact, or end-to-end reconversion behavior. Known linked and symbol coverage gaps remain explicit and prevent a whole-feature compliance claim."
+  },
+  "limits": [
+    "Current source/policy conflict, not production defect reproduction or permission to change OciusX.",
+    "Historical genuine Change and no-change evidence retained in original inventory; this does not repeat those executions or prove current whole-feature usefulness.",
+    "Full EG31 and EG25 comparative usefulness remain open."
+  ],
+  "next": "Advance original scoped instruction retrieval delivery; no runtime defect found here and no rebuild required.",
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg31-installed-20261111",
+    "purpose": "Read-only installed RPC inputs, responses, corrected proposal and review.",
+    "cleanup": "Retain for delivery review. Pipe handles closed; no fixture, database, authored-file write or preexisting-folder deletion."
+  }
+}

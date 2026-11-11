@@ -934,7 +934,8 @@
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
-      }
+      },
+      "current_installed_delivery": "execution_evidence_20261101.eg31_installed_maintenance_delivery_20261111"
     }
   ],
   "storage_release_gates": [
@@ -9814,27 +9815,39 @@
       "receipt": "eval/eg27-prose-reference-fix-20261111.json",
       "source_commit": "a945925c85f7d5f08d5e494e434e49195d491e1b",
       "behavior": "Actual installed OciusX health removes four map-file-layers and two reporting case-fold-only prose references; explicit/exact references, source identity and gaps preserved. 47 maintenance tests pass. No full EG27/31 closure."
+    },
+    "eg31_installed_maintenance_delivery_20261111": {
+      "status": "CURRENT_INSTALLED_CONFLICT_DELIVERY_VERIFIED",
+      "receipt": "eval/eg31-installed-maintenance-delivery-20261111.json",
+      "behavior": "Current public pre_push_audit collection, corrected Conflict proposal and stale refusal verified. Four exact Git/disk byte+BLAKE3 oracles; all authored guidance preserved. No runtime change required.",
+      "limits": [
+        "Current source/policy conflict, not production defect reproduction or permission to change OciusX.",
+        "Historical genuine Change and no-change evidence retained in original inventory; this does not repeat those executions or prove current whole-feature usefulness.",
+        "Full EG31 and EG25 comparative usefulness remain open."
+      ]
     }
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG31: after a representative OX change produce an evidence-bound guidance proposal, preserve exceptions and distinguish policy changes from code defects.",
-      "current_missing_behavior": "Existing Change/Conflict/no-change evidence is partial; the original record leaves current deployed proposal delivery and usefulness unverified. Reuse the accepted cases and existing OX QA workflow; inspect retained evidence once before choosing any code change.",
+      "original_requirement": "EG01: applicable complete authored guidance reaches planning, editing, retrieval and review with correct scope and source identities.",
+      "current_missing_behavior": "Local native/no-vector parity and edge cases are recorded; original finding still lacks feature-specific installed consumer acceptance. Use one real OciusX source path and independent applicable-policy oracle; fix only an observed delivery gap.",
       "implementation_files": [
-        "crates/engram_server/src/services/instruction_maintenance",
-        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs"
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/src/handlers/search_tools.rs",
+        "crates/engram_server/src/handlers/review_tools.rs",
+        "crates/engram_server/src/services/project_policy.rs"
       ],
       "finite_acceptance": [
-        "Use one existing representative OX change with independent source and authored-policy evidence.",
-        "Current installed workflow returns a reviewable disposition with changed evidence, rationale, source/evidence hashes and a diff when warranted; preserve exceptions and shared references.",
-        "Stale base refuses; a potential code defect does not silently weaken authored policy.",
-        "Fix only a demonstrated missing behavior; verify and deliver once, then advance the original queue."
+        "For one existing OciusX source path, derive applicable authored guide set from actual source and scope metadata.",
+        "Installed planning, editing, retrieval and review return that complete policy or honest bounded recovery with correct identities.",
+        "Preserve source citation bodies/freshness and historical-policy boundaries; reuse existing edge-case evidence without rerunning passed suites absent a relevant change.",
+        "Implement and verify any concrete missing behavior, then advance original change-set recovery work."
       ],
-      "previous_delivery": "eval/eg27-prose-reference-fix-20261111.json"
+      "previous_delivery": "eval/eg31-installed-maintenance-delivery-20261111.json"
     },
-    "at_utc": "2026-11-11T07:57:36.854256+00:00",
-    "reason": "EG27 prose correction deployed and verified through candidate and normal installed health calls. Finite slice complete; advance original EG31 maintenance delivery without repeating CodeMap/Blast work.",
+    "at_utc": "2026-11-11T08:02:23.645345+00:00",
+    "reason": "Current installed EG31 Conflict delivery verified; independent rationale correction applied. Existing implementation satisfies this selected case; advance original queue without another maintenance investigation.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9863,11 +9876,12 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG31: finish evidence-bound maintenance proposal delivery using existing representative cases and workflow.",
-    "next_user_visible_deliverable": "A current, source-bound maintenance disposition for one real OX change, with a reviewable guidance diff only when warranted.",
+    "active_original_item": "EG01: installed scoped authored-guidance delivery across existing consumers.",
+    "next_user_visible_deliverable": "Applicable authored policy reaches the real agent task through planning/editing/retrieval/review with source identities intact.",
     "following_original_items": [
-      "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
-      "EG24 regular task-level verification after user-visible original tool work"
+      "EG02/EG12 bounded change-set delivery and exact recovery",
+      "EG19 decision-aware review; EG20/21 history; EG18 tool presets",
+      "Remaining accepted indexing/reliability and EG24/25 verification requirements; original partial states retained"
     ],
     "parked_supporting_work": [
       "EG26 catalog/schema expansion",
@@ -9878,7 +9892,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: release build passed, full package installed, normal service restored, two actual installed health requests passed; six false prose references removed and existing evidence preserved.",
+    "previous_goal_turn_classification": "Progress: actual installed maintenance collection, corrected proposal and stale refusal passed, with independent Git/disk evidence and semantic review; selected installed-delivery gap closed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12135,20 +12149,19 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "original_requirement": "EG27 manifests expose source/hash/scope, linked files/symbols, base commit and relevant changes in health/update; preserve historical guidance and distinguish unrelated edits.",
-      "current_missing_behavior": "Ordinary prose is case-folded as VB code, so resolved/style and render prose enter symbol dependencies. Current deployed output and exact source excerpts reproduce this.",
+      "original_requirement": "EG31: after a representative OX change produce an evidence-bound guidance proposal, preserve exceptions and distinguish policy changes from code defects.",
+      "current_missing_behavior": "Existing Change/Conflict/no-change evidence is partial; the original record leaves current deployed proposal delivery and usefulness unverified. Reuse the accepted cases and existing OX QA workflow; inspect retained evidence once before choosing any code change.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
-        "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
-        "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
+        "crates/engram_server/src/services/instruction_maintenance",
+        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs"
       ],
       "finite_acceptance": [
-        "Actual current OciusX packets no longer add resolved->Resolved, render->Render or API->api solely by prose case folding.",
-        "Backticked VB names remain case-insensitive; exact-spelling prose references, historical rename detection and independent coverage gaps remain.",
-        "A VB file change does not flag an unrelated prose-only guide; explicit and exact-spelling references still disclose the changed candidate file.",
-        "Relevant maintenance suite passes and changed production behavior is deployed/verified before closing this slice."
+        "Use one existing representative OX change with independent source and authored-policy evidence.",
+        "Current installed workflow returns a reviewable disposition with changed evidence, rationale, source/evidence hashes and a diff when warranted; preserve exceptions and shared references.",
+        "Stale base refuses; a potential code defect does not silently weaken authored policy.",
+        "Fix only a demonstrated missing behavior; verify and deliver once, then advance the original queue."
       ],
-      "previous_delivery": "eval/eg14-draft-delivery-20261111.json"
+      "previous_delivery": "eval/eg27-prose-reference-fix-20261111.json"
     }
   }
 }
