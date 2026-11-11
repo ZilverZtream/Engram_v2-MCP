@@ -9956,30 +9956,32 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_CONTEXT_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
-      "original_requirement": "TODO P0-4 specifically identifies unbounded access-layer contexts. Deliver optional complete-response budgets and recoverable explicit omissions for prepare_implementation_context in existing Markdown and JSON formats.",
-      "observed_source_gap": "PrepareImplementationContextRequest has output_json but no max_tokens or paging. The handler renders complete method bodies, caller examples and dependency context without a whole-reply budget. Existing source checks, ambiguity refusal, dependency coverage/warnings and style-provider disclosures must survive budgeting.",
+      "status": "SELECTED_INSTALLED_GAP_VERIFIED",
+      "original_requirement": "TODO P0-4 explicitly identifies unbounded access-layer contexts. After delivering prepare_implementation_context, add complete-response budgets and recoverable omissions to get_page_context.",
+      "observed_missing_behavior": "Installed get_page_context returns 66,130 JSON bytes / 34,562 Markdown bytes for four authored handler bodies and 150 verified controls, and rejects max_tokens in both formats. JSON has no reply budget; Markdown has a 2 MB soft cut pointing to unbounded JSON.",
       "existing_evidence": [
-        "TODO.md P0-4 access_layer_tools context requirement",
-        "eval/p04-document-response-delivery-20261111.json",
-        "eval/p04-history-response-delivery-20261111.json",
-        "crates/engram_server/tests/prepare_implementation_context_tests.rs"
+        "TODO.md P0-4",
+        "eval/p04-context-response-delivery-20261111.json",
+        "crates/engram_server/tests/page_context_house_style_tests.rs",
+        "crates/engram_server/tests/edit_context_tests.rs"
       ],
       "implementation_files": [
         "crates/engram_server/src/models/requests.rs",
         "crates/engram_server/src/handlers/access_layer_tools.rs",
-        "existing response-budget/source-excerpt helpers as appropriate"
+        "crates/engram_server/src/handlers/access_layer_tools/context_response.rs or a narrow shared page renderer",
+        "crates/engram_server/src/tools.rs",
+        "focused public-handler behavioral acceptance"
       ],
       "finite_acceptance": [
-        "Observe installed public Markdown/JSON/schema on one owned real source fixture with a long target method and callers; compare returned source spans/bodies against independently authored bytes. Record the actual missing behavior before product edits.",
-        "Optional max_tokens applies to the complete UTF8 reply at bytes/4 including JSON escaping, mandatory warning/coverage/freshness/identity and continuation metadata. Refuse invalid/tiny budgets with a usable minimum; never imply omitted dependencies were absent.",
-        "Make large context usable within requested budgets through bounded source previews and/or whole context-record pages with literal recovery of omitted source/context. Preserve required target identity and safety/coverage disclosures on every page. Recover and compare source against independent evidence; disclose mutable-input and unavailable-evidence limits without inventing snapshot completeness.",
-        "Keep existing ambiguity/overload/source-staleness/dependency-provider behavior and default output compatibility. Run relevant native/no-vector checks and actual candidate/installed agent task reconstruction, then commit/push origin/master, deploy and advance."
+        "Preserve default page context behavior and provider/house-style/composition semantics. Optional max_tokens accounts for the complete serialized UTF8 text/JSON reply, including escaping, freshness, limitations and recovery metadata.",
+        "Budgeted pages preserve required page identity, provider completeness, dynamic/runtime coverage cautions and qualifications. Explicit inventories distinguish response paging from unavailable/truncated provider data; no partial object or clipped qualification is presented as complete.",
+        "Use literal hash-bound continuation actions to recover all deferred context exactly. Reconstruct existing full typed context from bounded pages; compare method bodies and controls against the independently authored WebForms fixture. Changed assembled evidence/options must refuse mixed-context continuation; disclose that hashes do not retain a filesystem/index snapshot.",
+        "Verify tiny/invalid budgets with actionable minimum retries and empty/end-window behavior. Run relevant native/no-vector checks, candidate and installed public checks against the source oracle; commit/push origin/master, deploy, record normal runtime identity and advance."
       ],
-      "constraints": "One selected tool; no generic snapshot store, new approval UI, graph/CodeMap/Blast improvements, broad audit, performance or sidecar project. Full P0-4 and broader accepted backlog remain open."
+      "constraints": "One selected original access-layer response contract. No extractor expansion, new graph/CodeMap/Blast work, generic snapshot store, broad audit, performance project or expanded acceptance after these checks pass. Full P0-4 remains partial."
     },
-    "at_utc": "2026-11-11T21:39:22.884029+00:00",
-    "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
+    "at_utc": "2026-11-11T21:41:50.110612+00:00",
+    "reason": "Installed get_page_context returns 66,130 JSON bytes / 34,562 Markdown bytes for four authored handler bodies and 150 verified controls, and rejects max_tokens in both formats. JSON has no reply budget; Markdown has a 2 MB soft cut pointing to unbounded JSON.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10008,8 +10010,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 implementation-context response contract delivered; advance the next unfinished original requirement.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "P0-4 get_page_context complete reply budgets and recovery",
+    "next_user_visible_deliverable": "Bounded WebForms page context with explicit coverage and exact recovery of omitted source/context.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10023,7 +10025,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: implementation-context reply budgets and exact typed-context reconstruction built, candidate/installed public source/policy acceptance passed, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: implementation-context release built, candidate/installed public reconstruction passed, deployed and normal runtime checked; evidence6605069 pushed. Next original page-context gap demonstrated on installed runtime against independent source.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12550,7 +12552,26 @@
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "receipt": "eval\\p04-context-response-delivery-20261111.json",
       "source_commit": "d886cfe5939dbc3c2420a90852bc1fee66b6735b",
-      "installed_server_sha256": "9d431deba09054b840e99fc4841e68aeab18fac9fde79b11d28967b7bc5874f7"
+      "installed_server_sha256": "9d431deba09054b840e99fc4841e68aeab18fac9fde79b11d28967b7bc5874f7",
+      "delivery_commit": "660506952e1cae8df660c850419668ec070e96fc"
+    },
+    "p04_page_response_20261111": {
+      "status": "SELECTED_INSTALLED_GAP_VERIFIED",
+      "evidence": {
+        "acceptance.json": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\baseline\\acceptance.json",
+          "sha256": "9289811028c364e0fa9349866e4f1346e4db0d3a051ecf8427ddfa6f0bf6d444"
+        },
+        "source-oracle.json": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\baseline\\source-oracle.json",
+          "sha256": "dee9ff1c70ae6122d647a37e3d06a0bb253c21f0ead0943e90f7cb0e834af54a"
+        },
+        "schema.json": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\baseline\\schema.json",
+          "sha256": "363f10849744f4ceee7a311d8542030638b90b23bbb1fb97031d279569ce3d56"
+        }
+      },
+      "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\execution-state.json"
     }
   }
 }
