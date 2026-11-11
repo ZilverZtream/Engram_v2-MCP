@@ -1047,7 +1047,13 @@
       "current_concrete_gap": "Previously reproduced warm-seal and cold total-scope-loss bugs now have passing desired-behavior evidence in both configurations. Unsafe unknown authority combinations explicitly refuse; final package binding pending.",
       "latest_scope_reconciliation": "execution_evidence_20261101.s08_s12_existing_scope_reconciliation_20261104",
       "latest_durable_ancestry_source": "execution_evidence_20261101.s12_durable_ancestry_v4_source_applied_20261104",
-      "latest_managed_layout_source": "execution_evidence_20261101.s12_managed_source_layout_source_applied_20261104"
+      "latest_managed_layout_source": "execution_evidence_20261101.s12_managed_source_layout_source_applied_20261104",
+      "installed_missing_ancestor_acceptance_20261111": {
+        "receipt": "eval\\s12-installed-recovery-validation-20261111.json",
+        "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED",
+        "server_sha256": "280c362d042b6e3ae5936e5145a38849548adcba30605886288aa7a4fb086e3d",
+        "full_matrix_current_package_revalidated": false
+      }
     },
     {
       "id": "S13",
@@ -9936,25 +9942,25 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "ACTIVE_INSTALLED_ACCEPTANCE",
-      "original_requirement": "S12: Missing/truncated managed records, missing ancestors/boundary and interrupted first migration fail safely.",
-      "current_missing_behavior": "Retained native/no-vector regressions verify selected failures and recovery locally, but current installed package has no real indexed-corpus witness for damaged required ancestry and explicit full repair. S07 corruption fixture is metadata-only; S08 indexed corpus has no ancestry corruption. No new runtime defect is asserted.",
+      "original_requirement": "S13: Full repair can replace damaged metadata and an abandoned next generation; initial registration exposes only its published state.",
+      "current_missing_behavior": "Retained native56/no-vector55 local full-recovery evidence is not bound to a current installed real indexed-corpus witness with damaged required HEAD and an abandoned higher generation. No new runtime defect is asserted.",
       "implementation_files": [],
       "existing_implementation": [
-        "crates/engram_index/src/hybrid/snapshots.rs",
         "crates/engram_core/src/registry/source_head.rs",
+        "crates/engram_core/src/registry/source_highwater.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
         "crates/engram_server/src/handlers/project_tools/source_publication_tests/full_recovery.rs"
       ],
       "finite_acceptance": [
-        "Bind retained local source/test evidence to the current source and installed pair without repeating the already-passed matrix.",
-        "Use one owned real indexed fixture: naturally close it, remove one required managed ancestry record, reopen, and verify public source reads and incremental update refuse safely.",
-        "Use explicit full repair, then recover exact independently known source after natural restart. Verify the owned fixture and processes are cleaned up and production data/configuration are unchanged.",
-        "Record installed evidence and advance; broader corruption combinations retain their original status. Only fix a newly demonstrated runtime failure if it prevents this delivery."
+        "Reuse one owned installed indexed fixture and retained local evidence; do not rerun the existing full matrix.",
+        "After naturally closing the fixture server, inject damaged required HEAD and one higher abandoned generation while preserving independent recovery authority. Verify ordinary public reads/update refuse.",
+        "Explicit full repair must publish above the abandoned generation, recover exact source and native vector identities, survive natural restart, and support a subsequent ordinary edit.",
+        "Close all owned processes/handles and remove only the new owned fixture; record evidence and limitations, then advance. No new rollback feature, production corruption or broad storage framework."
       ],
-      "previous_delivery": "eval/s10-public-job-cancellation-delivery-20261111.json; source9acc772 installed280c362d."
+      "previous_delivery": "eval/s12-installed-recovery-validation-20261111.json"
     },
-    "at_utc": "2026-11-11T14:41:48.688385+00:00",
-    "reason": "S10 selected cancellation contract deployed and checked on candidate, installed binary and normal daemon. Advance to original S12 installed recovery witness; S11 already has retained validation.",
+    "at_utc": "2026-11-11T14:47:48.768951+00:00",
+    "reason": "S12 selected installed missing-ancestor refusal/full-repair/restart acceptance passed on current deployed pair. Advance to original S13 installed recovery above abandoned generation.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -12255,21 +12261,23 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "status": "DELIVERED_SELECTED_CONTRACT_FULL_S10_PARTIAL",
-      "original_requirement": "S10: cancellation around publication preserves a complete old or new source head, truthful outcomes and retry convergence.",
-      "current_missing_behavior": "Existing postcommit background tests cancel only the token. The actual cancel_job service also aborts/removes the task and overwrites its durable result with cancelled/0%, bypassing the worker code that reports an already published source generation as degraded. Source inspection identifies the gap; public-handler reproduction is next.",
-      "implementation_files": [
-        "crates/engram_server/src/services/job_service.rs",
+      "status": "DELIVERED_SELECTED_INSTALLED_ACCEPTANCE_FULL_S12_NOT_REVALIDATED",
+      "original_requirement": "S12: Missing/truncated managed records, missing ancestors/boundary and interrupted first migration fail safely.",
+      "current_missing_behavior": "Retained native/no-vector regressions verify selected failures and recovery locally, but current installed package has no real indexed-corpus witness for damaged required ancestry and explicit full repair. S07 corruption fixture is metadata-only; S08 indexed corpus has no ancestry corruption. No new runtime defect is asserted.",
+      "implementation_files": [],
+      "existing_implementation": [
+        "crates/engram_index/src/hybrid/snapshots.rs",
+        "crates/engram_core/src/registry/source_head.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/handlers/project_tools/source_publication_tests/job_cancellation.rs"
+        "crates/engram_server/src/handlers/project_tools/source_publication_tests/full_recovery.rs"
       ],
       "finite_acceptance": [
-        "Reproduce actual cancel_job after the real background source CAS. Preserve complete committed source and its durable degraded result rather than an unconditional cancelled tombstone.",
-        "Before publication, cooperative cancellation must settle the actual worker, preserve the previous complete source and allow a subsequent update. Keep job provenance/checkpoint safety and existing unknown/stale-job behavior.",
-        "A cancelled cancellation RPC must not abandon settlement or remove live job ownership needed by project deletion. Validate the selected public-handler cases in native and actual no-vector builds and relevant ZIP/stale cancellation controls.",
-        "Build/deploy the runtime fix and verify the public MCP cancellation/retry behavior on an owned fixture. Keep broader all-writer/commit/fault/crash requirements unfinished; no new job framework or performance project."
+        "Bind retained local source/test evidence to the current source and installed pair without repeating the already-passed matrix.",
+        "Use one owned real indexed fixture: naturally close it, remove one required managed ancestry record, reopen, and verify public source reads and incremental update refuse safely.",
+        "Use explicit full repair, then recover exact independently known source after natural restart. Verify the owned fixture and processes are cleaned up and production data/configuration are unchanged.",
+        "Record installed evidence and advance; broader corruption combinations retain their original status. Only fix a newly demonstrated runtime failure if it prevents this delivery."
       ],
-      "previous_delivery": "eval/s08-installed-retention-validation-20261111.json; pushed affd73c."
+      "previous_delivery": "eval/s10-public-job-cancellation-delivery-20261111.json; source9acc772 installed280c362d."
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -12351,6 +12359,10 @@
       "full_s10_closed": false,
       "source_commit": "9acc772bc02957a13d4f32c115671de228dcbcec",
       "installed_server_sha256": "280c362d042b6e3ae5936e5145a38849548adcba30605886288aa7a4fb086e3d"
+    },
+    "s12_installed_recovery_20261111": {
+      "receipt": "eval\\s12-installed-recovery-validation-20261111.json",
+      "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED"
     }
   }
 }
