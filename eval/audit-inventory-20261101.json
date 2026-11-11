@@ -570,6 +570,7 @@
     {
       "id": "EG-14",
       "finding": "Area-specific instruction drafting",
+      "bounded_delivery_20261111": "eval/eg14-draft-delivery-20261111.json: installed proposal + deterministic/stale acceptance + existing OX QA draft stage and independent review completed. Full EG14 remains open; publication/current-master and generator-specific acceptance not claimed.",
       "ledger_disposition": "Open original proposal",
       "existing_evidence_and_next_gate": "Produce a reviewable area draft with cited entry points, consumers, accepted rules, examples and validation paths. Distinguish observed code from authored intent. Scoped retrieval and the language generator do not complete this feature.",
       "required_behavior": [
@@ -9811,8 +9812,23 @@
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
-    "at_utc": "2026-11-10T20:33:03.747376+00:00",
-    "reason": "407b304 is deployed: actual standalone Blast and impact summary expose the previously missing editor call853 and executable source851..874. Normal service verified; two failed approaches retained without installation.",
+    "selected_delivery_contract": {
+      "original_requirement": "EG27 manifests expose source/hash/scope, linked files/symbols, base commit and relevant changes in health/update; preserve historical guidance and distinguish unrelated edits.",
+      "current_missing_behavior": "Feature-specific deployed relevance/noise acceptance remains unverified in original finding; first use retained cases/current source, not a fresh broad audit.",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
+        "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
+        "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
+      ],
+      "finite_acceptance": [
+        "Deployed project_health exposes explicit instruction reference state and exact source/evidence identity.",
+        "Existing rename/dependent-change case flags the affected instruction with evidence; unrelated body-only edit does not invalidate unrelated guidance.",
+        "Historical/reference/cycle/omission cases retain original source authority and explicit gaps."
+      ],
+      "previous_delivery": "eval/eg14-draft-delivery-20261111.json"
+    },
+    "at_utc": "2026-11-11T07:05:38.304027+00:00",
+    "reason": "Retained EG14 draft submitted to installed engine, repeated identically, stale proposal refused; existing OX QA draft stage completed and its output reviewed/corrected. Bounded delivery recorded; full EG14 and separate generator acceptance remain open. Advance next ready original item instead of expanding the pilot.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9841,8 +9857,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Return to the existing broader backlog in TODO.md. Bounded current-state check of item16c: indexing must survive embedding-backend failure. Do not reopen CodeMap/Blast evaluations.",
-    "next_user_visible_deliverable": "Deliver the next genuinely missing original backlog behavior. First check TODO16c current embedding-failure paths; implement and validate the concrete missing lexical/graph preservation behavior if still absent, or advance past it if already satisfied. No broad audit or replacement backlog.",
+    "active_original_item": "EG-27: instruction evidence freshness and reference drift through deployed health/update; then EG-31 maintenance.",
+    "next_user_visible_deliverable": "Verify existing health/update manifest against original rename/unrelated-edit/historical criteria; fix only a concrete missing behavior, then complete its delivery.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9854,9 +9870,9 @@
       "Kernel/SSD forensics and preexisting cleanup remain on existing hold"
     ],
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
-    "latest_user_correction": "User explicitly rejects further CodeMap/Blast rabbit holes: these were quick fixes and the broader existing backlog must resume. This supersedes the earlier instruction to keep those two features as the exclusive active priority.",
+    "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: deployed407b304 verified; subsequent12call informed reset-context continuation finished and confirms existing recovery works. No additional production change in that continuation.",
+    "previous_goal_turn_classification": "Progress: installed EG14 submission/repeat/stale acceptance and existing OX QA draft stage completed; reviewed 89-line draft and separate provenance delivered. No production Rust change claimed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

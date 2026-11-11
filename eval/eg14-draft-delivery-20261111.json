@@ -1,0 +1,140 @@
+{
+  "status": "BOUNDED_AREA_DRAFT_AND_EXISTING_QA_HANDOFF_DELIVERED_FULL_EG14_NOT_CLOSED",
+  "at_utc": "2026-11-11T07:05:38.304027+00:00",
+  "original_requirement": "EG14: evidence-backed scoped area draft, distinct observed/authored/proposed claims, resolvable separate provenance, preserved authored exceptions and shared references, explicit evidence gaps and stable generation; use existing OX QA drafting workflow.",
+  "implementation": "Existing shipped implementation exercised; no production Rust changes or runtime installation in this batch. Added agent-facing workflow contract.",
+  "runtime": {
+    "primary": {
+      "pid": "53476",
+      "started_at_ms": "1794378736354",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "identity": {
+      "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "created_ticks": 134388523363368190
+    },
+    "binary_sha256": "473b916f12833238ff69ac0c822f4b75cb4ea20eb3b1d4ce58d0d85e8b03f8c9",
+    "at_utc": "2026-11-11T06:55:06.153378+00:00"
+  },
+  "actual_tool_results": {
+    "current_packet_blake3": "7e7bee5310893f23256d96e9d442b31d84e35640a9c609a06281d003c20c7170",
+    "claims": 12,
+    "scope": [
+      "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb"
+    ],
+    "pair_blake3": "a374d1d73410359315f2e93792c3053dfa14e3a0a548e6590caaa6dea5184537",
+    "instruction_bytes": 10899,
+    "provenance_bytes": 384801,
+    "unchanged_request_identical_pair": true,
+    "stale_packet_rejected": {
+      "code": -32602,
+      "message": "Instruction maintenance unavailable: Stale maintenance proposal: instruction, relevant evidence or project identity changed; recollect and review"
+    },
+    "authored_files_written": 0,
+    "all_11_captured_files_unchanged": true,
+    "declared_new_targets_remain_absent": true,
+    "gaps_retained": [
+      "Consumer traversal is partial: depth_limit",
+      "Known consumer Site/App_Code/visualisering/code/visualisering-kml-filer.vb requires separate complete-source recovery (consumer/body budget); not silent absence",
+      "Known consumer Site/App_Code/visualisering/code/visualisering-map.vb requires separate complete-source recovery (consumer/body budget); not silent absence",
+      "Policy decision: The persistence file visualisering-kml-filer.vb and map integration visualisering-map.vb are recovery leads, not complete captured consumers in this packet. Verify their complete relevant implementation before claiming zoom-only persistence/activity-audit or map-integration behavior.",
+      "Policy decision: TypeScript UI and Site/kmlquery.aspx.vb bodies from the independent source oracle are not complete current snapshots in this packet. The UI-only exception is authored guide intent; UI/HTTP execution, queue/FIFO/GeoJSON implementation and all dynamic consumers are not reverified here.",
+      "Policy decision: The direct consumer walk is bounded at depth one. Two named consumers require separate complete-source recovery under the body budget. The observed consumers do not establish exhaustive bindings, freshness of the whole working tree, runtime reachability or proposed-change breakage.",
+      "Policy decision: All validation paths above are proposed and unexecuted. This request supplies no passing test, authorization simulation, sustained-resource or conversion-rebuild result.",
+      "Policy decision: No closed/imported review status or unreceipted legacy guidance establishes accepted exceptions or scope. Keep the current AGENTS/shared/topic routing and obtain review of any new mandate or changed exception before applying generated files."
+    ]
+  },
+  "existing_qa_stage": {
+    "started_at_utc": "2026-11-11T06:59:19.2125073Z",
+    "finished_at_utc": "2026-11-11T07:00:46.6869740Z",
+    "exit_code": 0,
+    "model": "claude-opus-5.5",
+    "workflow": "Existing OX QA Invoke-CopilotRestricted and draft.md prompt; bounded captured-checkout replay, no app publication",
+    "draft_exists": true,
+    "summary_exists": true
+  },
+  "review_result": {
+    "corrected_lines": 89,
+    "raw_draft_preserved": true,
+    "source_review": "All 12 original claims supported against independent source.",
+    "consumer_review": "Existing drafting stage introduced unsupported assertions and inferred permanent mandates; corrected in review. No automatic policy acceptance."
+  },
+  "source_basis": {
+    "checkout_head": "b629df4fbec82fff317cff34ac57065c082796ab",
+    "observed_origin_master": "95e0c535c57aefec1087c8b86c37ef8fec183150",
+    "current_master_applicability": false
+  },
+  "evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\collect\\report.json",
+      "sha256": "289cdebe438521a7cdf6b16d3a6f3ca8f28015972e2331e5ba5ebc4e1daeafc6"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\submit\\report.json",
+      "sha256": "2456b19c0baef240933411e04634d22c77bebc33e560264321f08b382aa46abb"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\repeat\\report.json",
+      "sha256": "2456b19c0baef240933411e04634d22c77bebc33e560264321f08b382aa46abb"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\mechanical-acceptance.json",
+      "sha256": "d02b2d31f65bd99f91c99e2d2ddd13db54cb9f895ccec801098b3c69e1ac618f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\independent-draft-review.json",
+      "sha256": "b9ddf706c913f59216d7be044d45b2958609f265ac5f55bd73f615d4a71fba9e"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\consumer-draft-review.json",
+      "sha256": "b3f0bc95bb83072d98a4cb5fe60c313f3e0de104001c20a9c3bf95d1fd0507b2"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\draft.md",
+      "sha256": "f9eba3aba2e1b3bdfcc2edc5ecd7f584a17a02bd05fda3459c2266203e8a4b58"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\draft-before-review.md",
+      "sha256": "e60949a745f93776ee4fe7fe528330a567454179d022dd836dd184e84f9f9ee0"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\summary.json",
+      "sha256": "c4d5b4530c050a1d0bf41976ecdfa12e86e66e228929bbbe9ff05ff0c7b202ae"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\context.json",
+      "sha256": "f413b7cbbb4bcdd378f6737846d0208fd39895fdf5d594fe655389e2da3aeb75"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\ox-qa-draft\\execution.json",
+      "sha256": "e3abf736d35c28197710393b3c9efa668cff25a5bb05f6d226a193f14ba9d492"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.instructions.md",
+      "sha256": "44f9ab3f9ec659312ca1761d975a71e3c2ab3a273a5fad74d6737b1168e8b89f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.provenance.json",
+      "sha256": "313772f465806445e9eaa3af281ae83a69f1a22d059a22fafd34bd2f9654b9aa"
+    }
+  ],
+  "remaining": [
+    "No OciusX authored guidance publication or approval; current master differs and must be revalidated for any publication.",
+    "Two named complete consumer bodies and client/HTTP behavior remain explicit gaps, not claims of absence or runtime safety.",
+    "The corrected QA consumer draft is separately reviewed output; its changed text is not represented as the original Engram pair hash.",
+    "Broader generator ownership/overflow/manual-scope acceptance remains EG15-17; proposal-only EG14 did not execute those writers.",
+    "Full EG14 acceptance remains tracked; no broader pilot or new publishing UI is started."
+  ],
+  "next_ready_item": "EG27 deployed health/update manifest: use existing source-backed rename/unrelated-edit/historical cases to choose concrete missing behavior; then EG31.",
+  "resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111",
+    "rpc_connections_closed": true,
+    "qa_process_exit_code": 0,
+    "server_restarted": false,
+    "preexisting_folders_removed": false,
+    "retention": "Retain this delivery evidence and its owned copied-source snapshot until original acceptance review; no background work remains from this batch."
+  },
+  "observer_failure": "Stale-call driver initially asserted JSON-RPC error was absent. Saved frame proves expected -32602 stale rejection; corrected acceptance interpretation without repeating the call."
+}
