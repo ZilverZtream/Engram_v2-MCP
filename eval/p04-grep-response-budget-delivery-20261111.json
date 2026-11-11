@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T17:31:07.925713+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T17:50:14.092073+00:00",
   "original_requirement": "TODO P0-4: caller response budgets, truncation metadata and recoverable pagination on hot tools, including structured JSON output.",
   "implemented": "Optional grep_project max_tokens bounds complete UTF-8 Markdown or serialized JSON reply text; whole-match continuation within the same max_results window retains warnings, coverage, freshness and recovery actions. Default Markdown clipping/approximate limit is preserved with explicit next offset.",
   "demonstrated_failure": {
@@ -55,11 +55,147 @@
     "crates/engram_server/src/handlers/grep_tools/response_budget.rs": "5eceefb99ef61f499e788b3b8e47efc2b4f57e1cb2381564458be1d9e3c4b2d1",
     "crates/engram_server/tests/grep_response_budget_tests.rs": "f5e3945237cb76fd8901d8bb20ba0d84673fb80a8711b229d9f22bcc92f72f1a"
   },
-  "remaining": "Build/deploy and verify native candidate/installed public grep behavior. Other tools, provider-specific token counts, uniform envelopes beyond grep, durable cursors and full P0-4 remain unfinished.",
+  "remaining": "Selected grep_project Markdown/JSON response budgets and match-window pagination delivered. Other tools, provider-specific token accounting, uniform envelopes beyond grep, durable snapshot cursors and full P0-4 remain unfinished.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111",
     "completed_test_fixtures_closed_and_removed": true,
     "baseline_owned_fixtures_closed_and_removed": true,
-    "retained": "Logs, source reviews and helpers retained here. Prior search-budget interrupted fixture remains retained after policy-rejected cleanup; this case does not touch it."
-  }
+    "retained": "Logs, source reviews and helpers retained here. Prior search-budget interrupted fixture remains retained after policy-rejected cleanup; this case does not touch it.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-f20854b6c4c8439fa532d693251a948a",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "3b7a80fc59988d02fc596d9f873bc0fec4c31698",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-shipping-20261111.json",
+      "sha256": "809b41d07971ee3b6eb29f60697098b39332a68a1422b3435b3a95331262a97a"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\pair.json",
+      "sha256": "b17bba505b89fc134530c890e1477d520a673de3f345a142d91d06d6f418fa22"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\helper-review.json",
+      "sha256": "f174d4b2be4289a1ab16dd42703c63928788d085468919b526e3649ef6b49002"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\candidate\\acceptance.json",
+      "sha256": "8f451f6da753e598b7142666bcc2c79a2dd8253194f6807791d53a7fe1b5e843"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\installed\\acceptance.json",
+      "sha256": "961d57cfedb6c9b8aca451e4431955d3b51846e5f86348201f6833b6e2eba74f"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\normal\\acceptance.json",
+      "sha256": "bb1cfcb1b666c4f3f6f22940f50ce4484a7d21ee53aa0d090d6a37ae8c976a54"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\release-gates.json",
+      "sha256": "758b5f2fd3e30106d4dcfb97d3ed01907e8184e0d552dd3c5ad7b8b60bdd90b6"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\install-result.json",
+      "sha256": "9e573c58723b029f06fcc60388dbacc62e52a72fe38f35cf9a6271f166a83a5f"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-config-hold-20261111.json.released.json",
+      "sha256": "e99e06e241c1aeecb90e7f68b96757cac96b52277a5968190657e84aea64f36d"
+    },
+    "server_sha256": "7b70db0f06707713c8d93b7efab68bb7465ae8b3835cfb95e8679c59575c2b75",
+    "manifest_sha256": "40ebd893142fb7163ab9a2041f32f9295ebfc8db7d6228997307c14f034f7571",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "public_verifier_correction": {
+    "reason": "Initial candidate verifier indexed optional stale_paths directly; pristine response legitimately omitted the empty field. Corrected comparison uses optional values in both original and budgeted replies. Product code unchanged; no rebuild. Corrected candidate and installed checks passed.",
+    "failed_run": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\candidate-driver-v1\\acceptance.json",
+      "sha256": "5b6e0c549c1d0f50d00dd7b4d6f0edd97192f55045239e443dba1337aef3f3d7"
+    },
+    "original_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-grep-response-budget-20261111\\verify-runtime-v1.py",
+      "sha256": "fef920ffda0061e969f3ebbe6a202d6be96237399cb860abf10163fbc8d6d706"
+    },
+    "preservation": "Original candidate directory renamed within this owned case after fixture closure; recorded wire paths retain the original location. No original evidence removed."
+  },
+  "demonstrated_installed_behavior": [
+    {
+      "overlay": false,
+      "unbudgeted_json_bytes": 29054,
+      "default_markdown_visible_matches": 2,
+      "modes": [
+        {
+          "output_json": false,
+          "page_bytes": [
+            5903,
+            5939,
+            8179,
+            8181,
+            6003
+          ],
+          "recovered_current_sources": 12,
+          "recovered_indexed_citations": 0,
+          "uncited_working_tree_matches": 0,
+          "minimum_retry_tokens": 906
+        },
+        {
+          "output_json": true,
+          "page_bytes": [
+            5937,
+            5955,
+            5933,
+            5936,
+            5935,
+            5938
+          ],
+          "recovered_current_sources": 12,
+          "recovered_indexed_citations": 12,
+          "uncited_working_tree_matches": 0,
+          "minimum_retry_tokens": 904
+        }
+      ]
+    },
+    {
+      "overlay": true,
+      "unbudgeted_json_bytes": 29434,
+      "default_markdown_visible_matches": 2,
+      "modes": [
+        {
+          "output_json": false,
+          "page_bytes": [
+            5935,
+            6378,
+            6340,
+            6340,
+            6342,
+            6442
+          ],
+          "recovered_current_sources": 12,
+          "recovered_indexed_citations": 0,
+          "uncited_working_tree_matches": 0,
+          "minimum_retry_tokens": 914
+        },
+        {
+          "output_json": true,
+          "page_bytes": [
+            6317,
+            6416,
+            6394,
+            6397,
+            6396,
+            6399
+          ],
+          "recovered_current_sources": 12,
+          "recovered_indexed_citations": 11,
+          "uncited_working_tree_matches": 1,
+          "minimum_retry_tokens": 999
+        }
+      ]
+    }
+  ]
 }

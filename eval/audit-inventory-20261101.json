@@ -9950,7 +9950,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_GREP_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4: caller response budgets, truncation metadata and recoverable pagination on hot tools, including structured JSON output.",
       "selected_tool": "grep_project",
       "baseline": "baseline-v2/observation.json: actual installed Markdown5254bytes with11matches hidden, JSON46781bytes with all12matches; exact current-source recovery checked against independent file contents/hash. Both max_tokens and offset rejected. First baseline incorrectly assumed Markdown exceeded8KiB; failed receipt and exact driver preserved, fixture cleaned.",
@@ -9970,7 +9970,7 @@
       "remaining_scope": "Other tools, provider-specific tokenizer counts, uniform envelopes beyond grep, durable snapshot cursors and full P0-4 remain unfinished. Source-scan allocation/performance work and CodeMap/Blast remain outside this delivery.",
       "previous_delivery": "Vector budget source18a6e87, deployed evidencea482cce; installed42ddcd36991959182aad4fdeda18e9fa16ce2b03dfd211757f7273af784f4f57"
     },
-    "at_utc": "2026-11-11T17:31:07.925713+00:00",
+    "at_utc": "2026-11-11T17:50:14.092073+00:00",
     "reason": "Installed grep Markdown hides11matches behind an approximate limit with no offset; JSON returns46781bytes without a caller budget. Existing recovery works and must be preserved.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10000,8 +10000,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO P0-4: grep_project whole-reply Markdown/JSON budgets and recoverable match-window pagination.",
-    "next_user_visible_deliverable": "Bound complete grep replies and retain warning/recovery metadata across match pages, then verify and deploy.",
+    "active_original_item": "P0-4 grep response budget: selected contract delivered; broader response-budget requirements remain open.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10015,7 +10015,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: grep Markdown/JSON budgets and continuation implemented;25focused checks passed after review fix. Deployment pending.",
+    "previous_goal_turn_classification": "Progress: grep response budget built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12411,8 +12411,10 @@
     },
     "p04_grep_response_budget_20261111": {
       "receipt": "eval\\p04-grep-response-budget-delivery-20261111.json",
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "full_p04_closed": false
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "full_p04_closed": false,
+      "source_commit": "3b7a80fc59988d02fc596d9f873bc0fec4c31698",
+      "installed_server_sha256": "7b70db0f06707713c8d93b7efab68bb7465ae8b3835cfb95e8679c59575c2b75"
     }
   }
 }
