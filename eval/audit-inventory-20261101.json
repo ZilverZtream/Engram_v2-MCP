@@ -9808,28 +9808,33 @@
         "sha256": "28277b26fe497d8479cff55c946135881c436683e605ba015df1643dc0efaebd"
       },
       "scope": "24 focused cases, actual parsed context/expanded summary/source/unknowns preserved. Same12 returned tool text96489->88343B; only1B from timing width, no latency/productivity claim. Fresh response-consumption microtask2calls11751B. Current daemon is idle/absent and user requested reboot; normal watcher/tool-definition readback after reboot remains pending. All31 original findings/19 full gates exactly unchanged."
+    },
+    "eg27_prose_reference_delivery_20261111": {
+      "status": "DEPLOYED_VERIFIED",
+      "receipt": "eval/eg27-prose-reference-fix-20261111.json",
+      "source_commit": "a945925c85f7d5f08d5e494e434e49195d491e1b",
+      "behavior": "Actual installed OciusX health removes four map-file-layers and two reporting case-fold-only prose references; explicit/exact references, source identity and gaps preserved. 47 maintenance tests pass. No full EG27/31 closure."
     }
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG27 manifests expose source/hash/scope, linked files/symbols, base commit and relevant changes in health/update; preserve historical guidance and distinguish unrelated edits.",
-      "current_missing_behavior": "Ordinary prose is case-folded as VB code, so resolved/style and render prose enter symbol dependencies. Current deployed output and exact source excerpts reproduce this.",
+      "original_requirement": "EG31: after a representative OX change produce an evidence-bound guidance proposal, preserve exceptions and distinguish policy changes from code defects.",
+      "current_missing_behavior": "Existing Change/Conflict/no-change evidence is partial; the original record leaves current deployed proposal delivery and usefulness unverified. Reuse the accepted cases and existing OX QA workflow; inspect retained evidence once before choosing any code change.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
-        "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
-        "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
+        "crates/engram_server/src/services/instruction_maintenance",
+        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs"
       ],
       "finite_acceptance": [
-        "Actual current OciusX packets no longer add resolved->Resolved, render->Render or API->api solely by prose case folding.",
-        "Backticked VB names remain case-insensitive; exact-spelling prose references, historical rename detection and independent coverage gaps remain.",
-        "A VB file change does not flag an unrelated prose-only guide; explicit and exact-spelling references still disclose the changed candidate file.",
-        "Relevant maintenance suite passes and changed production behavior is deployed/verified before closing this slice."
+        "Use one existing representative OX change with independent source and authored-policy evidence.",
+        "Current installed workflow returns a reviewable disposition with changed evidence, rationale, source/evidence hashes and a diff when warranted; preserve exceptions and shared references.",
+        "Stale base refuses; a potential code defect does not silently weaken authored policy.",
+        "Fix only a demonstrated missing behavior; verify and deliver once, then advance the original queue."
       ],
-      "previous_delivery": "eval/eg14-draft-delivery-20261111.json"
+      "previous_delivery": "eval/eg27-prose-reference-fix-20261111.json"
     },
-    "at_utc": "2026-11-11T07:26:24.218488+00:00",
-    "reason": "EG27 actual health prose-collision defect reproduced and fixed. Native maintenance47PASS plus strengthened matching-case1PASS; independent source review has no remaining actionable finding. Release build/deployment remains required.",
+    "at_utc": "2026-11-11T07:57:36.854256+00:00",
+    "reason": "EG27 prose correction deployed and verified through candidate and normal installed health calls. Finite slice complete; advance original EG31 maintenance delivery without repeating CodeMap/Blast work.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9858,8 +9863,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-27 prose reference correction: finish release and actual installed health verification; do not advance to another feature yet.",
-    "next_user_visible_deliverable": "Installed health reports omit case-fold-only prose matches while preserving explicit references, source identity and coverage gaps.",
+    "active_original_item": "EG31: finish evidence-bound maintenance proposal delivery using existing representative cases and workflow.",
+    "next_user_visible_deliverable": "A current, source-bound maintenance disposition for one real OX change, with a reviewable guidance diff only when warranted.",
     "following_original_items": [
       "EG27/EG31 instruction freshness and evidence-driven maintenance gaps",
       "EG24 regular task-level verification after user-visible original tool work"
@@ -9873,7 +9878,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: reproduced installed defect, added failing wanted-behavior regression, implemented correction, passed47-case suite and corrected-test rerun; deployment pending.",
+    "previous_goal_turn_classification": "Progress: release build passed, full package installed, normal service restored, two actual installed health requests passed; six false prose references removed and existing evidence preserved.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12128,6 +12133,22 @@
       },
       "closed_for_further_investigation": true,
       "remaining_limits_preserved": true
+    },
+    "previous_delivery_contract": {
+      "original_requirement": "EG27 manifests expose source/hash/scope, linked files/symbols, base commit and relevant changes in health/update; preserve historical guidance and distinguish unrelated edits.",
+      "current_missing_behavior": "Ordinary prose is case-folded as VB code, so resolved/style and render prose enter symbol dependencies. Current deployed output and exact source excerpts reproduce this.",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
+        "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
+        "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
+      ],
+      "finite_acceptance": [
+        "Actual current OciusX packets no longer add resolved->Resolved, render->Render or API->api solely by prose case folding.",
+        "Backticked VB names remain case-insensitive; exact-spelling prose references, historical rename detection and independent coverage gaps remain.",
+        "A VB file change does not flag an unrelated prose-only guide; explicit and exact-spelling references still disclose the changed candidate file.",
+        "Relevant maintenance suite passes and changed production behavior is deployed/verified before closing this slice."
+      ],
+      "previous_delivery": "eval/eg14-draft-delivery-20261111.json"
     }
   }
 }

@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_RELEASE_PENDING",
-  "at_utc": "2026-11-11T07:26:24.218488+00:00",
+  "status": "DEPLOYED_VERIFIED",
+  "at_utc": "2026-11-11T07:57:36.854256+00:00",
   "requirement": "EG27: instruction reference changes must not be invented by folding ordinary prose as case-insensitive VB code.",
   "observed_before": {
     "installed_health": [
@@ -58,9 +58,62 @@
     "coderabbit": "auth status returned authenticated=false; no CodeRabbit review ran."
   },
   "deployment": {
-    "installed": false,
-    "next": "Build release using existing shipping_empty_type_build_20261110.py, then verify same actual OciusX health requests and deploy complete server/unchanged-sidecar pair.",
-    "build_label": "eg27-prose-case-shipping-20261111"
+    "installed": true,
+    "source_commit": "a945925c85f7d5f08d5e494e434e49195d491e1b",
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\pair.json",
+      "sha256": "3e6a6ce76019ef010cede8564f8e1d07f52a8d29d7bed3b1d7508700366988bd"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-shipping-20261111.json",
+      "sha256": "e64d4ee414ac3cc11805a8580c6d784a4f6d0c38e6873d7ba3b592445446f22b"
+    },
+    "candidate_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\candidate\\acceptance.json",
+      "sha256": "c23bfaad9b4f498ebd3e2be512549e59dec74d815dfead54bf1842e0ed8699b7"
+    },
+    "installer_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\install-validation.json",
+      "sha256": "6ec8f32e457894c415ebd64f6abaf665dc91c6dc6e4806dbf0d8c3d21b68a79d"
+    },
+    "installer_result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\install-result.json",
+      "sha256": "132e7836f1c5e161a8b3f5465ba3eb4c61befc34785eb9b544e8055ae9ea259a"
+    },
+    "normal_service_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111\\normal\\acceptance.json",
+      "sha256": "535fe61e6a6efbe47406c3e7015da2857b12ab0a662414947f0bddc119e6052b"
+    },
+    "normal_service_pid": "5524",
+    "configuration_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-config-hold-20261111.json.released.json",
+      "sha256": "e9faf3d0eb5a9e9171bc84ef34602e0defaabd9dbb45c6f6cb44367d83bf5b54"
+    },
+    "configuration_bytes_unchanged": true,
+    "checks": [
+      {
+        "case": "map-file-layers",
+        "removed_prose_occurrences": 4,
+        "removed_literals": [
+          "API",
+          "resolved"
+        ],
+        "retained_references": 30,
+        "explicit_and_exact_prose_references_unchanged": true,
+        "source_identity_and_gaps_unchanged": true
+      },
+      {
+        "case": "reporting",
+        "removed_prose_occurrences": 2,
+        "removed_literals": [
+          "render"
+        ],
+        "retained_references": 56,
+        "explicit_and_exact_prose_references_unchanged": true,
+        "source_identity_and_gaps_unchanged": true
+      }
+    ],
+    "unchanged_native_sidecar_assets": 214
   },
   "limits": [
     "Exact-spelling ordinary words can still be candidate references; semantic intent is not established.",
@@ -69,6 +122,15 @@
   ],
   "resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg27-prose-case-20261111",
-    "retention": "Retain logs, review and acceptance artifacts until delivery review. New red-temp/green-temp/review-temp directories are empty; fixture teardown succeeded. Installed service and preexisting folders unchanged."
+    "retention": "Retain evidence and candidate package under this root for delivery review. Build-owned and candidate temporary directories removed; candidate process/handles closed. Normal service restored; configuration hold released. Empty test fixture roots retained. No preexisting folders deleted.",
+    "retained_installed_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-4cae0a4738a9436c9462b2e0dd62e87f",
+    "installer_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-4cae0a4738a9436c9462b2e0dd62e87f.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-4cae0a4738a9436c9462b2e0dd62e87f.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-4cae0a4738a9436c9462b2e0dd62e87f.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-4cae0a4738a9436c9462b2e0dd62e87f.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-4cae0a4738a9436c9462b2e0dd62e87f.04-committed-no-start.json"
+    ],
+    "backup_cleanup_condition": "Retain complete prior package and journals pending exact-path approval; no automatic deletion."
   }
 }
