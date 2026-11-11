@@ -40,9 +40,8 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search/document/history/implementation-context/page-context reply contracts and P1-12 confidence consumption are deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "P0-4 get_page_context",
-    "receipt": "eval\\p04-page-response-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected page-context response contract is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "finding": "EG15-17 generator publication/overflow/scope",
+    "status": "SELECTED_INSTALLED_GENERATOR_ACCEPTANCE",
+    "remaining": "Create public installed fixtures from existing claude_md_contract_tests and agent_integration_pack_tests; inspect actual returned artifacts/ledger against authored input before any product edits."
   }
 }
