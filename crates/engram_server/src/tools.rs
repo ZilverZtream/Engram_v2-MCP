@@ -1526,7 +1526,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Full page context for a WebForms page: control tree, event handlers (bodies opt-in), data layer, session state, AJAX regions, validation, auth requirements, with per-provider coverage; include_master_page / include_codebehind are honoured. The starting point for all WebForms work."
+        description = "[.NET legacy] WebForms page context: controls, event handlers (bodies opt-in), data/state/AJAX, auth, composition and neighboring-page style with provider coverage. Read the completeness and runtime caveats; this is not exhaustive or runtime-verified UI behavior. Optional max_tokens bounds complete text/JSON replies at ceil(UTF-8 bytes/4), retaining identity, coverage, warnings and qualifications on every page. Follow literal context_offset/context_expected_hash continuations to recover deferred whole entries and method-body fragments; changed assembled evidence/options requires restart. No retained filesystem snapshot. Omit budget/continuation for the existing format. include_master_page/include_codebehind/include_house_style are honored."
     )]
     pub async fn get_page_context(
         &self,

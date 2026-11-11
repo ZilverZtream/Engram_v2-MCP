@@ -1,0 +1,65 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T21:56:33.097197+00:00",
+  "original_requirement": "TODO P0-4 complete-response budgets and recoverable omissions for unbounded access-layer contexts; selected get_page_context.",
+  "implemented": "Optional max_tokens and hash-bound context-record continuations in text/JSON. Shared serializer retains mandatory page/provider/composition/house-style disclosures; recoverable whole entries and method-body fragments reconstruct complete assembled context. Existing default formats retained.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\baseline\\acceptance.json",
+      "sha256": "9289811028c364e0fa9349866e4f1346e4db0d3a051ecf8427ddfa6f0bf6d444"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\baseline\\source-oracle.json",
+      "sha256": "dee9ff1c70ae6122d647a37e3d06a0bb253c21f0ead0943e90f7cb0e834af54a"
+    },
+    "behavior": "Installed JSON/Markdown returned 66130/34562 bytes for four independently authored method bodies and150verifiedcontrols; both formats rejected max_tokens."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\page-native-v2-result.json",
+          "sha256": "44ccaab50b9fecb63914dc541e5a5e4f8f681c6370e0e2e28ec635bb5657e6df"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\page-native-v2.log",
+          "sha256": "4084a6fdbebe9b744d02dff7b182b6443289a74629029c4040a7333d8297e824"
+        },
+        "passed": 31
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\page-no-vector-result.json",
+          "sha256": "03af419843fcacec2b5c65c97ed3ea8eee9a9b78df5ab2f5d9b009ab96594778"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\page-no-vector.log",
+          "sha256": "659524c965aae11b8be55ed07393ebca5a6c033965d8d09ad73c00be3a025e37"
+        },
+        "passed": 31
+      }
+    ],
+    "total_passed": 62,
+    "initial_float_representation_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\page-native-result.json",
+      "sha256": "d95579ec2776b642a6f8ca0655369e225bdbf87c6038f9353a27c403722a06f4"
+    }
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\source-review.json",
+    "sha256": "01ecb0154869e614625b00303bb98951c351d6d3f439f84340f813f0a3af79a5"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "f7bd4e418067f8e98424a0c8bf97fb378e6522aad7e67146c70a51e7eb07b763",
+    "crates/engram_server/src/handlers/access_layer_tools/context_response.rs": "96aab7eba0de1206d3cbc39034aa597a3bb232e728344a52322e6c2736155ebe",
+    "crates/engram_server/src/models/requests.rs": "afce01840cdb04ede6df8c3edb19746b5134429b300103cd5abd35a3a8d854c0",
+    "crates/engram_server/src/tools.rs": "1f7590a583e7ab42279ae9817e8aab35bb04389d80ec8e64606bb534015aa9ca",
+    "crates/engram_server/tests/page_response_tests.rs": "5012a05f3826bd299fdac41c0edfa2ca66494fc4b72232a9d784080238622fde"
+  },
+  "remaining": "Build, verify candidate and installed public WebForms context recovery, deploy and check normal runtime. Full P0-4, provider-specific tokenization, durable snapshots and remaining original backlog are unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111",
+    "test_and_baseline_fixtures_closed_and_removed": true,
+    "retained": "Baseline/test/manual review/release evidence; preserve preexisting and previously policy-rejected cleanup paths."
+  }
+}
