@@ -1,0 +1,97 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T22:39:06.051029+00:00",
+  "original_requirement": "EG15-17 generator ownership, complete overflow and manual/legacy scope preservation.",
+  "implemented": "Complete authored rule blocks, nested exceptions and fenced examples survive critical-rule extraction and root overflow. Existing publication and authority behavior is retained.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\root-baseline\\acceptance.json",
+      "sha256": "d770cfe721e4f04e78697bf8f7b79de951117b8747bee136bbd06fa470522b89"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\root-baseline\\source-oracle.json",
+      "sha256": "4825654850fd33b27484fc2d9f438d226968cc1f837c2c9e44ebc8f6a3d3c05a"
+    },
+    "behavior": "Installed generated artifacts dropped all40authoredmultilineexceptions; original human CLAUDE.md remained exact."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-generator-final-result.json",
+          "sha256": "70d50d775ca9879b20b17ead5380c380b2462206cb7672709aa3a527b9959f02"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-generator-final.log",
+          "sha256": "ba0125324159ee37527bff17770f8ce4d95cdfcdeed6a90471cbc7287b21a67b"
+        },
+        "passed": 94
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-contract-final-result.json",
+          "sha256": "ab60f69d351ef40536bba051c022ce57090fcc2b2fd9851214febed7c4ae3cb0"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-contract-final.log",
+          "sha256": "0eeb85e29b07e62ba222c6162cd1be638bf791196f7a9b0ed4598009e5517421"
+        },
+        "passed": 14
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\no-vector-contract-final-result.json",
+          "sha256": "5ae7369a8807be434026ec1d99c7962334da25bdf138162c249f6745de5adf20"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\no-vector-contract-final.log",
+          "sha256": "c77aaceb22368fd5e88c9ee1656a26650ad892f5ba940768d8cbef71c79a9596"
+        },
+        "passed": 14
+      }
+    ],
+    "total_passed": 122,
+    "prior_publication_suite": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\native-publication-result.json",
+      "sha256": "118209e4e937a5d7b34bdd0f71492f54a3f6ddfdb95335f7b441fb38e3830f99"
+    }
+  },
+  "source_sha256": {
+    "crates/engram_server/src/services/produce_claude_md_service.rs": "4e593b4a25b297cde4b0a56caf26ca6d9c763d51cf6e8aa8ca48c1c4aded836e",
+    "crates/engram_server/tests/claude_md_contract_tests.rs": "ea00ecacdafeb166168a6db993b26bccc94f100a0174ea22f3105cdf6fab41f6"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\source-review.json",
+    "sha256": "b46e518bfc010f6d8783f81071308a90fe01d055299a7992a6301539af0a0ed0"
+  },
+  "helper_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\helper-review.json",
+    "sha256": "5230cce3d54c846d0b2926b4c16949e9a21f72483a4fc0a30165012c8be81b95"
+  },
+  "existing_installed_acceptance": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\public\\acceptance.json",
+      "sha256": "75bc5ac049e373170e823fdf1e5ae8bcbd661ed7347a8359728cb6f505f1af52"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\followup\\acceptance.json",
+      "sha256": "b5d8bc361ec9a6a32da462e49d19c05b9b79427adc72f5d92c4f0affe1594dde"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\legacy\\acceptance.json",
+      "sha256": "d8fdbfaf694a6e3ef73787eb6b6cddff07cfba2237d3c26188d5c5e202e180ad"
+    }
+  ],
+  "remaining": "Build and validate candidate/installed exact authored overflow; deploy and verify normal runtime. EG14 broader drafting/publication acceptance and the remaining original backlog are unfinished.",
+  "limitations": [
+    "Initial public batch retained as FAIL at stale blocked-parent assertion after six passing cases; corrected follow-up confirms exact blocked behavior.",
+    "Initial restricted Claude invocation did not load guidance; corrected project-settings invocation passed Site/Admin conditional scope interpretation with tools/hooks disabled. This is not native path-filtered loading or general agent-productivity evidence.",
+    "Legacy/closed/fixed/rejected states were seeded in a private current Registry while its runtime was closed, then read through installed public tools; no historical external import replay or production adoption.",
+    "Extractor supports existing bullet-based critical-rule inputs; this does not establish universal Markdown semantics."
+  ],
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111",
+    "retained": "Failure, acceptance, consumer, test, source/release evidence and fixture-seeder source/binary. Preserve preexisting folders.",
+    "cleanup": "New test and public fixture resources close before removal. Retained diagnostic artifacts are intentional until delivery evidence no longer needed."
+  }
+}

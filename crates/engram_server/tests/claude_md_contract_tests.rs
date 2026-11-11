@@ -221,10 +221,15 @@ async fn publication_failure_returns_completed_writes_and_complete_policy_recove
     let text = generate(&engram, &pid, true).await;
     let data = ledger(&text);
     assert!(text.contains("PARTIAL PUBLICATION"));
-    assert_eq!(data["inputs"][0]["delivery"], "not_attempted");
+    assert_eq!(data["inputs"][0]["delivery"], "preserved_unverifiable");
+    assert!(data["observed_catalog_blake3"].is_null());
     assert_eq!(data["inputs"][0]["original"]["rule_text"], "Keep the complete rule and exception.");
     assert_eq!(std::fs::read_to_string(root.join(".claude")).unwrap(), "A human file blocks this directory");
     assert!(!root.join("CLAUDE.md").exists(), "earlier companion failure must not be reported as a completed root write");
+    assert_eq!(text.split("# Write-path notes").next().unwrap().trim(),
+        "# Written files\n\n- .engram/instruction-generation.json",
+        "Only the recovery ledger was written, not the blocked policy artifact");
+    assert!(root.join(".engram/instruction-generation.json").is_file());
     drop(engram);
     temp.close().unwrap();
 }

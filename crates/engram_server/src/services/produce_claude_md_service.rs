@@ -1795,24 +1795,7 @@ pub fn extract_critical_rules_from_existing(md: &str) -> Vec<CriticalRule> {
     if let Some(start) = md.find("<critical_rules>") {
         let after = &md[start + "<critical_rules>".len()..];
         if let Some(end) = after.find("</critical_rules>") {
-            for line in after[..end].lines() {
-                if let Some(rule) = extract_bullet(line) {
-                    // Skip engram-generated rules from a prior run —
-                    // otherwise they get re-promoted into the next run
-                    // and the critical_rules section bloats over time.
-                    // The pipeline will re-generate them from source
-                    // data this run.
-                    if is_engram_generated_rule(&rule) {
-                        continue;
-                    }
-                    out.push(CriticalRule {
-                        text: rule,
-                        evidence: None,
-                        source: RuleSource::Existing,
-                        confidence: Default::default(),
-                    });
-                }
-            }
+            out.extend(extract_complete_rule_bullets(&after[..end]));
             if !out.is_empty() {
                 return out;
             }
@@ -1823,9 +1806,14 @@ pub fn extract_critical_rules_from_existing(md: &str) -> Vec<CriticalRule> {
     // "mandatory" and collect the bullets that follow until the next
     // heading.
     let mut in_block = false;
+    let mut block = String::new();
+    let mut fence = None;
     for line in md.lines() {
+        let fenced = advance_rule_fence(line, &mut fence);
         let trimmed = line.trim_start_matches('#').trim().to_lowercase();
-        if line.starts_with('#') {
+        if !fenced && line.starts_with('#') {
+            out.extend(extract_complete_rule_bullets(&block));
+            block.clear();
             in_block = trimmed.contains("critical")
                 || trimmed.contains("mandatory")
                 || trimmed.contains("hard-learned");
@@ -1834,19 +1822,78 @@ pub fn extract_critical_rules_from_existing(md: &str) -> Vec<CriticalRule> {
         if !in_block {
             continue;
         }
-        if let Some(rule) = extract_bullet(line) {
-            if is_engram_generated_rule(&rule) {
-                continue;
+        block.push_str(line);
+        block.push('\n');
+    }
+    out.extend(extract_complete_rule_bullets(&block));
+    out
+}
+
+/// Track fenced examples so literal bullets/headings cannot split a rule.
+/// Returns true for the opening, body and closing lines of a fence.
+fn advance_rule_fence(line: &str, fence: &mut Option<(char, usize)>) -> bool {
+    let trimmed = line.trim_start();
+    let marker = trimmed.chars().next().filter(|c| *c == '`' || *c == '~');
+    let fence_marker = marker.and_then(|c| {
+        let count = trimmed.chars().take_while(|ch| *ch == c).count();
+        (count >= 3).then_some((c, count))
+    });
+    let was_fenced = fence.is_some();
+    if let Some((c, count)) = fence_marker {
+        match *fence {
+            Some((open, length))
+                if c == open && count >= length && trimmed[count..].trim().is_empty() =>
+            {
+                *fence = None;
             }
-            out.push(CriticalRule {
-                text: rule,
+            None => *fence = Some((c, count)),
+            _ => {}
+        }
+    }
+    was_fenced || fence_marker.is_some()
+}
+
+/// A rule includes its qualifications, nested bullets and examples. Splitting
+/// every line independently turns exceptions into missing or separate policy.
+/// Keep the complete block until the next sibling bullet; even an unindented
+/// continuation must not silently disappear from an authored critical section.
+fn extract_complete_rule_bullets(block: &str) -> Vec<CriticalRule> {
+    let mut blocks: Vec<String> = Vec::new();
+    let mut rule_indent = 0;
+    let mut fence: Option<(char, usize)> = None;
+    for line in block.lines() {
+        let trimmed = line.trim_start();
+        let indent = line.len() - trimmed.len();
+        if !advance_rule_fence(line, &mut fence) {
+            if let Some(rule) = extract_bullet(line) {
+                if blocks.is_empty() || indent <= rule_indent {
+                    rule_indent = indent;
+                    blocks.push(rule);
+                    continue;
+                }
+            }
+        }
+        if let Some(rule) = blocks.last_mut() {
+            rule.push('\n');
+            rule.push_str(line);
+        }
+    }
+    blocks
+        .into_iter()
+        .filter_map(|text| {
+            // Drop a prior generated rule as a whole, including its nested content.
+            // Examples in a human rule must not be mistaken for generated policy.
+            if is_engram_generated_rule(text.lines().next().unwrap_or_default()) {
+                return None;
+            }
+            Some(CriticalRule {
+                text: text.trim_end().to_string(),
                 evidence: None,
                 source: RuleSource::Existing,
                 confidence: Default::default(),
-            });
-        }
-    }
-    out
+            })
+        })
+        .collect()
 }
 
 /// True when a rule's text carries the unmistakable fingerprint of a
@@ -2551,10 +2598,13 @@ mod tests {
     #[test]
     fn tight_root_budget_returns_complete_policy_in_actual_companion_without_slicing_exceptions() {
         let mut snapshot = minimal_snapshot();
-        snapshot.critical_rules = (0..40).map(|i| CriticalRule {
-            text: format!("Rule {i}: preserve this complete instruction.\nException {i}: the authored qualification remains in force."),
-            evidence: None, source: RuleSource::Existing, confidence: RuleConfidence::Strong,
-        }).collect();
+        let authored = (0..40)
+            .map(|i| format!("- Rule {i}: preserve this complete instruction.\r\n  Exception {i}: the authored qualification remains in force.\r\n"))
+            .collect::<String>();
+        snapshot.critical_rules = extract_critical_rules_from_existing(&format!(
+            "<critical_rules>\r\n{authored}</critical_rules>\r\n"
+        ));
+        assert_eq!(snapshot.critical_rules.len(), 40);
         let (root, files) = render_root_and_rule_files(&snapshot, 20).unwrap();
         assert!(root.lines().count() <= 20);
         let full = &files.iter().find(|file| file.filename == "engram-root-overflow.md").unwrap().content;
@@ -3346,6 +3396,32 @@ Read docs/internal.md first.
         let rules = extract_critical_rules_from_existing(md);
         assert_eq!(rules.len(), 1);
         assert_eq!(rules[0].text, "Fallback rule.");
+    }
+
+    #[test]
+    fn authored_rule_qualifications_stay_with_their_parent_in_both_input_forms() {
+        let body = "- Validate production requests.\n  Exception: owned fixtures may bypass validation.\n  - Only when marked fixture-only.\n\n  Preserve this example literally:\n  ```text\n# Example heading\n- Example (cr_literal), not an independent mandate.\n  ```\nQualification without indentation also remains attached.\n- Use the second rule only in Admin.\n  Never apply it to Site.\n";
+        for authored in [
+            format!("<critical_rules>\n{body}</critical_rules>\n"),
+            format!("## Mandatory rules\n{body}\n## Other guidance\n- Not critical.\n"),
+        ] {
+            let rules = extract_critical_rules_from_existing(&authored.replace('\n', "\r\n"));
+            assert_eq!(rules.len(), 2);
+            assert_eq!(
+                rules[0].text,
+                body.strip_prefix("- ").unwrap().split("\n- Use the second").next().unwrap()
+            );
+            assert_eq!(rules[1].text, "Use the second rule only in Admin.\n  Never apply it to Site.");
+            assert!(rules.iter().all(|r| matches!(r.source, RuleSource::Existing)));
+        }
+    }
+
+    #[test]
+    fn prior_generated_rule_does_not_promote_its_nested_exception_to_human_policy() {
+        let authored = "<critical_rules>\n- Prior generated instruction. (cr_old)\n  - Exception belongs only to that prior instruction.\n- Human instruction.\n  Exception belongs to the human instruction.\n</critical_rules>";
+        let rules = extract_critical_rules_from_existing(authored);
+        assert_eq!(rules.len(), 1);
+        assert_eq!(rules[0].text, "Human instruction.\n  Exception belongs to the human instruction.");
     }
 
     #[test]
