@@ -38,11 +38,11 @@
     "Rebuilding OX QA approval/publication or OX Dev orchestration.",
     "System forensics or deletion of preexisting folders."
   ],
-  "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search/document/history/implementation-context/page-context reply contracts and P1-12 confidence consumption are deployed. Full original backlog and partial EG14 remain open.",
+  "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "EG15-17 generator ownership/overflow/scope",
-    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-    "receipt": "eval/eg15-eg17-generator-delivery-20261111.json",
-    "remaining": "Build and validate candidate/installed exact authored overflow; deploy and verify normal runtime. EG14 broader drafting/publication acceptance and the remaining original backlog are unfinished."
+    "receipt": "eval\\eg15-eg17-generator-delivery-20261111.json",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "remaining": "Selected EG15-17 ownership, overflow and manual/legacy scope contract delivered with the retained consumer limitations. Full EG14 area-instruction publication, EG24/25 matched real-task benefit and the original backlog remain unfinished. No universal Markdown, native conditional-catalog path filtering, external historical import replay or independent CodeRabbit review claim."
   }
 }
