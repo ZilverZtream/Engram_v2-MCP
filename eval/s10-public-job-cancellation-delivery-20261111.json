@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T14:19:37.933818+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T14:41:10.806889+00:00",
   "original_requirement": "S10: cancellation around publication preserves a complete old or new source head, truthful outcomes and retry convergence.",
   "demonstrated_failure": {
     "result": {
@@ -113,10 +113,63 @@
     },
     "reason": "Fixture omitted required allowed_roots. Fixed without changing cancellation assertions; passing retry retained separately."
   },
-  "remaining": "Release build, candidate and installed public MCP cancellation/retry checks, deployment and installed identity verification. Original broader all-writer/commit/fault/crash scope remains unfinished.",
+  "remaining": "Selected public job-cancellation contract delivered. Original broader all-writer/commit/fault/crash requirements and broader backlog remain unfinished; no full-gate closure claimed.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111",
     "owned_test_fixtures_closed_and_removed": true,
-    "retained": "Logs, review receipts, red reproducer and empty runner containers retained as delivery evidence. No preexisting folder deletion."
+    "retained": "Logs, review receipts, red reproducer and empty runner containers retained as delivery evidence. No preexisting folder deletion.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-6adb07fff32e44838ac3456729577c97",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "9acc772bc02957a13d4f32c115671de228dcbcec",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-shipping-20261111.json",
+      "sha256": "eee0d85c0e313331c2ca2a4f33b63aa499f4fbee997d419420222d162f015816"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\pair.json",
+      "sha256": "e075a9210ea074402ca010aaa17af844e391c63b4764ee1c6dee5c2ba01d11f1"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\helper-review-v2.json",
+      "sha256": "1b0ad9c7959d6ca8b8bd6692295b38e4475f990c54969e8f2bf0812feb53efd4"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\candidate-v2\\acceptance.json",
+      "sha256": "694b0f24488e7d66443e75d49d5f0241430a22142c48233f29b413230f838dfd"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\installed\\acceptance.json",
+      "sha256": "6332ddae16a11a28e343b2476d6ed7a19b5e4cf7adf55443e5ee30a8e19123ab"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\normal\\acceptance.json",
+      "sha256": "92f00be8c476fdfca67fe5b50fbac840a3304fa486017759e01a95f2edce0b02"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\release-gates.json",
+      "sha256": "08d022fcf54c1540daa670c721afe8a9d2d3bd6bc6a64d2a4d271ef55020918a"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\install-result.json",
+      "sha256": "55115500dda923ccafbcb5ed48010bef38966255b48644aa6962e967459218cf"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-config-hold-20261111.json.released.json",
+      "sha256": "92dade6f5159bf66b1912171dd4511683c5fc5b9784b25299c5b0c312e478e2a"
+    },
+    "server_sha256": "280c362d042b6e3ae5936e5145a38849548adcba30605886288aa7a4fb086e3d",
+    "manifest_sha256": "ccdd3d091bd54484d05c294851854a39c7e9c3ae276c6932db61623eb607cab0",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "verifier_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\candidate-v1-disposition.json",
+    "sha256": "80cc424800ec3823fbd2cfc84c0a825fc8cc2df23ffeff168061071576b6ea9d"
   }
 }
