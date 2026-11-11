@@ -2294,6 +2294,16 @@ pub struct VectorSearchRequest {
     /// Number of results to return (default 10, max 200).
     #[serde(default = "default_top_k")]
     pub top_k: usize,
+    /// Offset within the same top_k ranking window. Keep query, filters, top_k
+    /// and use_mmr unchanged across pages. Mutable ranking is not snapshotted.
+    /// To widen the window, increase top_k (max 200) and restart at offset=0.
+    #[serde(default)]
+    pub offset: usize,
+    /// Optional complete reply-text budget estimated as ceil(UTF-8 bytes / 4),
+    /// not provider tokens or JSON transport size. Returns complete hits;
+    /// too-small budgets report the minimum needed with required context.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
     /// Use MMR (Maximal Marginal Relevance) for diverse results (default false).
     #[serde(default)]
     pub use_mmr: bool,
