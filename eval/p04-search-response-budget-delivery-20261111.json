@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T16:22:59.245471+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T16:37:27.920778+00:00",
   "original_requirement": "TODO P0-4: caller response budgets, explicit truncation and pagination; context spent per search must be bounded without silent loss.",
   "implemented": "Optional search_memory max_tokens bounds complete reply text using ceil(UTF-8 bytes/4). Whole-hit paging retains mandatory context and actionable citation recovery; too-small budgets report a usable minimum. SearchSession records only delivered hits.",
   "demonstrated_failure": {
@@ -84,7 +84,7 @@
     "crates/engram_server/src/handlers/search_tools/response_budget.rs": "3114991850d793cf3b3e55bf41151c04fbb50a4b2f82f87424b380f28953042d",
     "crates/engram_server/src/handlers/search_tools/response_budget_tests.rs": "d199fb34f7c3e35aa75319a24555c8b203f04dd0d503a2ab2a869987b5de69c6"
   },
-  "remaining": "Build/deploy and verify public candidate and installed search paging. Other tools, provider token accounting, JSON envelopes and broader P0-4 remain unfinished.",
+  "remaining": "Selected search_memory budget contract delivered. Other tools, provider-specific token accounting, JSON envelope rollout and broader P0-4 remain unfinished. No general agent productivity or full original gate closure claimed.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111",
     "completed_test_fixtures_closed_and_removed": true,
@@ -92,6 +92,55 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\integration-cleanup.json",
       "sha256": "76fc670356d1f583de7c51513fafd3f0d69b771bf148dd4d2e2f86ccfaf1d7ce"
     },
-    "retained": "Failed and successful logs, source snapshots, helpers and interrupted fixture retained. Automatic approval review rejected cleanup of the exact interrupted owned fixture; no alternate deletion attempted."
+    "retained": "Failed and successful logs, source snapshots, helpers and interrupted fixture retained. Automatic approval review rejected cleanup of the exact interrupted owned fixture; no alternate deletion attempted.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-90d0ab79e17249dca5b96a1881b37797",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "a7409fe8f08e8ed401df3eb605e878a11c34bf3c",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-shipping-20261111.json",
+      "sha256": "48a714c6287949921aacdb52cad46c5f150bc64cdbba2d65fc9bc94d4dc1aff8"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\pair.json",
+      "sha256": "80618d996ef39e7348fd8eea083ca8a302210bd85e4e61ae2c8fd7b3af13368d"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\helper-review.json",
+      "sha256": "4bab67f655af422995c1ab9df6278ef71e07a40365fc817aa0694fbfef48f556"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\candidate\\acceptance.json",
+      "sha256": "a2b78c7ba5e0d3ae4a05fd3e0f3e6a0dc19951a31684b18302e8ea54f20219b4"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\installed\\acceptance.json",
+      "sha256": "9e9328b8d68a367461de00b4d2b34a0311ca1411c9170f2f61bbb7aa90d8a988"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\normal\\acceptance.json",
+      "sha256": "a4b09ee8243717fac90d3c543dfcd7a78e21115c08f8d50a15337b16842f96c9"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\release-gates.json",
+      "sha256": "89c1072003f7bee241bc3d4061d56eaaca98517d973be2b48cd8b926cef1f4bb"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-20261111\\install-result.json",
+      "sha256": "ff9c9c654ad5ed9f423434a7d4ac88040fb6e7770522d84b32587b0e00487668"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-search-response-budget-config-hold-20261111.json.released.json",
+      "sha256": "caabd672358d5b1201ac101349e772a3225c4692e4151fb289bba10872ea6d5d"
+    },
+    "server_sha256": "b5b9640c32ba2ef9e58c7383446888f5400671bae736f0416ef172c42ac0664c",
+    "manifest_sha256": "8f047035df7f50b91228fc174d86967841d92434d1358c0f1bd2cd8fc9837a32",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
   }
 }
