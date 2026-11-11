@@ -9956,7 +9956,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_CONTEXT_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4 specifically identifies unbounded access-layer contexts. Deliver optional complete-response budgets and recoverable explicit omissions for prepare_implementation_context in existing Markdown and JSON formats.",
       "observed_source_gap": "PrepareImplementationContextRequest has output_json but no max_tokens or paging. The handler renders complete method bodies, caller examples and dependency context without a whole-reply budget. Existing source checks, ambiguity refusal, dependency coverage/warnings and style-provider disclosures must survive budgeting.",
       "existing_evidence": [
@@ -9978,7 +9978,7 @@
       ],
       "constraints": "One selected tool; no generic snapshot store, new approval UI, graph/CodeMap/Blast improvements, broad audit, performance or sidecar project. Full P0-4 and broader accepted backlog remain open."
     },
-    "at_utc": "2026-11-11T21:25:30.721959+00:00",
+    "at_utc": "2026-11-11T21:39:22.884029+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10008,8 +10008,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 prepare_implementation_context complete response budgets and recovery",
-    "next_user_visible_deliverable": "A budgeted implementation context that retains target/coverage warnings and explicitly recovers omitted source/context.",
+    "active_original_item": "P0-4 implementation-context response contract delivered; advance the next unfinished original requirement.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10023,7 +10023,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: context response budget/recovery implemented and focused native/no-vector acceptance completed; public release acceptance pending.",
+    "previous_goal_turn_classification": "Progress: implementation-context reply budgets and exact typed-context reconstruction built, candidate/installed public source/policy acceptance passed, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12547,8 +12547,10 @@
       }
     },
     "p04_context_response_20261111": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "receipt": "eval\\p04-context-response-delivery-20261111.json"
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "receipt": "eval\\p04-context-response-delivery-20261111.json",
+      "source_commit": "d886cfe5939dbc3c2420a90852bc1fee66b6735b",
+      "installed_server_sha256": "9d431deba09054b840e99fc4841e68aeab18fac9fde79b11d28967b7bc5874f7"
     }
   }
 }
