@@ -1,0 +1,49 @@
+{
+  "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED",
+  "at_utc": "2026-11-11T14:47:48.768951+00:00",
+  "original_requirement": "S12: Missing/truncated managed records, missing ancestors/boundary and interrupted first migration fail safely.",
+  "demonstrated": "On the installed native-vector binary, deleting one required owned source ancestor after natural process closure causes public search_memory, get_chunk and incremental update to refuse without advancing the head or recreating authority. Explicit full repair publishes a parentless complete source; a third process recovers exact source bytes/hashes and matching native vector identities.",
+  "source_change_required": false,
+  "installed": {
+    "server_sha256": "280c362d042b6e3ae5936e5145a38849548adcba30605886288aa7a4fb086e3d",
+    "manifest_sha256": "ccdd3d091bd54484d05c294851854a39c7e9c3ae276c6932db61623eb607cab0",
+    "source_commit": "9acc772bc02957a13d4f32c115671de228dcbcec",
+    "existing_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\s10-public-job-cancellation-delivery-20261111.json",
+      "sha256": "8f0a92fd07d43859e81b46f86157a618c3cb15e234c0b643869d0f2c8b9b6258"
+    }
+  },
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111\\local\\acceptance.json",
+    "sha256": "ea2cc0baa76b791e3937a3b3977a6224f58a5013abf73278a0e2a6697a9d2e48"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111\\local\\source-oracle.json",
+    "sha256": "4a70e248750136613ea6532d32efde057b37d25fc295d79d0830f2f7486888ea"
+  },
+  "damage_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111\\local\\damage-evidence.json",
+    "sha256": "71ca3d56f0cf43a682059849e60a9a4564b4d007ae4ce70e903838b01cced4eb"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111\\verify-installed.py",
+    "sha256": "f98868b0c2f16e4b890d9c4f9e199bef6fdbfa64b958ac53474846733dd49f17"
+  },
+  "helper_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111\\helper-review.json",
+    "sha256": "f2a446d02d633d3f145b04c227c15b5c564d9de89959732758174496ae1c473a"
+  },
+  "retained_local_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111\\local-evidence-binding.json",
+    "sha256": "f3592a47c60cd32ed7c242b8d9ca712997f3cef23fd450b990d4b23c32465c1f"
+  },
+  "limits": "One current installed missing-ancestor witness with local vectors, not a no-vector executable or every S12 corruption combination. Historical matrices preserve failed batches and passing followups; some implementation files have changed since them, so their full current-package applicability is not claimed. No production data/configuration accessed or modified.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s12-installed-recovery-20261111",
+    "owned_processes": 3,
+    "natural_exits": 3,
+    "readers_and_handles_closed": true,
+    "owned_fixture_removed": true,
+    "retained": "Wire responses, source oracle, damaged-record evidence, reviewed helper and receipts retained for delivery provenance. No preexisting folders removed."
+  }
+}
