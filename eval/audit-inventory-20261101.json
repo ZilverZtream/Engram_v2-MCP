@@ -9956,9 +9956,9 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SELECTED_INSTALLED_GENERATOR_ACCEPTANCE",
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
       "original_requirement": "EG15-17: generated instruction ownership safety, complete root-overflow accounting, and preservation of manual/legacy scope and exceptions. These generator-specific requirements remain open after the bounded EG14 draft/QA handoff.",
-      "observed_missing_behavior": "Authoritative findings record shipped implementation and local publication/scope tests, but no feature-specific installed public acceptance or actual Claude consumer-loading acceptance. Verify those gaps on owned fixtures and fix only concrete failures; do not rerun completed EG14 drafting or widen its pilot.",
+      "observed_missing_behavior": "Installed public root-budget case preserved the authored CLAUDE.md but generated rules lost all 40 multiline exceptions. The existing renderer test bypassed the extractor by constructing multiline CriticalRule objects directly. Repair complete bullet extraction and validate the same authored input through candidate and installed public tools.",
       "existing_evidence": [
         "eval/eg14-draft-delivery-20261111.json",
         "eval/audit-inventory-20261101.json EG15/16/17 and peer_refresh_publication_recovery_cutoff_and_delivery_20261103",
@@ -9967,10 +9967,8 @@
         "crates/engram_server/src/services/generated_files.rs"
       ],
       "implementation_files": [
-        "crates/engram_server/src/handlers/cognitive_tools.rs",
-        "crates/engram_server/src/services/produce_claude_md_service.rs and instruction_plan.rs",
-        "crates/engram_server/src/services/generated_files.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs; change only if public behavior fails the original requirement"
+        "crates/engram_server/src/services/produce_claude_md_service.rs",
+        "crates/engram_server/tests/claude_md_contract_tests.rs (correct stale blocked-parent expectation)"
       ],
       "finite_acceptance": [
         "Use installed produce_claude_md and generate_agent_integration in owned private projects. Compare returned/written paths, hashes and delivery counts against filesystem bytes and independently authored rules/exceptions; preview must not publish.",
@@ -10013,7 +10011,7 @@
       }
     ],
     "active_original_item": "EG15-17 generator ownership, overflow and scope: installed public/consumer acceptance",
-    "next_user_visible_deliverable": "Verified generated policy publication preserving human files and complete scoped exceptions, with truthful overflow/recovery and consumer-loading evidence.",
+    "next_user_visible_deliverable": "Generated root/overflow guidance preserves authored multiline exceptions; validate and deploy the reproduced EG16/17 fix.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10027,7 +10025,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: page-context release676.6s passed; candidate/installed exact four-handler/150-control recovery passed, normal generation3147 retained, evidence7e9c003 pushed. Advancing remaining original generator acceptance.",
+    "previous_goal_turn_classification": "progress: inspected installed failing root-overflow evidence, completed publication suite, implemented complete authored-rule extraction and started focused regression validation",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12580,8 +12578,10 @@
       "delivery_commit": "7e9c00369abef1d32912628359d4762b153d83f6"
     },
     "eg15_eg17_installed_20261111": {
-      "status": "SELECTED_INSTALLED_GENERATOR_ACCEPTANCE",
-      "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\execution-state.json"
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\execution-state.json",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg15-eg17-installed-20261111\\root-baseline\\acceptance.json",
+      "receipt": "eval/eg15-eg17-generator-delivery-20261111.json"
     }
   }
 }
