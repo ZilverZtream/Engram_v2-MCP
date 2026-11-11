@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T19:59:04.478955+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T20:15:08.730693+00:00",
   "original_requirement": "TODO P1-12 remaining ADP Gate1 consumption of extraction-confidence metadata.",
   "implemented": "Gate1 consumes selected-source confidence from semantic outgoing edges including method nodes. Minimum score and explicit incomplete coverage govern the gate; bounded witnesses appear in text, JSON and immutable decision reports. Higher caller scores cannot replace missing evidence or raise the minimum. Lower caller scores can deny; no-target legacy input retained.",
   "demonstrated_failure": {
@@ -78,10 +78,435 @@
     "crates/engram_server/tests/handler_project_id_validation_tests.rs": "205c12ec4fd490748b108582e6a9a1dcee9e78bec769a5e37de948446c398b7b",
     "crates/engram_server/tests/integration_test.rs": "8f781daafe5ee9c7cad8ec38ec50355d1f63c8522ef08a5d66eb0bdca5c00876"
   },
-  "remaining": "Build and verify public candidate/installed evidence against independent Rust source, deploy and advance. Confidence does not establish parser recall, working-tree freshness, runtime correctness or overall edit safety.",
+  "remaining": "Selected original P1-12 ADP Gate1 consumption delivered. Other original requirements remain open; producer scores do not establish parser recall, working-tree freshness, runtime correctness or complete edit safety.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111",
     "test_and_baseline_fixtures_closed_and_removed": true,
-    "retained": "Baseline, logs, helpers and review retained as delivery evidence. Preexisting copies and policy-rejected cleanup fixture untouched."
+    "retained": "Baseline, logs, helpers and review retained as delivery evidence. Preexisting copies and policy-rejected cleanup fixture untouched.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-63c7fdcb8625431da1abe1064b5bf8fd",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "a9b357d60406ab737c24d318625d6fdf6e543ba1",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-shipping-20261111.json",
+      "sha256": "275a492fced142492d8216ad68397bc1ae38a25a08cf46c764f0778e56115c9e"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\pair.json",
+      "sha256": "5c55ae586912e99eb4bcc6770ca34aa57abef91f32c7ec17f618b0f95398308b"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\helper-review.json",
+      "sha256": "dfb6b067dc0e0c45a27b82bae10838f78d72b55598547654fdbf0dcc07b4156b"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\candidate\\acceptance.json",
+      "sha256": "bfc1c468466e8f821756b8786c8efe0dc82244443a2d806a705bcb62ba50f95a"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\installed\\acceptance.json",
+      "sha256": "3b2743cecd4a8952424c8f3745b2300a78ea127a7067032b8a762336e597ebe6"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\normal\\acceptance.json",
+      "sha256": "7a5370a1e139ff8a4b611e2f4cb11c021cdf3478ac2cb0254d2921bccf0eebcd"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\release-gates.json",
+      "sha256": "da27c13a9cfab39dfa4de488840af221602f98ad518ff91d24e11828eb3ab098"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\install-result.json",
+      "sha256": "1268235d904f970f8c724b7029aac3ff71803365ef8cfdcdb2883eeb960c2211"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-config-hold-20261111.json.released.json",
+      "sha256": "1750fdf56de3f04ae90325ceb94dea1075c3cccc0dd8f3d2dce19e0ced35cc1a"
+    },
+    "server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769",
+    "manifest_sha256": "f4ac63b7b6ede5fcadd9c4cea8532bf8459654002d8e4683a2d2456fa6b81d49",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "demonstrated_before_after": {
+    "before": [
+      {
+        "path": "src/resolved.rs",
+        "gate": {
+          "gate_id": "extraction_confidence",
+          "gate_name": "Extraction Confidence",
+          "passed": false,
+          "confidence": 0.0,
+          "detail": "No extraction confidence data provided",
+          "skipped": true
+        },
+        "override_gate": {
+          "gate_id": "extraction_confidence",
+          "gate_name": "Extraction Confidence",
+          "passed": true,
+          "confidence": 0.99,
+          "detail": "Extraction confidence 0.99 >= threshold 0.70 (band: high)",
+          "skipped": false
+        }
+      },
+      {
+        "path": "src/unknown.rs",
+        "gate": {
+          "gate_id": "extraction_confidence",
+          "gate_name": "Extraction Confidence",
+          "passed": false,
+          "confidence": 0.0,
+          "detail": "No extraction confidence data provided",
+          "skipped": true
+        },
+        "override_gate": {
+          "gate_id": "extraction_confidence",
+          "gate_name": "Extraction Confidence",
+          "passed": true,
+          "confidence": 0.99,
+          "detail": "Extraction confidence 0.99 >= threshold 0.70 (band: high)",
+          "skipped": false
+        }
+      }
+    ],
+    "after": {
+      "candidate": {
+        "resolved": {
+          "verdict": "Abstain",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 1,
+              "nodes_checked": 4,
+              "edges_checked": 2,
+              "scored_edges": 2,
+              "unscored_edges": 0,
+              "minimum_confidence": 0.9,
+              "complete": true,
+              "gaps": [],
+              "witnesses": [
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:first:1",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                },
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:second:2",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                }
+              ],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": true,
+            "confidence": 0.9,
+            "detail": "Observed semantic-edge confidence: minimum Some(0.9); effective Some(0.9); threshold 0.70; scored 2/2; coverage complete_within_declared_scope. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": false
+          }
+        },
+        "unknown": {
+          "verdict": "Abstain",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 1,
+              "nodes_checked": 2,
+              "edges_checked": 1,
+              "scored_edges": 0,
+              "unscored_edges": 1,
+              "minimum_confidence": null,
+              "complete": false,
+              "gaps": [
+                "Some semantic edges lack valid confidence or selected endpoint revisions; inspect witnesses and refresh/recover evidence."
+              ],
+              "witnesses": [
+                {
+                  "source": "sym:function:src/unknown.rs:unresolved:1",
+                  "target": "::missing_dependency",
+                  "kind": "calls",
+                  "confidence": null,
+                  "resolution": null,
+                  "issue": "missing_or_invalid_confidence"
+                }
+              ],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": false,
+            "confidence": 0.0,
+            "detail": "Observed semantic-edge confidence: minimum None; effective Some(0.99); threshold 0.70; scored 0/1; coverage incomplete. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": true
+          }
+        },
+        "lowered": {
+          "verdict": "Deny",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 1,
+              "nodes_checked": 4,
+              "edges_checked": 2,
+              "scored_edges": 2,
+              "unscored_edges": 0,
+              "minimum_confidence": 0.9,
+              "complete": true,
+              "gaps": [],
+              "witnesses": [
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:first:1",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                },
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:second:2",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                }
+              ],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": false,
+            "confidence": 0.2,
+            "detail": "Observed semantic-edge confidence: minimum Some(0.9); effective Some(0.2); threshold 0.70; scored 2/2; coverage complete_within_declared_scope. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": false
+          }
+        },
+        "absent": {
+          "verdict": "Abstain",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 0,
+              "nodes_checked": 0,
+              "edges_checked": 0,
+              "scored_edges": 0,
+              "unscored_edges": 0,
+              "minimum_confidence": null,
+              "complete": false,
+              "gaps": [
+                "file_not_indexed: absent.rs",
+                "no_semantic_edge_evidence: graph density or a missing edge is not extraction confidence"
+              ],
+              "witnesses": [],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": false,
+            "confidence": 0.0,
+            "detail": "Observed semantic-edge confidence: minimum None; effective Some(0.99); threshold 0.70; scored 0/0; coverage incomplete. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": true
+          }
+        },
+        "legacy": {
+          "verdict": "Abstain",
+          "gate": {
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": true,
+            "confidence": 0.99,
+            "detail": "Extraction confidence 0.99 >= threshold 0.70 (band: high)",
+            "skipped": false
+          }
+        }
+      },
+      "installed": {
+        "resolved": {
+          "verdict": "Abstain",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 1,
+              "nodes_checked": 4,
+              "edges_checked": 2,
+              "scored_edges": 2,
+              "unscored_edges": 0,
+              "minimum_confidence": 0.9,
+              "complete": true,
+              "gaps": [],
+              "witnesses": [
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:first:1",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                },
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:second:2",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                }
+              ],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": true,
+            "confidence": 0.9,
+            "detail": "Observed semantic-edge confidence: minimum Some(0.9); effective Some(0.9); threshold 0.70; scored 2/2; coverage complete_within_declared_scope. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": false
+          }
+        },
+        "unknown": {
+          "verdict": "Abstain",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 1,
+              "nodes_checked": 2,
+              "edges_checked": 1,
+              "scored_edges": 0,
+              "unscored_edges": 1,
+              "minimum_confidence": null,
+              "complete": false,
+              "gaps": [
+                "Some semantic edges lack valid confidence or selected endpoint revisions; inspect witnesses and refresh/recover evidence."
+              ],
+              "witnesses": [
+                {
+                  "source": "sym:function:src/unknown.rs:unresolved:1",
+                  "target": "::missing_dependency",
+                  "kind": "calls",
+                  "confidence": null,
+                  "resolution": null,
+                  "issue": "missing_or_invalid_confidence"
+                }
+              ],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": false,
+            "confidence": 0.0,
+            "detail": "Observed semantic-edge confidence: minimum None; effective Some(0.99); threshold 0.70; scored 0/1; coverage incomplete. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": true
+          }
+        },
+        "lowered": {
+          "verdict": "Deny",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 1,
+              "nodes_checked": 4,
+              "edges_checked": 2,
+              "scored_edges": 2,
+              "unscored_edges": 0,
+              "minimum_confidence": 0.9,
+              "complete": true,
+              "gaps": [],
+              "witnesses": [
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:first:1",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                },
+                {
+                  "source": "sym:function:src/resolved.rs:caller:3",
+                  "target": "sym:function:src/resolved.rs:second:2",
+                  "kind": "calls",
+                  "confidence": 0.9,
+                  "resolution": "batch_same_file",
+                  "issue": null
+                }
+              ],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": false,
+            "confidence": 0.2,
+            "detail": "Observed semantic-edge confidence: minimum Some(0.9); effective Some(0.2); threshold 0.70; scored 2/2; coverage complete_within_declared_scope. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": false
+          }
+        },
+        "absent": {
+          "verdict": "Abstain",
+          "gate": {
+            "extraction_evidence": {
+              "generation": 1,
+              "files_requested": 1,
+              "files_checked": 0,
+              "nodes_checked": 0,
+              "edges_checked": 0,
+              "scored_edges": 0,
+              "unscored_edges": 0,
+              "minimum_confidence": null,
+              "complete": false,
+              "gaps": [
+                "file_not_indexed: absent.rs",
+                "no_semantic_edge_evidence: graph density or a missing edge is not extraction confidence"
+              ],
+              "witnesses": [],
+              "witnesses_omitted": 0,
+              "scope": "Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety."
+            },
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": false,
+            "confidence": 0.0,
+            "detail": "Observed semantic-edge confidence: minimum None; effective Some(0.99); threshold 0.70; scored 0/0; coverage incomplete. Caller scores cannot raise the observed minimum or supply missing graph coverage. Producer-reported confidence for observed outgoing semantic edges of exact target files at the named source selection. Membership edges and historical associations are excluded. This does not measure missing-edge recall, working-tree freshness, runtime behavior or overall edit safety.",
+            "skipped": true
+          }
+        },
+        "legacy": {
+          "verdict": "Abstain",
+          "gate": {
+            "gate_id": "extraction_confidence",
+            "gate_name": "Extraction Confidence",
+            "passed": true,
+            "confidence": 0.99,
+            "detail": "Extraction confidence 0.99 >= threshold 0.70 (band: high)",
+            "skipped": false
+          }
+        }
+      }
+    },
+    "interpretation": "The original gap was Gate1 ignoring graph producer evidence, not an observed overall unsafe edit allowance. Baseline overall verdicts were Abstain. Resolved local Rust calls now pass Gate1 with producer confidence0.90 and two exact caller/target witnesses; missing targets stay incomplete despite caller0.99; caller0.20 lowers the resolved score and denies. Other gates still decide overall edit readiness.",
+    "oracle_correction": "Before public execution, reviewed parser and producer source corrected the verifier from assumed1.0 to the existing batch_same_file0.90 contract. No product source changed."
   }
 }

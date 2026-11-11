@@ -9950,7 +9950,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_P112_ADP_CONFIDENCE_CONSUMPTION",
       "original_requirement": "TODO P1-12: consume extraction confidence metadata in ADP Gate1, rather than treating weakly resolved and verified relationships alike.",
       "selected_tool": "autonomous_decision_gate extraction-confidence evidence",
       "observed_source_gap": "Installed3ad27e42 skipped Gate1 for three independently authored indexed targets. The separate SQL confidence call returned0.685 for the C# SQL source. Current orchestration inspects only six file-node adjacency counts, derives0.55..0.95 from their presence and ignores method-edge confidence metadata. The baseline overall Allow was shadow-mode policy, not evidence of enforced allowance.",
@@ -9968,7 +9968,7 @@
       ],
       "remaining_scope": "Producer scores do not establish parser recall, runtime behavior, working-tree freshness or overall edit safety. Broader P0-4, EG14 and original backlog remain open."
     },
-    "at_utc": "2026-11-11T19:59:04.478955+00:00",
+    "at_utc": "2026-11-11T20:15:08.730693+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9998,8 +9998,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P1-12 ADP consumption of extraction-confidence evidence",
-    "next_user_visible_deliverable": "ADP Gate1 distinguishes weak/unknown edge evidence from verified producer confidence instead of graph density.",
+    "active_original_item": "P1-12 ADP confidence consumption delivered; advance the next original requirement.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10013,7 +10013,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: ADP producer-confidence consumption implemented and focused native/no-vector checks passed; public acceptance and deployment pending.",
+    "previous_goal_turn_classification": "Progress: ADP confidence consumption built, candidate and installed public evidence verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12443,8 +12443,10 @@
       "status": "OBSERVED_GATE1_INPUTS"
     },
     "p112_adp_confidence_20261111": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "receipt": "eval\\p112-adp-confidence-delivery-20261111.json"
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "receipt": "eval\\p112-adp-confidence-delivery-20261111.json",
+      "source_commit": "a9b357d60406ab737c24d318625d6fdf6e543ba1",
+      "installed_server_sha256": "6323ad5928be36b64e44aee986174f5e223b6d1d9bc01e10946e6b782a805769"
     }
   }
 }
