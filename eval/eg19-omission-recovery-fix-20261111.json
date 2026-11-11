@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_RELEASE_PENDING",
-  "at_utc": "2026-11-11T08:26:36.884992+00:00",
+  "status": "DEPLOYED_VERIFIED",
+  "at_utc": "2026-11-11T08:58:44.139885+00:00",
   "requirement": "EG19 bounded decision-aware review must make omitted prior-summary evidence recoverable without implying authority or suppressing findings.",
   "observed_before": {
     "review_response": {
@@ -44,9 +44,56 @@
     "sha256": "66a4f1d78f5b549940597a9ce1df5149e5490badda48656f97974c8f4aa99cba"
   },
   "deployment": {
-    "installed": false,
-    "build_label": "eg19-omission-recovery-shipping-20261111",
-    "next": "Build existing release target, deploy full package with unchanged sidecar, and execute returned omission action for actual PR2053:34068 against the predeployment stored-summary oracle."
+    "installed": true,
+    "source_commit": "355fdc5f07e1283d45d16ff06a04e3314911f6c4",
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\pair.json",
+      "sha256": "8fbc49da4792e4cd2ec2a0b9425112e152bf14464b9c898900912435e7d55ecc"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-shipping-20261111.json",
+      "sha256": "97cc6c74bd5b75b5a281a46ebbae3050d0970c2bcc2eee50607c0619259f3a23"
+    },
+    "candidate_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\candidate\\acceptance.json",
+      "sha256": "49a2e4bcd859e5013bb26f98a004629e945e0e42baae7c54ab888f085cdc8dbf"
+    },
+    "normal_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\normal\\acceptance.json",
+      "sha256": "60a89ac639029f26c9d8139de384df1b1b791ce7a34115bec66a0c4a649e009e"
+    },
+    "installer_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\install-validation.json",
+      "sha256": "c4d07a331db836e8c2390ecd7fbc39e26594735a9c6fa82eb5b88c697103d367"
+    },
+    "installer_result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\install-result.json",
+      "sha256": "1f638d360b25edc7f6e35af044ed477fc18e92519ec93e556746293cff1c04e2"
+    },
+    "deployment_script_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111\\deployment-review.json",
+      "sha256": "b57a8a4e89bd6c83cc4564bac5eb01c463e19daa32c72ba55f4ae504431e3b1b"
+    },
+    "configuration_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-config-hold-20261111.json.released.json",
+      "sha256": "49c7d02fc22cd12d30839525aa3060aa0ea66d0750a61cb223179098fcbfbe7d"
+    },
+    "configuration_bytes_unchanged": true,
+    "normal_primary_pid": "73588",
+    "checks": [
+      {
+        "path": "review:PR-2053:34068",
+        "bytes": 1611,
+        "raw_hash": "blake3-raw-utf8:17649f9acb9f754da4980556cdccfc9a496639f259c5e09c0271e6ad8a6c92ad",
+        "pages": 1,
+        "exact_predeployment_summary": true,
+        "policy_and_findings_unchanged": true,
+        "automatic_finding_suppression": false,
+        "context_bytes": 15893,
+        "scope": "Stored legacy summary only. Review gates skipped for this delivery check; existing tests cover findings preservation."
+      }
+    ],
+    "unchanged_native_sidecar_assets": 214
   },
   "limits": [
     "Recovery does not reconstruct missing original discussion or authenticate authority.",
@@ -55,6 +102,15 @@
   ],
   "resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg19-omission-recovery-20261111",
-    "retention": "Retain tests/review/baseline/delivery evidence for delivery review; red-temp and green-temp roots empty, fixture teardown passed. Normal installed service remains available; no preexisting folders deleted."
+    "retention": "Retain source/test/review/baseline/deployment evidence and candidate package for delivery review. Test fixture roots empty. Build-owned temporary directory and candidate tmp removed; candidate exited naturally and handles closed. Normal service restored and read-only configuration hold released. No preexisting folders deleted.",
+    "retained_installed_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9509d1c7a9ea48eaa6d64030a8e76536",
+    "installer_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9509d1c7a9ea48eaa6d64030a8e76536.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9509d1c7a9ea48eaa6d64030a8e76536.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9509d1c7a9ea48eaa6d64030a8e76536.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9509d1c7a9ea48eaa6d64030a8e76536.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-9509d1c7a9ea48eaa6d64030a8e76536.04-committed-no-start.json"
+    ],
+    "backup_cleanup_condition": "Retain full previous package and journals pending exact-path approval; no automatic deletion."
   }
 }

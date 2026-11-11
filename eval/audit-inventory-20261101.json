@@ -733,7 +733,8 @@
       "latest_standalone_discovery_source": "execution_evidence_20261101.eg19_standalone_decision_discovery_source_applied_20261103",
       "latest_standalone_discovery_native_behavior": "execution_evidence_20261101.native_standalone_decisions_foreground_and_server_process_behavior_20261104",
       "latest_full_discussion_source": "execution_evidence_20261101.eg19_full_discussion_v3_source_applied_20261104",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "current_installed_omission_recovery": "execution_evidence_20261101.eg19_omission_recovery_delivery_20261111"
     },
     {
       "id": "EG-20",
@@ -9845,27 +9846,34 @@
         "No new source mutation or deep-path fixture execution; existing immutable/mutation and Windows-path evidence is separate.",
         "JSON and Markdown are distinct planning captures, not a claim of deterministic identical candidates."
       ]
+    },
+    "eg19_omission_recovery_delivery_20261111": {
+      "status": "DEPLOYED_VERIFIED",
+      "receipt": "eval/eg19-omission-recovery-fix-20261111.json",
+      "source_commit": "355fdc5f07e1283d45d16ff06a04e3314911f6c4",
+      "behavior": "Installed OciusX omission for PR2053:34068 now supplies exact get_chunk citation recovery; all1611 stored bytes equal predeployment oracle. Context15893B<=16384. Public6-case suite verifies continuation, stale same-ID refusal and unchanged current findings.",
+      "limits": "Stored summaries do not reconstruct uncaptured legacy discussion; authority/current revision applicability and full EG19 remain unestablished."
     }
   },
   "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG19: bounded relevant prior rulings retain scope, decision evidence and revision applicability; findings stay visible and materially changed code never inherits blanket suppression.",
-      "current_missing_behavior": "Actual installed OciusX prior_review_context omits indexed PR2053 threads34040/34068 under serialized_response_budget with only review_id/path/reason. Exact doc_id/hash/recovery is discarded, so generic get_review_precedents requires a fresh relevance search rather than recovering the selected omitted stored summary.",
+      "original_requirement": "EG20/EG21: capability-aware natural-language history routing, preserved historical cutoffs, caller-controlled rerank budget and truthful ranking-tier disclosure.",
+      "current_missing_behavior": "Original local native/no-vector routing/budget evidence exists; feature-specific current installed routing/latency acceptance remains open. Inspect current implementation and one real history query against independent Git evidence; fix only a demonstrated gap.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/review_tools/prior_context.rs",
-        "crates/engram_server/tests/review_prior_context_tests.rs"
+        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/tests/search_history_cutoff_test.rs"
       ],
       "finite_acceptance": [
-        "Budget-omitted indexed prior-review records offer an executable exact get_chunk citation action with the captured stored-content hash.",
-        "Follow the returned action through any continuation to recover complete stored summary bytes; original legacy discussion remains explicitly unavailable, not reconstructed.",
-        "The prior-review context remains within16KiB and findings stay visible; scope/revision applicability and automatic-suppression limits remain explicit.",
-        "Test desired behavior before/after, review changes, then release and verify the actual installed OciusX omitted-summary recovery before advancing history routing."
+        "A real long natural-language history query returns usable supported results or a clear capability response.",
+        "Caller zero-rerank budget avoids reranking and reports the actual fallback tier; recorded request timing is kept separate from provider timeout guarantees.",
+        "Requested historical revision/cutoff and filters hold against independent Git ancestry/date evidence.",
+        "Retain native/no-vector and slow-provider local tests as separate evidence; implement a concrete failure if found, verify deployed behavior, then advance tool presets."
       ],
-      "previous_delivery": "eval/eg02-installed-recovery-delivery-20261111.json"
+      "previous_delivery": "eval/eg19-omission-recovery-fix-20261111.json"
     },
-    "at_utc": "2026-11-11T08:26:36.884992+00:00",
-    "reason": "Exact omitted-summary recovery implemented after public RED failure; full6-case prior-review suite passes, fixtures empty, parent source review complete. Release/deployment remains required.",
+    "at_utc": "2026-11-11T08:58:44.139885+00:00",
+    "reason": "EG19 exact omitted-summary recovery released, package installed and normal service verified against predeployment OciusX summary bytes. Finite delivery complete; advance original history-routing/budget work.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9894,12 +9902,12 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG19 omitted-summary recovery: finish release and actual installed OciusX recovery verification.",
-    "next_user_visible_deliverable": "Agent follows the exact omitted PR2053:34068 summary citation and recovers predeployment hash-bound bytes.",
+    "active_original_item": "EG20/EG21: current installed history routing, cutoff and rerank-budget delivery.",
+    "next_user_visible_deliverable": "Usable history evidence with honest capability/ranking-tier disclosure and preserved caller cutoff/budget.",
     "following_original_items": [
-      "EG02/EG12 bounded change-set delivery and exact recovery",
-      "EG19 decision-aware review; EG20/21 history; EG18 tool presets",
-      "Remaining accepted indexing/reliability and EG24/25 verification requirements; original partial states retained"
+      "EG18 dependency-complete tool presets",
+      "Remaining accepted indexing/reliability requirements",
+      "EG24/25 regular real-task verification and matched benefit; original partial states retained"
     ],
     "parked_supporting_work": [
       "EG26 catalog/schema expansion",
@@ -9910,7 +9918,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: real omission gap isolated, failing public regression reproduced, production fix implemented,6-case suite passed with zero fixture leftovers; release pending.",
+    "previous_goal_turn_classification": "Progress: release27m26s passed with stable inputs, complete package installed, candidate and normal recovery passed, service restored and owned build/candidate temporaries cleaned.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12167,19 +12175,19 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "original_requirement": "EG02/EG12: entire change-set delivery stays bounded, preserves reconciliation identities, and recovers exact immutable bytes under Windows paths.",
-      "current_missing_behavior": "Original item leaves installed recovery acceptance open. Reuse the just-captured two real planning responses and retained Windows/mutation local evidence; reconcile mandatory identities and whole serialized response bounds before deciding if any gap remains.",
+      "original_requirement": "EG19: bounded relevant prior rulings retain scope, decision evidence and revision applicability; findings stay visible and materially changed code never inherits blanket suppression.",
+      "current_missing_behavior": "Actual installed OciusX prior_review_context omits indexed PR2053 threads34040/34068 under serialized_response_budget with only review_id/path/reason. Exact doc_id/hash/recovery is discarded, so generic get_review_precedents requires a fresh relevance search rather than recovering the selected omitted stored summary.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/change_set_delivery.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs"
+        "crates/engram_server/src/handlers/review_tools/prior_context.rs",
+        "crates/engram_server/tests/review_prior_context_tests.rs"
       ],
       "finite_acceptance": [
-        "For both captured JSON and Markdown responses, every full serialized RPC response fits the declared bound, and paged UTF-8 recovery matches original bytes/BLAKE3.",
-        "Mandatory reconciliation/checkpoint identities and omission counts survive the bounded manifest and match recovered content.",
-        "Retain exact immutable-after-change and deep Windows path local evidence; do not claim fresh source-mutation or long-path execution from these live captures.",
-        "Fix a demonstrated gap; otherwise record installed delivery once and advance decision-aware review."
+        "Budget-omitted indexed prior-review records offer an executable exact get_chunk citation action with the captured stored-content hash.",
+        "Follow the returned action through any continuation to recover complete stored summary bytes; original legacy discussion remains explicitly unavailable, not reconstructed.",
+        "The prior-review context remains within16KiB and findings stay visible; scope/revision applicability and automatic-suppression limits remain explicit.",
+        "Test desired behavior before/after, review changes, then release and verify the actual installed OciusX omitted-summary recovery before advancing history routing."
       ],
-      "previous_delivery": "eval/eg01-installed-policy-delivery-20261111.json"
+      "previous_delivery": "eval/eg02-installed-recovery-delivery-20261111.json"
     }
   }
 }
