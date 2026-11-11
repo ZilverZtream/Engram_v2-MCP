@@ -739,32 +739,34 @@
     {
       "id": "EG-20",
       "finding": "Automatic history routing without vectors",
-      "ledger_disposition": "Locally verified history routing in shipped lineage; deployed routing acceptance remains open",
+      "ledger_disposition": "Finite installed routing/cutoff/budget and capability-label delivery verified; original broader gate limits retained",
       "existing_evidence_and_next_gate": "Exercise long natural-language queries in a no-vector build; require supported fallback or a clear capability response, preserving historical cutoffs.",
       "required_behavior": [
         "A long natural-language history query works in a no-vector build through a supported fallback or clear capability result.",
         "Automatic routing preserves historical reachability/cutoffs; static suspicion is not a reproduced defect."
       ],
-      "closure_state": "Local desired behavior verified:8publichistorycases pass both native and actual no-vector build. Explicit lexicalfallback preserves requested first-parent cutoff and filters, longprose auto routing works. Implementation included in deployed79c lineage; original review and feature-specific deployed routing acceptance remain open.",
+      "closure_state": "Current native8 history cases pass serially; retained actual no-vector routing and slow-provider budget/cancellation tests remain separate. Installed matching long query, parent revision/path/date exclusions and indexed text recovery verified. Zero rerank budget does not bound baseline retrieval (40.49s observed); no ranking quality or end-to-end latency improvement claim. No full19 storage-gate closure.",
       "dependencies": [],
-      "implementation_state": "Implemented locally and behavior verified; no deployment.",
+      "implementation_state": "Deployed source1440722, installed2c4d170f/c2aaeb81 pair; public OciusX matching/exclusion history acceptance and corrected text capability label verified.",
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json"
     },
     {
       "id": "EG-21",
       "finding": "Caller-controlled history reranking latency",
-      "ledger_disposition": "Locally verified latency budget behavior in shipped lineage; deployed workload acceptance remains open",
+      "ledger_disposition": "Finite installed routing/cutoff/budget and capability-label delivery verified; original broader gate limits retained",
       "existing_evidence_and_next_gate": "A slow/unavailable reranker must permit bounded-latency useful fallback with an accurate ranking-tier disclosure.",
       "required_behavior": [
         "Caller controls rerank latency; slow/unavailable ranking returns useful fallback inside the chosen budget.",
         "Results disclose the ranking tier actually used and preserve historical cutoffs."
       ],
-      "closure_state": "Local budget behavior verified:caller0..90000ms,zero/disabledlazy skip,timeout dropspendingproviderfuture andretainsfullbaseline,invalid/providererrorfallback, accurateactualbaselinetier; publicinvalidbudget/zero native+no-vector pass. Implementation included in deployed79c lineage; full feature-specific deployed workload/latency checks remain open.",
+      "closure_state": "Current native8 history cases pass serially; retained actual no-vector routing and slow-provider budget/cancellation tests remain separate. Installed matching long query, parent revision/path/date exclusions and indexed text recovery verified. Zero rerank budget does not bound baseline retrieval (40.49s observed); no ranking quality or end-to-end latency improvement claim. No full19 storage-gate closure.",
       "dependencies": [],
-      "implementation_state": "Implemented locally and behavior verified; no deployment.",
+      "implementation_state": "Deployed source1440722, installed2c4d170f/c2aaeb81 pair; public OciusX matching/exclusion history acceptance and corrected text capability label verified.",
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json"
     },
     {
       "id": "EG-22",
@@ -3102,7 +3104,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
+        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -9853,27 +9855,49 @@
       "source_commit": "355fdc5f07e1283d45d16ff06a04e3314911f6c4",
       "behavior": "Installed OciusX omission for PR2053:34068 now supplies exact get_chunk citation recovery; all1611 stored bytes equal predeployment oracle. Context15893B<=16384. Public6-case suite verifies continuation, stale same-ID refusal and unchanged current findings.",
       "limits": "Stored summaries do not reconstruct uncaptured legacy discussion; authority/current revision applicability and full EG19 remain unestablished."
+    },
+    "eg20_history_installed_delivery_20261111": {
+      "receipt": "eval/eg20-history-capability-delivery-20261111.json",
+      "source_commit": "14407223a2fc3bf365a3ae758c28b2c2a3a8aa9c",
+      "status": "DEPLOYED_VERIFIED",
+      "checks": "Native8pass; actual installed source-backed long-query/exclusions; candidate+normal corrected capability label with known change; stored state preserved.",
+      "limits": [
+        "Zero rerank budget does not bound baseline retrieval: real matching precedent request took 40.49 seconds. No end-to-end latency or ranking-quality improvement claimed.",
+        "The fully filtered indexed text query returned no hits; the same natural-language precedent query returned the Git-backed change. A broader indexed text query returned that change at rank2.",
+        "No live slow-provider fault injection or installed no-vector configuration change; retained local tests establish those separate behaviors.",
+        "No storage/index/sidecar changes and no closure claim for the original full19 gates."
+      ]
     }
   },
-  "last_updated_at": "2026-11-08T14:48:33.269404+00:00",
+  "last_updated_at": "2026-11-11T09:37:51.589264+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "original_requirement": "EG20/EG21: capability-aware natural-language history routing, preserved historical cutoffs, caller-controlled rerank budget and truthful ranking-tier disclosure.",
-      "current_missing_behavior": "Installed long-query routing returns the independently identified OciusX change and excludes it at its parent revision and excluded path. Concrete remaining defect: text-mode header unconditionally claims fused lexical+vector ranking when semantic_quality is Off (fts_only or no-vector build). Correct capability disclosure, extend the existing public short-query acceptance, and verify installed behavior after release. Preserve the existing finite history scope.",
+      "original_requirement": "EG18: limited MCP discovery permits project selection and exact citation/context recovery; Full remains default with OciusX/.NET capabilities.",
+      "current_missing_behavior": "Retained actual-MCP native/no-vector and scoped review evidence already exists. Installed binary under a real Core configuration has not completed the finite discovery/recovery chain. No new preset implementation indicated.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/git_tools.rs",
-        "crates/engram_server/tests/search_history_cutoff_test.rs"
+        "crates/engram_server/src/tool_surface.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_core/src/config.rs"
       ],
       "finite_acceptance": [
-        "A real long natural-language history query returns usable supported results or a clear capability response.",
-        "Caller zero-rerank budget avoids reranking and reports the actual fallback tier; recorded request timing is kept separate from provider timeout guarantees.",
-        "Requested historical revision/cutoff and filters hold against independent Git ancestry/date evidence.",
-        "Retain native/no-vector and slow-provider local tests as separate evidence; implement a concrete failure if found, verify deployed behavior, then advance tool presets."
+        "Installed Core session advertises current32 tools with usable schemas and initialization guidance.",
+        "Discover OciusX, follow returned stored code citation and memory-section action through advertised tools; compare exact identities, ranges and hashes.",
+        "Follow one returned current-source action and compare source bytes/hash independently.",
+        "Keep local lifecycle/review-recovery evidence separate; do not mutate production indexing or memory.",
+        "Normal Full session preserves Core schemas and existing .NET capabilities. Close owned runtime/config and preserve project data; empty branches remain unproven."
       ],
-      "previous_delivery": "eval/eg19-omission-recovery-fix-20261111.json"
+      "previous_delivery": "eval/eg20-history-capability-delivery-20261111.json",
+      "prepared_verifier": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\verify-installed-core.py",
+        "sha256": "3a05f60488ed9b81efd6ecbadba7263dbc4fb5463e98e03da98300a000e3b6e1"
+      },
+      "verifier_review": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg18-installed-20261111\\parent-review.json",
+        "sha256": "e626b8660b66bb98bcc2abd61ec2c9e3623705bd472e577923a83b9924510eef"
+      }
     },
-    "at_utc": "2026-11-11T08:58:44.139885+00:00",
-    "reason": "EG19 exact omitted-summary recovery released, package installed and normal service verified against predeployment OciusX summary bytes. Finite delivery complete; advance original history-routing/budget work.",
+    "at_utc": "2026-11-11T09:37:51.589264+00:00",
+    "reason": "EG20/21 finite installed history acceptance and concrete capability-label fix delivered. Advance original Core preset dependency closure.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -9902,10 +9926,9 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG20/EG21: current installed history routing, cutoff and rerank-budget delivery.",
-    "next_user_visible_deliverable": "Usable history evidence with honest capability/ranking-tier disclosure and preserved caller cutoff/budget.",
+    "active_original_item": "EG18: installed Core preset discovery and evidence recovery.",
+    "next_user_visible_deliverable": "An installed Core client can discover the project and follow returned stored/current evidence actions using its advertised tools.",
     "following_original_items": [
-      "EG18 dependency-complete tool presets",
       "Remaining accepted indexing/reliability requirements",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
     ],
@@ -9918,7 +9941,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: release27m26s passed with stable inputs, complete package installed, candidate and normal recovery passed, service restored and owned build/candidate temporaries cleaned.",
+    "previous_goal_turn_classification": "Progress: release passed; package installed; candidate and normal history query verified; service restored and owned build/candidate resources cleaned.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

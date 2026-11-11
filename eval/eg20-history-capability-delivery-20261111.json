@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_VALIDATED_PENDING_DEPLOYMENT",
-  "at_utc": "2026-11-11T09:11:12.014443+00:00",
+  "status": "DEPLOYED_VERIFIED",
+  "at_utc": "2026-11-11T09:37:51.589264+00:00",
   "requirement": "EG20/EG21 usable history routing with preserved historical scope and truthful retrieval/rerank capability.",
   "change": "Text history now labels lexical-only, degraded trigram or semantic vector capability instead of asserting that lexical and vector channels both contributed.",
   "reproduction": "fts_only public short-query output falsely claimed fused lexical+vector order; the strengthened assertion failed before the source fix.",
@@ -147,9 +147,79 @@
   "resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111",
     "baseline_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-installed-20261111",
-    "retention": "Retain delivery evidence for review. Owned test fixture roots empty. No preexisting folders deleted."
+    "retention": "Retain delivery evidence/package for review. Test fixtures empty, build-owned temporary directory and candidate tmp removed; candidate closed naturally, configuration hold released, normal service restored. No preexisting folders deleted.",
+    "retained_installed_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-cf0f59cd038046af8f80ecdadbb7fc8f",
+    "installer_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-cf0f59cd038046af8f80ecdadbb7fc8f.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-cf0f59cd038046af8f80ecdadbb7fc8f.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-cf0f59cd038046af8f80ecdadbb7fc8f.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-cf0f59cd038046af8f80ecdadbb7fc8f.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-cf0f59cd038046af8f80ecdadbb7fc8f.04-committed-no-start.json"
+    ],
+    "backup_cleanup_condition": "Retain previous package and journals pending exact-path approval; no automatic deletion."
   },
   "deployment": {
-    "installed": false
+    "installed": true,
+    "source_commit": "14407223a2fc3bf365a3ae758c28b2c2a3a8aa9c",
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\pair.json",
+      "sha256": "cfbae122816e2c844ffc0b617d244cb6349ebe8f533419497bd216e1b75da959"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-shipping-20261111.json",
+      "sha256": "0aff17e4e381de09cc14927037d8aeb570f59b6ddbdd9a2a10546cdb81ae63f6"
+    },
+    "candidate_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\candidate\\acceptance.json",
+      "sha256": "fb801b59905725d67f583f9b8f6bf51908a65ce4da4ec5e65a90373c39526690"
+    },
+    "normal_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\normal\\acceptance.json",
+      "sha256": "1308442027dd00b1425302c354a32cecb6048dcf82afc1c6259c581cfc50e64b"
+    },
+    "installer_validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\install-validation.json",
+      "sha256": "243dabecc829c35eaf40f84180fbb232c46838c846d5a71b4c7cdbe7e8c1a288"
+    },
+    "installer_result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\install-result.json",
+      "sha256": "37fa02a1e3c18162747e504512e9fbabb70e22be2ed363b27a479ddb7738e82a"
+    },
+    "deployment_script_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-20261111\\deployment-review.json",
+      "sha256": "4e2ec8a446d78b3e2ae187bd1a1e3769725269b65123265dbefd7a52c4085632"
+    },
+    "configuration_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg20-history-label-config-hold-20261111.json.released.json",
+      "sha256": "58dcadeabecbcae8e519b09f7d339f4d4fbe38e9320f6804e661e124ef2dd097"
+    },
+    "configuration_bytes_unchanged": true,
+    "normal_primary_pid": "69276",
+    "checks": [
+      {
+        "request": {
+          "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+          "query": "viewport",
+          "as_of_rev": "c705453f14565280faed033ba0dca97d93a2755b",
+          "rerank_timeout_ms": 0,
+          "limit": 3,
+          "max_content_chars": 500,
+          "mode": "text",
+          "fts_mode": "loose"
+        },
+        "baseline_request_sha256": "5b606d8c855c0a983d7348921f4c8da449484ac2d0cf95d55e90357420f55cdc",
+        "known_commit_observed": "c705453f14565280faed033ba0dca97d93a2755b",
+        "capability_label": "retrieval capability: lexical + semantic vectors",
+        "false_fusion_claim_absent": true,
+        "observed_commits": [
+          "e9ac0eb09b753bf89c2d98e2b0393aedb39bb33e",
+          "c705453f14565280faed033ba0dca97d93a2755b",
+          "a3fd4f417a3de17bbcbb63ce69d3d1d80352030d"
+        ],
+        "response_utf8_bytes": 2749,
+        "scope": "Selected public text-history label and known-result check; capability does not prove both retrieval channels contributed or establish ranking quality."
+      }
+    ],
+    "unchanged_native_sidecar_assets": 214
   }
 }
