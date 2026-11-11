@@ -1,0 +1,69 @@
+{
+  "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED",
+  "at_utc": "2026-11-11T14:56:23.057293+00:00",
+  "original_requirement": "S13: Full repair can replace damaged metadata and an abandoned next generation; initial registration exposes only its published state.",
+  "demonstrated": "On the installed native-vector binary, damaged required HEAD makes project_info, search_memory, get_chunk and incremental update refuse. Explicit full repair publishes a complete parentless source above an injected higher pending catalog generation. A fresh process recovers exact source and matching native vector identities, then a subsequent ordinary edit publishes correctly.",
+  "source_change_required": false,
+  "installed": {
+    "server_sha256": "280c362d042b6e3ae5936e5145a38849548adcba30605886288aa7a4fb086e3d",
+    "manifest_sha256": "ccdd3d091bd54484d05c294851854a39c7e9c3ae276c6932db61623eb607cab0",
+    "source_commit": "9acc772bc02957a13d4f32c115671de228dcbcec",
+    "existing_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\s10-public-job-cancellation-delivery-20261111.json",
+      "sha256": "8f0a92fd07d43859e81b46f86157a618c3cb15e234c0b643869d0f2c8b9b6258"
+    }
+  },
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\local-v2\\acceptance.json",
+    "sha256": "448e79ce568852968830561d5779e9c90d8eb989f8551fc55d76f3144d82a657"
+  },
+  "source_oracle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\local-v2\\source-oracle.json",
+    "sha256": "9ecc75a86613cd0b247c6ea8b8fcff37df94d109b0a5ecde82b52e8766ec3833"
+  },
+  "damage_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\local-v2\\damage-evidence.json",
+    "sha256": "6d8c94a60be30fc2c95a3e7afa2fadbff90f1a75d1d9093d0ca1e8c3b6053d5c"
+  },
+  "verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\verify-installed.py",
+    "sha256": "cb164518c3e03376f6b0ff779f5d59594da50924d20da85473688ec9169730f8"
+  },
+  "helper_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\helper-review-v2.json",
+    "sha256": "2af45b0ae1bfbf0f0a97463ae03defd6b972fe55dbce4ce2163197d7b6b27087"
+  },
+  "helper_build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\helper-build-result.json",
+    "sha256": "9b9d22fd059984831f150a05e924010230dc2e4fba0e90ae0485935da6666ebe"
+  },
+  "helper_symbols": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\helper-build-symbol-accounting.json",
+    "sha256": "5f084ba5b394bb25af4fcb92a9946682275ee398ab3cef7ad94eb48ef8dd6d26"
+  },
+  "fixture_lifecycle_correction": {
+    "prior_passing_scenario": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\local\\acceptance.json",
+      "sha256": "2e73ce110e5ff37a0ee3ec383b8e7e4c7e8c204ef0e652210c270dddc094f456"
+    },
+    "prior_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\v1-verify-installed.py",
+      "sha256": "c06edcce87172efeceef710bb9f63103354ca2184428565c045b1e1bfd22a6e1"
+    },
+    "reason": "Track and drain metadata helper through interrupted waits before fixture cleanup; corrected scenario rerun and passed."
+  },
+  "retained_local_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111\\retained-local-evidence.json",
+    "sha256": "810d8524a53e5cd5438fe30138ac4e180aed3f927932cf11a0bec17e7edef8a4"
+  },
+  "limits": "One installed damaged-HEAD witness with local vectors and an injected pending catalog generation without source/vector payload. Wider physical-abandonment, held-reader, initial-registration and stale-CAS cases retain their original historical local evidence; no claim that the entire S13 matrix was rerun. Registry.set_meta intentionally advances revision/identity epoch and clears identity verification while preserving valid independent recovery authority. No production data/configuration accessed or modified.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s13-installed-recovery-20261111",
+    "owned_server_processes": 3,
+    "owned_metadata_helpers": 1,
+    "natural_exits": 4,
+    "readers_and_handles_closed": true,
+    "owned_fixture_removed": true,
+    "retained": "Wire responses, source oracle, damaged-record evidence, reviewed helper and receipts retained for delivery provenance. No preexisting folders removed."
+  }
+}

@@ -1059,7 +1059,13 @@
       "id": "S13",
       "required_behavior": "Full repair can replace damaged metadata and an abandoned next generation; initial registration exposes only its published state.",
       "state": "Verified locally for explicit non-wiping full recovery of corrupt/missing required HEAD above abandoned physical/empty/malformed catalog generations, preserved old readers/unrelated data/history, stale authority refusal, relocated-root identity refresh, cold reopen and next edit. Native56/no-vector55 related cases PASS; final deployed validation and other authority/boundary corruption gates separate.",
-      "current_evidence": "execution_evidence_20261101.s13_damaged_head_full_recovery_20261103"
+      "current_evidence": "execution_evidence_20261101.s13_damaged_head_full_recovery_20261103",
+      "installed_damaged_head_acceptance_20261111": {
+        "receipt": "eval\\s13-installed-recovery-validation-20261111.json",
+        "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED",
+        "server_sha256": "280c362d042b6e3ae5936e5145a38849548adcba30605886288aa7a4fb086e3d",
+        "full_matrix_current_package_revalidated": false
+      }
     },
     {
       "id": "S14",
@@ -9941,7 +9947,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "ACTIVE_INSTALLED_ACCEPTANCE",
+      "status": "DELIVERED_SELECTED_INSTALLED_ACCEPTANCE_FULL_S13_NOT_REVALIDATED",
       "original_requirement": "S13: Full repair can replace damaged metadata and an abandoned next generation; initial registration exposes only its published state.",
       "current_missing_behavior": "Retained native56/no-vector55 local full-recovery evidence is not bound to a current installed real indexed-corpus witness with damaged required HEAD and an abandoned higher generation. No new runtime defect is asserted.",
       "implementation_files": [],
@@ -9959,7 +9965,7 @@
       ],
       "previous_delivery": "eval/s12-installed-recovery-validation-20261111.json"
     },
-    "at_utc": "2026-11-11T14:47:48.768951+00:00",
+    "at_utc": "2026-11-11T14:56:23.057293+00:00",
     "reason": "S12 selected installed missing-ancestor refusal/full-repair/restart acceptance passed on current deployed pair. Advance to original S13 installed recovery above abandoned generation.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -12362,6 +12368,10 @@
     },
     "s12_installed_recovery_20261111": {
       "receipt": "eval\\s12-installed-recovery-validation-20261111.json",
+      "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED"
+    },
+    "s13_installed_recovery_20261111": {
+      "receipt": "eval\\s13-installed-recovery-validation-20261111.json",
       "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED"
     }
   }
