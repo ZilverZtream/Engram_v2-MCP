@@ -9934,7 +9934,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_CONTRACT_FULL_S07_PARTIAL",
       "original_requirement": "S07: exact logical source selection, counts, paths, citations and public diagnostics agree.",
       "current_missing_behavior": "handle_project_info currently converts every get_active_generation failure into active_generation:1. A required-but-missing, malformed or out-of-range authoritative head can therefore be presented to agents as a valid generation. This was recorded during S06 and is now selected within the original diagnostic correctness requirement.",
       "implementation_files": [
@@ -9948,7 +9948,7 @@
       ],
       "previous_delivery": "eval/s05-project-deletion-delivery-20261111.json; deployed611321e, deliverycdcab57."
     },
-    "at_utc": "2026-11-11T13:08:10.259764+00:00",
+    "at_utc": "2026-11-11T13:31:17.997871+00:00",
     "reason": "Bounded S06 source inspection found existing ownership, so advance the original S07 public diagnostic correctness gap rather than manufacture a new lifetime patch.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -12306,9 +12306,11 @@
     },
     "s07_diagnostic_authority_20261111": {
       "receipt": "eval/s07-diagnostic-authority-delivery-20261111.json",
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "validated_behavior": "Propagate the existing get_active_generation error; do not fabricate a valid generation on failed source admission.",
-      "full_s07_closed": false
+      "full_s07_closed": false,
+      "source_commit": "e50e4f26b847f9c9abf92385849b8aa7b5584a00",
+      "installed_server_sha256": "cd44e567e2ea087204d84e22e818418424eae5912d0ac6d0614405f268e57d99"
     }
   }
 }

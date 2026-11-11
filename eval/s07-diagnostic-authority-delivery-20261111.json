@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T13:08:10.259764+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T13:31:17.997871+00:00",
   "original_requirement": "S07: public diagnostics agree with authoritative logical source selection.",
   "demonstrated_failure": {
     "result": {
@@ -48,10 +48,63 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\independent-review.json",
     "sha256": "99c241af3770d8415f40f46234cbbe5cedd6197ce3e9b8764b79fd92239e6030"
   },
-  "remaining": "Build release, verify actual candidate and installed MCP diagnostics, deploy and record installed identity. Full original S07 top-k/count/path/citation coverage remains partial.",
+  "remaining": "Selected project_info diagnostic contract delivered. Full original S07 top-k/count/path/citation scope and broader backlog remain unfinished; no full-gate closure claimed.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111",
     "owned_test_fixtures_closed_and_removed": true,
-    "retained": "Logs, compiler output/helper, receipts and empty runner containers retained here for delivery evidence. No preexisting-folder deletion."
+    "retained": "Logs, compiler output/helper, receipts and empty runner containers retained here for delivery evidence. No preexisting-folder deletion.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e2deeb53b297426b87e9ecba0f3befda",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "e50e4f26b847f9c9abf92385849b8aa7b5584a00",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-shipping-20261111.json",
+      "sha256": "648f7ca404c1abf465cce8dc73f9ebaf0b4da3229771b2cff9faf6281042d6e8"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\pair.json",
+      "sha256": "764151076c82c5b594e0b8f813f6b66131a17388d74047321af6e90ffba489c4"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\helper-review-v2.json",
+      "sha256": "46aa0721479cbfdb7dc049907d1d568bb23e5cdf412f8d3d1d4291a38e4186ad"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\candidate-v2\\acceptance.json",
+      "sha256": "31e8a4a217a7067fb92b93ddbd1564ef6bbd2558634e3c113a44ffb55d0550b0"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\installed\\acceptance.json",
+      "sha256": "927a847ed5550ea58dfe2a3ce864fa5d57ea28970bb1486f75cf89f39084415b"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\normal\\acceptance.json",
+      "sha256": "12541f297dfc4abd8a872fc81417075fbe8c1f6234fb4d2f619b3b0acdd2a3ea"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\release-gates.json",
+      "sha256": "b6816efff49639c16d8b031b38eeca575c4d7565a40bb1c65e4e2715c734cd52"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\install-result.json",
+      "sha256": "9535cae9cf823ab41aeb9643353402e92bd2be274a685e7105f569622200846e"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-config-hold-20261111.json.released.json",
+      "sha256": "766cad0b145dce986a89069b66627c81754a07b5544b39da8087ade228bd96d0"
+    },
+    "server_sha256": "cd44e567e2ea087204d84e22e818418424eae5912d0ac6d0614405f268e57d99",
+    "manifest_sha256": "c17007eb5c092fc6ed056f5ffa3c361a09d07384c0de7e95f313cd8c4c3ada9f",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "verifier_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s07-diagnostic-authority-20261111\\candidate-v1-disposition.json",
+    "sha256": "e173dcdddf4797f9871210c7804ab620a6f0c07aab422372a4ab5e121352d846"
   }
 }
