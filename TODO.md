@@ -106,7 +106,7 @@ they feed blast radius, edit safety, and the ADP gates.
   tools silently use the first. Return the candidate list with namespaces and require/let
   the agent disambiguate. Silent wrong-target resolution is how agents edit the wrong class.
 
-- [~] **12. Confidence metadata on edges, threaded into tools and ADP gate 1** (M) - *mostly done 2026-06-13: ingest + post-pass stamp resolution/confidence; find_connection_path warns on weak hops; blast radius discounts bare-name callers (60 phantom callers at 0.35 ≈ 21 effective) + Phantom Caller Inflation guidance. Remaining: ADP gate 1 consumption.*
+- [x] **12. Confidence metadata on edges, threaded into tools and ADP gate 1** (M) - *remaining Gate1 consumption deployed 2026-11-11. Gate1 reads producer confidence on selected-source semantic edges including method nodes, preserves the minimum score and explicit unknown coverage, and returns bounded witnesses in text/JSON and immutable decision reports. Higher caller confidence cannot hide weak or missing evidence. 106 focused checks plus candidate/installed public Rust cases verified local call confidence 0.90, unresolved scope, lower overrides and wave evidence. Prior producer/path/impact consumers remain unchanged; this does not certify parser recall, working-tree freshness or overall edit safety. See eval/p112-adp-confidence-delivery-20261111.json.*
   All extractors, `ingest_service.rs`, `cognitive_tools.rs`. A bare-name App_Code match
   and an FQN-verified call currently look identical. Add `confidence` +
   `resolution_method` to edge metadata; show it in graph/blast-radius output; feed
