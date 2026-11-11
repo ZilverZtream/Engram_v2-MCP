@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T15:15:02.067019+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T15:30:03.735158+00:00",
   "original_requirement": "S14: Reserve and bound reads, parsing, ancestry, copies, selectors and pinned views before allocation; budget failure preserves the head.",
   "demonstrated_failure": {
     "result": {
@@ -67,10 +67,59 @@
     "crates/engram_index/src/hybrid/parse_work.rs": "21b0134039c65dee63473b337ba64409fda928d53ab870119a9bd5df413de12c",
     "crates/engram_index/src/hybrid/parse_work/source_read.rs": "2ab52fc09cde7337429133f11573456996d1b7140be7963782781cbbfc1b3be2"
   },
-  "remaining": "Build/deploy and verify candidate and installed public indexing/budget refusal/retry. Retained statistics/doc buffers, decoding/parsing expansion, native/provider and other allocation bounds remain unfinished; no whole-process memory cap or full S14 closure.",
+  "remaining": "Selected admitted source-read contract delivered. Retained aggregate statistics/doc buffers, decoding/parsing expansion, native/provider and other allocation bounds remain unfinished; no whole-process memory cap or full S14 closure claimed.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111",
     "owned_test_fixtures_closed_and_removed": true,
-    "retained": "Logs, source review and evidence helpers retained in this case; no preexisting folder deletion."
+    "retained": "Logs, source review and evidence helpers retained in this case; no preexisting folder deletion.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e37eee7c8abc47b388324d9cc0304a1e",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "9c921d14effaf581237f4c65eacb5ce619e914cf",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-shipping-20261111.json",
+      "sha256": "7d5e09aa9e3a06abd12dc12f6acb239c822bf98198fb9e8f95582b8aa207a58d"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\pair.json",
+      "sha256": "4f543b1eacfd3ca1729fcac25047b8a3786900fcb6a206bc5b8e79b724084380"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\helper-review.json",
+      "sha256": "7c76863ac211b901b10294e7a8a0ca4f0073459a0630f976575e4488395aba09"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\candidate\\acceptance.json",
+      "sha256": "b7f9742cf122c674d08d59b7a34c87448b8ca91f5b51f4669b7846d03842f599"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\installed\\acceptance.json",
+      "sha256": "9721e8e5e9e891878a0232d30123d1b8e880803ce009dd8ae9108ba19212e6f0"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\normal\\acceptance.json",
+      "sha256": "4c977e6752715f83b94e634963d6284e6d214ea65287226a39dae06e2e1d8a33"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\release-gates.json",
+      "sha256": "7044c227fa3badd05b038acaf4c044ac1c64f17a5721a27ce4178b1a895d81b3"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\install-result.json",
+      "sha256": "69c36cf77e3aca61196a38c29ad38783e8dc630ad48c65c7e7dcac2fc02cf47c"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-config-hold-20261111.json.released.json",
+      "sha256": "bb12acf3893b396cadb7ef61a9b57a6a4f00a90078843e7f0a9334c6cb9288d0"
+    },
+    "server_sha256": "05609ecfe805f3e3943ed8c406a1c5a0376363e480305e2e4ccc41b49d4ad0dd",
+    "manifest_sha256": "ac039bfbec884b4098c6af92e36bf64cf3713fc040fd2d277d0a2396140c866c",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
   }
 }

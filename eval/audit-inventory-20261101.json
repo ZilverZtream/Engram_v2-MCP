@@ -9947,7 +9947,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_CONTRACT_FULL_S14_PARTIAL",
       "original_requirement": "S14: Reserve and bound reads, parsing, ancestry, copies, selectors and pinned views before allocation; budget failure preserves the head.",
       "current_missing_behavior": "index_files reserves raw parse bytes using batch path metadata, but worker metadata/read_to_end can admit a later larger file and grow its buffer to10MiB, beyond the earlier reservation. The worker also allocates full metadata-sized body capacity before binary prefix classification.",
       "implementation_files": [
@@ -9964,7 +9964,7 @@
       "remaining_scope": "Retained aggregate stats/doc buffers, decoding/parsing expansion, native/provider and other allocation bounds remain unfinished. No whole-process RSS cap or full S14 closure claimed.",
       "previous_delivery": "eval/s13-installed-recovery-validation-20261111.json; commit41578b7"
     },
-    "at_utc": "2026-11-11T15:15:02.067019+00:00",
+    "at_utc": "2026-11-11T15:30:03.735158+00:00",
     "reason": "Advance original S14: observed source read growth can exceed admitted raw byte reservation. Fix selected admission race before unrelated allocation work.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9994,8 +9994,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG13/S01: unchanged source bodies/vectors survive a real unrelated file edit.",
-    "next_user_visible_deliverable": "Incremental edits retain unrelated physical source revisions and vectors, with exact embedding-work evidence.",
+    "active_original_item": "S14 admitted source reads: selected contract delivered; remaining original allocation requirements stay open.",
+    "next_user_visible_deliverable": "Select the next unfinished original requirement from retained evidence; do not restart delivered S10 or S14 source-read work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10009,7 +10009,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: EG04 original correctness disposition reconciled from retained receipts/logs and current deployed source; broad resource gates remain open.",
+    "previous_goal_turn_classification": "Progress: S14 source-read fix built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12375,8 +12375,10 @@
     },
     "s14_admitted_source_read_20261111": {
       "receipt": "eval\\s14-admitted-source-read-delivery-20261111.json",
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "full_s14_closed": false
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "full_s14_closed": false,
+      "source_commit": "9c921d14effaf581237f4c65eacb5ce619e914cf",
+      "installed_server_sha256": "05609ecfe805f3e3943ed8c406a1c5a0376363e480305e2e4ccc41b49d4ad0dd"
     }
   }
 }
