@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T16:56:46.186069+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T17:12:38.360290+00:00",
   "original_requirement": "TODO P0-4: aggregate response budgets, explicit truncation and recoverable pagination on remaining hot tools.",
   "implemented": "Optional vector_search max_tokens and offset bound complete reply text and page within a fixed top_k ranking window. Shared UTF-8 estimate, complete hit records, explicit window end, backend warning/freshness, exact citations and live-guidance recovery are preserved.",
   "demonstrated_failure": {
@@ -66,11 +66,60 @@
     "crates/engram_server/tests/vector_search_score_tests.rs": "1e6a49b03018ed3a0fa303a896ce9909b7106c816242fd6ae50f41357d549cc8",
     "crates/engram_server/tests/vector_response_budget_tests.rs": "7a59140c6888be69e7a478295730e925654f9956b12e4dcb7dffbbac69eabfa8"
   },
-  "remaining": "Build/deploy and verify native candidate/installed public vector paging. Other tools, provider token accounting, uniform JSON and durable cursors remain unfinished; no full P0-4 closure.",
+  "remaining": "Selected vector_search response budget and within-window pagination delivered. Other tools, uniform JSON envelopes, provider-specific token accounting, durable snapshot cursors and full P0-4 remain unfinished.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111",
     "completed_test_fixtures_closed_and_removed": true,
     "baseline_owned_fixture_closed_and_removed": true,
-    "retained": "Logs, source review and helpers retained here. Prior search-budget case retains its policy-rejected interrupted fixture; this case does not delete or claim cleanup of it."
+    "retained": "Logs, source review and helpers retained here. Prior search-budget case retains its policy-rejected interrupted fixture; this case does not delete or claim cleanup of it.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fedc640facd1463cbc33ca8a17dc8246",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "18a6e87400318b939b2669c6c2fd2a0182a73daa",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-shipping-20261111.json",
+      "sha256": "fbc744c0fe7adad46b29faa83d744047fea1aff9eaa340dc1cf4e838df352810"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\pair.json",
+      "sha256": "b5ec1821e5658150e5e19cea207e9fa868b4260de7c7be438538be4d0eaba55e"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\helper-review.json",
+      "sha256": "d8d166503466b4834efd45cc9a3658d7a2c6158bdea30d38d0ae7578ec99c351"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\candidate\\acceptance.json",
+      "sha256": "78d5f105c84960030373594881deb00f91b80911330b9bdabd5d881bb3fc12ee"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\installed\\acceptance.json",
+      "sha256": "898f343f2266e92e85dac2b778c076041f8284a1daf388f1cfb03aa8a62ea8a7"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\normal\\acceptance.json",
+      "sha256": "e955ed593dea8d28a25ef185b1a6cfc5d268fa80c208443f32b69cff40be49de"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\release-gates.json",
+      "sha256": "2de3163d707239811627bb8b37abbd0d455f8882bab13ce1062a75aeb3d5d031"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-20261111\\install-result.json",
+      "sha256": "dce7d9b084587016607a65212b78db5c251068a825e867e32bd3e4403253a398"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-vector-response-budget-config-hold-20261111.json.released.json",
+      "sha256": "a20e68faf8c39f8ffc4c4ae675ebf512bcb9c978bbbbf35b773ccab2964a783f"
+    },
+    "server_sha256": "42ddcd36991959182aad4fdeda18e9fa16ce2b03dfd211757f7273af784f4f57",
+    "manifest_sha256": "7191be16e2c80066c6ab023225bca0ff9036ee90a9d51e37e3f05639d3b6b37c",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
   }
 }

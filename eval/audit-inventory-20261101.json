@@ -9950,7 +9950,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_SELECTED_VECTOR_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4: aggregate response budgets, explicit truncation and recoverable pagination on remaining hot tools.",
       "selected_tool": "vector_search",
       "observed_source_gap": "VectorSearchRequest exposes top_k and max_content_chars but no aggregate max_tokens or offset. handle_vector_search concatenates selected hit content and backend warning/freshness without a caller response budget. Published current tools/list schema is retained in the preceding search-budget acceptance wire.",
@@ -9980,7 +9980,7 @@
         "recovery": "All eight returned bodies recovered exactly in both MMR modes; installed schema rejects max_tokens and offset."
       }
     },
-    "at_utc": "2026-11-11T16:56:46.186069+00:00",
+    "at_utc": "2026-11-11T17:12:38.360290+00:00",
     "reason": "search_memory selected budget delivery is deployed; vector_search still lacks an aggregate budget and continuation despite exposing large per-hit limits. Confirm actual output against independent source before implementation.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10010,8 +10010,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO P0-4: vector_search aggregate budget and recoverable complete-hit pagination.",
-    "next_user_visible_deliverable": "Implement vector response budget and fixed-window paging, then focused checks and public candidate/installed verification. Installed baseline is retained.",
+    "active_original_item": "P0-4 vector response budget: selected contract delivered; broader response-budget requirements remain open.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10025,7 +10025,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: vector budgets implemented; selected shared, lexical-only and native tests passed. Deployment pending.",
+    "previous_goal_turn_classification": "Progress: vector response budget built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12414,8 +12414,10 @@
     },
     "p04_vector_response_budget_20261111": {
       "receipt": "eval\\p04-vector-response-budget-delivery-20261111.json",
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "full_p04_closed": false
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "full_p04_closed": false,
+      "source_commit": "18a6e87400318b939b2669c6c2fd2a0182a73daa",
+      "installed_server_sha256": "42ddcd36991959182aad4fdeda18e9fa16ce2b03dfd211757f7273af784f4f57"
     }
   }
 }
