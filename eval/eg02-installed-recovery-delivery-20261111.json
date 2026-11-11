@@ -1,0 +1,44 @@
+{
+  "status": "CURRENT_INSTALLED_BOUNDED_DELIVERY_VERIFIED",
+  "at_utc": "2026-11-11T08:13:20.927317+00:00",
+  "requirement": "EG02/EG12 bounded complete change-set responses and exact recovery",
+  "acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg01-installed-20261111\\change-set-delivery-acceptance.json",
+    "sha256": "a37ce15f10a0707d7187f12c7e50da29029e68f06f7058b1b462a3d1609f5156"
+  },
+  "results": [
+    {
+      "format": "json",
+      "original_bytes": 147800,
+      "response_id": "4f31c14ec22bd1a1eaf13abfc4ae10320a57768653aafadf0d07fb188c6fac65",
+      "frames": 9,
+      "maximum_compact_rpc_envelope_bytes": 26609,
+      "budget_bytes": 40960,
+      "mandatory_rows": 63,
+      "reconciliation_receipt": "sha256:1057fb85956c3ab70fd43f9d9b24fe6a3af691eff3ed7eb90c9a01eb7ff0869e",
+      "omitted_candidates": 33,
+      "configured_hard_rules": 0
+    },
+    {
+      "format": "md",
+      "original_bytes": 98400,
+      "response_id": "21af8d0bf054733d58032da28811f9804e08cb8a9bfdb79cdeede7c64f6f5a3d",
+      "frames": 6,
+      "maximum_compact_rpc_envelope_bytes": 21913,
+      "budget_bytes": 40960,
+      "mandatory_rows": 64,
+      "reconciliation_receipt": "sha256:2f5e92194596941738c84788c60361b8bcc2cc4363b4439ad0edbd90d9ca547c",
+      "omitted_candidates": 32,
+      "configured_hard_rules": 0
+    }
+  ],
+  "limits": [
+    "Compact UTF-8 JSON envelopes reserialized from captured frames; raw wire lines were not retained by the existing transport.",
+    "No configured hard rules in this real project; nonempty hard-ID pressure remains covered only by retained local tests.",
+    "No new source mutation or deep-path fixture execution; existing immutable/mutation and Windows-path evidence is separate.",
+    "JSON and Markdown are distinct planning captures, not a claim of deterministic identical candidates."
+  ],
+  "existing_source_evidence": "eval/eg01-installed-policy-delivery-20261111.json",
+  "resources": "Reuses existing captured responses and managed planning snapshots; no new calls, fixtures or mutations. Retain acceptance alongside original capture.",
+  "runtime_change_required": false
+}
