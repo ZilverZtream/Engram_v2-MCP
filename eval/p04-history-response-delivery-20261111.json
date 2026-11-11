@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T20:48:58.824025+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T21:03:16.575748+00:00",
   "original_requirement": "TODO P0-4 complete response budgets, explicit truncation/paging and structured output; selected search_history text and precedent modes.",
   "implemented": "Optional max_tokens bounds the entire UTF8 reply at bytes/4. output_json exposes typed records and bounded-window metadata. offset pages whole records within existing limit. Required scope/capability/rerank/recovery context is retained; too-small requests refuse with an actionable minimum. Exact indexed document and Git object recovery disclose clipped cards and partial matched-file coverage.",
   "demonstrated_failure": {
@@ -62,7 +62,7 @@
     "crates/engram_server/tests/history_response_tests.rs": "2498b4bbe688a6f5ca2e85f8b9bbb484ca7f7c9981bbe0e396813a37d4ccb340",
     "crates/engram_server/tests/integration_test.rs": "288fc90d0d6770ec64169ec4bd4862937f875de292365dcf564246c3a3c93647"
   },
-  "remaining": "Build, execute candidate/installed public Git recovery and budget acceptance, deploy and record. Other tools, provider-specific tokenization, durable cursors and full P0-4 remain unfinished.",
+  "remaining": "Selected search_history text/precedent response contract delivered. Other tools, a uniform envelope across the complete surface, provider-specific tokenization, durable ranking cursors and full P0-4 remain unfinished. Git recovery depends on local object retention; indexed documents and cards are not proof of original-history completeness or current applicability.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111",
     "accepted_test_and_baseline_fixtures_closed_and_removed": true,
@@ -70,6 +70,55 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\baseline\\cleanup.json",
       "sha256": "6628415489c1ccaa1bc73b234387cedf41a57111dc9ca002380eef7edb4e7d8c"
     },
-    "retained": "Baseline, failed concurrency receipt, logs and helpers retained. Policy-rejected failed fixture remains untouched."
+    "retained": "Baseline, failed concurrency receipt, logs and helpers retained. Policy-rejected failed fixture remains untouched.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-67bc577207334a1588168518d2412345",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "e9ad9aa4c4e2bb2b5749dc5364ce189c3e7ba811",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response.json",
+      "sha256": "55efa8ed6b34b19a0d26483f627abd1b97d1d423ad336167bc87c2591543ead2"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\pair.json",
+      "sha256": "2161c1e6a00daa5304c89d9d37840276e38472f98adce2000b8dbfdbe06225e7"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\helper-review.json",
+      "sha256": "07c16af39f52c6aace0549f171e3b2cf223f37e81cc63744b8acdccf2be0c387"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\candidate\\acceptance.json",
+      "sha256": "86f16eafb9d23d23cc1a128a8e0f959995d35baf85f6237f62cacea59387dcb7"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\installed\\acceptance.json",
+      "sha256": "dce220499680d70d92b84fff09d4bf98a7855f95fb65c18520f4de7eb82b402c"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\normal\\acceptance.json",
+      "sha256": "7f90ae69d0dbe584bcda416ce5a41a89afc4723511405093e051461f6d14d874"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\release-gates.json",
+      "sha256": "8e430be4e1a1a4c6370ef949f6f61c84536e4a60776846cd59606fec9c35df4a"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\install-result.json",
+      "sha256": "fd1788040f59222a662b1e17c21e0666a354d1e5ac6fbb776ab39b565d54bf66"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-config-hold-20261111.json.released.json",
+      "sha256": "0ed80c3aa9a0fc1bb1ccbf22590af13b56b2018f6486b813e4e81123ffb8b096"
+    },
+    "server_sha256": "feba2dccb6ca65312cfe6458420f8a478b459946621d01de6e0938650e7e7ad6",
+    "manifest_sha256": "55b0be727014aa5aa9e7f161d69e3d9b977bd9c7824775a17bd837c86c3d4d0b",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
   }
 }
