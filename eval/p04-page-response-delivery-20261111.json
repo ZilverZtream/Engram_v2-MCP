@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T21:56:33.097197+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-11T22:10:15.655905+00:00",
   "original_requirement": "TODO P0-4 complete-response budgets and recoverable omissions for unbounded access-layer contexts; selected get_page_context.",
   "implemented": "Optional max_tokens and hash-bound context-record continuations in text/JSON. Shared serializer retains mandatory page/provider/composition/house-style disclosures; recoverable whole entries and method-body fragments reconstruct complete assembled context. Existing default formats retained.",
   "demonstrated_failure": {
@@ -56,10 +56,59 @@
     "crates/engram_server/src/tools.rs": "1f7590a583e7ab42279ae9817e8aab35bb04389d80ec8e64606bb534015aa9ca",
     "crates/engram_server/tests/page_response_tests.rs": "5012a05f3826bd299fdac41c0edfa2ca66494fc4b72232a9d784080238622fde"
   },
-  "remaining": "Build, verify candidate and installed public WebForms context recovery, deploy and check normal runtime. Full P0-4, provider-specific tokenization, durable snapshots and remaining original backlog are unfinished.",
+  "remaining": "Selected get_page_context complete-response budgets and exact assembled-context recovery delivered. Other tool budgets, uniform envelopes, durable cursors and full P0-4 remain unfinished. Hash-bound pages are not retained filesystem/index snapshots, exhaustive extraction or overall edit safety.",
   "temporary_resources": {
     "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111",
     "test_and_baseline_fixtures_closed_and_removed": true,
-    "retained": "Baseline/test/manual review/release evidence; preserve preexisting and previously policy-rejected cleanup paths."
+    "retained": "Baseline/test/manual review/release evidence; preserve preexisting and previously policy-rejected cleanup paths.",
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e79bd08bb3fb4d2a957e6bf8147153c6",
+    "retention_condition": "Preserve delivery evidence and complete rollback pair; preexisting-folder deletion still requires exact-path approval."
+  },
+  "source_commit": "749ca958d68abb8dccb48e283a689b7ed3b3fe86",
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response.json",
+      "sha256": "968dbc3c995dab14d54f0e4a8794fe51d93049ec1a5787fda91f4c80b5d131b1"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\pair.json",
+      "sha256": "9851c6d297199e24e6e4bc70990ed84089d249234eb38e929a5a005e4d1afcaf"
+    },
+    "helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\helper-review.json",
+      "sha256": "b9ae0193361b13f91a24910a7fc495e1f1157dd6631cfcde3e8e5710aa4ababc"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\candidate\\acceptance.json",
+      "sha256": "050ba5faf7256d0a3f8fa03673377b23d5ce968fb895cb1fba06e9a833c2c262"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\installed\\acceptance.json",
+      "sha256": "41e7a15a45646c4634efaeaba89b8973b82abceff7dfa1a5352757c43e1dcd14"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\normal\\acceptance.json",
+      "sha256": "8eaf98483cfe337645b6362d46caa2149cd0a04d55eeace1909bde7cd628c312"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\release-gates.json",
+      "sha256": "3abad2ce192c79a56160fb634de046cfeff0f94c789435cb7db7adbb12d93e8b"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-20261111\\install-result.json",
+      "sha256": "b0235a0a70d6ee04bea1a2400716cfa6b323f7e247a3d0fdd8521b45bf6c1d3e"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-page-response-config-hold-20261111.json.released.json",
+      "sha256": "7b944d256882e455092392417eceaa68f22e2b26c038172d299a06ae2d90bbbb"
+    },
+    "server_sha256": "30d3d8db2035750a444a9ad42c5a4d92261cf1faf504fc94d0a7c5312af56d83",
+    "manifest_sha256": "5c008916f655eea79d31a7b88633ba7bd4b9c5d10480934277442bb110745b6c",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
   }
 }
