@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
-    "finding": "EG15-17 generator ownership/overflow/scope",
-    "receipt": "eval\\eg15-eg17-generator-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected EG15-17 ownership, overflow and manual/legacy scope contract delivered with the retained consumer limitations. Full EG14 area-instruction publication, EG24/25 matched real-task benefit and the original backlog remain unfinished. No universal Markdown, native conditional-catalog path filtering, external historical import replay or independent CodeRabbit review claim."
+    "finding": "TODO16b rebuild_graph",
+    "status": "INSTALLED_BASELINE_CONFIRMED_READY_FOR_IMPLEMENTATION",
+    "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\execution-state.json",
+    "remaining": "Implement and verify genuine extraction-only reconstruction; preserve all other unfinished original work."
   }
 }

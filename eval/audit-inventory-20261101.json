@@ -9959,31 +9959,26 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_EG15_EG17_CONTRACT",
-      "original_requirement": "EG15-17: generated instruction ownership safety, complete root-overflow accounting, and preservation of manual/legacy scope and exceptions. These generator-specific requirements remain open after the bounded EG14 draft/QA handoff.",
-      "observed_missing_behavior": "Installed public root-budget case preserved the authored CLAUDE.md but generated rules lost all 40 multiline exceptions. The existing renderer test bypassed the extractor by constructing multiline CriticalRule objects directly. Repair complete bullet extraction and validate the same authored input through candidate and installed public tools.",
-      "existing_evidence": [
-        "eval/eg14-draft-delivery-20261111.json",
-        "eval/audit-inventory-20261101.json EG15/16/17 and peer_refresh_publication_recovery_cutoff_and_delivery_20261103",
-        "crates/engram_server/tests/claude_md_contract_tests.rs",
-        "crates/engram_server/tests/agent_integration_pack_tests.rs",
-        "crates/engram_server/src/services/generated_files.rs"
-      ],
+      "status": "SELECTED_GRAPH_EXTRACTION_WITHOUT_REEMBEDDING",
+      "original_requirement": "TODO16b: re-extract ALL eligible source files after extractor changes, process graph results, preserve project identity and search/vector content without embedding or Git history replay. Preserve cross-file and temporal relationships through scoped replacement/remapping.",
+      "observed_missing_behavior": "UpdateProjectRequest has no rebuild_graph mode. Existing repair_project(scope=graph_only) deletes project graph data and falls through to the full source indexing/publication pass, with an ordinary history follow-up. Source-only graph reconstruction is missing; inspect installed behavior on an owned fixture before implementation. Installed owned baseline confirms unchanged files move source generation from1 to2 and reports reindexed files/chunks; fixture resources were closed and removed.",
       "implementation_files": [
-        "crates/engram_server/src/services/produce_claude_md_service.rs",
-        "crates/engram_server/tests/claude_md_contract_tests.rs (correct stale blocked-parent expectation)"
+        "crates/engram_index/src/hybrid.rs and shared parsing/extraction code",
+        "crates/engram_server/src/handlers/project_tools.rs and services/ingest_service.rs",
+        "crates/engram_graph/src/store.rs or existing scoped replacement helper, only as needed for complete source replacement/remapping",
+        "crates/engram_server/src/models/requests.rs and tools.rs for truthful existing mode contract"
       ],
       "finite_acceptance": [
-        "Use installed produce_claude_md and generate_agent_integration in owned private projects. Compare returned/written paths, hashes and delivery counts against filesystem bytes and independently authored rules/exceptions; preview must not publish.",
-        "Exercise owned refresh plus conflicting/unreceipted/human-edited root, diverted, companion and integration files. Preserve exact human bytes; return complete proposals or explicit conflict/skips. Verify existing interruption-recovery evidence without inventing another publication subsystem.",
-        "Exercise root budget pressure and a rule beyond the catalog cap, disabled optional AGENTS output, and a blocked output directory. Every original rule/qualification must be present in an appropriate artifact or a complete explicit recovery ledger; no successful-write claim for an unwritten file.",
-        "Distinct directory/file/language scopes, zero-match scope, manual exceptions and legacy/unknown authority stay distinct. Imported closed/fixed/rejected status cannot manufacture policy acceptance. Reuse existing supported fixture access where needed; do not adopt production legacy rules.",
-        "Check actual Claude loading of the generated instruction contract with the installed CLI in an owned fixture, using constrained read-only/no-write behavior and independently checkable scoped markers. Distinguish native loading from model inference and record unavailable consumer acceptance honestly.",
-        "If a concrete product failure is found, repair only that contract, run relevant checks and deploy/verify as required. Otherwise record the installed behavioral evidence without rebuilding unchanged code. Preserve all remaining EG14/EG24/25 and full-backlog limits."
+        "Use an owned source corpus with independently authored declarations/cross-file calls, retained history/temporal evidence and indexed text. Demonstrate the installed graph_only fallback currently changes source generation; compare public results and exact storage/identity evidence.",
+        "Re-run the normal supported extraction path for ALL admitted source files, including unchanged content and empty-symbol files, with current extractor/sidecar contracts. Reuse current parsers; do not create a second partial extractor.",
+        "On success preserve project ID, indexed document/content identities, source revisions and search/vector payloads/routes. Count zero embedder requests and zero Git-history walk activity. Search and vector stores must remain untouched; do not replace this with cached re-embedding or a full source index under a new name.",
+        "Replace obsolete extracted nodes/edges, recover expected current source declarations/calls, preserve cross-file and temporal edges or remap their endpoints using proven successors, and keep learned/non-source information. Graph/source admission must remain truthful against unchanged selected source revisions.",
+        "Validate source-set/content identity and required extraction before replacing graph evidence. Cancellation, parse failure or source drift must not report a successful completed rebuild or erase the existing graph. Concurrent indexing/deletion respects existing admission/ownership rules.",
+        "Run focused native/no-vector checks and public candidate/installed acceptance. Commit and push only origin/master, deploy runtime changes, record exact preserved source/search/vector/history evidence and measured fixture outcomes; do not claim an unmeasured80-to3minute speedup."
       ],
-      "constraints": "No OciusX authored-policy publication, new approval UI, expanded area pilot, CodeMap/Blast work, catalog/ownership investigation beyond this existing generator requirement, or preexisting-folder deletion. One active implementation/acceptance item."
+      "constraints": "One active implementation item. No CodeMap/Blast feature work, broad performance/ownership project, new approval UI, production source edits or deletion of preexisting folders. Keep TODO16c and unrelated discoveries recorded, without displacing16b."
     },
-    "at_utc": "2026-11-11T22:53:05.366008+00:00",
+    "at_utc": "2026-11-11T22:55:53.280321+00:00",
     "reason": "Authoritative findings record shipped implementation and local publication/scope tests, but no feature-specific installed public acceptance or actual Claude consumer-loading acceptance. Verify those gaps on owned fixtures and fix only concrete failures; do not rerun completed EG14 drafting or widen its pilot.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10013,8 +10008,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG15-17 selected generator contract delivered; advance the next original unfinished item.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "TODO16b graph re-extraction without re-embedding or Git history replay",
+    "next_user_visible_deliverable": "Rebuild current extracted graph evidence while retaining indexed content, project identity and history.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10028,7 +10023,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: authored exception-loss fixed,122final-sourcechecks passed, candidate/installed exact40-rule recovery passed, deployed and normal generation3147 verified; earlier ownership/scope/consumer evidence retained with limitations.",
+    "previous_goal_turn_classification": "Progress: EG15-17 selected generator fix deployed and verified; advanced next original accepted indexing requirement.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12285,22 +12280,29 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "status": "DELIVERED_SELECTED_CURRENT_PAIR_PROCEDURES",
-      "original_requirement": "S18: Binary downgrade has a verified compatible materialization/recovery path, vector coverage and a successful subsequent edit.",
-      "current_missing_behavior": "November4 exact candidate/old source roundtrip, representable-policy roundtrip and adopted-authority refusal all passed. Current installed05609ecf release has no exact-pair proof; earlier not-run inventory text is stale. No new product defect asserted.",
-      "implementation_files": [],
-      "existing_implementation": [
-        "eval/downgrade_compatibility_workload.py",
-        "eval/downgrade_policy_preflight.py"
+      "status": "DELIVERED_SELECTED_EG15_EG17_CONTRACT",
+      "original_requirement": "EG15-17: generated instruction ownership safety, complete root-overflow accounting, and preservation of manual/legacy scope and exceptions. These generator-specific requirements remain open after the bounded EG14 draft/QA handoff.",
+      "observed_missing_behavior": "Installed public root-budget case preserved the authored CLAUDE.md but generated rules lost all 40 multiline exceptions. The existing renderer test bypassed the extractor by constructing multiline CriticalRule objects directly. Repair complete bullet extraction and validate the same authored input through candidate and installed public tools.",
+      "existing_evidence": [
+        "eval/eg14-draft-delivery-20261111.json",
+        "eval/audit-inventory-20261101.json EG15/16/17 and peer_refresh_publication_recovery_cutoff_and_delivery_20261103",
+        "crates/engram_server/tests/claude_md_contract_tests.rs",
+        "crates/engram_server/tests/agent_integration_pack_tests.rs",
+        "crates/engram_server/src/services/generated_files.rs"
+      ],
+      "implementation_files": [
+        "crates/engram_server/src/services/produce_claude_md_service.rs",
+        "crates/engram_server/tests/claude_md_contract_tests.rs (correct stale blocked-parent expectation)"
       ],
       "finite_acceptance": [
-        "Reuse unchanged accepted three-mode verifier and exact retained b762d3d4 old binary; no production data/config/installation mutation.",
-        "Current installed release materializes complete source, old executable reads/edits, current executable recovers explicitly and supports a subsequent edit with complete lexical/native coverage.",
-        "Representable manual/ordinary policy raw bytes survive the old writer. Unsupported adopted-alias authority refuses before materialization or old launch and preserves authority.",
-        "Retain historical evidence, exact binary/driver hashes, current reports and owned teardown; disclose operator-procedure scope and lack of application-enforced minimum version. Do not rerun passed modes without a relevant failure/change."
+        "Use installed produce_claude_md and generate_agent_integration in owned private projects. Compare returned/written paths, hashes and delivery counts against filesystem bytes and independently authored rules/exceptions; preview must not publish.",
+        "Exercise owned refresh plus conflicting/unreceipted/human-edited root, diverted, companion and integration files. Preserve exact human bytes; return complete proposals or explicit conflict/skips. Verify existing interruption-recovery evidence without inventing another publication subsystem.",
+        "Exercise root budget pressure and a rule beyond the catalog cap, disabled optional AGENTS output, and a blocked output directory. Every original rule/qualification must be present in an appropriate artifact or a complete explicit recovery ledger; no successful-write claim for an unwritten file.",
+        "Distinct directory/file/language scopes, zero-match scope, manual exceptions and legacy/unknown authority stay distinct. Imported closed/fixed/rejected status cannot manufacture policy acceptance. Reuse existing supported fixture access where needed; do not adopt production legacy rules.",
+        "Check actual Claude loading of the generated instruction contract with the installed CLI in an owned fixture, using constrained read-only/no-write behavior and independently checkable scoped markers. Distinguish native loading from model inference and record unavailable consumer acceptance honestly.",
+        "If a concrete product failure is found, repair only that contract, run relevant checks and deploy/verify as required. Otherwise record the installed behavioral evidence without rebuilding unchanged code. Preserve all remaining EG14/EG24/25 and full-backlog limits."
       ],
-      "previous_delivery": "eval/s17-installed-process-exclusion-validation-20261111.json; bbed331",
-      "remaining_scope": "General arbitrary-version/knowledge/history compatibility and application-enforced version fence remain unproven; other original backlog and held resource work unchanged."
+      "constraints": "No OciusX authored-policy publication, new approval UI, expanded area pilot, CodeMap/Blast work, catalog/ownership investigation beyond this existing generator requirement, or preexisting-folder deletion. One active implementation/acceptance item."
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -12587,6 +12589,14 @@
       "receipt": "eval/eg15-eg17-generator-delivery-20261111.json",
       "source_commit": "bd708e8f7e08f2c0882f3ab2e041e2c4cca20a41",
       "installed_server_sha256": "5547de2babd5b42d1b15d5e56c632b3e237a8a32fa02757b2351aae264d0a8d9"
+    },
+    "p116b_rebuild_graph_20261111": {
+      "status": "INSTALLED_BASELINE_CONFIRMED_READY_FOR_IMPLEMENTATION",
+      "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\execution-state.json",
+      "baseline": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\baseline\\acceptance.json",
+        "sha256": "05270ad898bdcf1cc9e426cd56fa1b4024aad06c2a5dbc620cbb8eb16e5e6558"
+      }
     }
   }
 }
