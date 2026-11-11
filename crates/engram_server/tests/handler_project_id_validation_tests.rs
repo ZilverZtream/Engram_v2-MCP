@@ -452,6 +452,7 @@ fn adp_safety_deny_from_join_failed_graph_produces_deny_verdict() {
         mitigations: vec!["retry evidence gathering".into()],
     });
     input.graph_impact = Some(SecGraphImpactMetrics {
+        extraction_evidence: None,
         downstream_dependency_count: 0,
         reads_state_count: 0,
         writes_state_count: 0,

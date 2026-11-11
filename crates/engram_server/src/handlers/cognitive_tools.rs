@@ -5415,6 +5415,9 @@ impl Engram {
         &self,
         req: crate::models::AutonomousDecisionGateRequest,
     ) -> Result<CallToolResult, McpError> {
+        if req.extraction_confidence.is_some_and(|score| !score.is_finite() || !(0.0..=1.0).contains(&score)) {
+            return Err(McpError::invalid_params("extraction_confidence must be finite and within 0..=1", None));
+        }
         // Advertised in the schema, never read. This one gates AUTONOMOUS
         // decisions: silently dropping the evidence a caller supplied would
         // let a verdict read as evidence-backed when it was not.

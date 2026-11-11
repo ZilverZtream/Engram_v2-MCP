@@ -131,7 +131,15 @@ pub async fn gather_evidence_with_source_view(
     let graph_impact_fut = derive_graph_impact(state, project_id, target_files);
     let blast_radius_fut = derive_blast_radius(state, project_id, target_files, generation);
 
-    let (graph_impact, blast_result) = tokio::join!(graph_impact_fut, blast_radius_fut);
+    if let Some(score) = overrides.extraction_confidence {
+        anyhow::ensure!(score.is_finite() && (0.0..=1.0).contains(&score), "extraction_confidence must be finite and within 0..=1");
+    }
+    let (mut graph_impact, blast_result) = tokio::join!(graph_impact_fut, blast_radius_fut);
+    if !target_files.is_empty() {
+        graph_impact.extraction_evidence = Some(crate::services::extraction_evidence::gather(
+            state, project_id, target_files, generation, source_view.clone(),
+        ).await);
+    }
     let (blast_risk, blast_band, blast_downstream, blast_causal_truncated) = blast_result;
 
     // ── Phase 2: Safety evaluation (uses graph impact) ──
@@ -640,34 +648,13 @@ async fn derive_has_runtime_evidence(state: &AppState, project_id: &str) -> bool
     }
 }
 
-/// Derive extraction confidence from graph structural signals.
-///
-/// If the graph has relevant edges for a file, we can infer that extraction
-/// was successful with higher confidence.
+/// Read producer confidence from selected semantic-edge evidence. Edge counts
+/// do not establish extraction quality; coverage is enforced by Gate 1.
 fn derive_extraction_confidence(
     graph_impact: &GraphImpactMetrics,
 ) -> (Option<f64>, Option<String>) {
-    let has_deps = graph_impact.downstream_dependency_count > 0;
-    let has_state = graph_impact.reads_state_count > 0 || graph_impact.writes_state_count > 0;
-    let has_sql = graph_impact.sql_calls_count > 0 || graph_impact.queries_table_count > 0;
-    let has_scripts = graph_impact.injects_script_count > 0;
-
-    let signals = [has_deps, has_state, has_sql, has_scripts]
-        .iter()
-        .filter(|&&x| x)
-        .count();
-
-    if signals == 0 {
-        // No graph data — cannot derive confidence
+    let Some(score) = graph_impact.extraction_evidence.as_ref().and_then(|evidence| evidence.minimum_confidence) else {
         return (None, None);
-    }
-
-    // Each structural signal adds confidence
-    let score = match signals {
-        1 => 0.55,
-        2 => 0.70,
-        3 => 0.85,
-        _ => 0.95,
     };
     let band = if score >= 0.8 {
         "high".to_string()
@@ -1008,6 +995,7 @@ mod tests {
         let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
 
         let metrics = GraphImpactMetrics {
+            extraction_evidence: None,
             downstream_dependency_count: 0,
             reads_state_count: 0,
             writes_state_count: 0,
@@ -1043,6 +1031,7 @@ mod tests {
         let (state, _rx) = crate::state::AppState::new(cfg).expect("AppState::new");
 
         let metrics = GraphImpactMetrics {
+            extraction_evidence: None,
             downstream_dependency_count: 1,
             reads_state_count: 0,
             writes_state_count: 0,

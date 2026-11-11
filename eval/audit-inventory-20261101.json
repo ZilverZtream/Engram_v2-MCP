@@ -9950,26 +9950,25 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_DOCUMENT_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
-      "original_requirement": "TODO P0-4: optional max_tokens across tool responses, structured output, explicit truncation and recoverable pagination.",
-      "selected_tool": "get_chunk and read_memory_bank complete document responses",
-      "observed_source_gap": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "TODO P1-12: consume extraction confidence metadata in ADP Gate1, rather than treating weakly resolved and verified relationships alike.",
+      "selected_tool": "autonomous_decision_gate extraction-confidence evidence",
+      "observed_source_gap": "Installed3ad27e42 skipped Gate1 for three independently authored indexed targets. The separate SQL confidence call returned0.685 for the C# SQL source. Current orchestration inspects only six file-node adjacency counts, derives0.55..0.95 from their presence and ignores method-edge confidence metadata. The baseline overall Allow was shadow-mode policy, not evidence of enforced allowance.",
       "implementation_files": [
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/services/document_response.rs",
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/tools.rs"
+        "crates/engram_server/src/services/extraction_evidence.rs",
+        "crates/engram_server/src/services/evidence_orchestration.rs",
+        "crates/engram_server/src/services/autonomous_decision_service.rs",
+        "crates/engram_server/build.rs"
       ],
       "finite_acceptance": [
-        "Both readers accept root max_tokens and output_json. Default behavior stays compatible. Complete serialized reply text fits ceil(UTF8 bytes/4), including provenance, source freshness, guidance and JSON escaping.",
-        "Raw structured and budgeted text reads page at UTF8 boundaries with literal hash-bound citation recovery. Open-ended citations page at requested whole-line or UTF8 boundaries; explicit ranges and quote proofs remain complete or return actionable minimum budget. Preserve raw bytes and hashes across pages; changed content fails closed.",
-        "Rule-injected/logically sliced output retains complete transformed content and guidance or returns an actionable minimum. Never label transformed content as raw stored evidence. Invalid budgets fail; missing sections remain explicit.",
-        "Run relevant behavior and compatibility checks; public candidate/installed calls reconstruct independent source and original memory content, retain guidance and reject stale hash recovery. Build, deploy, record evidence, advance."
+        "Gate1 consumes valid producer confidence on observed semantic edges of exact target files, including method nodes. Use selected source revision membership and explicit bounded coverage; preserve missing metadata/endpoints/revisions as gaps.",
+        "A weak observed score cannot be hidden by many strong edges or a higher caller override. Incomplete/no evidence forces abstention for this gate. Valid low caller evidence can still deny; empty-target legacy caller-only operation remains explicit. Reject non-finite/out-of-range caller scores.",
+        "Expose bounded source/target/kind/resolution witnesses and coverage in JSON and text; preserve them in immutable decision reports and evidence hashes. Gate implementation identity includes the new scorer.",
+        "Relevant no-vector/native behavior checks and actual candidate/installed public calls distinguish independently authored resolved and unresolved source cases; validate unknown metadata, caps, stale revisions, low/high override and rollout/kill-switch compatibility. Build/deploy and advance; no graph extractor, CodeMap, Blast Radius or other-gate redesign."
       ],
-      "remaining_scope": "Broader P0-4 tools, full uniform envelope rollout and durable corpus cursors remain open. No retrieval tuning or CodeMap/Blast work."
+      "remaining_scope": "Producer scores do not establish parser recall, runtime behavior, working-tree freshness or overall edit safety. Broader P0-4, EG14 and original backlog remain open."
     },
-    "at_utc": "2026-11-11T19:22:41.472872+00:00",
+    "at_utc": "2026-11-11T19:59:04.478955+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -9999,8 +9998,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 document response: selected contract delivered; broader response-budget requirements remain open.",
-    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
+    "active_original_item": "P1-12 ADP consumption of extraction-confidence evidence",
+    "next_user_visible_deliverable": "ADP Gate1 distinguishes weak/unknown edge evidence from verified producer confidence instead of graph density.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10014,7 +10013,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: document responses built, candidate and installed public acceptance verified, deployed and normal runtime checked.",
+    "previous_goal_turn_classification": "Progress: ADP producer-confidence consumption implemented and focused native/no-vector checks passed; public acceptance and deployment pending.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12438,6 +12437,14 @@
       "full_p04_closed": false,
       "source_commit": "6da396f070e744d416704d679c8755ef9df77541",
       "installed_server_sha256": "3ad27e427db6c5bcd3a9477fc6f1b205e70b1a6b8f0e0f65df6fcb11058ef3c5"
+    },
+    "p112_adp_baseline_20261111": {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\baseline\\acceptance.json",
+      "status": "OBSERVED_GATE1_INPUTS"
+    },
+    "p112_adp_confidence_20261111": {
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "receipt": "eval\\p112-adp-confidence-delivery-20261111.json"
     }
   }
 }

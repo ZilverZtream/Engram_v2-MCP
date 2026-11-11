@@ -45,6 +45,9 @@ impl std::fmt::Display for AdpVerdict {
 /// Outcome of a single gate evaluation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GateResult {
+    /// Selected source edge-confidence evidence for Gate 1, when gathered.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extraction_evidence: Option<crate::services::extraction_evidence::ExtractionEvidence>,
     /// Machine-readable gate identifier.
     pub gate_id: String,
     /// Human-readable gate name.
@@ -122,6 +125,8 @@ pub struct ReconciliationScores {
 /// edge-count-based signals from the project graph.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct GraphImpactMetrics {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extraction_evidence: Option<crate::services::extraction_evidence::ExtractionEvidence>,
     pub downstream_dependency_count: u64,
     pub reads_state_count: usize,
     pub writes_state_count: usize,
@@ -221,6 +226,12 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
 
     // ── Gate 1: Extraction confidence ──
     let g1 = evaluate_extraction_confidence_gate(input);
+    if !g1.passed && g1.skipped && g1.extraction_evidence.is_some() {
+        has_abstain = true;
+        reasons.push(g1.detail.clone());
+        failed_gates.push(g1.gate_id.clone());
+        followups.push("Inspect extraction_evidence gaps and witnesses; refresh missing source evidence or narrow target_files. Structural counts and a higher caller score cannot replace unknown edge confidence.".into());
+    }
     if !g1.passed && !g1.skipped {
         if input.extraction_confidence.is_some() {
             has_hard_deny = true;
@@ -348,6 +359,7 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
         insufficient_evidence <= total_applicable / 3
     };
     let g8 = GateResult {
+        extraction_evidence: None,
         gate_id: "evidence_sufficiency".into(),
         gate_name: "Evidence Sufficiency".into(),
         passed: g8_passed,
@@ -420,11 +432,15 @@ pub fn evaluate_gates(input: &AdpInput) -> AdpDecision {
 // ── Individual gate evaluators ───────────────────────────────────────────────
 
 fn evaluate_extraction_confidence_gate(input: &AdpInput) -> GateResult {
+    if let Some(evidence) = input.graph_impact.as_ref().and_then(|graph| graph.extraction_evidence.as_ref()) {
+        return evidence.gate(input);
+    }
     match input.extraction_confidence {
         Some(score) => {
             let threshold = input.min_extraction_confidence;
             let passed = score >= threshold;
             GateResult {
+                extraction_evidence: None,
                 gate_id: "extraction_confidence".into(),
                 gate_name: "Extraction Confidence".into(),
                 passed,
@@ -446,6 +462,7 @@ fn evaluate_extraction_confidence_gate(input: &AdpInput) -> GateResult {
             }
         }
         None => GateResult {
+            extraction_evidence: None,
             gate_id: "extraction_confidence".into(),
             gate_name: "Extraction Confidence".into(),
             passed: false,
@@ -459,6 +476,7 @@ fn evaluate_extraction_confidence_gate(input: &AdpInput) -> GateResult {
 fn evaluate_trace_certainty_gate(input: &AdpInput) -> GateResult {
     if !input.trace_used_fallback && input.trace_candidate_count <= 1 {
         return GateResult {
+            extraction_evidence: None,
             gate_id: "trace_certainty".into(),
             gate_name: "Trace Certainty".into(),
             passed: true,
@@ -477,6 +495,7 @@ fn evaluate_trace_certainty_gate(input: &AdpInput) -> GateResult {
     };
 
     GateResult {
+        extraction_evidence: None,
         gate_id: "trace_certainty".into(),
         gate_name: "Trace Certainty".into(),
         passed: false,
@@ -495,6 +514,7 @@ fn evaluate_safety_policy_gate(input: &AdpInput) -> GateResult {
         Some(decision) => {
             let passed = decision.allowed;
             GateResult {
+                extraction_evidence: None,
                 gate_id: "safety_policy".into(),
                 gate_name: "Safety Policy".into(),
                 passed,
@@ -504,6 +524,7 @@ fn evaluate_safety_policy_gate(input: &AdpInput) -> GateResult {
             }
         }
         None => GateResult {
+            extraction_evidence: None,
             gate_id: "safety_policy".into(),
             gate_name: "Safety Policy".into(),
             passed: false,
@@ -527,6 +548,7 @@ fn evaluate_retrieval_quality_gate(input: &AdpInput) -> GateResult {
                 _ => raw_conf,
             };
             GateResult {
+                extraction_evidence: None,
                 gate_id: "retrieval_quality".into(),
                 gate_name: "Retrieval Quality".into(),
                 passed: ready,
@@ -544,6 +566,7 @@ fn evaluate_retrieval_quality_gate(input: &AdpInput) -> GateResult {
         None => {
             let is_skipped = input.retrieval_mode == RetrievalMode::Skipped;
             GateResult {
+                extraction_evidence: None,
                 gate_id: "retrieval_quality".into(),
                 gate_name: "Retrieval Quality".into(),
                 passed: false,
@@ -584,6 +607,7 @@ fn evaluate_blast_radius_gate(input: &AdpInput) -> GateResult {
             // heuristic as authorization.
             const ADVISORY_CONFIDENCE_CEILING: f64 = 0.6;
             GateResult {
+                extraction_evidence: None,
                 gate_id: "blast_radius".into(),
                 gate_name: "Blast Radius / Risk".into(),
                 passed,
@@ -613,6 +637,7 @@ fn evaluate_blast_radius_gate(input: &AdpInput) -> GateResult {
             }
         }
         None => GateResult {
+            extraction_evidence: None,
             gate_id: "blast_radius".into(),
             gate_name: "Blast Radius / Risk".into(),
             passed: false,
@@ -629,6 +654,7 @@ fn evaluate_anti_pattern_gate(input: &AdpInput) -> GateResult {
             let passed = verdict == "PASS";
             let conf = input.immune_confidence.unwrap_or(0.0) as f64;
             GateResult {
+                extraction_evidence: None,
                 gate_id: "anti_pattern".into(),
                 gate_name: "Anti-Pattern Guard".into(),
                 passed,
@@ -638,6 +664,7 @@ fn evaluate_anti_pattern_gate(input: &AdpInput) -> GateResult {
             }
         }
         None => GateResult {
+            extraction_evidence: None,
             gate_id: "anti_pattern".into(),
             gate_name: "Anti-Pattern Guard".into(),
             passed: false,
@@ -651,6 +678,7 @@ fn evaluate_anti_pattern_gate(input: &AdpInput) -> GateResult {
 fn evaluate_runtime_evidence_gate(input: &AdpInput) -> GateResult {
     if !input.require_runtime_evidence {
         return GateResult {
+            extraction_evidence: None,
             gate_id: "runtime_evidence".into(),
             gate_name: "Runtime Evidence".into(),
             passed: true,
@@ -665,6 +693,7 @@ fn evaluate_runtime_evidence_gate(input: &AdpInput) -> GateResult {
         let confidence = compute_reconciliation_confidence(recon);
         let passed = confidence >= 0.6 && recon.contradicted_ratio < 0.2;
         return GateResult {
+            extraction_evidence: None,
             gate_id: "runtime_evidence".into(),
             gate_name: "Runtime Evidence".into(),
             passed,
@@ -683,6 +712,7 @@ fn evaluate_runtime_evidence_gate(input: &AdpInput) -> GateResult {
 
     // Fallback to boolean (backward compat, lower confidence to incentivize upgrade)
     GateResult {
+        extraction_evidence: None,
         gate_id: "runtime_evidence".into(),
         gate_name: "Runtime Evidence".into(),
         passed: input.has_runtime_evidence,
@@ -1129,6 +1159,9 @@ pub fn format_decision(decision: &AdpDecision) -> String {
             "- [{}] **{}** (confidence: {:.2}): {}\n",
             status, g.gate_name, g.confidence, g.detail
         ));
+        if let Some(evidence) = &g.extraction_evidence {
+            out.push_str(&format!("  extraction_evidence: {}\n", serde_json::json!(evidence)));
+        }
     }
 
     // Footer: current rollout phase + current verdict (helpful when the
@@ -1298,6 +1331,8 @@ pub struct AdpDecisionReport {
 /// Per-gate evidence in the decision report.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GateEvidence {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extraction_evidence: Option<crate::services::extraction_evidence::ExtractionEvidence>,
     pub gate_id: String,
     pub gate_name: String,
     pub status: String, // "PASS", "FAIL", "SKIP"
@@ -1341,8 +1376,8 @@ pub struct ConfigSnapshot {
     /// Format: `{std::env::consts::OS}/{std::env::consts::ARCH}`.
     #[serde(default)]
     pub runtime_triple: String,
-    /// ADP1-z2t4: BLAKE3 hex-digest of the autonomous_decision_service.rs source
-    /// bytes at compile time. Computed by build.rs using the actual file content,
+    /// BLAKE3 digest of gate logic and its extraction-evidence dependencies
+    /// at compile time. Computed by build.rs using actual source content,
     /// so any edit to gate logic — even without bumping gate_code_version — produces
     /// a different hash. Replay tooling can compare this field against a freshly-
     /// built binary's value to detect silent gate-logic drift.
@@ -1385,6 +1420,7 @@ pub fn build_decision_report(
                 "FAIL"
             };
             GateEvidence {
+                extraction_evidence: g.extraction_evidence.clone(),
                 gate_id: g.gate_id.clone(),
                 gate_name: g.gate_name.clone(),
                 status: status.into(),
@@ -1405,8 +1441,7 @@ pub fn build_decision_report(
         crate_version: env!("CARGO_PKG_VERSION").into(),
         // ADP1: stamp runtime OS/arch so cross-platform replay divergence is detectable.
         runtime_triple: format!("{}/{}", std::env::consts::OS, std::env::consts::ARCH),
-        // ADP1-z2t4: BLAKE3 of the gate-logic source file, computed by build.rs and
-        // embedded at compile time. Changes whenever autonomous_decision_service.rs changes.
+        // Gate logic and evidence dependency identity, embedded by build.rs.
         gate_source_hash: include_str!(concat!(env!("OUT_DIR"), "/gate_source_hash.txt")).into(),
         ..config_snapshot
     };
