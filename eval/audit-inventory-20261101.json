@@ -9956,7 +9956,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "status": "DELIVERED_HISTORY_RESPONSE_CONTRACT_FULL_P04_PARTIAL",
       "original_requirement": "TODO P0-4: optional whole-response token budgets, explicit truncation/pagination and structured output across tools. This delivery covers search_history text and precedent modes.",
       "observed_source_gap": "SearchHistoryRequest has no max_tokens or output_json. Text mode builds an unbounded complete reply including full subject lines, shows12matched paths with only a +N marker, and truncates content with no literal full-history recovery. Existing EG20/21 capability and historical-scope behavior is deployed and must be preserved.",
       "existing_evidence": [
@@ -9979,7 +9979,7 @@
       ],
       "constraints": "No new generic transport/middleware or snapshot-store project; reuse existing reply-budget and citation recovery mechanisms. EG20/21 ranking/capability improvements are not reopened. CodeMap/Blast and TODO16c remain unselected. Full P0-4 beyond this tool remains open."
     },
-    "at_utc": "2026-11-11T20:48:58.824025+00:00",
+    "at_utc": "2026-11-11T21:03:16.575748+00:00",
     "reason": "Installed320e55189 rejects max_tokens/output_json on both document readers. Actual private native reads recover independent content but citations cap selected bytes rather than escaped JSON; ordinary memory reads have no content cap.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10009,8 +10009,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "P0-4 search_history complete response budgets and structured recovery",
-    "next_user_visible_deliverable": "Budgeted text/JSON history search results with explicit omissions and exact recovery, preserving historical scope.",
+    "active_original_item": "P0-4 search_history response contract delivered; advance the next unfinished original requirement.",
+    "next_user_visible_deliverable": "Advance the next unfinished original requirement; do not restart delivered search budget or CodeMap/Blast work.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10024,7 +10024,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: selected history response contract implemented and focused native/no-vector acceptance completed; public release acceptance pending.",
+    "previous_goal_turn_classification": "Progress: history response budgets, JSON, paging and exact recovery built, candidate/installed public Git acceptance passed, deployed and normal runtime checked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12518,8 +12518,10 @@
       }
     },
     "p04_history_response_20261111": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-      "receipt": "eval\\p04-history-response-delivery-20261111.json"
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "receipt": "eval\\p04-history-response-delivery-20261111.json",
+      "source_commit": "e9ad9aa4c4e2bb2b5749dc5364ce189c3e7ba811",
+      "installed_server_sha256": "feba2dccb6ca65312cfe6458420f8a478b459946621d01de6e0938650e7e7ad6"
     }
   }
 }
