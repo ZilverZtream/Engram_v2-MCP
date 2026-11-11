@@ -16,6 +16,11 @@ pub(crate) mod selected_source_tests;
 #[cfg(test)]
 #[path = "search_tools/lexical_worker_tests.rs"]
 mod lexical_worker_tests;
+#[cfg(test)]
+#[path = "search_tools/response_budget_tests.rs"]
+mod response_budget_tests;
+#[path = "search_tools/response_budget.rs"]
+mod response_budget;
 
 /// P0-8: inclusive line-range overlap. Zero-valued ranges mean "unknown"
 /// and never overlap anything.
@@ -138,6 +143,7 @@ impl Engram {
         req: SearchMemoryRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        response_budget::bytes(&req)?;
 
         // `metadata_filter` is in the published schema but no code has ever
         // read it. Silently ignoring a FILTER is the dangerous shape of that
@@ -184,10 +190,10 @@ impl Engram {
         };
         let offset = req.sanitized_offset();
         if offset >= crate::models::requests::MAX_SEARCH_RESULTS {
-            return Ok(CallToolResult::success(vec![Content::text(format!(
+            return Ok(CallToolResult::success(vec![Content::text(response_budget::message(format!(
                 "result: no_hits\nresult_cap_reached: {}\nrequested_offset: {}\nSearch is bounded; narrow the query or scope and restart at offset=0. No search was run.",
                 crate::models::requests::MAX_SEARCH_RESULTS, req.offset
-            ))]));
+            ), &req)?)]));
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let (gen_, _source_snapshot) = if namespaces.iter().any(|namespace| namespace == "memory") {
@@ -383,27 +389,6 @@ impl Engram {
             .take(req.sanitized_max_results())
             .collect();
 
-        // Feed the dreamer co-occurrence graph (non-blocking).
-        let lite: Vec<SearchHitLite> = hits
-            .iter()
-            .map(|(label, h)| SearchHitLite {
-                source_project_id: Some(if label.starts_with("user:") {
-                    "__user__".to_string()
-                } else {
-                    req.project_id.clone()
-                }),
-                namespace: Some(label.strip_prefix("user:").unwrap_or(label).to_string()),
-                pk: h.pk.clone(),
-                doc_id: h.doc_id.clone(),
-                path: h.path.clone(),
-                chunk_id: Some(h.chunk_id),
-            })
-            .collect();
-        let _ = self.state.events_tx.send(AppEvent::SearchSession {
-            project_id: req.project_id.clone(),
-            hits: lite,
-        });
-
         if hits.is_empty() {
             // P0-7: an empty result with no guidance burns agent turns.
             let msg = if offset > 0 {
@@ -418,7 +403,7 @@ impl Engram {
                  to verify the index is current; grep_project finds exact literals."
                     .to_string()
             };
-            return Ok(CallToolResult::success(vec![Content::text(msg)]));
+            return Ok(CallToolResult::success(vec![Content::text(response_budget::message(msg, &req)?)]));
         }
 
         let mut out = String::new();
@@ -468,7 +453,9 @@ impl Engram {
             selected_source_tests::after_selection(&req.project_id).await;
         }
         let symbols_by_path = self.symbols_for_hits(&req.project_id, &hit_refs).await;
+        let mut hit_blocks = Vec::with_capacity(hits.len());
         for (i, (ns, h)) in hits.iter().enumerate() {
+            let mut hit_out = String::new();
             let (hit_project, hit_namespace) = ns
                 .strip_prefix("user:")
                 .map_or((req.project_id.as_str(), ns.as_str()), |namespace| {
@@ -478,7 +465,7 @@ impl Engram {
             if hit_namespace == "memory" {
                 recovery["inject_rules"] = serde_json::json!(true);
             }
-            out.push_str(&format!(
+            hit_out.push_str(&format!(
                 "\n#{}\ndoc_id: {}\nchunk_id: {}\npath: {}\nlines: {}-{}\nscore: {:.3}\n",
                 offset + i + 1,
                 h.doc_id,
@@ -491,26 +478,26 @@ impl Engram {
             // Label the source namespace only when more than one is in play,
             // so the single-namespace (code) output is unchanged.
             if multi_ns {
-                out.push_str(&format!("source: {ns}\n"));
+                hit_out.push_str(&format!("source: {ns}\n"));
             }
 
             // P0-8: name the symbols this chunk covers, with node_ids usable
             // in find_symbol_references / compute_blast_radius / resolve_id.
-            out.push_str(&format!("full_chunk: get_chunk({recovery})\n"));
+            hit_out.push_str(&format!("full_chunk: get_chunk({recovery})\n"));
             let mut citation_recovery = recovery.clone();
             citation_recovery.as_object_mut().expect("recovery object").remove("inject_rules");
             citation_recovery["citation"] = serde_json::json!({});
-            out.push_str(&format!(
+            hit_out.push_str(&format!(
                 "citation_chunk: get_chunk({citation_recovery})\n"
             ));
             if hit_namespace == engram_core::namespaces::NAMESPACE_MEMORY_BANK
                 && let Some(section) = h.path.as_str().strip_prefix("memory_bank:")
             {
                 let section_recovery = serde_json::json!({"project_id":hit_project,"section":section});
-                out.push_str(&format!("full_section: read_memory_bank({section_recovery})\n"));
+                hit_out.push_str(&format!("full_section: read_memory_bank({section_recovery})\n"));
                 let mut section_citation = section_recovery;
                 section_citation["citation"] = serde_json::json!({});
-                out.push_str(&format!("citation_section: read_memory_bank({section_citation})\n"));
+                hit_out.push_str(&format!("citation_section: read_memory_bank({section_citation})\n"));
             }
             if ns == "memory"
                 && let Some(syms) = symbols_by_path.get(h.path.as_str())
@@ -522,7 +509,7 @@ impl Engram {
                     .map(|(name, ty, id, _, _)| format!("{name} ({ty}) node_id={id}"))
                     .collect();
                 if !overlapping.is_empty() {
-                    out.push_str(&format!("symbols: {}\n", overlapping.join("; ")));
+                    hit_out.push_str(&format!("symbols: {}\n", overlapping.join("; ")));
                 }
             }
 
@@ -559,41 +546,72 @@ impl Engram {
                 None
             };
             if let Some((_, _, content, _, _)) = full_content {
-                out.push_str("content:\n");
+                hit_out.push_str("content:\n");
                 let limit = req.sanitized_max_content_chars_per_result();
-                out.push_str(&content.chars().take(limit).collect::<String>());
+                hit_out.push_str(&content.chars().take(limit).collect::<String>());
                 if content.chars().count() > limit {
-                    out.push_str(&format!(
+                    hit_out.push_str(&format!(
                         "... [truncated at {limit} chars; use full_chunk above]"
                     ));
                 }
-                out.push('\n');
+                hit_out.push('\n');
             } else {
                 if req.include_content {
-                    out.push_str("content_status: unavailable; snippet fallback is not full content; use full_chunk above\n");
+                    hit_out.push_str("content_status: unavailable; snippet fallback is not full content; use full_chunk above\n");
                 }
                 if let Some(sn) = &h.snippet {
-                    out.push_str("snippet:\n");
-                    out.push_str(sn);
+                    hit_out.push_str("snippet:\n");
+                    hit_out.push_str(sn);
                     if h.snippet_truncated {
-                        out.push_str(" ... [snippet truncated; use full_chunk above]");
+                        hit_out.push_str(" ... [snippet truncated; use full_chunk above]");
                     }
-                    out.push('\n');
+                    hit_out.push('\n');
                 }
+            }
+            if req.max_tokens.is_some() {
+                hit_blocks.push(hit_out);
+            } else {
+                out.push_str(&hit_out);
             }
         }
 
+        let mut suffix = String::new();
+        let mut guidance = false;
         if let Some(policy) = source_policy.filter(|policy| policy.status != "absent" || policy.coverage != "complete") {
-            out.push_str(&policy.render_markdown());
+            suffix.push_str(&policy.render_markdown());
+            guidance = true;
         }
-        out.push_str("next: full_chunk supplies source content with applicable live repository guidance; resolve any policy omissions before editing. citation_chunk supplies exact stored-content identity, raw hash and bounded citation pages without injected guidance; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
-        let next_offset = offset + hits.len();
-        if next_offset >= crate::models::requests::MAX_SEARCH_RESULTS {
-            out.push_str("result_cap_reached: 200; further matches may exist. Narrow the query or scope and restart at offset=0.\n");
+        suffix.push_str("next: full_chunk supplies source content with applicable live repository guidance; resolve any policy omissions before editing. citation_chunk supplies exact stored-content identity, raw hash and bounded citation pages without injected guidance; pass each returned continuation as citation with the same project_id/namespace/doc_id until absent. resolve_id(<symbol>) to enter the graph; get_concept_footprint(<domain term>) for indexed touchpoints.\n");
+        let freshness = self.freshness_footer(&req.project_id, gen_).await;
+        let (out, returned) = if req.max_tokens.is_some() {
+            response_budget::finish(out, &hit_blocks, &suffix, &freshness, guidance, &req)?
         } else {
-            out.push_str(&format!("next_page: offset={next_offset}; results are bounded to 200 and are not a snapshot of mutable ranking inputs.\n"));
-        }
-        out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+            out.push_str(&suffix);
+            out.push_str(&response_budget::pagination(offset, hits.len()));
+            out.push_str(&freshness);
+            (out, hits.len())
+        };
+        // Feed the dreamer co-occurrence graph (non-blocking).
+        let lite: Vec<SearchHitLite> = hits
+            .iter().take(returned)
+            .map(|(label, h)| SearchHitLite {
+                source_project_id: Some(if label.starts_with("user:") {
+                    "__user__".to_string()
+                } else {
+                    req.project_id.clone()
+                }),
+                namespace: Some(label.strip_prefix("user:").unwrap_or(label).to_string()),
+                pk: h.pk.clone(),
+                doc_id: h.doc_id.clone(),
+                path: h.path.clone(),
+                chunk_id: Some(h.chunk_id),
+            })
+            .collect();
+        let _ = self.state.events_tx.send(AppEvent::SearchSession {
+            project_id: req.project_id.clone(),
+            hits: lite,
+        });
+
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 

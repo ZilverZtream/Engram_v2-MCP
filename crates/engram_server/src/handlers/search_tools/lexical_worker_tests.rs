@@ -78,15 +78,19 @@ fn run_case(cancel_rpc: bool) -> Result<()> {
         std::fs::create_dir_all(&cfg.data_dir)?;
         let (state, _) = AppState::new(cfg)?;
         let project = format!("search-worker-{}", uuid::Uuid::new_v4());
-        state.registry.put_project(&engram_core::ProjectRecord { project_id: project.clone(),
+        state.registry.register_source_project(&engram_core::ProjectRecord { project_id: project.clone(),
             project_name: "Search source lifetime".into(), project_type: "rust".into(),
             directory: root.to_string_lossy().into(), created_at_ms: 1, updated_at_ms: 1,
             reindex_required_since_ms: None })?;
-        state.registry.set_meta(&project, "active_generation", "1")?;
         let engram = Arc::new(Engram::new(state.clone()));
         let ps = engram.ensure_project_runtime(&project).await.map_err(|e| anyhow!(e.to_string()))?;
         let cancel = tokio_util::sync::CancellationToken::new();
+        let initial = state.registry.capture_source_head(&project)?;
+        ps.search.prepare_full_source_snapshot(&project, 0, 1,
+            &[engram_core::RelPath::new("changed.rs")], &cancel).await?;
         ps.search.index_docs(&project, &[old], &cancel).await?;
+        ps.search.seal_source_snapshot(&project, 1)?;
+        ensure!(state.registry.publish_source_head(&initial, 1)?, "Initial fixture publication lost its base");
         let (registration, entered_rx, complete_rx) = Registration::new(&project);
         let server = engram.clone();
         let pid = project.clone();
@@ -100,13 +104,14 @@ fn run_case(cancel_rpc: bool) -> Result<()> {
         let phase: Result<()> = async {
             entered_rx.recv_timeout(WAIT).context("FTS worker did not enter")?;
             entered = true;
+            let base = state.registry.capture_source_head(&project)?;
             ps.search.prepare_source_snapshot(&project, 1, 2,
                 &[engram_core::RelPath::new("changed.rs")], &[], &cancel).await?;
             let new = document(2, "new", "new_marker");
             std::fs::write(root.join("changed.rs"), &new.content)?;
             ps.search.index_docs(&project, &[new], &cancel).await?;
             ps.search.seal_source_snapshot(&project, 2)?;
-            state.registry.set_meta(&project, "active_generation", "2")?;
+            ensure!(state.registry.publish_source_head(&base, 2)?, "Fixture update lost its base");
             ps.search.purge_old_generations(&project, 2).await?;
             ensure!(ps.search.count_docs(&project)? == 2, "Worker lost old source");
             if cancel_rpc {
@@ -126,7 +131,7 @@ fn run_case(cancel_rpc: bool) -> Result<()> {
             complete_rx.recv_timeout(WAIT).context("FTS worker did not release its source lease")
         } else { Ok(()) };
         let reply = if let Some(mut rpc) = task.take() {
-            if phase.is_err() || completed.is_err() { rpc.abort(); }
+            if (phase.is_err() || completed.is_err()) && !rpc.is_finished() { rpc.abort(); }
             Some(match tokio::time::timeout(WAIT, &mut rpc).await {
                 Ok(joined) => joined.map_err(|e| anyhow!(e.to_string()))
                     .and_then(|reply| reply.map_err(|e| anyhow!(e.to_string()))),
@@ -137,6 +142,9 @@ fn run_case(cancel_rpc: bool) -> Result<()> {
             })
         } else { None };
         let checks: Result<()> = async {
+            if phase.is_err() && let Some(Err(error)) = &reply {
+                return Err(anyhow!("Search failed before the worker checkpoint: {error}"));
+            }
             phase?;
             completed?;
             if !cancel_rpc {

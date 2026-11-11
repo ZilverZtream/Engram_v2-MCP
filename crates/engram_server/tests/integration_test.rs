@@ -87,6 +87,7 @@ async fn test_index_and_search_flow() {
         date_before: None,
         semantic: true,
         include_user_memory: true,
+        max_tokens: None,
     };
 
     let res = engram.search_memory(Parameters(search_req)).await.unwrap();
@@ -437,6 +438,7 @@ async fn test_path_normalization() {
         date_before: None,
         semantic: true,
         include_user_memory: true,
+        max_tokens: None,
     };
 
     let res = engram
@@ -578,6 +580,7 @@ async fn test_memory_bank_persistence() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -674,6 +677,7 @@ async fn test_indexing_deduplication() {
         date_before: None,
         semantic: true,
         include_user_memory: true,
+        max_tokens: None,
     };
 
     let res1 = engram
@@ -846,6 +850,7 @@ async fn test_gc_preserves_global_namespaces() {
                 date_before: None,
                 semantic: true,
                 include_user_memory: true,
+                max_tokens: None,
             }))
             .await
             .unwrap();
@@ -879,6 +884,7 @@ async fn test_gc_preserves_global_namespaces() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -1309,6 +1315,7 @@ async fn test_watch_project() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -1415,6 +1422,7 @@ async fn test_search_features() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -1449,6 +1457,7 @@ async fn test_search_features() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -1481,6 +1490,7 @@ async fn test_search_features() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -1513,6 +1523,7 @@ async fn test_search_features() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();
@@ -1592,6 +1603,7 @@ async fn test_get_chunk_hardening() {
             date_before: None,
             semantic: true,
             include_user_memory: true,
+            max_tokens: None,
         }))
         .await
         .unwrap();

@@ -426,8 +426,23 @@ async fn core_client_can_choose_a_project_and_recover_search_and_memory_citation
             .context("owned update handle missing")?;
         let status = call!("get_job_status", json!({"job_id":job_id}));
         anyhow::ensure!(text(&status).contains("status: running"));
-        let cancelled = call!("cancel_job", json!({"job_id":job_id}));
-        anyhow::ensure!(text(&cancelled).contains("cancelled job_id:"));
+        let token = state.cancellation_tokens.read().await.get(job_id).cloned()
+            .context("owned update cancellation token missing")?;
+        let cancellation = client.call_tool(CallToolRequestParam {
+            name: "cancel_job".into(),
+            arguments: json!({"job_id":job_id}).as_object().cloned(),
+        });
+        tokio::pin!(cancellation);
+        tokio::select! {
+            result = &mut cancellation => anyhow::bail!("Cancellation returned before the held worker settled: {result:?}"),
+            _ = token.cancelled() => {},
+            _ = tokio::time::sleep(std::time::Duration::from_secs(10)) => anyhow::bail!("Cancellation did not signal the owned worker"),
+        }
+        // Cooperative cancellation waits for the producer to settle. Release
+        // this fixture's lane after observing the signal so it can do so.
+        drop(queued_project_lock.take());
+        let cancelled = tokio::time::timeout(std::time::Duration::from_secs(10), cancellation).await??;
+        anyhow::ensure!(text(&cancelled).contains("status: cancelled"));
         let deadline = tokio::time::Instant::now() + std::time::Duration::from_secs(5);
         while !running.is_finished() {
             anyhow::ensure!(
