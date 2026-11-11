@@ -9935,23 +9935,24 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "INSTALLED_ACCEPTANCE_DELIVERED_FULL_S08_PARTIAL",
-      "original_requirement": "S08: GC protects selected revisions and ancestry of active, pinned and existing retained rollback roots, including restart.",
-      "current_missing_behavior": "Existing native/no-vector source and public-handler evidence covers held readers, inherited revisions, retirement and cold ancestry. The selected remaining evidence gap is exact current installed MCP source recovery after real edit/deletion, explicit GC and a fresh server process. No new production defect has been established.",
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "S10: cancellation around publication preserves a complete old or new source head, truthful outcomes and retry convergence.",
+      "current_missing_behavior": "Existing postcommit background tests cancel only the token. The actual cancel_job service also aborts/removes the task and overwrites its durable result with cancelled/0%, bypassing the worker code that reports an already published source generation as degraded. Source inspection identifies the gap; public-handler reproduction is next.",
       "implementation_files": [
+        "crates/engram_server/src/services/job_service.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_index/src/hybrid/snapshots.rs"
+        "crates/engram_server/src/handlers/project_tools/source_publication_tests/job_cancellation.rs"
       ],
       "finite_acceptance": [
-        "Use the deployed executable and a new owned three-file project; recover literal public search citations and compare their complete UTF-8 bodies/hashes with independent source bytes.",
-        "Edit one file, delete another and preserve a sibling; update, explicitly collect, and check exact current results and absence of superseded/deleted results. Native vector results must identify the same selected documents.",
-        "Close the exact server and reader, reopen the same owned data in a fresh server process, collect again and recover the same live source through public tools. Repeat for fts_only and local native-vector configurations without rebuilding or repeating already-passed handler tests.",
-        "Remove owned fixture only after all processes/readers/handles close; preserve production data/configuration and prior evidence. Record limits: no new durable rollback-pin feature, no crash/fault/resource claim, no actual no-vector executable claim from an fts_only configuration."
+        "Reproduce actual cancel_job after the real background source CAS. Preserve complete committed source and its durable degraded result rather than an unconditional cancelled tombstone.",
+        "Before publication, cooperative cancellation must settle the actual worker, preserve the previous complete source and allow a subsequent update. Keep job provenance/checkpoint safety and existing unknown/stale-job behavior.",
+        "A cancelled cancellation RPC must not abandon settlement or remove live job ownership needed by project deletion. Validate the selected public-handler cases in native and actual no-vector builds and relevant ZIP/stale cancellation controls.",
+        "Build/deploy the runtime fix and verify the public MCP cancellation/retry behavior on an owned fixture. Keep broader all-writer/commit/fault/crash requirements unfinished; no new job framework or performance project."
       ],
-      "previous_delivery": "eval/s07-diagnostic-authority-delivery-20261111.json; source e50e4f2 and deployed receipt7a4ad07."
+      "previous_delivery": "eval/s08-installed-retention-validation-20261111.json; pushed affd73c."
     },
-    "at_utc": "2026-11-11T13:40:53.786036+00:00",
-    "reason": "Advance after deployed S07. Retain existing S08/S09/S12 proofs; fill the installed cold-restart acceptance gap without manufacturing a new source patch or repeating passed tests.",
+    "at_utc": "2026-11-11T14:19:37.933818+00:00",
+    "reason": "S08 installed acceptance delivered. S09 already has retained native/no-vector queued-GC evidence; advance to the concrete S10 public cancellation gap rather than repeat passed checks.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -12334,6 +12335,16 @@
       "receipt": "eval/s08-installed-retention-validation-20261111.json",
       "status": "INSTALLED_ACCEPTANCE_PASSED_NO_PRODUCT_CHANGE",
       "full_s08_closed": false
+    },
+    "s10_public_cancel_regression_20261111": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\regression.json",
+      "sha256": "8637bba3070d4b20a8e1ee06954eb5c30a8a5752e2030925e29c274b9f7bf2be"
+    },
+    "s10_public_job_cancellation_20261111": {
+      "receipt": "eval/s10-public-job-cancellation-delivery-20261111.json",
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "validated_behavior": "Cooperatively signal live workers and preserve their persisted terminal outcome. Keep cancellation settlement alive after requesting RPC abandonment, retain unsettled ownership for concurrent deletion, preserve terminal/stale provenance, and explicitly report unconfirmed settlement or persistence errors.",
+      "full_s10_closed": false
     }
   }
 }

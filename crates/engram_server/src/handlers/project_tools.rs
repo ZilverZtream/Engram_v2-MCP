@@ -4242,6 +4242,12 @@ impl Engram {
                 job_service::CancellationOutcome::NotFound => {
                     format!("❌ job_id not active: {}", req.job_id)
                 }
+                job_service::CancellationOutcome::Settled { status, message, .. } => {
+                    format!("job_id: {}\nstatus: {status}\nmessage: {message}", req.job_id)
+                }
+                job_service::CancellationOutcome::Unconfirmed { message, cancellation_signalled } => {
+                    format!("job_id: {}\ncancellation_signalled: {cancellation_signalled}\nsettlement: unconfirmed\n{message}", req.job_id)
+                }
             },
         )]))
     }

@@ -1614,28 +1614,8 @@ fn cancel1_ingest_rs_is_synchronous_and_has_no_await_loops() {
     );
 }
 
-/// D7/CANCEL1: job_service.rs must not have looped await patterns without a
-/// cancel check. Document the current state (no looped awaits) as the baseline.
-#[test]
-fn cancel1_job_service_has_no_looped_await_without_cancel_check() {
-    let src = include_str!("../src/services/job_service.rs");
-
-    // Count loops vs cancel checks. If loops > 0, there must be cancel checks.
-    let loop_count = src.matches("loop {").count() + src.matches("for ").count();
-    let cancel_check_count = src.matches("is_cancelled").count()
-        + src.matches("cancelled").count()
-        + src.matches("CancellationToken").count();
-
-    if loop_count > 0 {
-        assert!(
-            cancel_check_count > 0,
-            "D7/CANCEL1: job_service.rs has {loop_count} loop(s) but no cancel checks; \
-             every looped await must check the cancel token at least once per iteration"
-        );
-    }
-    // If loop_count == 0, the invariant is trivially satisfied — document this.
-    // Future additions of loops must add cancel checks.
-}
+// Live cancellation settlement is exercised by job_cancellation.rs, including
+// cancellation-RPC abandonment while the real producer and deletion remain pending.
 
 // ── X5-j4r3: exhaustive active_indexing_count guard registry ─────────────────
 

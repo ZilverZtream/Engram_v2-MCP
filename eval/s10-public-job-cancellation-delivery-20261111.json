@@ -1,0 +1,122 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T14:19:37.933818+00:00",
+  "original_requirement": "S10: cancellation around publication preserves a complete old or new source head, truthful outcomes and retry convergence.",
+  "demonstrated_failure": {
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\red-result.json",
+      "sha256": "a512cdd93d783e901a9ae9c561e129d729432cad9055d35b2d4a1b3d01a8a3e8"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\red.log",
+      "sha256": "30cd0ccdbfc804be85d428310cd0897d3d6cc088bc36d1cd9a593f37762b7fc5"
+    },
+    "behavior": "Actual cancel_job after background source publication overwrote the committed outcome with cancelled/0%."
+  },
+  "implemented": "Cooperatively signal live workers and preserve their persisted terminal outcome. Keep cancellation settlement alive after requesting RPC abandonment, retain unsettled ownership for concurrent deletion, preserve terminal/stale provenance, and explicitly report unconfirmed settlement or persistence errors.",
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-public-result.json",
+          "sha256": "186dc498ec5775f414fd7bf53a9acc6c1123d49b338f6c682a2cbe880e503aaf"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-public.log",
+          "sha256": "782193f486b1b1f1abb13c695c5523089d610e14842724819fb998ce6ca4717b"
+        },
+        "passed": 3
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-service-result.json",
+          "sha256": "58df5b6ab9ed58c8fa1193406d3a4f428ae3a6c73585c4d01dfdd0b93bafd2a2"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-service.log",
+          "sha256": "1f2c1a13e657bfb4ee576d945262e01b0dcfc0392709e1c0db745cbebdc6e18a"
+        },
+        "passed": 5
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-zip-result.json",
+          "sha256": "11df441eed6ee057181bfebb2aacb60e80b037764ccfe7ac52e7fc903bf1f640"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-zip.log",
+          "sha256": "b7e7ab762bc1f2cc193b7b2892882ebd0f8fc4aee07fbf6dd45aba54ebd47cd7"
+        },
+        "passed": 5
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-checkpoint-retry-result.json",
+          "sha256": "14972c2fa74970e0e1bb73ea20109576102eb2531a987dd060345748f9f1e397"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-checkpoint-retry.log",
+          "sha256": "15f922f3e6292ec24e73f99f7c8156396c284dc1df8b4bdf06f0da430898dd39"
+        },
+        "passed": 2
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\native-final-public-result.json",
+          "sha256": "d451b8bd766cad48203c0745d5d8b2704955889e5c5d6f33b67063f9a608b789"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\native-final-public.log",
+          "sha256": "03f1d1d9ee04dcc28c78a3a765c7fd1384f78e05b44da4ce17db8ff651bdcfe5"
+        },
+        "passed": 3
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\native-final-service-result.json",
+          "sha256": "90e8ac327ce9b60d5ce53121962286a00af2db4bddc956d3bae2ea4b925d6967"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\native-final-service.log",
+          "sha256": "0aa62fcdf3921246af3921bb23044d4199466a766d1864583f18c8fd1e1cf916"
+        },
+        "passed": 5
+      }
+    ],
+    "scenarios": [
+      "Actual public cancellation before publication preserves the complete old source and supports retry.",
+      "Actual public cancellation after publication retains degraded/100%, committed generation and exact source, including cold reopen.",
+      "Abandoned cancellation RPC retains live ownership until actual concurrent project deletion drains the worker.",
+      "Token-only, handle-only, abnormal-worker pending-cleanup, terminal-record and stale/deletion races preserve truthful outcomes and ownership.",
+      "Existing ZIP cancellation, unknown/stale-job controls and metadata-error behavior pass."
+    ],
+    "scope": "Three public source scenarios and five service scenarios in native and no-default-features builds. Native public fixtures use local vectors and complete source coverage checks. Five ZIP and two checkpoint controls in no-default-features build."
+  },
+  "source_sha256": {
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\services\\job_service.rs": "d042c5abe18cc4e92f74bbfc9969b9228418da3e0990e4f0c32c4e0d3e2c91f6",
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\services\\job_service\\cancellation_tests.rs": "35b7b2e0e10c33edf48fb8e2e52f9d6b4402ff4c7c64330298cfed70e7829f8f",
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools.rs": "74efd625d627784c0a99a6e44ed4e4be03b0ebeb0e69c4877f7be63302bd16fd",
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools\\source_publication_tests.rs": "e3749b53566c46a3295fae7caaf7795259a39bf240d2e659f2003bce334be6a4",
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\project_tools\\source_publication_tests\\job_cancellation.rs": "1975fc5f9c5aa65e01775be83556d21ec084abd7eae6a429fbebad8480f081aa",
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\tests\\checkpoint_recovery_tests.rs": "32300eb72b5362d4a7ccfc8dcde3fb41793d38e873a4b034206734b8e630ae03",
+    "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\tests\\actor_cancellation_sweep_tests.rs": "0580bbe12f2166623292d5a05af162f6ab196843d11af50dae0f9c983c990067"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\independent-review-v2.json",
+    "sha256": "026c85ede04e29a3a029c80952393fe43f72c481f02b588741b54d2426ae9ac4"
+  },
+  "review_delta": "After review, only allowed_roots was added to the checkpoint fixture. run-final-tests.py verifies the original review hash after reversing that exact line; no runtime changes after review.",
+  "failed_setup": {
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111\\no-vector-final-checkpoint-result.json",
+      "sha256": "63f730447e35cedfd9008ced47c81bacc27db837d6d3652fb53e437fae193e7f"
+    },
+    "reason": "Fixture omitted required allowed_roots. Fixed without changing cancellation assertions; passing retry retained separately."
+  },
+  "remaining": "Release build, candidate and installed public MCP cancellation/retry checks, deployment and installed identity verification. Original broader all-writer/commit/fault/crash scope remains unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s10-public-job-cancellation-20261111",
+    "owned_test_fixtures_closed_and_removed": true,
+    "retained": "Logs, review receipts, red reproducer and empty runner containers retained as delivery evidence. No preexisting folder deletion."
+  }
+}
