@@ -1,0 +1,74 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T21:25:30.721959+00:00",
+  "original_requirement": "TODO P0-4 complete-response budgets and recoverable omissions for unbounded access-layer contexts; selected prepare_implementation_context.",
+  "implemented": "Optional max_tokens pages complete UTF8 replies while retaining required target/policy/coverage/warnings/hazards/freshness. Source fragments and whole context entries have explicit inventory and literal continuations. Hashes bind full assembled context and options, refusing changed evidence rather than mixing pages. Default complete formats retained; session-key presentation order stabilized.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\baseline-v2\\acceptance.json",
+      "sha256": "ac17c6cf04df61bba90b787528f8d48fe53b48e894fc637d0540269467defe7c"
+    },
+    "oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\baseline-v2\\source-oracle.json",
+      "sha256": "e02f23fb5ffadfb4f5df2e77c38d06a378bed6a2400d4cccfcf91c2e9b2c01ed"
+    },
+    "behavior": "Installed native JSON/Markdown returned64526/60582bytes for one authored C# method and two callers and rejected max_tokens. Qualified live AGENTS.md was retained in the baseline."
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-native-v4-result.json",
+          "sha256": "c06e4b29b58319e2ee2b910663d40c843f285922bfa4fb18c34dda0ad5ec40ed"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-native-v4.log",
+          "sha256": "3b87ac7e40dffe61c2720f98574984c969818fb402e55b45c2b37abf48e5f5df"
+        },
+        "passed": 10
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-no-vector-result.json",
+          "sha256": "bfa7c88a04e7f90e7c420822dcd953f7f0ac7ccb778b698112819272596262d2"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-no-vector.log",
+          "sha256": "34086ce0eec5bb69f3fb27bef62215633cc4c27d0ac4e0d07fe162548d569821"
+        },
+        "passed": 10
+      }
+    ],
+    "total_passed": 20,
+    "initial_test_syntax_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-native-result.json",
+      "sha256": "9bc158a3d5d22a019c38d26a260678aad77751520c6fd6a57c1901d06aebf0d5"
+    },
+    "unordered_state_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-native-v2-result.json",
+      "sha256": "48bbc07d52d3a7ca29049f51fb6d30ae5d8d4dc84d47bdf0248c399bc8f61ad6"
+    },
+    "inherited_repository_fixture_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\context-native-v3-result.json",
+      "sha256": "9d960504ff99e1698bfa90638b43174b7f768e0ad8cf2d2f73fe7ed2a40d4d88"
+    }
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111\\source-review.json",
+    "sha256": "cd8d7e5b5ba3ba0ebc0d3bbacaab878a629e3bec45631a6d14a63711ca180317"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "3503b8853969219762bada23f4abfe038725a49c623ece7c2c74a61a915265d6",
+    "crates/engram_server/src/handlers/access_layer_tools/context_response.rs": "afedc621d582cd34b3cbf9f807edb93d91da5d3a0aedf95bcdb3bc517a577f60",
+    "crates/engram_server/src/models/requests.rs": "e47d1485e3dd1bdc549d4979faf710461179554e85ccc5e576d67a5a3580bdad",
+    "crates/engram_server/src/tools.rs": "20d21ea15180b9e21d0ff852e062c0c055f906bcecdee3a792ee8c474c509cfd",
+    "crates/engram_server/tests/context_response_tests.rs": "4868639a622f2c26b323bd09b8d16925af04b28c2536a9be398e3648bd39d823",
+    "crates/engram_server/tests/prepare_implementation_context_tests.rs": "8bee929ef59e1346c676d1330bc71a45f49abf28b37bf6ad99011eadaa1ed98f"
+  },
+  "remaining": "Build, execute candidate/installed complete-context reconstruction against authored source/policy, deploy and advance. Other tools, provider-token accounting, durable snapshots and full P0-4 remain unfinished.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-context-response-20261111",
+    "test_and_baseline_fixtures_closed_and_removed": true,
+    "retained": "Source/baseline/test/review/helper evidence retained here; unrelated preexisting and policy-rejected cleanup paths untouched."
+  }
+}

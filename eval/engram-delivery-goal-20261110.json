@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search/document/history reply budgets and P1-12 confidence consumption are deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "P0-4 search_history",
-    "receipt": "eval\\p04-history-response-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected history response contract is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "finding": "P0-4 implementation context",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "receipt": "eval\\p04-context-response-delivery-20261111.json",
+    "remaining": "Build, execute candidate/installed complete-context reconstruction against authored source/policy, deploy and advance. Other tools, provider-token accounting, durable snapshots and full P0-4 remain unfinished."
   }
 }
