@@ -3,6 +3,12 @@
 //! separate output accounting; this reservation keeps its existing batch scope.
 use super::*;
 
+mod source_read;
+
+pub(super) fn read_source(path: &Path, admitted_len: u64) -> anyhow::Result<(Option<Vec<u8>>, std::fs::Metadata)> {
+    source_read::read_source(path, admitted_len)
+}
+
 /// Extraction has not mutated native storage. A bad parser input is a failed
 /// source update, not a broken storage-coordination invariant. Keep this catch
 /// inside the work owner's scope and outside all native writes/publication.
@@ -176,6 +182,63 @@ mod tests {
                 |_, _| {},
             )
             .await
+    }
+
+    #[test]
+    fn admitted_source_growth_refuses_output_and_retry_keeps_previous_generation() -> anyhow::Result<()> {
+        let owned = tempfile::tempdir()?;
+        let result = (|| -> anyhow::Result<()> {
+            let runtime = tokio::runtime::Builder::new_multi_thread()
+                .worker_threads(2).enable_all().build()?;
+            runtime.block_on(async {
+                let root = owned.path().join("repo");
+                std::fs::create_dir(&root)?;
+                let source = root.join("source.rs");
+                std::fs::write(&source, "pub fn original_admitted() -> u32 { 1 }\n")?;
+                let budget = Arc::new(MemoryBudget::new(16 * 1024 * 1024));
+                let mut index = engine(owned.path(), budget.clone()).await;
+                index_one(index.clone(), root.clone()).await?;
+                let old_count = index.count_docs_in_generation("project", "memory", 1)?;
+                anyhow::ensure!(old_count > 0);
+                std::fs::write(&source, "pub fn pending_admitted() -> u32 { 2 }\n")?;
+                let pause = Arc::new(ParsePause::default());
+                index.source_read_pause = Some(pause.clone());
+                let release = ResumeOnDrop(pause.clone());
+                let attempt = tokio::spawn({
+                    let index = index.clone();
+                    let root = root.clone();
+                    async move { index.index_files("project", "memory", 2, &root,
+                        vec![root.join("source.rs")], 1000, &CancellationToken::new(), |_, _| {}).await }
+                });
+                let entered = tokio::time::timeout(Duration::from_secs(30), pause.entered.notified()).await;
+                let replacement = format!("pub fn grown_admitted() -> u32 {{ 3 }}\n{}", "// extra source bytes\n".repeat(512));
+                let changed = std::fs::write(&source, &replacement);
+                drop(release);
+                let failed = attempt.await?;
+                entered?;
+                changed?;
+                anyhow::ensure!(failed.as_ref().is_err_and(|error| error.to_string().contains("admitted")),
+                    "Source growth after memory admission must refuse before producing output: {failed:?}");
+                anyhow::ensure!(index.count_docs_in_generation("project", "memory", 1)? == old_count
+                    && index.count_docs_in_generation("project", "memory", 2)? == 0,
+                    "Read refusal must preserve previous source and leave no replacement output");
+                index.index_files("project", "memory", 2, &root, vec![source], 1000,
+                    &CancellationToken::new(), |_, _| {}).await?;
+                anyhow::ensure!(index.count_docs_in_generation("project", "memory", 1)? == old_count
+                    && index.count_docs_in_generation("project", "memory", 2)? > 0,
+                    "Fresh admission must allow retry without losing the previous source");
+                drop(failed);
+                drop(index);
+                anyhow::ensure!(budget.breakdown().parse_buffer == 0, "Read refusal/retry leaked parse reservation");
+                Ok(())
+            })
+        })();
+        let cleanup = owned.close();
+        match (result, cleanup) {
+            (Err(error), Err(cleanup)) => Err(error.context(format!("Owned read fixture cleanup failed: {cleanup}"))),
+            (Err(error), _) => Err(error),
+            (Ok(()), cleanup) => cleanup.map_err(Into::into),
+        }
     }
 
     #[test]

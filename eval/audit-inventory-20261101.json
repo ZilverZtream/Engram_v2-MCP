@@ -9947,26 +9947,25 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_INSTALLED_ACCEPTANCE_FULL_S13_NOT_REVALIDATED",
-      "original_requirement": "S13: Full repair can replace damaged metadata and an abandoned next generation; initial registration exposes only its published state.",
-      "current_missing_behavior": "Retained native56/no-vector55 local full-recovery evidence is not bound to a current installed real indexed-corpus witness with damaged required HEAD and an abandoned higher generation. No new runtime defect is asserted.",
-      "implementation_files": [],
-      "existing_implementation": [
-        "crates/engram_core/src/registry/source_head.rs",
-        "crates/engram_core/src/registry/source_highwater.rs",
-        "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/handlers/project_tools/source_publication_tests/full_recovery.rs"
+      "status": "IMPLEMENTED_VALIDATED_AWAITING_DEPLOYMENT",
+      "original_requirement": "S14: Reserve and bound reads, parsing, ancestry, copies, selectors and pinned views before allocation; budget failure preserves the head.",
+      "current_missing_behavior": "index_files reserves raw parse bytes using batch path metadata, but worker metadata/read_to_end can admit a later larger file and grow its buffer to10MiB, beyond the earlier reservation. The worker also allocates full metadata-sized body capacity before binary prefix classification.",
+      "implementation_files": [
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_index/src/hybrid/parse_work.rs",
+        "crates/engram_index/src/hybrid/parse_work/source_read.rs"
       ],
       "finite_acceptance": [
-        "Reuse one owned installed indexed fixture and retained local evidence; do not rerun the existing full matrix.",
-        "After naturally closing the fixture server, inject damaged required HEAD and one higher abandoned generation while preserving independent recovery authority. Verify ordinary public reads/update refuse.",
-        "Explicit full repair must publish above the abandoned generation, recover exact source and native vector identities, survive natural restart, and support a subsequent ordinary edit.",
-        "Close all owned processes/handles and remove only the new owned fixture; record evidence and limitations, then advance. No new rollback feature, production corruption or broad storage framework."
+        "Reproduce actual index_files growth after memory admission. Reject growth before replacement output; preserve prior generation and allow fresh-admission retry.",
+        "Bind per-file captured byte lengths to batch reservation and fixed source reads. Bound binary classification to stack prefix and detect size mismatch/truncation/growth without Vec growth beyond admitted length.",
+        "Run focused native and no-default-features read/parse-ownership behavior checks; preserve oversize/binary/empty and extraction failure behavior.",
+        "Build/deploy and verify actual installed source indexing/update, binary/oversize controls and budget refusal preserving published head with retry. Deterministic admission-race proof remains in focused engine tests."
       ],
-      "previous_delivery": "eval/s12-installed-recovery-validation-20261111.json"
+      "remaining_scope": "Retained aggregate stats/doc buffers, decoding/parsing expansion, native/provider and other allocation bounds remain unfinished. No whole-process RSS cap or full S14 closure claimed.",
+      "previous_delivery": "eval/s13-installed-recovery-validation-20261111.json; commit41578b7"
     },
-    "at_utc": "2026-11-11T14:56:23.057293+00:00",
-    "reason": "S12 selected installed missing-ancestor refusal/full-repair/restart acceptance passed on current deployed pair. Advance to original S13 installed recovery above abandoned generation.",
+    "at_utc": "2026-11-11T15:15:02.067019+00:00",
+    "reason": "Advance original S14: observed source read growth can exceed admitted raw byte reservation. Fix selected admission race before unrelated allocation work.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -12267,23 +12266,23 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "status": "DELIVERED_SELECTED_INSTALLED_ACCEPTANCE_FULL_S12_NOT_REVALIDATED",
-      "original_requirement": "S12: Missing/truncated managed records, missing ancestors/boundary and interrupted first migration fail safely.",
-      "current_missing_behavior": "Retained native/no-vector regressions verify selected failures and recovery locally, but current installed package has no real indexed-corpus witness for damaged required ancestry and explicit full repair. S07 corruption fixture is metadata-only; S08 indexed corpus has no ancestry corruption. No new runtime defect is asserted.",
+      "status": "DELIVERED_SELECTED_INSTALLED_ACCEPTANCE_FULL_S13_NOT_REVALIDATED",
+      "original_requirement": "S13: Full repair can replace damaged metadata and an abandoned next generation; initial registration exposes only its published state.",
+      "current_missing_behavior": "Retained native56/no-vector55 local full-recovery evidence is not bound to a current installed real indexed-corpus witness with damaged required HEAD and an abandoned higher generation. No new runtime defect is asserted.",
       "implementation_files": [],
       "existing_implementation": [
-        "crates/engram_index/src/hybrid/snapshots.rs",
         "crates/engram_core/src/registry/source_head.rs",
+        "crates/engram_core/src/registry/source_highwater.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
         "crates/engram_server/src/handlers/project_tools/source_publication_tests/full_recovery.rs"
       ],
       "finite_acceptance": [
-        "Bind retained local source/test evidence to the current source and installed pair without repeating the already-passed matrix.",
-        "Use one owned real indexed fixture: naturally close it, remove one required managed ancestry record, reopen, and verify public source reads and incremental update refuse safely.",
-        "Use explicit full repair, then recover exact independently known source after natural restart. Verify the owned fixture and processes are cleaned up and production data/configuration are unchanged.",
-        "Record installed evidence and advance; broader corruption combinations retain their original status. Only fix a newly demonstrated runtime failure if it prevents this delivery."
+        "Reuse one owned installed indexed fixture and retained local evidence; do not rerun the existing full matrix.",
+        "After naturally closing the fixture server, inject damaged required HEAD and one higher abandoned generation while preserving independent recovery authority. Verify ordinary public reads/update refuse.",
+        "Explicit full repair must publish above the abandoned generation, recover exact source and native vector identities, survive natural restart, and support a subsequent ordinary edit.",
+        "Close all owned processes/handles and remove only the new owned fixture; record evidence and limitations, then advance. No new rollback feature, production corruption or broad storage framework."
       ],
-      "previous_delivery": "eval/s10-public-job-cancellation-delivery-20261111.json; source9acc772 installed280c362d."
+      "previous_delivery": "eval/s12-installed-recovery-validation-20261111.json"
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -12373,6 +12372,11 @@
     "s13_installed_recovery_20261111": {
       "receipt": "eval\\s13-installed-recovery-validation-20261111.json",
       "status": "SELECTED_INSTALLED_RECOVERY_ACCEPTANCE_VERIFIED"
+    },
+    "s14_admitted_source_read_20261111": {
+      "receipt": "eval\\s14-admitted-source-read-delivery-20261111.json",
+      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "full_s14_closed": false
     }
   }
 }

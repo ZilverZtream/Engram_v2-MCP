@@ -363,6 +363,8 @@ pub struct HybridSearchEngine {
     #[cfg(test)]
     parse_pause: Option<Arc<parse_work::ParsePause>>,
     #[cfg(test)]
+    source_read_pause: Option<Arc<parse_work::ParsePause>>,
+    #[cfg(test)]
     parse_preparation_pause: Option<Arc<parse_work::ParsePause>>,
     #[cfg(test)]
     parse_admission_probe: Option<Arc<parse_work::AdmissionProbe>>,
@@ -614,6 +616,8 @@ impl HybridSearchEngine {
             vb_source_inventory: None,
             #[cfg(test)]
             parse_pause: None,
+            #[cfg(test)]
+            source_read_pause: None,
             #[cfg(test)]
             parse_preparation_pause: None,
             #[cfg(test)]
@@ -2766,10 +2770,15 @@ impl HybridSearchEngine {
                 break;
             }
 
-            let chunking_estimate = file_chunk
-                .iter()
-                .filter_map(|p| std::fs::metadata(p).ok().map(|m| m.len()))
-                .sum::<u64>();
+            // Bind the worker's raw body reads to these exact admitted lengths.
+            // Oversized files are policy skips and allocate no source body.
+            let mut admitted_lengths = [0u64; 50];
+            for (length, path) in admitted_lengths.iter_mut().zip(file_chunk) {
+                *length = std::fs::metadata(path).map_err(|error|
+                    anyhow::anyhow!("Cannot read source metadata {}: {error}", path.display()))?.len();
+            }
+            let chunking_estimate = admitted_lengths[..file_chunk.len()].iter()
+                .filter(|length| **length <= ingest::MAX_FILE_SIZE).sum::<u64>();
             let chunking_guard = scoped
                 .memory_budget
                 .as_ref()
@@ -2783,7 +2792,7 @@ impl HybridSearchEngine {
                 })
                 .transpose()?;
 
-            let chunk_paths = file_chunk.to_vec();
+            let chunk_paths: Vec<_> = file_chunk.iter().cloned().zip(admitted_lengths).collect();
             let extractor = scoped.extractor.clone();
             let root_buf = root.to_path_buf();
             let namespace_str = namespace.to_string();
@@ -2797,6 +2806,8 @@ impl HybridSearchEngine {
             };
             #[cfg(test)]
             let parse_pause = scoped.parse_pause.clone();
+            #[cfg(test)]
+            let source_read_pause = scoped.source_read_pause.clone();
 
             let parsed = tokio::task::spawn_blocking(move || {
                 // Bind ownership before creating any worker-local buffers.
@@ -2805,14 +2816,20 @@ impl HybridSearchEngine {
                 let vb_compilation = work.vb_compilation.as_ref();
                 let (chunk_stats, chunk_docs) = chunk_paths
                     .par_iter()
-                    .map(|p| parse_work::contain_extraction_panic(p, || -> anyhow::Result<_> {
+                    .map(|(p, admitted_len)| parse_work::contain_extraction_panic(p, || -> anyhow::Result<_> {
                         let mut local_stats = IngestStats::default();
                         let mut local_docs = Vec::new();
                         let rel_path = RelPath::from_relative(&root_buf, p)
                             .unwrap_or_else(|| RelPath::new(&p.to_string_lossy()));
 
+                        #[cfg(test)]
+                        if let Some(pause) = &source_read_pause { pause.wait(); }
+
                         let meta = std::fs::metadata(p).map_err(|error|
                             anyhow::anyhow!("Cannot read source metadata {}: {error}", p.display()))?;
+                        anyhow::ensure!(meta.len() == *admitted_len,
+                            "Source length changed after admission for {} (admitted {}, observed {}); retry the update",
+                            p.display(), admitted_len, meta.len());
                         if meta.len() > ingest::MAX_FILE_SIZE {
                             local_stats
                                 .skipped_files
@@ -2820,31 +2837,13 @@ impl HybridSearchEngine {
                             return Ok((local_stats, local_docs));
                         }
 
-                        use std::io::Read;
-                        // Classify from the same open handle used for text.
-                        // The advisory is_binary helper maps read errors to
-                        // true; that must never turn an I/O failure into an
-                        // authoritative "binary file" exclusion.
-                        let mut file = std::fs::File::open(p).map_err(|error|
-                            anyhow::anyhow!("Cannot open source content {}: {error}", p.display()))?;
-                        let mut bytes = Vec::with_capacity(meta.len() as usize + 1);
-                        (&mut file).take(8192).read_to_end(&mut bytes).map_err(|error|
-                            anyhow::anyhow!("Cannot read source content {}: {error}", p.display()))?;
-                        if bytes.contains(&0) {
+                        let (bytes, meta) = parse_work::read_source(p, *admitted_len)?;
+                        let Some(bytes) = bytes else {
                             local_stats
                                 .skipped_files
                                 .push((rel_path, "Binary file".into()));
                             return Ok((local_stats, local_docs));
-                        }
-
-                        // An I/O failure is not a policy skip. Publishing the
-                        // remaining files would turn a transient access failure
-                        // into a durable deletion from the source snapshot.
-                        let remaining = ingest::MAX_FILE_SIZE + 1 - bytes.len() as u64;
-                        file.take(remaining).read_to_end(&mut bytes).map_err(|error|
-                            anyhow::anyhow!("Cannot read source content {}: {error}", p.display()))?;
-                        anyhow::ensure!(bytes.len() as u64 <= ingest::MAX_FILE_SIZE,
-                            "Source file grew beyond the ingestion limit while reading {}; retry the update", p.display());
+                        };
                         let size = bytes.len() as u64;
                         local_stats.bytes += size;
 

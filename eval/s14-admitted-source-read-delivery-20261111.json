@@ -1,0 +1,76 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T15:15:02.067019+00:00",
+  "original_requirement": "S14: Reserve and bound reads, parsing, ancestry, copies, selectors and pinned views before allocation; budget failure preserves the head.",
+  "demonstrated_failure": {
+    "result": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\red-result.json",
+      "sha256": "e3d447ffa6d6f8060e33fb7d944a5cef29655df2f3155e74afc8ea8b40142d94"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\red.log",
+      "sha256": "d2d07d5fad42e70abf904a1125e1a7efcee2e6e692752aa72caadfe6821e0390"
+    },
+    "behavior": "Real index_files worker admitted a small source then successfully read11301bytes/produced12chunks after the file grew during the deterministic admission pause."
+  },
+  "implemented": "Capture per-file byte lengths before parse reservation, pair them with worker paths and reject changed lengths before reading. Classify binary prefix in stack storage; read exact admitted body with no Vec growth, and detect truncation/growth with fixed reads plus one stack EOF probe. Oversized policy skips do not reserve unread source bodies.",
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\no-vector-result.json",
+          "sha256": "6256f6d619ddf6f5481174f421ccf83dda8b240c48c6cbbcb247e35c9ed5130c"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\no-vector.log",
+          "sha256": "46102080995e5fbdfabef106203656836263fa4b43b485d7ea2b265124b63239"
+        },
+        "passed": 8
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\native-result.json",
+          "sha256": "79965cfe95c47e5e190009ab260c4aeeb020f5626244d81910d7ba4c33588fd2"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\native.log",
+          "sha256": "d3c70077b94241d0fbfecd49e2037094bb8495bf1c8fd725b546acbdbe5f89b5"
+        },
+        "passed": 8
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\no-vector-open-failure-result.json",
+          "sha256": "83f549333f98c26388be3679292163fd5ab276f09833f28542e8bd56b0251107"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\no-vector-open-failure.log",
+          "sha256": "5c5add6c8241af4eeb8493814771f8c64c56f6aaf0aeccf92fea1caf4ab23710"
+        },
+        "passed": 1
+      }
+    ],
+    "scenarios": [
+      "Actual admission-time file growth refuses replacement output, retains previous generation and permits fresh-admission retry.",
+      "Actual file growth/truncation, fixed read growth/truncation, empty/exact/binary/oversize controls.",
+      "Existing parse cancellation/ownership, extraction panic and large binary inventory behavior.",
+      "Public source-open failure preserves the complete prior revision and retry converges."
+    ],
+    "feature_scope": "Eight parse-work checks in native-feature and no-default-features builds; these engine ownership fixtures use fts_only. One public handler control in no-default-features. Existing ignored real VB singleton-compilation fixture was not rerun or claimed passing."
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111\\independent-review.json",
+    "sha256": "583bdba48942deb8b2e660affb6203f4a2df457b150f43a80d3e5d929bffd5d7"
+  },
+  "source_sha256": {
+    "crates/engram_index/src/hybrid.rs": "56f9ae68cfc3f206a7c79e3470c298eab7b7b50a453b9b3c8659e3f31749c2dd",
+    "crates/engram_index/src/hybrid/parse_work.rs": "21b0134039c65dee63473b337ba64409fda928d53ab870119a9bd5df413de12c",
+    "crates/engram_index/src/hybrid/parse_work/source_read.rs": "2ab52fc09cde7337429133f11573456996d1b7140be7963782781cbbfc1b3be2"
+  },
+  "remaining": "Build/deploy and verify candidate and installed public indexing/budget refusal/retry. Retained statistics/doc buffers, decoding/parsing expansion, native/provider and other allocation bounds remain unfinished; no whole-process memory cap or full S14 closure.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s14-admitted-source-read-20261111",
+    "owned_test_fixtures_closed_and_removed": true,
+    "retained": "Logs, source review and evidence helpers retained in this case; no preexisting folder deletion."
+  }
+}
