@@ -1,0 +1,80 @@
+{
+  "status": "INSTALLED_ACCEPTANCE_PASSED_NO_PRODUCT_CHANGE",
+  "at_utc": "2026-11-11T13:40:53.786036+00:00",
+  "original_requirement": "S08: GC preserves selected revisions and ancestry for supported active and held source roots, including restart.",
+  "delivered": "Exact installed MCP source recovery after real edit/deletion, explicit GC, process restart and a second GC, using independent source bytes and hashes.",
+  "runs": [
+    {
+      "backend": "fts_only",
+      "acceptance": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s08-installed-retention-20261111\\fts_only\\acceptance.json",
+        "sha256": "8c5b2591a681eb289898969df85435aaea81958470c3d2301512b3d7f7d0aca6"
+      },
+      "source_oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s08-installed-retention-20261111\\fts_only\\source-oracle.json",
+        "sha256": "07f38c0c83666a158d7fe4ea02c8acdded59194f2b1de79cd51f11c179113cc8"
+      }
+    },
+    {
+      "backend": "local",
+      "acceptance": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s08-installed-retention-20261111\\local\\acceptance.json",
+        "sha256": "444075243bf44a5e305aed8690287417347bdd305e36746399530cb4a8a29ac3"
+      },
+      "source_oracle": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s08-installed-retention-20261111\\local\\source-oracle.json",
+        "sha256": "07f38c0c83666a158d7fe4ea02c8acdded59194f2b1de79cd51f11c179113cc8"
+      }
+    }
+  ],
+  "verified": [
+    "Initial three-file corpus is recovered through literal search_memory citations and complete get_chunk JSON, with exact UTF-8 content, byte counts and BLAKE3 hashes.",
+    "After real edit/deletion and update, only replacement and stable-sibling source documents are returned; the sibling keeps its document identity and hash; old edited/deleted identities are absent.",
+    "GC preserves the published head. Native vector_search returns exactly the current lexical source document IDs, before and after restart/GC.",
+    "Fresh process opens the same owned data after the first process and reader close. Source identities and exact bodies survive both cold recovery and a second public GC.",
+    "Native public maintenance reports real compaction (3 fragments to1) in the warm run. Cold history maintenance explicitly defers because a native epoch is held; retention remains correct. No requirement to force unsafe pruning was added."
+  ],
+  "existing_held_reader_and_ancestry_evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\final-candidate-storage-gates-draft-20261104-s08.json",
+      "sha256": "269a11fdb65d0be416a6deadc3721a769c6e1a86abf951c052589e775ebeeb34"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\native-s09-queued-gc-current-head-final.json",
+      "sha256": "f6bf541e45a23339e6cb128f4008ffaeb38fb4fa36f386fea46f35c70c4a5aea"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\no-vector-s09-queued-gc-boundary-verified.json",
+      "sha256": "418346d1e4587fb4e18d29b727947af4612fa68c52d72bf57af34099eb007304"
+    }
+  ],
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s08-installed-retention-20261111\\helper-review.json",
+    "sha256": "5c308309f331336e60063eb1dbb9137b5edae8f6e0d6a9d3603a15d6a4170603"
+  },
+  "runtime": {
+    "source_commit": "e50e4f26b847f9c9abf92385849b8aa7b5584a00",
+    "binary": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "sha256": "cd44e567e2ea087204d84e22e818418424eae5912d0ac6d0614405f268e57d99"
+    },
+    "manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "c17007eb5c092fc6ed056f5ffa3c361a09d07384c0de7e95f313cd8c4c3ada9f"
+    },
+    "new_runtime_build_or_deployment": false
+  },
+  "limitations": [
+    "These are two configurations of the installed native-feature executable; fts_only is not a no-vector executable. Prior native/no-vector held-reader evidence is retained separately, not rerun or relabeled.",
+    "Exact source/body/document recovery does not measure physical write volume, bytes reclaimed, semantic ranking quality or machine resource bounds.",
+    "No durable user rollback-pin API exists. This check does not introduce one, test arbitrary head rewinds or establish exhaustive crash/fault coverage.",
+    "Full original S08 remains partially verified; the finite installed GC/restart acceptance gap is now closed."
+  ],
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\s08-installed-retention-20261111",
+    "exact_owned_server_processes_closed": 4,
+    "reader_monitors_joined": 4,
+    "owned_fixtures_removed": 2,
+    "retained": "Wire responses, source oracles, stderr, verifier and receipts retained for review. No production project/configuration or preexisting-folder deletion."
+  }
+}
