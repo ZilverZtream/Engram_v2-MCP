@@ -1006,8 +1006,9 @@
     {
       "id": "S08",
       "required_behavior": "GC protects selected revisions and ancestry of active, pinned and existing retained rollback roots, including restart.",
-      "state": "Partial: dated active selection/ancestry/live-view/native-epoch retention proofs retained. Supported Git revert is fresh-publication/cold/next-edit, no durable user pins/rollback-root API exists. Current S12 warm durable-ancestor/boundary bypass must be fixed before active-head cold durability claim; current feature/release/deployment validation remains.",
-      "latest_scope_reconciliation": "execution_evidence_20261101.s08_s12_existing_scope_reconciliation_20261104"
+      "state": "Partial: existing active/held selection, ancestry and native-epoch retention evidence retained; S12 durable ancestry source/verification supersedes the earlier warm-cache bypass. Installed cd44 native-feature runtime now verifies exact source recovery after real edit/delete, explicit GC and process restart in fts_only/local configurations, including matching native source IDs and actual compaction. No persistent user rollback-pin API exists; no arbitrary rewind, exhaustive fault or resource closure claimed.",
+      "latest_scope_reconciliation": "execution_evidence_20261101.s08_s12_existing_scope_reconciliation_20261104",
+      "installed_retention_receipt": "eval/s08-installed-retention-validation-20261111.json"
     },
     {
       "id": "S09",
@@ -9934,22 +9935,23 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_SELECTED_CONTRACT_FULL_S07_PARTIAL",
-      "original_requirement": "S07: exact logical source selection, counts, paths, citations and public diagnostics agree.",
-      "current_missing_behavior": "handle_project_info currently converts every get_active_generation failure into active_generation:1. A required-but-missing, malformed or out-of-range authoritative head can therefore be presented to agents as a valid generation. This was recorded during S06 and is now selected within the original diagnostic correctness requirement.",
+      "status": "INSTALLED_ACCEPTANCE_DELIVERED_FULL_S08_PARTIAL",
+      "original_requirement": "S08: GC protects selected revisions and ancestry of active, pinned and existing retained rollback roots, including restart.",
+      "current_missing_behavior": "Existing native/no-vector source and public-handler evidence covers held readers, inherited revisions, retirement and cold ancestry. The selected remaining evidence gap is exact current installed MCP source recovery after real edit/deletion, explicit GC and a fresh server process. No new production defect has been established.",
       "implementation_files": [
         "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/handlers/project_tools/source_publication_tests/diagnostic_selection.rs"
+        "crates/engram_index/src/hybrid/snapshots.rs"
       ],
       "finite_acceptance": [
-        "Reproduce actual public project_info fabricating generation1 for damaged authoritative source metadata; preserve the exact underlying source admission error after the fix.",
-        "Keep valid published generation, registered unpublished0, unknown-project refusal and genuine legacy absence behavior intact; diagnostics must not silently repair metadata.",
-        "Verify relevant public-handler behavior in native and actual no-vector builds, then deploy and verify the installed public diagnostic behavior on an owned fixture. Preserve full S07 selection/top-k/count/citation limits."
+        "Use the deployed executable and a new owned three-file project; recover literal public search citations and compare their complete UTF-8 bodies/hashes with independent source bytes.",
+        "Edit one file, delete another and preserve a sibling; update, explicitly collect, and check exact current results and absence of superseded/deleted results. Native vector results must identify the same selected documents.",
+        "Close the exact server and reader, reopen the same owned data in a fresh server process, collect again and recover the same live source through public tools. Repeat for fts_only and local native-vector configurations without rebuilding or repeating already-passed handler tests.",
+        "Remove owned fixture only after all processes/readers/handles close; preserve production data/configuration and prior evidence. Record limits: no new durable rollback-pin feature, no crash/fault/resource claim, no actual no-vector executable claim from an fts_only configuration."
       ],
-      "previous_delivery": "eval/s05-project-deletion-delivery-20261111.json; deployed611321e, deliverycdcab57."
+      "previous_delivery": "eval/s07-diagnostic-authority-delivery-20261111.json; source e50e4f2 and deployed receipt7a4ad07."
     },
-    "at_utc": "2026-11-11T13:31:17.997871+00:00",
-    "reason": "Bounded S06 source inspection found existing ownership, so advance the original S07 public diagnostic correctness gap rather than manufacture a new lifetime patch.",
+    "at_utc": "2026-11-11T13:40:53.786036+00:00",
+    "reason": "Advance after deployed S07. Retain existing S08/S09/S12 proofs; fill the installed cold-restart acceptance gap without manufacturing a new source patch or repeating passed tests.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -12311,6 +12313,27 @@
       "full_s07_closed": false,
       "source_commit": "e50e4f26b847f9c9abf92385849b8aa7b5584a00",
       "installed_server_sha256": "cd44e567e2ea087204d84e22e818418424eae5912d0ac6d0614405f268e57d99"
+    },
+    "s08_existing_evidence_reconciliation_20261111": {
+      "source_read": [
+        "hybrid/snapshots.rs protect_for_gc and metadata ancestry pruning",
+        "source_snapshot_reuse_test.rs held lexical/native source and collection cases",
+        "source_publication_tests/queued_gc.rs actual public queued-GC/current-head/old-reader case",
+        "source_publication_tests/full_recovery.rs cold_retirement_seed and durable refusal/recovery cases",
+        "project_tools/vector_compaction_tests.rs public maintenance with held source"
+      ],
+      "retained_receipts": [
+        "final-candidate-storage-gates-draft-20261104-s08.json",
+        "native-s09-queued-gc-current-head-final.json",
+        "no-vector-s09-queued-gc-boundary-verified.json"
+      ],
+      "disposition": "No new code defect identified in selected paths. Active ancestry remains durable, already-held readers retain complete selections; no persistent user rollback-root API exists. Earlier S08 ledger text about an unfixed S12 warm-ancestry issue is historical and superseded by retained S12 source/verification.",
+      "full_s08_closed": false
+    },
+    "s08_installed_retention_20261111": {
+      "receipt": "eval/s08-installed-retention-validation-20261111.json",
+      "status": "INSTALLED_ACCEPTANCE_PASSED_NO_PRODUCT_CHANGE",
+      "full_s08_closed": false
     }
   }
 }
