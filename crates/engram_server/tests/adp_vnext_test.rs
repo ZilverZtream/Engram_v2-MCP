@@ -356,6 +356,7 @@ fn wave_format_includes_key_info() {
 fn graph_impact_metrics_are_accepted() {
     let mut input = all_green_input();
     input.graph_impact = Some(GraphImpactMetrics {
+        extraction_evidence: None,
         downstream_dependency_count: 10,
         reads_state_count: 2,
         writes_state_count: 1,

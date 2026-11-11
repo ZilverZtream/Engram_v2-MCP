@@ -2838,7 +2838,9 @@ pub struct AutonomousDecisionGateRequest {
     /// Return JSON output instead of human-readable text. Default: false.
     #[serde(default)]
     pub output_json: bool,
-    /// Pre-computed extraction confidence score (0.0–1.0). If not provided, skipped.
+    /// Optional caller confidence (0.0–1.0). For target_files, Gate 1 reads
+    /// selected-source semantic-edge confidence itself; this score can lower
+    /// but cannot raise that minimum or replace missing graph evidence.
     #[serde(default)]
     pub extraction_confidence: Option<f64>,
     /// Extraction type that was scored (e.g., "event_wiring", "sql_trace").

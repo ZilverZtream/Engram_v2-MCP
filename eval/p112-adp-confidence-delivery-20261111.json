@@ -1,0 +1,87 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-11T19:59:04.478955+00:00",
+  "original_requirement": "TODO P1-12 remaining ADP Gate1 consumption of extraction-confidence metadata.",
+  "implemented": "Gate1 consumes selected-source confidence from semantic outgoing edges including method nodes. Minimum score and explicit incomplete coverage govern the gate; bounded witnesses appear in text, JSON and immutable decision reports. Higher caller scores cannot replace missing evidence or raise the minimum. Lower caller scores can deny; no-target legacy input retained.",
+  "demonstrated_failure": {
+    "observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\baseline-native\\acceptance.json",
+      "sha256": "3dfdb6c93f348cebd3a4fda44d792e9a91af0270a713cae8e20ff01379c6f8a2"
+    },
+    "driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\baseline-native.py",
+      "sha256": "b22f137ad4c74c5fc3a7944dfa69fe0e5e40f4ea86f72202c5faa411f848f278"
+    },
+    "behavior": "Installed3ad27e42 skipped Gate1 for independently authored resolved and missing Rust calls, then passed both with caller0.99. Overall baseline verdict remained Abstain due other gates; no enforced overall Allow is claimed.",
+    "earlier_observation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\baseline\\acceptance.json",
+      "sha256": "02ec85280615ee8e509211cdb061ef7fa4b2a33d1ec4c85362203d2df9586fe4"
+    }
+  },
+  "validation": {
+    "runs": [
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-no-vector-final-result.json",
+          "sha256": "6968e04637bc9398e6d171be2539a4594ad2c77a75ed8a52ccd3070facf4ef56"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-no-vector-final.log",
+          "sha256": "6c4eb88b754f039b22d505a15f2a365dd6a3a174b9db63f3c5a5be3f91716ce5"
+        },
+        "passed": 27
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-native-result.json",
+          "sha256": "998661e29da378a0327ebb40cee5772beaebe0699803fce96ae602f5e3362b77"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-native.log",
+          "sha256": "2be4614a3eafc0fda993c4fb86a3ac75c5366e8b04e7417851a45a9ada2ce7c8"
+        },
+        "passed": 61
+      },
+      {
+        "result": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-shared-result.json",
+          "sha256": "fea479fcf3f2235de3bf0a5eb9da378bf0ff9f65519b81de6746a363e7ef94e8"
+        },
+        "log": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-shared.log",
+          "sha256": "1df6df17e5c9d4210740a38abf94b125b6f89209eb414f27a9253ff6f84f7972"
+        },
+        "passed": 18
+      }
+    ],
+    "total_passed": 106,
+    "initial_compile_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\adp-no-vector-result.json",
+      "sha256": "f4f9aeea1e1772f5efd98569a9fa2d5bdf5d91551171ea0bab8f6ab6ca0a6a93"
+    }
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111\\source-review.json",
+    "sha256": "53d136e3a346cea82b4231be80539c83ef46dc1befdabf3a802a73705f03bb2b"
+  },
+  "source_sha256": {
+    "crates/engram_server/build.rs": "162449138d14575d4a194c9f40a80ab737955b9f92976af29222b48e50d5bc12",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "9d79f2f583d242bd8c8c506eae266c7e95a056fa6307d2f8f18f31202ebeaf46",
+    "crates/engram_server/src/models/requests.rs": "8dd5c7dbb747c11dfff0055afdd885205dd8a80f7d87098606b00b23a761d889",
+    "crates/engram_server/src/services/autonomous_decision_service.rs": "c361e0dfff324a09d4b04fca70f490c69e590933470eb4ac5e7f08b36171bf95",
+    "crates/engram_server/src/services/evidence_orchestration.rs": "76a691744cce9436e29f7484df01064c95d51dfa8c8b5f5066d720f72d06de2b",
+    "crates/engram_server/src/services/extraction_evidence.rs": "803065c25ab9c250aa49aa8e87de95a323c2b7041666a27c20c3561f779e45c6",
+    "crates/engram_server/src/services/mod.rs": "b1e7bbcdb9366892f70ec662e5a34a36135d3e6e4172a25f1a4a1192ea9c6a6d",
+    "crates/engram_server/tests/adp_extraction_evidence_tests.rs": "4b314d68917e2ced197dd715f2a7a94f6152cc5df9bfc0b3bde729a4d999633c",
+    "crates/engram_server/tests/adp_security_hardening_tests.rs": "b5f9158774daf09f8eff77589842ee81100de88ae81e27e90f01780709547994",
+    "crates/engram_server/tests/adp_vnext_test.rs": "a71789ceed41e44353e5015c56cc23a7c495a76cc55b90e8dd3990ea3556f04e",
+    "crates/engram_server/tests/handler_project_id_validation_tests.rs": "205c12ec4fd490748b108582e6a9a1dcee9e78bec769a5e37de948446c398b7b",
+    "crates/engram_server/tests/integration_test.rs": "8f781daafe5ee9c7cad8ec38ec50355d1f63c8522ef08a5d66eb0bdca5c00876"
+  },
+  "remaining": "Build and verify public candidate/installed evidence against independent Rust source, deploy and advance. Confidence does not establish parser recall, working-tree freshness, runtime correctness or overall edit safety.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p112-adp-confidence-20261111",
+    "test_and_baseline_fixtures_closed_and_removed": true,
+    "retained": "Baseline, logs, helpers and review retained as delivery evidence. Preexisting copies and policy-rejected cleanup fixture untouched."
+  }
+}

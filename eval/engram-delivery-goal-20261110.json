@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. S10 immediate-next text is historical; selected P0-4 search/vector/grep and document reply budgets are deployed. Full original backlog and partial EG14 remain open.",
   "immediate_next_delivery": {
-    "finding": "P0-4",
-    "receipt": "eval\\p04-document-response-delivery-20261111.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Selected document response delivery is complete. Broader P0-4 and original accepted backlog remain open; consult current_execution_focus for the next selected contract."
+    "finding": "P1-12",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "receipt": "eval\\p112-adp-confidence-delivery-20261111.json",
+    "remaining": "Build and verify public candidate/installed evidence against independent Rust source, deploy and advance. Confidence does not establish parser recall, working-tree freshness, runtime correctness or overall edit safety."
   }
 }
