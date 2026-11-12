@@ -16,7 +16,8 @@ import frozen_task_eval as evaluation
 import frozen_task_run as collection
 
 MAX_BYTES = 1024 * 1024
-TOOLS = {'get_codebase_overview', 'impact_analysis', 'compute_blast_radius'}
+TOOLS = {'get_codebase_overview', 'impact_analysis', 'compute_blast_radius',
+         'get_change_set', 'search_history', 'derive_test_matrix'}
 
 
 def require(condition, message):
@@ -208,7 +209,7 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
                 isinstance(request['arguments'], dict) and
                 request['arguments'].get('project_id') == pins['project_id'] and
                 len(collection.encoded(request)) <= 4096,
-                'Only the three read-only core tools for the pinned project are allowed')
+                'Only allowlisted read-only tools for the pinned project are allowed')
     inputs = {spec['oracle'], *spec.get('frozen_metadata', [])}
     for case in cases:
         require(isinstance(case['available_reads'], dict) and len(case['available_reads']) <= 64 and
@@ -275,7 +276,8 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
         pipe.initialized()
         listed = pipe.rpc('tools/list', {})
         emit('provenance/tools-list.json', collection.encoded(listed))
-        require(not listed.get('nextCursor') and TOOLS | {'get_index_freshness'} <=
+        required_tools = {request['name'] for request in requests} | {'get_index_freshness'}
+        require(not listed.get('nextCursor') and required_tools <=
                 {t['name'] for t in listed['tools']}, 'Incomplete installed tools/list')
         def call(request, name):
             result = pipe.rpc('tools/call', request)

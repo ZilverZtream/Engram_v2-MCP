@@ -101,8 +101,13 @@ Prepare `spec.json` with `version: 1`, `oracle` (a relative JSON path),
 optional `frozen_metadata` (relative evidence paths), and exactly four `cases`.
 Each case has `id`, the original `category`, `task`, `base_inputs` (JSON paths),
 `available_reads` (read IDs mapped to JSON paths), and `tool_requests`
-(`{name, arguments}` objects). Only `get_codebase_overview`, `impact_analysis`
-and `compute_blast_radius` for the pinned project are allowed. Supply an oracle
+(`{name, arguments}` objects). The original OX workflow can use `get_change_set`,
+`search_history`, and `derive_test_matrix` for the pinned project. Existing
+CodeMap/impact/Blast recipes remain readable, but those tools are closed for
+further evaluation under the current OciusX delivery scope. Discovery requires
+the requested tools and `get_index_freshness`, not every optional tool in the
+collector's allowlist. Mutating and unknown tool requests remain rejected before
+connecting. Supply an oracle
 with `judge_only_canary` and `cases[id].criteria` as in existing frozen corpora.
 Freeze tasks, criteria and source evidence independently before capture.
 
