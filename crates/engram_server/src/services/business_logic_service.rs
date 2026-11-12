@@ -16,6 +16,10 @@ use futures::{StreamExt, stream};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 
+#[path = "business_logic_degradation.rs"]
+mod degradation;
+pub use degradation::AnalysisDegradation;
+
 use super::full_project_migration_service::{
     MethodInfo, MethodKind, extract_cs_method_body, extract_ml_method_body, extract_vb_method_body,
 };
@@ -116,6 +120,8 @@ pub(crate) const MEMBER_PROMPT_VERSION: &str = "business-logic-member-v17-distin
 
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodBusinessLogic {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub degradation: Option<AnalysisDegradation>,
     pub file_path: String,
     pub method_name: String,
     /// Explicit executable property; absent preserves existing method JSON.
@@ -449,6 +455,7 @@ pub fn parse_llm_response(
         outcome_evidence: None,
         rule_source_diagnostics: None,
         extraction_provenance: None,
+        degradation: None,
         semantic_validation: "not_performed",
         confidence: "unverified".into(),
         validation_warnings: vec![],
@@ -893,6 +900,7 @@ pub fn deterministic_method_summary(
         outcome_evidence: None,
         rule_source_diagnostics: None,
         extraction_provenance: None,
+        degradation: None,
         semantic_validation: "not_performed",
         confidence: String::new(),
         validation_warnings: vec![],
@@ -934,6 +942,11 @@ pub async fn analyze_method_logic_with_evidence(
         method_body, class_name, language, start_line, &evidence).await;
     if language == "vb" && method_body.lines().next().is_some_and(|line| VB_PROPERTY_RE.is_match(&vb_code_line(line))) {
         result.member_kind = Some("property");
+    }
+    if !result.parse_diagnostic.is_empty() {
+        result.degradation = Some(result.degradation.take()
+            .unwrap_or_else(|| AnalysisDegradation::unavailable("incomplete_model_output"))
+            .with_source(file_path, method_body, language, start_line));
     }
     result.outcome_evidence = Some(evidence);
     let identity = dreaming.text_generation_identity();
@@ -978,6 +991,14 @@ async fn analyze_method_logic_inner(
         return result;
     }
 
+    if dreaming.text_generation_identity().is_none() {
+        let failure = AnalysisDegradation::unavailable("provider_not_configured");
+        let mut result = parse_llm_response("", file_path, method_name, &fqn, &body_hash);
+        result.parse_diagnostic = failure.notice();
+        result.degradation = Some(failure);
+        return result;
+    }
+
     let (lang_tag, lang_full) = match language {
         "vb" => ("vb.net", "VB.NET"),
         "ml" => ("minilang", "MiniLang"),
@@ -1015,9 +1036,17 @@ async fn analyze_method_logic_inner(
         .await
     {
         Ok(raw) => raw,
+        // Both existing providers report an empty successful response in this
+        // category. Transport completed, so retain the bounded output retry;
+        // configuration errors (no status) and HTTP failures do not enter it.
+        Err(LlmError::InvalidResponse { status_code: Some(200..=299), .. }) => String::new(),
         Err(err) => {
             log_llm_failure("business_logic.method_analysis", &fqn, &err);
-            String::new()
+            let failure = AnalysisDegradation::from_error(&err);
+            let mut result = parse_llm_response("", file_path, method_name, &fqn, &body_hash);
+            result.parse_diagnostic = failure.notice();
+            result.degradation = Some(failure);
+            return result;
         }
     };
 
@@ -1046,7 +1075,10 @@ async fn analyze_method_logic_inner(
                 return retried;
             }
         }
-        Err(err) => log_llm_failure("business_logic.method_analysis_retry", &fqn, &err),
+        Err(err) => {
+            log_llm_failure("business_logic.method_analysis_retry", &fqn, &err);
+            first.degradation = Some(AnalysisDegradation::from_error(&err));
+        },
         _ => {}
     }
     first
@@ -1312,6 +1344,7 @@ pub async fn analyze_file_logic_with_context_concurrency(
         members_supplied: summary_members.len(), members_skipped_cached: skipped_count,
         members_failed: failed_count, members_omitted_budget: summary_omitted,
         member_refs: Vec::new(), warnings: Vec::new(), extraction_provenance: None,
+        degradation: None,
     };
     let partial = skipped_count > 0 || failed_count > 0 || summary_omitted > 0;
     if partial {
@@ -1346,13 +1379,25 @@ pub async fn analyze_file_logic_with_context_concurrency(
             },
             Err(err) => {
                 log_llm_failure("business_logic.file_purpose", file_path, &err);
-                evidence.warnings.push("Summary provider request failed; no usable summary is available.".into());
+                let failure = AnalysisDegradation::from_error(&err);
+                evidence.warnings.push(failure.notice());
+                evidence.degradation = Some(failure);
                 provenance.origin = "failed_llm_attempt";
             }
         }
         evidence.extraction_provenance = Some(provenance);
     } else {
         evidence.warnings.push("No text generation provider is configured; summary unavailable.".into());
+    }
+
+    if file_purpose.is_empty() {
+        let failure = evidence.degradation.take()
+            .or_else(|| methods.iter().find_map(|method| method.degradation.clone()))
+            .unwrap_or_else(|| AnalysisDegradation::unavailable(
+                if dreaming.text_generation_identity().is_none() { "provider_not_configured" }
+                else if summary_members.is_empty() { "insufficient_member_evidence" }
+                else { "incomplete_model_output" }));
+        evidence.degradation = Some(failure.with_source(file_path, content, language, 1));
     }
 
     let file_logic = FileBusinessLogic {
@@ -1484,6 +1529,7 @@ pub fn render_method_as_doc(m: &MethodBusinessLogic) -> String {
     }
     if !m.parse_diagnostic.is_empty() {
         md.push_str("**Extraction status**: failed or incomplete. No usable business-rule analysis was produced for this method.\n\n");
+        if let Some(fallback) = &m.degradation { md.push_str(&fallback.render()); }
         md.push_str("Inspect the model configuration or retry with sufficient output capacity; use source inspection until extraction succeeds.\n");
         return md;
     }
@@ -1723,6 +1769,8 @@ fn vb_code_line(line: &str) -> String {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct FilePurposeEvidence {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub degradation: Option<AnalysisDegradation>,
     pub status: &'static str,
     pub semantic_validation: &'static str,
     /// Executable members recognized by the shared extractor, including diagnosed malformed members.
@@ -1744,6 +1792,7 @@ pub fn render_file_purpose(file: &FileBusinessLogic) -> String {
     }
     match &file.file_purpose_evidence {
         Some(evidence) => {
+            if let Some(fallback) = &evidence.degradation { rendered.push_str(&fallback.render()); }
             rendered.push_str(&format!("File summary evidence: `{}`; semantic validation: not_performed. Recognized source members supplied: {}/{}; cached: {}; failed: {}; omitted by budget: {}.\n\n",
                 evidence.status, evidence.members_supplied, evidence.members_in_source,
                 evidence.members_skipped_cached, evidence.members_failed, evidence.members_omitted_budget));
@@ -2521,6 +2570,7 @@ public class OrderEntry : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2567,6 +2617,7 @@ public class OrderEntry : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
                     extraction_provenance: None,
+                    degradation: None,
                     semantic_validation: "not_performed",
                     confidence: String::new(),
                     validation_warnings: vec![],
@@ -2662,6 +2713,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
                     extraction_provenance: None,
+                    degradation: None,
                     semantic_validation: "not_performed",
                     confidence: String::new(),
                     validation_warnings: vec![],
@@ -2699,6 +2751,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2733,6 +2786,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2764,6 +2818,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2799,6 +2854,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2821,6 +2877,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2857,6 +2914,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
             extraction_provenance: None,
+            degradation: None,
             semantic_validation: "not_performed",
             confidence: String::new(),
             validation_warnings: vec![],
@@ -2896,6 +2954,7 @@ public class Foo : Page
         outcome_evidence: None,
         rule_source_diagnostics: None,
                     extraction_provenance: None,
+                    degradation: None,
                     semantic_validation: "not_performed",
                     confidence: "High".to_string(),
                     validation_warnings: vec![],
