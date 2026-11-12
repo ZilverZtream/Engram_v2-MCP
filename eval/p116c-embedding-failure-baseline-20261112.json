@@ -1,0 +1,22 @@
+{
+  "status": "INSTALLED_BASELINE_CONFIRMED_NOT_IMPLEMENTED",
+  "at_utc": "2026-11-12T00:16:20.531024+00:00",
+  "original_requirement": "TODO16c: source indexing must complete lexical and graph output when an embedding provider batch fails, with exact unembedded count and vector repair guidance.",
+  "installed_server_sha256": "82f11dac316a6785158ec0648c74e138fe974bf387aefdf3d3750959e2284a4c",
+  "observed": "index_project(wait=true) aborts with internal RPC error -32603 after the unavailable Ollama provider exhausts existing retries. No claim is made about post-failure graph visibility because this baseline did not query it.",
+  "raw_response": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\baseline\\wire\\0003-response.json",
+    "sha256": "73a356f6b71371f434a604c5414a1cd6bb52bac47037d5f53d22891114e1eacf"
+  },
+  "driver_result": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\baseline\\acceptance.json",
+    "sha256": "3efe8e1a236880d9dde35ea54493555a6920bef2a558b1dc673a179616578285"
+  },
+  "driver_limit": "The existing transport raises on RPC errors; the baseline driver therefore records FAIL. The retained exact response is the expected product failure establishing this missing behavior, not passing acceptance.",
+  "source_findings": [
+    "process_source_files propagates provider errors from both ordinary and final vector flushes before returning IngestStats to graph publication.",
+    "git_tools history consumer already catches vector batch errors and counts unembedded_docs; preserve existing behavior and verify only relevant acceptance."
+  ],
+  "owned_resources_closed_and_removed": true,
+  "implementation_pending": true
+}

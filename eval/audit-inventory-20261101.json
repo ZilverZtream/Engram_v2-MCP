@@ -9959,27 +9959,26 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED_TODO16B_GRAPH_REBUILD",
-      "original_requirement": "TODO16b: re-extract ALL eligible source files after extractor changes, process graph results, preserve project identity and search/vector content without embedding or Git history replay. Preserve cross-file and temporal relationships through scoped replacement/remapping.",
-      "observed_missing_behavior": "UpdateProjectRequest has no rebuild_graph mode. Existing repair_project(scope=graph_only) deletes project graph data and falls through to the full source indexing/publication pass, with an ordinary history follow-up. Source-only graph reconstruction is missing; inspect installed behavior on an owned fixture before implementation. Installed owned baseline confirms unchanged files move source generation from1 to2 and reports reindexed files/chunks; fixture resources were closed and removed.",
+      "status": "INSTALLED_BASELINE_CONFIRMED_NOT_IMPLEMENTED",
+      "original_requirement": "TODO16c: an embedding-provider failure degrades that batch to lexical-only with an exact unembedded count and vector_only repair guidance; source graph extraction and history consumption must complete.",
+      "observed_missing_behavior": "Source process_source_files propagates both embedding flush errors with await?, abandoning IngestStats before graph publication. History already catches vector batch errors and reports unembedded_docs; preserve that delivered behavior and verify it, not rewrite from scratch. Installed private baseline confirms RPC -32603 after Ollama HTTP503 retries; baseline did not query graph visibility.",
       "implementation_files": [
-        "crates/engram_index/src/hybrid.rs and shared parsing/extraction code",
-        "crates/engram_server/src/handlers/project_tools.rs and services/ingest_service.rs",
-        "crates/engram_graph/src/store.rs or existing scoped replacement helper, only as needed for complete source replacement/remapping",
-        "crates/engram_server/src/models/requests.rs and tools.rs for truthful existing mode contract"
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/src/handlers/git_tools.rs only for necessary reporting/error-classification integration",
+        "Focused existing source-publication/vector-recovery test modules"
       ],
       "finite_acceptance": [
-        "Use an owned source corpus with independently authored declarations/cross-file calls, retained history/temporal evidence and indexed text. Demonstrate the installed graph_only fallback currently changes source generation; compare public results and exact storage/identity evidence.",
-        "Re-run the normal supported extraction path for ALL admitted source files, including unchanged content and empty-symbol files, with current extractor/sidecar contracts. Reuse current parsers; do not create a second partial extractor.",
-        "On success preserve project ID, indexed document/content identities, source revisions and search/vector payloads/routes. Count zero embedder requests and zero Git-history walk activity. Search and vector stores must remain untouched; do not replace this with cached re-embedding or a full source index under a new name.",
-        "Replace obsolete extracted nodes/edges, recover expected current source declarations/calls, preserve cross-file and temporal edges or remap their endpoints using proven successors, and keep learned/non-source information. Graph/source admission must remain truthful against unchanged selected source revisions.",
-        "Validate source-set/content identity and required extraction before replacing graph evidence. Cancellation, parse failure or source drift must not report a successful completed rebuild or erase the existing graph. Concurrent indexing/deletion respects existing admission/ownership rules.",
-        "Run focused native/no-vector checks and public candidate/installed acceptance. Commit and push only origin/master, deploy runtime changes, record exact preserved source/search/vector/history evidence and measured fixture outcomes; do not claim an unmeasured80-to3minute speedup."
+        "On an owned public fixture demonstrate installed source-index failure with an unavailable counted provider, then require source text and authored graph declarations/calls to publish with explicit unembedded count and repair_project(scope=vector_only) guidance.",
+        "Exercise a failure between successful batches and a later successful batch: all source extraction/text survives, successful vectors remain, failed documents are counted once. Preserve project/source admission and document identities.",
+        "Provider recovery plus existing vector_only repair fills missing embeddings without re-extraction or loss of text/history; validate ordinary semantic recovery.",
+        "Cancellation, storage corruption, allocation/admission errors and source drift remain errors, not successful degraded completion. No successful full-vector claim for partial vectors.",
+        "Native and no-vector focused checks and candidate/installed public checks; commit/push source and evidence, deploy, verify normal daemon. Verify existing history failure handling only as needed for this contract."
       ],
-      "constraints": "One active implementation item. No CodeMap/Blast feature work, broad performance/ownership project, new approval UI, production source edits or deletion of preexisting folders. Keep TODO16c and unrelated discoveries recorded, without displacing16b."
+      "constraints": "One active original item after TODO16b delivery. No CodeMap/Blast changes, whole storage redesign, new retries/circuit-breaker infrastructure or production fixture edits. Preserve other unfinished backlog and retained findings."
     },
-    "at_utc": "2026-11-12T00:13:50.287449+00:00",
-    "reason": "Authoritative findings record shipped implementation and local publication/scope tests, but no feature-specific installed public acceptance or actual Claude consumer-loading acceptance. Verify those gaps on owned fixtures and fix only concrete failures; do not rerun completed EG14 drafting or widen its pilot.",
+    "at_utc": "2026-11-12T00:15:17.761536+00:00",
+    "reason": "TODO16b is deployed with public installed evidence; TODO16c is the next unfinished accepted indexing requirement in original order.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10008,8 +10007,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO16b delivered; select the next unfinished original requirement.",
-    "next_user_visible_deliverable": "Advance the next original unfinished item; preserve partial EG14 and remaining accepted scope.",
+    "active_original_item": "TODO16c source indexing survives embedding-backend failure",
+    "next_user_visible_deliverable": "A failed embedding batch leaves source text and graph usable and reports exactly what vector repair must recover.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10023,7 +10022,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: TODO16b source pushed, native/no-vector and candidate/installed preservation checks passed, paired runtime deployed and normal source generation3147 verified.",
+    "previous_goal_turn_classification": "Progress: TODO16b deployed and evidence pushed as787cabe; selected next original TODO16c and confirmed installed unavailable-provider failure.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12626,7 +12625,34 @@
       "limitations": "No production rebuild performed, no measured large-project speedup, no complete backlog/19-gate/EG14 claim.",
       "delivery_receipt": "eval/p116b-graph-rebuild-delivery-20261112.json",
       "source_commit": "c1dcbc83e7a26f18c6d6cff52f32c01af105e9b8",
-      "installed_server_sha256": "82f11dac316a6785158ec0648c74e138fe974bf387aefdf3d3750959e2284a4c"
+      "installed_server_sha256": "82f11dac316a6785158ec0648c74e138fe974bf387aefdf3d3750959e2284a4c",
+      "delivery_contract": {
+        "status": "DELIVERED_TODO16B_GRAPH_REBUILD",
+        "original_requirement": "TODO16b: re-extract ALL eligible source files after extractor changes, process graph results, preserve project identity and search/vector content without embedding or Git history replay. Preserve cross-file and temporal relationships through scoped replacement/remapping.",
+        "observed_missing_behavior": "UpdateProjectRequest has no rebuild_graph mode. Existing repair_project(scope=graph_only) deletes project graph data and falls through to the full source indexing/publication pass, with an ordinary history follow-up. Source-only graph reconstruction is missing; inspect installed behavior on an owned fixture before implementation. Installed owned baseline confirms unchanged files move source generation from1 to2 and reports reindexed files/chunks; fixture resources were closed and removed.",
+        "implementation_files": [
+          "crates/engram_index/src/hybrid.rs and shared parsing/extraction code",
+          "crates/engram_server/src/handlers/project_tools.rs and services/ingest_service.rs",
+          "crates/engram_graph/src/store.rs or existing scoped replacement helper, only as needed for complete source replacement/remapping",
+          "crates/engram_server/src/models/requests.rs and tools.rs for truthful existing mode contract"
+        ],
+        "finite_acceptance": [
+          "Use an owned source corpus with independently authored declarations/cross-file calls, retained history/temporal evidence and indexed text. Demonstrate the installed graph_only fallback currently changes source generation; compare public results and exact storage/identity evidence.",
+          "Re-run the normal supported extraction path for ALL admitted source files, including unchanged content and empty-symbol files, with current extractor/sidecar contracts. Reuse current parsers; do not create a second partial extractor.",
+          "On success preserve project ID, indexed document/content identities, source revisions and search/vector payloads/routes. Count zero embedder requests and zero Git-history walk activity. Search and vector stores must remain untouched; do not replace this with cached re-embedding or a full source index under a new name.",
+          "Replace obsolete extracted nodes/edges, recover expected current source declarations/calls, preserve cross-file and temporal edges or remap their endpoints using proven successors, and keep learned/non-source information. Graph/source admission must remain truthful against unchanged selected source revisions.",
+          "Validate source-set/content identity and required extraction before replacing graph evidence. Cancellation, parse failure or source drift must not report a successful completed rebuild or erase the existing graph. Concurrent indexing/deletion respects existing admission/ownership rules.",
+          "Run focused native/no-vector checks and public candidate/installed acceptance. Commit and push only origin/master, deploy runtime changes, record exact preserved source/search/vector/history evidence and measured fixture outcomes; do not claim an unmeasured80-to3minute speedup."
+        ],
+        "constraints": "One active implementation item. No CodeMap/Blast feature work, broad performance/ownership project, new approval UI, production source edits or deletion of preexisting folders. Keep TODO16c and unrelated discoveries recorded, without displacing16b."
+      }
+    },
+    "p116c_embedding_failure_20261112": {
+      "status": "INSTALLED_BASELINE_CONFIRMED_NOT_IMPLEMENTED",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112",
+      "previous_delivery": "eval/p116b-graph-rebuild-delivery-20261112.json",
+      "baseline": "eval/p116c-embedding-failure-baseline-20261112.json",
+      "remaining": "Implement provider-specific degraded source batches and counts; verify recovery and publish."
     }
   }
 }
