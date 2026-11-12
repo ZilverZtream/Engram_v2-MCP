@@ -208,14 +208,14 @@ SQL, lifecycle) is WebForms/.NET-only; the other 9 tree-sitter languages get sha
 symbol extraction, and ~56 service files hardcode WebForms concepts. This is the
 strategic gap between "niche migration tool" and "every agent's first MCP server."
 
-- [ ] **23. Second-pass call resolution for TypeScript, Python, Rust, Go, Java** (L, per language)
+- [x] **23. Second-pass call resolution for TypeScript, Python, Rust, Go, Java** (L, per language)
   `parsing.rs`. Tree-sitter already extracts calls; add per-language import/module
   resolution so bare calls link to FQNs (TS: import paths + tsconfig paths; Python:
   imports; Rust: `use` + crate paths; Go: packages). Start with TypeScript and Python —
   that's where most agent work happens today. Reuse the existing two-pass FQN
   architecture from the .NET side.
 
-  TypeScript delivered: `eval/p123-typescript-modules-delivery-20261112.json` (candidate and installed module/alias calls, incremental changes and storage-preserving graph repair). Python delivered: `eval/p124-python-modules-delivery-20261112.json` (candidate/installed import calls, incremental changes and storage-preserving graph repair). Rust delivered: `eval/p125-rust-modules-delivery-20261112.json` (candidate/installed use/module calls, Cargo manifest updates and storage-preserving graph repair). Go delivered: `eval/p126-go-modules-delivery-20261112.json` (candidate/installed package calls, manifest/workspace updates and storage-preserving graph repair). Java delivered: `eval/p127-java-modules-delivery-20261112.json` (candidate/installed import and typed-receiver calls, incremental rebinding and storage-preserving graph repair). Parent acceptance reconciliation remains open.
+  TypeScript delivered: `eval/p123-typescript-modules-delivery-20261112.json` (candidate and installed module/alias calls, incremental changes and storage-preserving graph repair). Python delivered: `eval/p124-python-modules-delivery-20261112.json` (candidate/installed import calls, incremental changes and storage-preserving graph repair). Rust delivered: `eval/p125-rust-modules-delivery-20261112.json` (candidate/installed use/module calls, Cargo manifest updates and storage-preserving graph repair). Go delivered: `eval/p126-go-modules-delivery-20261112.json` (candidate/installed package calls, manifest/workspace updates and storage-preserving graph repair). Java delivered: `eval/p127-java-modules-delivery-20261112.json` (candidate/installed import and typed-receiver calls, incremental rebinding and storage-preserving graph repair). All five language deliveries reconciled: `eval/p127-todo23-acceptance-20261112.json`; static source scope and explicit limitations retained.
 
 - [ ] **24. Project-type detection + capability gating** (M)
   `project_service.rs`, `capabilities.rs`. Detect ecosystem at index time (csproj/sln vs

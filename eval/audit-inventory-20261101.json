@@ -9980,7 +9980,7 @@
         "crates/engram_server/src/handlers/graph_tools.rs"
       ],
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
-      "next_action": "Reconcile parent TODO23 against the five delivered language receipts, preserving other unfinished original requirements.",
+      "next_action": "Select the next unfinished accepted original backlog item; preserve all other open findings and full gates.",
       "constraints": "One implementation item. No CodeMap/Blast changes, compiler/build-system infrastructure, dependency downloads, runtime-dispatch or full compiler claims. Preserve other unfinished original findings.",
       "semantic_sources": [
         "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-7.html#jls-7.5",
@@ -10023,7 +10023,8 @@
         }
       },
       "progress_receipt": "eval/p127-java-modules-progress-20261112.json",
-      "delivery_receipt": "eval/p127-java-modules-delivery-20261112.json"
+      "delivery_receipt": "eval/p127-java-modules-delivery-20261112.json",
+      "parent_acceptance": "eval/p127-todo23-acceptance-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",

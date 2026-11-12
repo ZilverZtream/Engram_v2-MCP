@@ -1,0 +1,222 @@
+{
+  "schema_version": 1,
+  "status": "ORIGINAL_TODO23_DELIVERED",
+  "at_utc": "2026-11-12T09:53:34.912431+00:00",
+  "original_requirement": "TODO23: second-pass call resolution for TypeScript, Python, Rust, Go and Java; add per-language import/module resolution so calls link to fully qualified source declarations, reusing the existing two-pass architecture.",
+  "languages": [
+    {
+      "language": "typescript",
+      "original_requirement": "Named/default/namespace import paths, aliases, reexports and tsconfig paths resolve actual indexed source exports.",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p123-typescript-modules-delivery-20261112.json",
+        "sha256": "d0438982dab1ecb4ebd513f8f51712927441cfeb5d4cbb0d62ff7a173e6c706c"
+      },
+      "evidence": {
+        "build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-ts-modules-source-v2-20261112.json",
+          "sha256": "9d4c1a81f8c37fa45279ed9bfc5c5a260d3974b513b9cb7eab086a1c3aef5856"
+        },
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\pair.json",
+          "sha256": "98b84153ab48da8b7fa5c633e0d66c62f0da9b32048ced7bc7ad6d55d03ef29c"
+        },
+        "candidate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\candidate-v3\\acceptance.json",
+          "sha256": "92a844fc784ccd7060e18abfdbaea9231a0106b6eeb375b635eb899befa2ac0e"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\installed\\acceptance.json",
+          "sha256": "be74064c81846d9a3c747e45cbb1bce7212d92ce80f411b4a4c09ebcb5a8e793"
+        },
+        "normal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\normal\\acceptance.json",
+          "sha256": "ca710715cd395051f58be51b4d1216ad6338943b3f98a63f4cd54a58dae304c2"
+        }
+      },
+      "limitations": [
+        "Static authored module relationships, not TypeScript compiler, runtime, general receiver-type or whole-program proof.",
+        "Uses nearest indexed tsconfig with supported local relative extends; package/array extends and unsupported forms stay unbound.",
+        "Python, Rust, Go and Java portions of TODO23 remain unfinished; the parent TODO stays unchecked.",
+        "Production source was not reindexed. Legacy TypeScript/config extraction requires update_project or graph_only repair for new facts.",
+        "Parent manual review only; no external CodeRabbit review or full original backlog/19-gate closure."
+      ],
+      "historical_remaining_language_notes": "Preserved as historical delivery context; this reconciliation establishes the current five-language state."
+    },
+    {
+      "language": "python",
+      "original_requirement": "Absolute/relative imports, aliases, packages, local imports and reexports resolve indexed source declarations.",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p124-python-modules-delivery-20261112.json",
+        "sha256": "d611922edbf30c8e5ab1823d19d85b8e3ae63a59205fb4c62640af7b3d412dd7"
+      },
+      "evidence": {
+        "build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-py-modules-source-20261112.json",
+          "sha256": "3e5f58513187aedba065a3bb0bb18eecb82df7894b647d3df867d278c7fae524"
+        },
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\pair.json",
+          "sha256": "5d9e8d1b49d40dd28561d834eac95ca96e25107c394d3bff2a7e43c0169c9004"
+        },
+        "candidate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\candidate\\acceptance.json",
+          "sha256": "ba5dd398ba2b89ad29e47f83e52116372fd3f3693c9e8fbb33ca42a14f1f5d1e"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\installed\\acceptance.json",
+          "sha256": "ffeb1a6f9579f6b7d980bf96da79a538a8819d5bab8e526c075537c1d0074504"
+        },
+        "normal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\normal\\acceptance.json",
+          "sha256": "9d5843356010697d1919c67b82775a5a43f7efaea555796bc6291cf08c453b83"
+        }
+      },
+      "limitations": [
+        "Syntax-based source identity, not runtime import execution or sys.path/import-hook proof.",
+        "Root/src source layout candidates; conflicting identities remain ambiguous. External/custom roots are not guessed.",
+        "Decorated callables, wildcard/conditional imports and global/nonlocal directives remain explicitly unresolved.",
+        "Runtime monkey-patching and attribute mutation are not modeled. No whole-program behavior claim.",
+        "Rust, Go and Java portions of TODO23 remain unfinished; the parent TODO stays unchecked.",
+        "Production source was not reindexed. Legacy Python extraction needs update_project or graph_only repair for current facts.",
+        "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+      ],
+      "historical_remaining_language_notes": "Preserved as historical delivery context; this reconciliation establishes the current five-language state."
+    },
+    {
+      "language": "rust",
+      "original_requirement": "Use aliases, crate/self/super paths, declared modules, reexports and indexed Cargo path dependencies resolve source declarations.",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p125-rust-modules-delivery-20261112.json",
+        "sha256": "e5fe178254eadf68c10795df97af45b96c405786764c33bb5469d3fd9ab3e1b3"
+      },
+      "evidence": {
+        "build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rs-modules-source-20261112.json",
+          "sha256": "2b6493141d0e896422f9c0fc726f8f8ca9d04c50b95cbbe4a6611386455552be"
+        },
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\pair.json",
+          "sha256": "a99b2794d247eca766d6676328b79b1de707d0df51d3e673acce336d7fe46a2c"
+        },
+        "candidate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\candidate\\acceptance.json",
+          "sha256": "e57b9aec8d892ae1822f7a81eed74e079ad4b032c995b599f9280a862ab950ed"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\installed\\acceptance.json",
+          "sha256": "9ff45fab979fc1f33b7b8aa6f8709968715335dadaa4a2f977118c11e2633de4"
+        },
+        "normal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\normal\\acceptance.json",
+          "sha256": "4e661c09a7a0b5c9075b5e2d4b36c2ada23986a3b7c4d7a2024f2c9d412c95c0"
+        }
+      },
+      "limitations": [
+        "Static source evidence only; no compiler, macro-expansion, cfg-selection, trait-dispatch or execution proof.",
+        "Conditional bindings, unsupported associated/receiver calls, ambiguity, cycles and unindexed external crates remain unresolved.",
+        "Source roots and path dependencies must be indexed inside the project; no registry or external filesystem lookup.",
+        "Standalone conventional lib.rs/main.rs trees use a 2021 source assumption; Cargo manifests establish supported editions.",
+        "Legacy Rust/Cargo facts require an update or graph repair. This delivery does not reindex production projects.",
+        "Go and Java portions of TODO23 remain unfinished; the parent TODO stays unchecked.",
+        "Production source was not reindexed. Legacy Rust/Cargo extraction needs update_project or graph_only repair for current facts.",
+        "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+      ],
+      "historical_remaining_language_notes": "Preserved as historical delivery context; this reconciliation establishes the current five-language state."
+    },
+    {
+      "language": "go",
+      "original_requirement": "Package clauses, file-local imports, aliases, dot imports and indexed module/workspace metadata select source declarations.",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p126-go-modules-delivery-20261112.json",
+        "sha256": "57800e8b4322b85f099f90333c862aea21dab3f6980b3859205da77e2fbcaa04"
+      },
+      "evidence": {
+        "build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-source-20261112.json",
+          "sha256": "a6fc39cad2718006b264dd396e628199ee6b4bdb08a0d21c31d391a5b22fdecf"
+        },
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\pair.json",
+          "sha256": "b4bd9c328aa079a89636aab90acbeabb6408c5695df07f6860e7a9eab446d716"
+        },
+        "candidate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\candidate\\acceptance.json",
+          "sha256": "e6739f2f98ed62bfd5824904681dad556f2fed6cdb3b86d98eb2e89d69bc2047"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\installed\\acceptance.json",
+          "sha256": "3c563ab66272140621d6136158ddd77e8d1631a0520d10777c687e062da9d3d2"
+        },
+        "normal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\normal\\acceptance.json",
+          "sha256": "b5811fedee2fcfbe525eaba49176e205f71607b4323dbc9fef81f3d958304fa9"
+        }
+      },
+      "limitations": [
+        "Static source evidence, not Go compiler, runtime, build-tag/platform, GOWORK environment or receiver-dispatch proof.",
+        "Only indexed project-local module/workspace/replacement paths are resolved. No network/module-cache lookup or full minimal-version selection.",
+        "Build-constrained/cgo/ignored sources, ambiguous declarations/imports, unsupported configs and unindexed external packages remain unresolved.",
+        "Old indexes need update_project to admit go.mod/go.work files newly included by default indexing. Graph-only repair preserves the admitted source set; no production reindex is performed.",
+        "The Java portion of TODO23 remains unfinished; the parent TODO stays unchecked.",
+        "Production source was not reindexed. Legacy Go indexes need update_project to admit go.mod/go.work and current source facts.",
+        "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+      ],
+      "historical_remaining_language_notes": "Preserved as historical delivery context; this reconciliation establishes the current five-language state."
+    },
+    {
+      "language": "java",
+      "original_requirement": "Type/static imports, same-package/qualified/nested types, bare methods and declared receiver types resolve source method declarations.",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "delivery": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p127-java-modules-delivery-20261112.json",
+        "sha256": "51f972b85ca7fa78531e29bc6ccd67e5e74789c6e5a99c74620ac11018da50a2"
+      },
+      "evidence": {
+        "build": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-source-20261112.json",
+          "sha256": "888982488a42d68eda92342a1f65ed73831bf380e7bab669e43cecc5cd0ae392"
+        },
+        "pair": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\pair.json",
+          "sha256": "6e369ad24a9326ca53794e81f591acb5973c38f14db61ff00f22e55ac5eb5f6c"
+        },
+        "candidate": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\candidate\\acceptance.json",
+          "sha256": "c3e6a3950503e3ea337a6c81cc7242cc8ae191d32e8df9126c219e511093896e"
+        },
+        "installed": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\installed\\acceptance.json",
+          "sha256": "2ee18fc6e694ca9576fee0e698f1456593ed9ae6d56c5d6876a9bed47aad45b2"
+        },
+        "normal": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\normal\\acceptance.json",
+          "sha256": "ebfcf125e088a3e40463799e4b9fb4c965106f2e1413294cba37a51e423bf847"
+        }
+      },
+      "limitations": [
+        "Static source-declaration evidence, not Java compiler type checking or runtime dispatch proof.",
+        "Overload selection requiring argument types, inferred/unknown/array receiver types, inherited method lookup and cross-named-module visibility are explicitly unresolved. No Maven/Gradle/classpath or external dependency download.",
+        "Pattern-variable flow and local/anonymous class resolution remain conservative and explicit; source parser errors or unsupported syntax do not produce guessed bindings.",
+        "Legacy indexes need current Java extraction facts via update_project or graph_only repair. Public upgrade/storage preservation and deployment are not yet claimed.",
+        "All five language delivery receipts exist; parent TODO23 acceptance still requires reconciliation before closure.",
+        "Production source was not reindexed. Legacy Java extraction needs update_project or graph_only repair for current facts.",
+        "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+      ],
+      "historical_remaining_language_notes": "Preserved as historical delivery context; this reconciliation establishes the current five-language state."
+    }
+  ],
+  "current_installed_pair": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\pair.json",
+    "sha256": "6e369ad24a9326ca53794e81f591acb5973c38f14db61ff00f22e55ac5eb5f6c"
+  },
+  "current_shared_regression": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\module-no-vector-final03-result.json",
+    "sha256": "d8823d32dff9b8e653a9e2a1a8f7bbe2a46a894f09dc0f9fd9b87b655da4a717"
+  },
+  "scope": "Source-backed second-pass import/module resolution with explicit unsupported/ambiguous outcomes. This does not claim a compiler, complete language semantics, dependency execution or runtime dispatch.",
+  "remaining_original_goal": "ACTIVE. This closes original TODO23 only; other TODO items, research findings, unfinished acceptance and original full 19 gates remain open."
+}
