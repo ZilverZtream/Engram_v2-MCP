@@ -1,0 +1,24 @@
+{
+  "status": "SELECTED_IMPLEMENTATION_PENDING",
+  "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
+  "observed_missing_behavior": "Initial source inspection: handle_index_project persists req.project_type directly; ProjectType lacks automatic ecosystem selection and dedicated JS/TS/Python profiles; capabilities.rs is a static feature-status catalogue. No existing TODO24 delivery record was found. Public baseline remains to be captured before implementation.",
+  "finite_acceptance": [
+    "Detect and retain evidence-backed project ecosystem/capability metadata for .NET, JS/TS, Rust and Python during indexing, including mixed/unknown repositories. Distinguish WebForms evidence from an arbitrary .NET solution; do not label all .NET as WebForms.",
+    "Use detection to select appropriate extractor/indexing presets when the caller requests automatic/default selection, while preserving explicit supported profiles and aliases. Mixed projects retain their relevant source coverage; no destructive source-set or publication shortcuts.",
+    "Apply project capabilities to visible WebForms/migration tools while preserving core tool dependencies and legitimate WebForms access. Define truthful behavior for empty, unknown and multiple-project contexts rather than inferring a single active project incorrectly.",
+    "Expose detected ecosystem, evidence/coverage and relevant capabilities through project information and the existing overview summary. Keep this to project metadata; do not reopen CodeMap traversal/layout or Blast Radius improvements.",
+    "Authored non-.NET, .NET-non-WebForms, WebForms and mixed fixtures verify actual indexed source coverage and public tool visibility/overview behavior, including refresh/reopen and explicit overrides. Run relevant checks, verify candidate and installed runtime behavior, deploy and record before advancing."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/services/project_service.rs",
+    "crates/engram_server/src/capabilities.rs",
+    "crates/engram_server/src/handlers/project_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/utils/files.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/handlers/cognitive_tools.rs"
+  ],
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
+  "next_action": "Inspect existing tool-profile selection and project-type handling once, then capture an owned installed-runtime baseline and implement the recorded original TODO24 behavior.",
+  "constraints": "One implementation item. Preserve delivered TODO23 and all other original findings; no broad service audit (TODO26), corpus expansion (TODO25), CodeMap/Blast improvement, new approval UI or unrelated infrastructure. Existing source publication/ownership guarantees and held kernel/SSD/deletion work remain unchanged."
+}
