@@ -41,11 +41,12 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO22 lightweight def-use (data-flow) edges",
-    "status": "IMPLEMENTED_HANDLER_VALIDATED_NOT_DEPLOYED",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
-    "remaining": "Value graph and bounded invocation-specific trace_data_flow are implemented and handler-validated in native/no-vector builds. Next: release build, candidate MCP/storage-preserving repair acceptance, installation and installed public acceptance. Full original backlog remains active.",
+    "remaining": "TODO22 is delivered. Select the next original accepted backlog item; full goal remains active.",
     "baseline": "eval/p122-def-use-baseline-20261112.json",
-    "progress": "eval/p122-def-use-progress-20261112.json"
+    "progress": "eval/p122-def-use-progress-20261112.json",
+    "receipt": "eval/p122-def-use-delivery-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO21 return-type / parameter-type edges",

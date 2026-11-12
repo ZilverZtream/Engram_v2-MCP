@@ -192,10 +192,12 @@ they feed blast radius, edit safety, and the ADP gates.
 
   Delivery: `eval/p121-signature-types-delivery-20261112.json` (source `7f9aa10`; candidate and installed public acceptance passed).
 
-- [ ] **22. Lightweight def-use (data-flow) edges** (L)
+- [x] **22. Lightweight def-use (data-flow) edges** (L)
   New post-ingest pass. Today data-flow is call edges + state/SQL edges only. Even
   method-local def-use with cross-method parameter linking would let `trace_data_flow`
   answer lineage questions agents currently have to read source for.
+
+  Delivery: `eval/p122-def-use-delivery-20261112.json` (candidate and installed public lineage, source-update and storage-preserving graph repair acceptance passed).
 
 ---
 

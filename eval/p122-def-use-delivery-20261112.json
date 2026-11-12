@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "TODO22 lightweight def-use and value lineage",
+  "at_utc": "2026-11-12T04:20:15.493949+00:00",
+  "source_commit": "5eddf12d91bc7f5940976599d31bb7f8af2d53b6",
+  "source_sha256": {
+    "crates/engram_graph/src/store.rs": "cab686e22deef393ed0fcc838c9317b043b4d9b41a18c4fd5bdf1c9113f99729",
+    "crates/engram_graph/src/store/source_rebuild.rs": "184a05167afbfdeca33ba216dc94c8bc9ef1858756b676cd91c9cccae9419306",
+    "crates/engram_graph/src/store/value_flow.rs": "274b3c4fd772dc0ae78654c3a2aefd6ee8d55e4ce1f0b09d04ebe4a163d2fcdd",
+    "crates/engram_graph/src/store/value_flow/local.rs": "2b5740843117e92bccbc729147c800fbdbbaa408262aaa886f52662370b03db8",
+    "crates/engram_graph/src/store/value_flow/tests.rs": "a634734877039a65585bb6dbf948624f5a8f6472df73c099c5f1fc5b4a9c80bc",
+    "crates/engram_graph/src/store/value_flow/view.rs": "1ea47deb7cf8f61da795c4ff6b945e9cdae1b39fe88fa5bf8072ca5ad1271956",
+    "crates/engram_index/src/lib.rs": "a8a8aab8310d667626be588be64ccf76114521fd908a0941ea34222b98038d22",
+    "crates/engram_index/src/parsing/value_flow.rs": "50dfbf045edbf166a3c07eea2709e1bf5ae483a28a61208df9252d86f44126f2",
+    "crates/engram_server/src/services/data_flow_service.rs": "d3bf72209d3e85e9b8b8097c791c87c6f2369b1a975daa41f91add619d6fa26d",
+    "crates/engram_server/src/tools.rs": "0adabe1fd1b1b4c289a3335df9be721aa7fd3504761aea1a31dc4ccf1ef9c46a",
+    "crates/engram_server/tests/value_lineage_tests.rs": "0ad2525b2ec28965d68e4a283ecc41f78ba7e8a18ee985f82993def5de19f943",
+    "tools/vb_roslyn_sidecar/ValueFlowEmitter.cs": "7833b2383f737b5f6bb2da1263f97df1021a1aa9a735a62d4ae118efba28e5ac"
+  },
+  "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
+  "demonstrated": [
+    "Source-cited local definitions, assignments and reads with overwrite and lexical-scope semantics.",
+    "Separate invocation contexts link arguments and returned values without mixing repeated helper calls.",
+    "VB named arguments follow admitted compiler-selected source targets; CSharp unique lexical candidates are labeled explicitly.",
+    "Unsupported loops, persistent locals and external calls remain partial/unbound; stale entry source is refused.",
+    "Real old-index graph upgrade, incremental lineage replacement and graph-only repair preserve source/search/vector storage with zero rebuild embedding requests."
+  ],
+  "limitations": [
+    "Authored static dependencies and conservative branch joins, not runtime values, path-feasibility, exception-flow or heap-alias proof.",
+    "Unsupported/generic/ambiguous/receiver-dependent CSharp targets remain unbound; compiler proof is not claimed for lexical candidates.",
+    "Callees describe indexed snapshots; their current disk content is not verified by trace_data_flow.",
+    "Existing production data was not reindexed; older source contracts require update_project or graph_only repair to populate lineage.",
+    "Parent manual review only; no external CodeRabbit review or full original backlog/19-gate closure."
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-source-20261112.json",
+      "sha256": "670b53489aa34154bfa221fb9750569406592bb9398678273b4f48fb5c27d038"
+    },
+    "sidecar_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\sidecar-build-v4.json",
+      "sha256": "19d324757cbb551c3dd8b049764eb7f48158189fae9c5890094c63d93310a51f"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\pair.json",
+      "sha256": "517a45949f9bc14c86cc00a9e2f754f14be745e85edf09551759273ebd9f110a"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\candidate\\acceptance.json",
+      "sha256": "03639abf66385e329ed85428ea5d46012b4bab1b6cb5b2829e1992a9141ca8a6"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\installed\\acceptance.json",
+      "sha256": "e693b568bbb5c47916309b780a21bd760b5107a3c27aada99a552ac7e2a8b478"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\normal\\acceptance.json",
+      "sha256": "139c3927b2f370d91d9286d8149ee0fe4aeeb35409dd5e2e5f77f6460c662a59"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\release-gates.json",
+      "sha256": "1b62d3d34066a522680a88e6330e51cee8861dd37ac2d498ec5ba2b88a21268b"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\install-result.json",
+      "sha256": "0a5f8c830a5555bde4621bf72fefe19697b9d68cf19c0f2dfb8d9adc20dc3388"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-config-hold-20261112.json.released.json",
+      "sha256": "b9582a36506e0f7a6cf27f139a4b7a608516f0320eba3a132646398b04304b1a"
+    },
+    "server_sha256": "161fe6a6d51cec3456ad19c3ea91bd3d9789ddb219aa36ebfb9a5ca7831ba073",
+    "manifest_sha256": "76eb12ae2d669a6653784c70a5a0b1740d3d782e035d811b5906eb20c4687507",
+    "all_manifest_assets_verified": 215,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "owned_sidecar_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-64b16b8df47943e7adec650517b70a1f",
+    "cleanup_condition": "Retain package, old complete pair, journals and evidence; no preexisting folder deletion authorized by this delivery."
+  },
+  "broader_goal": "ACTIVE; TODO22 delivery does not complete original backlog or remaining EG14 acceptance."
+}

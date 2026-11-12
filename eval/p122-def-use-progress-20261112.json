@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "IMPLEMENTED_HANDLER_VALIDATED_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-12T03:26:46.027480+00:00",
   "original_requirement": "TODO22 lightweight def-use and cross-method parameter lineage; full selected acceptance remains in current_execution_focus.",
   "baseline": "eval/p122-def-use-baseline-20261112.json",
@@ -40,11 +40,7 @@
       "sha256": "b1d37d38773f052396298df55365c56efe33e588928118de5b3643fe325210fd"
     }
   },
-  "remaining": [
-    "Build and package the release server with the matching v4 VB companion, preserving current installed TODO21 pair until candidate acceptance passes.",
-    "Verify actual MCP candidate lineage, old-index upgrade, incremental replacement and graph_only repair while preserving source/search/vector storage; current handler and graph tests do not establish these complete release contracts.",
-    "Deploy the validated pair, verify installed public lineage and normal daemon identity, record delivery evidence, then advance the next original backlog item. TODO22 remains unfinished until these checks pass."
-  ],
+  "remaining": [],
   "review_notes": [
     "Parent manual review only; no external CodeRabbit review ran.",
     "Language alias integration and generation freshness issues were corrected and have passing behavior checks.",
@@ -66,7 +62,7 @@
     ],
     "retention_condition": "Keep companion artifacts and wire/source evidence until complete TODO22 deployment; preserve failed-run receipts. No preexisting folders removed."
   },
-  "installed": "TODO21 release remains installed; no TODO22 deployment.",
+  "installed": "TODO22 pair deployed and verified; see delivery receipt.",
   "graph_delivery_progress": {
     "at_utc": "2026-11-12T04:01:09.322259+00:00",
     "source_sha256": {
@@ -142,5 +138,6 @@
       ],
       "retention_condition": "Keep receipts, logs and companion stage through candidate/installed delivery; do not delete preexisting stages or previously held folders."
     }
-  }
+  },
+  "delivery_receipt": "eval/p122-def-use-delivery-20261112.json"
 }
