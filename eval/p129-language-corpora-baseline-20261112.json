@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_CI_OBSERVATION_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_CI_WIRED",
   "at_utc": "2026-11-12T10:42:36.235266+00:00",
   "original_requirement": "Original TODO25: add small ground-truth projects for TypeScript, Python, Rust and Go under tests/fixtures, with expected symbols and call edges, wired into CI so language-resolution regressions are visible.",
   "observed_missing_behavior": "tests/fixtures contains only the four existing dotnet_webforms fixture trees. TODO23 has delivered inline language module tests and retained public diagnostic fixtures, but no checked-in shared TS/Python/Rust/Go corpus or TODO25 delivery record. Existing no-vector CI runs server tests; the benchmark workflow names specific native test targets.",
@@ -22,8 +22,9 @@
   ],
   "constraints": "One implementation item. Deliver the original four-language fixture/CI requirement, preserving completed TODO23/24. Do not expand language semantics, benchmark corpora, CodeMap/Blast, the TODO26 service audit, pilots or supporting infrastructure. Record unrelated findings without displacing this item. Existing kernel/SSD/deletion holds remain.",
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112",
-  "next_action": "Commit/push the validated corpus/CI implementation, inspect matching remote workflow runs, then record the original TODO25 delivery with explicit CI limits.",
+  "next_action": "Commit/push this delivery record, then select original TODO26 after inspecting existing evidence once.",
   "ci_blocker_resolved_in_source": "Both workflows deny warnings. Existing compiler warning identified unreferenced indexed_file_mtimes_secs; repository search found no callers. Removed only that wrapper; live callers still use indexed_file_mtimes_secs_checked.",
   "runtime_scope": "No indexing/resolution/runtime behavior change. Source projects, independent oracles, integration tests and CI wiring are the delivery; the private dead-wrapper cleanup solely removes a compiler warning.",
-  "progress": "eval/p129-language-corpora-progress-20261112.json"
+  "progress": "eval/p129-language-corpora-progress-20261112.json",
+  "delivery": "eval/p129-language-corpora-delivery-20261112.json"
 }

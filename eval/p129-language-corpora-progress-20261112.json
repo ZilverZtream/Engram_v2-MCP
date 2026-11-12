@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_CI_OBSERVATION_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_CI_WIRED",
   "at_utc": "2026-11-12T11:32:31.663543+00:00",
   "original_requirement": "Original TODO25: add small ground-truth projects for TypeScript, Python, Rust and Go under tests/fixtures, with expected symbols and call edges, wired into CI so language-resolution regressions are visible.",
   "implementation_sha256": {
@@ -69,14 +69,20 @@
   "runtime_behavior_changed": false,
   "runtime_deployment": "Not required for corpus/CI delivery and removal of an unreferenced private wrapper. Existing TODO24 runtime remains installed.",
   "limitations": [
-    "These small authored cases establish the stated static symbol/call behavior, not complete language/compiler support, broad regression coverage or real-project productivity.",
-    "Remote CI execution is not yet established. Baseline API returned no workflow runs on master; query the pushed implementation SHA and preserve actual status separately.",
-    "Parent manual review only; no external CodeRabbit review or closure of unrelated original findings/gates."
+    "Four small authored projects establish their exact static symbols/calls; they do not establish complete language semantics or real-project productivity.",
+    "CI wiring and local native/no-vector target results are verified. Remote execution is established only if remote_execution_proven is true; no matching runs is not a CI pass.",
+    "Parent manual review only. Unrelated original findings and full nineteen-gate acceptance remain open."
   ],
   "temporary_resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112",
     "owned_fixture_roots_removed": true,
     "retained": "Scripts, logs and receipts remain here. Build artifacts use the existing shared target. No preexisting folders deleted."
   },
-  "next_action": "Commit/push the validated corpus/CI implementation, inspect matching remote workflow runs, then record the original TODO25 delivery with explicit CI limits."
+  "next_action": "Commit/push this delivery record, then select original TODO26 after inspecting existing evidence once.",
+  "delivery": "eval/p129-language-corpora-delivery-20261112.json",
+  "remote_ci": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112\\ci-observation.json",
+    "sha256": "b0b8276f17b693026823249805b04fc3673379a1323c5cfa85233d16af375c09"
+  },
+  "remote_ci_status": "NO_MATCHING_RUNS_OBSERVED"
 }
