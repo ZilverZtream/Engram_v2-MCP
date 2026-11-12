@@ -41,12 +41,13 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO23 Java package/import call resolution",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "status": "TODO23_DELIVERED",
     "baseline": "eval/p127-java-modules-baseline-20261112.json",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
-    "remaining": "Java delivered; reconcile parent TODO23 acceptance next, then advance. Full goal remains open.",
+    "remaining": "Select the next unfinished accepted original backlog item. Full goal remains active.",
     "progress": "eval/p127-java-modules-progress-20261112.json",
-    "receipt": "eval/p127-java-modules-delivery-20261112.json"
+    "receipt": "eval/p127-java-modules-delivery-20261112.json",
+    "parent_acceptance": "eval/p127-todo23-acceptance-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO23 Go package/import call resolution",
