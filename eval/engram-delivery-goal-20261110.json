@@ -38,11 +38,11 @@
     "Rebuilding OX QA approval/publication or OX Dev orchestration.",
     "System forensics or deletion of preexisting folders."
   ],
-  "activation_note": "Replacement goal remains active. Historical S10 is delivered; verified EG14 evidence-pack, ownership/scope/overflow, selected freshness/maintenance, review scope, vendor publication, request tracing, batch reads and SQL schema lookup have retained delivery records. Continue from current_execution_focus without restarting delivered work. Full original unfinished findings, comparative usefulness, regular-verification integration and resource/storage gates remain separately open.",
+  "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "finding": "TODO35 remainder: find_missing_indexes",
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-    "remaining": "Finish matched release build and public/installed index-suggestion acceptance, including pinned actual OciusX existing-index suppression; record delivery and advance. No additional language work or reopening delivered N+1/schema tools.",
+    "finding": "TODO36 existing Git-history four-task plan",
+    "status": "RECONCILE_RETAINED_DELIVERY_THEN_ADVANCE",
+    "remaining": "Reconcile existing TODO36 four-task Git-history implementation and retained acceptance, then advance the next missing OciusX-relevant original item without repeating implemented work.",
     "scope_guard": "No further Java/Python/Rust/Go language expansion, modern-state deployment, CodeMap or Blast improvement absent an explicit OciusX need or concrete regression. Engram implementation language Rust is distinct from adding Rust target-language support."
   },
   "previous_delivery": {
@@ -80,5 +80,9 @@
     "status": "SELECTED_ORIGINAL_OCIUSX_PRIORITY",
     "remaining": "EG24: integrate the existing frozen OciusX accepted-task checks into regular verification, reusing retained cases and verifier; no new evaluation platform or expanded benchmark.",
     "scope_guard": "No further Java/Python/Rust/Go language expansion, modern-state deployment, CodeMap or Blast improvement absent an explicit OciusX need or concrete regression. Engram implementation language Rust is distinct from adding Rust target-language support."
+  },
+  "index_suggestions_delivery": {
+    "receipt": "eval/ociusx-index-suggestions-delivery-20261112.json",
+    "status": "INDEX_SUGGESTIONS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
   }
 }

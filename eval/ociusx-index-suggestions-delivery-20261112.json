@@ -1,0 +1,196 @@
+{
+  "status": "INDEX_SUGGESTIONS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-12T20:43:19.930039+00:00",
+  "original_requirement": "TODO35 / AGENT_ENHANCEMENT_SPEC.md39-5 find_missing_indexes: collect WHERE/JOIN/ORDER BY column patterns from indexed inline SQL and stored procedures, cross-reference source-declared indexes, rank by static call-site frequency, and return CREATE INDEX candidates with file:line reasons, index-type guidance and selectivity warnings.",
+  "source_commit": "96882b0cadbfe20ff71e8c937b01c13c824db510",
+  "main_merge_commit": "7ee8ea00fbc6a736407b3570f4342b54f6716ece",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "772d7604ca999a9ab1f6d96d262113076bcda710ee7618dc8104673f7161a66d",
+    "manifest_sha256": "bf604df077087564d9597cf002611c9264a877adb349f018372a651ee13fa458",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "Public find_missing_indexes extracts WHERE/JOIN/ORDER BY access patterns from selected SQL sources and complete indexed VB literal queries, with qualified identity and source citations.",
+    "Source-declared leading/unique/filtered index checks suppress redundant candidates; INCLUDE-only or nonleading columns do not masquerade as leading keys.",
+    "Static source-site ranking, quoted nonclustered CREATE INDEX candidates, bounded covering/filtered guidance, type/cardinality warnings and explicit unknown runtime frequency/selectivity/benefit.",
+    "Selected membership, revision and current source fingerprint checks; paging, complete response budgets, stale source/schema withholding. No SQL execution or source changes."
+  ],
+  "checks": {
+    "native_tests": 7,
+    "candidate_public_calls": 11,
+    "installed_public_calls": 11,
+    "source_stable_during_build": true,
+    "parked_work_unchanged": true
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation_before_and_after": 3148,
+    "source_path": "db-ociusx.sql/dbo/Views/rl_pris_view.sql",
+    "source_preserved": true,
+    "verified_covered_patterns": [
+      {
+        "index": "CONSTRAINT [PK_rl_ra_redovisningslistaartiklar] PRIMARY KEY CLUSTERED ( [rl_id] ASC , [ra_id] ASC )",
+        "index_citation": {
+          "end_line": 10,
+          "path": "db-ociusx.sql/dbo/Tables/rl_ra_redovisningslistaartiklar.sql",
+          "source_hash": "93d3df85d97251f4658c173cdd8b525dcc33a23094d563d5b1d989b2d34d98cf",
+          "start_line": 1
+        },
+        "interpretation": "Source-declared eligible leading-key access path; no optimizer-use or clustered-key inclusion claim.",
+        "projected_columns_not_in_index": [
+          "rl_ra_pris"
+        ],
+        "query_keys": [
+          {
+            "ascending": null,
+            "column": "rl_id"
+          }
+        ],
+        "table": "[dbo].[rl_ra_redovisningslistaartiklar]"
+      },
+      {
+        "index": "CONSTRAINT [PK_rl_redovisningslista] PRIMARY KEY CLUSTERED ( [rl_id] ASC )",
+        "index_citation": {
+          "end_line": 14,
+          "path": "db-ociusx.sql/dbo/Tables/rl_redovisningslista.sql",
+          "source_hash": "5b1fc0a0c114e17169ad680f830d47157a684db9d649dd0efbeb42834e3f058d",
+          "start_line": 1
+        },
+        "interpretation": "Source-declared eligible leading-key access path; no optimizer-use or clustered-key inclusion claim.",
+        "projected_columns_not_in_index": [
+          "pr_id",
+          "rl_delad",
+          "vb_id"
+        ],
+        "query_keys": [
+          {
+            "ascending": null,
+            "column": "rl_id"
+          },
+          {
+            "ascending": null,
+            "column": "vb_id"
+          }
+        ],
+        "table": "[dbo].[rl_redovisningslista]"
+      },
+      {
+        "index": "CONSTRAINT [PK_vb_verksamhetsbedrivare] PRIMARY KEY CLUSTERED ( [vb_id] ASC )",
+        "index_citation": {
+          "end_line": 12,
+          "path": "db-ociusx.sql/dbo/Tables/vb_verksamhetsbedrivare.sql",
+          "source_hash": "57ec195b95aca33ad2871e022ce9befd2c889fb577deab899b6a8ed04309c4ad",
+          "start_line": 1
+        },
+        "interpretation": "Source-declared eligible leading-key access path; no optimizer-use or clustered-key inclusion claim.",
+        "projected_columns_not_in_index": [
+          "vb_sealla"
+        ],
+        "query_keys": [
+          {
+            "ascending": null,
+            "column": "vb_id"
+          }
+        ],
+        "table": "[dbo].[vb_verksamhetsbedrivare]"
+      }
+    ],
+    "query_seconds": 0.1543058999814093,
+    "response_bytes": 3450,
+    "coverage": {
+      "gaps": [
+        "[UIDX_rl_pris_view]: index target is missing or ambiguous"
+      ],
+      "queries_analyzed": 1,
+      "schema_gaps": [
+        "db-ociusx.sql/Scripts/Post/cc_costCenter.sql:53: ALTER TABLE is retained as a coverage gap; source declarations are not an executed migration state"
+      ],
+      "semantics": "Source declarations and static query patterns, not deployed schema or executed migrations. LINQ/provider translation, dynamic SQL, runtime frequency, data distribution, optimizer choices and actual benefit remain unknown. Unqualified table names use a unique source match; default schema/collation are unverified. Procedure parameters and view header options are omitted when parsing query bodies; their definitions are not validated.",
+      "source_inventory": {
+        "admission": "Selected membership, physical graph revision and current source BLAKE3; no atomic graph/disk snapshot. Inline query text comes from indexed SqlCalls metadata with containing-method citations. Assembled/fragment SQL is withheld. Schema comparison uses all admitted SQL declarations even when file_path narrows query sources.",
+        "admitted_sql_files": 329,
+        "inline_evidence_withheld": 0,
+        "inline_query_sites_admitted": 0,
+        "query_sources": 1,
+        "source_bytes": 737210,
+        "source_gaps": [],
+        "truncated": false
+      },
+      "truncated": false
+    },
+    "interpretation": "One actual OciusX view has three source-declared eligible leading/unique keys. Installed tool suppresses redundant index suggestions for those patterns. No live database, optimizer-plan, execution-count, latency-benefit or comparative productivity claim."
+  },
+  "limitations": [
+    "Static source evidence does not establish deployed schema, optimizer use, runtime frequency, selectivity, write cost or speedup. Source ALTER/DROP/migration execution is not applied.",
+    "Dynamic/assembled SQL and LINQ/provider-generated SQL are not translated. Inline evidence depends on complete indexed SqlCalls.sql_text and containing-method citations; degraded fallback snippets are withheld. Graph edge deduplication can lose distinct inline SQL texts within the same method/target; static site frequency is not an exhaustive runtime call count.",
+    "Unsupported/ambiguous predicates, expressions and key types can withhold candidates. Only eligible directly projected columns enter bounded INCLUDE guidance. Filter implication is limited to supported constant/null predicates.",
+    "Actual OciusX result discloses an indexed-view target gap for UIDX_rl_pris_view and one ALTER TABLE schema gap. The three base-table key suppressions were independently verified; these gaps are not silently declared solved.",
+    "CodeRabbit unauthenticated: parent manual review only. Original19 release gates, comparative usefulness, full request-tracing remainder and held backlog remain open."
+  ],
+  "debug_failure_resolution": {
+    "diagnosis": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\inline-diagnosis.json",
+      "sha256": "6796aa83a7f23ddadff5534dd599b78bb1c6a65f64c8f384cd6ae974734df331"
+    },
+    "result": "No source change required. Debug transport strips ENGRAM_ overrides and had no adjacent sidecar; complete paired candidate/installed fixtures both pass unchanged assertions. Failed debug evidence preserved."
+  },
+  "evidence": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\native2.json",
+      "sha256": "2c2129267c6171ab2b962f87b40e93cd9401f35d38614eb83db75e63d3cba415"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\release1.json",
+      "sha256": "7000dac67a58face6701f5f2f024bdacbb943e9af3e1e91842558335586752a1"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\pair.json",
+      "sha256": "d2b6c5c265c2af295242f87f873b7f081646a356734e825796f577adfc7b27f4"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\candidate\\acceptance.json",
+      "sha256": "008073ea64d3ed0963091f92c993e458fe0042ec504a08a7323d124ba69d192c"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\installed\\acceptance.json",
+      "sha256": "8366daf86d96f14bc4ffab18727c4412ea0425d260df03c02bd67c850ddb9569"
+    },
+    "actual_ociusx": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\normal\\acceptance.json",
+      "sha256": "312f4e12a368cabb7bdb6e4235a1d18a84a9dfcc51233f7f4c8c398d18cc82d9"
+    },
+    "real_source_inputs": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\real-inputs.json",
+      "sha256": "7426297b90e67ff168fe329ee2f9de450e501efb71204dca12622429ccc90f52"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\release-gates.json",
+      "sha256": "402c2ae54968036289f0d92205c6524b2d9e3cb6b420993a2fab47ae29c32bc9"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\indexes-install-Upgrade.json",
+      "sha256": "6b8582822477f5c1dc4b85d9e2016b04cfd5cdf1a0448169ac5396d1e51454a6"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes\\indexes-config-hold.json.released.json",
+      "sha256": "36b94ceae9f77f1acdcbe79c3dce8cc97134f014dad9b4b0179631c83071f345"
+    }
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes",
+    "owned_test_and_build_temps_removed": true,
+    "all_owned_test_processes_and_handles_closed": true,
+    "normal_installed_daemon_pid_at_acceptance": 63176,
+    "configuration_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-addf8a5004c3447abc448334982d0918",
+    "retention": "Retain package, receipts and failed-run diagnostics as delivery evidence; remove only after retention no longer needed and applicable exact-path approval. Previous release pair retained for rollback, not approved for deletion.",
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_removal_condition": "Reuse existing isolated checkout while parked work must remain excluded. Remove through Git only after unique work/ignored files/commits are preserved and isolation is no longer needed."
+  },
+  "next": "Reconcile existing TODO36 four-task Git-history implementation and retained acceptance, then advance the next missing OciusX-relevant original item without repeating implemented work.",
+  "goal": "ACTIVE; full original backlog and held/partial findings remain unfinished."
+}

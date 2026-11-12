@@ -305,7 +305,7 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   Some tools have `Next:` recommendations; most don't. Standardize a `next_tools` field —
   this is how agents discover the long tail of the surface organically.
 
-- [~] **35. Database Oracle remainder (spec 39: query_schema, detect_n_plus_one, find_missing_indexes)** (M–L)
+- [x] **35. Database Oracle remainder (spec 39: query_schema, detect_n_plus_one, find_missing_indexes)** (M–L)
   For data-heavy projects. `query_schema` first — agents constantly need "what columns
   does this table actually have."
 
@@ -324,7 +324,15 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   identified `GisImageLayer.UpdateLayers` query line148 inside loop146. Static
   candidates do not prove runtime cost or execution counts; constructors,
   injected receivers and dynamic dispatch remain unassessed.
-  `find_missing_indexes` is still unfinished.
+  `find_missing_indexes` delivered 2026-11-12: WHERE/JOIN/ORDER BY index
+  candidates from SQL sources and indexed VB literals; existing leading/unique/
+  filtered keys, citations, static site ranking, quoted DDL, complete budgets
+  and stale-evidence withholding. Seven native tests and eleven candidate/
+  installed calls each passed. Actual OciusX `rl_pris_view` correctly suppressed
+  three redundant base-table suggestions. Dynamic/provider SQL, indexed-view
+  target resolution and executed migration state remain explicit limits;
+  no measured database speedup or comparative productivity claim.
+  Evidence: [index-suggestion delivery](eval/ociusx-index-suggestions-delivery-20261112.json).
   Evidence: [N+1 installed delivery](eval/ociusx-n-plus-one-delivery-20261112.json).
   Evidence: [installed delivery](eval/ociusx-query-schema-delivery-20261112.json).
 
