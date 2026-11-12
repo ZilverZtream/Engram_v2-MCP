@@ -1,0 +1,251 @@
+{
+  "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-12T22:42:12.519162+00:00",
+  "original_requirement": "TODO42: when the business-logic LLM is unavailable, degrade visibly to a deterministic summary; enforce bounded requests/retries and explicit backend/model configuration.",
+  "source_commit": "998277689f1eef2d64181c4250549943d1ca42b1",
+  "main_merge_commit": "97252ff431640c6e2c13ca01bbc499c9cc829a6b",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "1aae3102eab370072f099496eb7af38eeeed7d5a3555109414e5e8b47e01bf45",
+    "manifest_sha256": "786a9aae4dc8557375ba7bf04f2eeda9dec0f3152272dda6d41d490e973fed2c",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "Safe provider-failure category/status/exhaustion in method/file output, without raw endpoint, credentials or response body.",
+    "Outages use existing provider retries and deadlines without the additional larger-output retry. Empty successful or malformed model output retains the existing bounded recovery retry.",
+    "Failed analysis includes separate bounded source observations with exact lines and content hash. Failure/incomplete status remains explicit; failed extraction is not persisted as usable business rules.",
+    "Healthy method/file output and persistence remain usable. Existing configured backend/model identity, empty-method handling and provenance are preserved."
+  ],
+  "checks": {
+    "native_integration": 23,
+    "no_vector_units": 36,
+    "external_model_probe_ignored": 1,
+    "public": {
+      "candidate": {
+        "calls": 10,
+        "assertions": [
+          "auth_no_budget_retry",
+          "outage_existing_three_attempts_only",
+          "safe_method_and_file_fallback",
+          "exact_source_citations",
+          "failed_analysis_not_persisted",
+          "truncated_json_still_retries",
+          "valid_analysis_persisted",
+          "healthy_file_summary_preserved"
+        ],
+        "provider_calls": [
+          {
+            "mode": "auth",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "auth",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "auth",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "outage",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "outage",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "outage",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "truncated",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "truncated",
+            "summary": false,
+            "max_tokens": 8192
+          },
+          {
+            "mode": "healthy",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "healthy",
+            "summary": true,
+            "max_tokens": 512
+          },
+          {
+            "mode": "healthy",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "healthy",
+            "summary": true,
+            "max_tokens": 512
+          }
+        ]
+      },
+      "installed": {
+        "calls": 10,
+        "assertions": [
+          "auth_no_budget_retry",
+          "outage_existing_three_attempts_only",
+          "safe_method_and_file_fallback",
+          "exact_source_citations",
+          "failed_analysis_not_persisted",
+          "truncated_json_still_retries",
+          "valid_analysis_persisted",
+          "healthy_file_summary_preserved"
+        ],
+        "provider_calls": [
+          {
+            "mode": "auth",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "auth",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "auth",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "outage",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "outage",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "outage",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "truncated",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "truncated",
+            "summary": false,
+            "max_tokens": 8192
+          },
+          {
+            "mode": "healthy",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "healthy",
+            "summary": true,
+            "max_tokens": 512
+          },
+          {
+            "mode": "healthy",
+            "summary": false,
+            "max_tokens": 3072
+          },
+          {
+            "mode": "healthy",
+            "summary": true,
+            "max_tokens": 512
+          }
+        ]
+      }
+    },
+    "source_stable_during_build": true,
+    "parked_work_unchanged": true
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "active_generation": 3148,
+    "configuration_unchanged": true,
+    "model_requests": 0,
+    "interpretation": "Normal installed daemon serves the existing OciusX project with unchanged configuration. Model-failure behavior is proved by the separate controlled candidate/installed fixtures, not a production outage or paid model request."
+  },
+  "limitations": [
+    "Fallback is lexical source observation, not inferred business purpose/rules or proof of execution; calls, multiline syntax, dispatch and effects are not exhaustively analyzed.",
+    "At most eight complete observation lines of at most240bytes each; excess or oversized observations are counted as omitted. Zero observations does not mean no behavior.",
+    "Controlled public fixtures exercise Ollama protocol; native fixtures exercise OpenAI-compatible failures, deadline and disabled provider. No production outage, production provider change or paid external model request.",
+    "CodeRabbit authentication was unavailable; parent manual review only. No measured productivity or comparative analysis-quality gain; full backlog and original19gates remain open."
+  ],
+  "failure_history": [
+    "native1 exposed two empty-success-response retry regressions. The existing InvalidResponse+2xx provider category now retains the bounded output retry; native2 passed all23checks."
+  ],
+  "evidence": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\native2.json",
+      "sha256": "eab0337172398a39994069c573ea7ee92b6a757a6d1a69803fb04e47c8c2caee"
+    },
+    "no_vector": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\novector1.json",
+      "sha256": "106528391edf3755a371575b714910cbdb31a835a7fb25110ab853d98e530685"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\release1.json",
+      "sha256": "f3f1cae32c63714fae3ea7fe0ad6ac4a459d218e0158ca6a5aa30c7ac1c9fbc4"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\pair.json",
+      "sha256": "1e0dee3afb4f82f6486cb4d13ad5e371939bf0f1852962dcc34ba59786712da9"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\candidate\\acceptance.json",
+      "sha256": "340a4be834a82b27b462b5ce0228de097be5877e9e33f63c2617c13c18c424b4"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\installed\\acceptance.json",
+      "sha256": "06bf15955dd70c8c3190a4241d7af26ab05df54636d2b97b9602546ed4ca417b"
+    },
+    "normal_compatibility": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\normal\\acceptance.json",
+      "sha256": "caa711634c9f5651791ccfdcf0dfad9da886a8752d2b5eef6d00da29805959f2"
+    },
+    "gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\release-gates.json",
+      "sha256": "33e2fde09487a3ecfbf34473e6ce80a3fefe9648f9c5695ef1f7e8398ef37efa"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\degradation-install-Upgrade.json",
+      "sha256": "9907e2004744e3533daeeb974bda3ed90bab597906991da3e492fae26dc25e94"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\degradation-config-hold.json.released.json",
+      "sha256": "6aabc4301120ba534e45df4aaf7d0adad7bad9a6c58538d3e586298ae9aed7bc"
+    }
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation",
+    "owned_test_and_build_temps_removed": true,
+    "owned_test_processes_and_handles_closed": true,
+    "configuration_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9da6f90075ec419a94bfc337d2f928ff",
+    "retention": "Retain package/logs/receipts as delivery evidence and previous pair for rollback. Preexisting deletion requires exact-path approval.",
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_removal_condition": "Retain while isolation from parked work is necessary; remove through Git after preserving unique work, ignored files and commits."
+  },
+  "next": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion.",
+  "goal": "ACTIVE; other original requirements, partial acceptance and held findings remain unfinished."
+}

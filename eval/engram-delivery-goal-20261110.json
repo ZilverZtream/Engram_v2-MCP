@@ -40,11 +40,8 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "finding": "TODO42 LLM integration",
-    "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-    "remaining": "Finish release build15378, verify public candidate and installed model-failure behavior on owned VB.NET fixtures, deploy, record limits and advance.",
-    "scope_guard": "OciusX user-visible reliability only; reuse existing providers/deadlines/fallbacks. No unrelated language, CodeMap/Blast or broad framework work.",
-    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\contract.json"
+    "status": "RECONCILE_REMAINING_ORIGINAL_OCIUSX_ACCEPTANCE",
+    "remaining": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -97,5 +94,9 @@
   "source_integrity_delivery": {
     "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
     "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+  },
+  "llm_degradation_delivery": {
+    "receipt": "eval/ociusx-llm-degradation-delivery-20261112.json",
+    "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
   }
 }

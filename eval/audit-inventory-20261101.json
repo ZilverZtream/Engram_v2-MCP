@@ -9973,10 +9973,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-12T22:01:05.227941+00:00",
+  "last_updated_at": "2026-11-12T22:42:12.519162+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "at_utc": "2026-11-12T22:04:00.044992+00:00",
       "original_requirement": "TODO42: when the business-logic LLM is unavailable, degrade visibly to a deterministic summary; enforce bounded requests/retries and explicit backend/model configuration.",
       "observed_missing_behavior": "Method analysis catches typed provider errors, logs them and substitutes an empty response, then runs the larger-output retry intended for incomplete model JSON. Public responses lose the specific outage/timeout/auth reason and return failed analysis with no explicit deterministic summary of nonempty source. File summary similarly reports unavailable without the requested fallback.",
@@ -10007,7 +10007,9 @@
       "scope_guard": "One OciusX user-visible failure/fallback gap. No new LLM provider or retry framework, language support, CodeMap/Blast, broad audits or storage work.",
       "resources": "Reuse existing isolated checkout/shared target. Own, close and remove new provider/test fixtures. Retain receipts here; no preexisting-folder deletion.",
       "supporting_edit_note": "full_project_migration_service only adds degradation: None to one existing test fixture literal. Existing retry/provenance/file-purpose tests are run unchanged.",
-      "implementation": "implementation.json"
+      "implementation": "implementation.json",
+      "delivery_evidence": "eval/ociusx-llm-degradation-delivery-20261112.json",
+      "build_session": null
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10039,8 +10041,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO42 visible LLM degradation for OciusX business-logic analysis",
-    "next_user_visible_deliverable": "Preserve provider failure reasons, avoid the misplaced larger-output retry on outages, and return a bounded source-cited deterministic fallback without treating failed analysis as extracted business rules.",
+    "active_original_item": "Reconcile remaining original OciusX acceptance after TODO42 delivery",
+    "next_user_visible_deliverable": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10059,7 +10061,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Validated23integration+36unit checks and merged source9982776; release build15378 running, not deployed."
+      "evidence": "TODO42 built, public candidate/installed acceptance passed, deployed and normal OciusX compatibility verified; fixtures closed/removed, parked work preserved."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13313,6 +13315,10 @@
       "build_session": null
     },
     "previous_source_integrity_progress": "eval/ociusx-source-integrity-progress-20261112.json",
-    "llm_degradation_progress": "eval/ociusx-llm-degradation-progress-20261112.json"
+    "llm_degradation_progress": "eval/ociusx-llm-degradation-progress-20261112.json",
+    "llm_degradation_delivery_20261112": {
+      "receipt": "eval/ociusx-llm-degradation-delivery-20261112.json",
+      "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+    }
   }
 }

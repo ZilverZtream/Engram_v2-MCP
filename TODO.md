@@ -392,10 +392,13 @@ specs already written.
 - [x] **41. PageRank/centrality cache warming** (S) - *done 2026-06-12: get_or_compute_centrality (cache-or-compute-and-persist) used by blast radius + get_centrality; index_project warms the cache post-resolve; stale EdgeKind exhaustiveness count fixed (40->43).*
   Centrality reranking blocks on first use. Compute post-ingest, persist, refresh lazily.
 
-- [ ] **42. Harden `business_logic_service` LLM integration** (M)
-  Silent failure when Ollama is down, no timeout/backoff, post-hoc validation only.
-  Degrade visibly ("LLM unavailable — returning deterministic summary only") and make
-  backend/model explicitly configurable.
+- [x] **42. Harden `business_logic_service` LLM integration** (M) - delivered
+  2026-11-12: safe visible failure reasons, bounded cited source fallback and no
+  misplaced output-budget retry on provider outages. Reuses configured backend/model,
+  deadlines and provider backoff; preserves malformed-output retry and prevents failed
+  analysis being stored as business rules. Fallback is limited lexical evidence,
+  not inferred semantics. Native and candidate/installed public checks passed.
+  Evidence: [installed LLM degradation](eval/ociusx-llm-degradation-delivery-20261112.json).
 
 - [x] **43. Replace panics on safety-critical service paths with errors** (S–M) - *triaged
   + closed 2026-06-13: full services sweep found ONLY infallible patterns (compile-time
