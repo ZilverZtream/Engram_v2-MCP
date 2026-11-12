@@ -32,11 +32,11 @@ without asking every time.
 |---|---|
 | Invents method signatures | Typed graph of every function, class, and call edge, queryable by name or FQN |
 | Touches a high-impact file blindly | `compute_blast_radius` returns a 1–10 score with incoming / outgoing / downstream counts |
-| Re-introduces a reverted pattern | Immune system indexes every reverted diff; `immune_check` scores new code against it |
+| Re-introduces a reverted pattern | Detected reverted changes supply anti-pattern evidence; `immune_check` scores new code against the indexed evidence |
 | Changes a file but not its coupled partner | Temporal coupling surfaces files that change together in git history |
 | Ships a regression | `pre_commit_review` runs 19 deterministic gates over the staged diff, with secret redaction and CI-stable finding IDs |
 | Adds a public endpoint that skips the admin check | `guard_parity` gate + `map_guards_and_settings` compare new code against the sibling guards and settings that gate the area |
-| Implements 2 of the 17 places a concept lives | `plan_user_story` → `get_concept_footprint` → `find_similar_changes` map every touchpoint and the companion artifacts changes like this always include |
+| Misses implementation or companion files | `plan_user_story` → `get_concept_footprint` → `find_similar_changes` return candidates with evidence and coverage limits |
 | Gets lost in a 5,000-file legacy codebase | `get_codebase_overview`, `generate_migration_blueprint`, `analyze_full_project_migration` |
 | Writes project-context guidance from scratch every session | `produce_claude_md` generates a `CLAUDE.md` and `.claude/rules/*` from indexed signals |
 | Can't explain the diff it just produced | `explain_change` narrates a diff as commit message, PR description, or changelog |
@@ -46,12 +46,15 @@ without asking every time.
 
 ## Capabilities
 
-Each capability is independently usable. Every tool is scoped by `project_id`
-and every file path is validated against configured `allowed_roots`.
+Project workflows use `project_id` to select a registered project, and individual
+tools document their prerequisites and filesystem scope. Discovery and
+runtime-wide operations, such as `list_projects` and `get_metrics`, do not require
+a project ID.
 
-The sections below are ordered by how much they change an agent's behaviour
-compared to running without Engram — the top ones are the reason Engram
-exists; the bottom ones are operational surface.
+The sections below group review, planning, context and operational capabilities.
+Their order is not a measured ranking of agent benefit. The
+[recorded OciusX task results](eval/ociusx-current-task-evaluation-20261112.json)
+describe the measured outcomes and limits of the November 12 regression run.
 
 ### Pre-commit review (`pre_commit_review`)
 
@@ -441,12 +444,17 @@ Discovery returns up to 128 complete normalized entries per page; use
 ```
 
 An existing manual rule requires `transfer_manual` instead. A selected preview
-returns exact original row text, complete source projections and a plan hash,
-or a concrete blocking reason. Preview does not create identity or open a native
+returns `status: "ready_for_explicit_apply"` with exact original row text,
+complete source projections and a plan hash, or `status: "blocked"` with a
+concrete reason and `adoption_performed: false`. A blocked preview can be a
+successful MCP response (`isError: false`); inspect its payload status before
+offering an apply operation. Preview does not create identity or open a native
 runtime. Establish missing identity explicitly before recollecting and reviewing.
 To apply, send the same selected request with `mode: "apply"` and
 `expected_plan_blake3` from that preview. Stale rows, claims, source bytes or
-project identity invalidate approval; Engram does not refresh approval for you.
+project identity invalidate the preview token; recollect and review before
+applying. The caller's `decision_ref` records a decision reference and does not
+authenticate human authority or establish policy acceptance.
 
 Apply atomically changes provenance and records the source receipt, parser aliases
 and immutable audit. IDs, text, scope, priority, dates and opaque row fields are
@@ -678,10 +686,12 @@ don't clutter the top:
 
 ### Memory bank and repo rules
 
-Per-project persistent notes the agent reads and writes across sessions.
-File-pattern rules automatically injected into chunk retrieval (for
-example, "files matching `*Repository.cs` must use `IUnitOfWork`" attaches
-to every read of those files).
+Per-project persistent notes support recall across sessions. `get_chunk` adds
+matching registry rules when `inject_rules: true` is requested; the default is
+false. For actual source documents in the `memory` namespace, that option also
+resolves live, task-scoped repository guidance. Exact citation requests reject
+rule injection and logical slicing. A rule's presence is evidence, not proof
+that its prose was enforced or its ownership was established.
 
 ### Multi-client daemon
 
@@ -1207,7 +1217,7 @@ respects repository ignore rules; tracked vendor and generated files can remain.
 | Tool | Purpose |
 |---|---|
 | `update_memory_bank` · `list_memory_bank` · `read_memory_bank` · `delete_memory_bank` | Persistent agent notes |
-| `add_repo_rule` · `list_repo_rules` · `delete_repo_rule` | File-pattern rules injected into chunk reads |
+| `add_repo_rule` · `list_repo_rules` · `delete_repo_rule` | Manage file-pattern rules; chunk injection is opt-in, and ownership inventory is read-only |
 
 </details>
 

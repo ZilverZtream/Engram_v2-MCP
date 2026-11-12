@@ -185,6 +185,17 @@ missed the diagnosis task's bounded-next-test criterion. A startup-warning
 failure before any task turn is retained separately. These results do not
 replace the earlier pilot scores or demonstrate a quality/productivity gain.
 
+The [November 12 current-output receipt](ociusx-current-task-evaluation-20261112.json)
+records four OciusX regression tasks using `get_change_set`, `search_history` and
+`derive_test_matrix` from installed generation 3148. Both conditions satisfied
+20/20 criteria, with no false guidance identified by the blinded judge. Assisted
+runs requested eight additional reads versus ten; input increased from 166,083
+to 167,603 bytes (0.9%). Capturing the current context took 167.8 seconds, including
+identity, source and freshness checks as well as producer calls. The diagnosis
+case uses the existing OciusX KML evidence rather than the earlier memory case,
+so the totals are not a week-to-week score comparison. These are inspected
+regression cases, not a fresh holdout or matched implementation/QA benefit.
+
 Separate instruction-maintenance examples cover a real reporting `no_change`,
 a present KML code/policy `conflict`, and a historical PR2077 marker API `change`.
 The last uses only two original files in an owned replay fixture: the old guide

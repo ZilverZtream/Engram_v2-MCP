@@ -858,7 +858,22 @@
       },
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "latest_advisory_metadata_source": "execution_evidence_20261101.eg19_standalone_decision_discovery_source_applied_20261103",
-      "latest_full_discussion_contract_source": "execution_evidence_20261101.eg19_full_discussion_v3_source_applied_20261104"
+      "latest_full_discussion_contract_source": "execution_evidence_20261101.eg19_full_discussion_v3_source_applied_20261104",
+      "bounded_documentation_correction_20261112": {
+        "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+        "files": [
+          "README.md",
+          "eval/README.md"
+        ],
+        "verified_behavior": [
+          "get_chunk rule injection is opt-in; exact citation disallows transformations.",
+          "Ownership preview may return a successful MCP response with blocked payload.",
+          "Planning returns bounded candidates; capability order is not a measured benefit ranking.",
+          "Current dated OciusX comparison reports no demonstrated correctness or productivity improvement."
+        ],
+        "runtime_change": false,
+        "broader_finding_complete": false
+      }
     },
     {
       "id": "EG-27",
@@ -3143,7 +3158,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
+        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -9961,23 +9976,31 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "EXACT_INVENTORY_AND_INSTALLED_ADOPTION_VERIFIED_LIVE_DECISIONS_OPEN",
-      "original_requirement": "EG28: exact read-only inventory of legacy rule rows, enforcement, manual ownership, ambiguity and receipt conflicts; prepare concrete evidence for unresolved decisions without guessing ownership.",
-      "missing_behavior": "Only installed rendered 94-row inventory is recorded; exact raw OX row/receipt evidence and feature-specific deployed inventory acceptance remain open.",
+      "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+      "original_requirement": "EG26: align documented tool use and benefit claims with actual OciusX evidence.",
+      "missing_behavior": "README incorrectly describes automatic rule injection and exhaustive planning coverage, and omits structured blocked ownership-preview status. Current dated task results are absent from eval README.",
       "implementation_files": [
-        "crates/engram_server/src/services/legacy_rule_ownership.rs",
-        "crates/engram_server/src/handlers/project_tools.rs"
+        "README.md",
+        "eval/README.md"
       ],
       "finite_acceptance": [
-        "Use existing list_repo_rules ownership_inventory on the installed OX project.",
-        "Verify every returned raw row/receipt byte count and BLAKE3 independently; decode and identify ambiguous/manual/foreign/conflicting cases.",
-        "Fingerprint only concrete candidate source paths and retain unchanged raw row evidence; do not infer ownership from matching content or filenames.",
-        "Prepare specific unresolved decisions with exact evidence. No live adoption without explicit source-bound ownership decision."
+        "Check injection defaults and citation restrictions against request and handler code.",
+        "Check blocked/ready preview states against existing implementation and retained installed acceptance.",
+        "Check project-independent tool schemas and numeric task results against retained evidence.",
+        "Verify changed Markdown links and whitespace; no runtime rebuild or repeated model evaluation."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership",
-      "implementation_policy": "Existing implementation is deployed; first verify this missing actual behavior. Change code only for a demonstrated delivery blocker.",
-      "delivery": "eval/eg28-installed-ownership-delivery-20261112.json",
-      "next_action": "Leave live policy unchanged pending explicit source/authority evidence. Continue another ready original OciusX requirement; do not rerun this acceptance or build an approval UI."
+      "scope_limit": "Only observed documentation mismatches; no catalog audit, target-language expansion or new evaluation infrastructure.",
+      "verification": {
+        "request_default": "crates/engram_server/src/models/requests.rs:1553",
+        "injection_and_citation": "crates/engram_server/src/handlers/search_tools.rs:931",
+        "preview_status": "crates/engram_server/src/services/legacy_rule_adoption.rs:266",
+        "installed_preview_acceptance": "eval/eg28-installed-ownership-delivery-20261112.json",
+        "dated_results": "eval/ociusx-current-task-evaluation-20261112.json",
+        "tool_schema": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\discovery\\tools.json",
+        "new_runtime_or_model_runs": 0,
+        "new_temporary_resources": 0
+      },
+      "remaining": "Broader EG26 reconciliation is unfinished; no complete tool catalog audit claimed."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10009,8 +10032,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG24 regular OciusX accepted-task verification",
-    "next_user_visible_deliverable": "EG24: integrate the existing frozen OciusX accepted-task checks into regular verification, reusing retained cases and verifier; no new evaluation platform or expanded benchmark.",
+    "active_original_item": "EG26 bounded documentation correction",
+    "next_user_visible_deliverable": "Correct documented rule injection, ownership-preview handling and dated OciusX benefit claims.",
     "following_original_items": [
       "EG25 matched OciusX implementation/QA benefit using existing tasks",
       "Retained EG14 and EG27/31 gaps that affect an actual OciusX workflow; no pilot expansion"
@@ -12963,6 +12986,25 @@
       "current_acceptance_failure": "Explicit empty patch review falsely scans unrelated checkout changes. Fix this original public review acceptance before treating existing regular checks as passing.",
       "other_failures": "Two review fixtures lack required managed-source publication; test-matrix fixture lacks extraction identity. Preserve failures, do not weaken runtime source admission."
     },
-    "latest_ociusx_review_scope_delivery": "eval/ociusx-review-scope-fix-20261112.json"
+    "latest_ociusx_review_scope_delivery": "eval/ociusx-review-scope-fix-20261112.json",
+    "retained_eg28_contract_before_documentation_correction": {
+      "status": "EXACT_INVENTORY_AND_INSTALLED_ADOPTION_VERIFIED_LIVE_DECISIONS_OPEN",
+      "original_requirement": "EG28: exact read-only inventory of legacy rule rows, enforcement, manual ownership, ambiguity and receipt conflicts; prepare concrete evidence for unresolved decisions without guessing ownership.",
+      "missing_behavior": "Only installed rendered 94-row inventory is recorded; exact raw OX row/receipt evidence and feature-specific deployed inventory acceptance remain open.",
+      "implementation_files": [
+        "crates/engram_server/src/services/legacy_rule_ownership.rs",
+        "crates/engram_server/src/handlers/project_tools.rs"
+      ],
+      "finite_acceptance": [
+        "Use existing list_repo_rules ownership_inventory on the installed OX project.",
+        "Verify every returned raw row/receipt byte count and BLAKE3 independently; decode and identify ambiguous/manual/foreign/conflicting cases.",
+        "Fingerprint only concrete candidate source paths and retain unchanged raw row evidence; do not infer ownership from matching content or filenames.",
+        "Prepare specific unresolved decisions with exact evidence. No live adoption without explicit source-bound ownership decision."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership",
+      "implementation_policy": "Existing implementation is deployed; first verify this missing actual behavior. Change code only for a demonstrated delivery blocker.",
+      "delivery": "eval/eg28-installed-ownership-delivery-20261112.json",
+      "next_action": "Leave live policy unchanged pending explicit source/authority evidence. Continue another ready original OciusX requirement; do not rerun this acceptance or build an approval UI."
+    }
   }
 }
