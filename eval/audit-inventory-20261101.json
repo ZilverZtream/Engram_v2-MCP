@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T22:01:05.227941+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SELECTED_IMPLEMENTATION_NOT_STARTED",
+      "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_PENDING",
       "at_utc": "2026-11-12T22:04:00.044992+00:00",
       "original_requirement": "TODO42: when the business-logic LLM is unavailable, degrade visibly to a deterministic summary; enforce bounded requests/retries and explicit backend/model configuration.",
       "observed_missing_behavior": "Method analysis catches typed provider errors, logs them and substitutes an empty response, then runs the larger-output retry intended for incomplete model JSON. Public responses lose the specific outage/timeout/auth reason and return failed analysis with no explicit deterministic summary of nonempty source. File summary similarly reports unavailable without the requested fallback.",
@@ -9988,9 +9988,9 @@
       ],
       "implementation_files": [
         "crates/engram_server/src/services/business_logic_service.rs",
+        "crates/engram_server/src/services/business_logic_degradation.rs",
         "crates/engram_server/tests/business_logic_degradation_tests.rs",
-        "crates/engram_server/tests/business_logic_retry.rs",
-        "crates/engram_server/tests/business_logic_provenance.rs"
+        "crates/engram_server/src/services/full_project_migration_service.rs"
       ],
       "necessary_supporting_edits": "Only existing fixture literals/expectations directly affected by additive failure/fallback metadata, and user-facing documentation where needed. No unrelated handler/graph/provider refactor.",
       "finite_acceptance": [
@@ -10005,7 +10005,9 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation",
       "prior_inspection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-todo42-after-source-integrity.json",
       "scope_guard": "One OciusX user-visible failure/fallback gap. No new LLM provider or retry framework, language support, CodeMap/Blast, broad audits or storage work.",
-      "resources": "Reuse existing isolated checkout/shared target. Own, close and remove new provider/test fixtures. Retain receipts here; no preexisting-folder deletion."
+      "resources": "Reuse existing isolated checkout/shared target. Own, close and remove new provider/test fixtures. Retain receipts here; no preexisting-folder deletion.",
+      "supporting_edit_note": "full_project_migration_service only adds degradation: None to one existing test fixture literal. Existing retry/provenance/file-purpose tests are run unchanged.",
+      "implementation": "implementation.json"
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10057,7 +10059,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Source integrity release built, candidate and installed public source observations passed, deployed and actual OciusX read-only observation recorded. Owned resources closed; parked work preserved."
+      "evidence": "Validated23integration+36unit checks and merged source9982776; release build15378 running, not deployed."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13310,6 +13312,7 @@
       "delivery_evidence": "eval/ociusx-source-integrity-delivery-20261112.json",
       "build_session": null
     },
-    "previous_source_integrity_progress": "eval/ociusx-source-integrity-progress-20261112.json"
+    "previous_source_integrity_progress": "eval/ociusx-source-integrity-progress-20261112.json",
+    "llm_degradation_progress": "eval/ociusx-llm-degradation-progress-20261112.json"
   }
 }

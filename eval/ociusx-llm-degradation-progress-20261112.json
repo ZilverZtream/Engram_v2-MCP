@@ -1,0 +1,28 @@
+{
+  "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_PENDING",
+  "source_commit": "998277689f1eef2d64181c4250549943d1ca42b1",
+  "native_checks": 23,
+  "unit_checks_without_vector": 36,
+  "ignored_external_model_probe": 1,
+  "tests": [
+    "native2.json",
+    "novector1.json"
+  ],
+  "review": {
+    "kind": "Parent manual review, not independent",
+    "files": [
+      "business_logic_service.rs",
+      "business_logic_degradation.rs",
+      "full_project_migration_service.rs",
+      "business_logic_degradation_tests.rs"
+    ],
+    "findings": [],
+    "limitation": "Retained host CodeRabbit authentication false; no remote review performed."
+  },
+  "scope": "OciusX business-analysis model failure diagnostics and bounded cited source fallback; no target-language expansion",
+  "public_candidate_verified": false,
+  "installed": false,
+  "temporary_resources": "Test receipts prove owned temp removal; retained diagnostics and reused checkout remain in the recorded location.",
+  "main_merge_commit": "97252ff431640c6e2c13ca01bbc499c9cc829a6b",
+  "release_build_session": 15378
+}
