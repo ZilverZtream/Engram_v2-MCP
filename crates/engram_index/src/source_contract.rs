@@ -12,16 +12,24 @@ pub fn requires_script_call_contract(path: &std::path::Path) -> bool {
 
 /// Per-language facts required for second-pass import resolution.
 fn module_fact_key(path: &str) -> Option<&'static str> {
+    if std::path::Path::new(path).file_name().and_then(|p|p.to_str()).is_some_and(|p|p.eq_ignore_ascii_case("Cargo.toml")) {
+        return Some(engram_core::rust_modules::CONFIG_KEY);
+    }
     match std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase().as_str() {
         "ts" | "tsx" => Some(engram_core::typescript_modules::MODULE_KEY),
         "json" => Some(engram_core::typescript_modules::CONFIG_KEY),
         "py" => Some(engram_core::python_modules::MODULE_KEY),
+        "rs" => Some(engram_core::rust_modules::MODULE_KEY),
         _ => None,
     }
 }
 
 fn current_module_fact(key: &str, raw: &str) -> bool {
-    if key == engram_core::python_modules::MODULE_KEY {
+    if key == engram_core::rust_modules::MODULE_KEY {
+        serde_json::from_str::<engram_core::rust_modules::Module>(raw).is_ok_and(|m|m.version==1)
+    } else if key == engram_core::rust_modules::CONFIG_KEY {
+        serde_json::from_str::<engram_core::rust_modules::Manifest>(raw).is_ok_and(|m|m.version==1)
+    } else if key == engram_core::python_modules::MODULE_KEY {
         serde_json::from_str::<engram_core::python_modules::Module>(raw).is_ok_and(|m|m.version == 1)
     } else if key == engram_core::typescript_modules::MODULE_KEY {
         serde_json::from_str::<engram_core::typescript_modules::Module>(raw).is_ok_and(|m| m.version == 1)

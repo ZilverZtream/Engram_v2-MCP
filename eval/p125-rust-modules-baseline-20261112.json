@@ -1,0 +1,50 @@
+{
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "original_requirement": "TODO23: second-pass call resolution for TypeScript, Python, Rust, Go and Java. TypeScript and Python delivered; Rust use and crate paths are the one active implementation item. Go/Java and the parent remain open.",
+  "observed_missing_behavior": "Installed Python-delivery binary binds Rust RunNamed to decoy.rs and omits RunQualified Calls on the authored baseline. Rust use aliases, declared modules and Cargo identity were not retained.",
+  "finite_acceptance": [
+    "Retain authored Rust use trees, aliases, inline/file modules, declarations and invocation sites. Bare, qualified and generic calls resolve actual source identities rather than terminal-name guesses.",
+    "Resolve crate/self/super paths, grouped imports, module aliases, reexports and bounded glob/cycle handling through declared module trees. Honor Cargo roots/editions and indexed path-dependency identities; separate same-named modules in different crates.",
+    "Preserve block-local imports and variable/parameter shadowing. Conditional compilation, unsupported associated/receiver forms, unindexed dependencies, ambiguity and cycles remain explicitly unresolved.",
+    "Publish bounded source-cited Calls through existing public references. Authored native/no-vector cases assert exact targets and negative behavior; preserve TypeScript/Python checks for shared integration changes.",
+    "Import/module/manifest/target updates retract stale links with unchanged dependent source. Candidate and installed old-index upgrade/update/delete-restore/graph-only checks preserve source/search/vector storage and recovered chunks; verify normal daemon identity before recording delivery."
+  ],
+  "implementation_files": [
+    "crates/engram_core/src/rust_modules.rs",
+    "crates/engram_index/src/parsing/rust_modules.rs",
+    "crates/engram_index/src/parsing/rust_modules/config.rs",
+    "crates/engram_index/src/parsing.rs",
+    "crates/engram_index/src/source_contract.rs",
+    "crates/engram_graph/src/store/rust_modules.rs",
+    "crates/engram_graph/src/store.rs",
+    "crates/engram_server/src/services/ingest_service.rs",
+    "crates/engram_server/src/handlers/graph_tools.rs"
+  ],
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112",
+  "next_action": "Commit validated implementation and build p125-rs-modules-source-20261112 with the existing owned shared-target runner.",
+  "constraints": "One implementation item active. No CodeMap/Blast work, broad audits or new compiler infrastructure. Rust syntax evidence does not establish macro expansion, cfg selection, trait dispatch or compiler proof. Preserve all completed and unfinished original backlog work.",
+  "semantic_sources": [
+    "https://doc.rust-lang.org/reference/items/modules.html",
+    "https://doc.rust-lang.org/reference/items/use-declarations.html",
+    "https://doc.rust-lang.org/reference/paths.html"
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\baseline\\receipt.json",
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\baseline\\receipt.json",
+    "observed": {
+      "RunNamed": {
+        "expected_file": "src/left.rs",
+        "actual_files": [
+          "src/decoy.rs"
+        ],
+        "correct_unique_target": false
+      },
+      "RunQualified": {
+        "expected_file": "src/right.rs",
+        "actual_files": [],
+        "correct_unique_target": false
+      }
+    }
+  },
+  "progress_receipt": "eval/p125-rust-modules-progress-20261112.json"
+}
