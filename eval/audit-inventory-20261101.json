@@ -9976,35 +9976,36 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "original_requirement": "TODO35 / spec39-4 detect_n_plus_one: find database calls repeated by loops or authored WebForms row-binding handlers, show loop/handler and inner SQL call locations, estimated severity and JOIN/batch guidance.",
-      "missing_behavior": "No N+1 detector exists. Existing Roslyn invocation report verifies source spans but omits enclosing repetition contexts; existing database/call graph can supply source relationships.",
+      "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+      "at_utc": "2026-11-12T20:05:51.350547+00:00",
+      "original_requirement": "TODO35 / AGENT_ENHANCEMENT_SPEC.md39-5 find_missing_indexes: collect WHERE/JOIN/ORDER BY column patterns from indexed inline SQL and stored procedures, cross-reference source-declared indexes, rank by static call-site frequency, and return CREATE INDEX candidates with file:line reasons, index-type guidance and selectivity warnings.",
+      "observed_missing_behavior": "No find_missing_indexes handler/tool exists. Existing schema_query catalog supplies qualified SQL declaration/index evidence; sqlparser0.59 is already a dependency. Indexed SqlCalls edges carry sql_text and source method identity. Existing sql_binding/sql_scopes shows AST scope handling. Regex scaffold SQL analysis does not supply sufficient qualified binding/ORDER BY coverage for this requirement.",
       "implementation_files": [
-        "README.md",
-        "tools/vb_roslyn_sidecar/InvocationAnalyzer.cs",
-        "crates/engram_index/src/vb_extractor.rs",
-        "crates/engram_server/src/handlers/test_derivation.rs",
-        "crates/engram_server/src/handlers/mod.rs",
-        "crates/engram_server/src/handlers/n_plus_one_tools.rs",
+        "crates/engram_server/src/services/schema_query.rs",
+        "crates/engram_server/src/services/index_suggestions.rs",
         "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/services/n_plus_one.rs",
+        "crates/engram_server/src/handlers/index_suggestion_tools.rs",
+        "crates/engram_server/src/handlers/mod.rs",
         "crates/engram_server/src/models/requests.rs",
         "crates/engram_server/src/tools.rs",
-        "crates/engram_server/src/capabilities.rs"
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/tests/index_suggestion_tests.rs",
+        "README.md"
       ],
       "finite_acceptance": [
-        "Use source-checked Roslyn invocation/loop ownership and authored RowDataBound/ItemDataBound binding, with helper-call paths to database evidence. Never infer SQL from a helper name alone.",
-        "Report exact repeated call and inner database evidence with source paths/lines/hashes, contexts, heuristic severity, unknown cardinality when no measurements exist, and JOIN/batch guidance appropriate to read/write evidence.",
-        "Exclude comments/string examples, loop collection/bound expressions evaluated once, calls after the loop, unrelated helpers and deferred lambdas. Preserve uncertainty for unresolved dispatch, caching, branches and runtime execution.",
-        "Use selected source membership/revisions/hashes, bound file pages and graph expansion and complete JSON response, disclose all unavailable/stale/truncated coverage. Read-only; no OciusX edits or live database execution.",
-        "Verify focused positive/negative Roslyn and service cases, candidate/installed public MCP, and one actual OciusX source case. Commit/push origin/master; deploy matched server/sidecar and preserve all parked work."
+        "Read selected indexed SQL declarations and static inline/stored-procedure query evidence, verify originating source membership/revision/fingerprint, and cite exact source spans. Use existing SQL parser/declaration extraction; do not add a new parser, ORM SQL translator or analysis platform.",
+        "Extract WHERE predicate, JOIN and ORDER BY access columns, preserving qualified table/column identity and alias/query-scope boundaries. Expose unresolved/ambiguous/unsupported constructs and withhold unsafe DDL rather than binding by basename or regex alone.",
+        "Compare candidate keys with existing standalone indexes and PK/unique constraints, accounting for ordered leading keys, INCLUDE columns and filtered-index applicability. Do not equate an INCLUDE-only or nonleading column with an eligible leading access key; do not claim a filtered index covers predicates it does not imply.",
+        "Return deterministic ranked suggestions, static source-site frequency, file:line reasons, quoted CREATE NONCLUSTERED INDEX SQL and supported covering/filtered guidance. Cardinality, runtime frequency, optimizer plan, write overhead and realized performance remain unknown; warn when schema types constrain cardinality. No database connection, execution or automatic migration.",
+        "Focused tests cover inline SQL and stored procedures, WHERE/JOIN/ORDER BY, multiple aliases/scopes, covered/uncovered leading keys, constraint indexes, INCLUDE/filter distinctions, qualified-name ambiguity, comments/string examples, stale evidence and bounded complete responses.",
+        "Verify candidate and installed public MCP on owned fixtures and one pinned actual OciusX SQL source case; commit/push origin/master, deploy, record evidence and advance. Do not turn useful candidate suggestions into claims of measured dramatic speedup."
       ],
-      "source_baseline": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
+      "source_baseline": "34a0149d9968d079046dc6cdb5b3c6e7ba8693ce",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one",
-      "scope_guard": "OciusX VB.NET/WebForms and SQL only. Extend existing sidecar query/report, not indexing formats or a new parser platform. No CodeMap/Blast, foreign-language work, broad audits or unrelated cleanup. find_missing_indexes and other original items stay unfinished.",
-      "removal_condition": "Reuse the one existing delivery checkout while parked work must remain excluded; remove through Git only after clean/ignored checks and source commits are preserved on origin/master.",
-      "delivery_receipt": "eval/ociusx-n-plus-one-delivery-20261112.json"
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes",
+      "scope_guard": "OciusX SQL Server and existing VB static SQL evidence only. CodeMap/Blast and unrelated Java/Python/Rust/Go analysis remain closed/parked. query_schema and detect_n_plus_one are delivered; do not reopen them absent a direct integration regression.",
+      "resources": "Reuse shared build target and existing isolated source checkout. Own and close new fixtures; retain evidence here. No preexisting folder deletion.",
+      "retained_limits": "Original19 gates, overall comparative usefulness and other unfinished/held backlog requirements stay open. LINQ generated SQL is outside available static SQL evidence and must be disclosed, not fabricated."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10036,8 +10037,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO35 next remainder: find_missing_indexes (not yet selected/implemented)",
-    "next_user_visible_deliverable": "Inspect existing SQL-query/schema evidence once and record original spec39-5 finite contract for find_missing_indexes; preserve unknown runtime selectivity/cost and existing completed deliveries.",
+    "active_original_item": "TODO35 find_missing_indexes",
+    "next_user_visible_deliverable": "Source-cited index candidates from existing inline/stored-procedure SQL and source schema, with coverage/index-applicability limits and no live database action.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -12764,88 +12765,35 @@
       "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103"
     },
     "previous_selected_delivery_contract": {
-      "status": "RECORDED_QUALITY_CHECK_DELIVERED_PRIVATE_CI_UNCONFIGURED",
-      "original_requirement": "Put a small accepted-task benchmark into regular checks. Reuse existing OX evaluation assets.",
-      "missing_behavior": "Inventory records existing frozen task results and saved-run verifier, but regular CI remains open.",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "original_requirement": "TODO35 / spec39-4 detect_n_plus_one: find database calls repeated by loops or authored WebForms row-binding handlers, show loop/handler and inner SQL call locations, estimated severity and JOIN/batch guidance.",
+      "missing_behavior": "No N+1 detector exists. Existing Roslyn invocation report verifies source spans but omits enclosing repetition contexts; existing database/call graph can supply source relationships.",
       "implementation_files": [
-        "eval/frozen_task_capture.py",
-        "eval/test_frozen_task_capture.py",
-        "eval/README.md"
+        "README.md",
+        "tools/vb_roslyn_sidecar/InvocationAnalyzer.cs",
+        "crates/engram_index/src/vb_extractor.rs",
+        "crates/engram_server/src/handlers/test_derivation.rs",
+        "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/handlers/n_plus_one_tools.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/services/n_plus_one.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/src/capabilities.rs"
       ],
       "finite_acceptance": [
-        "Reuse retained accepted tasks for instruction routing, history, companions and diagnosis; do not create a new benchmark platform.",
-        "A normal verification command and CI job run the existing checks and fail on a deliberately invalid retained-result fixture.",
-        "Report correctness, false guidance, context/read cost and latency where actually measured; missing comparative productivity remains explicit."
+        "Use source-checked Roslyn invocation/loop ownership and authored RowDataBound/ItemDataBound binding, with helper-call paths to database evidence. Never infer SQL from a helper name alone.",
+        "Report exact repeated call and inner database evidence with source paths/lines/hashes, contexts, heuristic severity, unknown cardinality when no measurements exist, and JOIN/batch guidance appropriate to read/write evidence.",
+        "Exclude comments/string examples, loop collection/bound expressions evaluated once, calls after the loop, unrelated helpers and deferred lambdas. Preserve uncertainty for unresolved dispatch, caching, branches and runtime execution.",
+        "Use selected source membership/revisions/hashes, bound file pages and graph expansion and complete JSON response, disclose all unavailable/stale/truncated coverage. Read-only; no OciusX edits or live database execution.",
+        "Verify focused positive/negative Roslyn and service cases, candidate/installed public MCP, and one actual OciusX source case. Commit/push origin/master; deploy matched server/sidecar and preserve all parked work."
       ],
-      "remaining_eg14": "Bounded draft/QA handoff delivered; broader publication and evidence gaps remain open, not silently completed.",
-      "completed_implementation_slice": {
-        "requirement": "Review the requested diff and disclose actual coverage; do not redirect an explicit patch review to unrelated working-tree changes.",
-        "implementation_files": [
-          "crates/engram_server/src/handlers/review_tools.rs",
-          "crates/engram_server/tests/top10_audit_tests.rs"
-        ],
-        "finite_acceptance": [
-          "Empty patch file and empty inline diff return NO_CHANGES within requested scope in JSON and text even with unrelated untracked VB source.",
-          "Invalid controls/diff remain rejected.",
-          "Empty staged review still reports omitted tracked/untracked changes."
-        ],
-        "remaining": "EG24 current-producer quality and EG25 benefit are not closed by this correction.",
-        "delivery": "eval/ociusx-review-scope-fix-20261112.json"
-      },
-      "current_missing_behavior": "Existing automatic model execution is delivered, but CI covers collector protocol and current capture recipes target closed CodeMap/Blast. Reuse existing collector for original OX instruction/history/companion/diagnosis tasks; do not repeat old packets and call that current-build quality.",
-      "current_implementation_slice": {
-        "requirement": "Regular verification must fail when recorded assisted OciusX task judgments fail required criteria or identify false guidance.",
-        "missing_behavior": "The existing report command checks integrity but exits successfully for valid failed judgments; it is not a task-quality gate.",
-        "implementation_files": [
-          "eval/frozen_task_eval.py",
-          "eval/test_frozen_task_run.py",
-          ".github/workflows/benchmark-ci.yml",
-          "eval/README.md"
-        ],
-        "finite_acceptance": [
-          "Existing check command validates complete frozen-run integrity before judging quality.",
-          "Assisted unmet/withheld/empty criteria or false guidance return nonzero; baseline failures remain reported without failing assisted quality.",
-          "Existing CI tests these exit statuses using owned synthetic recorded runs.",
-          "Actual November 12 current-output OX run passes the check; no new model run or benchmark expansion."
-        ],
-        "limits": "Private current-output OX model execution is not configured on existing hosted CI. Do not call protocol tests a private task evaluation or claim full EG24 closure.",
-        "status": "IMPLEMENTED_VALIDATED",
-        "delivery": "eval/eg24-quality-check-delivery-20261112.json",
-        "runner_availability": "Repository reports zero self-hosted runners; private current-output model execution remains unconfigured. Do not substitute hosted protocol tests for task evaluation."
-      },
-      "previous_implementation_slice": {
-        "requirement": "Use current Engram outputs in original accepted OX tasks rather than replay historical packets or closed core-tool investigations.",
-        "missing_behavior": "Collector rejects get_change_set/search_history/derive_test_matrix and requires unrelated optional tools in discovery.",
-        "finite_acceptance": [
-          "Capture all four original task categories with these existing read-only tools while retaining frozen source/oracle and complete response identities.",
-          "Absent unrequested optional tools must not prevent capture; a missing requested tool or mutating request must fail before producer calls.",
-          "Run actual installed capture on existing OX scope/reporting/history/KML evidence; preserve historical memory-diagnosis results separately.",
-          "Use the existing collector/evaluator for resulting current-reply corpus; report context/read/latency and quality honestly, without claiming fresh holdout or implementation productivity."
-        ],
-        "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation",
-        "blocking_regression": {
-          "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\source-refresh\\state.json",
-          "behavior": "OciusX source update fails on deliberately graph-suppressed vendor JSON. Old complete generation 3147 remains active but incompatible with current source extraction contract.",
-          "implementation_files": [
-            "crates/engram_index/src/source_contract.rs",
-            "crates/engram_index/tests/vendor_source_publication_test.rs"
-          ],
-          "acceptance": [
-            "Vendor JSON/JS publish and remain searchable without graph facts",
-            "Application facts, source identity and suppression receipts remain enforced",
-            "Deploy only the narrow installed-source delta and publish a complete fresh OX source generation",
-            "Resume selected current-output OX capture after successful refresh"
-          ],
-          "release_source_commit": "4837b7c043990c6006a342f93936e8a5ba4214b5",
-          "tests": "Two regression tests pass; original source reproduced exact publication failure; test resources removed",
-          "state": "RESOLVED_DEPLOYED_OX_REFRESH_COMPLETED",
-          "delivery": "eval/ociusx-vendor-publication-fix-20261112.json",
-          "active_generation": 3148
-        },
-        "status": "IMPLEMENTED_VALIDATED_CURRENT_OUTPUT_RUN_COMPLETE",
-        "delivery": "eval/ociusx-current-task-evaluation-20261112.json",
-        "remaining": "EG24 regular current-output verification integration remains open; EG25 benefit is not established."
-      }
+      "source_baseline": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one",
+      "scope_guard": "OciusX VB.NET/WebForms and SQL only. Extend existing sidecar query/report, not indexing formats or a new parser platform. No CodeMap/Blast, foreign-language work, broad audits or unrelated cleanup. find_missing_indexes and other original items stay unfinished.",
+      "removal_condition": "Reuse the one existing delivery checkout while parked work must remain excluded; remove through Git only after clean/ignored checks and source commits are preserved on origin/master.",
+      "delivery_receipt": "eval/ociusx-n-plus-one-delivery-20261112.json"
     },
     "p122_def_use_20261112": {
       "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
