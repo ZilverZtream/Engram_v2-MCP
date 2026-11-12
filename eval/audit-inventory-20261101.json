@@ -3158,7 +3158,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
+        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -9976,63 +9976,39 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "original_requirement": "TODO33: batch/multi-get hot reads (method information, node lookups and document fetches) with a shared response token budget.",
-      "missing_behavior": "get_method_info, resolve_id and get_chunk are individual public calls. No batch read handler/request/tool currently exists.",
+      "status": "IMPLEMENTED_NATIVE_VERIFIED_NOT_DEPLOYED",
+      "original_requirement": "TODO35 / spec39-3 query_schema: eleven structured schema query modes, narrative summary and source-backed table details for OciusX SQL.",
+      "missing_behavior": "No query_schema tool. Existing table graph lookup and legacy schema regex lose qualified identities and do not implement the eleven modes.",
       "implementation_files": [
         "README.md",
         "crates/engram_server/src/capabilities.rs",
-        "crates/engram_server/src/handlers/batch_read_tools.rs",
         "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/handlers/schema_tools.rs",
         "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/batch_read_tests.rs"
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/services/schema_query.rs",
+        "crates/engram_server/src/services/schema_query/tests.rs",
+        "crates/engram_server/src/tools.rs"
       ],
       "finite_acceptance": [
-        "Typed read-only operation list supports the existing method, identity and document arguments; no arbitrary tool dispatch or mutations.",
-        "Return one correlated row per input in input order, with the original tool result or error; a failed item does not erase independent results.",
-        "Bound the complete JSON text under one declared UTF-8 token estimate. Never truncate source or guidance inside a result; preserve exact single-read recovery for every budget-omitted item. Reject a budget too small for identities/recovery before executing reads.",
-        "Keep normal source/citation validation and per-read freshness semantics by reusing existing handlers; make lack of atomic multi-read snapshot explicit.",
-        "Verify mixed operations, ambiguity/errors, budget pressure and invalid/mutating inputs through focused checks and actual candidate/installed MCP; verify one read-only real OciusX batch without source/index changes.",
-        "Commit/push only origin/master, deploy isolated installed-baseline source, preserve parked work and account for all new resources."
+        "All eleven query types answer source-declared tables/columns/keys/defaults/computed columns/indexes/triggers/views/procedures and related references with citations. Preserve qualified names, duplicate definitions and ambiguity; never guess a default schema.",
+        "Use selected indexed SQL membership and verify current source fingerprint and physical revision. Disclose unavailable/stale/unsupported evidence; source declarations do not establish deployed database state or execution.",
+        "Comments/string examples do not become declarations or references. Composite keys, nested default expressions, and commas in SQL strings preserve meaning.",
+        "Bound input scan, pagination and complete JSON response; reject invalid controls before project access. Read-only, no project/schema mutation.",
+        "Focused native behavior checks, candidate and installed public MCP checks, and one actual OciusX SQL lookup verified against source. Commit/push only origin/master and deploy using existing isolated checkout."
       ],
-      "limits": {
-        "max_requests": 16,
-        "default_max_tokens": 8192,
-        "max_max_tokens": 65536
-      },
-      "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+      "source_baseline": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "isolation_reason": "Main checkout contains parked modern-language commits and working changes; runtime delivery must exclude them.",
-      "removal_condition": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master.",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
-      "scope_guard": "One accepted OciusX-relevant read workflow improvement. No CodeMap/Blast, target-language work, new benchmark, migration generator or editing pipeline.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema",
+      "removal_condition": "Reuse existing delivery checkout until parked work no longer requires isolation; remove only through Git after checking preserved commits and ignored files.",
+      "scope_guard": "OciusX SQL schema lookup only. No target-language expansion, CodeMap/Blast work, new database connection, migration execution or benchmark. TODO35 N+1 and index recommendations remain unfinished.",
       "implementation_progress": {
-        "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-        "source_commit": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
-        "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
-        "native_tests": 4,
-        "native_receipts": [
-          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\unit3.json",
-          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\integration3.json"
-        ],
-        "public_mcp_verified": true,
-        "post_test_changes": [
-          "README clarification only: complete means response delivery, not success of every read."
-        ],
-        "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\review.json",
-        "resources": {
-          "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
-          "all_test_temps_removed": true,
-          "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-          "removal": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master."
-        },
-        "installed_mcp_verified": true,
-        "real_ociusx_batch_verified": true
-      },
-      "live_build_session": null,
-      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json",
-      "delivery_evidence": "eval\\ociusx-batch-read-delivery-20261112.json"
+        "source_commit": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
+        "native_tests": 5,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\nativefinal2.json",
+        "public_mcp_verified": false,
+        "deployed": false
+      }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -13142,6 +13118,65 @@
       "decision": "Do not rerun CodeMap/Blast comparisons or chase a favorable metric. EG25 comparative benefit remains unestablished; advance the next ready original OciusX improvement.",
       "todo32": "Preserved unfinished; original tool_roi research defers deeper autonomous-edit machinery until a recurring OX task demonstrates need. Batch hot reads reuse existing services and directly address repeated read round trips."
     },
-    "latest_batch_read_delivery": "eval\\ociusx-batch-read-delivery-20261112.json"
+    "latest_batch_read_delivery": "eval\\ociusx-batch-read-delivery-20261112.json",
+    "previous_batch_read_delivery_contract": {
+      "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "original_requirement": "TODO33: batch/multi-get hot reads (method information, node lookups and document fetches) with a shared response token budget.",
+      "missing_behavior": "get_method_info, resolve_id and get_chunk are individual public calls. No batch read handler/request/tool currently exists.",
+      "implementation_files": [
+        "README.md",
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/handlers/batch_read_tools.rs",
+        "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/batch_read_tests.rs"
+      ],
+      "finite_acceptance": [
+        "Typed read-only operation list supports the existing method, identity and document arguments; no arbitrary tool dispatch or mutations.",
+        "Return one correlated row per input in input order, with the original tool result or error; a failed item does not erase independent results.",
+        "Bound the complete JSON text under one declared UTF-8 token estimate. Never truncate source or guidance inside a result; preserve exact single-read recovery for every budget-omitted item. Reject a budget too small for identities/recovery before executing reads.",
+        "Keep normal source/citation validation and per-read freshness semantics by reusing existing handlers; make lack of atomic multi-read snapshot explicit.",
+        "Verify mixed operations, ambiguity/errors, budget pressure and invalid/mutating inputs through focused checks and actual candidate/installed MCP; verify one read-only real OciusX batch without source/index changes.",
+        "Commit/push only origin/master, deploy isolated installed-baseline source, preserve parked work and account for all new resources."
+      ],
+      "limits": {
+        "max_requests": 16,
+        "default_max_tokens": 8192,
+        "max_max_tokens": 65536
+      },
+      "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "isolation_reason": "Main checkout contains parked modern-language commits and working changes; runtime delivery must exclude them.",
+      "removal_condition": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
+      "scope_guard": "One accepted OciusX-relevant read workflow improvement. No CodeMap/Blast, target-language work, new benchmark, migration generator or editing pipeline.",
+      "implementation_progress": {
+        "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+        "source_commit": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
+        "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+        "native_tests": 4,
+        "native_receipts": [
+          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\unit3.json",
+          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\integration3.json"
+        ],
+        "public_mcp_verified": true,
+        "post_test_changes": [
+          "README clarification only: complete means response delivery, not success of every read."
+        ],
+        "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\review.json",
+        "resources": {
+          "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
+          "all_test_temps_removed": true,
+          "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+          "removal": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master."
+        },
+        "installed_mcp_verified": true,
+        "real_ociusx_batch_verified": true
+      },
+      "live_build_session": null,
+      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json",
+      "delivery_evidence": "eval\\ociusx-batch-read-delivery-20261112.json"
+    }
   }
 }

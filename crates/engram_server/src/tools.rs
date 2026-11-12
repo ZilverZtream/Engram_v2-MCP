@@ -782,6 +782,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Query indexed SQL source declarations: tables, columns, foreign keys, indexes, triggers, views and stored procedures. query_type uses a kind discriminator (e.g. table with name=dbo.Orders). Preserves qualified identities and ambiguous definitions, verifies selected source hashes, and returns structured cited evidence with coverage gaps. No live database or migration execution. TablesWithColumn uses a literal substring; paginate with offset/limit."
+    )]
+    pub async fn query_schema(
+        &self,
+        params: Parameters<QuerySchemaRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_query_schema(params.0).await
+    }
+
+    #[tool(
         description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Static extraction has explicit coverage limits; absence does not prove no runtime access."
     )]
     pub async fn trace_state_usage(
