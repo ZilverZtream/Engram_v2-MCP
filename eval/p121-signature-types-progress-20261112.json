@@ -5,14 +5,18 @@
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
   "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\execution-state.json",
   "verified_behavior": [
-    "syntax-final-turn:9 no-vector syntax/fallback cases including nine extensions, generic/nullable/array/tuple/params/repeated positions",
-    "graph-v2:2 candidate-binding/ambiguity cases",
-    "sidecar-authored-acceptance:built actual sidecar, interface and implementation signatures, canonical names, generic components, repeated arrays"
+    "Original source validation:27 relevant native and27 no-vector cases; matching release server/sidecar packaged.",
+    "Candidate old-index upgrade verified C#/real Roslyn repeated parameters and cross-file candidates before failing distinct-overload edges.",
+    "Failed candidate owners closed; fixture removed; production registry/selection/other metadata unchanged."
   ],
   "remaining": [
-    "Release build/package, candidate and installed public acceptance, deployment and normal identity verification."
+    "Corrected release server build and versioned package; matching sidecar already built and unchanged.",
+    "Unchanged public candidate and installed contracts; deployment and normal daemon identity.",
+    "Final owned-scratch accounting."
   ],
-  "source_commit": null,
+  "source_commit": "af93faa0a688d52a29d67bdb8bde422fa63ae28d",
   "installed_identity": "Unchanged TODO16c delivery; no TODO21 deployment",
-  "current_delivery_receipt": "eval/p121-signature-types-delivery-20261112.json"
+  "current_delivery_receipt": "eval/p121-signature-types-delivery-20261112.json",
+  "candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate\\acceptance.json",
+  "current_correction": "Declaration-line source binding preserves overload ownership; both typed-handler regressions pass native/no-vector."
 }

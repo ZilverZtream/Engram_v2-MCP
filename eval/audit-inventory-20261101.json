@@ -9989,7 +9989,7 @@
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
       "temporary_resource_policy": "New test fixtures live beneath this diagnostics folder and close/remove their owned resources. Retained logs, source hashes and acceptance receipts remain as delivery evidence."
     },
-    "at_utc": "2026-11-12T01:55:58.055511+00:00",
+    "at_utc": "2026-11-12T02:21:57.854956+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10034,7 +10034,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: signature graph delivery implemented; native/no-vector selected contracts and real sidecar extraction checked; public release acceptance and deployment remain.",
+    "previous_goal_turn_classification": "Progress: public overload source-binding failure corrected; native/no-vector typed-handler acceptance passed. Corrected release and deployment remain.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12694,10 +12694,11 @@
       "progress_receipt": "eval/p121-signature-types-progress-20261112.json",
       "receipt": "eval/p121-signature-types-delivery-20261112.json",
       "remaining": [
-        "Release server and matching sidecar build/package.",
-        "Candidate and installed public contracts, real incremental replacement and graph_only preservation.",
-        "Deployment and normal runtime identity verification; final owned-scratch accounting."
-      ]
+        "Corrected release server build and versioned package; matching sidecar already built and unchanged.",
+        "Unchanged public candidate and installed contracts; deployment and normal daemon identity.",
+        "Final owned-scratch accounting."
+      ],
+      "candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate\\acceptance.json"
     }
   }
 }
