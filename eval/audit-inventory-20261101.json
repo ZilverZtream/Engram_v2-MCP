@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "CURRENT_PRODUCER_SLICE_COMPLETE_REGULAR_VERIFICATION_OPEN",
+      "status": "RECORDED_QUALITY_CHECK_DELIVERED_PRIVATE_CI_UNCONFIGURED",
       "original_requirement": "Put a small accepted-task benchmark into regular checks. Reuse existing OX evaluation assets.",
       "missing_behavior": "Inventory records existing frozen task results and saved-run verifier, but regular CI remains open.",
       "implementation_files": [
@@ -9989,6 +9989,26 @@
       },
       "current_missing_behavior": "Existing automatic model execution is delivered, but CI covers collector protocol and current capture recipes target closed CodeMap/Blast. Reuse existing collector for original OX instruction/history/companion/diagnosis tasks; do not repeat old packets and call that current-build quality.",
       "current_implementation_slice": {
+        "requirement": "Regular verification must fail when recorded assisted OciusX task judgments fail required criteria or identify false guidance.",
+        "missing_behavior": "The existing report command checks integrity but exits successfully for valid failed judgments; it is not a task-quality gate.",
+        "implementation_files": [
+          "eval/frozen_task_eval.py",
+          "eval/test_frozen_task_run.py",
+          ".github/workflows/benchmark-ci.yml",
+          "eval/README.md"
+        ],
+        "finite_acceptance": [
+          "Existing check command validates complete frozen-run integrity before judging quality.",
+          "Assisted unmet/withheld/empty criteria or false guidance return nonzero; baseline failures remain reported without failing assisted quality.",
+          "Existing CI tests these exit statuses using owned synthetic recorded runs.",
+          "Actual November 12 current-output OX run passes the check; no new model run or benchmark expansion."
+        ],
+        "limits": "Private current-output OX model execution is not configured on existing hosted CI. Do not call protocol tests a private task evaluation or claim full EG24 closure.",
+        "status": "IMPLEMENTED_VALIDATED",
+        "delivery": "eval/eg24-quality-check-delivery-20261112.json",
+        "runner_availability": "Repository reports zero self-hosted runners; private current-output model execution remains unconfigured. Do not substitute hosted protocol tests for task evaluation."
+      },
+      "previous_implementation_slice": {
         "requirement": "Use current Engram outputs in original accepted OX tasks rather than replay historical packets or closed core-tool investigations.",
         "missing_behavior": "Collector rejects get_change_set/search_history/derive_test_matrix and requires unrelated optional tools in discovery.",
         "finite_acceptance": [

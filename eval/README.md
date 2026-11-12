@@ -28,6 +28,7 @@ for another holdout comparison.
 ```powershell
 python -B eval/frozen_task_eval.py verify <recorded-corpus> --require-results
 python -B eval/frozen_task_eval.py report <recorded-corpus>
+python -B eval/frozen_task_eval.py check <recorded-corpus>
 ```
 
 The complete check requires eight captured candidate runs and their independent
@@ -39,6 +40,22 @@ review/plan tasks do not establish completed OciusX implementation or matched QA
 productivity. Private source packets remain outside Git in the recorded evidence
 directory. Manual collection and offline verification open no index, database,
 server or model. The explicit `execute` command below launches models.
+
+Use `check` as the final quality step in regular verification after collecting
+and judging a run. It first verifies the complete frozen run, then exits 1 if
+any assisted task has unsatisfied or withheld criteria, no criteria, or recorded
+false guidance. Honest withholding remains visible; it does not establish task
+completion. Baseline failures remain in the comparison and do not fail the
+assisted quality check. `report` stays informational and exits successfully for
+valid recorded judgments even when task criteria failed.
+
+This command checks the recorded run only. To assess another installed build,
+capture its current outputs and execute a new run before calling `check`; passing
+an old corpus cannot certify a new binary. Private source and model replies stay
+outside Git. The existing benchmark CI tests the command's pass/fail behavior
+with synthetic recorded runs, including false guidance and unmet criteria. It
+does not execute private OciusX tasks or models. Regular CI execution of those
+private current-output tasks remains unconfigured.
 
 ### Collecting another run
 

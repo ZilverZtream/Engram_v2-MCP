@@ -1,0 +1,52 @@
+{
+  "status": "RECORDED_TASK_QUALITY_COMMAND_DELIVERED_EG24_PARTIAL",
+  "at_utc": "2026-11-12T16:02:44.180678+00:00",
+  "original_requirement": "EG24 regular verification of frozen OciusX tasks must surface quality failures as failures.",
+  "missing_behavior_fixed": "report and verify accept structurally valid recorded results even when task criteria fail; their successful exit was not a quality gate.",
+  "command": "python -B eval/frozen_task_eval.py check <recorded-corpus>",
+  "behavior": [
+    "Verify complete frozen source, candidate delivery and blind-judgment integrity first.",
+    "Return exit 1 for assisted unmet/withheld/empty criteria or false guidance; baseline results remain comparative evidence.",
+    "Return exit 0 only when all assisted task criteria pass and no false guidance is recorded.",
+    "Report and verify retain informational integrity semantics."
+  ],
+  "ci_integration": "Existing benchmark-ci executes the new command regression cases through its frozen-task unittest discovery; explicit pipefail preserves failures through tee. CI labels explicitly say no model evaluation.",
+  "validation": {
+    "focused_tests": 37,
+    "focused_test_exit": 0,
+    "temporary_fixture_directories_remaining": 0,
+    "actual_current_ox_run": {
+      "status": "saved_assisted_quality_passed",
+      "cases": 4,
+      "satisfied_criteria": 20,
+      "model_rerun": false
+    },
+    "source_review": "Local review; no external CodeRabbit or remote CI result claimed",
+    "evidence": {
+      "protocol-tests.json": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\quality-check\\protocol-tests.json",
+        "sha256": "624c98663c53ee7f06ee79ab8990e0f424026e7d198646f6b200248316834232"
+      },
+      "protocol-tests.log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\quality-check\\protocol-tests.log",
+        "sha256": "6f5da33fdfe649d47c572ae019670e85633ac48b776324f7667bddb6bdeb34ba"
+      },
+      "current-stdout.json": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\quality-check\\current-stdout.json",
+        "sha256": "5a7b3dc3f864ae9f367d39ad722dddd634ec403b2e05ca6628403778c9433347"
+      },
+      "runner-availability.json": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\quality-check\\runner-availability.json",
+        "sha256": "69ca127cc4ce8bd2c1c55226ff07a015440e91e1327ee5b1528c45cbbc3ebd1a"
+      }
+    }
+  },
+  "runtime_deployment": "Not required: Python verification and CI files only; installed native server remains the accepted OX vendor fix.",
+  "remaining": [
+    "Private current-output OX execution is not configured on CI; repository reports zero self-hosted runners.",
+    "This command checks a saved run, not the current installed build. New build assessment requires existing current capture and fresh execution before check.",
+    "Known regression criteria do not establish held-out or matched implementation/QA benefit; EG24 and EG25 remain partial."
+  ],
+  "resource_retention": "Tests removed their owned fixtures. Logs and private current-run evidence remain in the existing recorded ox-task-evaluation directory; no preexisting directories deleted.",
+  "scope_guard": "No CI runner provisioning, paid recurring schedule, new benchmark platform, or language expansion."
+}
