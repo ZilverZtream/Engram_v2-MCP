@@ -287,6 +287,7 @@ without re-reading an entire file:
 | `get_page_context` · `prepare_implementation_context` | ASPX-aware context for WebForms edits |
 | `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
 | `batch_read` | Up to 16 method, identity and stored-chunk reads under one response budget |
+| `query_schema` | Qualified, source-cited SQL table, column, key, index, view, trigger and procedure queries |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
@@ -319,6 +320,28 @@ source text, citations and applicable guidance are never cut inside that result.
 A budget too small for all IDs and recovery calls fails before executing reads.
 The batch uses the existing read handlers sequentially and is not an atomic
 snapshot. Each read and later recovery retains its own freshness semantics.
+
+`query_schema` accepts `project_id` and a tagged `query_type`, for example
+`{"kind":"table","name":"dbo.Orders"}` or
+`{"kind":"column","table":"dbo.Orders","column":"CustomerID"}`.
+Other kinds are `all_tables`, `tables_with_column` (`column_name_pattern`, a
+literal substring), `tables_that_reference_foreign_key` (`table`, `column`),
+`triggers_on_table`, `views_sourced_from`, `indexes_on_table`, `nullable_columns`,
+`computed_columns` (each with `table`), and `stored_proc` (`sp_name`).
+Results include a summary, structured declarations and source citations. Names
+retain their schema; ambiguous or duplicate table definitions require resolution.
+Use `limit` (1–100, default 25), `offset`, and returned `next_page` for paging.
+The complete JSON budget defaults to 16384 estimated tokens, maximum 65536;
+insufficient budgets fail instead of cutting a declaration or coverage warning.
+
+Only selected indexed SQL files whose current contents match their fingerprint
+and physical revision contribute evidence. Changed, unreadable and unsupported
+sources remain visible as coverage gaps. This is a SQL Server source inventory:
+it does not execute migrations or establish the deployed database schema.
+Missing nullability stays unknown; `nullable_columns` returns explicit `NULL`.
+Procedure/view references are lexical candidates, and unqualified relationships
+do not establish a default schema. Table queries also return bounded, freshly
+verified indexed code-reference leads with their qualified-binding limitation.
 
 ### Incremental indexing and memory
 
