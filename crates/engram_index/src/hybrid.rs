@@ -2742,6 +2742,68 @@ impl HybridSearchEngine {
         }
     }
 
+    /// Compare the same immutable managed source selection in both stores.
+    /// None means managed source evidence or vector support is unavailable;
+    /// it must not be interpreted as a verified empty source snapshot.
+    pub async fn count_source_generation(
+        &self,
+        project_id: &str,
+        generation: u64,
+    ) -> anyhow::Result<Option<(usize, usize)>> {
+        #[cfg(feature = "vector")]
+        {
+            // Without a manifest scope there is no precise comparison to make.
+            // This is unknown, including a missing managed scope, never healthy.
+            // Partial/damaged metadata in an existing scope still fails below.
+            if !self.has_managed_source_snapshots(project_id)? {
+                return Ok(None);
+            }
+            let view = self.pin_source_generation(project_id, generation)?;
+            if !view.is_managed() {
+                return Ok(None);
+            }
+            let snapshot = view._snapshot.clone();
+            let lexical_snapshot = snapshot.clone();
+            let lexical = self.clone();
+            let project = project_id.to_owned();
+            let lexical_count = tokio::task::spawn_blocking(move || -> anyhow::Result<usize> {
+                let reader = lexical.tantivy_index.reader()?;
+                let query = BooleanQuery::new(vec![
+                    (Occur::Must, Box::new(TermQuery::new(
+                        Term::from_field_text(lexical.fields.project_id, &project),
+                        IndexRecordOption::Basic,
+                    )) as Box<dyn tantivy::query::Query>),
+                    (Occur::Must, Box::new(TermQuery::new(
+                        Term::from_field_text(lexical.fields.namespace, "memory"),
+                        IndexRecordOption::Basic,
+                    ))),
+                    (Occur::Must, lexical_snapshot.query(&lexical.fields)),
+                ]);
+                Ok(reader.searcher().search(&query, &tantivy::collector::Count)?)
+            }).await??;
+            let epoch = self.pin_vector_epoch(project_id)?;
+            let worker = self.clone();
+            let vector_count = self.run_native_vector_query(epoch.clone(), &CancellationToken::new(), async move {
+                // Native work owns the selection even if its requester exits.
+                let selection = format!("namespace = 'memory' AND ({})", snapshot.sql());
+                worker.ensure_managed_vector_table_present(&epoch)?;
+                if !worker.native_store.capture()?.connection.table_names().execute().await?.contains(&epoch.table) {
+                    return Ok(0);
+                }
+                let table = worker.open_vector_epoch_table(&epoch).await?;
+                let count = table.count_rows(Some(selection)).await?;
+                drop(snapshot);
+                Ok(count)
+            }).await?;
+            Ok(Some((lexical_count, vector_count)))
+        }
+        #[cfg(not(feature = "vector"))]
+        {
+            let _ = (project_id, generation);
+            Ok(None)
+        }
+    }
+
     pub async fn count_vectors(&self, project_id: &str) -> anyhow::Result<usize> {
         #[cfg(feature = "vector")]
         {

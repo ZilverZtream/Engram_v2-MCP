@@ -807,7 +807,10 @@ async fn run_scoped_repair(
                     let project = project_id.clone();
                     let lexical_count = tokio::task::spawn_blocking(move || search.count_docs(&project)).await?? as u64;
                     let vector_count = ps.search.count_vectors(&project_id).await? as u64;
-                    if super::integrity_service::build_integrity_mismatches(lexical_count, vector_count, true).is_empty() {
+                    let source = super::integrity_service::observe_source_generation(&ps.search, &project_id, generation, true).await?;
+                    let mut mismatches = super::integrity_service::build_integrity_mismatches(lexical_count, vector_count, true);
+                    super::integrity_service::include_source_mismatch(&mut mismatches, &source);
+                    if mismatches.is_empty() {
                         return Ok(ScopedRepairReport { message: "No current vector count mismatch; no documents were re-embedded.".into(), vector_outcome: Some(VectorRepairOutcome::NoCurrentCountMismatch) });
                     }
                 }
