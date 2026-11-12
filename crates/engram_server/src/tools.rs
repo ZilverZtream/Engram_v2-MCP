@@ -1292,7 +1292,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Trace an event handler's ordered flow through controls, helper calls, SQL, bindings, redirects and shared state. Bounded graph follow includes indirect state writes proved by uniquely resolved property setters; unresolved or ambiguous paths are reported rather than guessed."
+        description = "[.NET legacy] Trace an event handler's ordered flow through controls, helper calls, SQL, bindings, redirects and shared state. Includes bounded source-cited C#/VB local value lineage and distinct helper-call contexts; unsupported effects and unbound calls are explicit, with no runtime-value proof. Bounded graph follow includes indirect state writes proved by uniquely resolved property setters; unresolved or ambiguous paths are reported rather than guessed."
     )]
     pub async fn trace_data_flow(
         &self,

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
+  "status": "IMPLEMENTED_HANDLER_VALIDATED_NOT_DEPLOYED",
   "at_utc": "2026-11-12T03:26:46.027480+00:00",
   "original_requirement": "TODO22 lightweight def-use and cross-method parameter lineage; full selected acceptance remains in current_execution_focus.",
   "baseline": "eval/p122-def-use-baseline-20261112.json",
@@ -41,17 +41,14 @@
     }
   },
   "remaining": [
-    "Implement post-ingest local reaching-definition/use nodes and edges, with assignments, lexical scopes, conservative branches and unsupported-path invalidation.",
-    "Connect arguments/returns only through supported source call bindings and correct parameter mapping. Preserve call-site context so two calls to one helper cannot exchange each other's returned values.",
-    "Add source-cited bounded lineage to trace_data_flow, preserving existing business-flow output and exposing incomplete/ambiguous paths.",
-    "Integrate source-index version, incremental cleanup and graph_only rebuild; ensure synthetic value nodes cannot crowd ordinary declaration/call lookup.",
-    "Run actual public candidate/installed lineage and source-update/rebuild acceptance, deploy matching server/sidecar, record final evidence."
+    "Build and package the release server with the matching v4 VB companion, preserving current installed TODO21 pair until candidate acceptance passes.",
+    "Verify actual MCP candidate lineage, old-index upgrade, incremental replacement and graph_only repair while preserving source/search/vector storage; current handler and graph tests do not establish these complete release contracts.",
+    "Deploy the validated pair, verify installed public lineage and normal daemon identity, record delivery evidence, then advance the next original backlog item. TODO22 remains unfinished until these checks pass."
   ],
   "review_notes": [
-    "Parent manual review only; no external CodeRabbit review ran (previous authenticated:false remains, no login/auth retry).",
-    "Before consuming these facts as value reads, handle compile-time NameOf/nameof and VB Static local declarations explicitly; these are remaining TODO22 semantic cases, not delivered claims.",
-    "C# source binding is syntax-based; do not label name-only candidates compiler-proven. VB target_semantic_id must be corroborated by admitted Calls target metadata.",
-    "No def-use graph, public lineage behavior, source-version increment or deployment is claimed yet."
+    "Parent manual review only; no external CodeRabbit review ran.",
+    "Language alias integration and generation freshness issues were corrected and have passing behavior checks.",
+    "Current graph and handler behavior is implemented and checked; release/transport/storage-preservation acceptance and deployment remain open."
   ],
   "retained_failures": {
     "sidecar-build.json": "C# switch-section pattern variable name collisions; fixed in ValueFlowEmitter and v2/v3 builds pass.",
@@ -69,5 +66,81 @@
     ],
     "retention_condition": "Keep companion artifacts and wire/source evidence until complete TODO22 deployment; preserve failed-run receipts. No preexisting folders removed."
   },
-  "installed": "TODO21 release remains installed; no TODO22 deployment."
+  "installed": "TODO21 release remains installed; no TODO22 deployment.",
+  "graph_delivery_progress": {
+    "at_utc": "2026-11-12T04:01:09.322259+00:00",
+    "source_sha256": {
+      "crates/engram_graph/src/store.rs": "cab686e22deef393ed0fcc838c9317b043b4d9b41a18c4fd5bdf1c9113f99729",
+      "crates/engram_graph/src/store/source_rebuild.rs": "184a05167afbfdeca33ba216dc94c8bc9ef1858756b676cd91c9cccae9419306",
+      "crates/engram_graph/src/store/value_flow.rs": "274b3c4fd772dc0ae78654c3a2aefd6ee8d55e4ce1f0b09d04ebe4a163d2fcdd",
+      "crates/engram_graph/src/store/value_flow/local.rs": "2b5740843117e92bccbc729147c800fbdbbaa408262aaa886f52662370b03db8",
+      "crates/engram_graph/src/store/value_flow/tests.rs": "a634734877039a65585bb6dbf948624f5a8f6472df73c099c5f1fc5b4a9c80bc",
+      "crates/engram_graph/src/store/value_flow/view.rs": "1ea47deb7cf8f61da795c4ff6b945e9cdae1b39fe88fa5bf8072ca5ad1271956",
+      "crates/engram_index/src/lib.rs": "a8a8aab8310d667626be588be64ccf76114521fd908a0941ea34222b98038d22",
+      "crates/engram_index/src/parsing/value_flow.rs": "50dfbf045edbf166a3c07eea2709e1bf5ae483a28a61208df9252d86f44126f2",
+      "crates/engram_server/src/services/data_flow_service.rs": "d3bf72209d3e85e9b8b8097c791c87c6f2369b1a975daa41f91add619d6fa26d",
+      "crates/engram_server/src/tools.rs": "0adabe1fd1b1b4c289a3335df9be721aa7fd3504761aea1a31dc4ccf1ef9c46a",
+      "crates/engram_server/tests/value_lineage_tests.rs": "0ad2525b2ec28965d68e4a283ecc41f78ba7e8a18ee985f82993def5de19f943",
+      "tools/vb_roslyn_sidecar/ValueFlowEmitter.cs": "7833b2383f737b5f6bb2da1263f97df1021a1aa9a735a62d4ae118efba28e5ac"
+    },
+    "checks": {
+      "graph-native-v2": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\graph-native-v2-result.json",
+        "sha256": "ac3295da53b95978646336f9ed8e96b6d66e0220e4ca82066de1cdf9db21bf3d"
+      },
+      "graph-native-v3": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\graph-native-v3-result.json",
+        "sha256": "8c19633a8f568c7625589c35aa7fea7334b52722d9ed8cad207e6463b2b7e50f"
+      },
+      "public-native-v2": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\public-native-v2-result.json",
+        "sha256": "cfb04a1a1ad927ce39ec639af64542181e2c9ad53eeb5b53751a75715974e1ad"
+      },
+      "public-no-vector-v1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\public-no-vector-v1-result.json",
+        "sha256": "4f396eeee5d42661c3df22ac09164f3f20d12fdf80f94b7f6ddc757b938c9584"
+      },
+      "sidecar-build-v4": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\sidecar-build-v4.json",
+        "sha256": "19d324757cbb551c3dd8b049764eb7f48158189fae9c5890094c63d93310a51f"
+      },
+      "sidecar-context-v4-acceptance": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\sidecar-context-v4-acceptance.json",
+        "sha256": "fe73fd5c7b3ab0f3b8047411703e8d722892c3b8fe4d97acd0e9e6292cedd4c7"
+      }
+    },
+    "implemented": [
+      "Transactional post-ingest local definition/use graph with lexical scopes, overwrite kills, conservative branches and unsupported-effect invalidation.",
+      "Argument/return links carry invocation IDs; VB uses admitted compiler-selected source-call proofs; CSharp uses explicitly labeled unique lexical candidates.",
+      "Bounded source-cited trace_data_flow JSON and readable lineage, separate invocation contexts, entry hash and stored-generation guards, explicit recursion/output truncation.",
+      "Append-only ValueFlow kind, source-index version 9, incremental/rebuild ownership and declaration-lookup exclusions.",
+      "NameOf/nameof is compile-time constant; VB Static locals are explicitly unsupported."
+    ],
+    "demonstrated": [
+      "152 graph tests passed before final language/freshness refinements; all 9 selected lineage graph cases passed on final graph source.",
+      "Native public CSharp and real VB fixtures passed; native existing trace suites passed 8 cases in the earlier integration run.",
+      "Final no-vector source passed 10 public handler cases, including actual indexing, CSharp incremental refresh, named VB arguments and negative unsupported cases.",
+      "Updated real VB companion built and passed configured compiler-context extraction checks, including NameOf and Static locals."
+    ],
+    "limitations": [
+      "Not yet release-built, candidate MCP validated, installed or deployed.",
+      "CSharp receiver variables, generic/ambiguous targets and unsupported argument mapping remain unbound; no compiler/runtime proof is claimed.",
+      "No full CFG, path-feasibility, exception, heap alias or runtime-value analysis. Callee values describe indexed snapshots.",
+      "Parent manual review only. No external CodeRabbit review ran; retained host authentication is false and was not retried."
+    ],
+    "retained_failures": {
+      "graph-native-v1": "Fixture attempted to erase metadata with None, which correctly means preserve existing metadata; changed fixture to explicit replacement metadata.",
+      "public-native-v1": "Real ingestion stores csharp/vbnet language names while authored IR uses cs/vb; normalized aliases and actual CSharp/VB public fixtures now pass."
+    },
+    "temporary_resources": {
+      "all_current_test_fixture_roots_removed": true,
+      "sidecar_build_temp_removed": true,
+      "sidecar_probe_closed_reader_joined_and_temp_removed": true,
+      "retained_evidence_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
+      "retained_outputs": [
+        "sidecar-publish-v4"
+      ],
+      "retention_condition": "Keep receipts, logs and companion stage through candidate/installed delivery; do not delete preexisting stages or previously held folders."
+    }
+  }
 }

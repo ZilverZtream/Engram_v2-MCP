@@ -6,9 +6,9 @@ pub mod asp_classic_extractor;
 pub mod asset_bundles;
 /// Source chunk ranges, qualified call binding and source-edge replacement
 /// contract, including parsed member ownership and declaration-specific FQNs. Older
-/// metadata must be re-extracted even with unchanged source. Version 8 adds
-/// authored callable signature types and preserves multiline VB signatures.
-pub const SOURCE_INDEX_VERSION: u64 = 8;
+/// metadata must be re-extracted even with unchanged source. Version 9 adds
+/// authored C#/VB value syntax for source-located definition/use lineage.
+pub const SOURCE_INDEX_VERSION: u64 = 9;
 pub mod source_contract;
 pub use source_contract::{SourceExtractionExpectation, SourceExtractionIdentity};
 pub mod chunking;

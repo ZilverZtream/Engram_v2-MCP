@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
+      "status": "IMPLEMENTED_HANDLER_VALIDATED_NOT_DEPLOYED",
       "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
       "observed_missing_behavior": "Current trace_data_flow combines line-oriented .NET control/state/SQL parsing with bounded Calls follow. DataFlowTrace has no value lineage field; graph EdgeKind has no local def/use relation. Existing ParameterBinding is WebForms SQL-data-source parameter binding, not method argument-to-parameter lineage. No prior TODO22 delivery receipt found.",
       "implementation_files": [
@@ -9985,7 +9985,13 @@
       ],
       "constraints": "One active implementation item. Existing trace_data_flow is explicitly .NET legacy; preserve broader P2 generalization TODO23-25. Do not reopen CodeMap/Blast, redesign general call resolution, expand pilots, or turn this into whole-program points-to analysis. Keep all remaining original requirements and partial EG14 open.",
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
-      "temporary_resource_policy": "New fixtures own their resources beneath this recorded diagnostics case, close database/process owners, then remove only their own fixtures. Retain evidence with explicit cleanup conditions."
+      "temporary_resource_policy": "New fixtures own their resources beneath this recorded diagnostics case, close database/process owners, then remove only their own fixtures. Retain evidence with explicit cleanup conditions.",
+      "next_action": [
+        "Build and package the release server with the matching v4 VB companion, preserving current installed TODO21 pair until candidate acceptance passes.",
+        "Verify actual MCP candidate lineage, old-index upgrade, incremental replacement and graph_only repair while preserving source/search/vector storage; current handler and graph tests do not establish these complete release contracts.",
+        "Deploy the validated pair, verify installed public lineage and normal daemon identity, record delivery evidence, then advance the next original backlog item. TODO22 remains unfinished until these checks pass."
+      ],
+      "progress_receipt": "eval/p122-def-use-progress-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",

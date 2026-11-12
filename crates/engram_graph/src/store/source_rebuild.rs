@@ -21,6 +21,7 @@ fn extracted_node(node: &Node) -> bool {
 fn extracted_address(id: &str) -> bool {
     [
         "file:",
+        "value:",
         "sym:",
         "page:",
         "control:",
@@ -79,6 +80,7 @@ fn extracted_kind(kind: &EdgeKind) -> bool {
             | EdgeKind::TestOracle
             | EdgeKind::ReturnsType
             | EdgeKind::ParameterType
+            | EdgeKind::ValueFlow
             | EdgeKind::TypeDefinition
             | EdgeKind::SpatialCall
             | EdgeKind::StateAffinity

@@ -184,6 +184,8 @@ static RE_CONDITIONAL: LazyLock<Regex> =
 /// The full data flow trace for an event handler.
 #[derive(Debug, Clone, Serialize)]
 pub struct DataFlowTrace {
+    /// Bounded authored value dependencies with invocation-specific contexts.
+    pub value_lineage: serde_json::Value,
     /// The event handler name used as entry point (e.g. "btnSearch_Click").
     pub entry_point: String,
     /// Human-readable trigger description.
@@ -798,6 +800,7 @@ pub fn trace_data_flow(
     );
 
     Ok(DataFlowTrace {
+        value_lineage: graph.trace_value_flow(project_id, file_path, entry_point, blake3::hash(codebehind_content.as_bytes()).to_hex().as_str())?,
         entry_point: entry_point.to_string(),
         trigger,
         steps,
@@ -2435,7 +2438,29 @@ pub fn render_data_flow_markdown(t: &DataFlowTrace) -> String {
     if !t.follow.stops.is_empty() {
         md.push('\n');
     }
-    md.push_str("## Steps\n\n");
+    md.push_str("## Value lineage\n\n");
+    let lineage = &t.value_lineage;
+    md.push_str(&format!("Status: {}. {}\n\n",
+        lineage["status"].as_str().unwrap_or("unavailable"),
+        lineage["reason"].as_str().or_else(|| lineage["scope"].as_str()).unwrap_or("")));
+    if let Some(points) = lineage["nodes"].as_array() {
+        for point in points {
+            md.push_str(&format!("- {} [{}] {} `{}` at {}:{}:{}\n",
+                point["id"].as_str().unwrap_or("?"), point["context"].as_str().unwrap_or("?"),
+                point["role"].as_str().unwrap_or("?"), point["name"].as_str().unwrap_or("").replace(['\n', '\r', '`'], " "),
+                point["file_path"].as_str().unwrap_or("?"), point["line"], point["column"]));
+        }
+    }
+    if let Some(edges) = lineage["edges"].as_array() {
+        for edge in edges {
+            md.push_str(&format!("- {} -> {} ({})\n", edge["from"].as_str().unwrap_or("?"),
+                edge["to"].as_str().unwrap_or("?"), edge["relation"].as_str().unwrap_or("?")));
+        }
+    }
+    if let Some(issues) = lineage["issues"].as_array() {
+        for issue in issues { md.push_str(&format!("- limitation: {}\n", issue.as_str().unwrap_or(""))); }
+    }
+    md.push_str("\n## Steps\n\n");
     for st in &t.steps {
         md.push_str(&format!(
             "{}. [{}] {}\n",

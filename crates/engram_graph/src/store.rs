@@ -12,6 +12,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 mod atomic_learning;
 mod source_rebuild;
 mod signature_types;
+mod value_flow;
 pub use source_rebuild::SourceGraphReplacement;
 use atomic_learning::{increment_edges_in_tx, upsert_nodes_in_tx};
 
@@ -151,6 +152,8 @@ pub enum EdgeKind {
     ParameterType,
     /// A scoped signature reference has a unique candidate type declaration.
     TypeDefinition,
+    /// Authored definition/use and invocation-specific value dependency.
+    ValueFlow,
 }
 
 impl EdgeKind {
@@ -202,6 +205,7 @@ impl EdgeKind {
         EdgeKind::ReturnsType,
         EdgeKind::ParameterType,
         EdgeKind::TypeDefinition,
+        EdgeKind::ValueFlow,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -253,6 +257,7 @@ impl EdgeKind {
             EdgeKind::ReturnsType => "returns_type",
             EdgeKind::ParameterType => "parameter_type",
             EdgeKind::TypeDefinition => "type_definition",
+            EdgeKind::ValueFlow => "value_flow",
         }
     }
 
@@ -305,6 +310,7 @@ impl EdgeKind {
             "returns_type" => Some(EdgeKind::ReturnsType),
             "parameter_type" => Some(EdgeKind::ParameterType),
             "type_definition" => Some(EdgeKind::TypeDefinition),
+            "value_flow" => Some(EdgeKind::ValueFlow),
             _ => None,
         }
     }
@@ -1839,7 +1845,7 @@ impl GraphStore {
                 continue;
             }
             let n: Node = bincode::deserialize(v.value())?;
-            if declarations_only && n.node_type == "type_reference" { continue; }
+            if declarations_only && matches!(n.node_type.as_str(), "type_reference" | "value_point") { continue; }
 
             if name_q
                 .as_ref()
@@ -1918,7 +1924,7 @@ impl GraphStore {
             }
             let n: Node = bincode::deserialize(v.value())?;
             // Authored references are not competing declarations.
-            if n.node_type == "type_reference" { continue; }
+            if matches!(n.node_type.as_str(), "type_reference" | "value_point") { continue; }
 
             let name_lower = n.name.to_lowercase();
             let matches = name_lower == needle
@@ -2015,7 +2021,7 @@ impl GraphStore {
         }
 
         // Step 2: exact canonical name match (`Node.name`).
-        if let Ok(nodes) = self.query_nodes_with_path_match(project_id, node_type, Some(input), None, 100, NodePathMatch::Substring, node_type != Some("type_reference")) {
+        if let Ok(nodes) = self.query_nodes_with_path_match(project_id, node_type, Some(input), None, 100, NodePathMatch::Substring, !matches!(node_type, Some("type_reference" | "value_point"))) {
             let exact_name: Vec<Node> = nodes.into_iter().filter(|n| n.name == input).collect();
             if exact_name.len() == 1 {
                 return Ok(ResolveResult::Unique(exact_name[0].clone()));
@@ -2031,7 +2037,7 @@ impl GraphStore {
         }
 
         // Step 3: legacy metadata.fqn exact match.
-        if let Ok(nodes) = self.query_nodes_with_path_match(project_id, node_type, None, None, 5000, NodePathMatch::Substring, node_type != Some("type_reference")) {
+        if let Ok(nodes) = self.query_nodes_with_path_match(project_id, node_type, None, None, 5000, NodePathMatch::Substring, !matches!(node_type, Some("type_reference" | "value_point"))) {
             let fqn_match: Vec<Node> = nodes
                 .into_iter()
                 .filter(|n| {
@@ -2765,6 +2771,7 @@ impl GraphStore {
                             | EdgeKind::ReturnsType
                             | EdgeKind::ParameterType
                             | EdgeKind::TypeDefinition
+                            | EdgeKind::ValueFlow
                     );
                 let producer=if source_derived { impact_walk::event_producer(&e)? } else { None };
                 let producer_refreshed=producer.map_or_else(||refreshed_source_ids.contains(&e.source_id),|(path,_,_)|paths.contains(path));
@@ -3175,6 +3182,11 @@ impl GraphStore {
     }
 
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
+        let declarations = self.resolve_declared_symbol_edges(project_id)?;
+        Ok(declarations + self.resolve_value_flows(project_id)?)
+    }
+
+    fn resolve_declared_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let type_bindings = self.resolve_signature_types(project_id)?;
         let prefix = format!("{project_id}\0");
 
@@ -3211,7 +3223,7 @@ impl GraphStore {
                     break;
                 }
                 let node: Node = bincode::deserialize(v.value())?;
-                if node.node_type == "type_reference" { continue; }
+                if matches!(node.node_type.as_str(), "type_reference" | "value_point") { continue; }
                 node_count += 1;
 
                 node_file_paths.insert(node.node_id.clone(), node.file_path.as_str().to_string());
@@ -4813,7 +4825,8 @@ mod tests {
                 | EdgeKind::TestOracle
                 | EdgeKind::ReturnsType
                 | EdgeKind::ParameterType
-                | EdgeKind::TypeDefinition => all_set.contains(&ek),
+                | EdgeKind::TypeDefinition
+                | EdgeKind::ValueFlow => all_set.contains(&ek),
             }
         };
 
@@ -4825,7 +4838,7 @@ mod tests {
             );
         }
 
-        let variant_count = 44;
+        let variant_count = 48;
         assert_eq!(
             EdgeKind::ALL.len(),
             variant_count,

@@ -110,6 +110,8 @@ internal sealed class ValueFlowEmitter
         switch (statement)
         {
             case LocalDeclarationStatementSyntax local:
+                if (local.Modifiers.Any(m => m.IsKind(SyntaxKind.StaticKeyword)))
+                { Issue("Static local lifetime is not modeled; subsequent reaching values are incomplete."); break; }
                 result.Kind = "sequence";
                 foreach (var declarator in local.Declarators)
                     foreach (var name in declarator.Names)
@@ -175,6 +177,8 @@ internal sealed class ValueFlowEmitter
             case IdentifierNameSyntax name:
                 result.Kind = "name"; result.Name = name.Identifier.ValueText; break;
             case LiteralExpressionSyntax:
+                result.Kind = "literal"; break;
+            case NameOfExpressionSyntax:
                 result.Kind = "literal"; break;
             case ParenthesizedExpressionSyntax parens:
                 result.Kind = "operation"; result.Operator = "parentheses";
