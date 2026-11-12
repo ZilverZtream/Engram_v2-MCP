@@ -772,6 +772,9 @@ impl Engram {
         &self,
         params: Parameters<TraceStateUsageRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("trace_state_usage", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_trace_state_usage(params.0).await
     }
 
@@ -782,6 +785,9 @@ impl Engram {
         &self,
         params: Parameters<TraceUiEventRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("trace_ui_event", &params.0.project_id, &[params.0.page_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_trace_ui_event(params.0).await
     }
 
@@ -792,6 +798,9 @@ impl Engram {
         &self,
         params: Parameters<TraceUiActionRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("trace_ui_action", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_trace_ui_action(params.0).await
     }
 
@@ -812,6 +821,9 @@ impl Engram {
         &self,
         params: Parameters<GetUiBlueprintRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_ui_blueprint", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_get_ui_blueprint(params.0).await
     }
 
@@ -1002,6 +1014,9 @@ impl Engram {
         &self,
         params: Parameters<SuggestMigrationBoundariesRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("suggest_migration_boundaries", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_suggest_migration_boundaries(params.0).await
     }
 
@@ -1012,6 +1027,9 @@ impl Engram {
         &self,
         params: Parameters<IngestInstrumentationLogsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("ingest_instrumentation_logs", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_ingest_instrumentation_logs(params.0).await
     }
 
@@ -1022,6 +1040,9 @@ impl Engram {
         &self,
         params: Parameters<IngestRuntimeArtifactsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("ingest_runtime_artifacts", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_ingest_runtime_artifacts(params.0).await
     }
 
@@ -1032,6 +1053,9 @@ impl Engram {
         &self,
         params: Parameters<GenerateMigrationBlueprintRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("generate_migration_blueprint", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_generate_migration_blueprint(params.0).await
     }
 
@@ -1100,6 +1124,9 @@ impl Engram {
         &self,
         params: Parameters<GenerateMigrationPlanRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("generate_migration_plan", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_generate_migration_plan(params.0).await
     }
 
@@ -1188,6 +1215,9 @@ impl Engram {
         &self,
         params: Parameters<GenerateMigrationScaffoldRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("generate_migration_scaffold", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_generate_migration_scaffold(params.0).await
     }
 
@@ -1198,6 +1228,9 @@ impl Engram {
         &self,
         params: Parameters<GenerateInstrumentationCodeRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("generate_instrumentation_code", &params.0.project_id, &params.0.target_files.iter().map(String::as_str).collect::<Vec<_>>()).await? {
+            return Ok(result);
+        }
         self.handle_generate_instrumentation_code(params.0).await
     }
 
@@ -1218,6 +1251,9 @@ impl Engram {
         &self,
         params: Parameters<SuggestStateMigrationRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("suggest_state_migration", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_suggest_state_migration(params.0).await
     }
 
@@ -1228,6 +1264,9 @@ impl Engram {
         &self,
         params: Parameters<GenerateCharacterizationTestsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("generate_characterization_tests", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_generate_characterization_tests(params.0).await
     }
 
@@ -1238,6 +1277,9 @@ impl Engram {
         &self,
         params: Parameters<GenerateStranglerFigRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("generate_strangler_fig_config", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_generate_strangler_fig_config(params.0).await
     }
 
@@ -1248,6 +1290,9 @@ impl Engram {
         &self,
         params: Parameters<MapValidationControlsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("map_validation_controls", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_map_validation_controls(params.0).await
     }
 
@@ -1258,6 +1303,9 @@ impl Engram {
         &self,
         params: Parameters<MapAuthConfigRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("map_auth_config", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_map_auth_config(params.0).await
     }
 
@@ -1268,6 +1316,9 @@ impl Engram {
         &self,
         params: Parameters<MapPageLifecycleRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("map_page_lifecycle", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_map_page_lifecycle(params.0).await
     }
 
@@ -1278,6 +1329,9 @@ impl Engram {
         &self,
         params: Parameters<AnalyzeViewStateDepsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("analyze_viewstate_deps", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_analyze_viewstate_deps(params.0).await
     }
 
@@ -1288,6 +1342,9 @@ impl Engram {
         &self,
         params: Parameters<MapAjaxRegionsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("map_ajax_regions", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_map_ajax_regions(params.0).await
     }
 
@@ -1298,6 +1355,9 @@ impl Engram {
         &self,
         params: Parameters<TraceDataFlowRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("trace_data_flow", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_trace_data_flow(params.0).await
     }
 
@@ -1308,6 +1368,9 @@ impl Engram {
         &self,
         params: Parameters<GetMigrationDossierRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_migration_dossier", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_get_migration_dossier(params.0).await
     }
 
@@ -1318,6 +1381,9 @@ impl Engram {
         &self,
         params: Parameters<CheckMigrationCoverageRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("check_migration_coverage", &params.0.project_id, &[params.0.original_file.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_check_migration_coverage(params.0).await
     }
 
@@ -1328,6 +1394,9 @@ impl Engram {
         &self,
         params: Parameters<UpdateMigrationStatusRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("update_migration_status", &params.0.project_id, &[params.0.file_path.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_update_migration_status(params.0).await
     }
 
@@ -1338,6 +1407,9 @@ impl Engram {
         &self,
         params: Parameters<GetMigrationProgressRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_migration_progress", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_get_migration_progress(params.0).await
     }
 
@@ -1348,6 +1420,9 @@ impl Engram {
         &self,
         params: Parameters<SuggestMigrationOrderRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("suggest_migration_order", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_suggest_migration_order(params.0).await
     }
 
@@ -1358,6 +1433,9 @@ impl Engram {
         &self,
         params: Parameters<AnalyzeFullProjectMigrationRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("analyze_full_project_migration", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_analyze_full_project_migration(params.0).await
     }
 
@@ -1420,6 +1498,9 @@ impl Engram {
         &self,
         params: Parameters<AnalyzeSyncHazardsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("analyze_sync_hazards", &params.0.project_id, &params.0.file_path.as_deref().into_iter().collect::<Vec<_>>()).await? {
+            return Ok(result);
+        }
         self.handle_analyze_sync_hazards(params.0).await
     }
 
@@ -1430,6 +1511,9 @@ impl Engram {
         &self,
         params: Parameters<GetJQueryInventoryRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_jquery_inventory", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_get_jquery_inventory(params.0).await
     }
 
@@ -1440,6 +1524,9 @@ impl Engram {
         &self,
         params: Parameters<GetSessionWorkflowsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_session_workflows", &params.0.project_id, &[]).await? {
+            return Ok(result);
+        }
         self.handle_get_session_workflows(params.0).await
     }
 
@@ -1450,6 +1537,9 @@ impl Engram {
         &self,
         params: Parameters<GetVbTranslationTrapsRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_vb_translation_traps", &params.0.project_id, &params.0.file_path.as_deref().into_iter().collect::<Vec<_>>()).await? {
+            return Ok(result);
+        }
         self.handle_get_vb_translation_traps(params.0).await
     }
 
@@ -1532,6 +1622,9 @@ impl Engram {
         &self,
         params: Parameters<GetPageContextRequest>,
     ) -> Result<CallToolResult, McpError> {
+        if let Some(result) = self.legacy_tool_applicability("get_page_context", &params.0.project_id, &[params.0.aspx_file.as_str()]).await? {
+            return Ok(result);
+        }
         self.handle_get_page_context(params.0).await
     }
 

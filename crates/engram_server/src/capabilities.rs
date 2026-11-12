@@ -1,4 +1,5 @@
 pub mod project;
+pub(crate) mod applicability;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CapabilityStatus {

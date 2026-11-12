@@ -162,8 +162,12 @@ impl ProjectCapabilities {
     pub fn allows_legacy_tool(&self, name: &str) -> bool {
         match name {
             "get_vb_translation_traps" => self.visual_basic,
-            "analyze_sync_hazards" => self.dotnet,
+            "analyze_sync_hazards" | "generate_characterization_tests" => self.dotnet,
+            "get_ui_blueprint" | "trace_ui_event" | "trace_ui_action"
+            | "trace_state_usage" | "get_session_workflows" | "trace_data_flow" => self.dotnet || self.classic_asp,
             "get_jquery_inventory" => self.javascript || self.webforms || self.classic_asp,
+            "benchmark_retrieval_defaults" | "get_page_context" | "map_page_lifecycle" | "map_validation_controls"
+            | "map_ajax_regions" | "analyze_viewstate_deps" => self.webforms,
             _ => self.webforms || self.classic_asp,
         }
     }
