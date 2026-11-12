@@ -40,8 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "RECONCILE_REMAINING_ORIGINAL_OCIUSX_ACCEPTANCE",
-    "remaining": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion."
+    "finding": "TODO31 OciusX request trace DBML table mapping",
+    "status": "SELECTED_IMPLEMENTATION_NOT_STARTED",
+    "remaining": "Resolve reached VB.NET LINQ-to-SQL context members through admitted DBML source mappings and expose the mapped SQL table plus mapping/source citations in trace_user_request. Preserve unresolved cases and source/runtime limits.",
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\contract.json",
+    "scope_guard": "One demonstrated OciusX mapping gap. No new language support, general ORM translation, CodeMap/Blast, graph rewrite, live database access or trigger parser. Full TODO31 remains partial."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

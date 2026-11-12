@@ -9976,40 +9976,41 @@
   "last_updated_at": "2026-11-12T22:42:12.519162+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "at_utc": "2026-11-12T22:04:00.044992+00:00",
-      "original_requirement": "TODO42: when the business-logic LLM is unavailable, degrade visibly to a deterministic summary; enforce bounded requests/retries and explicit backend/model configuration.",
-      "observed_missing_behavior": "Method analysis catches typed provider errors, logs them and substitutes an empty response, then runs the larger-output retry intended for incomplete model JSON. Public responses lose the specific outage/timeout/auth reason and return failed analysis with no explicit deterministic summary of nonempty source. File summary similarly reports unavailable without the requested fallback.",
+      "status": "SELECTED_IMPLEMENTATION_NOT_STARTED",
+      "at_utc": "2026-11-12T22:46:06.533862+00:00",
+      "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace OciusX HTTP requests through handlers to database tables, retaining the full unresolved requirement.",
+      "observed_missing_behavior": "Installed retained /dashboard/system/geolayers/42 trace reaches GetGeoLayerBypr_id but its only table edge is unresolved table:vsl_visualiseringslagers. The selected current iFalt.dbml explicitly maps iFaltDataContext.vsl_visualiseringslagers to dbo.vsl_visualiseringslager at line281. The handler ignores .dbml source. Existing VB ORM edge already supplies access=read, orm=true and src_line58.",
+      "selected_behavior": "Resolve reached VB.NET LINQ-to-SQL context members through admitted DBML source mappings and expose the mapped SQL table plus mapping/source citations in trace_user_request. Preserve unresolved cases and source/runtime limits.",
       "existing_reuse": [
-        "DreamingEngine already captures configured provider/model and wraps calls in deadlines; HTTP connect/total timeouts exist.",
-        "llm_provider already implements bounded retry/backoff and typed Timeout/Auth/RateLimited/InvalidResponse/Upstream5xx/Transport/Parse errors with status and retry exhaustion.",
-        "Existing provenance, source/outcome evidence and failed-extraction guards prevent unsuccessful LLM outputs being persisted as usable business rules. Preserve these.",
-        "Existing malformed/truncated JSON retry, empty-body deterministic behavior, configured identity and file-summary source restrictions have authored tests. Reuse them; do not rebuild provider plumbing."
+        "Current request route and reached-member graph traversal, selected generation/fingerprint checks, bounded paths and response budget.",
+        "Existing VB ORM QueriesTable edges and small VB token reader; no sidecar or graph extraction/storage change.",
+        "Existing locked quick-xml dependency for well-formed namespaced DBML; make direct server dependency if needed instead of writing another XML parser."
       ],
       "implementation_files": [
-        "crates/engram_server/src/services/business_logic_service.rs",
-        "crates/engram_server/src/services/business_logic_degradation.rs",
-        "crates/engram_server/tests/business_logic_degradation_tests.rs",
-        "crates/engram_server/src/services/full_project_migration_service.rs"
+        "crates/engram_server/src/services/request_trace/dbml.rs",
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/execution.rs",
+        "crates/engram_server/src/handlers/request_trace_tools.rs",
+        "crates/engram_server/src/services/request_trace/tests.rs",
+        "crates/engram_server/Cargo.toml",
+        "Cargo.lock"
       ],
-      "necessary_supporting_edits": "Only existing fixture literals/expectations directly affected by additive failure/fallback metadata, and user-facing documentation where needed. No unrelated handler/graph/provider refactor.",
       "finite_acceptance": [
-        "An unavailable/unconfigured provider, timeout, exhausted transport/rate-limit/5xx retry or authentication failure produces explicit safe failure metadata and a bounded, source-cited deterministic summary in method/file output. Do not expose raw errors containing endpoints/credentials.",
-        "A provider failure does not trigger the larger-output JSON retry. Reuse existing provider retries/deadlines. Preserve one larger-budget retry for successful transport with incomplete model JSON; an eventually valid response remains an LLM result.",
-        "Fallback facts come from the supplied current source and existing deterministic extraction. Mark them as observations, distinguish them from inferred business purpose/rules, state incomplete coverage and preserve source locations/hashes. Do not invent rules, claim semantic validation, or persist failed extraction as successful business-rule documents.",
-        "Focused owned-provider tests cover outage/auth/deadline or exhaustion, configuration disabled, malformed-output retry, successful output and nonempty VB.NET fallback, including file summary. Preserve existing empty-method/provenance/source-summary guards and close all fixture owners on success/unwinding.",
-        "Verify candidate and installed public method/file outputs against an authored VB.NET fixture with controlled provider failure and healthy response. No production provider config changes, live outage injection, paid external model requests or fresh broad benchmark. Commit/push/deploy and advance."
+        "Authored WebForms handler reaches a VB helper with a local, explicitly constructed DataContext; an existing ORM table edge maps via the exact context/member DBML declaration, with current mapping path/line/hash and preserved access/call-site evidence. Do not guess physical table names by plural stripping.",
+        "Admit only selected mapping files whose physical graph revision and content fingerprint match current source. Malformed XML, duplicate/ambiguous context mappings, stale mapping, unknown or reassigned/aliased receiver, comments/string decoys, and missing mapping remain unresolved with bounded diagnostics. No external XML resolution.",
+        "include_db=false omits database mappings; existing path/byte limits remain explicit. Existing source mappings are static declarations, not proof of generated provider SQL, deployed database identity, query execution, runtime side effects or trigger execution.",
+        "Focused owned-fixture behavior checks cover mapping, wrong context with same member, ambiguity, stale/malformed/absent mapping, opt-out and unchanged original request trace cases; fixtures close database handles before removal.",
+        "Candidate and installed public MCP checks prove mapping in an authored VB.NET/DBML fixture. One read-only actual OciusX /dashboard/system/geolayers/42 trace verifies dbo.vsl_visualiseringslager against iFalt.dbml:281 and GetGeoLayerBypr_id:58 without source/config changes or reindex. Commit/push/deploy then advance."
       ],
-      "source_baseline": "84dd480b4b06b171265b3fb7e52757937c89fa8c",
-      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation",
-      "prior_inspection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-todo42-after-source-integrity.json",
-      "scope_guard": "One OciusX user-visible failure/fallback gap. No new LLM provider or retry framework, language support, CodeMap/Blast, broad audits or storage work.",
-      "resources": "Reuse existing isolated checkout/shared target. Own, close and remove new provider/test fixtures. Retain receipts here; no preexisting-folder deletion.",
-      "supporting_edit_note": "full_project_migration_service only adds degradation: None to one existing test fixture literal. Existing retry/provenance/file-purpose tests are run unchanged.",
-      "implementation": "implementation.json",
-      "delivery_evidence": "eval/ociusx-llm-degradation-delivery-20261112.json",
-      "build_session": null
+      "source_baseline": "998277689f1eef2d64181c4250549943d1ca42b1",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping",
+      "scope_guard": "One demonstrated OciusX mapping gap. No new language support, general ORM translation, CodeMap/Blast, graph rewrite, live database access or trigger parser. Full TODO31 remains partial.",
+      "retained_remaining": [
+        "Trigger effects: no CREATE/ALTER TRIGGER declaration found in current OciusX SQL source inspection; retain original requirement without selecting speculative trigger work.",
+        "Dynamic SQL, nested stored procedures, unhandled ORM expressions, runtime execution and remaining request-routing/binding gaps remain unfinished."
+      ],
+      "resources": "Reuse existing isolated checkout/shared target; retain diagnostics here; fixtures own teardown; preserve parked9 and all preexisting directories."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10041,8 +10042,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Reconcile remaining original OciusX acceptance after TODO42 delivery",
-    "next_user_visible_deliverable": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion.",
+    "active_original_item": "TODO31 OciusX request trace DBML table mapping",
+    "next_user_visible_deliverable": "Resolve reached VB.NET LINQ-to-SQL context members through admitted DBML source mappings and expose the mapped SQL table plus mapping/source citations in trace_user_request. Preserve unresolved cases and source/runtime limits.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10061,7 +10062,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "TODO42 built, public candidate/installed acceptance passed, deployed and normal OciusX compatibility verified; fixtures closed/removed, parked work preserved."
+      "evidence": "TODO42 deployed and deliveryf4763de pushed; verified actual remaining OciusX trace stops at unmapped LINQ table member, selected exact DBML mapping acceptance."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13319,6 +13320,42 @@
     "llm_degradation_delivery_20261112": {
       "receipt": "eval/ociusx-llm-degradation-delivery-20261112.json",
       "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+    },
+    "previous_llm_degradation_contract": {
+      "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "at_utc": "2026-11-12T22:04:00.044992+00:00",
+      "original_requirement": "TODO42: when the business-logic LLM is unavailable, degrade visibly to a deterministic summary; enforce bounded requests/retries and explicit backend/model configuration.",
+      "observed_missing_behavior": "Method analysis catches typed provider errors, logs them and substitutes an empty response, then runs the larger-output retry intended for incomplete model JSON. Public responses lose the specific outage/timeout/auth reason and return failed analysis with no explicit deterministic summary of nonempty source. File summary similarly reports unavailable without the requested fallback.",
+      "existing_reuse": [
+        "DreamingEngine already captures configured provider/model and wraps calls in deadlines; HTTP connect/total timeouts exist.",
+        "llm_provider already implements bounded retry/backoff and typed Timeout/Auth/RateLimited/InvalidResponse/Upstream5xx/Transport/Parse errors with status and retry exhaustion.",
+        "Existing provenance, source/outcome evidence and failed-extraction guards prevent unsuccessful LLM outputs being persisted as usable business rules. Preserve these.",
+        "Existing malformed/truncated JSON retry, empty-body deterministic behavior, configured identity and file-summary source restrictions have authored tests. Reuse them; do not rebuild provider plumbing."
+      ],
+      "implementation_files": [
+        "crates/engram_server/src/services/business_logic_service.rs",
+        "crates/engram_server/src/services/business_logic_degradation.rs",
+        "crates/engram_server/tests/business_logic_degradation_tests.rs",
+        "crates/engram_server/src/services/full_project_migration_service.rs"
+      ],
+      "necessary_supporting_edits": "Only existing fixture literals/expectations directly affected by additive failure/fallback metadata, and user-facing documentation where needed. No unrelated handler/graph/provider refactor.",
+      "finite_acceptance": [
+        "An unavailable/unconfigured provider, timeout, exhausted transport/rate-limit/5xx retry or authentication failure produces explicit safe failure metadata and a bounded, source-cited deterministic summary in method/file output. Do not expose raw errors containing endpoints/credentials.",
+        "A provider failure does not trigger the larger-output JSON retry. Reuse existing provider retries/deadlines. Preserve one larger-budget retry for successful transport with incomplete model JSON; an eventually valid response remains an LLM result.",
+        "Fallback facts come from the supplied current source and existing deterministic extraction. Mark them as observations, distinguish them from inferred business purpose/rules, state incomplete coverage and preserve source locations/hashes. Do not invent rules, claim semantic validation, or persist failed extraction as successful business-rule documents.",
+        "Focused owned-provider tests cover outage/auth/deadline or exhaustion, configuration disabled, malformed-output retry, successful output and nonempty VB.NET fallback, including file summary. Preserve existing empty-method/provenance/source-summary guards and close all fixture owners on success/unwinding.",
+        "Verify candidate and installed public method/file outputs against an authored VB.NET fixture with controlled provider failure and healthy response. No production provider config changes, live outage injection, paid external model requests or fresh broad benchmark. Commit/push/deploy and advance."
+      ],
+      "source_baseline": "84dd480b4b06b171265b3fb7e52757937c89fa8c",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation",
+      "prior_inspection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-todo42-after-source-integrity.json",
+      "scope_guard": "One OciusX user-visible failure/fallback gap. No new LLM provider or retry framework, language support, CodeMap/Blast, broad audits or storage work.",
+      "resources": "Reuse existing isolated checkout/shared target. Own, close and remove new provider/test fixtures. Retain receipts here; no preexisting-folder deletion.",
+      "supporting_edit_note": "full_project_migration_service only adds degradation: None to one existing test fixture literal. Existing retry/provenance/file-purpose tests are run unchanged.",
+      "implementation": "implementation.json",
+      "delivery_evidence": "eval/ociusx-llm-degradation-delivery-20261112.json",
+      "build_session": null
     }
   }
 }
