@@ -30,6 +30,9 @@ pub struct Hop {
     pub target_line: Option<u32>,
     pub target_source_verified: bool,
     pub evidence: Option<serde_json::Value>,
+    /// An authored mapping is distinct from a verified physical table definition.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub table_mapping: Option<serde_json::Value>,
 }
 
 #[derive(Serialize)]
@@ -329,9 +332,19 @@ pub fn trace_page(
         queue.push_back((node, 0));
     }
     let database = include_db.then(|| super::database::Catalog::new(sources));
+    let mappings = if include_db {
+        Some(super::dbml::Catalog::new(
+            graph, project, sources, selected,
+        )?)
+    } else {
+        None
+    };
+    if let Some(mappings) = &mappings {
+        result.gaps.extend(mappings.gaps.iter().cloned());
+    }
     if let Some(database) = &database {
         result.gaps.extend(database.gaps.iter().cloned());
-        result.gaps.push("Database coverage is partial: source fallback covers local literal SqlCommand stored-procedure candidates. Dynamic commands, inline SQL/ORM translation, aliases, nested procedure execution and deployed database identity are not resolved.".into());
+        result.gaps.push("Database coverage is partial: source fallback covers local literal SqlCommand stored-procedure candidates and explicit local VB context/member DBML mappings. Dynamic commands, generated SQL/ORM translation, aliases, nested procedure execution and deployed database identity are not resolved.".into());
     }
     let mut visited = BTreeSet::new();
     while let Some((node, depth)) = queue.pop_front() {
@@ -450,6 +463,32 @@ pub fn trace_page(
                     Some(target) => verified_node(graph, project, target, sources, selected)?,
                     None => false,
                 };
+                let mut table_mapping = None;
+                if kind == EdgeKind::QueriesTable
+                    && matches!(node.language.as_str(), "vb" | "vbnet")
+                    && edge
+                        .metadata
+                        .as_ref()
+                        .and_then(|v| v.get("orm"))
+                        .is_some_and(|v| v == "true" || v == true)
+                    && let Some(mappings) = &mappings
+                    && let Some(source) = sources.iter().find(|s| s.path == node.file_path.as_str())
+                {
+                    let body = source
+                        .content
+                        .lines()
+                        .skip(node.start_line as usize - 1)
+                        .take((node.end_line - node.start_line + 1) as usize)
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    match mappings.resolve(&node, &body, &edge) {
+                        Ok(binding) => table_mapping = Some(binding),
+                        Err(reason) if result.gaps.len() < 64 => result
+                            .gaps
+                            .push(format!("{} -> {}: {reason}", node.node_id, edge.target_id)),
+                        Err(_) => {}
+                    }
+                }
                 result.paths.push(Hop {
                     from: node.node_id.clone(),
                     to: edge.target_id.clone(),
@@ -467,6 +506,7 @@ pub fn trace_page(
                         .map(|n| n.start_line),
                     target_source_verified: target_verified,
                     evidence: edge.metadata,
+                    table_mapping,
                 });
                 if matches!(
                     kind,
