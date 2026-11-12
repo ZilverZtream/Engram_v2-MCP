@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-11T23:51:30.633013+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-12T00:13:50.287449+00:00",
   "original_requirement": "TODO16b: complete graph re-extraction without embedding, search/vector writes or Git replay; preserve identity and retained relationships.",
   "public_entrypoint": "repair_project(scope=\"graph_only\")",
   "behavior": "Uses the full extraction path and isolated resolution, then atomically replaces extracted graph evidence at original file revisions. Preserves learning/history and reports retained relationships without a unique successor. Refuses source drift, changed chunk settings, cancellation and wipe_and_reindex.",
@@ -31,17 +31,91 @@
   },
   "helper_review": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\helper-review.json",
-    "sha256": "149e2c4ad179eefc0b3b06af40025b844a3727139e921b43d52c1913d6c1f6d5"
+    "sha256": "7f06c0e34865f4bb36b6a2059d7e205bd3abd7dadfaa173eee306d9e8192ea36"
   },
   "validation": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\source-validation.json",
     "sha256": "cad141b0e4a4c1111e9a7800aed81b5ce11f9ef3b6229c35d884e998361c5c4d"
   },
-  "source_commit": null,
-  "outstanding": [
-    "Release build/package.",
-    "Candidate and installed public MCP checks.",
-    "Deployment and normal installed runtime identity verification."
+  "source_commit": "c1dcbc83e7a26f18c6d6cff52f32c01af105e9b8",
+  "outstanding": [],
+  "limitations": "Owned C#/VB/empty-source acceptance and focused native/no-vector checks establish the selected contract. No production rebuild, large-project speedup, complete backlog/19-gate/EG14 or independent CodeRabbit review claim.",
+  "startup_limit": "Existing startup cache warm-up contacts the unavailable embedder; after observed warm-up completion, repair and its verification make zero embedding requests. This is not a claim of no startup networking.",
+  "failed_candidate_checks": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\candidate\\acceptance.json",
+      "sha256": "04d3ce9936e6d5826b278c6b31b57fd1ec727fe26dd29e30bc02687a0d196de2"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\candidate-v2\\acceptance.json",
+      "sha256": "65ca7be3feb6505f29f9d36f359afffe289b3983896c5ad4377a73f44caa2dfb"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\candidate-v3\\acceptance.json",
+      "sha256": "87ef72a8a6d5d1a1b751a2c9ff1e46b298498ce0dfc20ef3930a42b40315f76a"
+    }
   ],
-  "limitations": "No production rebuild performed, no measured large-project speedup, no complete backlog/19-gate/EG14 claim."
+  "failed_fixture_cleanup": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\candidate\\cleanup-followup.json",
+    "sha256": "d55a09afe41341696c9bc30640cc8ef61cd183348407c7818657d3e562e0cd05"
+  },
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-graph-rebuild-source-20261112.json",
+      "sha256": "9b89e139cf088334b7a4abe70af88f7bd38bcd1a4f9bf30de9928d1d4de416e7"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\pair.json",
+      "sha256": "8f2cb6632f537b587ecbfccacffebc1ca07f386f108ffd458170f3452262f025"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\candidate-v4\\acceptance.json",
+      "sha256": "b93c6b662e74dfe33eaa47220190048d42085965b236daba979650b3b43d5f90"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\installed\\acceptance.json",
+      "sha256": "b08b335f32a8015e4bff6ef7285f0548b2d9306074bfea8e29687bbf0802d4e9"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\normal\\acceptance.json",
+      "sha256": "a231a8b8273db2f529cedf720de00e3966937f2043a828face7296ac4cd28464"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\release-gates.json",
+      "sha256": "f4537add24474b065161f877aa1a3a0713e3d1496bc5b53465f9a02dc637c5f1"
+    },
+    "release_helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\release-helper-review.json",
+      "sha256": "2b13e9d57d5c29b11d53c021c9b664ad3d71646c73ad3a496ef5175705177547"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\install-result.json",
+      "sha256": "5c7b930818745cbad2e0ae474b3212ba592b661c19558a1b22312fe63c125c67"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-graph-rebuild-config-hold-20261112.json.released.json",
+      "sha256": "50b3372139e5fbe5e13dcc29d3d299ebb44a351b4a48b0f2143d43c8e2fb9a19"
+    },
+    "server_sha256": "82f11dac316a6785158ec0648c74e138fe974bf387aefdf3d3750959e2284a4c",
+    "manifest_sha256": "de6cf2d1c7b2e4d0603f64849fe05a92d1bf18e59e229f3cd28e13b3b1931ec6",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "demonstrated": {
+    "embedding_requests_during_rebuild": 0,
+    "candidate_storage_files_unchanged": 38,
+    "installed_storage_files_unchanged": 38,
+    "candidate_fixture_repair_seconds": 0.3042741999961436,
+    "installed_fixture_repair_seconds": 0.3137027000193484,
+    "source_documents_and_history_preserved": true,
+    "no_new_background_jobs": true
+  },
+  "temporary_resources": {
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a76e7c09c4034be3bf6ebfef1afa1757",
+    "retention_condition": "Keep evidence and complete rollback pair; preexisting folder deletion still needs exact-path approval."
+  }
 }

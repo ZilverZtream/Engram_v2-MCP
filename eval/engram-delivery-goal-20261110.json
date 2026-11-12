@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
-    "finding": "TODO16b rebuild_graph",
-    "status": "INSTALLED_BASELINE_CONFIRMED_READY_FOR_IMPLEMENTATION",
-    "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116b-rebuild-graph-20261111\\execution-state.json",
-    "remaining": "Implement and verify genuine extraction-only reconstruction; preserve all other unfinished original work."
+    "finding": "TODO16b graph rebuild",
+    "receipt": "eval\\p116b-graph-rebuild-delivery-20261112.json",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "remaining": "Advance the next unfinished original requirement; full backlog remains active."
   }
 }

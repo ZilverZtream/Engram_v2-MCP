@@ -141,7 +141,7 @@ they feed blast radius, edit safety, and the ADP gates.
   re-derives file membership by string-comparing `file_path`. Emit File→Symbol edges and
   drop the workaround; fixes systematic undercounting of file-level impact.
 
-- [ ] **16b. rebuild_graph mode: re-extract without re-embedding** (M)
+- [x] **16b. rebuild_graph mode: re-extract without re-embedding** (M) — delivered 2026-11-12 through `repair_project(scope="graph_only")`; see `eval/p116b-graph-rebuild-delivery-20261112.json`. Original timing estimates below are not measured results.
   Extractor changes currently require delete+reindex: new project id, full Ollama
   re-embed (~30 min), git history re-run (~50 min). Add an update_project mode (or tool)
   that re-runs extraction + process_ingest_stats from disk for ALL files but leaves
