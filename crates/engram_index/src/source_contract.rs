@@ -12,6 +12,7 @@ pub fn requires_script_call_contract(path: &std::path::Path) -> bool {
 
 /// Per-language facts required for second-pass import resolution.
 fn module_fact_key(path: &str) -> Option<&'static str> {
+    if std::path::Path::new(path).file_name().and_then(|p|p.to_str()).is_some_and(|p|matches!(p,"go.mod"|"go.work")) {return Some(engram_core::go_modules::CONFIG_KEY);}
     if std::path::Path::new(path).file_name().and_then(|p|p.to_str()).is_some_and(|p|p.eq_ignore_ascii_case("Cargo.toml")) {
         return Some(engram_core::rust_modules::CONFIG_KEY);
     }
@@ -20,12 +21,17 @@ fn module_fact_key(path: &str) -> Option<&'static str> {
         "json" => Some(engram_core::typescript_modules::CONFIG_KEY),
         "py" => Some(engram_core::python_modules::MODULE_KEY),
         "rs" => Some(engram_core::rust_modules::MODULE_KEY),
+        "go" => Some(engram_core::go_modules::MODULE_KEY),
         _ => None,
     }
 }
 
 fn current_module_fact(key: &str, raw: &str) -> bool {
-    if key == engram_core::rust_modules::MODULE_KEY {
+    if key == engram_core::go_modules::MODULE_KEY {
+        serde_json::from_str::<engram_core::go_modules::Module>(raw).is_ok_and(|m|m.version==1)
+    } else if key == engram_core::go_modules::CONFIG_KEY {
+        serde_json::from_str::<engram_core::go_modules::Config>(raw).is_ok_and(|m|m.version==1)
+    } else if key == engram_core::rust_modules::MODULE_KEY {
         serde_json::from_str::<engram_core::rust_modules::Module>(raw).is_ok_and(|m|m.version==1)
     } else if key == engram_core::rust_modules::CONFIG_KEY {
         serde_json::from_str::<engram_core::rust_modules::Manifest>(raw).is_ok_and(|m|m.version==1)

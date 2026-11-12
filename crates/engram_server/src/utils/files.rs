@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 fn default_exts() -> Vec<&'static str> {
     vec![
-        "rs", "py", "js", "ts", "tsx", "jsx", "mjs", "cjs", "go", "java", "cs", "vb", "ml",
+        "mod", "work", "rs", "py", "js", "ts", "tsx", "jsx", "mjs", "cjs", "go", "java", "cs", "vb", "ml",
         "mlinc", "c", "cpp", "cc", "cxx", "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx",
         "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "html", "htm", "css",
         "scss", "less", "cshtml", "vbhtml", "razor",
