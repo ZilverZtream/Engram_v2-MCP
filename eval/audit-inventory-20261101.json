@@ -9972,7 +9972,7 @@
         "Report correctness, false guidance, context/read cost and latency where actually measured; missing comparative productivity remains explicit."
       ],
       "remaining_eg14": "Bounded draft/QA handoff delivered; broader publication and evidence gaps remain open, not silently completed.",
-      "current_implementation_slice": {
+      "completed_implementation_slice": {
         "requirement": "Review the requested diff and disclose actual coverage; do not redirect an explicit patch review to unrelated working-tree changes.",
         "implementation_files": [
           "crates/engram_server/src/handlers/review_tools.rs",
@@ -9983,8 +9983,10 @@
           "Invalid controls/diff remain rejected.",
           "Empty staged review still reports omitted tracked/untracked changes."
         ],
-        "remaining": "EG24 current-producer quality and EG25 benefit are not closed by this correction."
-      }
+        "remaining": "EG24 current-producer quality and EG25 benefit are not closed by this correction.",
+        "delivery": "eval/ociusx-review-scope-fix-20261112.json"
+      },
+      "current_missing_behavior": "Existing automatic model execution is delivered, but CI covers collector protocol and current capture recipes target closed CodeMap/Blast. Reuse existing collector for original OX instruction/history/companion/diagnosis tasks; do not repeat old packets and call that current-build quality."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10037,7 +10039,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Authoritative execution scope corrected to original OciusX priorities; unsupported language expansion parked, existing deliveries and incomplete findings retained."
+      "evidence": "Scoped review fix deployed and verified through candidate/installed MCP; all owned fixtures and new release worktree closed/removed; parked work preserved."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -12917,6 +12919,7 @@
       "closed_tools": "Existing current-producer capture targets CodeMap/Blast. It is not selected for replay under current instructions.",
       "current_acceptance_failure": "Explicit empty patch review falsely scans unrelated checkout changes. Fix this original public review acceptance before treating existing regular checks as passing.",
       "other_failures": "Two review fixtures lack required managed-source publication; test-matrix fixture lacks extraction identity. Preserve failures, do not weaken runtime source admission."
-    }
+    },
+    "latest_ociusx_review_scope_delivery": "eval/ociusx-review-scope-fix-20261112.json"
   }
 }
