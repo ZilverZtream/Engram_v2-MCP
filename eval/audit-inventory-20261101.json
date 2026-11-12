@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING_NOT_DEPLOYED",
+      "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "original_requirement": "TODO33: batch/multi-get hot reads (method information, node lookups and document fetches) with a shared response token budget.",
       "missing_behavior": "get_method_info, resolve_id and get_chunk are individual public calls. No batch read handler/request/tool currently exists.",
       "implementation_files": [
@@ -10004,11 +10004,11 @@
       "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
       "isolation_reason": "Main checkout contains parked modern-language commits and working changes; runtime delivery must exclude them.",
-      "removal_condition": "After accepted delivery and merged/pushed source, verify clean unique-work preservation and remove via git worktree remove.",
+      "removal_condition": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master.",
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
       "scope_guard": "One accepted OciusX-relevant read workflow improvement. No CodeMap/Blast, target-language work, new benchmark, migration generator or editing pipeline.",
       "implementation_progress": {
-        "status": "IMPLEMENTED_FOCUSED_TESTS_PASSED_NOT_DEPLOYED",
+        "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
         "source_commit": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
         "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
         "native_tests": 4,
@@ -10016,7 +10016,7 @@
           "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\unit3.json",
           "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\integration3.json"
         ],
-        "public_mcp_verified": false,
+        "public_mcp_verified": true,
         "post_test_changes": [
           "README clarification only: complete means response delivery, not success of every read."
         ],
@@ -10025,11 +10025,14 @@
           "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
           "all_test_temps_removed": true,
           "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-          "removal": "After accepted delivery and merged/pushed source, verify clean unique-work preservation and remove via git worktree remove."
-        }
+          "removal": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master."
+        },
+        "installed_mcp_verified": true,
+        "real_ociusx_batch_verified": true
       },
-      "live_build_session": 16303,
-      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json"
+      "live_build_session": null,
+      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json",
+      "delivery_evidence": "eval\\ociusx-batch-read-delivery-20261112.json"
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10062,7 +10065,7 @@
       }
     ],
     "active_original_item": "TODO33 batch hot reads",
-    "next_user_visible_deliverable": "Batch method, graph identity and stored-document reads with one complete response budget.",
+    "next_user_visible_deliverable": "Select the next ready original OciusX item after checking existing implementation and delivery evidence once.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10081,7 +10084,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Implemented typed batch reads and shared complete-response budget; three unit and one real-handler integration tests passed, all owned test resources removed, source committed as83d00e7. Public MCP and deployment remain pending."
+      "evidence": "TODO33 built, candidate/installed13-call acceptance passed, actual OciusX3-read batch byte-equivalent and source/generation unchanged. Deployed; source pushed as41e9998. Shared source checkout retained for reuse with explicit cleanup condition."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13138,6 +13141,7 @@
       "outcome": "Both candidates produced identical changes; both passed frozen9 source and crosscheck15 full-bundle checks. No assistance advantage established. Current four-task evaluation also showed equal correctness and no matched implementation/QA benefit.",
       "decision": "Do not rerun CodeMap/Blast comparisons or chase a favorable metric. EG25 comparative benefit remains unestablished; advance the next ready original OciusX improvement.",
       "todo32": "Preserved unfinished; original tool_roi research defers deeper autonomous-edit machinery until a recurring OX task demonstrates need. Batch hot reads reuse existing services and directly address repeated read round trips."
-    }
+    },
+    "latest_batch_read_delivery": "eval\\ociusx-batch-read-delivery-20261112.json"
   }
 }

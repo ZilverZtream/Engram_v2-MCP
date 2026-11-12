@@ -1,0 +1,151 @@
+{
+  "status": "TODO33_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-12T18:27:40.172011+00:00",
+  "original_requirement": "TODO33: batch/multi-get hot reads (method information, node lookups and document fetches) with a shared response token budget.",
+  "source_commit": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
+  "main_merge_commit": "41e99988fdb16336307c4684bdf4b786c0cceccc",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "4f147134dc1dc35499ecf9bf44079ebd2b035c862bcb3decd085594e2f2c1273",
+    "manifest_sha256": "bd26d6ab716a2230ab464263b9702e711da69a5a29df1e27071f05e6391471c5",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "One typed batch of 1..=16 existing method-information, graph/document identity and stored-chunk reads. Mutation operations are not dispatchable.",
+    "Ordered correlation IDs with each complete underlying response or error. A failed read does not erase independent results.",
+    "Complete JSON byte-estimate budget, default8192/max65536 tokens. Results omitted whole retain exact recovery; citation/source text and guidance are never partially cut by the batch layer.",
+    "Budgets too small for all identities and recovery fail before reads execute. Existing read handlers retain their source, citation and freshness validations."
+  ],
+  "native_checks": {
+    "unit": 3,
+    "real_handler_integration": 1,
+    "final_receipts": [
+      "unit3.json",
+      "integration3.json"
+    ],
+    "initial_fixture_failures": "integration1 used a String where RelPath requires &str; integration2 used a noncanonical node ID. Both fixture failures and cleanup receipts retained. Production code unchanged by those corrections."
+  },
+  "public_mcp": {
+    "candidate_calls": 13,
+    "installed_calls": 13,
+    "ordinary_reads_compared": 4,
+    "batch_round_trips": 1,
+    "budget_limit_bytes": 3200,
+    "actual_budget_response_bytes": 2771,
+    "whole_results_omitted_and_recovered": 2,
+    "production_registry_selection_and_other_metadata_unchanged": true,
+    "first_candidate_failure": "Expected invalid-operation JSON-RPC rejection was not caught by the verifier. Exact failure frame retained; verifier corrected to check matching request ID, -32602 and expected message. Same binary passed candidate2 and installed."
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation_before_and_after": 3148,
+    "source_file": "Site/modules/dashboard/pages/admin/system/project/geolayers.aspx.vb",
+    "operations": [
+      "get_method_info(Page_Load)",
+      "resolve_id(file identity)",
+      "get_chunk(exact stored citation)"
+    ],
+    "ordinary_reads": 3,
+    "batch_round_trips": 1,
+    "exact_result_equality": true,
+    "response_bytes": 6160,
+    "batch_wall_seconds": 13.086539600044489,
+    "source_preserved": true
+  },
+  "limitations": [
+    "Sequential reads are not an atomic cross-tool snapshot; each response retains its own freshness semantics and recovery reads then-current state.",
+    "complete means all results were delivered, not that every read succeeded; each row reports its status.",
+    "Three reads in one round trip is established for the selected actual OciusX case. The observed13.09-second batch is not evidence of reduced end-to-end latency, model quality or productivity; no separate performance work selected.",
+    "Core preset is unchanged; batch_read is available in the default Full surface.",
+    "CodeRabbit authentication unavailable; local parent review performed, no independent remote-review claim.",
+    "Original EG24/25, full TODO31 database/trigger coverage and original19 resource/storage gates remain separately unfinished."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
+    "test_build_and_public_fixture_temps_removed": true,
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_state": "Clean; no untracked/ignored files or commits absent from master. Retained for reuse, not removed.",
+    "source_worktree_retention": "Reuse this one isolated delivery checkout while parked main-checkout work must remain excluded from runtime releases. Remove through Git when isolation is no longer needed, after checking clean status, ignored files and preservation of every source commit on origin/master.",
+    "package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\package",
+    "package_retention": "Retain pinned deployment package with receipts until reproduction/rollback provenance is reviewable without the assets.",
+    "normal_daemon": "Launched installed binary for normal use; follows existing idle lifecycle.",
+    "config_hold_released_without_content_change": true,
+    "previous_pair_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-647dc68511f44f71a7e53338c3c9dd5b",
+    "backup_retention": "Existing installer rollback retention; no preexisting directory deletion.",
+    "parked_work_unchanged": 9
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\contract.json",
+      "sha256": "d0c080cb105ea8b0cee4bf734fcf8f018c8a38a85a81dd7b7fd5e564708fa79e"
+    },
+    "unit3.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\unit3.json",
+      "sha256": "a2c1fca94fbe0460aed0cc77de25be992e2c8ea4962522c67015a1b9058bce22"
+    },
+    "integration3.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\integration3.json",
+      "sha256": "6a8566339b09ce9ccf3f8512d871241c257c39aefc72dcea62171ed02e473dc6"
+    },
+    "review.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\review.json",
+      "sha256": "05115a697fd9d2d5a99bffa1e668e19c6c1ee09ca32831f69af9f90feec950e2"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json",
+      "sha256": "03fc71162de49b22e2b78476f83191f89aa37f907b4f66a366d16c4a39606b0b"
+    },
+    "pair.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\pair.json",
+      "sha256": "23d8772c54b6feb9e96b83c83a0a40de8267b23bc7636f8772c65bd21d26a4df"
+    },
+    "source-validation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\source-validation.json",
+      "sha256": "38c4fad42627646542352f0ca42ceb41d30eea47aaa1bc2e7d8e94308d96935e"
+    },
+    "candidate/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\candidate\\acceptance.json",
+      "sha256": "012628d5872589330a05a19bf3e035300ad8f9c638b27b57226fcccabeafd033"
+    },
+    "candidate2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\candidate2\\acceptance.json",
+      "sha256": "a64950faef13529e40aced3ebfe795d0d25cc2ccb708c4b1b39fba55479ccebc"
+    },
+    "installed/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\installed\\acceptance.json",
+      "sha256": "e1d3e3be230129e24cde473f677fe6d77e31dec4202e1d604b26b38aaa1968b1"
+    },
+    "normal/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\normal\\acceptance.json",
+      "sha256": "88a7976a1d9b228a0f460982797b7c8229998e8fcfdaad1bb0a6a590f0f03a42"
+    },
+    "normal/batch.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\normal\\batch.json",
+      "sha256": "a6fc250044c4ea374ebc1ea32826fa7ea86b46b2b2644b22e99112e9bebb8985"
+    },
+    "normal-post-state/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\normal-post-state\\acceptance.json",
+      "sha256": "d475dd49960f487c0218389c7c5533ea7370c7fe834b420752d58858af131762"
+    },
+    "release-gates.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release-gates.json",
+      "sha256": "1b8c7cdcaba6468e12af8cfaac662fd0a67d24f0e0e5859979c07e1a264c7fe1"
+    },
+    "batch-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\batch-install-Upgrade.json",
+      "sha256": "6cce260833c5d058858b5fcde967aeaaf5dad37d2fcb1c1c116c7326e147cdef"
+    },
+    "batch-config-hold.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\batch-config-hold.json.released.json",
+      "sha256": "a622caed33bcd6350e9264a3d10a256b5b325b445f447f718ce950eda186847e"
+    },
+    "resource-accounting.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\resource-accounting.json",
+      "sha256": "42d6f62370d05d9b8e20cfb07e5b5f28abf5feb75d7e3c01cbf2831cb24b6011"
+    }
+  },
+  "next_action": "Continue the next ready original OciusX workflow/backlog item. Check existing implementation/evidence once before selecting it; no batch rerun or closed CodeMap/Blast work absent a concrete regression."
+}

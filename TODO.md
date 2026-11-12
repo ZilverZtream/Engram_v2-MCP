@@ -293,9 +293,13 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.
 
-- [ ] **33. Batch/multi-get endpoints** (M)
-  `access_layer_tools.rs`. `get_method_info` × 10 = 10 round trips. Accept arrays in the
-  hot read tools (method info, node lookups, doc fetches) with a shared token budget.
+- [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
+  `batch_read` composes 1–16 typed `get_method_info`, `resolve_id` and `get_chunk`
+  reads with one complete response budget, independent errors and exact recovery
+  for whole omitted results. Candidate and installed public MCP checks pass;
+  one actual OciusX batch matched three individual responses. No atomic snapshot
+  or latency/productivity improvement is claimed.
+  Evidence: `eval/ociusx-batch-read-delivery-20261112.json`.
 
 - [~] **34. Next-tool hints in every response** (S–M) - *hot-path tier done 2026-06-13: success-path next: footers on search_memory (-> get_chunk/resolve_id/concept_footprint), find_symbol_references (-> detect_incomplete_changes/check_edit_safety), blast radius report (-> edit_safety/references/begin_edit_session); planning tools already had them; error paths covered by P0 #7. Long tail (~60 specialty tools) remains.*
   Some tools have `Next:` recommendations; most don't. Standardize a `next_tools` field —
