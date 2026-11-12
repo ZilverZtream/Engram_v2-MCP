@@ -186,9 +186,11 @@ they feed blast radius, edit safety, and the ADP gates.
   cycles in blast radius and migration ordering (cycles are exactly where naive
   strangler-fig plans fail).
 
-- [ ] **21. Return-type / parameter-type edges** (L)
+- [x] **21. Return-type / parameter-type edges** (L)
   `parsing.rs`, extractors. Enables type-boundary reasoning (strangler-fig seams, "what
   flows into this method"). Big, but unlocks the next tier of graph value.
+
+  Delivery: `eval/p121-signature-types-delivery-20261112.json` (source `7f9aa10`; candidate and installed public acceptance passed).
 
 - [ ] **22. Lightweight def-use (data-flow) edges** (L)
   New post-ingest pass. Today data-flow is call edges + state/SQL edges only. Even

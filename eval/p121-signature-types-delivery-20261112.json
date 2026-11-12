@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-12T02:21:57.854956+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-12T02:43:26.349507+00:00",
   "original_requirement": "TODO21: return-type / parameter-type edges for type-boundary reasoning and what flows into a method.",
   "behavior": "Callable declarations emit authored type references with full expressions and parameter positions. Explicit type_definition edges offer unique qualified type candidates, with ambiguity retraction and no compiler-proof claim. Existing find_references exposes typed evidence. VB sidecar/fallback and supported typed syntax paths participate.",
   "validation": {
@@ -32,22 +32,95 @@
     "tools/vb_roslyn_sidecar/AstEmitter.cs": "a61e0d00032643dfd29d7a3334d3d28b6818845129b6244208c10901419ef410",
     "tools/vb_roslyn_sidecar/Program.cs": "9d4c0af4ba0e76272336a0dcb8321b30ba9d050a311865379321637a7aa2b90c"
   },
-  "source_commit": null,
+  "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103",
   "limitations": [
     "No body type inference or def-use analysis (TODO22 remains separate).",
     "Type-definition links are syntax/name candidates, not semantic compiler proof. Unsupported/constructed references and VB fallback can remain unbound while preserving their authored expressions.",
     "Overload acceptance covers distinct declaration source lines using the existing graph identity; the preexisting same-name/same-line identity limitation is not claimed repaired.",
     "No independent external review, production reindex or full backlog completion claim."
   ],
-  "outstanding": [
-    "Corrected release server build and versioned package; matching sidecar already built and unchanged.",
-    "Unchanged public candidate and installed contracts; deployment and normal daemon identity.",
-    "Final owned-scratch accounting."
-  ],
+  "outstanding": [],
   "prior_source_commit": "af93faa0a688d52a29d67bdb8bde422fa63ae28d",
   "candidate_failure": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate\\acceptance.json",
     "sha256": "b6b77470d2b7faab996a98255f8eb3fb1423628a1dc74410887e3392f6deee6e"
   },
-  "correction": "Declaration-line source binding preserves overload ownership; both typed-handler regressions pass native/no-vector."
+  "correction": "Declaration-line source binding preserves overload ownership; both typed-handler regressions pass native/no-vector.",
+  "demonstrated": {
+    "candidate-v2": {
+      "sidecar_used": true,
+      "old_index_upgrade_preserved_storage": true,
+      "repeated_parameters_preserved": true,
+      "overloads_distinct": true,
+      "type_parameters_and_ambiguity_unbound": true,
+      "incremental_signature_replaced": true,
+      "graph_rebuild_preserved_contracts": true,
+      "source_search_vector_files_preserved": 36,
+      "embedding_requests_during_rebuild": 0
+    },
+    "installed-v2": {
+      "sidecar_used": true,
+      "old_index_upgrade_preserved_storage": true,
+      "repeated_parameters_preserved": true,
+      "overloads_distinct": true,
+      "type_parameters_and_ambiguity_unbound": true,
+      "incremental_signature_replaced": true,
+      "graph_rebuild_preserved_contracts": true,
+      "source_search_vector_files_preserved": 36,
+      "embedding_requests_during_rebuild": 0
+    }
+  },
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-overload-source-20261112.json",
+      "sha256": "da5bd861e2891215276e678b7deaf6de479fe24f9cf985ccd0dab5db16e9eafd"
+    },
+    "sidecar_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\sidecar-build.json",
+      "sha256": "5b867c71508c11af108eaff450ce8bb679b81184d85291a66b5d87ebf25cf641"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\pair-v2.json",
+      "sha256": "fdb64ea70437ccebc3643d971bb178e43d8f3729243bf513a0b23e4224cd0a21"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate-v2\\acceptance.json",
+      "sha256": "fd139d641959496911872fe0165af59a627f1aaf16d8523aa09a4dbeed0de7f4"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\installed-v2\\acceptance.json",
+      "sha256": "dcd8811bcc9d510a9e6aa1a238ff7a58ce3923708d9492875d4c5177c9b0ad24"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\normal\\acceptance.json",
+      "sha256": "dc97e536e41a8bb7edaa5fb64b3341edfc37b4661a1c7fba6829711abeac0dd4"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\release-gates.json",
+      "sha256": "6810050ca55b286d9f290221a28b8d7bd2c4e677903c4644f512426ccbbabaa5"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\install-result.json",
+      "sha256": "b65ba84a7a6f6548f789f1025520d23ac271f2469109e24600d429b96666159b"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-config-hold-20261112.json.released.json",
+      "sha256": "a26a6f4a4e6d419bc930ad4ec6f855e9ccc3990d7fcd22c72bef53e4a80cbd56"
+    },
+    "server_sha256": "6d15aae263514edcbaa031c67c5e2c19f6febcc856027684edda06599c6c8791",
+    "manifest_sha256": "d52469f4b78cf22668c2a861d441ab854c93fba7a0939c0f05e18f9b8da2524f",
+    "all_manifest_assets_verified": 215,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "sidecar_publish_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-f9c6145baf0b4edab3f59f69d19f9787",
+    "accounting": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\resource-accounting.json",
+      "sha256": "b481ee16459cd4727c39f90852929fd2fcc3da2b1d571b8d0865c12326febdb2"
+    }
+  }
 }

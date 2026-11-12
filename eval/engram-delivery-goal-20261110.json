@@ -41,9 +41,9 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO21 return-type / parameter-type edges",
-    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
-    "remaining": "Overload correction validated native/no-vector. Build corrected server, verify unchanged public candidate/installed acceptance, deploy and record evidence. Full backlog remains active.",
+    "remaining": "TODO21 delivered. Select the next original accepted backlog item from current_execution_focus; broader goal remains active.",
     "receipt": "eval/p121-signature-types-delivery-20261112.json"
   }
 }
