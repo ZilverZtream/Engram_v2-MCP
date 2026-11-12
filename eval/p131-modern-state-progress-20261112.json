@@ -1,8 +1,8 @@
 {
-  "status": "PARTIAL_IMPLEMENTATION_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-12T14:04:39.809405+00:00",
+  "status": "PARKED_BY_USER_OCIUSX_SCOPE_CORRECTION_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T14:13:29.587022+00:00",
   "item": "Original TODO27 modern state tracking",
-  "previous_goal_turn_classification": "progress: recovered terminal state3 receipt proving nine extraction tests passed; next action is public integration, not rerunning extraction",
+  "previous_goal_turn_classification": "progress: 6e4e114 pushed with native/no-vector modern public tracing and ES import bindings; clean checkpoint confirmed at continuation start",
   "implemented": [
     "Environment and file-local mutable module/singleton extraction in JS/TS, Python, Rust and Go using existing parser/import/shadow facts",
     "File-local import-bound React context and Redux Toolkit reducer/store/selector/dispatch extraction",
@@ -10,7 +10,8 @@
     "Category-aware public applicability/discovery, modern missing-key guidance and indexed access evidence with source hash",
     "Incremental purge transfers Environment state-node observation ownership to a surviving unchanged reader/writer, preserving source-declared ownership for module/framework states",
     "JS/TS retained imported-state observations with existing source/import/shadow evidence; static ES-module resolver reused for Module/Singleton/ReactContext/Redux reads and context providers",
-    "State extraction version 2 forces reacquisition of retained import facts; unresolved state imports remain unresolved graph edges with reasons and cannot enter name-only symbol binding"
+    "State extraction version 2 forces reacquisition of retained import facts; unresolved state imports remain unresolved graph edges with reasons and cannot enter name-only symbol binding",
+    "Python state references now retain existing lexical import evidence and resolve through the existing package/relative-import/reexport rules; source contract version 3 reacquires these facts"
   ],
   "verified": {
     "state3": {
@@ -371,13 +372,16 @@
     }
   },
   "current_verification": {
-    "status": "terminal",
-    "last_label": "nativepublic1",
-    "last_session_id": 42708,
-    "source_matches_final_native_receipt": true
+    "status": "TERMINAL",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\python1-result.json",
+    "exit_code": 0,
+    "source_stable": true,
+    "fixture_root_removed": true,
+    "tests_passed": 6,
+    "limit": "Uncommitted Python extension parked; no further language work or deployment selected."
   },
   "unfinished": [
-    "Cross-file Python/Rust/Go state bindings remain unimplemented; local state and environment behavior are verified in those languages.",
+    "Python cross-file state implemented but under verification. Cross-file Rust/Go state remains unimplemented.",
     "Imported Redux dispatch effects remain explicitly unresolved; finish supported source-backed effects and retained framework correctness findings before closure.",
     "Candidate and installed MCP verification, release deployment and installed identity/cleanup evidence remain pending.",
     "Four broader top10 review/test-matrix failures are retained in public3 evidence; no claim of a green full audit suite, full workspace tests or original backlog closure."
@@ -476,5 +480,6 @@
       "exit_code": 0,
       "fixture_root_removed": true
     }
-  ]
+  ],
+  "scope_correction": "eval/ociusx-priority-correction-20261112.json"
 }

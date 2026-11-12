@@ -68,9 +68,15 @@ impl Engram {
             // The requested source (default: staged) held nothing. Work that is
             // unstaged or untracked was not examined; name it instead of
             // reporting a clean "no changes".
-            let unexamined =
+            // An explicit patch (including empty inline input) is the whole
+            // submitted scope. Do not replace it with unrelated checkout work.
+            // Git selectors still disclose changes omitted by that selector.
+            let unexamined = if matches!(req.diff.trim(), "staged" | "unstaged" | "head") {
                 crate::services::pre_commit_review_service::working_tree_changes(&project_dir)
-                    .unwrap_or_default();
+                    .unwrap_or_default()
+            } else {
+                Vec::new()
+            };
             if !unexamined.is_empty() {
                 let hint = format!(
                     "The requested diff ({}) is empty, but the working tree has {} changed file(s) that were not examined: {}. Rerun with diff=\"unstaged\" to review them.",
@@ -99,7 +105,7 @@ impl Engram {
                         "verdict": "NO_CHANGES", "findings": [], "gate_status": [],
                         "summary": { "files_analysed": 0, "gates_run": 0, "total_findings": 0 },
                         "coverage": {"submitted_files": [], "textual_diff_files": [], "unexamined_files": [], "static_analysis": "not_run", "compilation": "not_run", "test_execution": "not_run"},
-                        "note": "No changes detected; review gates were not run."
+                        "note": "No changes in the requested diff; review gates were not run. This does not certify the working tree as unchanged or reviewed."
                     })
                     .to_string(),
                 )]));

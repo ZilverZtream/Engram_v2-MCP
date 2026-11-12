@@ -1,0 +1,59 @@
+{
+  "status": "OCIUSX_SCOPE_RESTORED_GENERAL_LANGUAGE_EXPANSION_PARKED",
+  "at_utc": "2026-11-12T14:20:06.505594+00:00",
+  "user_requirement": "The 5 or 10 most important updates/fixes to make Engram better for OciusX; OciusX does not use Rust, Go, Python or Java.",
+  "scope_error": "Broader TODO membership was incorrectly treated as sufficient priority for work unrelated to OciusX.",
+  "original_research": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json",
+  "observed_ociusx_stack": [
+    "OciusX.sln declares .NET Framework 4.8 web site",
+    "App_Code contains VB.NET source",
+    "ts and modules/dashboard contain TypeScript configurations"
+  ],
+  "preserved_work": {
+    "committed": "6e4e11417c78d16c2067b068a1e99e4cc70a706e; modern-state checkpoint pushed, not deployed",
+    "uncommitted": "Python imported-state extension retained in this checkout; parked, not deployed",
+    "last_test": "python1-result.json: exit 0, source_stable true, fixture_root_removed true; six tests passed",
+    "general_backlog": "Preserved as unfinished; not priority work under this OciusX correction"
+  },
+  "original_priorities": [
+    {
+      "item": "Task-scoped OciusX instructions across planning, editing and review",
+      "state": "Installed delivery recorded for EG01; preserve remaining limits"
+    },
+    {
+      "item": "Whole change-set response budgets with exact recovery",
+      "state": "Recorded implemented/deployed, EG02/12"
+    },
+    {
+      "item": "Decision-aware review with scoped exceptions",
+      "state": "Recorded implemented/deployed, EG19"
+    },
+    {
+      "item": "Responsive history with explicit capability fallback",
+      "state": "Recorded implemented/deployed, EG20/21"
+    },
+    {
+      "item": "Tool presets that include prerequisite tools",
+      "state": "Recorded implemented/deployed, EG18"
+    },
+    {
+      "item": "Evidence-backed area instruction drafts for existing OX QA",
+      "state": "Bounded installed draft/QA handoff delivered; full EG14 open; current-checkout publication and evidence gaps retained",
+      "evidence": "eval/eg14-draft-delivery-20261111.json"
+    },
+    {
+      "item": "Instruction ownership, scope, freshness and maintenance",
+      "state": "Bounded deliveries recorded; broader acceptance remains partial",
+      "evidence": [
+        "eval/eg27-prose-reference-fix-20261111.json",
+        "eval/eg31-installed-maintenance-delivery-20261111.json"
+      ]
+    },
+    {
+      "item": "Regular accepted-task checks and demonstrated OX benefit",
+      "state": "EG24 regular verification unfinished; EG25 comparative benefit not established"
+    }
+  ],
+  "scope_guard": "No further Java/Python/Rust/Go language expansion, modern-state deployment, CodeMap or Blast improvement absent an explicit OciusX need or concrete regression. Engram implementation language Rust is distinct from adding Rust target-language support.",
+  "next_item": "EG24: integrate the existing frozen OciusX accepted-task checks into regular verification, reusing retained cases and verifier; no new evaluation platform or expanded benchmark."
+}

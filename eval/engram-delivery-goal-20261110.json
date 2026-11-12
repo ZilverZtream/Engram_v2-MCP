@@ -40,12 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
-    "finding": "TODO27 Modern state tracking",
-    "status": "PARTIAL_IMPLEMENTATION_NATIVE_AND_NO_VECTOR_VERIFIED",
-    "baseline": "eval/p131-modern-state-baseline-20261112.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
-    "remaining": "Continue retained TODO27 cross-file Python/Rust/Go state binding and imported Redux dispatch effects, resolve retained framework correctness findings, then verify candidate/installed MCP behavior and deploy. Preserve verified state/public/shared-resolver behavior and the full original backlog.",
-    "progress": "eval/p131-modern-state-progress-20261112.json"
+    "finding": "EG24 regular OciusX accepted-task verification",
+    "status": "SELECTED_ORIGINAL_OCIUSX_PRIORITY",
+    "remaining": "EG24: integrate the existing frozen OciusX accepted-task checks into regular verification, reusing retained cases and verifier; no new evaluation platform or expanded benchmark.",
+    "scope_guard": "No further Java/Python/Rust/Go language expansion, modern-state deployment, CodeMap or Blast improvement absent an explicit OciusX need or concrete regression. Engram implementation language Rust is distinct from adding Rust target-language support."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -66,5 +64,14 @@
       "progress": "eval/p128-project-capabilities-progress-20261112.json",
       "receipt": "eval/p128-project-capabilities-delivery-20261112.json"
     }
-  ]
+  ],
+  "retained_todo27_at_ociusx_scope_correction": {
+    "finding": "TODO27 Modern state tracking",
+    "status": "PARTIAL_IMPLEMENTATION_NATIVE_AND_NO_VECTOR_VERIFIED",
+    "baseline": "eval/p131-modern-state-baseline-20261112.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
+    "remaining": "Continue retained TODO27 cross-file Python/Rust/Go state binding and imported Redux dispatch effects, resolve retained framework correctness findings, then verify candidate/installed MCP behavior and deploy. Preserve verified state/public/shared-resolver behavior and the full original backlog.",
+    "progress": "eval/p131-modern-state-progress-20261112.json"
+  },
+  "latest_user_scope_correction": "eval/ociusx-priority-correction-20261112.json"
 }

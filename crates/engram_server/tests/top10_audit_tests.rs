@@ -737,6 +737,11 @@ async fn test_matrix_withholds_known_stale_axes_and_labels_legacy_evidence() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn review_rejects_invalid_controls_and_returns_json_for_empty_patch() {
     let (tmp, state) = build_state();
+    // Keep this fixture independent of any enclosing repository. Untracked
+    // checkout work must not replace an explicitly submitted empty patch.
+    git2::Repository::init(tmp.path().join("project")).unwrap();
+    std::fs::write(tmp.path().join("project/Unrelated.vb"), "Class Unrelated\nEnd Class\n")
+        .unwrap();
     std::fs::write(tmp.path().join("project/empty.patch"), "").unwrap();
     std::fs::write(
         tmp.path().join("project/invalid.patch"),
@@ -760,19 +765,32 @@ async fn review_rejects_invalid_controls_and_returns_json_for_empty_patch() {
                 .is_err()
         );
     }
-    let result = engram
-        .handle_pre_commit_review(
-            serde_json::from_value(
-                json!({"project_id": PID, "diff": "empty.patch", "output_json": true}),
-            )
-            .unwrap(),
-        )
-        .await
-        .unwrap();
-    let value: serde_json::Value =
-        serde_json::from_str(&result.content[0].as_text().unwrap().text).unwrap();
-    assert_eq!(value["verdict"], "NO_CHANGES");
-    assert_eq!(value["summary"]["gates_run"], 0);
+    for diff in ["empty.patch", "", " \n"] {
+        for output_json in [true, false] {
+            let result = engram
+                .handle_pre_commit_review(
+                    serde_json::from_value(json!({
+                        "project_id": PID, "diff": diff, "output_json": output_json
+                    }))
+                    .unwrap(),
+                )
+                .await
+                .unwrap();
+            let text = &result.content[0].as_text().unwrap().text;
+            assert!(!text.contains("Unrelated.vb"), "{text}");
+            assert!(!text.contains("Rerun"), "{text}");
+            if output_json {
+                let value: serde_json::Value = serde_json::from_str(text).unwrap();
+                assert_eq!(value["verdict"], "NO_CHANGES");
+                assert_eq!(value["summary"]["gates_run"], 0);
+                assert_eq!(value["coverage"]["submitted_files"], json!([]));
+                assert_eq!(value["coverage"]["test_execution"], "not_run");
+                assert!(value["note"].as_str().unwrap().contains("requested diff"));
+            } else {
+                assert!(text.contains("No changes detected in the requested diff"), "{text}");
+            }
+        }
+    }
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

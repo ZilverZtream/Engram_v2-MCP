@@ -1,0 +1,29 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T14:27:16.174777+00:00",
+  "requirement": "Keep pre_commit_review within an explicitly submitted patch; preserve omitted-working-tree disclosure for Git selectors.",
+  "before": "An empty patch file triggered checkout status and redirected the agent to unrelated changes.",
+  "after": "Empty file/inline patch returns NO_CHANGES scoped to requested diff with gates/tests not run; staged omissions still return NOT_REVIEWED.",
+  "verification": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\oxreview1-result.json",
+      "sha256": "4778ce073ca15fbc0878c6c1602909d3a064010410408143421458e206e80da1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\oxreview2-result.json",
+      "sha256": "003c6696e4681b74ddb5b91732d9f85df862856991eee10cd9266a00b4be529d",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    }
+  ],
+  "source_review": "Local diff review completed. Trusted host CodeRabbit auth status returned authenticated=false; no external review ran.",
+  "deployment": "Pending: source includes parked modern-state checkpoint 6e4e114; do not install that unrelated expansion with this fix. Preserve its committed and uncommitted work before preparing a scoped release.",
+  "remaining": "Original EG24 regular current-producer quality and EG25 matched OX benefit remain incomplete. Existing no-vector CI already selects these public acceptance tests.",
+  "temporary_resources": {
+    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
+    "fixtures": "Both new test roots removed after completion.",
+    "evidence": "Logs and receipts retained for delivery traceability; cleanup after delivery evidence is superseded."
+  }
+}
