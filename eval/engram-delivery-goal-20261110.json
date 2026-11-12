@@ -41,10 +41,11 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO25 Language fixture corpora beyond WebForms",
-    "status": "SELECTED_IMPLEMENTATION_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_CI_OBSERVATION_PENDING",
     "baseline": "eval/p129-language-corpora-baseline-20261112.json",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112",
-    "remaining": "Inspect the existing portable integration-test fixture lifecycle and CI jobs once, then add the four authored corpora and their shared acceptance target."
+    "remaining": "Commit/push the validated corpus/CI implementation, inspect matching remote workflow runs, then record the original TODO25 delivery with explicit CI limits.",
+    "progress": "eval/p129-language-corpora-progress-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO24 Project-type detection and capability gating",

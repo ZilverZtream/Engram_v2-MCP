@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "description": "Imported primary/alternate calls must reach distinct source functions; the same-name decoy is never a target. The local helper is also resolved.",
+  "indexing_preset": "rust",
+  "source_files": [
+    "Cargo.toml",
+    "src/alternate.rs",
+    "src/decoy.rs",
+    "src/lib.rs",
+    "src/primary.rs"
+  ],
+  "symbols": {
+    "primary_save": {
+      "file": "src/primary.rs",
+      "name": "save",
+      "line": 1
+    },
+    "alternate_save": {
+      "file": "src/alternate.rs",
+      "name": "save",
+      "line": 1
+    },
+    "decoy_save": {
+      "file": "src/decoy.rs",
+      "name": "save",
+      "line": 1
+    },
+    "run_primary": {
+      "file": "src/lib.rs",
+      "name": "run_primary",
+      "line": 6
+    },
+    "run_alternate": {
+      "file": "src/lib.rs",
+      "name": "run_alternate",
+      "line": 7
+    },
+    "run_local": {
+      "file": "src/lib.rs",
+      "name": "run_local",
+      "line": 8
+    },
+    "helper": {
+      "file": "src/lib.rs",
+      "name": "helper",
+      "line": 9
+    }
+  },
+  "calls": {
+    "run_primary": [
+      "primary_save"
+    ],
+    "run_alternate": [
+      "alternate_save"
+    ],
+    "run_local": [
+      "helper"
+    ]
+  }
+}

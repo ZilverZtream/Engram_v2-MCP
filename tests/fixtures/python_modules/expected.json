@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "description": "Imported primary/alternate calls must reach distinct source functions; the same-name decoy is never a target. The local helper is also resolved.",
+  "indexing_preset": "python",
+  "source_files": [
+    "alternate.py",
+    "decoy.py",
+    "main.py",
+    "primary.py",
+    "pyproject.toml"
+  ],
+  "symbols": {
+    "primary_save": {
+      "file": "primary.py",
+      "name": "save",
+      "line": 1
+    },
+    "alternate_save": {
+      "file": "alternate.py",
+      "name": "save",
+      "line": 1
+    },
+    "decoy_save": {
+      "file": "decoy.py",
+      "name": "save",
+      "line": 1
+    },
+    "run_primary": {
+      "file": "main.py",
+      "name": "run_primary",
+      "line": 3
+    },
+    "run_alternate": {
+      "file": "main.py",
+      "name": "run_alternate",
+      "line": 5
+    },
+    "run_local": {
+      "file": "main.py",
+      "name": "run_local",
+      "line": 7
+    },
+    "helper": {
+      "file": "main.py",
+      "name": "helper",
+      "line": 9
+    }
+  },
+  "calls": {
+    "run_primary": [
+      "primary_save"
+    ],
+    "run_alternate": [
+      "alternate_save"
+    ],
+    "run_local": [
+      "helper"
+    ]
+  }
+}
