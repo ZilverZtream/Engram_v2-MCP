@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-12T00:47:12.725497+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-12T01:04:28.056859+00:00",
   "original_requirement": "TODO16c: source indexing and graph extraction survive an unavailable embedding backend; failed batches remain lexical-only with accurate counts and recovery guidance.",
   "behavior": "Provider-boundary failures preserve accumulated source extraction and lexical writes while counting the entire unwritten vector batch. Successful batches remain. Source/history direct and job results expose degradation; vector_only repairs retained namespaces. Cancellation and incompatible storage/admission failures are not degraded success.",
   "baseline": {
@@ -21,18 +21,93 @@
     "sha256": "932f259c10cce159e138ce87bb892cbc15ec7bf0abab03b86074dad91ca896a4"
   },
   "helper_review": {
-    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\helper-review.json",
-    "sha256": "03b560fe807c82cecc2fbd3b039db0703808a14d793a96a9d6d1af0d388ebc8e"
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\helper-review-v3.json",
+    "sha256": "a2254972eb5f09ed0c7543d047e27d3b90b7d8f4ed29239379e2f4135baa8807"
   },
   "validation": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\source-validation.json",
     "sha256": "cdeecb2e29bbe05189ae072c82bcff2aa51e626a2e12ff2103e8f36c0cf34dc3"
   },
-  "source_commit": null,
-  "outstanding": [
-    "Release build/package.",
-    "Candidate and installed public outage/recovery acceptance.",
-    "Deployment and normal daemon identity verification."
-  ],
-  "limitations": "No production source reindex, new retry policy, large-project latency claim, full backlog/19-gate completion or independent external review claim."
+  "source_commit": "6b0e44a44e0f0b5a60240dbd02befc2ce29b35e0",
+  "outstanding": [],
+  "limitations": "No production source reindex, new retry policy, large-project latency claim, full backlog/19-gate completion or independent external review claim.",
+  "failed_candidate": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\candidate\\acceptance.json",
+      "sha256": "56b8c7a29b2ecc81d5b4969567c0ead191330177b1b37734ae93b3e80a068c5f"
+    },
+    "reason": "Verifier initially included expected vector-route metadata replacement in lexical-byte comparison. Exact lexical/source boundary corrected; all failed-run fixture resources closed and removed."
+  },
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-source-20261112.json",
+      "sha256": "59e41c0372abed5c7dd7a33eb6b45c7619bdebb27d6d0006eb995ba01b11bf56"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\pair.json",
+      "sha256": "241e8b398a88392afa0d5e216e7a9f8ef1280258039412259ac6f4fc3e989af4"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\candidate-v2\\acceptance.json",
+      "sha256": "c80a74b44dfd986b7dd7f948ab37adb4356337a9485e3db7491fc512cb66b03d"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\installed\\acceptance.json",
+      "sha256": "0f7c7f3a2cd39c74567237b4043d9de9ee222ccaf118c0a2ffffa4938ae9934d"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\normal\\acceptance.json",
+      "sha256": "6cf91a4b2e238df9b2e2880dc1528eecb89215552dfd90f1e29d9279027be571"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\release-gates.json",
+      "sha256": "33fd189890caa6b85d67850304793a63e223e2fb80fdef449f335187fcd4b37b"
+    },
+    "release_helper_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\release-helper-review.json",
+      "sha256": "d63ed6aea34a95a80679e96249873d7a3d7fa2265c2989a43fe08bdadb2af0ee"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\install-result.json",
+      "sha256": "fd0a74ec0d9e872c5be35710fc2adb6750f9a9b3674c1e72bdd5173fa2a06d5f"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-config-hold-20261112.json.released.json",
+      "sha256": "12feb29c61a199d858624f5a9dd5a9084bc835febf73080a90895b964ee94434"
+    },
+    "server_sha256": "cab31b4b88561629ccc7531cb7d88e7863d8c1c6fca3a1f92a08aa74f73ed1b7",
+    "manifest_sha256": "39cc41c6a80e863719d3834bad20af3186434f364c54b124d17d3175056e1b17",
+    "all_manifest_assets_verified": 215,
+    "unchanged_native_sidecar_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "demonstrated": {
+    "candidate-v2": {
+      "initial_unembedded_chunks": 2,
+      "update_unembedded_chunks": 1,
+      "history_unembedded_docs": 3,
+      "lexical_files_preserved": 15,
+      "source_and_history_identities_preserved": true,
+      "graph_preserved_through_vector_repair": true,
+      "semantic_search_recovered": true,
+      "no_repair_background_jobs": true
+    },
+    "installed": {
+      "initial_unembedded_chunks": 2,
+      "update_unembedded_chunks": 1,
+      "history_unembedded_docs": 3,
+      "lexical_files_preserved": 15,
+      "source_and_history_identities_preserved": true,
+      "graph_preserved_through_vector_repair": true,
+      "semantic_search_recovered": true,
+      "no_repair_background_jobs": true
+    }
+  },
+  "temporary_resources": {
+    "owned_public_fixtures_closed_and_removed": true,
+    "release_build_owned_temp_removed": true,
+    "retained_install_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c31ee277d60c4257b4eb7f2613747c9b",
+    "retention_condition": "Keep complete rollback pair and diagnostic evidence. Preexisting-folder deletion still requires exact-path approval."
+  }
 }
