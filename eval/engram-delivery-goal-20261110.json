@@ -43,7 +43,7 @@
     "finding": "TODO21 return-type / parameter-type edges",
     "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
-    "remaining": "Build matched server/sidecar, verify public candidate and installed behavior, deploy and record evidence. Full backlog remains active.",
+    "remaining": "Overload correction validated native/no-vector. Build corrected server, verify unchanged public candidate/installed acceptance, deploy and record evidence. Full backlog remains active.",
     "receipt": "eval/p121-signature-types-delivery-20261112.json"
   }
 }

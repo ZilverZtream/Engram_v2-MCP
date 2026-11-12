@@ -834,6 +834,11 @@ pub(crate) async fn prepare_ingest_graph(
             let declared_source = edge.metadata.as_ref()
                 .and_then(|metadata| metadata.get("source_declaration_line"))
                 .and_then(|line| line.parse::<u32>().ok())
+                // Signature edges are authored on the declaration itself.
+                // Use that location to distinguish overloads before attempting
+                // the name-based callable resolver.
+                .or_else(|| matches!(edge.kind.as_str(), "returns_type" | "parameter_type")
+                    .then_some(edge.source_start_line))
                 .and_then(|line| {
                     let candidates = symbols_by_name.get(edge.source_name.as_str())?;
                     let mut matches = candidates.iter().filter(|candidate| {
@@ -1601,6 +1606,43 @@ mod prepared_graph_tests {
             stats.edges.extend(edges.into_iter().map(|edge| (path.clone(), edge)));
         }
         stats
+    }
+
+    #[tokio::test]
+    async fn signature_types_keep_overloaded_method_contracts_separate() -> anyhow::Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let result = async {
+            let (state, _events) = AppState::new(engram_core::Config {
+                data_dir: temporary.path().join("data"),
+                allowed_roots: vec![temporary.path().to_path_buf()],
+                embedding_backend: "fts_only".into(), ..Default::default()
+            })?;
+            let stats = signature_stats("namespace Contracts { class Service {\n Response Route(Request request) { return null; }\n Request Route(Response response) { return null; }\n} }");
+            process_ingest_stats(&state, "overloads", 4, &stats).await?;
+            let app = crate::tools::Engram::new(state.clone());
+            let methods = state.graph.query_nodes("overloads", Some("function"), Some("Route"), None, 10)?;
+            assert_eq!(methods.len(), 2);
+            for method in methods {
+                let (parameter, returned) = match method.start_line {
+                    2 => ("Request", "Response"),
+                    3 => ("Response", "Request"),
+                    line => panic!("Unexpected overload declaration line: {line}"),
+                };
+                for (kind, expected) in [("parameter_type", parameter), ("returns_type", returned)] {
+                    let reply = app.handle_find_references(serde_json::from_value(serde_json::json!({
+                        "project_id":"overloads", "node_id":method.node_id, "edge_kind":kind, "direction":"out"
+                    }))?).await.map_err(|error| anyhow::anyhow!("{error}"))?;
+                    let displayed: serde_json::Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
+                    let edges = displayed["edges"].as_array().unwrap();
+                    assert_eq!(edges.len(), 1, "Each overload owns exactly its authored {kind}");
+                    assert_eq!(edges[0]["target"]["name"], expected);
+                    assert_eq!(edges[0]["source"]["line"], method.start_line);
+                }
+            }
+            Ok(())
+        }.await;
+        temporary.close()?;
+        result
     }
 
     #[tokio::test]
