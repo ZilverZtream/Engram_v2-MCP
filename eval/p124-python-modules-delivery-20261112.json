@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "TODO23 Python import/module call resolution",
+  "at_utc": "2026-11-12T06:31:26.764978+00:00",
+  "source_commit": "e95b3d5f1f8dd08bb9affd19f09e2bc8fe6091fe",
+  "source_sha256": {
+    "crates/engram_core/src/python_modules.rs": "02547b7f5a7fc0632482f967193cd83cdde4d844eabbc88ae9bd70b695ac6182",
+    "crates/engram_index/src/parsing/python_modules.rs": "5c814c9bc7ec3bd4a8c1e2bef7711012042b48d6f566e0a788050a62a39279f8",
+    "crates/engram_index/src/parsing.rs": "de66a170ab3301735aad3ddeb40beabccb276c67a65818d5842171d4693243dd",
+    "crates/engram_index/src/source_contract.rs": "7eb01a24bbdf2cac5945160e86480a4884dd33fda94a6c2a183789b0456810ff",
+    "crates/engram_graph/src/store/python_modules.rs": "62e94380a22fa39b68a5a301802ef58306eea5f15ec249e8c7bed7504bd35b93",
+    "crates/engram_graph/src/store.rs": "94fa6b1afd1b5d1f0337c425644c601dd525fadb8902ddf81d33ca3b75b7adcb",
+    "crates/engram_server/src/services/ingest_service.rs": "5ce194ce16791897a234c567a9d627da9ece218f41e78db0038c9802bda3944f",
+    "crates/engram_server/src/handlers/graph_tools.rs": "c73bdaa0f3886d9e0121106bc60dccc6606102612d97c70caadbb3bde16f664d",
+    "crates/engram_core/src/lib.rs": "ba7043888c285c8514b92ca7e12b4f6efce9d08aa473424de85083ace815a19a",
+    "crates/engram_server/src/services/ingest_service/python_module_tests.rs": "899bdab3ed62c81884e5612b124ba66ef39bd5d7fdbf86f68805c290b55e1a29",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "5a314e5654f05300e11dae8e1c671296bd98928313afd31c72f3aaefd81e971c"
+  },
+  "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java; explicitly start with TypeScript and Python. TypeScript is delivered. Python is the one active implementation item.",
+  "demonstrated": [
+    "Named aliases and dotted module calls target the actual indexed source declaration instead of same-named functions in unrelated files.",
+    "Absolute/relative imports, root/src source layouts, packages, namespace submodules, reexports and local imports resolve from authored bindings.",
+    "Parameters and later assignments shadow imports; conflicting roots, cycles, wildcard/conditional imports and external modules remain explicitly unresolved.",
+    "Existing public Calls retain bounded binding/call/target source locations and label the evidence syntax-only.",
+    "Import, reexport and target-declaration edits retract old targets without changing dependent callers. Deleting/restoring a target recovers links from retained facts.",
+    "Actual old-index graph upgrade and graph-only repair preserve search/vector files and recovered source chunks, with no repair embedding requests."
+  ],
+  "limitations": [
+    "Syntax-based source identity, not runtime import execution or sys.path/import-hook proof.",
+    "Root/src source layout candidates; conflicting identities remain ambiguous. External/custom roots are not guessed.",
+    "Decorated callables, wildcard/conditional imports and global/nonlocal directives remain explicitly unresolved.",
+    "Runtime monkey-patching and attribute mutation are not modeled. No whole-program behavior claim.",
+    "Rust, Go and Java portions of TODO23 remain unfinished; the parent TODO stays unchecked.",
+    "Production source was not reindexed. Legacy Python extraction needs update_project or graph_only repair for current facts.",
+    "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-py-modules-source-20261112.json",
+      "sha256": "3e5f58513187aedba065a3bb0bb18eecb82df7894b647d3df867d278c7fae524"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\pair.json",
+      "sha256": "5d9e8d1b49d40dd28561d834eac95ca96e25107c394d3bff2a7e43c0169c9004"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\candidate\\acceptance.json",
+      "sha256": "ba5dd398ba2b89ad29e47f83e52116372fd3f3693c9e8fbb33ca42a14f1f5d1e"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\installed\\acceptance.json",
+      "sha256": "ffeb1a6f9579f6b7d980bf96da79a538a8819d5bab8e526c075537c1d0074504"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\normal\\acceptance.json",
+      "sha256": "9d5843356010697d1919c67b82775a5a43f7efaea555796bc6291cf08c453b83"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\release-gates.json",
+      "sha256": "a603d5b3943fe1396c3d4c37e9377d337dbb6f860f2e5b0b6f676ce369f59a60"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\install-result.json",
+      "sha256": "44986fb5bf21fd3fd82fb1e3febdc2e57f44582ed6335e427848023502638342"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-py-modules-config-hold-20261112.json.released.json",
+      "sha256": "0d76ef3debfb48c81c24ef59e3c95e632962a21ac9f223d003e6ee701438fa28"
+    },
+    "server_sha256": "d01f77160fea78118150e32e498514da53d0f0123d600bd4350bb5f96e934ea3",
+    "manifest_sha256": "bd657025d946a4a2c55c1966d2e6adafde9f79a9b78e2cc5c70339fc6a287547",
+    "all_manifest_assets_verified": 215,
+    "unchanged_companion_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-1f7ece408c0843d5a05dfa17fe42c5ee",
+    "cleanup_condition": "Retain package, complete old pair, journals and evidence. No preexisting folder deletion authorized."
+  },
+  "broader_goal": "ACTIVE; Python delivery does not complete TODO23 or the original backlog."
+}

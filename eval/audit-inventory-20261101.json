@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java; explicitly start with TypeScript and Python. TypeScript is delivered. Python is the one active implementation item.",
       "observed_missing_behavior": "Python query captures bare or terminal attribute call names but no import bindings. Calls proceed through file-local FQN/generic resolution without authored import identity.",
       "finite_acceptance": [
@@ -9981,7 +9981,7 @@
       ],
       "constraints": "One implementation item active. No CodeMap/Blast work or broad audit. Python static import evidence is not runtime sys.path/import-hook proof. Rust/Go/Java and full original backlog remain open.",
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112",
-      "next_action": "Commit validated implementation and build p124-py-modules-source-20261112 with the existing owned shared-target runner.",
+      "next_action": "Select Rust within original TODO23 once, preserving other unfinished original requirements.",
       "semantic_sources": [
         "https://docs.python.org/3/reference/import.html",
         "https://docs.python.org/3/reference/executionmodel.html#resolution-of-names"
@@ -10005,7 +10005,8 @@
           }
         }
       },
-      "progress_receipt": "eval/p124-python-modules-progress-20261112.json"
+      "progress_receipt": "eval/p124-python-modules-progress-20261112.json",
+      "delivery_receipt": "eval/p124-python-modules-delivery-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",

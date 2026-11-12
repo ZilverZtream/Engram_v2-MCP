@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "at_utc": "2026-11-12T06:11:56.431040+00:00",
-  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "active_item": "TODO23 Python; parent Rust/Go/Java remain open",
   "implementation_sha256": {
     "crates/engram_core/src/python_modules.rs": "02547b7f5a7fc0632482f967193cd83cdde4d844eabbc88ae9bd70b695ac6182",
@@ -53,12 +53,8 @@
       }
     }
   },
-  "remaining": [
-    "Release build",
-    "Candidate public old-index upgrade, source updates, target delete/restore and graph repair preserving storage/chunks",
-    "Install and repeat public acceptance; verify normal daemon; push deployment evidence"
-  ],
-  "next_action": "Commit validated implementation and build p124-py-modules-source-20261112 with the existing owned shared-target runner.",
+  "remaining": [],
+  "next_action": "Advance to Rust, the next language in original TODO23; preserve the full remaining backlog.",
   "limitations": [
     "Syntax-based source identity, not runtime import execution or sys.path/import-hook proof.",
     "Root/src source layout candidates; conflicting identities remain ambiguous. External/custom roots are not guessed.",
@@ -71,5 +67,8 @@
     "baseline_fixture_removed": true,
     "retained": "Authored cases, helpers, logs and receipts; release package retained for deployment evidence."
   },
-  "full_original_goal": "ACTIVE; no Python deployment or TODO23 parent completion claim."
+  "full_original_goal": "ACTIVE; Python delivered. Rust/Go/Java and the original backlog remain open.",
+  "in_flight": null,
+  "delivery_receipt": "eval/p124-python-modules-delivery-20261112.json",
+  "checkpoint": "Python pair installed and verified; parent languages remain open."
 }
