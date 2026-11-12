@@ -4,6 +4,7 @@ use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
 pub(crate) mod signature_types;
+mod value_flow;
 
 /// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
 /// over budget; callers must not fall back to counting punctuation as strings.
@@ -1142,6 +1143,11 @@ impl SymbolExtractor {
                         node, content, static_ext,
                         declaration_fqn.map(String::as_str).unwrap_or(&name), start_line,
                     ));
+                    if static_ext == "cs" {
+                        let program = value_flow::extract(node, content);
+                        meta.insert(engram_core::value_flow::METADATA_KEY.into(),
+                            serde_json::to_string(&program).expect("serializable authored value flow"));
+                    }
                 }
                 if let Some(fqn) = declaration_fqn {
                     meta.insert("fqn".into(), fqn.clone());

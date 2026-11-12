@@ -41,10 +41,11 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO22 lightweight def-use (data-flow) edges",
-    "status": "SELECTED_NOT_IMPLEMENTED",
+    "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
-    "remaining": "Implement stored local definition/use evidence and source-proven cross-method parameter links; expose and verify them through trace_data_flow, then deploy. Full original backlog remains active.",
-    "baseline": "eval/p122-def-use-baseline-20261112.json"
+    "remaining": "C#/VB value syntax is implemented and checked. Implement stored reaching-definition/use and call-site-aware inter-method links, expose trace_data_flow lineage, verify and deploy. Full original backlog remains active.",
+    "baseline": "eval/p122-def-use-baseline-20261112.json",
+    "progress": "eval/p122-def-use-progress-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO21 return-type / parameter-type edges",

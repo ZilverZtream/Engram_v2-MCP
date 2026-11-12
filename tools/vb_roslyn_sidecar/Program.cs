@@ -434,4 +434,5 @@ internal sealed class SignatureTypeUseDto
 [JsonSerializable(typeof(InterfaceMemberLocatorDto))]
 [JsonSerializable(typeof(SourceMemberLocatorDto))]
 [JsonSerializable(typeof(List<SignatureTypeUseDto>))]
+[JsonSerializable(typeof(FlowProgramDto))]
 internal partial class AppJsonContext : JsonSerializerContext { }

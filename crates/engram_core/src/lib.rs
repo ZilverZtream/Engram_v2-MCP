@@ -15,6 +15,7 @@ pub mod runtime_evidence;
 pub mod security;
 pub mod storage;
 pub mod types;
+pub mod value_flow;
 
 pub use benchmark::{
     AdpCorpus, AdpScenario, AdpScenarioInput, BenchmarkPack, BenchmarkQueryEntry, BenchmarkReport,
