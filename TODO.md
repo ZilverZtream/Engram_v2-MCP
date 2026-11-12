@@ -224,8 +224,8 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   of the visible tool list (#3), pick extractor presets, and tailor
   `get_codebase_overview` output.
 
-- [ ] **25. Language fixture corpora beyond WebForms** (M)
-  Active: `eval/p129-language-corpora-baseline-20261112.json`.
+- [x] **25. Language fixture corpora beyond WebForms** (M)
+  Delivered: `eval/p129-language-corpora-delivery-20261112.json` (four authored source/call oracles, public-handler integration checks, native/no-vector strict local PASS and CI wiring; remote execution status recorded separately).
   `tests/fixtures/` has only 4 fixtures, all `dotnet_webforms_*`. Add small
   ground-truth projects for TS/Python/Rust/Go with expected symbols + call edges, wired
   into CI. Without these, #23 can't be verified and regressions are invisible.

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_CI_WIRED",
+  "at_utc": "2026-11-12T11:33:16.328022+00:00",
+  "item": "Original TODO25 Language fixture corpora beyond WebForms",
+  "original_requirement": "Original TODO25: add small ground-truth projects for TypeScript, Python, Rust and Go under tests/fixtures, with expected symbols and call edges, wired into CI so language-resolution regressions are visible.",
+  "source_commit": "8a373986906ea4552ff1bb85c46593495cd4b8d0",
+  "implementation_sha256": {
+    "crates/engram_server/tests/language_corpora_test.rs": "dfda6c2d480531e8b4e0e1f73515c0e32eb1741f644c7022b7895725dd079457",
+    "crates/engram_server/src/handlers/project_tools.rs": "b933aac34ffa5530b8e8f675d2e8619458771e91e64c0ee1d730e69e4a7bc8b3",
+    ".github/workflows/benchmark-ci.yml": "c2ac636f305053b091105a79b7e3d2493a0d0c50661039272190947c48d683a2",
+    ".github/workflows/no-vector-ci.yml": "d4299dd028b57eddb40edabd039c89299361c2777ab9f06517079a3ad6ebfd2f",
+    "tests/fixtures/typescript_modules/expected.json": "bf037f33ffe7d5f1e1c1121651e484ba8c4ba37c7815ea0f55baf96e83b53a9e",
+    "tests/fixtures/typescript_modules/project/package.json": "75b39d5bdee24d9c12bc9873a0c2909ea4224958e3c5acd07b1ecfb1db84bd5b",
+    "tests/fixtures/typescript_modules/project/tsconfig.json": "9c7ff5e03f053245748a4d734f737c36c466818c51bd09425b992b53a906a9a8",
+    "tests/fixtures/typescript_modules/project/src/alternate.ts": "10899ea1562eec4c7c09b5d0763a3e23a271a00a06b9f3bb7e67054ca7acf95e",
+    "tests/fixtures/typescript_modules/project/src/decoy.ts": "94f964adc61befe3fd012cecef3d489a2047a52c2e8dfb6b88ebc334ca5be6a5",
+    "tests/fixtures/typescript_modules/project/src/index.ts": "014576b3bba0d41bd665ec0c14ce58ce6a9a9a31c535271f454253079a3656f6",
+    "tests/fixtures/typescript_modules/project/src/primary.ts": "3caceb1346f82d0b1d20c499eae406047f52c924da75a1df51964d87ccc56449",
+    "tests/fixtures/python_modules/expected.json": "330d1dab426281b7c79757ab485b0a619212b3c4b9abb4c7688c2c4796cafabf",
+    "tests/fixtures/python_modules/project/alternate.py": "a26b92e505f7d4d5c5ce0fca5e5c56016854fe05f12f3309f4d833d3e9d5a66a",
+    "tests/fixtures/python_modules/project/decoy.py": "8ce638aee9bdd080ec2a1bb4da404d45bfdb7459137881ad05e13acb19059947",
+    "tests/fixtures/python_modules/project/main.py": "240556432763b0ca6006f61ee815dafcd20c5b0258a7f0135967aef2a4e908f5",
+    "tests/fixtures/python_modules/project/primary.py": "df8a3f7dd4d7eaa413cdc9bf055d2fd0328de8aa9e6449d388e1b7a48a4b4b35",
+    "tests/fixtures/python_modules/project/pyproject.toml": "741fac56b12ead9fc8c82529cab4bc774653bc1e46aaee6fccdea12737d266bc",
+    "tests/fixtures/rust_modules/expected.json": "0a0bff07608aa6ca33731335d5ad2e5e89ab77cf322a2dd822de1cccee5541d1",
+    "tests/fixtures/rust_modules/project/Cargo.toml": "af3a601845abc28b938d4f87a142390745494fc1501aae7b6cb3822173f5c0c4",
+    "tests/fixtures/rust_modules/project/src/alternate.rs": "2ff8683602406f2794630f0f381214dec368a4342e80d4582cf844a6c49db384",
+    "tests/fixtures/rust_modules/project/src/decoy.rs": "860ce845ce9b32245a7e1773739f91080b5981a0c9442a9af56288dbfa6c89f7",
+    "tests/fixtures/rust_modules/project/src/lib.rs": "a185606405bb32de77f6cb8c4cade6fde4cc9a1421088ff7116b7dcc58378954",
+    "tests/fixtures/rust_modules/project/src/primary.rs": "1cc2506fd27139148db75c042840394b919aadfb1b694c8ebf2258c6bdcc6843",
+    "tests/fixtures/go_modules/expected.json": "cac38d22e0190be59bcca9aa880670de23ec6300d9e781ef4c995202a67cf481",
+    "tests/fixtures/go_modules/project/go.mod": "c6cdb76fc69074a475f7bea5c4e2086f92bf4e6693b4c47229625af806a3668a",
+    "tests/fixtures/go_modules/project/alternate/api.go": "c4d3d47c7dd6ef51a29143aad38968114fd002c9402de5821ccd5420313a6360",
+    "tests/fixtures/go_modules/project/app/app.go": "60a67a6a36f915ad32478447635bac46ee4e7fa696fa045e46a72c05128117f5",
+    "tests/fixtures/go_modules/project/app/helper.go": "6fdc566ea0f42e5d9481d6658e76764c4402b2bbf99ad2777580b8f166181595",
+    "tests/fixtures/go_modules/project/decoy/api.go": "40a5a0c846b72074e544c8cf412fd3319659d8052adfdca8395e09e5439e4215",
+    "tests/fixtures/go_modules/project/primary/api.go": "a21a9eda78403cdce1ac92a444731ae99f5c916a1d126b225d1ea537416c6388"
+  },
+  "demonstrated": [
+    "Four checked-in source projects and manually authored function/call oracles cover TypeScript, Python, Rust and Go.",
+    "Real indexing and public graph/reference handlers recover exact function identities and every outgoing call target, including distinct imported targets, same-name decoys and local helpers.",
+    "Native-feature and no-default-features tests pass with RUSTFLAGS=-D warnings. Fixture runtime/database/job owners close before owned directory teardown.",
+    "Native benchmark workflow runs the named corpus target and records its outcome/artifact. Existing full no-vector server tests include the integration target."
+  ],
+  "tests": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112\\corpus-no-vector-strict-result.json",
+      "sha256": "a7234bc6850dab6ce890ac4217d49992806296f7b9d24dc7360c3848407dd2e1"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112\\corpus-native-strict-result.json",
+      "sha256": "f518327c3db9b49ee33e1baa26ad140de946d5e2d55b992253d838bd1b72d916"
+    }
+  ],
+  "ci_wiring": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112\\ci-wiring.json",
+    "sha256": "6e7f26824c5c2be4ebdfd9517b20faf4492a029f8e443d810e978762345f6fd3"
+  },
+  "remote_ci": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112\\ci-observation.json",
+    "sha256": "b0b8276f17b693026823249805b04fc3673379a1323c5cfa85233d16af375c09"
+  },
+  "remote_ci_status": "NO_MATCHING_RUNS_OBSERVED",
+  "remote_execution_proven": false,
+  "retained_failure": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112\\corpus-no-vector-01-result.json",
+      "sha256": "a705b315a4dc17ae7aa9b044b3030a96cc7568bcf66bca9c2c1ad621577682fb"
+    },
+    "cause": "New harness initially assumed project_id began a line; corrected to parse the existing Indexed project_id response. No product behavior change; every failed-run fixture was cleaned."
+  },
+  "compiler_cleanup": "Removed the compiler-reported unreferenced private indexed_file_mtimes_secs wrapper. No callers existed; live paths continue using indexed_file_mtimes_secs_checked. This removes a preexisting warning that CI treats as an error.",
+  "runtime_behavior_changed": false,
+  "runtime_deployment": "Not required for corpus/CI delivery and removal of an unreferenced private wrapper. Existing TODO24 runtime remains installed.",
+  "limitations": [
+    "Four small authored projects establish their exact static symbols/calls; they do not establish complete language semantics or real-project productivity.",
+    "CI wiring and local native/no-vector target results are verified. Remote execution is established only if remote_execution_proven is true; no matching runs is not a CI pass.",
+    "Parent manual review only. Unrelated original findings and full nineteen-gate acceptance remain open."
+  ],
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112",
+    "owned_fixture_roots_removed": true,
+    "retained": "Scripts, logs and receipts remain here. Build artifacts use the existing shared target. No preexisting folders deleted."
+  },
+  "broader_goal": "ACTIVE. TODO25 corpus/CI-wiring requirement delivered; inspect original TODO26 next without reopening completed language resolvers or CodeMap/Blast."
+}
