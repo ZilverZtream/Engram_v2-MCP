@@ -3720,6 +3720,28 @@ pub struct GetPageContextRequest {
     pub output_json: bool,
 }
 
+/// Navigate a URL/page and optional action through authored WebForms bindings.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct TraceUserRequestRequest {
+    pub project_id: String,
+    /// URL, application-relative path, or project-relative page; optional HTTP verb prefix.
+    pub entry_point: String,
+    /// "load page", "click controlID", "submit form", or an exact method name.
+    #[serde(default)]
+    pub action: Option<String>,
+    /// Include indexed SQL/procedure/table relationships. Default true.
+    #[serde(default = "default_true")]
+    pub include_db: bool,
+    /// Request trigger coverage. Missing trigger bindings are reported as unknown.
+    #[serde(default = "default_true")]
+    pub include_triggers: bool,
+    /// Complete JSON reply budget in ceil(UTF-8 bytes/4); default 16384.
+    /// Insufficient budgets fail with the required size rather than omit evidence.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+}
+
 // ── Phase 38-5: prepare_implementation_context ────────────────────────────────
 
 fn default_max_pattern_examples() -> usize {

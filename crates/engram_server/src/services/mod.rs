@@ -54,6 +54,7 @@ pub mod project_policy;
 pub mod quality_source;
 pub mod review_verdict_service;
 pub mod runtime_observation_service;
+pub mod request_trace;
 pub(crate) mod rule_authority;
 pub mod safety_service;
 pub mod scaffold_service;
