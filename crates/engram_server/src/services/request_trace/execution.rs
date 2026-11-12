@@ -127,6 +127,12 @@ fn verified_node(
     let Some(source) = sources.iter().find(|source| source.path == path) else {
         return Ok(false);
     };
+    if node.start_line == 0
+        || node.end_line < node.start_line
+        || node.end_line as usize > source.content.lines().count()
+    {
+        return Ok(false);
+    }
     let Some(file) = graph.get_node(project, &format!("file:{path}"))? else {
         return Ok(false);
     };
@@ -322,6 +328,11 @@ pub fn trace_page(
         });
         queue.push_back((node, 0));
     }
+    let database = include_db.then(|| super::database::Catalog::new(sources));
+    if let Some(database) = &database {
+        result.gaps.extend(database.gaps.iter().cloned());
+        result.gaps.push("Database coverage is partial: source fallback covers local literal SqlCommand stored-procedure candidates. Dynamic commands, inline SQL/ORM translation, aliases, nested procedure execution and deployed database identity are not resolved.".into());
+    }
     let mut visited = BTreeSet::new();
     while let Some((node, depth)) = queue.pop_front() {
         if !visited.insert(node.node_id.clone()) {
@@ -372,6 +383,26 @@ pub fn trace_page(
                 "excerpt":excerpt,"shown_lines":shown,"excerpt_truncated":shown<lines,
                 "interpretation":"Authored code, including guards and response expressions. Source order does not prove an operation executes or completes.",
                 "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":source.path,"line_start":node.start_line,"context_lines":0}}}));
+            if node.node_type == "function"
+                && let Some(database) = &database
+            {
+                let body = source
+                    .content
+                    .lines()
+                    .skip(node.start_line as usize - 1)
+                    .take(lines)
+                    .collect::<Vec<_>>()
+                    .join("\n");
+                database.append(
+                    project,
+                    &node,
+                    &body,
+                    &mut result.paths,
+                    &mut result.source_members,
+                    &mut result.gaps,
+                    MAX_EDGES,
+                );
+            }
         }
         let mut kinds = vec![
             EdgeKind::Calls,
