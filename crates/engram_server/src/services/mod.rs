@@ -18,6 +18,7 @@ pub mod cognitive_service;
 pub mod coverage_service;
 pub mod data_flow_service;
 pub mod database_intelligence_service;
+pub mod schema_query;
 pub mod db_strategy_service;
 pub mod dossier_service;
 pub mod evidence_orchestration;

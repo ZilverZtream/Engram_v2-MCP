@@ -17,6 +17,10 @@ pub struct CapabilityFlag {
 #[allow(dead_code)]
 pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
     CapabilityFlag {
+        key: "query_schema",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "batch_read",
         status: CapabilityStatus::Implemented,
     },
