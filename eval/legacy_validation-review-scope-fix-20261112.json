@@ -1,29 +1,62 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
-  "at_utc": "2026-11-12T14:27:16.174777+00:00",
-  "requirement": "Keep pre_commit_review within an explicitly submitted patch; preserve omitted-working-tree disclosure for Git selectors.",
-  "before": "An empty patch file triggered checkout status and redirected the agent to unrelated changes.",
-  "after": "Empty file/inline patch returns NO_CHANGES scoped to requested diff with gates/tests not run; staged omissions still return NOT_REVIEWED.",
-  "verification": [
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-12T14:56:55.832162+00:00",
+  "source_commit": "0442a4009903625af1145cd393a1b12891f5ef9a",
+  "source_fix_commit": "7a53a7f4eba53b3352e58e61e4f34289cf183547",
+  "server_sha256": "6cffc19b7bc4503d853c4bcfe987388939b57e7b8e62e590d1d9e0f2ca3c502d",
+  "manifest_sha256": "4d8624ae9cd1049265c565652e975a9c85c812db35937ec81fb148971e4acc1d",
+  "demonstrated": [
+    "Old installed binary reproduced unrelated-file redirection for an explicitly supplied empty patch.",
+    "Candidate and installed MCP: empty patch file and empty/whitespace inline input in JSON and text stay within requested scope; no gates or tests reported executed.",
+    "Empty staged review still names omitted tracked and untracked VB.NET files. Invalid severity and malformed patch are rejected.",
+    "Production registry, active source generation 3147, other project metadata and configuration unchanged; normal installed daemon identity verified."
+  ],
+  "evidence": [
     {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\oxreview1-result.json",
-      "sha256": "4778ce073ca15fbc0878c6c1602909d3a064010410408143421458e206e80da1",
-      "exit_code": 0,
-      "fixture_root_removed": true
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-baseline-observation.json",
+      "sha256": "a0fce86188ef17e4a25226b8958c69541c62696d6548619c9d7c2fa8336345a7"
     },
     {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\oxreview2-result.json",
-      "sha256": "003c6696e4681b74ddb5b91732d9f85df862856991eee10cd9266a00b4be529d",
-      "exit_code": 0,
-      "fixture_root_removed": true
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\oxreview-release.json",
+      "sha256": "a8e7661868720bbf0c84a659b994ce961dc911c60a95c21738fd9e27321efd68"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-candidate\\acceptance.json",
+      "sha256": "efa72525405915e219601980710b75c368c3b17a981e29c3e656c056c9c0b663"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-installed\\acceptance.json",
+      "sha256": "cb464a2d70ba76c098d4e94f7fb3aeb5686f82d42ba6ccb7f9fff21836bdd38a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-normal\\acceptance.json",
+      "sha256": "fa9b944aa51568a0317109f5db6c5fd560ed814088056eac412d63c6d74be8ed"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-install-Upgrade.json",
+      "sha256": "d786b1d67612df90c8adfa7c46f7ae4a0c341dff7bd095c73e75e584646621c6"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-config-hold.json.released.json",
+      "sha256": "964ef5e8d1d23060d58837d50d280c09c729a9285f45f853ad92b883f09c46bd"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-worktree-cleanup.json",
+      "sha256": "c8ec7c4350b136dda06d8a62420372b4db65313b22484792c5c0d7a1167c692a"
     }
   ],
-  "source_review": "Local diff review completed. Trusted host CodeRabbit auth status returned authenticated=false; no external review ran.",
-  "deployment": "Pending: source includes parked modern-state checkpoint 6e4e114; do not install that unrelated expansion with this fix. Preserve its committed and uncommitted work before preparing a scoped release.",
-  "remaining": "Original EG24 regular current-producer quality and EG25 matched OX benefit remain incomplete. Existing no-vector CI already selects these public acceptance tests.",
-  "temporary_resources": {
-    "location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
-    "fixtures": "Both new test roots removed after completion.",
-    "evidence": "Logs and receipts retained for delivery traceability; cleanup after delivery evidence is superseded."
-  }
+  "resources": {
+    "owned_fixtures_removed": true,
+    "owned_build_temp_removed": true,
+    "isolated_worktree_removed": true,
+    "parked_work_hashes_preserved": true,
+    "old_pair_retained": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-5a8095eda4a54261a442944d6fe04b41",
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
+    "cleanup_condition": "Retain evidence/package and old complete pair until superseded by an accepted delivery; no preexisting folder deletion authorized."
+  },
+  "limits": [
+    "Only the review-scope fix is newly deployed; modern-state/Python expansion remains parked.",
+    "No external CodeRabbit review: authentication was unavailable. No remote CI outcome claimed.",
+    "Original EG24 current-producer quality and EG25 comparative OX benefit remain incomplete; no productivity uplift claimed."
+  ]
 }

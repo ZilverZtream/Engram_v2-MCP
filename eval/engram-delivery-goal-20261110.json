@@ -73,5 +73,6 @@
     "remaining": "Continue retained TODO27 cross-file Python/Rust/Go state binding and imported Redux dispatch effects, resolve retained framework correctness findings, then verify candidate/installed MCP behavior and deploy. Preserve verified state/public/shared-resolver behavior and the full original backlog.",
     "progress": "eval/p131-modern-state-progress-20261112.json"
   },
-  "latest_user_scope_correction": "eval/legacy_validation-priority-correction-20261112.json"
+  "latest_user_scope_correction": "eval/legacy_validation-priority-correction-20261112.json",
+  "latest_legacy_validation_delivery": "eval/legacy_validation-review-scope-fix-20261112.json"
 }
