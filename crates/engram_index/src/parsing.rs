@@ -9,6 +9,7 @@ mod typescript_modules;
 mod python_modules;
 mod rust_modules;
 mod go_modules;
+mod java_modules;
 
 /// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
 /// over budget; callers must not fall back to counting punctuation as strings.
@@ -436,7 +437,9 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (constructor_declaration name: (identifier) @name) @func
         (class_declaration name: (identifier) @name) @class
         (interface_declaration name: (identifier) @name) @class
-        (method_invocation name: (identifier) @call.name)
+        (enum_declaration name: (identifier) @name) @class
+        (record_declaration name: (identifier) @name) @class
+        (method_invocation) @call.java
         "#,
     )
     .ok();
@@ -922,6 +925,7 @@ impl SymbolExtractor {
 
         let mut symbols = Vec::new();
         let mut edges = Vec::new();
+        let mut java = (ext == "java").then(|| java_modules::Extraction::new(tree.root_node(), content));
         let mut go = (ext == "go").then(|| go_modules::Extraction::new(path, tree.root_node(), content));
         let mut rust = (ext == "rs").then(|| rust_modules::Extraction::new(tree.root_node(), content));
         let mut python = (ext == "py").then(|| python_modules::Extraction::new(tree.root_node(), content));
@@ -1025,9 +1029,10 @@ impl SymbolExtractor {
                         && member_object.is_some();
                     let module_call = module.as_ref().and_then(|m| m.call(node, content))
                         .or_else(|| python.as_ref().map(|m|m.call(node,content)));
+                    let java_call = java.as_ref().map(|m|m.call(node,content));
                     let go_call = go.as_ref().map(|m|m.call(node,content));
                     let rust_call = rust.as_ref().map(|m|m.call(node,content));
-                    let callee_fqn = if module_call.is_some() || rust_call.is_some() || go_call.is_some() { None } else if js_member {
+                    let callee_fqn = if module_call.is_some() || rust_call.is_some() || go_call.is_some() || java_call.is_some() { None } else if js_member {
                         if member_object.is_some_and(|n| n.kind() == "this") {
                             local_this_member(node, callee_short, content, &fqn_table)
                         } else { None }
@@ -1040,7 +1045,7 @@ impl SymbolExtractor {
                     if let Some((_, _, parent_name, parent_kind, parent_line, parent_fqn)) =
                         symbol_ranges.iter().rev().find(|(s, e, _, _, _, _)| {
                             *s <= node.start_byte() && *e >= node.end_byte()
-                        }).or_else(|| (module_call.is_some() || rust_call.is_some() || go_call.is_some()).then_some(&module_file_owner))
+                        }).or_else(|| (module_call.is_some() || rust_call.is_some() || go_call.is_some() || java_call.is_some()).then_some(&module_file_owner))
                     {
                         let mut meta = std::collections::HashMap::new();
                         if matches!(ext, "ts" | "tsx" | "js" | "jsx") {
@@ -1060,6 +1065,12 @@ impl SymbolExtractor {
                                     meta.insert("receiver_expression_truncated".into(), "true".into());
                                 }
                             }
+                        }
+                        if let Some(call) = java_call {
+                            java.as_mut().expect("Java call extraction").facts.calls.push(engram_core::java_modules::OwnedCall {
+                                source_name:parent_fqn.as_ref().unwrap_or(parent_name).clone(),source_kind:parent_kind.to_string(),source_line:*parent_line,call:call.clone(),
+                            });
+                            meta.insert(engram_core::java_modules::CALL_KEY.into(),serde_json::to_string(&call).expect("serializable Java call"));
                         }
                         if let Some(call) = go_call {
                             go.as_mut().expect("Go call extraction").facts.calls.push(engram_core::go_modules::OwnedCall {
@@ -1217,7 +1228,8 @@ impl SymbolExtractor {
                 let start_line = (node.start_position().row + 1) as u32;
 
                 let mut meta = std::collections::HashMap::new();
-                let declaration_fqn = name_position.and_then(|pos| fqn_table.declaration(pos));
+                let java_fqn = java.as_ref().and_then(|j|j.declaration_fqn(node,content));
+                let declaration_fqn = java_fqn.as_ref().or_else(||name_position.and_then(|pos| fqn_table.declaration(pos)));
                 if kind == "function" {
                     edges.extend(signature_types::extract(
                         node, content, static_ext,
@@ -1311,6 +1323,11 @@ impl SymbolExtractor {
                     engram_core::typescript_modules::MODULE_KEY.into(),
                     serde_json::to_string(&module.facts).expect("serializable module facts"),
                 )])),
+            });
+        }
+        if let Some(java) = &java {
+            symbols.push(ExtractedSymbol {name:"file".into(),kind:"file".into(),start_line:1,end_line:tree.root_node().end_position().row as u32+1,
+                metadata:Some(std::collections::HashMap::from([(engram_core::java_modules::MODULE_KEY.into(),serde_json::to_string(&java.facts).expect("serializable Java package"))])),
             });
         }
         if let Some(go) = &go {

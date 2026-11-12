@@ -10,6 +10,8 @@ mod python_module_tests;
 mod rust_module_tests;
 #[cfg(test)]
 mod go_module_tests;
+#[cfg(test)]
+mod java_module_tests;
 
 /// Restore canonical DDL links on indexes built before database endpoints
 /// used the same identities as database nodes. Does not rebuild code or
@@ -919,6 +921,9 @@ pub(crate) async fn prepare_ingest_graph(
                 });
             }
             id
+        } else if edge.kind == "calls" && edge.metadata.as_ref().is_some_and(|m|m.contains_key(engram_core::java_modules::CALL_KEY)) {
+            let call:engram_core::java_modules::Call=serde_json::from_str(&edge.metadata.as_ref().unwrap()[engram_core::java_modules::CALL_KEY])?;
+            format!("{}{}/{}",engram_core::java_modules::UNBOUND_PREFIX,rel_path.as_str(),call.site.offset)
         } else if edge.kind == "calls" && edge.metadata.as_ref().is_some_and(|m|m.contains_key(engram_core::go_modules::CALL_KEY)) {
             let call:engram_core::go_modules::Call=serde_json::from_str(&edge.metadata.as_ref().unwrap()[engram_core::go_modules::CALL_KEY])?;
             format!("{}{}/{}",engram_core::go_modules::UNBOUND_PREFIX,rel_path.as_str(),call.site.offset)

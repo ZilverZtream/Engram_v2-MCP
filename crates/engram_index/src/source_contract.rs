@@ -22,12 +22,15 @@ fn module_fact_key(path: &str) -> Option<&'static str> {
         "py" => Some(engram_core::python_modules::MODULE_KEY),
         "rs" => Some(engram_core::rust_modules::MODULE_KEY),
         "go" => Some(engram_core::go_modules::MODULE_KEY),
+        "java" => Some(engram_core::java_modules::MODULE_KEY),
         _ => None,
     }
 }
 
 fn current_module_fact(key: &str, raw: &str) -> bool {
-    if key == engram_core::go_modules::MODULE_KEY {
+    if key == engram_core::java_modules::MODULE_KEY {
+        serde_json::from_str::<engram_core::java_modules::Module>(raw).is_ok_and(|m|m.version==1)
+    } else if key == engram_core::go_modules::MODULE_KEY {
         serde_json::from_str::<engram_core::go_modules::Module>(raw).is_ok_and(|m|m.version==1)
     } else if key == engram_core::go_modules::CONFIG_KEY {
         serde_json::from_str::<engram_core::go_modules::Config>(raw).is_ok_and(|m|m.version==1)

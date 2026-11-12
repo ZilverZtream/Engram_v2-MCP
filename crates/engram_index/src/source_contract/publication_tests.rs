@@ -24,7 +24,7 @@ fn script_reuse_requires_produced_receiver_contract_without_invalidating_other_l
         }
         ensure!(expected.metadata_is_compatible(&metadata, path));
     }
-    for path in ["owned.java", "style.css", "page.html", "server.cs"] {
+    for path in ["owned.c", "style.css", "page.html", "server.cs"] {
         ensure!(expected.metadata_is_compatible(&legacy, path));
     }
     let mut output = crate::IngestStats {
@@ -116,6 +116,29 @@ fn go_modules_upgrade_legacy_source_and_manifest_facts_before_publication() -> R
     Ok(())
 }
 
+#[test]
+fn java_modules_upgrade_legacy_import_facts_before_publication() -> Result<()> {
+    for (path,source) in [
+        ("App.java","package owned;\nimport static api.Api.Save;\nclass App {void Run(){Save();}}\n"),
+        ("module-info.java","module owned {requires api;}\n"),
+    ] {
+        let expected=SourceExtractionExpectation::for_paths(2000,[path])?;
+        let mut metadata=serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
+            "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
+        ensure!(!expected.metadata_is_compatible(&metadata,path),"Legacy Java facts must be upgraded");
+        let (symbols,_)=crate::parsing::SymbolExtractor::new().extract(std::path::Path::new(path),source);
+        for (key,value) in symbols.iter().find(|s|s.kind=="file").unwrap().metadata.as_ref().unwrap(){metadata[key]=serde_json::json!(value);}
+        ensure!(expected.metadata_is_compatible(&metadata,path));
+        let mut output=crate::IngestStats{source_extraction_identity:Some(SourceExtractionIdentity::for_chunk_target(2000)),files:1,all_files:vec![engram_core::RelPath::new(path)],..Default::default()};
+        ensure!(expected.verify_produced(&output).is_err(),"Publication must include retained Java facts");
+        output.symbols.extend(symbols.into_iter().map(|s|(std::sync::Arc::new(engram_core::RelPath::new(path)),s)));
+        expected.verify_produced(&output)?;
+        metadata[engram_core::java_modules::MODULE_KEY]=serde_json::json!("{}");
+        ensure!(!expected.metadata_is_compatible(&metadata,path));
+    }
+    Ok(())
+}
+
 struct ParserOwner;
 
 #[test]
@@ -124,7 +147,7 @@ fn python_modules_upgrade_legacy_facts_and_require_actual_production() -> Result
     let mut metadata = serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
         "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
     ensure!(!expected.metadata_is_compatible(&metadata, "app.py"));
-    ensure!(expected.metadata_is_compatible(&metadata, "app.java"));
+    ensure!(expected.metadata_is_compatible(&metadata, "app.c"));
     let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new("app.py"),
         "from api import save\ndef run():\n    return save()\n");
     for (key,value) in symbols.iter().find(|s|s.kind=="file").unwrap().metadata.as_ref().unwrap() {
