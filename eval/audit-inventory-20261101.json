@@ -9959,37 +9959,34 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO21: Return-type / parameter-type edges in parsing.rs and extractors, enabling type-boundary reasoning and what flows into a method. TODO22 def-use and TODO23 general call resolution remain separate.",
-      "observed_missing_behavior": "EdgeKind has no return/parameter type relations. Tree-sitter declarations retain arity only. VB Roslyn and fallback retain some return_type metadata but emit no signature type edges. No existing TODO21 delivery receipt was found.",
+      "status": "SELECTED_NOT_IMPLEMENTED",
+      "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
+      "observed_missing_behavior": "Current trace_data_flow combines line-oriented .NET control/state/SQL parsing with bounded Calls follow. DataFlowTrace has no value lineage field; graph EdgeKind has no local def/use relation. Existing ParameterBinding is WebForms SQL-data-source parameter binding, not method argument-to-parameter lineage. No prior TODO22 delivery receipt found.",
       "implementation_files": [
-        "crates/engram_graph/src/store/signature_types.rs",
-        "crates/engram_index/src/parsing/signature_types.rs",
-        "crates/engram_index/src/parsing/signature_types/tests.rs",
-        "crates/engram_index/src/parsing/signature_types/vb.rs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_graph/src/store/source_rebuild.rs",
-        "crates/engram_index/src/lib.rs",
         "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/vb_extractor.rs",
-        "crates/engram_server/src/handlers/graph_tools.rs",
+        "crates/engram_index/src/parsing/value_flow.rs (new)",
+        "tools/vb_roslyn_sidecar/AstEmitter.cs or a focused companion value-flow module",
+        "tools/vb_roslyn_sidecar/Program.cs",
+        "crates/engram_graph/src/store.rs",
+        "crates/engram_graph/src/store/value_flow.rs (new post-ingest pass)",
+        "crates/engram_graph/src/store/source_rebuild.rs",
         "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/tools.rs",
-        "tools/vb_roslyn_sidecar/AstEmitter.cs",
-        "tools/vb_roslyn_sidecar/Program.cs"
+        "crates/engram_server/src/services/data_flow_service.rs",
+        "crates/engram_server/src/handlers/migration_tools.rs",
+        "crates/engram_server/src/tools.rs"
       ],
       "finite_acceptance": [
-        "Emit distinct returns_type and parameter_type edges from callable declarations across supported typed tree-sitter grammars and VB sidecar/fallback. Do not invent annotations for untyped JS/Python or inferred return values.",
-        "Preserve full authored type expressions, generic components, arrays/nullable modifiers, parameter names/positions and repeated uses of one type; distinguish overload owners by source identity.",
-        "Bind type declarations only with explicit resolution evidence; ambiguous, external, type-parameter and unsupported references remain visibly unbound, never fall through callable/any-kind resolution.",
-        "Public graph/reference queries expose the incoming/outgoing contract for an independently authored cross-file fixture, including normal VB sidecar. Incremental updates and graph_only rebuild remove stale type edges without altering preserved search/vector data.",
-        "Run relevant native/no-vector and sidecar checks; commit and push origin/master, build/deploy the matching runtime pair and verify installed public behavior. Preserve all other unfinished backlog items."
+        "Store source-located definition/use evidence for parameters, local declarations, assignments, reads, returns and call arguments in the existing C#/VB trace workflows. Variable identity must include method and lexical scope; reassignment must not invent stale straight-line lineage.",
+        "Post-ingest linking connects actual argument uses to the corresponding parameter only when the existing source call binding and argument mapping establish the target. Ambiguous/external/unsupported flows remain visibly incomplete, not guessed.",
+        "Expose bounded, source-cited lineage through existing trace_data_flow JSON and readable output, allowing an agent to follow an input through local aliases into a helper parameter and a returned/consumed value. Report branch/loop/alias uncertainty and truncation honestly; no whole-program or runtime-proof claim.",
+        "Use independently authored C# and real VB sidecar fixtures to verify local aliases, overwritten values, same-name scopes, argument positions and cross-method links; negative cases cover unresolved calls and unsupported control-flow without false proven paths.",
+        "Incremental source replacement and graph_only repair retract obsolete value edges while preserving source/search/vector storage. Reuse existing acceptance/deployment tooling; run relevant native/no-vector/sidecar checks and verify candidate plus installed public lineage before completion."
       ],
-      "constraints": "One active implementation item. No CodeMap/Blast improvements, def-use pass, broad resolver redesign, extra pilot or unapproved deletion.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
-      "temporary_resource_policy": "New test fixtures live beneath this diagnostics folder and close/remove their owned resources. Retained logs, source hashes and acceptance receipts remain as delivery evidence."
+      "constraints": "One active implementation item. Existing trace_data_flow is explicitly .NET legacy; preserve broader P2 generalization TODO23-25. Do not reopen CodeMap/Blast, redesign general call resolution, expand pilots, or turn this into whole-program points-to analysis. Keep all remaining original requirements and partial EG14 open.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
+      "temporary_resource_policy": "New fixtures own their resources beneath this recorded diagnostics case, close database/process owners, then remove only their own fixtures. Retain evidence with explicit cleanup conditions."
     },
-    "at_utc": "2026-11-12T02:43:26.349507+00:00",
+    "at_utc": "2026-11-12T02:46:41.899786+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10019,8 +10016,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO16c delivered; select the next unfinished original requirement.",
-    "next_user_visible_deliverable": "Advance the next original accepted requirement; preserve remaining partial EG14 and regular-verification scope.",
+    "active_original_item": "TODO22 lightweight def-use and cross-method parameter lineage",
+    "next_user_visible_deliverable": "trace_data_flow exposes source-cited variable definition/use and argument-to-parameter lineage, with explicit incomplete paths.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10034,7 +10031,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: TODO21 corrected release passed candidate and installed public acceptance, deployed matching server/sidecar, normal runtime verified; source/search/vector state preserved and owned resources accounted for. Full backlog remains active.",
+    "previous_goal_turn_classification": "Progress: TODO21 deployed with candidate/installed/normal acceptance; evidence7b54682 pushed. Original TODO22 missing behavior confirmed in current source and finite acceptance selected.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12696,6 +12693,42 @@
       "remaining": [],
       "candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate\\acceptance.json",
       "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103"
+    },
+    "previous_selected_delivery_contract": {
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "original_requirement": "TODO21: Return-type / parameter-type edges in parsing.rs and extractors, enabling type-boundary reasoning and what flows into a method. TODO22 def-use and TODO23 general call resolution remain separate.",
+      "observed_missing_behavior": "EdgeKind has no return/parameter type relations. Tree-sitter declarations retain arity only. VB Roslyn and fallback retain some return_type metadata but emit no signature type edges. No existing TODO21 delivery receipt was found.",
+      "implementation_files": [
+        "crates/engram_graph/src/store/signature_types.rs",
+        "crates/engram_index/src/parsing/signature_types.rs",
+        "crates/engram_index/src/parsing/signature_types/tests.rs",
+        "crates/engram_index/src/parsing/signature_types/vb.rs",
+        "crates/engram_graph/src/store.rs",
+        "crates/engram_graph/src/store/source_rebuild.rs",
+        "crates/engram_index/src/lib.rs",
+        "crates/engram_index/src/parsing.rs",
+        "crates/engram_index/src/vb_extractor.rs",
+        "crates/engram_server/src/handlers/graph_tools.rs",
+        "crates/engram_server/src/services/ingest_service.rs",
+        "crates/engram_server/src/tools.rs",
+        "tools/vb_roslyn_sidecar/AstEmitter.cs",
+        "tools/vb_roslyn_sidecar/Program.cs"
+      ],
+      "finite_acceptance": [
+        "Emit distinct returns_type and parameter_type edges from callable declarations across supported typed tree-sitter grammars and VB sidecar/fallback. Do not invent annotations for untyped JS/Python or inferred return values.",
+        "Preserve full authored type expressions, generic components, arrays/nullable modifiers, parameter names/positions and repeated uses of one type; distinguish overload owners by source identity.",
+        "Bind type declarations only with explicit resolution evidence; ambiguous, external, type-parameter and unsupported references remain visibly unbound, never fall through callable/any-kind resolution.",
+        "Public graph/reference queries expose the incoming/outgoing contract for an independently authored cross-file fixture, including normal VB sidecar. Incremental updates and graph_only rebuild remove stale type edges without altering preserved search/vector data.",
+        "Run relevant native/no-vector and sidecar checks; commit and push origin/master, build/deploy the matching runtime pair and verify installed public behavior. Preserve all other unfinished backlog items."
+      ],
+      "constraints": "One active implementation item. No CodeMap/Blast improvements, def-use pass, broad resolver redesign, extra pilot or unapproved deletion.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
+      "temporary_resource_policy": "New test fixtures live beneath this diagnostics folder and close/remove their owned resources. Retained logs, source hashes and acceptance receipts remain as delivery evidence."
+    },
+    "p122_def_use_20261112": {
+      "status": "SELECTED_NOT_IMPLEMENTED",
+      "baseline": "eval/p122-def-use-baseline-20261112.json",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112"
     }
   }
 }
