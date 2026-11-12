@@ -1735,6 +1735,7 @@ rules:
         calls: Vec<(&str, u32, u32, Vec<engram_index::vb_extractor::VbInvocationArgument>)>,
     ) -> InvocationReport {
         InvocationReport {
+            repetition_version: None,
             version: "vb-invocations-v1".into(),
             request_id: None,
             source_sha256: String::new(),
@@ -1745,6 +1746,7 @@ rules:
             invocations: calls.into_iter().map(|(callee, start_line, end_line, arguments)| {
                 let (callee_span_start, callee_span_length) = span(source, callee);
                 engram_index::vb_extractor::VbInvocation {
+                    repetition: None,
                     source_index: 0,
                     span_start: callee_span_start,
                     span_length: callee_span_length,
