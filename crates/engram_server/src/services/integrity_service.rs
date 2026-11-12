@@ -26,11 +26,76 @@ pub struct IntegrityCheckResult {
     pub timestamp_ms: u64,
     pub tantivy_doc_count: u64,
     pub vector_doc_count: u64,
+    /// Exact source selection, separate from the legacy whole-project totals.
+    pub source_generation: SourceGenerationIntegrity,
     pub graph_node_count: u64,
     pub graph_edge_count: u64,
     pub mismatches: Vec<IntegrityMismatch>,
     pub repairs_attempted: Vec<RepairOutcome>,
     pub overall_healthy: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SourceGenerationIntegrity {
+    pub generation: u64,
+    pub namespace: String,
+    pub coverage: String,
+    pub tantivy_doc_count: Option<u64>,
+    pub vector_doc_count: Option<u64>,
+    /// Counts alone do not establish per-row identity or vector quality.
+    pub counts_match: Option<bool>,
+}
+
+/// Shared by observation and the serialized, owned repair recheck.
+pub async fn observe_source_generation(
+    search: &engram_index::HybridSearchEngine,
+    project_id: &str,
+    generation: u64,
+    embeddings_expected: bool,
+) -> anyhow::Result<SourceGenerationIntegrity> {
+    let counts = if embeddings_expected {
+        search.count_source_generation(project_id, generation).await?
+    } else {
+        None
+    };
+    Ok(SourceGenerationIntegrity {
+        generation,
+        namespace: "memory".into(),
+        coverage: if !embeddings_expected {
+            "embeddings_disabled"
+        } else if counts.is_some() {
+            "managed_source_snapshot_counts_only"
+        } else {
+            "unavailable_managed_source_or_vector_support"
+        }.into(),
+        tantivy_doc_count: counts.map(|(lexical, _)| lexical as u64),
+        vector_doc_count: counts.map(|(_, vectors)| vectors as u64),
+        counts_match: counts.map(|(lexical, vectors)| lexical == vectors),
+    })
+}
+
+/// Preserve project-wide signals, preferring the precise source observation
+/// for the same mismatch kind so one shortage does not consume two repairs.
+pub fn include_source_mismatch(
+    mismatches: &mut Vec<IntegrityMismatch>,
+    source: &SourceGenerationIntegrity,
+) {
+    let (Some(expected), Some(actual)) = (source.tantivy_doc_count, source.vector_doc_count) else {
+        return;
+    };
+    if expected == actual { return; }
+    let kind = if actual < expected { MismatchKind::VectorShortfall } else { MismatchKind::VectorOrphan };
+    mismatches.retain(|existing| existing.kind != kind);
+    mismatches.push(IntegrityMismatch {
+        kind,
+        description: format!(
+            "Published memory source snapshot {} has {expected} Tantivy docs and {actual} vectors; \
+             comparison includes inherited file revisions and excludes other namespaces and unselected revisions",
+            source.generation,
+        ),
+        expected,
+        actual,
+    });
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,7 +237,9 @@ pub async fn check_project_integrity_with_policy(
     // fts_only / empty backend legitimately has no vectors; everything else
     // (local/ollama/openai/...) is expected to embed every doc.
     let embeddings_expected = !matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "");
-    let mismatches = build_integrity_mismatches(tantivy_count, vector_count, embeddings_expected);
+    let source_generation = observe_source_generation(&search, project_id, active_gen, embeddings_expected).await?;
+    let mut mismatches = build_integrity_mismatches(tantivy_count, vector_count, embeddings_expected);
+    include_source_mismatch(&mut mismatches, &source_generation);
 
     if !mismatches.is_empty() {
         metrics::metrics()
@@ -228,7 +295,9 @@ pub async fn check_project_integrity_with_policy(
     let recovery_pending = tokio::task::spawn_blocking(move || {
         registry.get_project(&project).map(|record| record.is_none_or(|record| record.reindex_required_since_ms.is_some()))
     }).await??;
-    let overall_healthy = compute_overall_healthy(mismatches.len(), &repairs) && !recovery_pending;
+    let source_observed = !embeddings_expected || source_generation.counts_match.is_some();
+    let overall_healthy = compute_overall_healthy(mismatches.len(), &repairs)
+        && !recovery_pending && source_observed;
 
     Ok(IntegrityCheckResult {
         project_id: project_id.to_string(),
@@ -236,6 +305,7 @@ pub async fn check_project_integrity_with_policy(
         timestamp_ms: now_ms(),
         tantivy_doc_count: tantivy_count,
         vector_doc_count: vector_count,
+        source_generation,
         graph_node_count: node_count,
         graph_edge_count: edge_count,
         mismatches,
