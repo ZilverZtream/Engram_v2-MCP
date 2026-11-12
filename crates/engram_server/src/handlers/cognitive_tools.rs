@@ -5816,6 +5816,14 @@ impl Engram {
         &self,
         req: crate::models::BenchmarkRetrievalRequest,
     ) -> Result<CallToolResult, McpError> {
+        if req.custom_queries.as_ref().is_some_and(Vec::is_empty) {
+            return Err(McpError::invalid_params("custom_queries must contain at least one authored query; omit it only to use WebForms defaults", None));
+        }
+        if req.custom_queries.is_none()
+            && let Some(result) = self.legacy_tool_applicability("benchmark_retrieval_defaults", &req.project_id, &[]).await?
+        {
+            return Ok(result);
+        }
         let pid = req.project_id.clone();
         let ps = self.ensure_project_runtime(&pid).await?;
         let (generation, _source_snapshot) = self.pin_active_source_generation(&pid, &ps.search).await?;
@@ -6376,8 +6384,6 @@ fn detect_build_commands(project_dir: &str) -> Vec<String> {
                     cmds.push(format!("npm run {script}"));
                 }
             }
-        } else {
-            cmds.push("npm test".into());
         }
     } else if has("pyproject.toml") || has("requirements.txt") {
         // Prefer `uv` when the project has a `uv.lock`.

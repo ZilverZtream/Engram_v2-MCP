@@ -957,6 +957,9 @@ impl Engram {
         // …` lines that are not valid syntax in Rust, JS, Python, etc. Passing
         // that mutated string to Tree-sitter makes the AST-based slicer fail.
         // Rules are semantic annotations and must be layered *after* parsing.
+        let slice_not_applicable = req.logical_slice.as_deref().and_then(|slice_type| {
+            crate::services::slice_service::slice_not_applicable(slice_type, &lang)
+        });
         let mut display_content: String = if let Some(ref slice_type) = req.logical_slice
             && slice_type != "all"
             && !slice_type.is_empty()
@@ -981,6 +984,9 @@ impl Engram {
             path, req.doc_id, req.namespace, lang, start_line, end_line, gen_
         );
         let mut suffix = format!("\nsource_freshness: {source_status}\n");
+        if let Some(note) = &slice_not_applicable {
+            suffix.push_str(&format!("logical_slice_status: not_applicable — {note}\n"));
+        }
         let mut guidance = serde_json::Value::Null;
         // Repository guidance is a separate live-evidence section, never part
         // of the indexed source body or the exact stored citation payload.
@@ -1008,7 +1014,8 @@ impl Engram {
                 metadata: serde_json::json!({"path":path.as_str(),"language":lang,"active_generation":gen_,
                     "indexed_range":{"start":start_line,"end":end_line},"indexed_range_scope":"index_metadata_not_citation_coordinates_or_source_proof",
                     "source_freshness":source_status,"freshness":freshness,"confidence":confidence_footer,"guidance":guidance,
-                    "inject_rules":req.inject_rules,"logical_slice":req.logical_slice}),
+                    "inject_rules":req.inject_rules,"logical_slice":req.logical_slice,
+                    "logical_slice_not_applicable":slice_not_applicable}),
                 prefix: &prefix, suffix: &suffix,
                 transformed: req.inject_rules || req.logical_slice.as_deref().is_some_and(|s| !s.is_empty() && s != "all"),
                 content_cap: Some(40_000),

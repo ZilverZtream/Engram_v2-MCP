@@ -1,0 +1,60 @@
+{
+  "status": "PARTIAL_IMPLEMENTATION_SELECTED_CHECKS_PASSED",
+  "at_utc": "2026-11-12T11:53:01.092937+00:00",
+  "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
+  "implementation_sha256": {
+    "crates/engram_server/src/capabilities/applicability.rs": "bfbaf51e6058140fb2cc67ffac131b2a186ba6e390d54280ad1909493af73893",
+    "crates/engram_server/src/capabilities.rs": "112df7bc237bd5ac696a3f6b0c51a76e1512fad86fbc861e9f750c0b3fbc054f",
+    "crates/engram_server/src/capabilities/project.rs": "3830adb77154d06f2ddb3c20bddc22d109f84fe73601770ee8dc76a93e8e7509",
+    "crates/engram_server/src/tools.rs": "7c3f1583625a8320b00eff06af82d5b6ed13bf27390370af1eeaaa9d0b29e774",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "530763719f6df45eb8b21596a7d7bfa2bca78b3c397337cf313cf1d588b45b53",
+    "crates/engram_server/tests/legacy_applicability_test.rs": "29e3187d9a7e3b7a0abd99f443f2f177e5512d1aa4cbc822ef46232ad32ac779",
+    "crates/engram_server/src/services/slice_service.rs": "a16aa3343f95b65c9fc29e5df7faea7bb92f3dd2b14de93a891cb8cccd472568",
+    "crates/engram_server/src/handlers/search_tools.rs": "93d4cacd3c58e5872ba96be891f17d9f04456e8a50709a48fbe74c03a8cb93a6"
+  },
+  "tests": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\applicability-no-vector-03-result.json",
+      "sha256": "163dc37e5140475e1b12ed7e77824c8848f55bd101ab05c8db6ac8365b9cc172"
+    }
+  ],
+  "demonstrated": [
+    "Actual indexing plus typed public tools reject Node migration plans/order, instrumentation generation and migration-status mutation even when a separate WebForms project is registered. Project/source information remains unchanged.",
+    "A mixed project rejects TypeScript as a WebForms page or C# characterization-test source, while its authored RequiredFieldValidator remains discoverable. Parent traversal is still rejected.",
+    "TypeScript instruction generation omits nonexistent npm test and WebForms rules. Style output identifies authored camelCase functions.",
+    "Non-WebForms default retrieval benchmarks return not-applicable with a custom_queries next step. An independently authored createOrder query retrieves app.ts. Unsupported legacy state slicing returns its complete source with an explicit applicability note."
+  ],
+  "installed_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\baseline\\receipt.json",
+    "sha256": "008642bf3e4f0ec198f518b95d700a6c92d1da6bc97a69373df89018cad95d3a"
+  },
+  "retained_failures": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\applicability-no-vector-01-result.json",
+        "sha256": "5ca2ba404a826b71a368288da4428b474486acce62cfb45af22237ee923e0ba8"
+      },
+      "reason": "Test harness imported Parameters from the wrong module; corrected before behavioral runs."
+    }
+  ],
+  "earlier_partial_check": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\applicability-no-vector-02-result.json",
+    "sha256": "4bb37f523623f870df7a7ef9cd8ce563e83c8e6f588f8c6fba430d44606926ad"
+  },
+  "service_inventory": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\service-inventory.json",
+    "sha256": "ea57419a1ed95762930b343c95607b31216e1ee1efb8fd8a6ff2f1984d1d090f"
+  },
+  "limitations": [
+    "Only four selected no-default-features integration checks have passed for this source. Native/regression/public installed acceptance is unfinished.",
+    "The 86-file introduction-tree inventory bounds the original audit; its per-service dispositions and neutral review coverage are not complete.",
+    "Runtime changes are not deployed. Installed runtime remains TODO24 identity 775c516f001701f9979ad53f2b132a2858c408ae83a96d4489496a6247f0a305.",
+    "No external CodeRabbit review, remote CI execution or original full-goal gate closure is claimed."
+  ],
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
+    "fixture_roots_removed": true,
+    "retained": "Baseline transcripts, test receipts/logs, inventory and scripts remain in this recorded location. Shared build target reused; no preexisting deletion."
+  },
+  "next_action": "Continue original TODO26: finish service dispositions, make legacy-only review-gate coverage explicit, verify neutral instruction/style/review behavior for the original four languages, then final native/public candidate/installed acceptance and deployment. Current entry-point/retrieval changes are only a validated partial implementation; TODO26 remains unchecked."
+}

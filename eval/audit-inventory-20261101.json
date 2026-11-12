@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "PARTIAL_IMPLEMENTATION_VALIDATION_RUNNING",
+      "status": "PARTIAL_IMPLEMENTATION_SELECTED_CHECKS_PASSED",
       "at_utc": "2026-11-12T11:35:42.569629+00:00",
       "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
       "observed_missing_behavior": "Installed public MCP on an authored Node project returns migration plans/order and progress instead of not-applicable even though discovery hides those tools. Neutral TypeScript style output is useful; generated guidance incorrectly adds npm test when package.json has no test script. Baseline owners closed and fixture removed.",
@@ -9969,7 +9969,9 @@
         "crates/engram_server/src/capabilities/project.rs",
         "crates/engram_server/src/tools.rs",
         "crates/engram_server/src/handlers/cognitive_tools.rs",
-        "crates/engram_server/tests/legacy_applicability_test.rs"
+        "crates/engram_server/tests/legacy_applicability_test.rs",
+        "crates/engram_server/src/services/slice_service.rs",
+        "crates/engram_server/src/handlers/search_tools.rs"
       ],
       "finite_acceptance": [
         "Account for the original service audit across the current corresponding service modules. Record each disposition and supporting source paths, including shared internals; do not equate file counts or an audit report with working behavior.",
@@ -9980,7 +9982,7 @@
       ],
       "constraints": "One implementation item: original TODO26. No CodeMap/Blast improvement, modern state-extractor expansion (TODO27), new approval UI, broad infrastructure, kernel/SSD investigation or preexisting-folder deletion. Preserve completed TODO23/24/25 and all original unfinished findings.",
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
-      "next_action": "Poll strict no-vector session 99628 to terminal without changing source. Finish bounded original service dispositions and remaining neutral-service checks/fixes, then final candidate/installed acceptance, deployment and delivery. Do not close TODO26 on entry-point guards alone.",
+      "next_action": "Continue original TODO26: finish service dispositions, make legacy-only review-gate coverage explicit, verify neutral instruction/style/review behavior for the original four languages, then final native/public candidate/installed acceptance and deployment. Current entry-point/retrieval changes are only a validated partial implementation; TODO26 remains unchecked.",
       "baseline_evidence": {
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\baseline\\receipt.json",
         "sha256": "008642bf3e4f0ec198f518b95d700a6c92d1da6bc97a69373df89018cad95d3a"
@@ -9998,20 +10000,24 @@
       "unfinished_audit_observations": [
         {
           "path": "crates/engram_server/src/services/slice_service.rs",
-          "evidence": "apply_logical_slice names its language argument _language and applies ASP.NET-specific event/UI/data/state regexes regardless of source language. Need explicit applicability in caller output while preserving requested source recovery."
+          "evidence": "apply_logical_slice names its language argument _language and applies ASP.NET-specific event/UI/data/state regexes regardless of source language. Need explicit applicability in caller output while preserving requested source recovery.",
+          "status": "IMPLEMENTED_SELECTED_PUBLIC_HANDLER_CHECK_PASSED"
         },
         {
           "path": "crates/engram_server/src/services/benchmark_service.rs",
-          "evidence": "Default generator is generate_legacy_benchmark_queries; inspect public benchmark handler so a non-WebForms project is not silently graded against WebForms queries."
+          "evidence": "Default generator is generate_legacy_benchmark_queries; inspect public benchmark handler so a non-WebForms project is not silently graded against WebForms queries.",
+          "status": "IMPLEMENTED_SELECTED_PUBLIC_HANDLER_CHECK_PASSED"
         },
         {
           "path": "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
-          "evidence": "GuardParityGate recognizes WebMethod/Click handlers and UiHouseStyleGate is markup-specific. Verify neutral review usefulness and whether non-applicable gate coverage is explicit; do not equate absent matches with supported analysis."
+          "evidence": "GuardParityGate recognizes WebMethod/Click handlers and UiHouseStyleGate is markup-specific. Verify neutral review usefulness and whether non-applicable gate coverage is explicit; do not equate absent matches with supported analysis.",
+          "status": "UNFINISHED"
         }
-      ]
+      ],
+      "progress": "eval/p130-service-applicability-progress-20261112.json"
     },
-    "at_utc": "2026-11-12T10:42:36.235266+00:00",
-    "reason": "TODO24 is deployed with candidate, installed and normal-daemon acceptance, committed/pushed as 6ad4896. TODO25 is the next unchecked accepted original item.",
+    "at_utc": "2026-11-12T11:53:01.092937+00:00",
+    "reason": "TODO25 implementation 8a37398 and delivery ae37f89 pushed; both strict modes passed and absent matching CI runs explicitly recorded. Original TODO26 is active.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10040,8 +10046,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO25 Language fixture corpora beyond WebForms",
-    "next_user_visible_deliverable": "Checked-in TS/Python/Rust/Go projects with independent symbol/call expectations exercised by real indexing and wired into CI.",
+    "active_original_item": "TODO26 Service applicability and neutral non-.NET behavior",
+    "next_user_visible_deliverable": "Explicit inapplicable legacy-tool outcomes and useful non-.NET instruction/style/review behavior, demonstrated through actual MCP.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10055,7 +10061,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: TODO24 source committed/pushed, 22 selected checks passed, release built, candidate and installed public acceptance passed, deployed and normal daemon verified; delivery 6ad4896 pushed.",
+    "previous_goal_turn_classification": "Progress: completed/pushed TODO25; captured installed TODO26 baseline, implemented applicability/retrieval fixes and passed four selected behavioral checks.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10698,7 +10704,7 @@
         "selection": "Recorded only. No fix selected from this limitation; continue actual core-tool task validation."
       }
     ],
-    "next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success.",
+    "next_core_task_rationale": "Closed CodeMap/Blast work is not the current task. Continue original TODO26 and the accepted broader backlog.",
     "latest_batch_cancellation_task": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\batchcancel-informed01-source-judgment-20261107.json",
       "sha256": "c8bff5ac3935ccc5648a62a78b7d2fa61d0e15affa8ba118da7862fe38f2e06e"
@@ -10731,7 +10737,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "No Cargo/build/deployment or config hold. All8 current observer pipes closed; no temporary fixtures or application edits. Retained diagnostics in core-zoom-qa-completion-20261110. Two terminal-owner helper files received post-delivery unexecuted revisions from a stale queued agent message; exact historical/current hashes and limitations recorded, historical execution receipts unchanged.",
+    "current_owned_resource_state": "All current TODO25/26 test sessions terminal. Owned fixture roots removed. No build/deployment/config hold active. Runtime TODO24 remains installed; retained diagnostics are recorded in p130.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -11028,7 +11034,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "With repair deployed and normal readback passed. Continue original core-tool delivery under latest user correction without scope/permission questions or automatically promoting new issues.",
+    "independent_next_action": "Continue original TODO26: finish service dispositions, make legacy-only review-gate coverage explicit, verify neutral instruction/style/review behavior for the original four languages, then final native/public candidate/installed acceptance and deployment. Current entry-point/retrieval changes are only a validated partial implementation; TODO26 remains unchecked.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -12806,6 +12812,7 @@
         "Run actual public candidate/installed lineage and source-update/rebuild acceptance, deploy matching server/sidecar, record final evidence."
       ]
     },
-    "historical_checkpoint_scope": "Earlier named checkpoint entries retain historical/partial evidence. Current active selection is selected_delivery_contract; completed delivery receipts supersede their stale next-step text without discarding unfinished findings."
+    "historical_checkpoint_scope": "Earlier named checkpoint entries retain historical/partial evidence. Current active selection is selected_delivery_contract; completed delivery receipts supersede their stale next-step text without discarding unfinished findings.",
+    "historical_next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success."
   }
 }

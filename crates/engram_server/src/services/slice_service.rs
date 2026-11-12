@@ -42,7 +42,18 @@ static STATE_ACCESS_RE: OnceLock<Regex> = OnceLock::new();
 /// - `"all"` — No filtering, return everything
 ///
 /// If the slice type doesn't match any known category, returns the full content.
-pub fn apply_logical_slice(content: &str, slice_type: &str, _language: &str) -> String {
+pub fn slice_not_applicable(slice_type: &str, language: &str) -> Option<String> {
+    let legacy_slice = matches!(slice_type, "event_handlers" | "ui_methods" | "data_methods" | "state_access");
+    let supported = matches!(language.to_ascii_lowercase().as_str(), "cs" | "csharp" | "c#" | "vb" | "vbnet" | "vb.net" | "asp" | "aspx");
+    (legacy_slice && !supported).then(|| format!(
+        "Not applicable: {slice_type} uses legacy ASP.NET/.NET patterns, unsupported for language {language}. Full source retained; no matching-language analysis was performed."
+    ))
+}
+
+pub fn apply_logical_slice(content: &str, slice_type: &str, language: &str) -> String {
+    if slice_not_applicable(slice_type, language).is_some() {
+        return content.to_owned();
+    }
     match slice_type {
         "all" | "" => content.to_string(),
         "event_handlers" => slice_event_handlers(content),
@@ -648,7 +659,7 @@ Label1.Text = count.ToString()
         );
     }
 
-    // ── language parameter is accepted (currently reserved) ──────────────────
+    // Unfiltered source remains language-neutral.
 
     #[test]
     fn language_parameter_does_not_affect_all_slice() {
