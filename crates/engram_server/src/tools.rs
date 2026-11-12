@@ -311,6 +311,14 @@ impl Engram {
         self.handle_ask_codebase(params.0).await
     }
 
+    #[tool(description = "Trace a URL/page and optional action to source-cited WebForms route candidates, authored event handlers, indexed calls, SQL/procedures/tables, state and response source. Static navigation, not proof of runtime execution. Ambiguous routing, stale graph/source and missing trigger bindings remain explicit gaps. Requires indexed project; JSON response.")]
+    pub async fn trace_user_request(
+        &self,
+        params: Parameters<TraceUserRequestRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_trace_user_request(params.0).await
+    }
+
     #[tool(
         description = "Open an edit session BEFORE changing code: persists your planned file set and returns the expectation brief — co-change partners and shared state the plan must account for. Bookend with complete_edit_session. Related: plan_user_story for the planning stage."
     )]
