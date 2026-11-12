@@ -9973,18 +9973,21 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-12T20:47:22.799192+00:00",
+  "last_updated_at": "2026-11-12T21:04:28.783553+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SELECTED_IMPLEMENTATION",
+      "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
       "at_utc": "2026-11-12T20:47:22.799192+00:00",
       "original_requirement": "TODO37 Indexing progress reporting an agent can poll: persist per-phase progress (files done/total, phase, ETA) and expose via get_job_status.",
       "observed_missing_behavior": "Index/update/history callbacks persist percent and human count messages, but get_job_status exposes only job_id/status/message. ETA stays None. Phase-boundary checkpoints do not provide live file/commit progress through the requested tool.",
       "implementation_files": [
+        "README.md",
+        "crates/engram_core/src/registry.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
         "crates/engram_server/src/handlers/git_tools.rs",
         "crates/engram_server/src/services/job_progress.rs",
         "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/tools.rs",
         "crates/engram_server/tests/job_progress_tests.rs"
       ],
       "finite_acceptance": [
@@ -9999,7 +10002,25 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress",
       "scope_guard": "OciusX source/history job visibility only; no language expansion, CodeMap/Blast, job framework rewrite, storage redesign or broad benchmark.",
       "resources": "Own and close all new fixtures/processes. Keep scratch here; reuse checkout/shared target. No preexisting deletion.",
-      "retained_limits": "TODO36 performance target, original19 gates, comparative usefulness and all other unfinished/held findings stay open."
+      "retained_limits": "TODO36 performance target, original19 gates, comparative usefulness and all other unfinished/held findings stay open.",
+      "implementation_progress": {
+        "native_result": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\native2.json",
+        "startup_cleanup_result": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\registry2.json",
+        "native_tests": 3,
+        "startup_cleanup_tests": 4,
+        "debug_public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\debug1\\acceptance.json",
+        "debug_public_jobs": 5,
+        "debug_public_calls": 44,
+        "debug_scope": "Ran before removing one unrelated legacy-ETA cleanup mutation; final native/core checks pass. Final paired candidate and installed acceptance still required.",
+        "review": "Parent manual review of coherent status/phase reads, atomic running-job updates, deletion/cancellation handling, backward-compatible optional JSON field, restart preservation, phase ETA/unknowns and fixture ownership. CodeRabbit last authentication unavailable; no independent review claim.",
+        "source_frozen": true,
+        "release_build_session": 34978,
+        "public_candidate_verified": false,
+        "installed_verified": false
+      },
+      "source_commit": "1c9bc3d310380f0d55b945d107969a503ea15491",
+      "main_merge_commit": "48616041d884faf8ae878872136035b889ec5857",
+      "build_session": 34978
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10032,7 +10053,7 @@
       }
     ],
     "active_original_item": "TODO37 pollable indexing progress",
-    "next_user_visible_deliverable": "Expose durable phase/count/progress/ETA through get_job_status for source/update/history jobs, then verify installed MCP behavior.",
+    "next_user_visible_deliverable": "Finish exact progress release build34978, then paired candidate/installed five-job polling acceptance; deploy and record completed delivery before advancing.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10051,7 +10072,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Release build and candidate11/installed11 public checks PASS; actual OciusX existing-key suppression verified; package deployed; source/preserved work unchanged. Debug failure isolated to missing paired sidecar."
+      "evidence": "Phase progress implemented and source1c9bc3d merged/pushed4861604. Native3 and existing startupcleanup4 checks pass; debug public5jobs44calls pass. Release34978 confirmed live. Parked9files unchanged."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
