@@ -422,3 +422,258 @@ fn reached_method_resolves_sql_source_without_fabricated_database_graph_edges() 
                 && member["recovery"]["arguments"]["project_id"] == "project")
     );
 }
+
+const ORM_BODY: &str = "Public Class Orders\nPublic Shared Function Save() As Object\nDim db As New WarehouseDataContext\nDim data = From row In db.inv_items Select row\nReturn data\nEnd Function\nEnd Class\n";
+const DBML: &str = "<Database Class=\"WarehouseDataContext\" xmlns=\"http://schemas.microsoft.com/linqtosql/dbml/2007\">\n  <Table Name=\"dbo.Inventory\" Member=\"inv_items\"><Type Name=\"InventoryRow\" /></Table>\n</Database>";
+
+fn orm_trace(
+    helper: &str,
+    mapping: &str,
+    other: Option<&str>,
+    state: &str,
+    include_db: bool,
+) -> execution::PageTrace {
+    let mut fixture = fixture();
+    let mut sources = sources(VB);
+    sources
+        .iter_mut()
+        .find(|s| s.path == "Site/App_Code/Orders.vb")
+        .unwrap()
+        .content = helper;
+    sources.push(Source {
+        path: "Site/App_Code/Inventory.dbml",
+        content: mapping,
+    });
+    if let Some(other) = other {
+        sources.push(Source {
+            path: "Site/App_Code/Other.dbml",
+            content: other,
+        });
+    }
+    let mut changed = Vec::new();
+    for source in sources
+        .iter()
+        .filter(|s| s.path.ends_with(".dbml") || s.path.ends_with("Orders.vb"))
+    {
+        let mut file = node(
+            &format!("file:{}", source.path),
+            "file",
+            source.path,
+            source.path,
+            1,
+            source.content.lines().count() as u32,
+        );
+        file.metadata =
+            Some(json!({"file_hash":blake3::hash(source.content.as_bytes()).to_hex().to_string()}));
+        if source.path.ends_with("Inventory.dbml") {
+            if state == "stale" {
+                file.metadata = Some(json!({"file_hash":"old source"}));
+            }
+            if state == "revision" {
+                file.generation = 2;
+            }
+        }
+        if !(source.path.ends_with("Inventory.dbml") && state == "unselected") {
+            fixture.selected.insert(source.path.into(), 1);
+        }
+        changed.push(file);
+    }
+    if state == "missing" {
+        sources.retain(|s| !s.path.ends_with("Inventory.dbml"));
+    }
+    let mut method = fixture.graph.get_node("project", "save").unwrap().unwrap();
+    method.end_line = helper.lines().count() as u32 - 1;
+    changed.push(method);
+    fixture.graph.upsert_nodes("project", &changed).unwrap();
+    fixture
+        .graph
+        .delete_edges_of_kind("project", &EdgeKind::CallsStoredProcedure)
+        .unwrap();
+    fixture
+        .graph
+        .delete_edges_of_kind("project", &EdgeKind::StoredProcWritesTable)
+        .unwrap();
+    let query_line = helper
+        .lines()
+        .position(|line| line.contains("Dim data = From"))
+        .unwrap()
+        + 1;
+    fixture
+        .graph
+        .upsert_edges(
+            "project",
+            &[Edge {
+                source_id: "save".into(),
+                target_id: "table:inv_items".into(),
+                namespace: "memory".into(),
+                language: "vbnet".into(),
+                edge_kind: EdgeKind::QueriesTable,
+                weight: 1,
+                generation: 1,
+                updated_at_ms: 1,
+                metadata: Some(
+                    json!({"orm":"true", "access":"read", "src_line":query_line.to_string()}),
+                ),
+            }],
+        )
+        .unwrap();
+    let route = routing::resolve("buy/42", &sources)
+        .unwrap()
+        .candidates
+        .remove(0);
+    execution::trace_page(
+        &fixture.graph,
+        "project",
+        &route,
+        Some("click btnBuy"),
+        include_db,
+        true,
+        &sources,
+        &fixture.selected,
+    )
+    .unwrap()
+    // Fixture drops graph before TempDir, including assertion-unwind paths.
+}
+
+#[test]
+fn reached_orm_member_uses_its_context_mapping_and_preserves_graph_evidence() {
+    let other = DBML
+        .replace("WarehouseDataContext", "OtherDataContext")
+        .replace("dbo.Inventory", "other.Unrelated");
+    let trace = orm_trace(ORM_BODY, DBML, Some(&other), "current", true);
+    let edge = trace
+        .paths
+        .iter()
+        .find(|p| p.kind == "queries_table")
+        .unwrap();
+    let mapping = edge
+        .table_mapping
+        .as_ref()
+        .expect("reached context/member mapping");
+    assert_eq!(mapping["table"], "dbo.Inventory");
+    assert_eq!(
+        mapping["mapping_source"]["file"],
+        "Site/App_Code/Inventory.dbml"
+    );
+    assert_eq!(mapping["mapping_source"]["line"], 2);
+    assert_eq!(
+        mapping["mapping_source"]["source_blake3"],
+        blake3::hash(DBML.as_bytes()).to_hex().to_string()
+    );
+    assert_eq!(mapping["query_source"]["line"], 4);
+    assert_eq!(mapping["receiver"], "db");
+    assert_eq!(edge.to, "table:inv_items");
+    assert_eq!(edge.evidence.as_ref().unwrap()["access"], "read");
+    assert!(
+        !edge.target_source_verified,
+        "DBML is not proof of a physical table definition"
+    );
+    assert!(
+        mapping["interpretation"]
+            .as_str()
+            .unwrap()
+            .contains("Not a table definition")
+    );
+}
+
+#[test]
+fn dbml_mapping_withholds_ambiguous_stale_missing_and_unselected_evidence() {
+    for state in ["stale", "revision", "missing", "unselected"] {
+        let trace = orm_trace(ORM_BODY, DBML, None, state, true);
+        assert!(
+            trace.paths.iter().all(|p| p.table_mapping.is_none()),
+            "{state}"
+        );
+        assert!(trace.gaps.iter().any(|g| g.contains("DBML")), "{state}");
+    }
+    let conflicting = DBML.replace("dbo.Inventory", "other.Inventory");
+    let trace = orm_trace(ORM_BODY, DBML, Some(&conflicting), "current", true);
+    assert!(trace.paths.iter().all(|p| p.table_mapping.is_none()));
+    assert!(
+        trace
+            .gaps
+            .iter()
+            .any(|g| g.contains("context is missing or ambiguous"))
+    );
+    let duplicate_member = DBML.replace(
+        "</Database>",
+        "<Table Name=\"other.Items\" Member=\"inv_items\" /></Database>",
+    );
+    let trace = orm_trace(ORM_BODY, &duplicate_member, None, "current", true);
+    assert!(trace.paths.iter().all(|p| p.table_mapping.is_none()));
+}
+
+#[test]
+fn malformed_dbml_and_xml_examples_cannot_become_table_bindings() {
+    let commented = DBML
+        .replace("<Table ", "<!-- <Table ")
+        .replace("</Table>", "</Table> -->");
+    let prefixed = DBML
+        .replace("<Database ", "<d:Database ")
+        .replace("xmlns=", "xmlns:d=")
+        .replace("</Database>", "</d:Database>")
+        .replace("<Table ", "<d:Table ")
+        .replace("</Table>", "</d:Table>")
+        .replace("<Type ", "<d:Type ");
+    let good = orm_trace(ORM_BODY, &prefixed, None, "current", true);
+    assert!(
+        good.paths.iter().any(|p| p.table_mapping.is_some()),
+        "namespace-qualified DBML is supported"
+    );
+    for mapping in [
+        DBML.replace("</Database>", ""),
+        DBML.replace("dbo.Inventory", "&unknown;"),
+        format!("<!DOCTYPE Database SYSTEM 'file:///not-read'>{DBML}"),
+        DBML.replace(
+            "http://schemas.microsoft.com/linqtosql/dbml/2007",
+            "urn:unrelated",
+        ),
+        commented,
+    ] {
+        let trace = orm_trace(ORM_BODY, &mapping, None, "current", true);
+        assert!(
+            trace.paths.iter().all(|p| p.table_mapping.is_none()),
+            "{mapping}"
+        );
+        assert!(trace.gaps.iter().any(|g| g.contains("DBML")));
+    }
+}
+
+#[test]
+fn unknown_aliased_reassigned_or_chained_contexts_remain_unresolved() {
+    for declaration in [
+        "Dim db As New OtherDataContext",
+        "Dim db = suppliedContext",
+        "Dim original As New WarehouseDataContext\nDim db = original",
+        "Dim db As New WarehouseDataContext\ndb = suppliedContext",
+        "Dim db = New WarehouseDataContext().Other",
+        "Dim db As New WarehouseDataContext\nMutate(ByRef db)",
+        "' Dim db As New WarehouseDataContext",
+        "Dim example = \"Dim db As New WarehouseDataContext\"",
+    ] {
+        let helper = ORM_BODY.replace("Dim db As New WarehouseDataContext", declaration);
+        let trace = orm_trace(&helper, DBML, None, "current", true);
+        assert!(
+            trace.paths.iter().all(|p| p.table_mapping.is_none()),
+            "{declaration}"
+        );
+        assert!(
+            trace
+                .gaps
+                .iter()
+                .any(|g| g.contains("ORM") || g.contains("DBML"))
+        );
+    }
+}
+
+#[test]
+fn database_opt_out_does_not_parse_or_return_dbml_mappings() {
+    let trace = orm_trace(ORM_BODY, "not XML", None, "current", false);
+    assert!(
+        trace
+            .paths
+            .iter()
+            .all(|p| p.kind != "queries_table" && p.table_mapping.is_none())
+    );
+    assert!(!trace.gaps.iter().any(|g| g.contains("DBML")));
+}

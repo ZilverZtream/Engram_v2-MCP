@@ -32,6 +32,7 @@ uuid.workspace = true
 blake3.workspace = true
 sha2.workspace = true
 regex.workspace = true
+quick-xml = "=0.37.5"
 # Parse authored guidance links with document-local CommonMark definitions.
 pulldown-cmark = { version = "0.13", default-features = false }
 git2.workspace = true

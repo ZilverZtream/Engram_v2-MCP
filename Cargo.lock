@@ -1932,6 +1932,7 @@ dependencies = [
  "git2",
  "notify",
  "pulldown-cmark",
+ "quick-xml",
  "redb",
  "regex",
  "reqwest 0.13.2",
