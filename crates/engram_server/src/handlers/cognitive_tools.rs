@@ -3151,6 +3151,13 @@ impl Engram {
         &self,
         p: crate::models::requests::AnalyzeBusinessLogicRequest,
     ) -> Result<CallToolResult, McpError> {
+        fn not_applicable(project_id: &str, file_path: Option<&str>, message: &str) -> CallToolResult {
+            CallToolResult::success(vec![Content::text(serde_json::json!({
+                "format":"engram-tool-applicability-v1", "status":"not_applicable",
+                "tool":"analyze_business_logic", "project_id":project_id, "file_path":file_path,
+                "analysis_performed":false, "message":message,
+            }).to_string())])
+        }
         let rec = self.ensure_project_record(&p.project_id).await?;
         let project_dir = rec.directory.clone();
         let dreaming = self.state.dreaming.as_ref();
@@ -3177,6 +3184,10 @@ impl Engram {
                 .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
             let content = std::fs::read_to_string(&full_path)
                 .map_err(|e| McpError::invalid_params(format!("cannot read file: {e}"), None))?;
+            if crate::services::business_logic_service::detect_language(file_path, &content) == "unsupported" {
+                return Ok(not_applicable(&p.project_id, Some(file_path),
+                    "Not applicable to this source language: business-logic extraction supports C#, VB.NET and MiniLang. No model call or persistence performed."));
+            }
 
             if let Some(method_name) = &p.method_name {
                 let language =
@@ -3309,11 +3320,15 @@ impl Engram {
         // Full project mode
         let code_paths = crate::utils::files::discover_files_recursive(
             std::path::Path::new(&project_dir),
-            &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".vb", ".cs"],
+            &[".aspx.vb", ".aspx.cs", ".ascx.vb", ".ascx.cs", ".vb", ".cs", ".ml", ".mlinc"],
             500,
         )
         .await;
 
+        if code_paths.is_empty() {
+            return Ok(not_applicable(&p.project_id, None,
+                "Not applicable to the selected source: no C#, VB.NET or MiniLang files were found for business-logic extraction. No model call or persistence performed."));
+        }
         let code_files: Vec<(String, String)> = code_paths
             .into_iter()
             .filter_map(|rel| {

@@ -73,7 +73,7 @@ impl Engram {
                 serde_json::json!({
                     "format": "engram-tool-applicability-v1",
                     "status": status,
-                    "tool": tool,
+                    "tool": if tool == "benchmark_retrieval_defaults" { "benchmark_retrieval" } else { tool },
                     "project_id": project_id,
                     "message": message,
                     "analysis_performed": false,

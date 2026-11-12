@@ -1167,7 +1167,13 @@ pub fn detect_language(file_path: &str, content: &str) -> &'static str {
     if p.ends_with(".cs") {
         return "cs";
     }
-    // Fallback for extensionless / unknown input.
+    // A known non-supported extension must not become C# merely because the
+    // source does not contain VB terminators. Content fallback is only for
+    // extensionless snippets whose caller did not supply source identity.
+    if std::path::Path::new(file_path).extension().is_some() {
+        return "unsupported";
+    }
+    // Fallback for extensionless input.
     if content.contains("End Sub") || content.contains("End Function") {
         "vb"
     } else {
@@ -1205,6 +1211,13 @@ pub async fn analyze_file_logic_with_context_concurrency(
     max_concurrent: usize,
 ) -> (FileBusinessLogic, usize, usize) {
     let language = detect_language(file_path, content);
+    if language == "unsupported" {
+        return (FileBusinessLogic {
+            file_path: file_path.to_owned(), class_name: String::new(),
+            file_purpose: "Not applicable to this source language: business-logic extraction supports C#, VB.NET and MiniLang. No analysis performed.".into(),
+            file_purpose_evidence: None, methods: Vec::new(), analyzed_at: now_utc_string(),
+        }, 0, 0);
+    }
 
     // Extract method names and bodies
     let extracted = extract_logic_methods(content, language);
@@ -1626,6 +1639,7 @@ fn vb_body_is_empty(body: &str) -> bool {
 /// first body for every call. VB bodies start at their declaration so prompt
 /// line numbers stay one-based even when the regex consumed blank lines.
 pub(crate) fn extract_logic_methods(content: &str, language: &str) -> Vec<LogicMethod> {
+    if !matches!(language, "cs" | "vb" | "ml") { return Vec::new(); }
     if language == "cs" {
         let methods = engram_index::parsing::csharp_method_declarations(content);
         let mut counts = std::collections::HashMap::new();

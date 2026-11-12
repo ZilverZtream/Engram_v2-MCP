@@ -120,6 +120,8 @@ pub struct GuardParityGate;
 
 #[async_trait]
 impl Gate for GuardParityGate {
+    fn source_extensions(&self) -> Option<&'static [&'static str]> { Some(&["cs", "vb", "asmx"]) }
+
     fn name(&self) -> &'static str {
         "guard_parity"
     }
@@ -1176,6 +1178,8 @@ static STATE_KEY_RE: LazyLock<Option<Regex>> = LazyLock::new(|| {
 
 #[async_trait]
 impl Gate for StateGate {
+    fn source_extensions(&self) -> Option<&'static [&'static str]> { Some(&["cs", "vb", "aspx", "ascx", "master", "asp"]) }
+
     fn name(&self) -> &'static str {
         "state"
     }
@@ -1186,7 +1190,7 @@ impl Gate for StateGate {
         };
         let mut findings = Vec::new();
         for df in ctx.diff_files {
-            if df.is_binary || matches!(df.change_type, ChangeType::Deleted) {
+            if df.is_binary || matches!(df.change_type, ChangeType::Deleted) || !self.supports_path(&df.path) {
                 continue;
             }
             let mut per_file: HashMap<(String, String), Vec<usize>> = HashMap::new();
@@ -4919,6 +4923,8 @@ fn is_markup_file(path: &str) -> bool {
 }
 
 impl Gate for UiHouseStyleGate {
+    fn source_extensions(&self) -> Option<&'static [&'static str]> { Some(&["aspx", "ascx", "master"]) }
+
     fn name(&self) -> &'static str {
         "ui_house_style"
     }

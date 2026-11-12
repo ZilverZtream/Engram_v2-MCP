@@ -157,16 +157,18 @@ async fn unrelated_rules_and_namespace_do_not_supply_missing_coverage() {
 }
 
 #[tokio::test]
-async fn populated_but_nonmatching_corpora_pass_without_empty_corpus_warning() {
+async fn unrelated_scoped_rules_do_not_claim_immune_coverage_for_the_changed_file() {
     let (_tmp, state, pid, root, generation) = fixture().await;
     seed_rule(&state, &pid, true, false);
     seed_doc(&state, &pid, "antipattern").await;
     let (findings, outcomes) = review(&state, &pid, &root, generation, false).await;
     assert!(findings.is_empty(), "{findings:?}");
-    assert!(
-        outcomes.iter().all(|o| o.status == GateStatus::Passed),
-        "{outcomes:?}"
-    );
+    // A rule scoped to Other.vb cannot establish coverage for Sample.vb.
+    // Scoped rule retrieval deliberately withholds it from this review.
+    assert!(outcomes.iter().any(|o| o.name == "immune" && matches!(&o.status,
+        GateStatus::Degraded { findings: 0, notes } if notes.iter().any(|note| note.contains("immune coverage")))), "{outcomes:?}");
+    // The populated, project-wide anti-pattern corpus was consulted and had no match.
+    assert!(outcomes.iter().any(|o| o.name == "antipattern" && o.status == GateStatus::Passed), "{outcomes:?}");
 }
 
 #[tokio::test]

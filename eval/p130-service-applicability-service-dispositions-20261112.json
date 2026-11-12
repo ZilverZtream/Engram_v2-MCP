@@ -1,0 +1,641 @@
+{
+  "status": "SOURCE_BOUNDARIES_ACCOUNTED_PUBLIC_RELEASE_ACCEPTANCE_PENDING",
+  "original_requirement": "TODO26: account for WebForms-biased services and establish truthful non-.NET applicability plus neutral guidance/style/review.",
+  "origin_commit": "03d4c98",
+  "scope_note": "The original text says 56 WebForms-biased files without an enumerated list. The introduction tree has this complete service inventory (including internal modules); account for it rather than inventing a 56-file subset. Existing closed Blast Radius implementation is preserved without improvement.",
+  "files": [
+    {
+      "path": "crates/engram_server/src/services/ajax_region_service.rs",
+      "sha256": "51fd72d4bbd1f1a007f6345f7d4803c7214b57e1b8c79bc5e4e7d6a3333dc1d7",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "map_ajax_regions: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/auth_config_service.rs",
+      "sha256": "ed953fca41d0bcd731cf365d27b6e9e1ff55b4030e82ccbab507c8c640f45ad8",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "map_auth_config: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/autonomous_decision_service.rs",
+      "sha256": "c361e0dfff324a09d4b04fca70f490c69e590933470eb4ac5e7f08b36171bf95",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Evaluates supplied gate evidence, thresholds and rollout policy; WebForms calibration-class examples do not impose a source-language default.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/benchmark_service.rs",
+      "sha256": "b00519d7901a24e04182d829270a1fc612ee759b68ac7509c0ff4cd9cbb94d91",
+      "disposition": "CONDITIONAL_DEFAULTS",
+      "boundary": "Default WebForms query set is rejected for other projects; explicit authored custom_queries remain usable.",
+      "evidence_scope": "non_dotnet_retrieval_preserves_source_and_uses_authored_benchmark_queries"
+    },
+    {
+      "path": "crates/engram_server/src/services/blast_radius_service.rs",
+      "sha256": "a7f9eb53aac23d81dd628e130a83df4566a0f6a05c1ba5b998a0736ab3861a15",
+      "disposition": "PRESERVED_CLOSED_DELIVERY",
+      "boundary": "Closed by user instruction. No improvement or new comparison; existing implementation retained.",
+      "evidence_scope": "Existing delivery records; no new completeness claim"
+    },
+    {
+      "path": "crates/engram_server/src/services/business_logic_service.rs",
+      "sha256": "6c099569d0acbb77dc71ef874551806f8dd9a445d6bcf3dc87e4d311d727af41",
+      "disposition": "EXPLICIT_SUPPORTED_LANGUAGES",
+      "boundary": "C#/VB.NET/MiniLang extraction retained. Known other extensions return not-applicable before LLM/persistence instead of defaulting to C#. Extensionless legacy snippets retain existing detection.",
+      "evidence_scope": "neutral_guidance_style_and_review_work_for_four_authored_source_languages"
+    },
+    {
+      "path": "crates/engram_server/src/services/characterization_test_service.rs",
+      "sha256": "8fa495fb30aefbded695616da75169e9810404b569034af439acb454e9881da9",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "generate_characterization_tests: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/code_review_ingest_service.rs",
+      "sha256": "473fe0be36e5d91d68f0fcf2eb62131f12bf9c0d17632b7972b5dfeae60c0638",
+      "disposition": "NEUTRALIZED_PROMPT",
+      "boundary": "Distillation uses supplied language/platform and preserves original API/condition boundaries; removes assumed WebForms stack and universal ANY-file wording. Existing rule ownership/scope paths retained.",
+      "evidence_scope": "Source inspection only for prompt; no live LLM output claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/cognitive_service.rs",
+      "sha256": "be3cc9afa3e512b4bda9975b2b261c9742a7d878bc346537dc80da13a0e6f692",
+      "disposition": "LANGUAGE_DISPATCH",
+      "boundary": "Static style analysis dispatches VB/C#/TS/JS/ASPX/SQL/Python/Rust/Go/Java and generic sources; useful source-derived casing verified for four original languages.",
+      "evidence_scope": "neutral_guidance_style_and_review_work_for_four_authored_source_languages"
+    },
+    {
+      "path": "crates/engram_server/src/services/coverage_service.rs",
+      "sha256": "4f07d343f1b79d70c9969d1756c037f035e4a7cd9c217687884466f390efeb70",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "check_migration_coverage: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/data_flow_service.rs",
+      "sha256": "d3bf72209d3e85e9b8b8097c791c87c6f2369b1a975daa41f91add619d6fa26d",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "trace_data_flow: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/database_intelligence_service.rs",
+      "sha256": "5a888c3068544efa626a73f2a9d10dec80d28acf736b044bd438a6454916eb62",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "SQL/schema/stored-procedure domain is explicit and independent of the application language.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/db_strategy_service.rs",
+      "sha256": "d91ad7be25a45a6e93c39bf8a0cbc814d0c4a9c0bb937e1991dc70aba50f8e87",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Data-access classification and C# interface generation belong to full-project .NET migration; no independent public entry. Shared SQL risk scoring retains its explicit SQL domain.",
+      "evidence_scope": "analyze_full_project_migration public applicability boundary"
+    },
+    {
+      "path": "crates/engram_server/src/services/dossier_service.rs",
+      "sha256": "7691c580b3d5da3508365bf9bc2da51959787bc395b9728e241140e89ad010d3",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "get_migration_dossier: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/evidence_orchestration.rs",
+      "sha256": "76a691744cce9436e29f7484df01064c95d51dfa8c8b5f5066d720f72d06de2b",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Composes evidence providers by their declared domains; no assumed WebForms source.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/explain_change_service.rs",
+      "sha256": "bf2cc0e0f706090dea00992c127c9b0cd0ca428945fa1d0d9ecab961ccaa7346",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Diff/history explanation and file classification cover ordinary source and ecosystem manifests.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service.rs",
+      "sha256": "06fb2ff0bbb761bfe7e14b33b92154f8d3764a50b3682bf64c1bb04ac9e403f3",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/anti_patterns.rs",
+      "sha256": "9bca64a3b7e9b3bde6fa49a3df2bdf000d972f38e5c15af8dd70a71a291d8013",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/background_jobs.rs",
+      "sha256": "9b13294eac6197584627a48fdc63fc078847a623e772bf270b80cdf70aeae2ab",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/caching.rs",
+      "sha256": "4333d3a4edf2c86f4febd80c10871bd63cf9c74ab73cd76f3bad71542b400f29",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/classic_asp.rs",
+      "sha256": "9ae06bb787a35da4acbceef07c3aa793e94a281fd90fcc8ef4c8f00975002e2f",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/common.rs",
+      "sha256": "5cec2a482c0d197d74b4e639397bd06a4da135b5938a235cdd320383e5f2c6b2",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/config_transforms.rs",
+      "sha256": "40dce9192e1262e7d08572d5bc34bd675d56a435e314d9734dd8695f297a3517",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/cross_cutting.rs",
+      "sha256": "ea5271bc20a1cbf768ea5600e3a4dcb32df6e705bef7c13dc0301dcf3db63d85",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/cross_layer.rs",
+      "sha256": "d2024aa0e8ad22b58a40ce4c7b2456e2d8b4319b636430d3a1e81f2b7622e9fb",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/dependencies.rs",
+      "sha256": "ad9992003ce3b6bb86654fd8127c9ce1c22c55778eee33d6b51ec628bcd0d7cb",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/email.rs",
+      "sha256": "ec48ecc3136123e68769e1546ed231dcb66c42a4df22530a2eb2a0693119fcee",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/endpoints.rs",
+      "sha256": "54979f9d70ef018942111011c820866aa291d9703d1dc34fe9a54b503260b4e9",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/gis.rs",
+      "sha256": "930026b0884a210f5a3e294c3ecb62e396e3bdd385d1fc420b808bb01271db08",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/global_asax.rs",
+      "sha256": "5e7d049fc72c59d4ba2aadb5e30dd87ec4e34cf4597617fadc3941d67b9627ec",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/inheritance.rs",
+      "sha256": "a76f2138602ca5f9d14c94c570768821ddaecdeb1643b323744c4cf77bf44029",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/js.rs",
+      "sha256": "249c4da6e25eed8829126eee05cd8430854f8672f90bccb22823743b596376de",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/master_pages.rs",
+      "sha256": "e70e3e7e7bf31b7d9590be11d59e17655825cab14c0993d3e957529fe10aeb3f",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/methods.rs",
+      "sha256": "7121dbfbe0741b31e78e23f89b83f42212d34a8fcd71b0635ee296e88eb62c5c",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/mod.rs",
+      "sha256": "9374005068b2b43f4c2759c184de6dd0ae248d52d50e4b895261a538b789bd33",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/multi_tenancy.rs",
+      "sha256": "f430b6ac858440656da5934ff42d8cd962989111ca36c63fe0ce99e6734137a0",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/reports.rs",
+      "sha256": "08fec2b53fc4e3d7f83c4321c75062ee89f2123a9138f19ecfde415e084be465",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/resources.rs",
+      "sha256": "e265480a89ce2c92dd459db368cfd9c35237ac9d1e378f67ad9d7ed50459b571",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/routing.rs",
+      "sha256": "674bc5654f56eb42158cb3f90310420733ecc136dfd67be970a84447ee260f27",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/sp_catalog.rs",
+      "sha256": "df18bca21934915d9fd27f421fd60fe2863208809660ba7a46c96a4331dbe312",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/third_party.rs",
+      "sha256": "de0ac5326a88a58de43853110dd8054a2c2d82628e098def1c2874799373a29c",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/vb_translation.rs",
+      "sha256": "6d1b090c1803d3dbf745017582ecb8e6ff629c4bb9bce67487eab69e8d8b0339",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/analyzers/web_config.rs",
+      "sha256": "16217d3e0538c65e1b13035c57c45de5f2b4116beafcbddf13a4c6b75a477bee",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/llm_enhancement.rs",
+      "sha256": "d63b05342cd4687cd227f87e5a398a325fde44068474571634a31215cefa8634",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/model.rs",
+      "sha256": "24f0d32af017a2faa79ea0067f5cf298d2abdeee4263eb5fad2bb3f884f5037f",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/mod.rs",
+      "sha256": "efd08b350f2627c6f3c8c5f8b8cfdaaf910ec647af95605b1d666c0370a093f3",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/auth.rs",
+      "sha256": "2e4747ac767adb8873d3ab708b9bfad9a2db4ad973c4d439eda146787cb90c07",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/confidence_dashboard.rs",
+      "sha256": "0172f61d52515853c85fca649a19aad98550d6a434e150a35deed3c070832595",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/config.rs",
+      "sha256": "0fc328f603fa321ba19cc4edbef34b44a2fac7cc44bfc89e83ad6f58045ceb56",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/data.rs",
+      "sha256": "3f261c79aab4aaa2fc1d873ebf6a6e07ad54d30c9e52146e036683324edc8bcc",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/endpoints.rs",
+      "sha256": "6527cd03f9689fd26633f63dea6397303c98b50644f572b705798eb91e184805",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/finale.rs",
+      "sha256": "dbe321c1b560e198aac3f94bcd7f2c2410df715dfa86b9c08de84b131ac75ac5",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/legacy.rs",
+      "sha256": "e88a5a8f200b82efb0e8f0ca37ee08793727f6bbcb31db401ab68086313c9926",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/lifecycle.rs",
+      "sha256": "daf638b8f1fc0e34fee2794c263df5b3e7475e660f47f0383c4ea791a4a3519d",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/mod.rs",
+      "sha256": "921566c8206ea79b12315653769405ad8e74025e74a12dee6fed9985fb09312d",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/operations.rs",
+      "sha256": "da096c5210a9e21c0f0e036df285aeb5ba4e2a6eee8357a336cbd71cad27244b",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/summary.rs",
+      "sha256": "2cb4eb9a8b6a61bd1ff726c19cb1159bddfb20e5de6ed8d2ca48dfae4f585714",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/full_project_migration_service/rendering/sections/translation.rs",
+      "sha256": "570752acf85416eeddcb76e3e9b15dbf9a9c8935519d6a63acf5ef986b582f32",
+      "disposition": "SPECIALIZED_INTERNAL",
+      "boundary": "Full-project migration analyzers/renderers/models are reached through guarded .NET/Classic ASP entry points. Separate JavaScript inventory and VB/sync helpers retain their own capability guards; epoch_days_to_date remains a neutral utility.",
+      "evidence_scope": "analyze_full_project_migration rejection; ordinary .NET migration preserved; authored VB/JavaScript public positive cases"
+    },
+    {
+      "path": "crates/engram_server/src/services/git_service.rs",
+      "sha256": "563f5b8b52e002e48634f406cd28a2ef4d29f25fe2fb436998863e1c0f6d1d4b",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Git history and diff operations are source-language independent.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/graph_service.rs",
+      "sha256": "9006cf860bf744b291c29fae53f816ec55fca461a2b27344e7a34df8a24e908f",
+      "disposition": "MIXED_EXPLICIT_DOMAINS",
+      "boundary": "General source/SQL binding retained. Legacy compile_migration_slice is reached through guarded generate_migration_blueprint; App_Code matching is evidence-specific.",
+      "evidence_scope": "generate_migration_blueprint public applicability boundary; delivered TODO23 retained"
+    },
+    {
+      "path": "crates/engram_server/src/services/ingest_service.rs",
+      "sha256": "d8a4ebfcaf38abb8b476e490e86c480b874c556695a4e5a12a94cd9e0a7fe5ed",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Existing source ingestion dispatches by source language; preserve delivered TODO23 import resolution and publication ownership.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/instrumentation_service.rs",
+      "sha256": "c8f691776e02aa2188d30550ef20fc0b04ffc43a592cad4094ed0ab98e71dd5f",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "generate_instrumentation_code, ingest_instrumentation_logs: typed wrapper evaluates requested-project capability and concrete target format before handler execution. Project-less get_instrumentation_pack retains its existing explicit language validation; no project capability can be inferred for that API.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/integrity_service.rs",
+      "sha256": "c2abd8e0bebe0805feabab6c7956d0db29add2052572d2d52d61e75a71a1fa3a",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Storage/index consistency checks are independent of source language.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/job_service.rs",
+      "sha256": "d042c5abe18cc4e92f74bbfc9969b9228418da3e0990e4f0c32c4e0d3e2c91f6",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Job scheduling and cancellation ownership are independent of source language; preserve delivered S10.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/lifecycle_service.rs",
+      "sha256": "f7eefea9eb31cb330499353b04b4a85495abfec61c76ab0c7c6b3fd3f2cc4836",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "map_page_lifecycle: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/migration_order_service.rs",
+      "sha256": "004e325c2b80fcf5c90fdf72a0c91663515052a30543a7b24240799a3f6b99ad",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "suggest_migration_order: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/migration_progress_service.rs",
+      "sha256": "d3af060f83312f750c1b558c505c877a23de6483f225a2d3c14eed02d41c14df",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "get_migration_progress, update_migration_status: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/migration_service.rs",
+      "sha256": "87128648b95aebb6e47f66b6d186f710ec1b9c6e938d59c782501921ddb973bc",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "generate_migration_plan: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/mod.rs",
+      "sha256": "b1e7bbcdb9366892f70ec662e5a34a36135d3e6e4172a25f1a4a1192ea9c6a6d",
+      "disposition": "MODULE_DECLARATIONS",
+      "boundary": "Module declarations, no executable source-language policy.",
+      "evidence_scope": "Source inspection"
+    },
+    {
+      "path": "crates/engram_server/src/services/pattern_detection_service.rs",
+      "sha256": "52319db28407e03aab2db8ec5d1f257e9a6224a93d934d9eb749e813d847d883",
+      "disposition": "GRAPH_GENERIC_WITH_UNWIRED_HELPER",
+      "boundary": "Graph antipattern detection uses source graph facts. .NET background-service source helper has no production caller outside its own tests; it is not a public general-language analysis promise.",
+      "evidence_scope": "Source caller inspection; no newly exposed helper"
+    },
+    {
+      "path": "crates/engram_server/src/services/pre_commit_review_service.rs",
+      "sha256": "b1cc26eeed4d27b0c49d82db37bad2e33886c64e5982a197d273673000502bae",
+      "disposition": "PER_GATE_SOURCE_COVERAGE",
+      "boundary": "Specialized gates report explicit not_applicable and applicable/non-applicable file lists. Generic gates continue, retaining failed/degraded/skipped evidence and scope authority.",
+      "evidence_scope": "four-language secret finding, mixed-project scopes, nv6 and corrected nv7 regressions"
+    },
+    {
+      "path": "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
+      "sha256": "d93261833fca111e2530a8fcf67cb3dcff7e71f8598718747a282f98a93abc05",
+      "disposition": "PER_GATE_SOURCE_COVERAGE",
+      "boundary": "Specialized gates report explicit not_applicable and applicable/non-applicable file lists. Generic gates continue, retaining failed/degraded/skipped evidence and scope authority. GuardParity: cs/vb/asmx; State: cs/vb/aspx/ascx/master/asp; UiHouseStyle: aspx/ascx/master. Other gates do not claim compiler-level semantic coverage.",
+      "evidence_scope": "four-language secret finding, mixed-project scopes, nv6 and corrected nv7 regressions"
+    },
+    {
+      "path": "crates/engram_server/src/services/produce_claude_md_service.rs",
+      "sha256": "f3d2a2e40a002706c895bdb14c6e503bc19bc69d1da2c0032b2d7cb4063eecdb",
+      "disposition": "SOURCE_DRIVEN_GUIDANCE",
+      "boundary": "Source-driven language/style/rules remain; authorization facts no longer invent Page_Load/IsPostBack policy. Node build command collection no longer invents npm test. Scope/freshness/ownership behavior retained.",
+      "evidence_scope": "four-language guidance/style; authorization renderer unit check"
+    },
+    {
+      "path": "crates/engram_server/src/services/produce_claude_md_service/llm_curation.rs",
+      "sha256": "58657ece9775f5af7dfebee2970e41cb72a0865bd3c3acc5e5b8d484e461fe6e",
+      "disposition": "SOURCE_DRIVEN_GUIDANCE",
+      "boundary": "Source-driven language/style/rules remain; authorization facts no longer invent Page_Load/IsPostBack policy. Node build command collection no longer invents npm test. Scope/freshness/ownership behavior retained. Internal curation/rules pipelines preserve existing source and ownership boundaries; no live model validation in this delta.",
+      "evidence_scope": "four-language guidance/style; authorization renderer unit check"
+    },
+    {
+      "path": "crates/engram_server/src/services/produce_claude_md_service/rules_pipeline.rs",
+      "sha256": "2f519ca3cd650dc7df137d6eebb77777e83183c23d583f018affb62f252410f6",
+      "disposition": "SOURCE_DRIVEN_GUIDANCE",
+      "boundary": "Source-driven language/style/rules remain; authorization facts no longer invent Page_Load/IsPostBack policy. Node build command collection no longer invents npm test. Scope/freshness/ownership behavior retained. Internal curation/rules pipelines preserve existing source and ownership boundaries; no live model validation in this delta.",
+      "evidence_scope": "four-language guidance/style; authorization renderer unit check"
+    },
+    {
+      "path": "crates/engram_server/src/services/project_service.rs",
+      "sha256": "3a510e95db89b15d1a4595630ef061423965c24a248a6663d0b3084c5fc9f68e",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Delivered TODO24 detects source capabilities from the selected published manifest; this item consumes that evidence.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/runtime_observation_service.rs",
+      "sha256": "c7e006e48829ccdb7acae24a6966ce305f236ab03f071144abf31937a336ac58",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "ingest_runtime_artifacts: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/safety_service.rs",
+      "sha256": "791573d49fb44a9ac9ca2d968aa285a9d5015fef1636ec3961cf2992f33da939",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Evaluates supplied risk/policy evidence without assuming WebForms lifecycle.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/scaffold_service.rs",
+      "sha256": "3418c7db9fc11a628aea8d4b9f5759c5fa216666302edb499458359187d87f8c",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "generate_migration_scaffold: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/search_service.rs",
+      "sha256": "9ede0ed7aa84acfea2e8f62307b58fb003bc37dc2020bcbe414c54636af03f06",
+      "disposition": "LANGUAGE_NEUTRAL_EXISTING",
+      "boundary": "Retrieval is language-neutral; unsupported logical slicing is handled at the get_chunk boundary.",
+      "evidence_scope": "Source boundary inspection; preserve prior deliveries, no whole-service algorithm proof claimed"
+    },
+    {
+      "path": "crates/engram_server/src/services/session_workflow_service.rs",
+      "sha256": "308747d1990dd7e8f0a70d5cea62c8ba2258f70a542995becad309bbd4157c9b",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "get_session_workflows: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/slice_service.rs",
+      "sha256": "a16aa3343f95b65c9fc29e5df7faea7bb92f3dd2b14de93a891cb8cccd472568",
+      "disposition": "UNSUPPORTED_SOURCE_PRESERVED",
+      "boundary": "Legacy event/UI/data/state slices retain full unsupported source plus applicability note. SQL slice and all remain generic.",
+      "evidence_scope": "non_dotnet_retrieval_preserves_source_and_uses_authored_benchmark_queries; focused slice unit checks"
+    },
+    {
+      "path": "crates/engram_server/src/services/state_migration_service.rs",
+      "sha256": "f63cdf1e91158dc3aee4f57219e04039a9094a117f5f6146e5ec3046523c628a",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "suggest_state_migration: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/strangler_fig_service.rs",
+      "sha256": "7588c4dc79e586bd0297a23bb12c8e7eb9f2f0d82d9c2b9fc6d747eec5eab033",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "generate_strangler_fig_config: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/validation_mapping_service.rs",
+      "sha256": "c8cb0eb84f4a8761eb7cf5d711519eba4a0567ebd71755f000aa4015d8faffb0",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "map_validation_controls: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    },
+    {
+      "path": "crates/engram_server/src/services/viewstate_service.rs",
+      "sha256": "9dd8df8ab72f9b50b24ebb12b54517c4df395597c4fef2a17a9de80c889fbeec",
+      "disposition": "GUARDED_SPECIALIZED_PUBLIC_ENTRY",
+      "boundary": "analyze_viewstate_deps: typed wrapper evaluates requested-project capability and concrete target format before handler execution.",
+      "evidence_scope": "Authored Node public no-op cases; mixed-target and supported-format positive cases where applicable"
+    }
+  ],
+  "shared_boundaries": [
+    {
+      "path": "crates/engram_server/src/tools.rs",
+      "sha256": "7c3f1583625a8320b00eff06af82d5b6ed13bf27390370af1eeaaa9d0b29e774"
+    },
+    {
+      "path": "crates/engram_server/src/capabilities/applicability.rs",
+      "sha256": "3df0128c9e37264bec78770469ef6b7c63c49e3b01d282d9c87cc59ebb26de6b"
+    },
+    {
+      "path": "crates/engram_server/src/capabilities/project.rs",
+      "sha256": "8fc547b994da23b12c73fcb401fec375e1b302e1580c1d692825ed303b0d3ed6"
+    },
+    {
+      "path": "crates/engram_server/src/handlers/cognitive_tools.rs",
+      "sha256": "e347f91524d8e2342d10390d4033f3b6d0254e2dbc7f7c5b7b1970d7910c7dd8"
+    },
+    {
+      "path": "crates/engram_server/src/handlers/search_tools.rs",
+      "sha256": "93d4cacd3c58e5872ba96be891f17d9f04456e8a50709a48fbe74c03a8cb93a6"
+    },
+    {
+      "path": "crates/engram_server/tests/legacy_applicability_test.rs",
+      "sha256": "619858b421913b51d65d9778889ce15ce0475916c82cce32d77795660d49ed34"
+    }
+  ],
+  "limitations": [
+    "This accounts for the full 86-file introduction tree because the original text did not enumerate its stated 56-file subset. Counts are not behavioral acceptance.",
+    "Boundary dispositions do not prove every internal algorithm, full language semantics, runtime dispatch or live LLM behavior. Candidate/installed public acceptance is required separately.",
+    "Original unfinished backlog and full 19 gates remain open; CodeMap/Blast Radius closed deliveries are preserved."
+  ]
+}

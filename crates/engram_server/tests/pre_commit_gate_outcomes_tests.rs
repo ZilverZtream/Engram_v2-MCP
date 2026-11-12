@@ -35,7 +35,7 @@ fn build_state() -> (tempfile::TempDir, AppState, std::path::PathBuf) {
     let (state, _rx) = AppState::new(cfg).unwrap();
     state
         .registry
-        .put_project(&engram_core::ProjectRecord {
+        .register_source_project(&engram_core::ProjectRecord {
             project_id: PID.into(),
             project_name: PID.into(),
             directory: project_dir.to_string_lossy().into_owned(),
@@ -45,11 +45,41 @@ fn build_state() -> (tempfile::TempDir, AppState, std::path::PathBuf) {
             reindex_required_since_ms: None,
         })
         .unwrap();
-    state
-        .registry
-        .set_meta(PID, "active_generation", "1")
-        .unwrap();
     (tmp, state, project_dir)
+}
+
+// Convention providers require selected source evidence independently of Git
+// history. Publish that evidence so these tests exercise their intended caps
+// and history conditions rather than an unavailable source snapshot.
+async fn publish_source(state: &AppState, dir: &std::path::Path) {
+    use engram_core::{ContentHash, RelPath};
+    let sources = [
+        ("Site/App_Code/x.vb", "Public Class X\nEnd Class\n", "vb"),
+        ("Audit.cs", "class Audit {}\n", "csharp"),
+    ];
+    for (path, body, _) in sources {
+        let file = dir.join(path);
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::write(file, body).unwrap();
+    }
+    let runtime = engram_server::services::project_service::ensure_project_runtime(state, PID)
+        .await.unwrap();
+    let initial = state.registry.capture_source_head(PID).unwrap();
+    let cancel = tokio_util::sync::CancellationToken::new();
+    let paths = sources.iter().map(|(path, _, _)| RelPath::new(path)).collect::<Vec<_>>();
+    runtime.search.prepare_full_source_snapshot(PID, 0, 1, &paths, &cancel).await.unwrap();
+    let docs = sources.iter().enumerate().map(|(index, (path, body, language))| {
+        engram_index::IndexDoc {
+            generation: 1, chunk_id: index as u64 + 1,
+            path: RelPath::new(path), language: (*language).into(), content: (*body).into(),
+            namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+            author: None, timestamp: None, start_line: 1, end_line: body.lines().count() as u32,
+            doc_id: format!("fixture:{path}"), content_hash: ContentHash::compute(body.as_bytes()).0,
+        }
+    }).collect::<Vec<_>>();
+    runtime.search.index_docs(PID, &docs, &cancel).await.unwrap();
+    runtime.search.seal_source_snapshot(PID, 1).unwrap();
+    assert!(state.registry.publish_source_head(&initial, 1).unwrap());
 }
 
 const DIFF: &str = "diff --git a/Site/App_Code/x.vb b/Site/App_Code/x.vb\n\
@@ -193,12 +223,13 @@ fn compact_review_is_bounded_and_retains_actionable_finding_ids() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn shared_provider_caps_degrade_the_real_runner() {
     let (_tmp, state, dir) = build_state();
+    publish_source(&state, &dir).await;
     let nodes: Vec<_> = (0..11)
         .map(|i| engram_graph::Node {
             node_id: format!("function:audit{i}"),
             name: format!("AuditLog{i}"),
             node_type: "function".into(),
-            namespace: "test".into(),
+            namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
             language: "csharp".into(),
             file_path: engram_core::RelPath::new("Audit.cs"),
             start_line: 1,
@@ -235,7 +266,8 @@ async fn shared_provider_caps_degrade_the_real_runner() {
         .find(|outcome| outcome.name == "audit")
         .unwrap();
     assert!(
-        matches!(&audit.status, GateStatus::Degraded { notes, .. } if notes.iter().any(|note| note.contains("audit convention candidate") && note.contains("truncated")))
+        matches!(&audit.status, GateStatus::Degraded { notes, .. } if notes.iter().any(|note| note.contains("audit convention candidate") && note.contains("truncated"))),
+        "{audit:?}"
     );
     assert_eq!(
         Verdict::with_outcomes(&findings, &outcomes),
@@ -297,6 +329,7 @@ async fn filtering_a_known_warning_cannot_make_the_review_green() {
 async fn temporal_gate_distinguishes_absent_partial_and_complete_history() {
     use engram_server::services::pre_commit_review_service::gates::TemporalGate;
     let (_tmp, state, dir) = build_state();
+    publish_source(&state, &dir).await;
     for phase in 0..3 {
         if phase == 1 {
             state

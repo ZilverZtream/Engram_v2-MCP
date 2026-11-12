@@ -41,10 +41,10 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
-    "status": "PARTIAL_IMPLEMENTATION_SELECTED_CHECKS_PASSED",
+    "status": "IMPLEMENTED_LOCAL_VALIDATION_COMPLETE_RELEASE_PENDING",
     "baseline": "eval/p130-service-applicability-baseline-20261112.json",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
-    "remaining": "Continue original TODO26: finish service dispositions, make legacy-only review-gate coverage explicit, verify neutral instruction/style/review behavior for the original four languages, then final native/public candidate/installed acceptance and deployment. Current entry-point/retrieval changes are only a validated partial implementation; TODO26 remains unchecked.",
+    "remaining": "Commit and push the validated TODO26 implementation, build the release, run owned candidate and installed public MCP acceptance, deploy and record identity before marking delivered. Advance the accepted original backlog after delivery.",
     "progress": "eval/p130-service-applicability-progress-20261112.json"
   },
   "previous_delivery": {

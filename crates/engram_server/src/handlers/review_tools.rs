@@ -185,7 +185,7 @@ impl Engram {
             "diff_blake3":blake3::hash(diff_text.as_bytes()).to_hex().to_string(),
             "source_before":source_before,"source_after":source_after,
             "source_scope":"bounded current-file snapshots; supplied diff is not certified to match current files",
-            "provider_coverage":"see gate_status; failed, skipped and degraded gates are not passing evidence",
+            "provider_coverage":"see gate_status and source_scope; not_applicable means that provider does not support the submitted source. Failed, skipped and degraded gates are not passing evidence",
             "review_decisions":prior_review_context["status"],
             "review_source":review_source,
             "indexed_project_directory":indexed_project_dir,

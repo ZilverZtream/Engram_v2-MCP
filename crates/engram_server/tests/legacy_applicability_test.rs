@@ -92,9 +92,7 @@ fn git_commit(root: &Path) -> Result<()> {
 
 impl Fixture {
     fn new() -> Result<Self> {
-        let temporary = tempfile::Builder::new()
-            .prefix("engram-applicability-")
-            .tempdir()?;
+        let temporary = tempfile::Builder::new().prefix("ea-").tempdir()?;
         let owned = temporary.path().to_owned();
         let mut fixture = Self {
             server: None,
@@ -417,4 +415,101 @@ fn non_dotnet_retrieval_preserves_source_and_uses_authored_benchmark_queries() -
             );
             Ok(())
         })
+}
+
+#[test]
+fn neutral_guidance_style_and_review_work_for_four_authored_source_languages() -> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.runtime.as_ref().context("runtime")?.block_on(async {
+        let server = fixture.server.as_ref().context("server")?;
+        let python = "def create_order():\n    return 17\ndef find_order():\n    return 23\ndef close_order():\n    return 29\n";
+        let rust = "pub fn create_order() -> i32 {\n    17\n}\npub fn find_order() -> i32 {\n    23\n}\npub fn close_order() -> i32 {\n    29\n}\n";
+        let go = "package orders\nfunc CreateOrder() int {\n    return 17\n}\nfunc FindOrder() int {\n    return 23\n}\nfunc CloseOrder() int {\n    return 29\n}\n";
+        for (language, path, source, manifest, manifest_body, convention, comment) in [
+            ("TypeScript", "app.ts", TS, "package.json", "{\"name\":\"owned\",\"scripts\":{\"test\":\"node --test\"}}", "camelCase", "//"),
+            ("Python", "app.py", python, "pyproject.toml", "[project]\nname='owned'\nversion='0.1.0'\n[tool.pytest.ini_options]\ntestpaths=['tests']\n", "snake_case", "#"),
+            ("Rust", "src/lib.rs", rust, "Cargo.toml", "[package]\nname='owned'\nversion='0.1.0'\nedition='2021'\n", "snake_case", "//"),
+            ("Go", "app.go", go, "go.mod", "module example.com/owned\ngo 1.23\n", "PascalCase", "//"),
+        ] {
+            let pid = fixture.index(language, &[(manifest, manifest_body), (path, source)]).await?;
+            let guide = text(server.produce_claude_md(Parameters(serde_json::from_value(json!({"project_id":pid,"write_to_disk":false}))?)).await?)?;
+            ensure!(guide.contains(language) && !guide.contains("Page_Load") && !guide.contains("ViewState"), "{language} guidance invented WebForms requirements: {guide}");
+            let style = text(server.analyze_file_coding_style(Parameters(serde_json::from_value(json!({"project_id":pid,"file_path":path}))?)).await?)?;
+            ensure!(style.contains(convention) && !style.contains("VB.NET"), "{language} authored naming was not recovered: {style}");
+            for arguments in [json!({"project_id":pid,"file_path":path}), json!({"project_id":pid})] {
+                let business = text(server.analyze_business_logic(Parameters(serde_json::from_value(arguments)?)).await?)?;
+                not_applicable(&business)?;
+                ensure!(business.contains("No model call or persistence performed"), "Unsupported business analysis was not explicit: {business}");
+            }
+            // Deliberately synthetic token shape, constructed only inside this owned fixture.
+            let added = format!("{comment} owned fixture: sk-{}", "OwnedNotARealCredential".repeat(2));
+            let directory = fixture.temporary.as_ref().context("owner")?.path().join(language);
+            std::fs::write(directory.join(path), format!("{source}{added}\n"))?;
+            let line = source.lines().count();
+            let last = source.lines().last().context("last authored line")?;
+            let diff = format!("diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -{line},1 +{line},2 @@\n {last}\n+{added}\n");
+            let reviewed = text(server.pre_commit_review(Parameters(serde_json::from_value(json!({"project_id":pid,"diff":diff,"output_json":true}))?)).await?)?;
+            let review: serde_json::Value = serde_json::from_str(&reviewed)?;
+            ensure!(review["findings"].as_array().context("findings")?.iter().any(|finding| finding["gate"]=="secret_leakage" && finding["file_path"]==path && finding["lines"]==json!([line+1])), "{language} review missed the authored changed line: {reviewed}");
+            for gate in ["guard_parity", "state", "ui_house_style"] {
+                let outcome = review["gate_status"].as_array().context("gate status")?.iter().find(|outcome| outcome["name"]==gate).context("specialized gate outcome")?;
+                ensure!(outcome["status"]["kind"]=="not_applicable" && outcome["source_scope"]["not_applicable_files"]==json!([path]), "{language}: {gate} claimed unsupported analysis: {outcome}");
+            }
+            ensure!(review["summary"]["gates_not_applicable"]==3, "Wrong gate coverage: {reviewed}");
+        }
+        Ok(())
+    })
+}
+
+#[test]
+fn legacy_unknown_coverage_is_explicit_and_mixed_review_reports_each_file_scope() -> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.runtime.as_ref().context("runtime")?.block_on(async {
+        let server = fixture.server.as_ref().context("server")?;
+        let unknown_dir = fixture.temporary.as_ref().context("owner")?.path().join("unknown");
+        std::fs::create_dir(&unknown_dir)?;
+        server.state.registry.put_project(&engram_core::ProjectRecord {
+            project_id: "unknown-owned".into(), project_name: "Unknown source coverage".into(),
+            directory: unknown_dir.to_string_lossy().into_owned(), project_type: "general".into(),
+            created_at_ms: 0, updated_at_ms: 0, reindex_required_since_ms: None,
+        })?;
+        server.state.registry.set_meta("unknown-owned", "active_generation", "1")?;
+        let error = server.generate_migration_plan(Parameters(serde_json::from_value(json!({"project_id":"unknown-owned"}))?)).await.err().context("Unproven storage must not permit analysis")?;
+        ensure!(error.message.contains("source snapshot unavailable") && error.message.contains("repair required"), "Unproven source coverage was not explicit: {error}");
+        ensure!(server.state.active_jobs.read().await.is_empty(), "Unproven source request started a worker");
+
+        let mixed = fixture.index("mixed-review", &[("package.json", "{}"), ("app.ts", TS), ("Default.aspx", PAGE)]).await?;
+        let root = fixture.temporary.as_ref().context("owner")?.path().join("mixed-review");
+        let mut diff = String::new();
+        for (path, source, addition) in [("app.ts", TS, "// owned change"), ("Default.aspx", PAGE, "<!-- owned change -->")] {
+            std::fs::write(root.join(path),format!("{source}{addition}\n"))?;
+            let line=source.lines().count();
+            let last=source.lines().last().context("last source line")?;
+            diff.push_str(&format!("diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -{line},1 +{line},2 @@\n {last}\n+{addition}\n"));
+        }
+        let output = text(server.pre_commit_review(Parameters(serde_json::from_value(json!({"project_id":mixed,"diff":diff,"output_json":true}))?)).await?)?;
+        let review: serde_json::Value = serde_json::from_str(&output)?;
+        for name in ["state", "ui_house_style"] {
+            let scope = review["gate_status"].as_array().context("outcomes")?.iter().find(|outcome| outcome["name"]==name).context("scoped gate")?;
+            ensure!(scope["source_scope"]["applicable_files"]==json!(["Default.aspx"]) && scope["source_scope"]["not_applicable_files"]==json!(["app.ts"]), "Mixed review scope was conflated: {scope}");
+            ensure!(scope["status"]["kind"]!="not_applicable", "Supported page gate did not run: {scope}");
+        }
+        Ok(())
+    })
+}
+
+#[test]
+fn dotnet_service_migration_does_not_require_webforms_markup() -> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.runtime.as_ref().context("runtime")?.block_on(async {
+        let server = fixture.server.as_ref().context("server")?;
+        let pid = fixture.index("dotnet", &[
+            ("App.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><TargetFramework>net8.0</TargetFramework></PropertyGroup></Project>"),
+            ("App.cs", "public class OwnedService { public static int Value() { return 17; } }"),
+        ]).await?;
+        let plan = text(server.generate_migration_plan(Parameters(serde_json::from_value(json!({"project_id":pid}))?)).await?)?;
+        ensure!(plan.contains("App.cs") && !plan.contains("not_applicable"), "Supported .NET service was treated as a non-.NET project: {plan}");
+        not_applicable(&text(server.get_page_context(Parameters(serde_json::from_value(json!({"project_id":pid,"aspx_file":"App.cs"}))?)).await?)?)?;
+        Ok(())
+    })
 }
