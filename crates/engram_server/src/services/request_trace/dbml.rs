@@ -35,10 +35,16 @@ fn identifier(value: &str) -> bool {
 }
 
 fn parse(source: &Source<'_>) -> anyhow::Result<(String, Vec<Mapping>)> {
-    let mut reader = NsReader::from_str(source.content);
+    // quick-xml removes a UTF-8 BOM without counting it in buffer_position.
+    // Use the same slice for parsing and line offsets; hash the original bytes.
+    let xml = source
+        .content
+        .strip_prefix('\u{feff}')
+        .unwrap_or(source.content);
+    let mut reader = NsReader::from_str(xml);
     reader.config_mut().expand_empty_elements = true;
     let lines: Vec<_> = std::iter::once(0)
-        .chain(source.content.match_indices('\n').map(|(i, _)| i + 1))
+        .chain(xml.match_indices('\n').map(|(i, _)| i + 1))
         .collect();
     let hash = blake3::hash(source.content.as_bytes()).to_hex().to_string();
     let mut depth = 0usize;
