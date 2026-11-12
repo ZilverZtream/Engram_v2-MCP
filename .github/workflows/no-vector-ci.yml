@@ -49,6 +49,8 @@ jobs:
         run: cargo test -p engram_index --test parity_stress_matrix_test --no-default-features -- --nocapture --test-threads=4
 
       - name: Run engram_server tests without vector feature
+        # Includes language_corpora_test: the checked-in TS/Python/Rust/Go
+        # source oracles run through real indexing and public graph handlers.
         run: cargo test -p engram_server --no-default-features -- --test-threads=4
 
       - name: Build entire workspace without vector feature (compilation regression gate)

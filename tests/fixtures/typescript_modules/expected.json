@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "description": "Imported primary/alternate calls must reach distinct source functions; the same-name decoy is never a target. The local helper is also resolved.",
+  "indexing_preset": "javascript",
+  "source_files": [
+    "package.json",
+    "src/alternate.ts",
+    "src/decoy.ts",
+    "src/index.ts",
+    "src/primary.ts",
+    "tsconfig.json"
+  ],
+  "symbols": {
+    "primary_save": {
+      "file": "src/primary.ts",
+      "name": "save",
+      "line": 1
+    },
+    "alternate_save": {
+      "file": "src/alternate.ts",
+      "name": "save",
+      "line": 1
+    },
+    "decoy_save": {
+      "file": "src/decoy.ts",
+      "name": "save",
+      "line": 1
+    },
+    "run_primary": {
+      "file": "src/index.ts",
+      "name": "run_primary",
+      "line": 3
+    },
+    "run_alternate": {
+      "file": "src/index.ts",
+      "name": "run_alternate",
+      "line": 4
+    },
+    "run_local": {
+      "file": "src/index.ts",
+      "name": "run_local",
+      "line": 5
+    },
+    "helper": {
+      "file": "src/index.ts",
+      "name": "helper",
+      "line": 6
+    }
+  },
+  "calls": {
+    "run_primary": [
+      "primary_save"
+    ],
+    "run_alternate": [
+      "alternate_save"
+    ],
+    "run_local": [
+      "helper"
+    ]
+  }
+}

@@ -303,16 +303,6 @@ pub(crate) fn memory_stale_reason(
     None
 }
 
-/// Map of project-relative file path → indexed mtime (SECONDS), from the
-/// code graph's file-node metadata. The same fingerprints grep freshness
-/// reads; here they date a memory's referenced files.
-pub(crate) fn indexed_file_mtimes_secs(
-    graph: &engram_graph::GraphStore,
-    project_id: &str,
-) -> std::collections::HashMap<String, u64> {
-    indexed_file_mtimes_secs_checked(graph, project_id).unwrap_or_default()
-}
-
 fn memory_file_key(path: &str) -> String {
     path.trim()
         .replace('\\', "/")
