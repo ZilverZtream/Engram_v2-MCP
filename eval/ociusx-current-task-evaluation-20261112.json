@@ -1,0 +1,194 @@
+{
+  "status": "CURRENT_PRODUCER_TASK_EVALUATION_COMPLETED_EG24_PARTIAL",
+  "at_utc": "2026-11-12T15:54:21.839519+00:00",
+  "original_requirement": "EG24 regular accepted-task verification, using original OciusX scope, companion-edit, history and diagnosis cases.",
+  "implemented": "Existing collector now permits get_change_set/search_history/derive_test_matrix and requires only requested tools plus freshness discovery. Mutating requests remain rejected before connection.",
+  "source_delivery": "eval/ociusx-vendor-publication-fix-20261112.json",
+  "installed_source_generation": 3148,
+  "producer_requests": 4,
+  "cases": 4,
+  "candidate_runs": 8,
+  "independent_judge_sessions": 1,
+  "model_selection": {
+    "model": "gpt-6-astra",
+    "model_reasoning_effort": "high"
+  },
+  "model_overrides": false,
+  "totals": {
+    "baseline": {
+      "input_bytes": 166083,
+      "output_bytes": 14139,
+      "additional_reads": 10,
+      "observed_agent_wall_seconds": 157.559224,
+      "satisfied": 20,
+      "total_criteria": 20,
+      "false_guidance": 0
+    },
+    "assisted": {
+      "input_bytes": 167603,
+      "output_bytes": 14318,
+      "additional_reads": 8,
+      "observed_agent_wall_seconds": 154.326361,
+      "satisfied": 20,
+      "total_criteria": 20,
+      "false_guidance": 0
+    }
+  },
+  "input_bytes_difference": 1520,
+  "input_bytes_change_percent": 0.9152050480783602,
+  "capture_wall_seconds": 167.803058,
+  "metrics": [
+    {
+      "case_id": "scope",
+      "arm": "assisted",
+      "input_bytes": 40488,
+      "input_characters": 40488,
+      "output_bytes": 2157,
+      "output_characters": 2157,
+      "additional_reads": 1,
+      "observed_agent_wall_seconds": 31.124345,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "history",
+      "arm": "assisted",
+      "input_bytes": 33123,
+      "input_characters": 33117,
+      "output_bytes": 3107,
+      "output_characters": 3093,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 29.399331,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "companions",
+      "arm": "baseline",
+      "input_bytes": 58724,
+      "input_characters": 58708,
+      "output_bytes": 4859,
+      "output_characters": 4859,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 47.957223,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "diagnosis",
+      "arm": "baseline",
+      "input_bytes": 19734,
+      "input_characters": 19734,
+      "output_bytes": 3743,
+      "output_characters": 3737,
+      "additional_reads": 1,
+      "observed_agent_wall_seconds": 44.610407,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "scope",
+      "arm": "baseline",
+      "input_bytes": 56833,
+      "input_characters": 56803,
+      "output_bytes": 2297,
+      "output_characters": 2297,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 33.432329,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "diagnosis",
+      "arm": "assisted",
+      "input_bytes": 24089,
+      "input_characters": 24087,
+      "output_bytes": 3807,
+      "output_characters": 3801,
+      "additional_reads": 1,
+      "observed_agent_wall_seconds": 39.68937,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "history",
+      "arm": "baseline",
+      "input_bytes": 30792,
+      "input_characters": 30786,
+      "output_bytes": 3240,
+      "output_characters": 3222,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 31.559265,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "companions",
+      "arm": "assisted",
+      "input_bytes": 69903,
+      "input_characters": 69887,
+      "output_bytes": 5247,
+      "output_characters": 5247,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 54.113315,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    }
+  ],
+  "evidence": {
+    "capture2/freeze_record.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\capture2\\freeze_record.json",
+      "sha256": "6d6cd23c78cc41edbe52dfee832d2dfdbd07c10a457361c024de13ee164450ff"
+    },
+    "capture2/provenance/capture-complete.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\capture2\\provenance\\capture-complete.json",
+      "sha256": "5d3044116e43a51043d488709152793232242983fc7e03f16e36e9ed00c50138"
+    },
+    "run/report.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\run\\report.json",
+      "sha256": "32940e4184210658e64341d0d01f042da355d1ad12fa9a4a4f958783d8be29ae"
+    },
+    "run/execution/state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\run\\execution\\state.json",
+      "sha256": "580cc94a5b6e9fe8c3fa4149ff359d93a0220643d2d8f52f167ab1c57e280e82"
+    },
+    "run/judgments.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\run\\judgments.json",
+      "sha256": "42461a02aaa3591cfd5aa1032d60935044b6dab288edd39e6c4a203f65e1c054"
+    }
+  },
+  "interpretation": "Both conditions satisfied all 20 frozen criteria; judge identified no false guidance. Assisted scope case requested two fewer evidence reads; other cases saved none. Overall input increased by 1520 bytes. No correctness or matched productivity improvement established.",
+  "limits": [
+    "Known inspected regression cases, not a fresh holdout. Diagnosis reuses existing EG31 OX KML evidence; original historical memory-diagnosis case remains preserved separately.",
+    "Both conditions had identical bounded evidence access; baseline includes frozen source, not an unaided discovery workload.",
+    "Capture wall time includes identity/source/freshness checks and producer calls, not pure tool inference time. Agent wall time includes handoff and evidence delivery.",
+    "Byte counts are measured packet content, not provider token cost. No completed OX implementation, application QA, or productivity measurement.",
+    "Original EG24 regular current-output CI remains incomplete; existing CI tests collection protocol. EG25 matched implementation/QA benefit remains unestablished."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation",
+    "model_processes_exited_zero": 17,
+    "owned_threads_closed": true,
+    "failed_capture_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\capture",
+    "successful_capture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\capture2",
+    "completed_model_run": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\run",
+    "retention": "Retain frozen private evidence, model replies, original failed observations and runtime receipts for review; no preexisting folders deleted."
+  },
+  "next_action": "Finish original EG24 regular-verification integration using the existing commands and assets; do not expand the benchmark or revisit closed CodeMap/Blast. Record the slow capture as a finding without automatically displacing the selected requirement."
+}

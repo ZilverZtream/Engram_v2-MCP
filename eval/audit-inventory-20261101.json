@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "ORIGINAL_OX_CURRENT_PRODUCER_CAPTURE_RUNNING",
+      "status": "CURRENT_PRODUCER_SLICE_COMPLETE_REGULAR_VERIFICATION_OPEN",
       "original_requirement": "Put a small accepted-task benchmark into regular checks. Reuse existing OX evaluation assets.",
       "missing_behavior": "Inventory records existing frozen task results and saved-run verifier, but regular CI remains open.",
       "implementation_files": [
@@ -10016,7 +10016,10 @@
           "state": "RESOLVED_DEPLOYED_OX_REFRESH_COMPLETED",
           "delivery": "eval/ociusx-vendor-publication-fix-20261112.json",
           "active_generation": 3148
-        }
+        },
+        "status": "IMPLEMENTED_VALIDATED_CURRENT_OUTPUT_RUN_COMPLETE",
+        "delivery": "eval/ociusx-current-task-evaluation-20261112.json",
+        "remaining": "EG24 regular current-output verification integration remains open; EG25 benefit is not established."
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
