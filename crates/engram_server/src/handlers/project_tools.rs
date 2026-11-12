@@ -1,3 +1,4 @@
+use crate::services::job_progress::Reporter;
 use crate::models::{
     AddRepoRuleRequest, CancelJobRequest, CheckIntegrityRequest, DeleteRepoRuleRequest,
     GetCheckpointStatusRequest, GetMemoryBudgetRequest, GetMetricsRequest,
@@ -1403,6 +1404,9 @@ impl Engram {
                 job.created_at_ms,
             );
 
+            let phase = Reporter::new(state_for_spawn.registry.clone(), &job_id_for_job);
+            phase.phase("waiting_for_project", None, None);
+
             // Acquire the per-project serialisation lock (Fix 2).
             // Prevents concurrent index and update jobs from interleaving writes
             // to the same Tantivy/LanceDB backends for this project.
@@ -1410,6 +1414,7 @@ impl Engram {
                 .acquire_project_update_lock(&project_id_for_job)
                 .await;
 
+            phase.phase("preparing_storage", None, None);
             let search_init = async {
                 anyhow::ensure!(!token.is_cancelled(), "index cancelled before storage admission");
                 anyhow::ensure!(reg2.get_project(&project_id_for_job)?.is_some(),
@@ -1437,8 +1442,7 @@ impl Engram {
                         let exts = ProjectType::from_registry_str(&project_type)
                             .map(exts_for_project_type_enum)
                             .unwrap_or_else(|| exts_for_project_type(&project_type));
-                        let job_id_for_cb = job_id_for_job.clone();
-                        let reg_for_cb = reg2.clone();
+                        let progress_for_cb = phase.clone();
                         let engram = Engram::new(state_for_spawn.clone());
                         let base = engram
                             .capture_source_head(
@@ -1455,9 +1459,11 @@ impl Engram {
                         source_requirement = engram
                             .capture_source_requirement(&project_id_for_job)
                             .await?;
+                        phase.phase("scanning", None, None);
                         let files =
                             project_service::scan_source_files(&state_for_spawn, &directory, &exts)
                                 .await?;
+                        phase.phase("preparing_parser", Some(files.len() as u64), Some("files"));
                         source_extraction = Some(project_service::capture_source_extraction_for_files(
                             &state_for_spawn, &directory, &files,
                         ).await?);
@@ -1479,6 +1485,7 @@ impl Engram {
                             )
                             .await;
 
+                        phase.phase("source_indexing", Some(files.len() as u64), Some("files"));
                         if let Err(e) = engram.enforce_project_byte_budget(&pending).await {
                             Err(e)
                         } else if let Some(limit) = state_for_spawn.cfg.max_project_files {
@@ -1489,8 +1496,6 @@ impl Engram {
                                     limit
                                 ))
                             } else {
-                                let last_pct =
-                                    std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
                                 engram
                                     .index_full_files_with_parse_guard(
                                         &search,
@@ -1504,33 +1509,13 @@ impl Engram {
                                         source_extraction.as_ref().ok_or_else(|| anyhow::anyhow!("Initial extraction context missing"))?,
                                         &token,
                                         move |curr, total| {
-                                            let pct = if total == 0 {
-                                                100
-                                            } else {
-                                                ((curr as f32 / total as f32) * 100.0) as u8
-                                            };
-                                            let prev =
-                                                last_pct.load(std::sync::atomic::Ordering::Relaxed);
-                                            if pct.saturating_sub(prev) < 5 && curr != total {
-                                                return;
-                                            }
-                                            last_pct
-                                                .store(pct, std::sync::atomic::Ordering::Relaxed);
-                                            if let Ok(Some(mut job)) =
-                                                reg_for_cb.get_job(&job_id_for_cb)
-                                            {
-                                                job.progress_pct = pct;
-                                                job.message =
-                                                    format!("Indexing: {}/{} files", curr, total);
-                                                job.updated_at_ms = now_ms();
-                                                let _ = reg_for_cb.put_job(&job);
-                                            }
-                                        },
+                                        progress_for_cb.advance("source_indexing", curr, total, "files");
+                                        if curr == total { progress_for_cb.phase("source_flush", None, None); }
+                                    },
                                     )
                                     .await
                             }
                         } else {
-                            let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
                             Engram::new(state_for_spawn.clone())
                                 .index_full_files_with_parse_guard(
                                     &search,
@@ -1544,26 +1529,8 @@ impl Engram {
                                     source_extraction.as_ref().ok_or_else(|| anyhow::anyhow!("Initial extraction context missing"))?,
                                     &token,
                                     move |curr, total| {
-                                        let pct = if total == 0 {
-                                            100
-                                        } else {
-                                            ((curr as f32 / total as f32) * 100.0) as u8
-                                        };
-                                        let prev =
-                                            last_pct.load(std::sync::atomic::Ordering::Relaxed);
-                                        if pct.saturating_sub(prev) < 5 && curr != total {
-                                            return;
-                                        }
-                                        last_pct.store(pct, std::sync::atomic::Ordering::Relaxed);
-                                        if let Ok(Some(mut job)) =
-                                            reg_for_cb.get_job(&job_id_for_cb)
-                                        {
-                                            job.progress_pct = pct;
-                                            job.message =
-                                                format!("Indexing: {}/{} files", curr, total);
-                                            job.updated_at_ms = now_ms();
-                                            let _ = reg_for_cb.put_job(&job);
-                                        }
+                                        progress_for_cb.advance("source_indexing", curr, total, "files");
+                                        if curr == total { progress_for_cb.phase("source_flush", None, None); }
                                     },
                                 )
                                 .await
@@ -1621,8 +1588,10 @@ impl Engram {
                         None,
                     )
                     .await;
+                phase.phase("graph_processing", None, None);
                 let publication = async {
                     engram.process_ingest_stats(&pid, 1, stats).await?;
+                    phase.phase("source_publication", None, None);
                     engram
                         .publish_source_generation(
                             _storage_mutation.as_ref().ok_or_else(|| {
@@ -1645,6 +1614,7 @@ impl Engram {
                     msg = format!("Graph processing or source publication failed: {e:#}");
                     progress = 0;
                 } else {
+                    phase.phase("graph_enrichment", None, None);
                     tracing::info!(project_id = %pid, "index_project[job]: starting resolve_app_code_globals");
                     let _ = graph_service::resolve_app_code_globals(&engram.state.graph, &pid, 1);
                     tracing::info!(project_id = %pid, "index_project[job]: starting link_binding_fields_to_columns");
@@ -1810,11 +1780,15 @@ impl Engram {
                 jr.created_at_ms,
             );
 
+            let phase = Reporter::new(state.registry.clone(), &job_id_for_job);
+            phase.phase("waiting_for_project", None, None);
+
             // Fix 1: Acquire per-project serialisation lock before mutating any
             // backend store. Prevents concurrent update/index jobs from interleaving
             // writes to the same Tantivy and LanceDB databases.
             let _update_guard = state.acquire_project_update_lock(&project_id_for_job).await;
 
+            phase.phase("preparing_storage", None, None);
             // Pre-load the project directory for checkpointing. We fetch it once
             // outside `res` so the completion/failure checkpoint can always be
             // written even if the inner block fails before `dir` is bound.
@@ -1832,11 +1806,7 @@ impl Engram {
                 .unwrap_or_default()
             };
 
-            // Build the progress-reporting components (Fix 12) before `res` so
-            // the closure can capture them by move.
-            let last_pct = std::sync::Arc::new(std::sync::atomic::AtomicU8::new(0));
-            let reg_for_cb = state.registry.clone();
-            let job_id_for_cb = job_id_for_job.clone();
+            let progress_for_cb = phase.clone();
 
             // ENG-AUD-2026-S03-0001: Collect enrichment-phase warnings so they can
             // be surfaced as "degraded" status — not silently swallowed by warn!().
@@ -1867,6 +1837,7 @@ impl Engram {
                     .map(exts_for_project_type_enum)
                     .unwrap_or_else(|| exts_for_project_type(&ps.info.project_type));
 
+                phase.phase("scanning", None, None);
                 let project_service::SourceChangeScan { mut changed, deleted, extraction, vb_source_files } = project_service::get_incremental_changes_for_update(
                     &state, &ps.search, &source_head, &dir, &exts)
                     .await?;
@@ -1875,7 +1846,7 @@ impl Engram {
                     new_gen = old_gen;
                     let (_, warning) = engram.refresh_unchanged_source(
                         &_storage_mutation, &project_id_for_job, &ps.info.directory, &source_head,
-                        extraction, max_commits, index_antipatterns, &token,
+                        extraction, max_commits, index_antipatterns, &token, Some(phase.clone()),
                     ).await?;
                     if let Some(warning) = warning {
                         if let Ok(mut warnings) = enrich_warn_inner.lock() { warnings.push(warning); }
@@ -1918,12 +1889,13 @@ impl Engram {
 
                 let changed_paths = changed.iter().map(|path| engram_core::RelPath::from_relative(&dir, path)
                     .ok_or_else(|| anyhow::anyhow!("changed source is outside its project"))).collect::<anyhow::Result<Vec<_>>>()?;
+                phase.phase("preparing_snapshot", Some(changed.len() as u64), Some("files"));
                 let prepared = ps.search.prepare_source_snapshot(&project_id_for_job, old_gen, new_gen, &changed_paths, &deleted, &token).await;
                 engram.record_vector_storage_result(&project_id_for_job, prepared).await?;
 
                 // Fix 12: Real progress callback — updates the job record in
                 // Redb every 5 percentage-point increment.
-                let last_pct_cb = last_pct.clone();
+                phase.phase("source_indexing", Some(changed.len() as u64), Some("files"));
                 let stats = engram
                     .index_files_with_parse_guard(
                         &ps.search,
@@ -1936,22 +1908,8 @@ impl Engram {
                         state.cfg.max_chunks_per_file,
                         &token,
                         move |curr, total| {
-                            let pct = if total == 0 {
-                                100u8
-                            } else {
-                                ((curr as f32 / total as f32) * 100.0) as u8
-                            };
-                            let prev = last_pct_cb.load(std::sync::atomic::Ordering::Relaxed);
-                            if pct.saturating_sub(prev) < 5 && curr != total {
-                                return;
-                            }
-                            last_pct_cb.store(pct, std::sync::atomic::Ordering::Relaxed);
-                            if let Ok(Some(mut job)) = reg_for_cb.get_job(&job_id_for_cb) {
-                                job.progress_pct = pct;
-                                job.message = format!("Updating: {}/{} files", curr, total);
-                                job.updated_at_ms = now_ms();
-                                let _ = reg_for_cb.put_job(&job);
-                            }
+                            progress_for_cb.advance("source_indexing", curr, total, "files");
+                                        if curr == total { progress_for_cb.phase("source_flush", None, None); }
                         },
                     )
                     .await?;
@@ -1974,6 +1932,7 @@ impl Engram {
                     )
                     .await;
 
+                phase.phase("graph_processing", None, None);
                 engram
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await?;
@@ -1992,6 +1951,7 @@ impl Engram {
                         engram_git::history::MergeCommitPolicy::AllParents,
                         &token,
                         Box::new(|_, _| {}),
+                        Some(phase.clone()),
                         false,
             )
                     .await;
@@ -2007,6 +1967,7 @@ impl Engram {
                     }
                 }
 
+                phase.phase("source_publication", None, None);
                 #[cfg(test)]
                 source_publication_tests::before_background_publication(&state.registry, &project_id_for_job).await;
                 anyhow::ensure!(!token.is_cancelled(), "update cancelled before source generation publication");
@@ -2027,6 +1988,7 @@ impl Engram {
                 // Retire published declarations only after this candidate wins
                 // the head CAS. Cancellation or a rejected candidate must retain
                 // the old declarations and their resolver-owned edges.
+                phase.phase("graph_enrichment", None, None);
                 let cleanup = (|| -> anyhow::Result<_> {
                     #[cfg(test)]
                     anyhow::ensure!(!inject_cleanup_failure, "Injected scoped graph cleanup failure");
@@ -2395,6 +2357,7 @@ impl Engram {
         max_commits: usize,
         index_antipatterns: bool,
         cancel: &tokio_util::sync::CancellationToken,
+        job_progress: Option<Reporter>,
     ) -> anyhow::Result<(String, Option<String>)> {
         anyhow::ensure!(
             !cancel.is_cancelled(),
@@ -2430,6 +2393,7 @@ impl Engram {
                 engram_git::history::MergeCommitPolicy::AllParents,
                 cancel,
                 Box::new(|_, _| {}),
+                job_progress,
                 false,
             )
             .await;
@@ -2553,6 +2517,7 @@ impl Engram {
                     max_commits,
                     index_antipatterns,
                     cancel,
+                    None,
                 )
                 .await
                 .map(|(summary, _)| summary);
@@ -2701,6 +2666,7 @@ impl Engram {
                 engram_git::history::MergeCommitPolicy::AllParents,
                 cancel,
                 Box::new(|_, _| {}),
+                None,
                 false,
             )
             .await };
@@ -4287,14 +4253,15 @@ impl Engram {
         let job = self
             .state
             .registry
-            .get_job(&req.job_id)
+            .get_job_observation(&req.job_id)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let Some(j) = job else {
+        let Some((j, phase)) = job else {
             return Err(McpError::invalid_params("Unknown job", None));
         };
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "job_id: {}\nstatus: {}\nmessage: {}",
-            j.job_id, j.status, j.message
+            "job_id: {}\nstatus: {}\nmessage: {}\nprogress: {}",
+            j.job_id, j.status, j.message,
+            crate::services::job_progress::describe(&j, phase.as_ref())
         ))]))
     }
 

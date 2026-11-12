@@ -128,6 +128,28 @@ pub struct JobRecord {
     pub updated_at_ms: u64,
 }
 
+/// Optional progress in the existing JSON job row. Counts describe one phase,
+/// never the entire job. Older records and older readers remain compatible.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct JobProgress {
+    pub phase: String,
+    pub completed: Option<u64>,
+    pub total: Option<u64>,
+    pub unit: Option<String>,
+    pub started_at_ms: u64,
+    pub observed_at_ms: u64,
+    pub percent: Option<u8>,
+    pub estimated_time_remaining_ms: Option<u64>,
+}
+
+#[derive(Serialize, Deserialize)]
+struct StoredJob {
+    #[serde(flatten)]
+    job: JobRecord,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    phase_progress: Option<JobProgress>,
+}
+
 /// A bounded observation of matching project metadata. `has_more` and omitted
 /// values disclose incomplete coverage; neither proves anything about other keys.
 #[derive(Debug)]
@@ -587,10 +609,13 @@ impl Registry {
     // ---- Jobs ----
     pub fn put_job(&self, job: &JobRecord) -> anyhow::Result<()> {
         vk("job_id", job.job_id.as_str())?;
-        let bytes = serde_json::to_vec(job)?;
         let wtx = self.db.begin_write()?;
         {
             let mut t = wtx.open_table(JOBS)?;
+            let progress = t.get(job.job_id.as_str())?
+                .map(|row| serde_json::from_slice::<StoredJob>(row.value()))
+                .transpose()?.and_then(|row| row.phase_progress);
+            let bytes = serde_json::to_vec(&StoredJob { job: job.clone(), phase_progress: progress })?;
             t.insert(job.job_id.as_str(), bytes.as_slice())?;
         }
         wtx.commit()?;
@@ -606,6 +631,42 @@ impl Registry {
         } else {
             Ok(None)
         }
+    }
+
+    /// Read status and phase from one database snapshot.
+    pub fn get_job_observation(&self, job_id: &str) -> anyhow::Result<Option<(JobRecord, Option<JobProgress>)>> {
+        vk("job_id", job_id)?;
+        let rtx = self.db.begin_read()?;
+        let t = rtx.open_table(JOBS)?;
+        t.get(job_id)?.map(|row| {
+            let stored: StoredJob = serde_json::from_slice(row.value())?;
+            Ok((stored.job, stored.phase_progress))
+        }).transpose()
+    }
+
+    /// A progress callback may update only an existing running job. The check
+    /// and update share a transaction, so cancellation/deletion cannot race a
+    /// stale read into resurrecting a job or losing its terminal status.
+    pub fn put_job_progress(&self, job_id: &str, progress: &JobProgress) -> anyhow::Result<bool> {
+        vk("job_id", job_id)?;
+        anyhow::ensure!(!progress.phase.is_empty() && progress.phase.len() <= 80
+            && progress.unit.as_ref().is_none_or(|u| u.len() <= 32), "Invalid job phase");
+        let wtx = self.db.begin_write()?;
+        {
+            let mut t = wtx.open_table(JOBS)?;
+            let Some(mut stored) = t.get(job_id)?
+                .map(|row| serde_json::from_slice::<StoredJob>(row.value())).transpose()?
+                else { return Ok(false); };
+            if stored.job.status != "running" { return Ok(false); }
+            stored.job.progress_pct = progress.percent.unwrap_or(0).min(99);
+            stored.job.estimated_time_remaining_ms = progress.estimated_time_remaining_ms;
+            stored.job.updated_at_ms = progress.observed_at_ms;
+            stored.phase_progress = Some(progress.clone());
+            let bytes = serde_json::to_vec(&stored)?;
+            t.insert(job_id, bytes.as_slice())?;
+        }
+        wtx.commit()?;
+        Ok(true)
     }
 
     pub fn list_jobs(&self, project_id: Option<&str>) -> anyhow::Result<Vec<JobRecord>> {
@@ -665,14 +726,15 @@ impl Registry {
             let mut to_update = Vec::new();
             for r in t.iter()? {
                 let (k, v) = r?;
-                let mut job: JobRecord = serde_json::from_slice(v.value())?;
+                let mut stored: StoredJob = serde_json::from_slice(v.value())?;
+                let job = &mut stored.job;
                 if job.status == "running" {
                     job.status = "aborted".into();
                     job.message = "Job aborted due to system restart.".into();
                     job.updated_at_ms = std::time::SystemTime::now()
                         .duration_since(std::time::UNIX_EPOCH)?
                         .as_millis() as u64;
-                    to_update.push((k.value().to_string(), job));
+                    to_update.push((k.value().to_string(), stored));
                 }
             }
             for (k, job) in to_update {
