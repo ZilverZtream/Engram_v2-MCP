@@ -18,7 +18,7 @@ fn module_reference_evidence(
     let edges = graph.get_edges_by_endpoints(project, &[(source.into(), EdgeKind::Calls, target.into())])
         .map_err(|e| e.to_string())?;
     let Some(bindings) = edges.first().and_then(|e| e.metadata.as_ref())
-        .and_then(|m| m.get("typescript_module_bindings_v1").or_else(||m.get("python_module_bindings_v1")).or_else(||m.get("rust_module_bindings_v1")).or_else(||m.get("go_module_bindings_v1"))).and_then(|v| v.as_array()) else { return Ok(String::new()); };
+        .and_then(|m| m.get("typescript_module_bindings_v1").or_else(||m.get("python_module_bindings_v1")).or_else(||m.get("rust_module_bindings_v1")).or_else(||m.get("go_module_bindings_v1")).or_else(||m.get("java_module_bindings_v1"))).and_then(|v| v.as_array()) else { return Ok(String::new()); };
     let limit = (*remaining).min(8);
     let rows: Vec<_> = bindings.iter().take(limit).map(|binding| {
         let call = &binding["call"];

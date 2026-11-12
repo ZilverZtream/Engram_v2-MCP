@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "at_utc": "2026-11-12T09:23:38.157496+00:00",
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "active_item": "TODO23 Java; parent and broader backlog remain open",
+  "implementation_sha256": {
+    "crates/engram_core/src/java_modules.rs": "dc63e9d9fed6e396d0710d9844e063405820d38627f8645908b8031aa26f4d83",
+    "crates/engram_index/src/parsing/java_modules.rs": "e616469024348e3e82061e7b83ed5b7cce09eb16d9b7d1bd9490bf1046609a6a",
+    "crates/engram_index/src/parsing.rs": "b4749bb39929f1d1e8755cdd6ac3904e031c043a2ddda770d69261f5fb709178",
+    "crates/engram_index/src/source_contract.rs": "46b2c7020ebcaed515a6db6a353871833e711c240273d9faf9e4dec4722b3404",
+    "crates/engram_graph/src/store/java_modules.rs": "557ce3a115893cddbbef54801eaae4c4f1077283a9afca3b67849e870b1d1c41",
+    "crates/engram_graph/src/store.rs": "1e14bde9cb04459740e6d9fe2c92af78a7351c78866e74881c6e6233e6cc3df3",
+    "crates/engram_server/src/services/ingest_service.rs": "d8a4ebfcaf38abb8b476e490e86c480b874c556695a4e5a12a94cd9e0a7fe5ed",
+    "crates/engram_server/src/handlers/graph_tools.rs": "026df2806d84f15ce87d7a0b6812a94ea6e42b89de651a506f118844d201be00",
+    "crates/engram_core/src/lib.rs": "10c3a3723dc711b44fa1ef9d977358f946e0fdae82c10827180cbfbbf048a587",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "474aa760353f0361eab347bc025d35bfc8f4bb0c4df72733a107fe030d482921",
+    "crates/engram_server/src/services/ingest_service/java_module_tests.rs": "cd60510d2d666869fdcb9b3a48986aabf9e265901b9f5eb3a1a977365765ac54"
+  },
+  "implemented": [
+    "Retained package, canonical nested type, file-local single/on-demand type and static import facts, declared receiver types, lexical scopes and exact call sites.",
+    "Source method calls resolve through class imports, static imports, same-package and fully qualified classes, typed parameters/locals/fields, direct object creation, bare and this receivers.",
+    "Arity, visibility, static context, type/variable shadowing and ambiguous identities stay distinct. Unsupported inference, inheritance and cross-module visibility remain explicitly unresolved.",
+    "Local classes remain lexical evidence and cannot obscure imports in another method through the global type index; missing methods retain their known explicit import site.",
+    "Retained source facts support unchanged-caller rebinding after declaration/package changes; import edits retract old links. Public references expose bounded source evidence."
+  ],
+  "checks": [
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\module-no-vector-final03-result.json",
+      "sha256": "d8823d32dff9b8e653a9e2a1a8f7bbe2a46a894f09dc0f9fd9b87b655da4a717",
+      "status": "PASS",
+      "passed": 31
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\publication-no-vector-final02-result.json",
+      "sha256": "cf3afd1326878f7c02f74e17558ccb59393a532e7b16faf3bcff0ed61828e34b",
+      "status": "PASS",
+      "passed": 6
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\module-native-final-result.json",
+      "sha256": "199c58fde2553166d698785673543605bf5cae810272e8b8ab28c89867d1062e",
+      "status": "PASS",
+      "passed": 6
+    }
+  ],
+  "retained_failure": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\module-no-vector-final-result.json",
+    "reason": "A local class entered global type lookup and obscured an imported type in another method. Fixed by keeping scoped types out of the global index; the authored scope case passes in final checks."
+  },
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\baseline\\receipt.json",
+    "observed": {
+      "RunType": {
+        "expected_file": "left/Api.java",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      },
+      "RunStatic": {
+        "expected_file": "right/Api.java",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      },
+      "RunQualified": {
+        "expected_file": "right/Api.java",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      },
+      "RunReceiver": {
+        "expected_file": "left/Api.java",
+        "actual_files": [
+          "::Read"
+        ],
+        "correct_unique_target": false
+      }
+    }
+  },
+  "remaining": [
+    "Release build",
+    "Candidate old-index graph upgrade and public edit/delete/restore/repair acceptance",
+    "Install, repeat public acceptance and verify normal daemon; record and push delivery evidence"
+  ],
+  "next_action": "Commit validated implementation and build p127-java-modules-source-20261112 with the existing owned shared-target runner.",
+  "limitations": [
+    "Static source-declaration evidence, not Java compiler type checking or runtime dispatch proof.",
+    "Overload selection requiring argument types, inferred/unknown/array receiver types, inherited method lookup and cross-named-module visibility are explicitly unresolved. No Maven/Gradle/classpath or external dependency download.",
+    "Pattern-variable flow and local/anonymous class resolution remain conservative and explicit; source parser errors or unsupported syntax do not produce guessed bindings.",
+    "Legacy indexes need current Java extraction facts via update_project or graph_only repair. Public upgrade/storage preservation and deployment are not yet claimed."
+  ],
+  "review": {
+    "kind": "Parent manual review, not independent",
+    "external_review_ran": false,
+    "note": "CodeRabbit authentication was unavailable in the retained session state; no login or review retry. Checked canonical ownership, local type exclusion, file-local imports, static/visibility distinctions, scoped receivers, retained edge replacement and publication freshness."
+  },
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
+    "completed_test_fixture_roots_removed": true,
+    "baseline_fixture_removed": true,
+    "retained": "Authored scripts, source/wire evidence, logs, stable input hashes and subsequent release package; no preexisting folder deletion."
+  },
+  "full_original_goal": "ACTIVE; Java deployment, parent TODO23 closure and the broader original backlog are not claimed."
+}
