@@ -10,6 +10,7 @@ mod python_modules;
 mod rust_modules;
 mod go_modules;
 mod java_modules;
+mod modern_state;
 
 /// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
 /// over budget; callers must not fall back to counting punctuation as strings.
@@ -1351,6 +1352,25 @@ impl SymbolExtractor {
                     serde_json::to_string(&python.facts).expect("serializable Python facts"),
                 )])),
             });
+        }
+        if crate::source_contract::requires_modern_state(path) {
+            let script_state = matches!(ext, "js" | "jsx")
+                .then(|| typescript_modules::Extraction::new(tree.root_node(), content));
+            let bindings = modern_state::Bindings {
+                script: module.as_ref().or(script_state.as_ref()), python: python.as_ref(),
+                rust: rust.as_ref(), go: go.as_ref(),
+            };
+            let (state_symbols, state_edges, coverage) = modern_state::extract(
+                path, content, tree.root_node(), static_ext, &symbols, bindings);
+            if let Some(file) = symbols.iter_mut().find(|symbol| symbol.kind == "file") {
+                file.metadata.get_or_insert_with(Default::default)
+                    .insert(crate::source_contract::MODERN_STATE_KEY.into(), coverage);
+            } else {
+                symbols.push(ExtractedSymbol {name:"file".into(),kind:"file".into(),start_line:1,
+                    end_line:tree.root_node().end_position().row as u32+1,
+                    metadata:Some(std::collections::HashMap::from([(crate::source_contract::MODERN_STATE_KEY.into(),coverage)]))});
+            }
+            symbols.extend(state_symbols); edges.extend(state_edges);
         }
         (symbols, edges)
     }

@@ -18,6 +18,7 @@ use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::fmt::Write;
 use std::path::PathBuf;
+mod state_trace;
 
 /// (node_id, node_type, name, file_path) tuple used in centrality reranking.
 type NodeMetaTuple = (String, Option<String>, Option<String>, Option<String>);
@@ -1529,6 +1530,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
             let state_id = engram_core::ids::NodeId::state(&req.state_type, &req.state_key).0;
+            let modern = state_trace::is_modern(&req.state_type);
 
             let state_node = graph
                 .get_node(&req.project_id, &state_id)
@@ -1545,6 +1547,12 @@ impl Engram {
                     )
                     .map_err(|e| format!("DB error querying state candidates: {e}"))?;
                 if candidates.is_empty() {
+                    if modern {
+                        return Ok(format!(
+                            "State key '{}:{}' has no indexed state node. This is not proof of no access. Run update_project to acquire current extraction facts on an older index. Environment uses a literal variable name; Module/Singleton/ReactContext/Redux use project-relative path::declaration plus property suffix. Static extraction covers explicit supported accesses; dynamic keys, unsupported bindings and runtime behavior remain unknown.",
+                            req.state_type, req.state_key
+                        ));
+                    }
                     return Ok(format!(
                         "State key '{}[\"{}\"]' not found in the graph.\nMake sure the project has C#/VB files with {} access indexed.",
                         req.state_type, req.state_key, req.state_type
@@ -1565,6 +1573,9 @@ impl Engram {
             );
 
             out.push_str("Coverage: locations are indexed containing-symbol declarations, not verified access-site positions. Current source and runtime behavior are unverified.\n\n");
+            if modern {
+                out.push_str("Modern state evidence: access positions below refer to the indexed source hash, not current disk contents. Each reader/writer relationship may retain only one access observation; repeated accesses are not exhaustively listed. JS/TS state imports use indexed ES module/export evidence; cross-file state in other languages and imported Redux dispatch effects remain unresolved. Dynamic access and runtime behavior remain unknown.\n\n");
+            }
             // MCP1: use sanitized limit to prevent resource amplification.
             let limit = req.sanitized_limit();
             let writers = graph
@@ -1589,6 +1600,9 @@ impl Engram {
                             node.start_line,
                             weight
                         ));
+                        if modern {
+                            out.push_str(&state_trace::evidence(&graph, &req.project_id, &node, &state_id, EdgeKind::WritesState)?);
+                        }
                     } else {
                         out.push_str(&format!("- {} (weight: {}; indexed node unavailable)\n", writer_id, weight));
                     }
@@ -1621,6 +1635,9 @@ impl Engram {
                             node.start_line,
                             weight
                         ));
+                        if modern {
+                            out.push_str(&state_trace::evidence(&graph, &req.project_id, &node, &state_id, EdgeKind::ReadsState)?);
+                        }
                         if node.node_type == "property" {
                             property_readers.push(node);
                         }

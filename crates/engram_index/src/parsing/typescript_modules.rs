@@ -127,6 +127,20 @@ fn dynamic_import(node: Node<'_>, source: &str) -> bool {
 }
 
 impl<'tree> Extraction<'tree> {
+    pub(super) fn state_binding_shadowed_below(&self, node: Node<'_>, name: &str, scope: Node<'_>) -> bool {
+        self.shadows.iter().any(|(binding,start,end)| binding==name
+            && *start>=scope.start_byte() && *end<=scope.end_byte()
+            && (*start!=scope.start_byte() || *end!=scope.end_byte())
+            && *start<=node.start_byte() && node.end_byte()<=*end)
+    }
+
+    pub(super) fn state_binding_shadowed(&self, node: Node<'_>, name: &str, root: Node<'_>, ignore_module: bool) -> bool {
+        self.shadows.iter().any(|(binding, start, end)| {
+            binding == name && *start <= node.start_byte() && node.end_byte() <= *end
+                && (!ignore_module || *start != root.start_byte() || *end != root.end_byte())
+        }) || (!ignore_module && self.facts.imports.iter().any(|binding| binding.local == name))
+    }
+
     pub fn new(root: Node<'tree>, source: &str) -> Self {
         let mut this = Self {
             facts: Module {

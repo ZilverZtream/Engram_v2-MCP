@@ -18,10 +18,10 @@ fn script_reuse_requires_produced_receiver_contract_without_invalidating_other_l
         let mut metadata = legacy.clone(); metadata["script_call_contract"] = serde_json::json!(SCRIPT_CALL_CONTRACT);
         if matches!(path, "owned.ts" | "view.TSX") {
             ensure!(!expected.metadata_is_compatible(&metadata, path), "Legacy receiver facts do not establish module identity");
-            let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new(path), "export function run() {}");
-            let facts = symbols.iter().find(|s| s.kind == "file").unwrap().metadata.as_ref().unwrap();
-            for (key, value) in facts { metadata[key] = serde_json::json!(value); }
         }
+        let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new(path), "export function run() {}");
+        let facts = symbols.iter().find(|s| s.kind == "file").unwrap().metadata.as_ref().unwrap();
+        for (key, value) in facts { metadata[key] = serde_json::json!(value); }
         ensure!(expected.metadata_is_compatible(&metadata, path));
     }
     for path in ["owned.c", "style.css", "page.html", "server.cs"] {

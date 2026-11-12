@@ -766,13 +766,13 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] All readers and writers of Session/ViewState/Application/Cache keys. Use before touching shared state — hidden readers are the classic WebForms regression."
+        description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Static extraction has explicit coverage limits; absence does not prove no runtime access."
     )]
     pub async fn trace_state_usage(
         &self,
         params: Parameters<TraceStateUsageRequest>,
     ) -> Result<CallToolResult, McpError> {
-        if let Some(result) = self.legacy_tool_applicability("trace_state_usage", &params.0.project_id, &[]).await? {
+        if let Some(result) = self.state_tool_applicability(&params.0.project_id, &params.0.state_type).await? {
             return Ok(result);
         }
         self.handle_trace_state_usage(params.0).await

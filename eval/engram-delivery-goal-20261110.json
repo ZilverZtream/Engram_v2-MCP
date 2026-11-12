@@ -41,10 +41,11 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO27 Modern state tracking",
-    "status": "SELECTED_INSTALLED_BASELINE_CONFIRMED",
+    "status": "PARTIAL_IMPLEMENTATION_NATIVE_AND_NO_VECTOR_VERIFIED",
     "baseline": "eval/p131-modern-state-baseline-20261112.json",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
-    "remaining": "Implement syntax-backed modern state facts and connect them to existing ingestion/public tracing, using independently authored positive/negative sources for the finite categories. Keep other improvements closed."
+    "remaining": "Continue retained TODO27 cross-file Python/Rust/Go state binding and imported Redux dispatch effects, resolve retained framework correctness findings, then verify candidate/installed MCP behavior and deploy. Preserve verified state/public/shared-resolver behavior and the full original backlog.",
+    "progress": "eval/p131-modern-state-progress-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

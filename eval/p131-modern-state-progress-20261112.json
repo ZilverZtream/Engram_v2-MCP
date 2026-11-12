@@ -1,0 +1,480 @@
+{
+  "status": "PARTIAL_IMPLEMENTATION_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T14:04:39.809405+00:00",
+  "item": "Original TODO27 modern state tracking",
+  "previous_goal_turn_classification": "progress: recovered terminal state3 receipt proving nine extraction tests passed; next action is public integration, not rerunning extraction",
+  "implemented": [
+    "Environment and file-local mutable module/singleton extraction in JS/TS, Python, Rust and Go using existing parser/import/shadow facts",
+    "File-local import-bound React context and Redux Toolkit reducer/store/selector/dispatch extraction",
+    "Existing extraction contract invalidates older modern-source metadata so updates acquire state facts",
+    "Category-aware public applicability/discovery, modern missing-key guidance and indexed access evidence with source hash",
+    "Incremental purge transfers Environment state-node observation ownership to a surviving unchanged reader/writer, preserving source-declared ownership for module/framework states",
+    "JS/TS retained imported-state observations with existing source/import/shadow evidence; static ES-module resolver reused for Module/Singleton/ReactContext/Redux reads and context providers",
+    "State extraction version 2 forces reacquisition of retained import facts; unresolved state imports remain unresolved graph edges with reasons and cannot enter name-only symbol binding"
+  ],
+  "verified": {
+    "state3": {
+      "tests_passed": 9,
+      "exit_code": 0,
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\state3-result.json",
+      "sha256": "2e13175157a4e4696adf6412ef024962bade4b65ab57bb82e155760fbf2d1aa9",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_index",
+        "--no-default-features",
+        "--lib",
+        "modern_state::tests",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "public1": {
+      "tests_passed": 2,
+      "exit_code": 0,
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\public1-result.json",
+      "sha256": "65a4021e4baa2c3a6995b6daa3a23c248c3ca0c7b77f3377f514d7e7f631cefe",
+      "behavior": "Real indexing + typed public trace_state_usage: all five modern categories, TS/Python/Rust/Go readers and writers, source evidence/hash, shadowing/same-name decoys, shared environment across files, legacy category rejection and missing-key guidance.",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "public2": {
+      "result": "7 legacy applicability + 2 modern public tests passed; incremental modern test failed; top10 did not run after failure",
+      "failure": "Editing Environment:MODE in one file removed its globally shared node and hid another unchanged file reader",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\public2-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--test",
+        "top10_audit_tests",
+        "--test",
+        "legacy_applicability_test",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "public3": {
+      "result": "All three real-index modern public tests passed, including update/rename/delete/reopen. Broad top10 suite: 14 passed, 6 failed.",
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\public3-result.json",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "state_regressions": "Two direct internal legacy state-handler tests failed because applicability was moved inside the handler. Restored applicability to the typed public entry point; public4 verifies.",
+      "other_failures": [
+        "review_coverage_names_binary_and_text_scope_and_never_claims_execution",
+        "review_coverage_names_changed_files_the_index_has_not_seen",
+        "review_rejects_invalid_controls_and_returns_json_for_empty_patch",
+        "test_matrix_withholds_known_stale_axes_and_labels_legacy_evidence"
+      ],
+      "other_failure_disposition": "Recorded, not silently passed or asserted preexisting. Three review fixture failures and one test-matrix assertion are outside the selected modern state implementation; no broad review/test-matrix task started.",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--test",
+        "top10_audit_tests",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "public4": {
+      "tests_passed": 5,
+      "tests_ignored": 0,
+      "scope": "Three modern public/incremental/reopen tests and two legacy state tracing tests",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\public4-result.json",
+      "sha256": "3d18f24911f59ef9a859949e78a156e70de0b8a2c2ed4048d84db74f5481a411",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--test",
+        "top10_audit_tests",
+        "state_",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "contract1": {
+      "tests_passed": 6,
+      "tests_ignored": 1,
+      "scope": "Extraction contract reuse/publication; dedicated VB sidecar ownership test ignored by default",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\contract1-result.json",
+      "sha256": "7c97bd6741796a55cc7fc8c3094dc3507ffeb7d462735f7eb724cc645a2f890e",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_index",
+        "--no-default-features",
+        "--lib",
+        "source_contract",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "imports1": {
+      "tests_passed": 5,
+      "scope": "Modern state public tests including JS/TS imported module/singleton/context/store reads, reexport edits and target deletion/restoration with unchanged callers",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\imports1-result.json",
+      "sha256": "87a0e869c382ea366a57136447935bb76db21dbbb4292e9d37cc795919db4cb2",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "imports2": {
+      "tests_passed": 5,
+      "scope": "Modern public state, ES import rebinding, readonly import assignment rejection, explicit unknown dispatch, JS vs TS sibling identity, generated property cleanup",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\imports2-result.json",
+      "sha256": "713fcb96af9baebde1db0b6b48db3469218d31e86700fb5bed57c59e8e759a4f",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "state4": {
+      "tests_passed": 9,
+      "scope": "Syntax/import/shadow/negative extraction tests with retained import facts and modern extraction contract version 2",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\state4-result.json",
+      "sha256": "4e3580a2c0d22586540ecdd73dd4f41150db5708065eb1abd25c9a66d16bd0fd",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_index",
+        "--no-default-features",
+        "--lib",
+        "modern_state::tests",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "imports3": {
+      "tests_passed": 7,
+      "tests_ignored": 0,
+      "scope": "Five modern public state tests plus two legacy state traces, with unrelated imported dispatch helper negative",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\imports3-result.json",
+      "sha256": "e6fd38bf60d0daae97121349fb862206a9105cf644123e600d07a7e1ccbcc010",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--test",
+        "modern_state_test",
+        "--test",
+        "top10_audit_tests",
+        "state_",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "calls1": {
+      "tests_passed": 6,
+      "tests_ignored": 0,
+      "scope": "Preserved TypeScript module-call imports, configuration aliases, export updates, ambiguity and self-import behavior",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\calls1-result.json",
+      "sha256": "c39d3302968244b589e5b58274f708d9e6325537691b7e55146d2d6eddfa4a3b",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--lib",
+        "typescript_modules",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "capability1": {
+      "tests_passed": 1,
+      "tests_ignored": 0,
+      "scope": "Discovery union and category-specific applicability follow supported indexed source",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\capability1-result.json",
+      "sha256": "76374d0ddc56c11a785d17619850dd8bf26ee6f282e0feb4a7d37a9d8a04167f",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--no-default-features",
+        "--lib",
+        "state_discovery_and_requested_categories_follow_supported_source",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "contract2": {
+      "tests_passed": 6,
+      "tests_ignored": 1,
+      "scope": "Current extraction contract compatibility and production; dedicated VB sidecar test ignored",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\contract2-result.json",
+      "sha256": "766cd644bedac029386718fcccc2ecb8446349bb39ccb440c899d286c22c54dd",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_index",
+        "--no-default-features",
+        "--lib",
+        "source_contract",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "native1": {
+      "status": "INTENTIONALLY_CANCELLED_BEFORE_TEST_EXECUTION",
+      "reason": "Standalone engram_index native feature selection began rebuilding a separate dependency configuration. Switched to the previously used native engram_server configuration, which exercises modern parsing through real public indexing. This is not a product test failure or a timeout/restart.",
+      "exact_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\native1-cancelled-owner.json",
+      "owner_and_descendants_confirmed_terminal": true,
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\native1-result.json",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_index",
+        "--lib",
+        "modern_state::tests",
+        "--",
+        "--nocapture"
+      ]
+    },
+    "nativepublic1": {
+      "tests_passed": 7,
+      "scope": "Established native server build: all five modern public state tests and both legacy state trace regressions",
+      "source_stable": true,
+      "fixture_root_removed": true,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\nativepublic1-result.json",
+      "sha256": "006b05eff265f6f090feb8fef77e0240290399e6c17724023a26f1854ef2eb30",
+      "command": [
+        "cargo",
+        "test",
+        "--offline",
+        "--locked",
+        "-j1",
+        "-p",
+        "engram_server",
+        "--test",
+        "modern_state_test",
+        "--test",
+        "top10_audit_tests",
+        "state_",
+        "--",
+        "--nocapture"
+      ]
+    }
+  },
+  "current_verification": {
+    "status": "terminal",
+    "last_label": "nativepublic1",
+    "last_session_id": 42708,
+    "source_matches_final_native_receipt": true
+  },
+  "unfinished": [
+    "Cross-file Python/Rust/Go state bindings remain unimplemented; local state and environment behavior are verified in those languages.",
+    "Imported Redux dispatch effects remain explicitly unresolved; finish supported source-backed effects and retained framework correctness findings before closure.",
+    "Candidate and installed MCP verification, release deployment and installed identity/cleanup evidence remain pending.",
+    "Four broader top10 review/test-matrix failures are retained in public3 evidence; no claim of a green full audit suite, full workspace tests or original backlog closure."
+  ],
+  "deployment": "None for TODO27; installed TODO26 delivery preserved",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
+  "cleanup": "All completed test fixture roots in this item were closed and removed, including the intentionally cancelled standalone native build. Test logs, source-hash receipts, exact cancellation evidence, runner scripts and checkpoint commit message remain only in the recorded diagnostics directory; retain through final TODO27 delivery/review.",
+  "retained_framework_findings": [
+    "Check local Redux duplicate binding handling and quoted mount names containing dots before final delivery; no new feature or broader audit selected.",
+    "React default-import member APIs, reducer-return replacement and react-redux provider/selector binding remain unsupported patterns; preserve truthful coverage rather than infer runtime behavior."
+  ],
+  "manual_review": "Checked category gating, source-owner identity, imported aliases/reexports, non-state dispatch decoys, shared Environment observation ownership, retained import facts across deletion, unknown-prefix protection and owned property cleanup. No external CodeRabbit review.",
+  "temporary_resource_accounting": [
+    {
+      "label": "calls1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "capability1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "contract1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "contract2",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "imports1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "imports2",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "imports3",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "native1",
+      "exit_code": 1,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "nativepublic1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "public1",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "public2",
+      "exit_code": 101,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "public3",
+      "exit_code": 101,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "public4",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "state1",
+      "exit_code": 101,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "state2",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "state3",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    },
+    {
+      "label": "state4",
+      "exit_code": 0,
+      "fixture_root_removed": true
+    }
+  ]
+}
