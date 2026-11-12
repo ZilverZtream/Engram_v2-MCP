@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "RESOLVING_DEMONSTRATED_OX_SOURCE_PUBLICATION_BLOCKER",
+      "status": "ORIGINAL_OX_CURRENT_PRODUCER_CAPTURE_RUNNING",
       "original_requirement": "Put a small accepted-task benchmark into regular checks. Reuse existing OX evaluation assets.",
       "missing_behavior": "Inventory records existing frozen task results and saved-run verifier, but regular CI remains open.",
       "implementation_files": [
@@ -10013,7 +10013,9 @@
           ],
           "release_source_commit": "4837b7c043990c6006a342f93936e8a5ba4214b5",
           "tests": "Two regression tests pass; original source reproduced exact publication failure; test resources removed",
-          "state": "RELEASE_BUILD_RUNNING"
+          "state": "RESOLVED_DEPLOYED_OX_REFRESH_COMPLETED",
+          "delivery": "eval/ociusx-vendor-publication-fix-20261112.json",
+          "active_generation": 3148
         }
       }
     },

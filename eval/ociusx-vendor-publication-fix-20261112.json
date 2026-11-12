@@ -1,0 +1,92 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED_OX_REFRESH_COMPLETED",
+  "at_utc": "2026-11-12T15:44:30.788806+00:00",
+  "original_requirement": "EG24 original OciusX task evaluation requires current usable production source outputs.",
+  "observed_blocker": "OciusX update failed on graph-suppressed Font Awesome vendor JSON because publication incorrectly demanded semantic module/config facts. Old complete generation 3147 remained active.",
+  "behavior_delivered": [
+    "Vendor source can publish and remain searchable without semantic symbols or dependency edges that ingestion deliberately suppresses.",
+    "Application semantic facts, current source/chunk identity and script/WebForms suppression receipts remain mandatory.",
+    "Existing OciusX update completed and published generation 3148: all 2301 eligible files present across stores, source format current at version 9."
+  ],
+  "release_source_commit": "4837b7c043990c6006a342f93936e8a5ba4214b5",
+  "main_commits": [
+    "b985f48",
+    "a664dab"
+  ],
+  "origin_master_pushed": true,
+  "runtime": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\package",
+    "server_sha256": "4bdbf01f9df0f9287ed84004098fd1fd751e379859e6c8c745f44dca842e6107",
+    "manifest_sha256": "c0a28e21b37326a4699e8d45e47c9840d6c7b8c4871182782a9481b5a437ba2b",
+    "old_server_sha256": "6cffc19b7bc4503d853c4bcfe987388939b57e7b8e62e590d1d9e0f2ca3c502d",
+    "old_manifest_sha256": "4d8624ae9cd1049265c565652e975a9c85c812db35937ec81fb148971e4acc1d",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendorrelease.json",
+      "sha256": "a914ff08fdb043a6b7d0283b8f9d90f92a2dc24c952aa6fc6c5be85b1e4d88bb"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "4d8624ae9cd1049265c565652e975a9c85c812db35937ec81fb148971e4acc1d"
+    },
+    "source_commit": "4837b7c043990c6006a342f93936e8a5ba4214b5"
+  },
+  "verification": {
+    "vendorbaseline-result.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendorbaseline-result.json",
+      "sha256": "c743e939349309d30c17e095ae6b200ced401856711b571a4862f9219f355bb7"
+    },
+    "vendorfixed2-result.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendorfixed2-result.json",
+      "sha256": "402a151da1717d69ee46741bbc2437740435b8261ac9f4cfcebdf163956ac2e2"
+    },
+    "vendorrelease.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendorrelease.json",
+      "sha256": "a914ff08fdb043a6b7d0283b8f9d90f92a2dc24c952aa6fc6c5be85b1e4d88bb"
+    },
+    "vendor-candidate/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendor-candidate\\acceptance.json",
+      "sha256": "dfb9054b951d610ac09c4a20ef95c2cd16914954c062f415c71d8304cf4cc7b8"
+    },
+    "vendor-installed/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendor-installed\\acceptance.json",
+      "sha256": "ba3127ca832885472f692cbe31366dadea0735e5d6165802f7e0ae65e8044196"
+    },
+    "vendor-normal/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendor-normal\\acceptance.json",
+      "sha256": "ef598e55e4fa14bf2236b15aadf798f0a080f656ac10a1adf02903cc7659a0ef"
+    },
+    "source-refresh/state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\source-refresh\\state.json",
+      "sha256": "647e2be1a63913bb6085e742870feaa810af3872d05447283faab27af51dbe00"
+    },
+    "source-refresh-fixed/state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\source-refresh-fixed\\state.json",
+      "sha256": "685acbe64b05114c8d2c2d0642e21ea90b920169a554127f3e651528f85e0531"
+    },
+    "vendor-worktree-cleanup.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\vendor-worktree-cleanup.json",
+      "sha256": "e38955c77bb926944a5cb3e80fdae52896d1d6074f022360eae9e8be3d8441ff"
+    }
+  },
+  "limits": [
+    "Refresh observation used check_disk=false; it establishes complete current source format, not exhaustive on-disk content identity.",
+    "This fixes index publication, not proof of agent usefulness or OciusX productivity. EG24/25 remain open.",
+    "No CodeRabbit or remote CI result is claimed; review was local and tests/public MCP acceptance were executed locally."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation",
+    "new_release_worktree_removed": true,
+    "owned_build_temp_removed": true,
+    "candidate_and_installed_fixtures_removed": true,
+    "normal_daemon": "Intentionally available for existing OciusX project; normal lifecycle",
+    "retained_old_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-969d4f9019dd48b88c26ac7a99086621",
+    "retention": "Keep exact release/capture evidence, package and previous complete runtime until reviewed cleanup; no preexisting directory removed."
+  },
+  "scope": "Only source compatibility validation and its regression tests changed relative to installed baseline. Parked language/state expansion excluded; nine uncommitted parked files retain recorded bytes.",
+  "next_item": "Resume EG24 original current-producer OX task capture; session 10829 is currently active. Do not reopen delivered vendor correction absent a concrete regression."
+}
