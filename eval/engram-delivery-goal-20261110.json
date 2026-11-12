@@ -40,11 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "finding": "TODO39 published-source generation consistency",
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_NOT_DEPLOYED",
-    "remaining": "Build and verify candidate/installed source-generation integrity observation, deploy the validated source, and record actual OciusX read-only results.",
-    "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support.",
-    "progress": "eval/ociusx-source-integrity-progress-20261112.json"
+    "finding": "TODO42 LLM integration",
+    "status": "RECONCILE_EXISTING_BEHAVIOR",
+    "remaining": "Reconcile original TODO42 visible LLM degradation against existing configured providers, deadlines, retry diagnostics and deterministic fallbacks; select only a demonstrated missing OciusX behavior.",
+    "scope_guard": "OciusX user-visible reliability only; reuse existing providers/deadlines/fallbacks. No unrelated language, CodeMap/Blast or broad framework work."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -93,5 +92,9 @@
   "index_progress_delivery": {
     "receipt": "eval/ociusx-indexing-progress-delivery-20261112.json",
     "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+  },
+  "source_integrity_delivery": {
+    "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
+    "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
   }
 }

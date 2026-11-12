@@ -9973,10 +9973,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-12T21:22:40.989271+00:00",
+  "last_updated_at": "2026-11-12T22:01:05.227941+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SELECTED_IMPLEMENTATION",
+      "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "at_utc": "2026-11-12T21:22:40.989271+00:00",
       "original_requirement": "TODO39 remaining per-generation vector/Tantivy consistency sentinel and symmetric vector>FTS reconciliation beyond the existing project-wide VectorOrphan threshold.",
       "observed_missing_behavior": "check_project_integrity compares only project-wide physical totals, tolerating shortfalls<=max(5percent,20) and excess<=100. The automatic repair recheck repeats only those totals. A selected source generation can be short or have extra vector rows while aggregate totals are equal or below thresholds. Both mismatch directions already route to scoped recover_vectors; do not replace that recovery machinery.",
@@ -10004,7 +10004,9 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity",
       "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support.",
       "retained_limits": "Exact per-row semantic/vector-content equality and append-only namespace completeness are not implied by matching counts. Preserve any unmet original TODO39 scope explicitly; do not claim all recovery gates, comparative usefulness or the full backlog complete.",
-      "resources": "Reuse current isolated checkout and shared target. New fixture resources owned/closed/removed; retain receipts here. No preexisting folder deletion."
+      "resources": "Reuse current isolated checkout and shared target. New fixture resources owned/closed/removed; retain receipts here. No preexisting folder deletion.",
+      "delivery_evidence": "eval/ociusx-source-integrity-delivery-20261112.json",
+      "build_session": null
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10036,8 +10038,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO39 published-source generation consistency",
-    "next_user_visible_deliverable": "Detect generation-specific source vector shortages/excess masked by whole-project totals, and recheck that same evidence before existing scoped recovery.",
+    "active_original_item": "TODO42: reconcile existing implementation before selecting missing behavior",
+    "next_user_visible_deliverable": "Reconcile original TODO42 visible LLM degradation against existing configured providers, deadlines, retry diagnostics and deterministic fallbacks; select only a demonstrated missing OciusX behavior.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10056,7 +10058,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Progress release built, paired candidate/installed five-job polling passed, deployed and normal OciusX compatibility check passed. All owned resources closed; parked work unchanged."
+      "evidence": "Source integrity release built, candidate and installed public source observations passed, deployed and actual OciusX read-only observation recorded. Owned resources closed; parked work preserved."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13272,6 +13274,10 @@
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
     "selected_delivery_progress": "eval/ociusx-source-integrity-progress-20261112.json",
-    "next_user_visible_delivery": "Deploy validated detection and scoped repair recheck for source-generation vector shortages/surpluses hidden by project-wide totals."
+    "next_user_visible_delivery": "Deploy validated detection and scoped repair recheck for source-generation vector shortages/surpluses hidden by project-wide totals.",
+    "source_integrity_delivery_20261112": {
+      "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
+      "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+    }
   }
 }

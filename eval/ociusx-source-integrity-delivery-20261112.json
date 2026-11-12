@@ -1,0 +1,251 @@
+{
+  "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-12T22:01:05.227941+00:00",
+  "original_requirement": "TODO39 remaining per-generation vector/Tantivy consistency sentinel and symmetric vector>FTS reconciliation beyond the existing project-wide VectorOrphan threshold.",
+  "source_commit": "84dd480b4b06b171265b3fb7e52757937c89fa8c",
+  "main_merge_commit": "aa24c5a712c59e1c0119c34c4f3b883a94e52a8e",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "050968986561a2da2f7e6cca5efa939ca053bfcfa851c286d2aed027f2825115",
+    "manifest_sha256": "b4b5616e3669714519d248480ab70b95387eaa179e517aadd4e3e940fa6d7726",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "Same managed source selection and namespace in both counts; inherited physical revisions included, retained old revisions, unpublished candidates and history excluded.",
+    "Real owned-store injections demonstrate shortage and surplus masked by equal project-wide totals; public handler detects both, existing scoped recovery repairs both, a repeated repair does no work.",
+    "Disabled embeddings and unavailable managed evidence are explicit null comparisons. Unknown required evidence does not report healthy.",
+    "Existing scoped-repair cancellation ownership, ingestion refusal, disabled backend and pending-warning regressions pass."
+  ],
+  "checks": {
+    "native_new_and_scoped_repair": 10,
+    "no_vector_compatibility": 16,
+    "public": {
+      "candidate": {
+        "calls": 8,
+        "observations": {
+          "initial": {
+            "project_id": "4f3167e8-0163-4012-8b23-ce2d65b0a290",
+            "generation": 1,
+            "timestamp_ms": 1794520691898,
+            "tantivy_doc_count": 4,
+            "vector_doc_count": 4,
+            "source_generation": {
+              "generation": 1,
+              "namespace": "memory",
+              "coverage": "managed_source_snapshot_counts_only",
+              "tantivy_doc_count": 3,
+              "vector_doc_count": 3,
+              "counts_match": true
+            },
+            "graph_node_count": 17,
+            "graph_edge_count": 11,
+            "mismatches": [],
+            "repairs_attempted": [],
+            "overall_healthy": true
+          },
+          "updated": {
+            "project_id": "4f3167e8-0163-4012-8b23-ce2d65b0a290",
+            "generation": 2,
+            "timestamp_ms": 1794520692311,
+            "tantivy_doc_count": 10,
+            "vector_doc_count": 10,
+            "source_generation": {
+              "generation": 2,
+              "namespace": "memory",
+              "coverage": "managed_source_snapshot_counts_only",
+              "tantivy_doc_count": 3,
+              "vector_doc_count": 3,
+              "counts_match": true
+            },
+            "graph_node_count": 17,
+            "graph_edge_count": 17,
+            "mismatches": [],
+            "repairs_attempted": [],
+            "overall_healthy": true
+          },
+          "repeated": {
+            "project_id": "4f3167e8-0163-4012-8b23-ce2d65b0a290",
+            "generation": 2,
+            "timestamp_ms": 1794520692326,
+            "tantivy_doc_count": 10,
+            "vector_doc_count": 10,
+            "source_generation": {
+              "generation": 2,
+              "namespace": "memory",
+              "coverage": "managed_source_snapshot_counts_only",
+              "tantivy_doc_count": 3,
+              "vector_doc_count": 3,
+              "counts_match": true
+            },
+            "graph_node_count": 17,
+            "graph_edge_count": 17,
+            "mismatches": [],
+            "repairs_attempted": [],
+            "overall_healthy": true
+          }
+        }
+      },
+      "installed": {
+        "calls": 8,
+        "observations": {
+          "initial": {
+            "project_id": "f9b364e6-ff22-41ab-a2aa-600da3d19c3f",
+            "generation": 1,
+            "timestamp_ms": 1794520778845,
+            "tantivy_doc_count": 4,
+            "vector_doc_count": 4,
+            "source_generation": {
+              "generation": 1,
+              "namespace": "memory",
+              "coverage": "managed_source_snapshot_counts_only",
+              "tantivy_doc_count": 3,
+              "vector_doc_count": 3,
+              "counts_match": true
+            },
+            "graph_node_count": 17,
+            "graph_edge_count": 11,
+            "mismatches": [],
+            "repairs_attempted": [],
+            "overall_healthy": true
+          },
+          "updated": {
+            "project_id": "f9b364e6-ff22-41ab-a2aa-600da3d19c3f",
+            "generation": 2,
+            "timestamp_ms": 1794520779475,
+            "tantivy_doc_count": 10,
+            "vector_doc_count": 10,
+            "source_generation": {
+              "generation": 2,
+              "namespace": "memory",
+              "coverage": "managed_source_snapshot_counts_only",
+              "tantivy_doc_count": 3,
+              "vector_doc_count": 3,
+              "counts_match": true
+            },
+            "graph_node_count": 17,
+            "graph_edge_count": 17,
+            "mismatches": [],
+            "repairs_attempted": [],
+            "overall_healthy": true
+          },
+          "repeated": {
+            "project_id": "f9b364e6-ff22-41ab-a2aa-600da3d19c3f",
+            "generation": 2,
+            "timestamp_ms": 1794520779486,
+            "tantivy_doc_count": 10,
+            "vector_doc_count": 10,
+            "source_generation": {
+              "generation": 2,
+              "namespace": "memory",
+              "coverage": "managed_source_snapshot_counts_only",
+              "tantivy_doc_count": 3,
+              "vector_doc_count": 3,
+              "counts_match": true
+            },
+            "graph_node_count": 17,
+            "graph_edge_count": 17,
+            "mismatches": [],
+            "repairs_attempted": [],
+            "overall_healthy": true
+          }
+        }
+      }
+    },
+    "source_stable_during_build": true,
+    "parked_work_unchanged": true
+  },
+  "actual_ociusx": {
+    "observation": {
+      "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+      "generation": 3148,
+      "timestamp_ms": 1794520846342,
+      "tantivy_doc_count": 214981,
+      "vector_doc_count": 214981,
+      "source_generation": {
+        "generation": 3148,
+        "namespace": "memory",
+        "coverage": "managed_source_snapshot_counts_only",
+        "tantivy_doc_count": 31914,
+        "vector_doc_count": 31914,
+        "counts_match": true
+      },
+      "graph_node_count": 377582,
+      "graph_edge_count": 1646602,
+      "mismatches": [],
+      "repairs_attempted": [],
+      "overall_healthy": true
+    },
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation_before_and_after": 3148,
+    "interpretation": "Read-only installed source/vector count observation. No production repair, corruption, indexing or source changes. Matching counts do not establish per-row identity or semantic quality."
+  },
+  "limitations": [
+    "Counts cannot detect balanced wrong rows within one source selection, vector semantic quality, or complete historical namespace content.",
+    "No all-gates, comparative productivity or full-backlog completion claim.",
+    "The precise new comparison covers the published memory source snapshot. Other retained namespaces keep the existing aggregate thresholds; their per-generation completeness is not established.",
+    "Reported counts are observations before any repairs in the same response. Repair outcomes report the subsequent action; a later check observes repaired counts.",
+    "Absent managed snapshot evidence or absent vector support is explicit unavailable coverage, not proof of a healthy source comparison. Existing damaged snapshot metadata propagates an error.",
+    "CodeRabbit authenticated=false; parent local review only. No measured retrieval-quality, throughput or productivity improvement is claimed."
+  ],
+  "failure_history": [
+    "native1: fixture illegally mixed namespaces; fixture partition corrected.",
+    "native2: masked shortage/surplus/recovery passed; unproven legacy scope could not be opened. Observation now reports unavailable when managed scope absent; existing damaged scope still fails closed."
+  ],
+  "evidence": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\native3.json",
+      "sha256": "2c25fa611c3f6b90acc430ec8d9ffbc45752bae24e983b142e55a979898be0cd"
+    },
+    "no_vector": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\novector1.json",
+      "sha256": "7842e4ca192dfdbf91b76f23fd70c4959e3217641c2f0c52c1e26c2c496abb65"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\release1.json",
+      "sha256": "56a9f8d67d42162ca588d71b1fa7d9b49a0331efcad9ab7ce0fd393aadbd88c4"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\pair.json",
+      "sha256": "b990cd1cb895aa7cbe4bd6eb29d9710ccc49b93c10f35a360834d9fc97ddc54b"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\candidate\\acceptance.json",
+      "sha256": "c1c4115dee382aca404794cfc69141f6dad106a4880d5560c4909139a36e082d"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\installed\\acceptance.json",
+      "sha256": "cfa9b538d6500bdb8e16d07d5bb1bb1b338386af7c7c1a32c356857e2ba86c17"
+    },
+    "actual_ociusx": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\normal\\acceptance.json",
+      "sha256": "bd2bde9e1cc26ce3d232cc21329f2d01c80fa34723a6398c8f7ec34376c712e1"
+    },
+    "gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\release-gates.json",
+      "sha256": "a082cd172d2493199ebbb5079e3e1d3f3e5b95067e53822c77684a58450f8c9e"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\integrity-install-Upgrade.json",
+      "sha256": "acb6da0849cd5b1d16e831a28c13155fae65100ef88c95af48b424029bc06b91"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\integrity-config-hold.json.released.json",
+      "sha256": "b534a8475fd31f834ed64311943b89e3f3697d33cbb8d1507ac23cfe6dcbc393"
+    }
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity",
+    "owned_test_and_build_temps_removed": true,
+    "owned_test_processes_and_handles_closed": true,
+    "configuration_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-d165cb5db56143c6b276b728e8e2e521",
+    "retention": "Retain package, logs and receipts as delivery evidence, previous pair for rollback. Preexisting-folder deletion requires exact-path approval.",
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_removal_condition": "Retain while parked work must be excluded. Remove through Git only after preserving unique work, ignored files and local commits."
+  },
+  "next": "Reconcile original TODO42 visible LLM degradation against existing configured providers, deadlines, retry diagnostics and deterministic fallbacks; select only a demonstrated missing OciusX behavior.",
+  "goal": "ACTIVE; other original requirements, partial acceptance and held findings remain unfinished."
+}

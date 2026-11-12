@@ -375,11 +375,15 @@ specs already written.
   two engram_server processes share one daemon on Windows, both serve list_projects via
   the config-driven path. CI test: named_pipe_transport_round_trips.*
 
-- [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) - *core
-  done 2026-06-13 (via #45): the FTS>vector divergence from partial embed failure is now
-  DETECTED (VectorShortfall count sentinel) and RE-CONVERGED through the auto-repair
-  vector_only path (re-embed). Remaining: per-generation sentinel granularity and the
-  symmetric vector>FTS reconcile beyond the existing VectorOrphan overflow check.*
+- [~] **39. Vector/Tantivy consistency repair after partial ingest failures** (M) -
+  Published-source remainder delivered 2026-11-12: compare the same managed
+  source snapshot and memory namespace, including inherited revisions. Detect
+  shortage and surplus even when project-wide totals cancel; recheck under the
+  existing owned scoped-repair lock before recovery. Unavailable evidence stays
+  explicit. Candidate and installed MCP checks plus owned corruption/recovery
+  tests passed. Other namespaces retain aggregate thresholds; their generation
+  completeness and equal-count wrong-row corruption remain unverified.
+  Evidence: [installed source consistency](eval/ociusx-source-integrity-delivery-20261112.json).
 
 - [x] **40. Trigger generation GC after crash recovery** (S) - *done 2026-06-13:
   AppState.gc_nudge (Notify) + third GC select branch; update_project fires it after a
