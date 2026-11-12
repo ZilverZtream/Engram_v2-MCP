@@ -286,6 +286,7 @@ without re-reading an entire file:
 | `batch_read` | Up to 16 method, identity and stored-chunk reads under one response budget |
 | `query_schema` | Qualified, source-cited SQL table, column, key, index, view, trigger and procedure queries |
 | `detect_n_plus_one` | Source-cited candidates for database calls repeated by VB loops or WebForms row binding |
+| `find_missing_indexes` | Review-only SQL index candidates from cited queries and source-declared index coverage |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
@@ -353,6 +354,31 @@ receiver parameters and translated SQL remain unassessed. Coverage gaps and
 truncation are explicit; zero findings do not establish absence of N+1 queries.
 The complete JSON budget defaults to 16384 estimated tokens, maximum 65536;
 an insufficient budget fails intact. Analysis does not run SQL or edit sources.
+
+`find_missing_indexes` accepts `project_id`, optional selected SQL/VB `file_path`
+to narrow query evidence, and `limit` (1–50, default 10), `offset`, `max_tokens`.
+Schema comparison still uses all admitted SQL declarations. The tool extracts
+WHERE/JOIN/ORDER BY patterns from SQL files and indexed static VB SQL calls,
+compares leading keys, unique equality lookups, INCLUDE columns and supported
+filters, and ranks candidates by distinct source sites. Returned SQL is a review
+suggestion; no database connection, index creation or migration occurs.
+
+Results cite queries and table/index declarations, include optional covering and
+filtered alternatives, and warn about unknown selectivity and write cost. Inline
+SQL citations identify their containing indexed method. Unsupported or ambiguous
+expressions remain coverage gaps; unavailable schema sources withhold DDL.
+Procedure signatures and view header options are omitted for body parsing and
+are not validated. LINQ-generated SQL, assembled query fragments, dynamic SQL,
+runtime call counts, deployed schema and actual optimizer benefit are unassessed.
+
+Analysis is bounded to 2048 query sources/scopes, depth 12, 512 candidate patterns,
+5000 indexed SQL-call edges, 256 inline-source files and 64 MiB source reads.
+At most 16 example sites per candidate and 20 covered patterns are returned;
+counts and truncation remain explicit. The complete JSON budget defaults to
+16384 estimated tokens, maximum 65536, and fails intact when insufficient.
+DDL uses supported key types within 16 columns/1700 bytes; engine compatibility
+is unverified. Validate candidates using actual plans and the
+[SQL Server index design guidance](https://learn.microsoft.com/en-us/sql/relational-databases/sql-server-index-design-guide).
 
 ### Incremental indexing and memory
 

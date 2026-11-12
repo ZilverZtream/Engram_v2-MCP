@@ -13,6 +13,18 @@ pub struct DetectNPlusOneRequest {
     pub max_tokens: Option<usize>,
 }
 
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct FindMissingIndexesRequest {
+    pub project_id: String,
+    /// Optional selected SQL/VB file limiting query evidence; schema inventory remains project-wide.
+    pub file_path: Option<String>,
+    /// Result page size, 1..=50; default10.
+    pub limit: Option<usize>,
+    pub offset: Option<usize>,
+    pub max_tokens: Option<usize>,
+}
+
 /// Query source-declared SQL schema, never a live database.
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
