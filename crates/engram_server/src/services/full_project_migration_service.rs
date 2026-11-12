@@ -4639,6 +4639,7 @@ public class MapData : WebService {
                     outcome_evidence: None,
                     rule_source_diagnostics: None,
                     extraction_provenance: None,
+                    degradation: None,
                     semantic_validation: "not_performed",
                     confidence: String::new(),
                     validation_warnings: vec![],
