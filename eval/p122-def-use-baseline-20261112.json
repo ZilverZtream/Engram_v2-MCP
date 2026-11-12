@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "status": "SELECTED_NOT_IMPLEMENTED",
+  "at_utc": "2026-11-12T02:46:41.899786+00:00",
+  "source_commit": "7b54682ad36eaf3309bd28daba1109e110dfb84c",
+  "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
+  "observed_missing_behavior": "Current trace_data_flow combines line-oriented .NET control/state/SQL parsing with bounded Calls follow. DataFlowTrace has no value lineage field; graph EdgeKind has no local def/use relation. Existing ParameterBinding is WebForms SQL-data-source parameter binding, not method argument-to-parameter lineage. No prior TODO22 delivery receipt found.",
+  "scope_basis": "TODO22 is in the existing P1 graph-value backlog; trace_data_flow is advertised as .NET legacy and parses C#/VB. P2 language generalization stays separately open.",
+  "source_sha256": {
+    "TODO.md": "c53bf3f6fffc33bac0e3b402c37e51ee0f147a6aa69e6bfc939f663b93b7262f",
+    "crates/engram_server/src/services/data_flow_service.rs": "41d99ea0fa684ce834276302e4cd4acd5198488c1658a3a79f468339c9de7821",
+    "crates/engram_server/src/handlers/migration_tools.rs": "ad9ee72f6d84fa1fb84073c1188ae13177768f1be190fac7756ad911c9f5110a",
+    "crates/engram_graph/src/store.rs": "c3eda8f57418fdd588205b7a3ade83e61d56459fa9fe4a19573d8e8bfc9007b4",
+    "crates/engram_index/src/webforms.rs": "54676bcd8f510f5b5079ef15e06932e6edc1e05645518abf4f4cc4da973439cf",
+    "crates/engram_server/src/tools.rs": "93ba6ad3b4a2e632cc7d3c84be75620d1db57e60f1f67db0e6f0bcba76775424"
+  },
+  "observations": [
+    {
+      "path": "crates/engram_server/src/services/data_flow_service.rs",
+      "locations": [
+        "DataFlowTrace",
+        "trace_data_flow",
+        "follow_calls"
+      ],
+      "finding": "No variable definition/use representation or argument-to-parameter lineage; existing call/state/SQL traces are preserved."
+    },
+    {
+      "path": "crates/engram_graph/src/store.rs",
+      "locations": [
+        "EdgeKind"
+      ],
+      "finding": "ParameterBinding exists, but no method-local def/use relation."
+    },
+    {
+      "path": "crates/engram_index/src/webforms.rs",
+      "locations": [
+        "extract_datasource_parameters"
+      ],
+      "finding": "parameter_binding is control/state-to-SQL parameter evidence, not callable value lineage."
+    }
+  ],
+  "finite_acceptance": [
+    "Store source-located definition/use evidence for parameters, local declarations, assignments, reads, returns and call arguments in the existing C#/VB trace workflows. Variable identity must include method and lexical scope; reassignment must not invent stale straight-line lineage.",
+    "Post-ingest linking connects actual argument uses to the corresponding parameter only when the existing source call binding and argument mapping establish the target. Ambiguous/external/unsupported flows remain visibly incomplete, not guessed.",
+    "Expose bounded, source-cited lineage through existing trace_data_flow JSON and readable output, allowing an agent to follow an input through local aliases into a helper parameter and a returned/consumed value. Report branch/loop/alias uncertainty and truncation honestly; no whole-program or runtime-proof claim.",
+    "Use independently authored C# and real VB sidecar fixtures to verify local aliases, overwritten values, same-name scopes, argument positions and cross-method links; negative cases cover unresolved calls and unsupported control-flow without false proven paths.",
+    "Incremental source replacement and graph_only repair retract obsolete value edges while preserving source/search/vector storage. Reuse existing acceptance/deployment tooling; run relevant native/no-vector/sidecar checks and verify candidate plus installed public lineage before completion."
+  ],
+  "previous_delivery": {
+    "item": "TODO21",
+    "receipt": "eval/p121-signature-types-delivery-20261112.json",
+    "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103",
+    "evidence_commit": "7b54682"
+  },
+  "limitations": "This is source evidence of the missing behavior, not a runtime baseline or implementation. Public fixture evidence is still required.",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112"
+}
