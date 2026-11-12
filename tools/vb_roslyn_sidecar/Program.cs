@@ -419,9 +419,19 @@ internal sealed class InterfaceMemberLocatorDto
     [JsonPropertyName("contract_type")] public string ContractType { get; set; } = "";
 }
 
+internal sealed class SignatureTypeUseDto
+{
+    [JsonPropertyName("type_expression")] public string TypeExpression { get; set; } = "";
+    [JsonPropertyName("parameter_index")] public int? ParameterIndex { get; set; }
+    [JsonPropertyName("parameter_name")] public string? ParameterName { get; set; }
+    [JsonPropertyName("type_line")] public int TypeLine { get; set; }
+    [JsonPropertyName("declaration")] public string Declaration { get; set; } = "";
+}
+
 [JsonSourceGenerationOptions(DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull)]
 [JsonSerializable(typeof(SidecarRequest))]
 [JsonSerializable(typeof(SidecarResponse))]
 [JsonSerializable(typeof(InterfaceMemberLocatorDto))]
 [JsonSerializable(typeof(SourceMemberLocatorDto))]
+[JsonSerializable(typeof(List<SignatureTypeUseDto>))]
 internal partial class AppJsonContext : JsonSerializerContext { }

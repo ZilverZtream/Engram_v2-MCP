@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T01:55:58.055511+00:00",
+  "original_requirement": "TODO21: return-type / parameter-type edges for type-boundary reasoning and what flows into a method.",
+  "behavior": "Callable declarations emit authored type references with full expressions and parameter positions. Explicit type_definition edges offer unique qualified type candidates, with ambiguity retraction and no compiler-proof claim. Existing find_references exposes typed evidence. VB sidecar/fallback and supported typed syntax paths participate.",
+  "validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\source-validation.json",
+    "sha256": "da01c246917d87c294be108e4bf235de826e93b63edd3e178f257b46ae5ae4c3"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\source-review.json",
+    "sha256": "033df0cfc25f57d557694f12063ff6ce5ea984779de73075bbb9326d0814b591"
+  },
+  "helper_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\helper-review.json",
+    "sha256": "71a0925964876072490f633e619413371f7996910fa47982c3b627b7309890a7"
+  },
+  "source_sha256": {
+    "crates/engram_graph/src/store/signature_types.rs": "931aca5a8a591390c70cb824b5f2ce7b6a86fd7f6ba14ef93a865bf7b6bcd8d6",
+    "crates/engram_index/src/parsing/signature_types.rs": "567089b56d80d1a98beb001edec6838368eaa109beb30bd80e1894ab058a809f",
+    "crates/engram_index/src/parsing/signature_types/tests.rs": "5696a87f4a74bf683492401979b1b1f8bb7ede314351d75da9cf984e98485ef8",
+    "crates/engram_index/src/parsing/signature_types/vb.rs": "0d672d4574ffdc1ab3fe70fb8fcfc30b2c045916857981776c4cf6377466a6ba",
+    "crates/engram_graph/src/store.rs": "c3eda8f57418fdd588205b7a3ade83e61d56459fa9fe4a19573d8e8bfc9007b4",
+    "crates/engram_graph/src/store/source_rebuild.rs": "372a6a82c789bc78753c41674829d287ff1a57a21fef982edb0790db8a6f888f",
+    "crates/engram_index/src/lib.rs": "5944dc5f5d25c5a2028ec1ebb005c7c59b627cc8ecdb0347bdf6297bc91e4f94",
+    "crates/engram_index/src/parsing.rs": "0de91ed70372602730ee4d37b1cf11da522c0e5df7c303c4acafbe5835c30e43",
+    "crates/engram_index/src/vb_extractor.rs": "4423049d6bc862bd17017fcc3f3413f87f2377bf340b02bd4da4551a237dd6e9",
+    "crates/engram_server/src/handlers/graph_tools.rs": "921d3c4c309cdbf0fb99ac916ceaa049d3c7c1316300fe5beaa6075b1ca48d2e",
+    "crates/engram_server/src/services/ingest_service.rs": "cfc87176b77f009829047803aaef3596828d9f8338ab0e7de5de2aa2bed6cce3",
+    "crates/engram_server/src/tools.rs": "93ba6ad3b4a2e632cc7d3c84be75620d1db57e60f1f67db0e6f0bcba76775424",
+    "tools/vb_roslyn_sidecar/AstEmitter.cs": "a61e0d00032643dfd29d7a3334d3d28b6818845129b6244208c10901419ef410",
+    "tools/vb_roslyn_sidecar/Program.cs": "9d4c0af4ba0e76272336a0dcb8321b30ba9d050a311865379321637a7aa2b90c"
+  },
+  "source_commit": null,
+  "limitations": [
+    "No body type inference or def-use analysis (TODO22 remains separate).",
+    "Type-definition links are syntax/name candidates, not semantic compiler proof. Unsupported/constructed references and VB fallback can remain unbound while preserving their authored expressions.",
+    "Overload acceptance covers distinct declaration source lines using the existing graph identity; the preexisting same-name/same-line identity limitation is not claimed repaired.",
+    "No independent external review, production reindex or full backlog completion claim."
+  ],
+  "outstanding": [
+    "Release server and matching sidecar build/package.",
+    "Candidate and installed public contracts, real incremental replacement and graph_only preservation.",
+    "Deployment and normal runtime identity verification; final owned-scratch accounting."
+  ]
+}

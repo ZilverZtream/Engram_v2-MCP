@@ -11,6 +11,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 
 mod atomic_learning;
 mod source_rebuild;
+mod signature_types;
 pub use source_rebuild::SourceGraphReplacement;
 use atomic_learning::{increment_edges_in_tx, upsert_nodes_in_tx};
 
@@ -144,6 +145,12 @@ pub enum EdgeKind {
     /// A conformance-test source file paired with its golden output sidecar
     /// (`foo.ml` → `foo.expected` / `foo.error`).
     TestOracle,
+    /// Authored callable return contract; metadata retains type expression uses.
+    ReturnsType,
+    /// Authored callable parameter contract, including parameter name/position.
+    ParameterType,
+    /// A scoped signature reference has a unique candidate type declaration.
+    TypeDefinition,
 }
 
 impl EdgeKind {
@@ -192,6 +199,9 @@ impl EdgeKind {
         EdgeKind::InheritsFrom,
         EdgeKind::Implements,
         EdgeKind::TestOracle,
+        EdgeKind::ReturnsType,
+        EdgeKind::ParameterType,
+        EdgeKind::TypeDefinition,
     ];
 
     pub fn as_str(&self) -> &'static str {
@@ -240,6 +250,9 @@ impl EdgeKind {
             EdgeKind::InheritsFrom => "inherits_from",
             EdgeKind::Implements => "implements_interface",
             EdgeKind::TestOracle => "test_oracle",
+            EdgeKind::ReturnsType => "returns_type",
+            EdgeKind::ParameterType => "parameter_type",
+            EdgeKind::TypeDefinition => "type_definition",
         }
     }
 
@@ -289,6 +302,9 @@ impl EdgeKind {
             "inherits_from" => Some(EdgeKind::InheritsFrom),
             "implements_interface" => Some(EdgeKind::Implements),
             "test_oracle" => Some(EdgeKind::TestOracle),
+            "returns_type" => Some(EdgeKind::ReturnsType),
+            "parameter_type" => Some(EdgeKind::ParameterType),
+            "type_definition" => Some(EdgeKind::TypeDefinition),
             _ => None,
         }
     }
@@ -1749,6 +1765,7 @@ impl GraphStore {
             file_path,
             limit,
             NodePathMatch::Substring,
+            false,
         )
     }
 
@@ -1768,6 +1785,7 @@ impl GraphStore {
             Some(file_path),
             limit,
             NodePathMatch::ExactFile,
+            false,
         )
     }
 
@@ -1786,6 +1804,7 @@ impl GraphStore {
             Some(scope),
             limit,
             NodePathMatch::FileOrDirectory,
+            false,
         )
     }
 
@@ -1797,6 +1816,7 @@ impl GraphStore {
         file_path: Option<&str>,
         limit: usize,
         path_match: NodePathMatch,
+        declarations_only: bool,
     ) -> anyhow::Result<Vec<Node>> {
         let prefix = format!("{project_id}\0");
         let rtx = self.db.begin_read()?;
@@ -1819,6 +1839,7 @@ impl GraphStore {
                 continue;
             }
             let n: Node = bincode::deserialize(v.value())?;
+            if declarations_only && n.node_type == "type_reference" { continue; }
 
             if name_q
                 .as_ref()
@@ -1896,6 +1917,8 @@ impl GraphStore {
                 break;
             }
             let n: Node = bincode::deserialize(v.value())?;
+            // Authored references are not competing declarations.
+            if n.node_type == "type_reference" { continue; }
 
             let name_lower = n.name.to_lowercase();
             let matches = name_lower == needle
@@ -1992,7 +2015,7 @@ impl GraphStore {
         }
 
         // Step 2: exact canonical name match (`Node.name`).
-        if let Ok(nodes) = self.query_nodes(project_id, node_type, Some(input), None, 100) {
+        if let Ok(nodes) = self.query_nodes_with_path_match(project_id, node_type, Some(input), None, 100, NodePathMatch::Substring, node_type != Some("type_reference")) {
             let exact_name: Vec<Node> = nodes.into_iter().filter(|n| n.name == input).collect();
             if exact_name.len() == 1 {
                 return Ok(ResolveResult::Unique(exact_name[0].clone()));
@@ -2008,7 +2031,7 @@ impl GraphStore {
         }
 
         // Step 3: legacy metadata.fqn exact match.
-        if let Ok(nodes) = self.query_nodes(project_id, node_type, None, None, 5000) {
+        if let Ok(nodes) = self.query_nodes_with_path_match(project_id, node_type, None, None, 5000, NodePathMatch::Substring, node_type != Some("type_reference")) {
             let fqn_match: Vec<Node> = nodes
                 .into_iter()
                 .filter(|n| {
@@ -2739,6 +2762,9 @@ impl GraphStore {
                             | EdgeKind::InheritsFrom
                             | EdgeKind::Implements
                             | EdgeKind::TestOracle
+                            | EdgeKind::ReturnsType
+                            | EdgeKind::ParameterType
+                            | EdgeKind::TypeDefinition
                     );
                 let producer=if source_derived { impact_walk::event_producer(&e)? } else { None };
                 let producer_refreshed=producer.map_or_else(||refreshed_source_ids.contains(&e.source_id),|(path,_,_)|paths.contains(path));
@@ -3149,6 +3175,7 @@ impl GraphStore {
     }
 
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
+        let type_bindings = self.resolve_signature_types(project_id)?;
         let prefix = format!("{project_id}\0");
 
         // ── Phase 1: Build symbol map (single NODES scan) ────────────
@@ -3184,6 +3211,7 @@ impl GraphStore {
                     break;
                 }
                 let node: Node = bincode::deserialize(v.value())?;
+                if node.node_type == "type_reference" { continue; }
                 node_count += 1;
 
                 node_file_paths.insert(node.node_id.clone(), node.file_path.as_str().to_string());
@@ -3305,7 +3333,7 @@ impl GraphStore {
 
         if unresolved.is_empty() {
             // Item 8: the route pass runs even when nothing is left to bind by name.
-            return self.resolve_route_edges(project_id);
+            return Ok(type_bindings + self.resolve_route_edges(project_id)?);
         }
 
         // ── Phase 3: Resolve via HashMap lookups ─────────────────────
@@ -3644,7 +3672,7 @@ impl GraphStore {
         );
 
         let routed = self.resolve_route_edges(project_id)?;
-        Ok(updates.len() + routed)
+        Ok(type_bindings + updates.len() + routed)
     }
 
     /// Item 8: the implementations an API NAME is served by — the broker arm's
@@ -4782,7 +4810,10 @@ mod tests {
                 | EdgeKind::ReadsSetting
                 | EdgeKind::InheritsFrom
                 | EdgeKind::Implements
-                | EdgeKind::TestOracle => all_set.contains(&ek),
+                | EdgeKind::TestOracle
+                | EdgeKind::ReturnsType
+                | EdgeKind::ParameterType
+                | EdgeKind::TypeDefinition => all_set.contains(&ek),
             }
         };
 

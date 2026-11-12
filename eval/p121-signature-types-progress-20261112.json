@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "item": "TODO21 return-type / parameter-type edges",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
+  "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\execution-state.json",
+  "verified_behavior": [
+    "syntax-final-turn:9 no-vector syntax/fallback cases including nine extensions, generic/nullable/array/tuple/params/repeated positions",
+    "graph-v2:2 candidate-binding/ambiguity cases",
+    "sidecar-authored-acceptance:built actual sidecar, interface and implementation signatures, canonical names, generic components, repeated arrays"
+  ],
+  "remaining": [
+    "Release build/package, candidate and installed public acceptance, deployment and normal identity verification."
+  ],
+  "source_commit": null,
+  "installed_identity": "Unchanged TODO16c delivery; no TODO21 deployment",
+  "current_delivery_receipt": "eval/p121-signature-types-delivery-20261112.json"
+}

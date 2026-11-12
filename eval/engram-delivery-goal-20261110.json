@@ -40,9 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
-    "finding": "TODO16c embedding failure recovery",
-    "receipt": "eval/p116c-embedding-failure-delivery-20261112.json",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "remaining": "Advance the next original unfinished requirement. Full backlog remains active."
+    "finding": "TODO21 return-type / parameter-type edges",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
+    "remaining": "Build matched server/sidecar, verify public candidate and installed behavior, deploy and record evidence. Full backlog remains active.",
+    "receipt": "eval/p121-signature-types-delivery-20261112.json"
   }
 }

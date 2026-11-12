@@ -3,6 +3,8 @@ use std::sync::LazyLock;
 use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
+pub(crate) mod signature_types;
+
 /// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
 /// over budget; callers must not fall back to counting punctuation as strings.
 /// This source-only inventory is independent of indexed symbols or ingestion.
@@ -285,6 +287,8 @@ unsafe impl Sync for CompiledQueries {}
 /// Declarator nesting note: in tree-sitter C/C++, `int *f()` parses as
 /// pointer_declarator WRAPPING function_declarator, not the other way round.
 const C_QUERY_SRC: &str = r#"
+        (declaration declarator: (function_declarator declarator: (identifier) @name)) @func
+        (declaration declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @func
         (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
         (function_definition declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @func
         (function_definition declarator: (function_declarator declarator: (parenthesized_declarator (pointer_declarator declarator: (identifier) @name)))) @func
@@ -299,6 +303,9 @@ const C_QUERY_SRC: &str = r#"
 /// the two mistakes that made the previous query fail to compile, turning
 /// C++ extraction off entirely.
 const CPP_QUERY_SRC: &str = r#"
+        (declaration declarator: (function_declarator declarator: (identifier) @name)) @func
+        (declaration declarator: (pointer_declarator declarator: (function_declarator declarator: (identifier) @name))) @func
+        (field_declaration declarator: (function_declarator declarator: (field_identifier) @name)) @func
         (function_definition declarator: (function_declarator declarator: (identifier) @name)) @func
         (function_definition declarator: (function_declarator declarator: (type_identifier) @name)) @func
         (function_definition declarator: (function_declarator declarator: (field_identifier) @name)) @func
@@ -338,6 +345,8 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &rust_lang,
         r#"
         (function_item name: (identifier) @name) @func
+        (function_signature_item name: (identifier) @name) @func
+        (trait_item name: (type_identifier) @name) @class
         (struct_item name: (type_identifier) @name) @struct
         (impl_item type: (type_identifier) @name) @impl
         (call_expression function: (identifier) @call.name)
@@ -373,6 +382,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &java_lang,
         r#"
         (method_declaration name: (identifier) @name) @func
+        (constructor_declaration name: (identifier) @name) @func
         (class_declaration name: (identifier) @name) @class
         (interface_declaration name: (identifier) @name) @class
         (method_invocation name: (identifier) @call.name)
@@ -430,6 +440,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         &cs_lang,
         r#"
         (method_declaration name: (identifier) @name) @func
+        (constructor_declaration name: (identifier) @name) @func
         (property_declaration name: (identifier) @name) @property
         (class_declaration name: (identifier) @name) @class
         (interface_declaration name: (identifier) @name) @class
@@ -480,6 +491,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (class_declaration name: (identifier) @class)
         (interface_declaration name: (identifier) @class)
         (method_declaration name: (identifier) @method)
+        (constructor_declaration name: (identifier) @method)
         (property_declaration name: (identifier) @method)
         "#,
     )
@@ -492,6 +504,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (class_declaration name: (identifier) @class)
         (interface_declaration name: (identifier) @class)
         (method_declaration name: (identifier) @method)
+        (constructor_declaration name: (identifier) @method)
         "#,
     )
     .ok();
@@ -514,6 +527,8 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         (struct_item name: (type_identifier) @struct)
         (impl_item type: (type_identifier) @class)
         (function_item name: (identifier) @method)
+        (function_signature_item name: (identifier) @method)
+        (trait_item name: (type_identifier) @class)
         "#,
     )
     .ok();
@@ -1122,6 +1137,12 @@ impl SymbolExtractor {
 
                 let mut meta = std::collections::HashMap::new();
                 let declaration_fqn = name_position.and_then(|pos| fqn_table.declaration(pos));
+                if kind == "function" {
+                    edges.extend(signature_types::extract(
+                        node, content, static_ext,
+                        declaration_fqn.map(String::as_str).unwrap_or(&name), start_line,
+                    ));
+                }
                 if let Some(fqn) = declaration_fqn {
                     meta.insert("fqn".into(), fqn.clone());
                 }
