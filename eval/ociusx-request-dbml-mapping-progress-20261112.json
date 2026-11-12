@@ -1,13 +1,14 @@
 {
-  "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_PENDING",
-  "source_commit": "784e9a95b1337a86bedece1acdaaf5e1a43abeb7",
-  "native_checks": 19,
-  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\native1.json",
+  "status": "BOM_CITATION_CORRECTION_COMMITTED_NATIVE_VALIDATED",
+  "source_commit": "32c2935bb135ad415b7778180cf7e82627c85469",
+  "native_checks": 20,
+  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\native2.json",
   "demonstrated": [
     "Reached explicit local VB context/member maps through selected-current DBML declarations, preserving indexed ORM edge and separate physical-table verification.",
     "Mapping and query citations include source path, line and mapping BLAKE3; actual SQL table name comes from DBML, not naming guesses.",
     "Ambiguous context/member mappings, stale/revision-mismatched/missing/malformed source and unsupported/aliased/reassigned/chained receivers stay unresolved. Database opt-out returns no mappings.",
-    "Existing route, handler, call and procedure checks pass unchanged."
+    "Existing route, handler, call and procedure checks pass unchanged.",
+    "BOM/CRLF mapping line remains exact and mapping hash covers original bytes."
   ],
   "review": {
     "kind": "Parent manual review, not independent",
@@ -22,6 +23,10 @@
   ],
   "public_candidate_verified": false,
   "installed": false,
-  "main_merge_commit": "805c0f6933c387a78ee0194f8d1ce6933ea2b99b",
-  "release_build_session": 17419
+  "initial_source_commit": "784e9a95b1337a86bedece1acdaaf5e1a43abeb7",
+  "failure_history": [
+    "Initial native19/candidate5/installed5 passed; actual OciusX mapping table/hash correct but BOM moved cited line281 to280. Parser and line-offset slice now both exclude BOM; hash retains original bytes."
+  ],
+  "main_merge_commit": "758702aca882adb19cfd1d89553e005d78c54f5e",
+  "release_build_session": 75221
 }

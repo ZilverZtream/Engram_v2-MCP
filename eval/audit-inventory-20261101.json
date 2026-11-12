@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T22:42:12.519162+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "status": "BOM_CORRECTION_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
       "at_utc": "2026-11-12T22:46:06.533862+00:00",
       "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace OciusX HTTP requests through handlers to database tables, retaining the full unresolved requirement.",
       "observed_missing_behavior": "Installed retained /dashboard/system/geolayers/42 trace reaches GetGeoLayerBypr_id but its only table edge is unresolved table:vsl_visualiseringslagers. The selected current iFalt.dbml explicitly maps iFaltDataContext.vsl_visualiseringslagers to dbo.vsl_visualiseringslager at line281. The handler ignores .dbml source. Existing VB ORM edge already supplies access=read, orm=true and src_line58.",
@@ -10012,7 +10012,8 @@
         "Dynamic SQL, nested stored procedures, unhandled ORM expressions, runtime execution and remaining request-routing/binding gaps remain unfinished."
       ],
       "resources": "Reuse existing isolated checkout/shared target; retain diagnostics here; fixtures own teardown; preserve parked9 and all preexisting directories.",
-      "supporting_edit_note": "database.rs only initializes the new optional table_mapping field on existing procedure/table hops; no SP analysis behavior change. Cargo.lock reuses already-locked quick-xml0.37.5."
+      "supporting_edit_note": "database.rs only initializes the new optional table_mapping field on existing procedure/table hops; no SP analysis behavior change. Cargo.lock reuses already-locked quick-xml0.37.5.",
+      "observed_acceptance_failure": "Initial actual OciusX mapping table/hash correct but citation line280 instead281 with UTF-8 BOM. Original finite source-citation requirement is not yet satisfied; corrected slice and BOM/CRLF checks in progress."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10064,7 +10065,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Implemented DBML source mapping, all19request-trace checks passed with fixture cleanup, committed784e9a9 and merged; release build17419 running."
+      "evidence": "Initial release candidate/installed fixtures passed; actual OciusX exposed BOM citation line error. Corrected32c2935, native20PASS, release2 build75221 running; delivery remains open."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",

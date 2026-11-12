@@ -41,8 +41,8 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "finding": "TODO31 OciusX request trace DBML table mapping",
-    "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-    "remaining": "Finish release build17419; verify public candidate/installed mappings and actual OciusX table against DBML; deploy and record limited source evidence.",
+    "status": "BOM_CORRECTION_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "remaining": "Finish BOM-corrected release2 build75221; verify BOM/CRLF public candidate2/installed2 and actual OciusX DBML281/query58. Initial installed mapping has off-by-one citation; do not record delivery until corrected actual check passes.",
     "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\contract.json",
     "scope_guard": "One demonstrated OciusX mapping gap. No new language support, general ORM translation, CodeMap/Blast, graph rewrite, live database access or trigger parser. Full TODO31 remains partial."
   },
