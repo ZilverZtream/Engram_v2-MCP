@@ -40,13 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
-    "finding": "TODO25 Language fixture corpora beyond WebForms",
-    "status": "IMPLEMENTED_VALIDATED_CI_WIRED",
-    "baseline": "eval/p129-language-corpora-baseline-20261112.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112",
-    "remaining": "Commit/push this delivery record, then select original TODO26 after inspecting existing evidence once.",
-    "progress": "eval/p129-language-corpora-progress-20261112.json",
-    "delivery": "eval/p129-language-corpora-delivery-20261112.json"
+    "finding": "TODO26 Service applicability and neutral non-.NET behavior",
+    "status": "PARTIAL_IMPLEMENTATION_VALIDATION_RUNNING",
+    "baseline": "eval/p130-service-applicability-baseline-20261112.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
+    "remaining": "Poll strict no-vector session 99628 to terminal without changing source. Finish bounded original service dispositions and remaining neutral-service checks/fixes, then final candidate/installed acceptance, deployment and delivery. Do not close TODO26 on entry-point guards alone."
   },
   "previous_delivery": {
     "finding": "TODO24 Project-type detection and capability gating",
