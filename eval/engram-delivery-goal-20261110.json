@@ -40,6 +40,13 @@
   ],
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
+    "finding": "TODO23 TypeScript import/module call resolution (first language; parent remains open)",
+    "status": "SELECTED_NOT_IMPLEMENTED",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
+    "remaining": "Create a finite source-authored import/alias/duplicate-module behavior fixture, reproduce current missing/wrong call targets once, then implement the TypeScript import/export facts and second pass.",
+    "baseline": "eval/p123-typescript-modules-baseline-20261112.json"
+  },
+  "previous_delivery": {
     "finding": "TODO22 lightweight def-use (data-flow) edges",
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
@@ -47,12 +54,5 @@
     "baseline": "eval/p122-def-use-baseline-20261112.json",
     "progress": "eval/p122-def-use-progress-20261112.json",
     "receipt": "eval/p122-def-use-delivery-20261112.json"
-  },
-  "previous_delivery": {
-    "finding": "TODO21 return-type / parameter-type edges",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
-    "remaining": "TODO21 delivered. Select the next original accepted backlog item from current_execution_focus; broader goal remains active.",
-    "receipt": "eval/p121-signature-types-delivery-20261112.json"
   }
 }
