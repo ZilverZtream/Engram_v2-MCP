@@ -49,6 +49,7 @@ class CurrentProducerTests(unittest.TestCase):
         self.tool_error = False
         self.close_error = False
         self.generation_after = 5
+        self.visible_tools = capture.TOOLS | {'get_index_freshness'}
         self.identity = dict(binary=str(self.binary), created_ticks=789)
         outer = self
 
@@ -64,7 +65,7 @@ class CurrentProducerTests(unittest.TestCase):
                 if method == 'initialize':
                     return {'protocolVersion': '2024-11-05'}
                 if method == 'tools/list':
-                    return {'tools': [{'name': t} for t in capture.TOOLS | {'get_index_freshness'}]}
+                    return {'tools': [{'name': t} for t in outer.visible_tools]}
                 outer.on_call(params)
                 if params['name'] == 'get_index_freshness':
                     generation = outer.generation_after if len(outer.calls) > 3 else 5
@@ -130,6 +131,27 @@ class CurrentProducerTests(unittest.TestCase):
         self.spec['cases'][0]['tool_requests'][0]['name'] = 'update_project'
         self.assert_failed('read-only')
         self.assertEqual(self.calls, [])
+
+    def test_original_workflow_requests_work_without_unrequested_core_tools(self):
+        names = ['get_change_set', 'get_change_set', 'search_history', 'derive_test_matrix']
+        for case, name in zip(self.spec['cases'], names):
+            case['tool_requests'] = [dict(name=name, arguments={'project_id': 'project'})]
+        self.visible_tools = set(names) | {'get_index_freshness'}
+        self.assertEqual(self.run_capture()['producer_requests'], 4)
+        actual = [params['name'] for method, params in self.calls
+                  if method == 'tools/call' and params['name'] != 'get_index_freshness']
+        self.assertEqual(actual, names)
+        manifest, _ = evaluation.load(self.destination)
+        for case, name in zip(manifest['cases'], names):
+            inputs = evaluation.packet(self.destination, manifest, case['id'], 'assisted', [])
+            self.assertEqual(inputs['source_inputs']['tool_responses'][0]['request']['name'], name)
+
+    def test_missing_requested_tool_fails_before_producer_calls(self):
+        self.spec['cases'][0]['tool_requests'][0]['name'] = 'search_history'
+        self.visible_tools = {'get_codebase_overview', 'get_index_freshness'}
+        self.assert_failed('Incomplete installed tools/list')
+        self.assertFalse(any(method == 'tools/call' for method, _ in self.calls))
+        self.assertTrue(self.pipe.closed)
 
     def test_prepared_source_drift_refused_before_query(self):
         (self.source / 'entry.vb').write_bytes(b'changed')
