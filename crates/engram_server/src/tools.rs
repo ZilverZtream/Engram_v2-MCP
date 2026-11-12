@@ -953,7 +953,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Status and progress of one background job by job_id. Poll this after index_project / index_git_history return a job."
+        description = "Status and persisted phase progress of one background job by job_id. Poll after index_project, update_project or index_git_history returns a job. Reports observed counts/unit, phase percentage, timestamps and estimated phase time remaining (null when unknown); phase100% is not whole-job completion."
     )]
     pub async fn get_job_status(
         &self,
