@@ -1,0 +1,165 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "Original TODO26 Service applicability and neutral non-.NET behavior",
+  "at_utc": "2026-11-12T12:46:31.617159+00:00",
+  "source_commit": "4b1afe0b3019f8c3e451c1d0e6a215e5a2220670",
+  "implementation_sha256": {
+    "crates/engram_server/src/services/pre_commit_review_service.rs": "b1cc26eeed4d27b0c49d82db37bad2e33886c64e5982a197d273673000502bae",
+    "crates/engram_server/src/tools.rs": "7c3f1583625a8320b00eff06af82d5b6ed13bf27390370af1eeaaa9d0b29e774",
+    "crates/engram_server/tests/pre_commit_gate_outcomes_tests.rs": "14427952e6db2f043a5e0331721cbb3cd57024129ff91f3bd1e4d8409f777828",
+    "crates/engram_server/src/capabilities.rs": "112df7bc237bd5ac696a3f6b0c51a76e1512fad86fbc861e9f750c0b3fbc054f",
+    "crates/engram_server/tests/legacy_applicability_test.rs": "619858b421913b51d65d9778889ce15ce0475916c82cce32d77795660d49ed34",
+    "crates/engram_server/src/capabilities/project.rs": "8fc547b994da23b12c73fcb401fec375e1b302e1580c1d692825ed303b0d3ed6",
+    "crates/engram_server/src/handlers/review_tools.rs": "73b1c1e1fedbf2aa74d81b6d8ebb5ab0d8a45d2e9812ede6624f9584466331ab",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "e347f91524d8e2342d10390d4033f3b6d0254e2dbc7f7c5b7b1970d7910c7dd8",
+    "crates/engram_server/src/handlers/search_tools.rs": "93d4cacd3c58e5872ba96be891f17d9f04456e8a50709a48fbe74c03a8cb93a6",
+    "crates/engram_server/src/capabilities/applicability.rs": "3df0128c9e37264bec78770469ef6b7c63c49e3b01d282d9c87cc59ebb26de6b",
+    "crates/engram_server/src/services/business_logic_service.rs": "6c099569d0acbb77dc71ef874551806f8dd9a445d6bcf3dc87e4d311d727af41",
+    "crates/engram_server/src/services/code_review_ingest_service.rs": "473fe0be36e5d91d68f0fcf2eb62131f12bf9c0d17632b7972b5dfeae60c0638",
+    "crates/engram_server/src/services/pre_commit_review_service/gates.rs": "d93261833fca111e2530a8fcf67cb3dcff7e71f8598718747a282f98a93abc05",
+    "crates/engram_server/src/services/slice_service.rs": "a16aa3343f95b65c9fc29e5df7faea7bb92f3dd2b14de93a891cb8cccd472568",
+    "crates/engram_server/src/services/produce_claude_md_service.rs": "f3d2a2e40a002706c895bdb14c6e503bc19bc69d1da2c0032b2d7cb4063eecdb",
+    "crates/engram_server/tests/pre_commit_empty_corpus_tests.rs": "9d3aad08664a59dfa77ccfe2821ca7d4560ecf3bfe4ca3a084ba741f94291d89"
+  },
+  "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
+  "demonstrated": [
+    "32 authored direct public calls on Node return explicit not-applicable with no analysis, preserving source/project information/jobs despite applicable .NET/WebForms projects in the same registry.",
+    "Mixed projects reject TypeScript page/characterization inputs while preserving authored WebForms validation. Ordinary .NET services retain migration planning; page-specific tools require appropriate source. Authored VB translation traps and JavaScript version inventory remain available.",
+    "Four authored languages produce source-derived guidance/style, omit invented WebForms policy and nonexistent npm test, and detect an added synthetic credential at its actual changed line. Specialized review gates report exact unsupported file scope.",
+    "Custom authored retrieval queries still retrieve their source; an unsupported legacy slice retains that source and explains applicability. Business-logic analysis rejects unsupported file/project languages before model calls or persistence.",
+    "Candidate and installed private MCP runs pass against the same pinned build. Normal installed daemon identity and project_info verified; production registry/source selection/other metadata and configuration unchanged."
+  ],
+  "limitations": [
+    "Capability evidence is the selected indexed source plus explicit project profile. Unsupported or unproven source coverage remains explicit; no compiler/type-system or runtime dispatch completeness is claimed.",
+    "Review source_scope describes the three specialized gates; other gates provide their existing static checks and may report degraded/missing evidence. Not-applicable is not proof that all language-specific checks exist.",
+    "Instruction/style/review behavior is demonstrated on independently authored TypeScript/Python/Rust/Go projects. Existing rule scope, publication and ownership protections remain. No live LLM generation was validated.",
+    "Known unsupported business-logic files return not-applicable; C#/VB.NET/MiniLang remain supported and extensionless legacy snippets retain existing detection. Modern state extraction remains separate original TODO27.",
+    "Original text did not enumerate its stated 56 biased files; source dispositions account for the complete 86-file introduction tree. Counts do not establish behavior or all internal algorithm correctness.",
+    "Parent source review only: CodeRabbit authenticated=false, no external review or remote CI execution. Full original backlog and nineteen-gate closure remain open. Production source was not reindexed."
+  ],
+  "tests": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\nv7-result.json",
+      "sha256": "1b57368795b01e4ad5cc73bfbcc52a4236133d0c89b0509d29a0a787ad404a84"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\auth1-result.json",
+      "sha256": "28f8544ce07f3c0bc2272cdec6bb86f1435daf2edca35945b78d0403599d58e4"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\slice1-result.json",
+      "sha256": "0c35e1110ff579c12e34ef677b58a2af78309a4de841970d0718953360a74250"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\lang1-result.json",
+      "sha256": "1e55ad57c65a4c659431f6ce8e692f8ee8234a95b5e7726c5772e64b4d61fa1e"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\state1-result.json",
+      "sha256": "1d01fcf5523901a609f6eb992adfdb9f965f72b81e787db7f4ddbb4ace976997"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\native1-result.json",
+      "sha256": "087c7725753d48aa347c69be65b708cff6528af06c786bca41349b397c382ada"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\nv6-result.json",
+      "sha256": "9c75ded058d9af55beb597cccd911336d94854c98661476820b02c8ae368ceaf"
+    }
+  ],
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\source-review.json",
+    "sha256": "5c86e7ee4766eb5e8e6594d8d97727f300bb4187899e874ff3bda06f98fb91e0"
+  },
+  "service_dispositions": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p130-service-applicability-service-dispositions-20261112.json",
+    "sha256": "1fbc1918cc70af194f88327f9e27bdb44bd61f7fc4acb03e3109300702610c6f"
+  },
+  "retained_failures": [
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\applicability-no-vector-01-result.json",
+        "sha256": "5ca2ba404a826b71a368288da4428b474486acce62cfb45af22237ee923e0ba8"
+      },
+      "reason": "Test harness imported Parameters from the wrong module; corrected before behavioral runs."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\applicability-no-vector-final-result.json",
+        "sha256": "ad2460bff7f9f4a18e8e80135250018fec33d57943a6d9442da9cf5aaa34fcb2"
+      },
+      "reason": "Unknown/unproven source correctly refused; corrected fixture oracle. Shortened owned test path to avoid Windows Git path limit."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\nv5-result.json",
+        "sha256": "30e109cd2fc271dd1ecc041252e3fb20dae987a4ffd2025abb0ab320eb8c84eb"
+      },
+      "reason": "Six applicability checks passed; stale out-of-scope immune-rule expectation failed."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\nv6-result.json",
+        "sha256": "9c75ded058d9af55beb597cccd911336d94854c98661476820b02c8ae368ceaf"
+      },
+      "reason": "Seven applicability checks passed; two cap/history fixtures lacked a published source snapshot. Corrected in nv7 without weakening production coverage."
+    },
+    {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\candidate\\acceptance.json",
+        "sha256": "6c782590d7c6dfc62e9bb13a62ed06042f41c05abe9c6e32ef0eabacec6a2d92"
+      },
+      "reason": "First candidate passed 68 calls, then correctly refused stale source after the driver edited the file for review. Driver source-recovery check moved before edits; candidate2 passed all 69 calls. Product unchanged; all owned resources closed/removed and production metadata unchanged."
+    }
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-source-20261112.json",
+      "sha256": "bf8b31039b5947b7c591f8445f7757ab697c50f913d761e88a339ef85397e143"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\pair.json",
+      "sha256": "71a3f3d10a652d1058efb842e9f779f9a1cd0a5b598fd45008429643ca379f31"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\candidate2\\acceptance.json",
+      "sha256": "f321b1861de6a5eef0fb512142e9ac3e0cf6eb43ef2def33ea7315c4ef2a8ac2"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\installed\\acceptance.json",
+      "sha256": "594535a47f86517913d01d41086d2feecfc2d116296d123cce67ca34dd30e49a"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\normal\\acceptance.json",
+      "sha256": "75619f69e93b07cfa979ef5bf6dd5c88fcf1fef6e50f0e642134d11942bce13a"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\release-gates.json",
+      "sha256": "5dee66c88f993756897d9232a50a7904116d08426ee5032660a96454ed5c50fa"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\install-result.json",
+      "sha256": "d9dd24b3d48840e4f9e5326ac4353bfbe36bb7d3feedfdeeeac0cd558ee352ff"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-config-hold-20261112.json.released.json",
+      "sha256": "f15297e4a48da33a8815304b606deedff2c53d512079084b1555b2afa9116ea9"
+    },
+    "server_sha256": "4b39c4ec1475cbbb8e2de0a4cee98cf913440ab3ba9cbe7cfdcdf0e5b519b26f",
+    "manifest_sha256": "0d70f2ccf6a9da6bbe36469ed21d16d063c0a026f23eab31f7012f312a1ef7ba",
+    "all_manifest_assets_verified": 215,
+    "unchanged_companion_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-44c02919cab3461f90b9e488d72ce1b9",
+    "cleanup_condition": "Retain complete package, old pair, journals and receipts. No preexisting-folder deletion authorized."
+  },
+  "broader_goal": "ACTIVE; remaining accepted original backlog and unfinished gates remain open."
+}

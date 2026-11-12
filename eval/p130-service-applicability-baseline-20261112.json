@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_LOCAL_VALIDATION_COMPLETE_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-12T11:35:42.569629+00:00",
   "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
   "observed_missing_behavior": "Installed public MCP on an authored Node project returns migration plans/order and progress instead of not-applicable even though discovery hides those tools. Neutral TypeScript style output is useful; generated guidance incorrectly adds npm test when package.json has no test script. Baseline owners closed and fixture removed.",
@@ -30,7 +30,7 @@
   ],
   "constraints": "One implementation item: original TODO26. No CodeMap/Blast improvement, modern state-extractor expansion (TODO27), new approval UI, broad infrastructure, kernel/SSD investigation or preexisting-folder deletion. Preserve completed TODO23/24/25 and all original unfinished findings.",
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
-  "next_action": "Commit and push the validated TODO26 implementation, build the release, run owned candidate and installed public MCP acceptance, deploy and record identity before marking delivered. Advance the accepted original backlog after delivery.",
+  "next_action": "Inspect original TODO27 modern state tracking and existing evidence once, then select its finite delivery contract. Preserve all completed deliveries and remaining accepted findings; CodeMap/Blast improvements remain closed.",
   "baseline_evidence": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\baseline\\receipt.json",
     "sha256": "008642bf3e4f0ec198f518b95d700a6c92d1da6bc97a69373df89018cad95d3a"
@@ -49,19 +49,20 @@
     {
       "path": "crates/engram_server/src/services/slice_service.rs",
       "evidence": "apply_logical_slice names its language argument _language and applies ASP.NET-specific event/UI/data/state regexes regardless of source language. Need explicit applicability in caller output while preserving requested source recovery.",
-      "status": "IMPLEMENTED_RELEASE_ACCEPTANCE_PENDING"
+      "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
     },
     {
       "path": "crates/engram_server/src/services/benchmark_service.rs",
       "evidence": "Default generator is generate_legacy_benchmark_queries; inspect public benchmark handler so a non-WebForms project is not silently graded against WebForms queries.",
-      "status": "IMPLEMENTED_RELEASE_ACCEPTANCE_PENDING"
+      "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
     },
     {
       "path": "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
       "evidence": "GuardParityGate recognizes WebMethod/Click handlers and UiHouseStyleGate is markup-specific. Verify neutral review usefulness and whether non-applicable gate coverage is explicit; do not equate absent matches with supported analysis.",
-      "status": "IMPLEMENTED_RELEASE_ACCEPTANCE_PENDING"
+      "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
     }
   ],
   "progress": "eval/p130-service-applicability-progress-20261112.json",
-  "service_dispositions": "eval/p130-service-applicability-service-dispositions-20261112.json"
+  "service_dispositions": "eval/p130-service-applicability-service-dispositions-20261112.json",
+  "delivery_receipt": "eval/p130-service-applicability-delivery-20261112.json"
 }
