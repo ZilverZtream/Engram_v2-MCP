@@ -5,6 +5,7 @@ use tree_sitter::{Parser, Query, QueryCursor};
 
 pub(crate) mod signature_types;
 mod value_flow;
+mod typescript_modules;
 
 /// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
 /// over budget; callers must not fall back to counting punctuation as strings.
@@ -252,12 +253,59 @@ fn webforms_lifecycle_info(name: &str) -> Option<(&'static str, u32)> {
 // Compiled Tree-Sitter queries — initialized once via LazyLock (Opt 8).
 // ──────────────────────────────────────────────────────────────────────────
 
+const TS_QUERY_SRC: &str = r#"
+        (function_declaration name: (identifier) @name) @func
+        (function_signature name: (identifier) @name) @func
+        (method_definition name: (property_identifier) @name) @func
+        (method_signature name: (property_identifier) @name) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (arrow_function)) @func
+        (variable_declarator
+            name: (identifier) @name
+            value: (function_expression)) @func
+        (public_field_definition
+            name: (property_identifier) @name
+            value: (arrow_function)) @func
+        (class_declaration name: (type_identifier) @name) @class
+        (abstract_class_declaration name: (type_identifier) @name) @class
+        (interface_declaration name: (type_identifier) @name) @class
+        (enum_declaration name: (identifier) @name) @class
+        (type_alias_declaration name: (type_identifier) @name) @class
+        (internal_module name: (identifier) @name) @class
+        (call_expression function: (identifier) @call.name)
+        (call_expression function: (member_expression property: (property_identifier) @call.name))
+        "#;
+
+const TS_NS_QUERY_SRC: &str = r#"
+        (internal_module name: (identifier) @ns)
+        (class_declaration name: (type_identifier) @class)
+        (abstract_class_declaration name: (type_identifier) @class)
+        (interface_declaration name: (type_identifier) @class)
+        (enum_declaration name: (identifier) @class)
+        (type_alias_declaration name: (type_identifier) @class)
+        (function_declaration name: (identifier) @method)
+        (function_signature name: (identifier) @method)
+        (method_definition name: (property_identifier) @method)
+        (method_signature name: (property_identifier) @method)
+        (variable_declarator
+            name: (identifier) @method
+            value: (arrow_function))
+        (variable_declarator
+            name: (identifier) @method
+            value: (function_expression))
+        (public_field_definition
+            name: (property_identifier) @method
+            value: (arrow_function))
+        "#;
+
 struct CompiledQueries {
     rust: Option<Query>,
     python: Option<Query>,
     go: Option<Query>,
     java: Option<Query>,
     ts: Option<Query>,
+    tsx: Option<Query>,
     js: Option<Query>,
     cs: Option<Query>,
     c: Option<Query>,
@@ -272,6 +320,7 @@ struct CompiledQueries {
     rust_mod: Option<Query>,
     /// Pass-1 namespace/class query for TypeScript.
     ts_ns: Option<Query>,
+    tsx_ns: Option<Query>,
     /// Pass-1 class query for JavaScript.
     js_ns: Option<Query>,
 }
@@ -391,33 +440,8 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     )
     .ok();
 
-    let ts = Query::new(
-        &ts_lang,
-        r#"
-        (function_declaration name: (identifier) @name) @func
-        (function_signature name: (identifier) @name) @func
-        (method_definition name: (property_identifier) @name) @func
-        (method_signature name: (property_identifier) @name) @func
-        (variable_declarator
-            name: (identifier) @name
-            value: (arrow_function)) @func
-        (variable_declarator
-            name: (identifier) @name
-            value: (function_expression)) @func
-        (public_field_definition
-            name: (property_identifier) @name
-            value: (arrow_function)) @func
-        (class_declaration name: (type_identifier) @name) @class
-        (abstract_class_declaration name: (type_identifier) @name) @class
-        (interface_declaration name: (type_identifier) @name) @class
-        (enum_declaration name: (identifier) @name) @class
-        (type_alias_declaration name: (type_identifier) @name) @class
-        (internal_module name: (identifier) @name) @class
-        (call_expression function: (identifier) @call.name)
-        (call_expression function: (member_expression property: (property_identifier) @call.name))
-        "#,
-    )
-    .ok();
+    let ts = Query::new(&ts_lang, TS_QUERY_SRC).ok();
+    let tsx = Query::new(&tree_sitter_typescript::LANGUAGE_TSX.into(), TS_QUERY_SRC).ok();
 
     let js = Query::new(
         &js_lang,
@@ -534,31 +558,8 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
     )
     .ok();
 
-    let ts_ns = Query::new(
-        &ts_lang,
-        r#"
-        (internal_module name: (identifier) @ns)
-        (class_declaration name: (type_identifier) @class)
-        (abstract_class_declaration name: (type_identifier) @class)
-        (interface_declaration name: (type_identifier) @class)
-        (enum_declaration name: (identifier) @class)
-        (type_alias_declaration name: (type_identifier) @class)
-        (function_declaration name: (identifier) @method)
-        (function_signature name: (identifier) @method)
-        (method_definition name: (property_identifier) @method)
-        (method_signature name: (property_identifier) @method)
-        (variable_declarator
-            name: (identifier) @method
-            value: (arrow_function))
-        (variable_declarator
-            name: (identifier) @method
-            value: (function_expression))
-        (public_field_definition
-            name: (property_identifier) @method
-            value: (arrow_function))
-        "#,
-    )
-    .ok();
+    let ts_ns = Query::new(&ts_lang, TS_NS_QUERY_SRC).ok();
+    let tsx_ns = Query::new(&tree_sitter_typescript::LANGUAGE_TSX.into(), TS_NS_QUERY_SRC).ok();
 
     let js_ns = Query::new(
         &js_lang,
@@ -582,6 +583,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         go,
         java,
         ts,
+        tsx,
         js,
         cs,
         c,
@@ -591,6 +593,7 @@ static QUERIES: LazyLock<CompiledQueries> = LazyLock::new(|| {
         go_ns,
         rust_mod,
         ts_ns,
+        tsx_ns,
         js_ns,
     }
 });
@@ -749,7 +752,8 @@ impl SymbolExtractor {
             "java" => &QUERIES.java_ns,
             "go" => &QUERIES.go_ns,
             "rs" => &QUERIES.rust_mod,
-            "ts" | "tsx" => &QUERIES.ts_ns,
+            "ts" => &QUERIES.ts_ns,
+            "tsx" => &QUERIES.tsx_ns,
             "js" | "jsx" => &QUERIES.js_ns,
             _ => return FqnTable::new(),
         };
@@ -846,17 +850,25 @@ impl SymbolExtractor {
         path: &Path,
         content: &str,
     ) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
-        let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+        let extension = path.extension().and_then(|e| e.to_str()).unwrap_or("").to_ascii_lowercase();
+        let ext = extension.as_str();
+        if ext.eq_ignore_ascii_case("json") {
+            return (vec![ExtractedSymbol { name: "file".into(), kind: "file".into(), start_line: 1,
+                end_line: content.lines().count().max(1) as u32,
+                metadata: Some(std::collections::HashMap::from([(
+                    engram_core::typescript_modules::CONFIG_KEY.into(),
+                    serde_json::to_string(&typescript_modules::config::extract(content)).expect("serializable config facts"),
+                )])),
+            }], vec![]);
+        }
         let static_ext = ext_to_static(ext);
         let (lang, query_opt): (tree_sitter::Language, Option<&Query>) = match ext {
             "rs" => (tree_sitter_rust::LANGUAGE.into(), QUERIES.rust.as_ref()),
             "py" => (tree_sitter_python::LANGUAGE.into(), QUERIES.python.as_ref()),
             "go" => (tree_sitter_go::LANGUAGE.into(), QUERIES.go.as_ref()),
             "java" => (tree_sitter_java::LANGUAGE.into(), QUERIES.java.as_ref()),
-            "ts" | "tsx" => (
-                tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(),
-                QUERIES.ts.as_ref(),
-            ),
+            "ts" => (tree_sitter_typescript::LANGUAGE_TYPESCRIPT.into(), QUERIES.ts.as_ref()),
+            "tsx" => (tree_sitter_typescript::LANGUAGE_TSX.into(), QUERIES.tsx.as_ref()),
             "js" | "jsx" => (tree_sitter_javascript::LANGUAGE.into(), QUERIES.js.as_ref()),
             "cs" => (tree_sitter_c_sharp::LANGUAGE.into(), QUERIES.cs.as_ref()),
             "c" | "h" => (tree_sitter_c::LANGUAGE.into(), QUERIES.c.as_ref()),
@@ -894,6 +906,9 @@ impl SymbolExtractor {
 
         let mut symbols = Vec::new();
         let mut edges = Vec::new();
+        let mut module = matches!(ext, "ts" | "tsx")
+            .then(|| typescript_modules::Extraction::new(tree.root_node(), content));
+
 
         // Old-style TS projects (tsconfig outFile, no ES modules) wire files
         // with triple-slash reference DIRECTIVES — comments, invisible to the
@@ -938,6 +953,17 @@ impl SymbolExtractor {
         // (start, end, name, kind, start_line, fqn)
         type SymbolRange = (usize, usize, String, &'static str, u32, Option<String>);
         let mut symbol_ranges: Vec<SymbolRange> = Vec::new();
+        if let Some(module) = &module {
+            for node in &module.anonymous_defaults {
+                let line = node.start_position().row as u32 + 1;
+                symbols.push(ExtractedSymbol { name: "default".into(), kind: "function".into(),
+                    start_line: line, end_line: node.end_position().row as u32 + 1,
+                    metadata: Some(std::collections::HashMap::from([("fqn".into(), "default".into())])),
+                });
+                symbol_ranges.push((node.start_byte(), node.end_byte(), "default".into(), "function", line, Some("default".into())));
+            }
+        }
+
 
         while let Some(match_) = matches.next() {
             for capture in match_.captures {
@@ -978,18 +1004,21 @@ impl SymbolExtractor {
                     });
                     let js_member = matches!(ext, "ts" | "tsx" | "js" | "jsx")
                         && member_object.is_some();
-                    let callee_fqn = if js_member {
+                    let module_call = module.as_ref().and_then(|m| m.call(node, content));
+                    let callee_fqn = if module_call.is_some() { None } else if js_member {
                         if member_object.is_some_and(|n| n.kind() == "this") {
                             local_this_member(node, callee_short, content, &fqn_table)
                         } else { None }
                     } else { fqn_table.get(callee_short).cloned() };
                     let receiver_unbound = js_member && callee_fqn.is_none();
 
+                    // Imported calls at module scope are owned by the file.
+                    let module_file_owner = (0, content.len(), "file".to_string(), "file", 0, None);
                     // Find parent symbol
                     if let Some((_, _, parent_name, parent_kind, parent_line, parent_fqn)) =
                         symbol_ranges.iter().rev().find(|(s, e, _, _, _, _)| {
                             *s <= node.start_byte() && *e >= node.end_byte()
-                        })
+                        }).or_else(|| module_call.as_ref().map(|_| &module_file_owner))
                     {
                         let mut meta = std::collections::HashMap::new();
                         if matches!(ext, "ts" | "tsx" | "js" | "jsx") {
@@ -1009,6 +1038,15 @@ impl SymbolExtractor {
                                     meta.insert("receiver_expression_truncated".into(), "true".into());
                                 }
                             }
+                        }
+                        if let Some(call) = module_call {
+                            module.as_mut().expect("module call requires module extraction").facts.calls.push(engram_core::typescript_modules::OwnedCall {
+                                source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
+                                source_kind: parent_kind.to_string(), source_line: *parent_line,
+                                call: call.clone(),
+                            });
+                            meta.insert(engram_core::typescript_modules::CALL_KEY.into(),
+                                serde_json::to_string(&call).expect("serializable module call"));
                         }
                         let (target_name, target_kind): (String, Option<String>) =
                             if let Some(fqn) = callee_fqn {
@@ -1223,6 +1261,16 @@ impl SymbolExtractor {
             }
         }
 
+        if let Some(module) = &module {
+            symbols.push(ExtractedSymbol {
+                name: "file".into(), kind: "file".into(), start_line: 1,
+                end_line: tree.root_node().end_position().row as u32 + 1,
+                metadata: Some(std::collections::HashMap::from([(
+                    engram_core::typescript_modules::MODULE_KEY.into(),
+                    serde_json::to_string(&module.facts).expect("serializable module facts"),
+                )])),
+            });
+        }
         (symbols, edges)
     }
 }

@@ -2,6 +2,9 @@ use crate::state::AppState;
 use crate::utils::now_ms;
 use engram_core::memory::{AllocationGuard, Subsystem};
 
+#[cfg(test)]
+mod typescript_module_tests;
+
 /// Restore canonical DDL links on indexes built before database endpoints
 /// used the same identities as database nodes. Does not rebuild code or
 /// advance index freshness; all evidence comes from already stored DDL.
@@ -910,6 +913,14 @@ pub(crate) async fn prepare_ingest_graph(
                 });
             }
             id
+        } else if edge.kind == "calls" && edge.metadata.as_ref()
+            .is_some_and(|m| m.contains_key(engram_core::typescript_modules::CALL_KEY)) {
+            // Import bindings belong to the module/export pass. Neither local
+            // FQNs nor a same-named declaration in another file prove them.
+            let call: engram_core::typescript_modules::Call = serde_json::from_str(
+                &edge.metadata.as_ref().unwrap()[engram_core::typescript_modules::CALL_KEY])?;
+            format!("{}{}/{}", engram_core::typescript_modules::UNBOUND_PREFIX,
+                rel_path.as_str(), call.site.offset)
         } else if edge.kind == "calls" && edge.metadata.as_ref()
             .is_some_and(|m| m.get("receiver_unbound").is_some_and(|v| v == "true")) {
             // An unresolved receiver cannot borrow a same-file FQN, even when
