@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement": "TODO23: second-pass call resolution for TypeScript, Python, Rust, Go and Java. TypeScript and Python delivered; Rust use and crate paths are the one active implementation item. Go/Java and the parent remain open.",
       "observed_missing_behavior": "Installed Python-delivery binary binds Rust RunNamed to decoy.rs and omits RunQualified Calls on the authored baseline. Rust use aliases, declared modules and Cargo identity were not retained.",
       "finite_acceptance": [
@@ -9981,7 +9981,7 @@
         "crates/engram_server/src/handlers/graph_tools.rs"
       ],
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112",
-      "next_action": "Commit validated implementation and build p125-rs-modules-source-20261112 with the existing owned shared-target runner.",
+      "next_action": "Select Go within original TODO23 once, preserving other unfinished original requirements.",
       "constraints": "One implementation item active. No CodeMap/Blast work, broad audits or new compiler infrastructure. Rust syntax evidence does not establish macro expansion, cfg selection, trait dispatch or compiler proof. Preserve all completed and unfinished original backlog work.",
       "semantic_sources": [
         "https://doc.rust-lang.org/reference/items/modules.html",
@@ -10006,7 +10006,8 @@
           }
         }
       },
-      "progress_receipt": "eval/p125-rust-modules-progress-20261112.json"
+      "progress_receipt": "eval/p125-rust-modules-progress-20261112.json",
+      "delivery_receipt": "eval/p125-rust-modules-delivery-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
