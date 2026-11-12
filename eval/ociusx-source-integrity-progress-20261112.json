@@ -1,0 +1,49 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T21:42:32.435924+00:00",
+  "original_requirement": "TODO39 remaining per-generation vector/Tantivy consistency sentinel and symmetric vector>FTS reconciliation beyond the existing project-wide VectorOrphan threshold.",
+  "source_commit": "84dd480b4b06b171265b3fb7e52757937c89fa8c",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "source_files": [
+    "crates/engram_index/src/hybrid.rs",
+    "crates/engram_server/src/services/integrity_service.rs",
+    "crates/engram_server/src/services/project_service.rs",
+    "crates/engram_server/tests/integrity_service_tests.rs"
+  ],
+  "checks": {
+    "native3": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\native3.json",
+      "sha256": "2c25fa611c3f6b90acc430ec8d9ffbc45752bae24e983b142e55a979898be0cd"
+    },
+    "novector1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\novector1.json",
+      "sha256": "7842e4ca192dfdbf91b76f23fd70c4959e3217641c2f0c52c1e26c2c496abb65"
+    }
+  },
+  "demonstrated": [
+    "Same managed source selection and namespace in both counts; inherited physical revisions included, retained old revisions, unpublished candidates and history excluded.",
+    "Real owned-store injections demonstrate shortage and surplus masked by equal project-wide totals; public handler detects both, existing scoped recovery repairs both, a repeated repair does no work.",
+    "Disabled embeddings and unavailable managed evidence are explicit null comparisons. Unknown required evidence does not report healthy.",
+    "Existing scoped-repair cancellation ownership, ingestion refusal, disabled backend and pending-warning regressions pass."
+  ],
+  "failure_history": [
+    "native1: fixture illegally mixed namespaces; fixture partition corrected.",
+    "native2: masked shortage/surplus/recovery passed; unproven legacy scope could not be opened. Observation now reports unavailable when managed scope absent; existing damaged scope still fails closed."
+  ],
+  "review": "Parent manual review of snapshot lease ownership across blocking/native tasks, namespace predicates, unknown coverage, same-kind repair deduplication and existing owned repair recheck. CodeRabbit authenticated=false; no independent review claim.",
+  "remaining": [
+    "Build release from these source bytes.",
+    "Paired candidate and installed public MCP acceptance; read-only actual OciusX observation.",
+    "Deploy, record installed identities and user-visible results."
+  ],
+  "limitations": [
+    "Counts cannot detect balanced wrong rows within one source selection, vector semantic quality, or complete historical namespace content.",
+    "No all-gates, comparative productivity or full-backlog completion claim."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity",
+    "test_temporaries_removed": true,
+    "parked_work_unchanged": true,
+    "retention": "Retain diagnostic receipts and reused source checkout. No preexisting folder deletion."
+  }
+}

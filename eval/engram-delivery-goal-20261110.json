@@ -41,9 +41,10 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "finding": "TODO39 published-source generation consistency",
-    "status": "SELECTED_IMPLEMENTATION",
-    "remaining": "Detect generation-specific source vector shortages/excess masked by whole-project totals, and recheck that same evidence before existing scoped recovery.",
-    "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support."
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_NOT_DEPLOYED",
+    "remaining": "Build and verify candidate/installed source-generation integrity observation, deploy the validated source, and record actual OciusX read-only results.",
+    "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support.",
+    "progress": "eval/ociusx-source-integrity-progress-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
