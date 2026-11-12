@@ -40,10 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "finding": "TODO39 consistency remainder",
-    "status": "RECONCILE_RETAINED_EVIDENCE_THEN_SELECT_MISSING_BEHAVIOR",
-    "remaining": "Continue original TODO39 from the retained single inspection: reconcile selected-source vector/Tantivy consistency and existing symmetric repair evidence before selecting a finite missing behavior. No storage rewrite or repeated passed gates.",
-    "scope_guard": "OciusX source-selected consistency only; no broad storage project, kernel/SSD investigation, CodeMap/Blast or language expansion."
+    "finding": "TODO39 published-source generation consistency",
+    "status": "SELECTED_IMPLEMENTATION",
+    "remaining": "Detect generation-specific source vector shortages/excess masked by whole-project totals, and recheck that same evidence before existing scoped recovery.",
+    "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

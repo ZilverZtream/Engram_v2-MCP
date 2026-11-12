@@ -9973,55 +9973,38 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-12T21:20:30.040908+00:00",
+  "last_updated_at": "2026-11-12T21:22:40.989271+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "at_utc": "2026-11-12T20:47:22.799192+00:00",
-      "original_requirement": "TODO37 Indexing progress reporting an agent can poll: persist per-phase progress (files done/total, phase, ETA) and expose via get_job_status.",
-      "observed_missing_behavior": "Index/update/history callbacks persist percent and human count messages, but get_job_status exposes only job_id/status/message. ETA stays None. Phase-boundary checkpoints do not provide live file/commit progress through the requested tool.",
+      "status": "SELECTED_IMPLEMENTATION",
+      "at_utc": "2026-11-12T21:22:40.989271+00:00",
+      "original_requirement": "TODO39 remaining per-generation vector/Tantivy consistency sentinel and symmetric vector>FTS reconciliation beyond the existing project-wide VectorOrphan threshold.",
+      "observed_missing_behavior": "check_project_integrity compares only project-wide physical totals, tolerating shortfalls<=max(5percent,20) and excess<=100. The automatic repair recheck repeats only those totals. A selected source generation can be short or have extra vector rows while aggregate totals are equal or below thresholds. Both mismatch directions already route to scoped recover_vectors; do not replace that recovery machinery.",
+      "existing_reuse": [
+        "HybridSearchEngine::count_docs_in_generation already uses exact_generation_selection and managed source snapshot membership; it is not a raw physical-generation equality filter.",
+        "count_vectors_in_generation already uses the selected snapshot SQL but includes same-generation non-memory namespaces; a matching namespace-specific vector count is missing.",
+        "project_service::run_scoped_repair already owns the project lock, revalidates mismatches and retains the recovery worker through requester cancellation.",
+        "S12/S13 selected installed metadata recovery acceptance is retained in eval/s12-installed-recovery-validation-20261111.json and eval/s13-installed-recovery-validation-20261111.json. These are not new work or claims that all original19gates are complete."
+      ],
       "implementation_files": [
-        "README.md",
-        "crates/engram_core/src/registry.rs",
-        "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/handlers/git_tools.rs",
-        "crates/engram_server/src/services/job_progress.rs",
-        "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/job_progress_tests.rs"
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/services/integrity_service.rs",
+        "crates/engram_server/src/services/project_service.rs",
+        "crates/engram_server/tests/integrity_service_tests.rs"
       ],
       "finite_acceptance": [
-        "Expose explicit current phase, completed/total and unit, observation time, percentage and phase ETA through get_job_status; preserve status/message and existing callers. Unknown totals/ETA stay unknown.",
-        "Persist throttled observations for background index_project, update_project and index_git_history, including transitions after parsing so parsing completion cannot masquerade as job completion. Reuse existing registry/checkpoint ownership; no storage-format migration or new job system.",
-        "Estimate current-phase ETA from completed work and elapsed time; reset on phase changes, handle zero totals/rates/clock anomalies and terminal/cancelled outcomes without fabricated completion.",
-        "Focused checks cover phase transitions, persistence/reopen, update cadence, unknown ETA and terminal state. Public MCP fixture starts and polls an owned background VB/SQL indexing/history job and verifies explicit progress and truthful terminal completion with cleanup.",
-        "Commit/push only origin/master, build/deploy from existing isolated checkout, verify candidate and installed polling. Preserve prior deliveries and parked work."
+        "Compare lexical and vector counts for the same published source snapshot and memory namespace, including inherited physical revisions. Hold the existing snapshot lease through observation; exclude unrelated history, retained old revisions and unpublished candidates. Keep existing whole-project signals and label scope/unknown coverage explicitly.",
+        "Detect a source-generation shortfall and excess even when project-wide counts cancel or fall within the old thresholds. Embeddings-disabled projects must not report absent vectors as corruption; unavailable/unmanaged source evidence must not manufacture a precise healthy comparison.",
+        "Under the existing owned repair path and project lock, repeat the same source-generation and whole-project checks before invoking recover_vectors. Reuse existing repair behavior for both mismatch directions; preserve no-mismatch no-op and cancellation ownership.",
+        "Focused authored tests demonstrate cross-generation/namespace masking, inherited files and staging exclusions, small excess/shortfall, disabled embeddings and recovery/no-op behavior. Do not rerun broad storage, native backend, CodeMap or Blast gate suites without a new concrete failure.",
+        "Verify the public check_integrity response with auto_repair=false on candidate and installed owned fixtures, and a read-only actual OciusX check if its configured vector source is available. Controlled fixture repair may exercise existing recovery; never inject corruption into production data. Commit/push only origin/master and deploy the matched package."
       ],
-      "source_baseline": "96882b0cadbfe20ff71e8c937b01c13c824db510",
+      "source_baseline": "1c9bc3d310380f0d55b945d107969a503ea15491",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress",
-      "scope_guard": "OciusX source/history job visibility only; no language expansion, CodeMap/Blast, job framework rewrite, storage redesign or broad benchmark.",
-      "resources": "Own and close all new fixtures/processes. Keep scratch here; reuse checkout/shared target. No preexisting deletion.",
-      "retained_limits": "TODO36 performance target, original19 gates, comparative usefulness and all other unfinished/held findings stay open.",
-      "implementation_progress": {
-        "native_result": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\native2.json",
-        "startup_cleanup_result": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\registry2.json",
-        "native_tests": 3,
-        "startup_cleanup_tests": 4,
-        "debug_public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\debug1\\acceptance.json",
-        "debug_public_jobs": 5,
-        "debug_public_calls": 44,
-        "debug_scope": "Ran before removing one unrelated legacy-ETA cleanup mutation; final native/core checks pass. Final paired candidate and installed acceptance still required.",
-        "review": "Parent manual review of coherent status/phase reads, atomic running-job updates, deletion/cancellation handling, backward-compatible optional JSON field, restart preservation, phase ETA/unknowns and fixture ownership. CodeRabbit last authentication unavailable; no independent review claim.",
-        "source_frozen": false,
-        "release_build_session": null,
-        "public_candidate_verified": true,
-        "installed_verified": true
-      },
-      "source_commit": "1c9bc3d310380f0d55b945d107969a503ea15491",
-      "main_merge_commit": "48616041d884faf8ae878872136035b889ec5857",
-      "build_session": null,
-      "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity",
+      "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support.",
+      "retained_limits": "Exact per-row semantic/vector-content equality and append-only namespace completeness are not implied by matching counts. Preserve any unmet original TODO39 scope explicitly; do not claim all recovery gates, comparative usefulness or the full backlog complete.",
+      "resources": "Reuse current isolated checkout and shared target. New fixture resources owned/closed/removed; retain receipts here. No preexisting folder deletion."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10053,8 +10036,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO39 consistency remainder: reconcile retained evidence before implementation selection",
-    "next_user_visible_deliverable": "Continue original TODO39 from the retained single inspection: reconcile selected-source vector/Tantivy consistency and existing symmetric repair evidence before selecting a finite missing behavior. No storage rewrite or repeated passed gates.",
+    "active_original_item": "TODO39 published-source generation consistency",
+    "next_user_visible_deliverable": "Detect generation-specific source vector shortages/excess masked by whole-project totals, and recheck that same evidence before existing scoped recovery.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -13239,6 +13222,54 @@
     "index_progress_delivery_20261112": {
       "receipt": "eval/ociusx-indexing-progress-delivery-20261112.json",
       "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+    },
+    "previous_index_progress_delivery_contract": {
+      "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "at_utc": "2026-11-12T20:47:22.799192+00:00",
+      "original_requirement": "TODO37 Indexing progress reporting an agent can poll: persist per-phase progress (files done/total, phase, ETA) and expose via get_job_status.",
+      "observed_missing_behavior": "Index/update/history callbacks persist percent and human count messages, but get_job_status exposes only job_id/status/message. ETA stays None. Phase-boundary checkpoints do not provide live file/commit progress through the requested tool.",
+      "implementation_files": [
+        "README.md",
+        "crates/engram_core/src/registry.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/src/services/job_progress.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/job_progress_tests.rs"
+      ],
+      "finite_acceptance": [
+        "Expose explicit current phase, completed/total and unit, observation time, percentage and phase ETA through get_job_status; preserve status/message and existing callers. Unknown totals/ETA stay unknown.",
+        "Persist throttled observations for background index_project, update_project and index_git_history, including transitions after parsing so parsing completion cannot masquerade as job completion. Reuse existing registry/checkpoint ownership; no storage-format migration or new job system.",
+        "Estimate current-phase ETA from completed work and elapsed time; reset on phase changes, handle zero totals/rates/clock anomalies and terminal/cancelled outcomes without fabricated completion.",
+        "Focused checks cover phase transitions, persistence/reopen, update cadence, unknown ETA and terminal state. Public MCP fixture starts and polls an owned background VB/SQL indexing/history job and verifies explicit progress and truthful terminal completion with cleanup.",
+        "Commit/push only origin/master, build/deploy from existing isolated checkout, verify candidate and installed polling. Preserve prior deliveries and parked work."
+      ],
+      "source_baseline": "96882b0cadbfe20ff71e8c937b01c13c824db510",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress",
+      "scope_guard": "OciusX source/history job visibility only; no language expansion, CodeMap/Blast, job framework rewrite, storage redesign or broad benchmark.",
+      "resources": "Own and close all new fixtures/processes. Keep scratch here; reuse checkout/shared target. No preexisting deletion.",
+      "retained_limits": "TODO36 performance target, original19 gates, comparative usefulness and all other unfinished/held findings stay open.",
+      "implementation_progress": {
+        "native_result": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\native2.json",
+        "startup_cleanup_result": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\registry2.json",
+        "native_tests": 3,
+        "startup_cleanup_tests": 4,
+        "debug_public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\debug1\\acceptance.json",
+        "debug_public_jobs": 5,
+        "debug_public_calls": 44,
+        "debug_scope": "Ran before removing one unrelated legacy-ETA cleanup mutation; final native/core checks pass. Final paired candidate and installed acceptance still required.",
+        "review": "Parent manual review of coherent status/phase reads, atomic running-job updates, deletion/cancellation handling, backward-compatible optional JSON field, restart preservation, phase ETA/unknowns and fixture ownership. CodeRabbit last authentication unavailable; no independent review claim.",
+        "source_frozen": false,
+        "release_build_session": null,
+        "public_candidate_verified": true,
+        "installed_verified": true
+      },
+      "source_commit": "1c9bc3d310380f0d55b945d107969a503ea15491",
+      "main_merge_commit": "48616041d884faf8ae878872136035b889ec5857",
+      "build_session": null,
+      "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     }
   }
 }
