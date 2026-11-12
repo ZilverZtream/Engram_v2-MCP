@@ -9959,41 +9959,32 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
-      "observed_missing_behavior": "Installed authored TypeScript fixture requires project_type, advertises all 32 legacy .NET tools, and has no ecosystem/capability metadata in project_info or overview. Owned MCP/Git handles closed and fixture removed.",
-      "finite_acceptance": [
-        "Detect and retain evidence-backed project ecosystem/capability metadata for .NET, JS/TS, Rust and Python during indexing, including mixed/unknown repositories. Distinguish WebForms evidence from an arbitrary .NET solution; do not label all .NET as WebForms.",
-        "Use detection to select appropriate extractor/indexing presets when the caller requests automatic/default selection, while preserving explicit supported profiles and aliases. Mixed projects retain their relevant source coverage; no destructive source-set or publication shortcuts.",
-        "Apply project capabilities to visible WebForms/migration tools while preserving core tool dependencies and legitimate WebForms access. Define truthful behavior for empty, unknown and multiple-project contexts rather than inferring a single active project incorrectly.",
-        "Expose detected ecosystem, evidence/coverage and relevant capabilities through project information and the existing overview summary. Keep this to project metadata; do not reopen CodeMap traversal/layout or Blast Radius improvements.",
-        "Authored non-.NET, .NET-non-WebForms, WebForms and mixed fixtures verify actual indexed source coverage and public tool visibility/overview behavior, including refresh/reopen and explicit overrides. Run relevant checks, verify candidate and installed runtime behavior, deploy and record before advancing."
-      ],
+      "status": "SELECTED_IMPLEMENTATION_PENDING",
+      "at_utc": "2026-11-12T10:42:36.235266+00:00",
+      "original_requirement": "Original TODO25: add small ground-truth projects for TypeScript, Python, Rust and Go under tests/fixtures, with expected symbols and call edges, wired into CI so language-resolution regressions are visible.",
+      "observed_missing_behavior": "tests/fixtures contains only the four existing dotnet_webforms fixture trees. TODO23 has delivered inline language module tests and retained public diagnostic fixtures, but no checked-in shared TS/Python/Rust/Go corpus or TODO25 delivery record. Existing no-vector CI runs server tests; the benchmark workflow names specific native test targets.",
       "implementation_files": [
-        "crates/engram_server/src/services/project_service.rs",
-        "crates/engram_server/src/capabilities.rs",
-        "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/utils/files.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/src/handlers/cognitive_tools.rs",
-        "crates/engram_server/src/capabilities/project.rs"
+        "tests/fixtures/typescript_modules/",
+        "tests/fixtures/python_modules/",
+        "tests/fixtures/rust_modules/",
+        "tests/fixtures/go_modules/",
+        "crates/engram_server/tests/language_corpora_test.rs",
+        ".github/workflows/benchmark-ci.yml",
+        ".github/workflows/no-vector-ci.yml"
       ],
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
-      "next_action": "Inspect the next unfinished accepted original item once and select its finite delivery contract; preserve all completed deliveries and remaining gates.",
-      "constraints": "One implementation item. Preserve delivered TODO23 and all other original findings; no broad service audit (TODO26), corpus expansion (TODO25), CodeMap/Blast improvement, new approval UI or unrelated infrastructure. Existing source publication/ownership guarantees and held kernel/SSD/deletion work remain unchanged.",
-      "baseline_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112\\baseline\\receipt.json",
-      "behavior_contract": {
-        "auto": "Omitted/auto project_type selects a fixed indexing preset at registration from eligible manifest/source paths. Explicit profiles and existing registrations remain unchanged. Mixed ecosystems use general coverage.",
-        "metadata": "Evidence derived from held persisted source-file revisions, including empty files; no stale graph metadata or live disk inference. Scope is the chosen preset and ignore rules, not all files on disk or compiler/build semantics.",
-        "discovery": "Union across all registered source projects, intersected with configured full/core surface. No source project means no legacy tools; unknown legacy/unavailable source coverage conservatively preserves specialized discovery. Explicit WebForms profiles retain access. General core dependencies remain visible.",
-        "limitations": "Delivered within filename-based, configured source coverage and fixed-at-registration presets; see delivery receipt for explicit legacy/discovery limitations. No external review claim."
-      },
-      "progress": "eval/p128-project-capabilities-progress-20261112.json",
-      "delivery_receipt": "eval/p128-project-capabilities-delivery-20261112.json"
+      "finite_acceptance": [
+        "Check in one small coherent source project for each of TS/Python/Rust/Go with the local manifests/imports required by already delivered resolution. Preserve the existing WebForms fixtures.",
+        "Check in independently authored expected symbol identities and call targets, including cross-file imports and a same-name decoy or unresolved external reference. Expectations must not be regenerated from extractor output.",
+        "Exercise real indexing and public graph/reference handlers against owned copies of these corpora. Missing, incorrect or unexpected supported call targets must fail the test; verify exact source identity rather than only counts.",
+        "Use the existing CI workflows to run the corpus target. Run relevant local no-vector and native acceptance, and inspect the corresponding pushed CI result where available; distinguish remote failures or pending jobs from verified checks.",
+        "Each fixture closes its database/process owners and removes its own temporary resources on normal completion and unwinding. Record evidence, commit and push origin/master before advancing. Runtime redeployment is required only if product code changes; fixture/CI-only changes do not require another product build/install."
+      ],
+      "constraints": "One implementation item. Deliver the original four-language fixture/CI requirement, preserving completed TODO23/24. Do not expand language semantics, benchmark corpora, CodeMap/Blast, the TODO26 service audit, pilots or supporting infrastructure. Record unrelated findings without displacing this item. Existing kernel/SSD/deletion holds remain.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p129-language-corpora-20261112",
+      "next_action": "Inspect the existing portable integration-test fixture lifecycle and CI jobs once, then add the four authored corpora and their shared acceptance target."
     },
-    "at_utc": "2026-11-12T03:26:46.027480+00:00",
-    "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
+    "at_utc": "2026-11-12T10:42:36.235266+00:00",
+    "reason": "TODO24 is deployed with candidate, installed and normal-daemon acceptance, committed/pushed as 6ad4896. TODO25 is the next unchecked accepted original item.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10022,8 +10013,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO22 lightweight def-use and cross-method parameter lineage",
-    "next_user_visible_deliverable": "trace_data_flow exposes source-cited variable definition/use and argument-to-parameter lineage, with explicit incomplete paths.",
+    "active_original_item": "TODO25 Language fixture corpora beyond WebForms",
+    "next_user_visible_deliverable": "Checked-in TS/Python/Rust/Go projects with independent symbol/call expectations exercised by real indexing and wired into CI.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10037,7 +10028,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: implemented C#/VB authored value syntax, passed6 native/6 no-vector checks and actual configured sidecar mapping/depth acceptance. Graph post-pass, public lineage and deployment remain open.",
+    "previous_goal_turn_classification": "Progress: TODO24 source committed/pushed, 22 selected checks passed, release built, candidate and installed public acceptance passed, deployed and normal daemon verified; delivery 6ad4896 pushed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12787,6 +12778,7 @@
         "Integrate source-index version, incremental cleanup and graph_only rebuild; ensure synthetic value nodes cannot crowd ordinary declaration/call lookup.",
         "Run actual public candidate/installed lineage and source-update/rebuild acceptance, deploy matching server/sidecar, record final evidence."
       ]
-    }
+    },
+    "historical_checkpoint_scope": "Earlier named checkpoint entries retain historical/partial evidence. Current active selection is selected_delivery_contract; completed delivery receipts supersede their stale next-step text without discarding unfinished findings."
   }
 }
