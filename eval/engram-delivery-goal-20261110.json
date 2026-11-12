@@ -40,11 +40,8 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "finding": "TODO31 OciusX request trace DBML table mapping",
-    "status": "BOM_CORRECTION_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-    "remaining": "Finish BOM-corrected release2 build75221; verify BOM/CRLF public candidate2/installed2 and actual OciusX DBML281/query58. Initial installed mapping has off-by-one citation; do not record delivery until corrected actual check passes.",
-    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\contract.json",
-    "scope_guard": "One demonstrated OciusX mapping gap. No new language support, general ORM translation, CodeMap/Blast, graph rewrite, live database access or trigger parser. Full TODO31 remains partial."
+    "status": "RECONCILE_REMAINING_ORIGINAL_OCIUSX_ACCEPTANCE",
+    "remaining": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -101,5 +98,9 @@
   "llm_degradation_delivery": {
     "receipt": "eval/ociusx-llm-degradation-delivery-20261112.json",
     "status": "LLM_DEGRADATION_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+  },
+  "request_dbml_mapping_delivery": {
+    "receipt": "eval/ociusx-request-dbml-mapping-delivery-20261112.json",
+    "status": "REQUEST_DBML_MAPPING_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO31_PARTIAL"
   }
 }

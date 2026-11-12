@@ -1,0 +1,194 @@
+{
+  "status": "REQUEST_DBML_MAPPING_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO31_PARTIAL",
+  "at_utc": "2026-11-12T23:30:08.684304+00:00",
+  "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace OciusX HTTP requests through handlers to database tables, retaining the full unresolved requirement.",
+  "source_commit": "32c2935bb135ad415b7778180cf7e82627c85469",
+  "main_merge_commit": "758702aca882adb19cfd1d89553e005d78c54f5e",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "8aef9503ff228746cea973aed9199a1e5ff4e214368957a5f823e2c5efd09093",
+    "manifest_sha256": "a43e4b2ca5fad31c07b4487e0cb6541fe991304376c86cdc5f40e8e9f628fb82",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "Reached explicit local VB context/member maps through selected-current DBML declarations, preserving indexed ORM edge and separate physical-table verification.",
+    "Mapping and query citations include source path, line and mapping BLAKE3; actual SQL table name comes from DBML, not naming guesses.",
+    "Ambiguous context/member mappings, stale/revision-mismatched/missing/malformed source and unsupported/aliased/reassigned/chained receivers stay unresolved. Database opt-out returns no mappings.",
+    "Existing route, handler, call and procedure checks pass unchanged.",
+    "BOM/CRLF mapping line remains exact and mapping hash covers original bytes."
+  ],
+  "checks": {
+    "native_request_trace": 20,
+    "public": {
+      "candidate2": {
+        "calls": 5,
+        "assertions": [
+          "reached_context_member_mapping",
+          "exact_mapping_and_query_citations",
+          "different_context_not_selected",
+          "database_opt_out",
+          "stale_mapping_withheld",
+          "restored_mapping_usable",
+          "no_runtime_execution_claim"
+        ],
+        "mapping": {
+          "basis": "selected_current_dbml_and_explicit_local_vb_context",
+          "context": "WarehouseDataContext",
+          "interpretation": "Source-declared table mapping for this indexed ORM reference. Not a table definition, generated SQL, deployed database identity, proof of query execution, write completion or trigger execution.",
+          "mapping_source": {
+            "file": "Site/App_Code/Inventory.dbml",
+            "line": 2,
+            "source_blake3": "10492ef97740391344b4849aadfd650c67445843e34f6e62fe61cfde6b15733c"
+          },
+          "member": "inv_items",
+          "query_source": {
+            "file": "Site/App_Code/Orders.vb",
+            "line": 4
+          },
+          "receiver": "db",
+          "table": "dbo.Inventory"
+        }
+      },
+      "installed2": {
+        "calls": 5,
+        "assertions": [
+          "reached_context_member_mapping",
+          "exact_mapping_and_query_citations",
+          "different_context_not_selected",
+          "database_opt_out",
+          "stale_mapping_withheld",
+          "restored_mapping_usable",
+          "no_runtime_execution_claim"
+        ],
+        "mapping": {
+          "basis": "selected_current_dbml_and_explicit_local_vb_context",
+          "context": "WarehouseDataContext",
+          "interpretation": "Source-declared table mapping for this indexed ORM reference. Not a table definition, generated SQL, deployed database identity, proof of query execution, write completion or trigger execution.",
+          "mapping_source": {
+            "file": "Site/App_Code/Inventory.dbml",
+            "line": 2,
+            "source_blake3": "10492ef97740391344b4849aadfd650c67445843e34f6e62fe61cfde6b15733c"
+          },
+          "member": "inv_items",
+          "query_source": {
+            "file": "Site/App_Code/Orders.vb",
+            "line": 4
+          },
+          "receiver": "db",
+          "table": "dbo.Inventory"
+        }
+      }
+    },
+    "source_stable_during_build": true,
+    "parked_work_unchanged": true
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "entry_point": "/dashboard/system/geolayers/42",
+    "active_generation": 3148,
+    "mapping": {
+      "basis": "selected_current_dbml_and_explicit_local_vb_context",
+      "context": "iFaltDataContext",
+      "interpretation": "Source-declared table mapping for this indexed ORM reference. Not a table definition, generated SQL, deployed database identity, proof of query execution, write completion or trigger execution.",
+      "mapping_source": {
+        "file": "Site/App_Code/iFalt.dbml",
+        "line": 281,
+        "source_blake3": "f3eaeaf1411a3bafad8dd1656d6ab91b47426bb6abf2bbf8106a15f8f93ccec1"
+      },
+      "member": "vsl_visualiseringslagers",
+      "query_source": {
+        "file": "Site/App_Code/visualisering/code/visualisering-lager.vb",
+        "line": 58
+      },
+      "receiver": "db",
+      "table": "dbo.vsl_visualiseringslager"
+    },
+    "source_unchanged": true,
+    "configuration_unchanged": true,
+    "interpretation": "One read-only installed OciusX route trace resolves its reached ORM member through actual source DBML. No reindex, live database access, provider SQL translation, trigger effects, runtime execution or productivity measurement."
+  },
+  "limitations": [
+    "Source-declared mapping is not generated SQL, deployed database identity, physical table definition, proof of execution or trigger effects.",
+    "Only explicit local VB context construction and existing indexed ORM references are covered; aliases, external contexts, namespaces requiring inference and general LINQ/ORM translation remain unresolved.",
+    "Any unadmitted/malformed selected DBML file withholds all DBML bindings to avoid unproved context uniqueness.",
+    "No productivity or full TODO31/full-backlog completion claim.",
+    "CodeRabbit host authentication unavailable; parent manual review only. Original19gates and comparative usefulness remain open."
+  ],
+  "failure_history": [
+    "Initial candidate/installed fixtures passed; actual OciusX BOM/CRLF source exposed line280 instead of281. Corrected parser/line-offset slice while preserving original-byte hash; added native and public BOM regression coverage."
+  ],
+  "evidence": {
+    "initial_actual_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\normal\\acceptance.json",
+      "sha256": "73f67116e0099cd2b473b4eb18bb587acea39c8293e32a328027b46b9cc49ba0"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\native2.json",
+      "sha256": "68881fa41896d54e44f6d68422365161df2ace5a995c2001fc23e33772abd1c3"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\release2.json",
+      "sha256": "6b0d6458b085acd20305316ccdc6d59a448f9c9b3fd1580e9d0d461028f001be"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\pair2.json",
+      "sha256": "f7900ef0990457a29532b5f7cd4385e56e2d01355526f1e219813fc07d310c70"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\candidate2\\acceptance.json",
+      "sha256": "634b294da37d7c04fcc1600caead879cec2cee4f38ca94c7c97c699dc566173f"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\installed2\\acceptance.json",
+      "sha256": "f61046f3f188eb214374cfc936840201b299f3ea5fa1b150c1f1d41fcdb28a42"
+    },
+    "actual_ociusx": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\normal2\\acceptance.json",
+      "sha256": "c67888c562d3e4eb8a1d1a92066ed0c03ba76bb274cf1e2bfeec26f4f9ac3724"
+    },
+    "gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\release-gates2.json",
+      "sha256": "aade33dfb7ce86b53c9477632ac66e4a5f5c9fce9cee6298f60fbbf197c74035"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\mapping2-install-Upgrade.json",
+      "sha256": "c728eb0e183fb34993c981afbf34c5384c5dbd592e0c9ae4fa95e2a27c1158b5"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\mapping2-config-hold.json.released.json",
+      "sha256": "fb44324da83620a354baa71c1ae2b6404b0a8a279f5994ab7661eb4b340955e4"
+    },
+    "initial_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\release1.json",
+      "sha256": "a796c044d6679fbd8b5d988830549cc8af9772eabdf4eb11b5a23ac6f4522d71"
+    },
+    "initial_native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\native1.json",
+      "sha256": "d55d128483b4d73b7e3c44e5c815f405339fe2b7add4784b11a30a2756f87ff8"
+    },
+    "initial_install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\mapping-install-Upgrade.json",
+      "sha256": "a42a91a0eb85dd2406f930c28caa0b2b53f19bb3a667a58a2fd5d9dadf2c765f"
+    }
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping",
+    "owned_test_and_build_temps_removed": true,
+    "owned_test_processes_and_handles_closed": true,
+    "configuration_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-87ee163592994618acb5d66d1d7da5eb",
+    "retention": "Retain package/logs/receipts as delivery evidence and previous pair for rollback. Preexisting deletion requires exact-path approval.",
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_removal_condition": "Retain while isolation from parked work is necessary; remove through Git after preserving unique work, ignored files and commits.",
+    "initial_and_corrected_attempts_resources_closed": true,
+    "initial_package_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\package",
+    "corrected_package_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\package2",
+    "earlier_installed_pair_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-83f55eb6b8504d97b1277bebd88d0467",
+    "initial_public_driver_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\verify-public-v1.py"
+  },
+  "next": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion.",
+  "goal": "ACTIVE; other original requirements, partial acceptance and held findings remain unfinished."
+}
