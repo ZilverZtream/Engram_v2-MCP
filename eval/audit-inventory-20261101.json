@@ -9959,36 +9959,29 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
-      "observed_missing_behavior": "Current trace_data_flow combines line-oriented .NET control/state/SQL parsing with bounded Calls follow. DataFlowTrace has no value lineage field; graph EdgeKind has no local def/use relation. Existing ParameterBinding is WebForms SQL-data-source parameter binding, not method argument-to-parameter lineage. No prior TODO22 delivery receipt found.",
-      "implementation_files": [
-        "crates/engram_core/src/value_flow.rs",
-        "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/parsing/value_flow.rs (new)",
-        "tools/vb_roslyn_sidecar/AstEmitter.cs or a focused companion value-flow module",
-        "tools/vb_roslyn_sidecar/Program.cs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_graph/src/store/value_flow.rs (new post-ingest pass)",
-        "crates/engram_graph/src/store/source_rebuild.rs",
-        "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/services/data_flow_service.rs",
-        "crates/engram_server/src/handlers/migration_tools.rs",
-        "crates/engram_server/src/tools.rs"
-      ],
+      "status": "SELECTED_NOT_IMPLEMENTED",
+      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java. The original item explicitly starts with TypeScript and Python and is sized per language. This active delivery is TypeScript; the parent requirement and remaining languages stay open.",
+      "observed_missing_behavior": "Current parsing captures imported module spelling as a generic Imports edge, but not named/default/namespace binding or export identity. JS/TS member calls other than local this are deliberately receiver-unbound; bare calls use file-local FQNs then generic post-ingest name resolution. No tsconfig path/import-alias resolver was found in the selected parsing/index/graph paths. This is inspected source evidence, not a measured public baseline.",
       "finite_acceptance": [
-        "Store source-located definition/use evidence for parameters, local declarations, assignments, reads, returns and call arguments in the existing C#/VB trace workflows. Variable identity must include method and lexical scope; reassignment must not invent stale straight-line lineage.",
-        "Post-ingest linking connects actual argument uses to the corresponding parameter only when the existing source call binding and argument mapping establish the target. Ambiguous/external/unsupported flows remain visibly incomplete, not guessed.",
-        "Expose bounded, source-cited lineage through existing trace_data_flow JSON and readable output, allowing an agent to follow an input through local aliases into a helper parameter and a returned/consumed value. Report branch/loop/alias uncertainty and truncation honestly; no whole-program or runtime-proof claim.",
-        "Use independently authored C# and real VB sidecar fixtures to verify local aliases, overwritten values, same-name scopes, argument positions and cross-method links; negative cases cover unresolved calls and unsupported control-flow without false proven paths.",
-        "Incremental source replacement and graph_only repair retract obsolete value edges while preserving source/search/vector storage. Reuse existing acceptance/deployment tooling; run relevant native/no-vector/sidecar checks and verify candidate plus installed public lineage before completion."
+        "Retain authored TypeScript/TSX ES-module import bindings and exported callable identities with source file, declaration and call locations; named aliases, default imports and namespace imports must distinguish identically named exports from different modules.",
+        "Resolve supported local relative imports and tsconfig baseUrl/paths to the actual indexed source module and unique exported callable. Include supported re-export/barrel paths with bounded cycle handling; do not turn receiver variables, external packages, dynamic imports, ambiguous exports or unsupported module forms into name-only guesses.",
+        "Expose the resulting source-cited Calls relationships through existing public graph/reference workflows. Preserve prior receiver-unbound protections and clearly label unsupported/unresolved cases and syntax-based evidence; no TypeScript compiler or runtime proof claim.",
+        "Use independently authored TS fixtures with duplicate export names, renamed/default/namespace imports, relative/index/extension lookup, path aliases and re-exports. Negative cases include shadowed bindings, unresolved/external modules, ambiguity and cycles; expected target identities come from fixture source.",
+        "Updating an import, target export or relevant tsconfig mapping must retract stale bindings even when dependent source is unchanged. Graph-only repair must preserve source/search/vector storage. Run relevant native/no-vector behavior checks and candidate/installed public acceptance before marking this TypeScript delivery complete."
       ],
-      "constraints": "One active implementation item. Existing trace_data_flow is explicitly .NET legacy; preserve broader P2 generalization TODO23-25. Do not reopen CodeMap/Blast, redesign general call resolution, expand pilots, or turn this into whole-program points-to analysis. Keep all remaining original requirements and partial EG14 open.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
-      "temporary_resource_policy": "New fixtures own their resources beneath this recorded diagnostics case, close database/process owners, then remove only their own fixtures. Retain evidence with explicit cleanup conditions.",
-      "next_action": "Select the next ready original requirement once; preserve remaining EG14 and full backlog.",
-      "progress_receipt": "eval/p122-def-use-progress-20261112.json",
-      "delivery_receipt": "eval/p122-def-use-delivery-20261112.json"
+      "implementation_files": [
+        "crates/engram_index/src/parsing.rs",
+        "crates/engram_index/src/parsing/typescript_modules.rs (new focused module)",
+        "crates/engram_index/src/source_contract.rs",
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/services/ingest_service.rs",
+        "crates/engram_graph/src/store.rs",
+        "crates/engram_graph/src/store/typescript_modules.rs (new focused resolver)"
+      ],
+      "constraints": "One implementation item active. No CodeMap/Blast improvement or broad non-.NET service audit. Preserve TODO22 and all prior deliveries, remaining EG14 acceptance and full original backlog. TODO25 shared fixture-corpus delivery remains separate; local fixtures here validate this implementation.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
+      "next_action": "Create a finite source-authored import/alias/duplicate-module behavior fixture, reproduce current missing/wrong call targets once, then implement the TypeScript import/export facts and second pass.",
+      "baseline_receipt": "eval/p123-typescript-modules-baseline-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
@@ -12700,34 +12693,35 @@
     },
     "previous_selected_delivery_contract": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO21: Return-type / parameter-type edges in parsing.rs and extractors, enabling type-boundary reasoning and what flows into a method. TODO22 def-use and TODO23 general call resolution remain separate.",
-      "observed_missing_behavior": "EdgeKind has no return/parameter type relations. Tree-sitter declarations retain arity only. VB Roslyn and fallback retain some return_type metadata but emit no signature type edges. No existing TODO21 delivery receipt was found.",
+      "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
+      "observed_missing_behavior": "Current trace_data_flow combines line-oriented .NET control/state/SQL parsing with bounded Calls follow. DataFlowTrace has no value lineage field; graph EdgeKind has no local def/use relation. Existing ParameterBinding is WebForms SQL-data-source parameter binding, not method argument-to-parameter lineage. No prior TODO22 delivery receipt found.",
       "implementation_files": [
-        "crates/engram_graph/src/store/signature_types.rs",
-        "crates/engram_index/src/parsing/signature_types.rs",
-        "crates/engram_index/src/parsing/signature_types/tests.rs",
-        "crates/engram_index/src/parsing/signature_types/vb.rs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_graph/src/store/source_rebuild.rs",
-        "crates/engram_index/src/lib.rs",
+        "crates/engram_core/src/value_flow.rs",
         "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/vb_extractor.rs",
-        "crates/engram_server/src/handlers/graph_tools.rs",
+        "crates/engram_index/src/parsing/value_flow.rs (new)",
+        "tools/vb_roslyn_sidecar/AstEmitter.cs or a focused companion value-flow module",
+        "tools/vb_roslyn_sidecar/Program.cs",
+        "crates/engram_graph/src/store.rs",
+        "crates/engram_graph/src/store/value_flow.rs (new post-ingest pass)",
+        "crates/engram_graph/src/store/source_rebuild.rs",
         "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/tools.rs",
-        "tools/vb_roslyn_sidecar/AstEmitter.cs",
-        "tools/vb_roslyn_sidecar/Program.cs"
+        "crates/engram_server/src/services/data_flow_service.rs",
+        "crates/engram_server/src/handlers/migration_tools.rs",
+        "crates/engram_server/src/tools.rs"
       ],
       "finite_acceptance": [
-        "Emit distinct returns_type and parameter_type edges from callable declarations across supported typed tree-sitter grammars and VB sidecar/fallback. Do not invent annotations for untyped JS/Python or inferred return values.",
-        "Preserve full authored type expressions, generic components, arrays/nullable modifiers, parameter names/positions and repeated uses of one type; distinguish overload owners by source identity.",
-        "Bind type declarations only with explicit resolution evidence; ambiguous, external, type-parameter and unsupported references remain visibly unbound, never fall through callable/any-kind resolution.",
-        "Public graph/reference queries expose the incoming/outgoing contract for an independently authored cross-file fixture, including normal VB sidecar. Incremental updates and graph_only rebuild remove stale type edges without altering preserved search/vector data.",
-        "Run relevant native/no-vector and sidecar checks; commit and push origin/master, build/deploy the matching runtime pair and verify installed public behavior. Preserve all other unfinished backlog items."
+        "Store source-located definition/use evidence for parameters, local declarations, assignments, reads, returns and call arguments in the existing C#/VB trace workflows. Variable identity must include method and lexical scope; reassignment must not invent stale straight-line lineage.",
+        "Post-ingest linking connects actual argument uses to the corresponding parameter only when the existing source call binding and argument mapping establish the target. Ambiguous/external/unsupported flows remain visibly incomplete, not guessed.",
+        "Expose bounded, source-cited lineage through existing trace_data_flow JSON and readable output, allowing an agent to follow an input through local aliases into a helper parameter and a returned/consumed value. Report branch/loop/alias uncertainty and truncation honestly; no whole-program or runtime-proof claim.",
+        "Use independently authored C# and real VB sidecar fixtures to verify local aliases, overwritten values, same-name scopes, argument positions and cross-method links; negative cases cover unresolved calls and unsupported control-flow without false proven paths.",
+        "Incremental source replacement and graph_only repair retract obsolete value edges while preserving source/search/vector storage. Reuse existing acceptance/deployment tooling; run relevant native/no-vector/sidecar checks and verify candidate plus installed public lineage before completion."
       ],
-      "constraints": "One active implementation item. No CodeMap/Blast improvements, def-use pass, broad resolver redesign, extra pilot or unapproved deletion.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
-      "temporary_resource_policy": "New test fixtures live beneath this diagnostics folder and close/remove their owned resources. Retained logs, source hashes and acceptance receipts remain as delivery evidence."
+      "constraints": "One active implementation item. Existing trace_data_flow is explicitly .NET legacy; preserve broader P2 generalization TODO23-25. Do not reopen CodeMap/Blast, redesign general call resolution, expand pilots, or turn this into whole-program points-to analysis. Keep all remaining original requirements and partial EG14 open.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
+      "temporary_resource_policy": "New fixtures own their resources beneath this recorded diagnostics case, close database/process owners, then remove only their own fixtures. Retain evidence with explicit cleanup conditions.",
+      "next_action": "Select the next ready original requirement once; preserve remaining EG14 and full backlog.",
+      "progress_receipt": "eval/p122-def-use-progress-20261112.json",
+      "delivery_receipt": "eval/p122-def-use-delivery-20261112.json"
     },
     "p122_def_use_20261112": {
       "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
