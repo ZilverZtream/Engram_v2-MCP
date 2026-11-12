@@ -1,0 +1,29 @@
+{
+  "status": "SELECTED_IMPLEMENTATION_PENDING",
+  "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java; explicitly start with TypeScript and Python. TypeScript is delivered. Python is the one active implementation item.",
+  "observed_missing_behavior": "Python query captures bare or terminal attribute call names but no import bindings. Calls proceed through file-local FQN/generic resolution without authored import identity.",
+  "finite_acceptance": [
+    "Authored from/import aliases and dotted module calls resolve actual indexed declarations, including root/src source layouts, packages, relative imports and package reexports; same-named decoys must not win.",
+    "Respect function-local imports and lexical bindings. Parameters, later local assignments, conditional/star/dynamic imports, external modules and cycles remain explicitly unresolved where syntax cannot prove a binding.",
+    "Existing public Calls include bounded call/binding/target source evidence labelled syntax-only. Native/no-vector authored-source checks assert identities, not implementation internals.",
+    "Changing imports or target declarations/reexports retracts stale targets with unchanged caller source; deleting/restoring targets recovers from retained call facts.",
+    "Candidate and installed public upgrade/update/graph-only checks preserve source/search/vector storage and recovered chunks; normal installed daemon identity verified."
+  ],
+  "implementation_files": [
+    "crates/engram_core/src/python_modules.rs",
+    "crates/engram_index/src/parsing/python_modules.rs",
+    "crates/engram_index/src/parsing.rs",
+    "crates/engram_index/src/source_contract.rs",
+    "crates/engram_graph/src/store/python_modules.rs",
+    "crates/engram_graph/src/store.rs",
+    "crates/engram_server/src/services/ingest_service.rs",
+    "crates/engram_server/src/handlers/graph_tools.rs"
+  ],
+  "constraints": "One implementation item active. No CodeMap/Blast work or broad audit. Python static import evidence is not runtime sys.path/import-hook proof. Rust/Go/Java and full original backlog remain open.",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112",
+  "next_action": "Implement and verify Python import identities, bounded resolution and freshness.",
+  "semantic_sources": [
+    "https://docs.python.org/3/reference/import.html",
+    "https://docs.python.org/3/reference/executionmodel.html#resolution-of-names"
+  ]
+}

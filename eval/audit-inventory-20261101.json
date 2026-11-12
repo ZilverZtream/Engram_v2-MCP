@@ -9959,40 +9959,53 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java. The original item explicitly starts with TypeScript and Python and is sized per language. This active delivery is TypeScript; the parent requirement and remaining languages stay open.",
-      "observed_missing_behavior": "Current parsing captures imported module spelling as a generic Imports edge, but not named/default/namespace binding or export identity. JS/TS member calls other than local this are deliberately receiver-unbound; bare calls use file-local FQNs then generic post-ingest name resolution. No tsconfig path/import-alias resolver was found in the selected parsing/index/graph paths. This is inspected source evidence, not a measured public baseline.",
+      "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java; explicitly start with TypeScript and Python. TypeScript is delivered. Python is the one active implementation item.",
+      "observed_missing_behavior": "Python query captures bare or terminal attribute call names but no import bindings. Calls proceed through file-local FQN/generic resolution without authored import identity.",
       "finite_acceptance": [
-        "Retain authored TypeScript/TSX ES-module import bindings and exported callable identities with source file, declaration and call locations; named aliases, default imports and namespace imports must distinguish identically named exports from different modules.",
-        "Resolve supported local relative imports and tsconfig baseUrl/paths to the actual indexed source module and unique exported callable. Include supported re-export/barrel paths with bounded cycle handling; do not turn receiver variables, external packages, dynamic imports, ambiguous exports or unsupported module forms into name-only guesses.",
-        "Expose the resulting source-cited Calls relationships through existing public graph/reference workflows. Preserve prior receiver-unbound protections and clearly label unsupported/unresolved cases and syntax-based evidence; no TypeScript compiler or runtime proof claim.",
-        "Use independently authored TS fixtures with duplicate export names, renamed/default/namespace imports, relative/index/extension lookup, path aliases and re-exports. Negative cases include shadowed bindings, unresolved/external modules, ambiguity and cycles; expected target identities come from fixture source.",
-        "Updating an import, target export or relevant tsconfig mapping must retract stale bindings even when dependent source is unchanged. Graph-only repair must preserve source/search/vector storage. Run relevant native/no-vector behavior checks and candidate/installed public acceptance before marking this TypeScript delivery complete."
+        "Authored from/import aliases and dotted module calls resolve actual indexed declarations, including root/src source layouts, packages, relative imports and package reexports; same-named decoys must not win.",
+        "Respect function-local imports and lexical bindings. Parameters, later local assignments, conditional/star/dynamic imports, external modules and cycles remain explicitly unresolved where syntax cannot prove a binding.",
+        "Existing public Calls include bounded call/binding/target source evidence labelled syntax-only. Native/no-vector authored-source checks assert identities, not implementation internals.",
+        "Changing imports or target declarations/reexports retracts stale targets with unchanged caller source; deleting/restoring targets recovers from retained call facts.",
+        "Candidate and installed public upgrade/update/graph-only checks preserve source/search/vector storage and recovered chunks; normal installed daemon identity verified."
       ],
       "implementation_files": [
+        "crates/engram_core/src/python_modules.rs",
+        "crates/engram_index/src/parsing/python_modules.rs",
         "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/parsing/typescript_modules.rs (new focused module)",
         "crates/engram_index/src/source_contract.rs",
-        "crates/engram_index/src/hybrid.rs",
-        "crates/engram_server/src/services/ingest_service.rs",
+        "crates/engram_graph/src/store/python_modules.rs",
         "crates/engram_graph/src/store.rs",
-        "crates/engram_graph/src/store/typescript_modules.rs (new focused resolver)"
+        "crates/engram_server/src/services/ingest_service.rs",
+        "crates/engram_server/src/handlers/graph_tools.rs"
       ],
-      "constraints": "One implementation item active. No CodeMap/Blast improvement or broad non-.NET service audit. Preserve TODO22 and all prior deliveries, remaining EG14 acceptance and full original backlog. TODO25 shared fixture-corpus delivery remains separate; local fixtures here validate this implementation.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
-      "next_action": "Select Python within original TODO23 once, preserving other unfinished original requirements.",
-      "baseline_receipt": "eval/p123-typescript-modules-baseline-20261112.json",
+      "constraints": "One implementation item active. No CodeMap/Blast work or broad audit. Python static import evidence is not runtime sys.path/import-hook proof. Rust/Go/Java and full original backlog remain open.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112",
+      "next_action": "Commit validated implementation and build p124-py-modules-source-20261112 with the existing owned shared-target runner.",
+      "semantic_sources": [
+        "https://docs.python.org/3/reference/import.html",
+        "https://docs.python.org/3/reference/executionmodel.html#resolution-of-names"
+      ],
       "public_baseline": {
-        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\baseline-v2\\receipt.json",
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\baseline\\receipt.json",
         "observed": {
-          "RunNamed": "Wrongly bound decoy.ts:persist instead of lib/left.ts:save",
-          "RunNamespace": "Unbound right.save instead of lib/right.ts:save",
-          "RunMapped": "Unbound mapped instead of @lib mapping to lib/left.ts:save"
-        },
-        "helper_correction": "baseline/receipt.json retains initial text-vs-JSON helper failure; baseline-v2 corrected Calls response parsing. Both fixtures closed and removed."
+          "RunNamed": {
+            "expected_file": "pkg/left.py",
+            "actual_files": [
+              "decoy.py"
+            ],
+            "correct_unique_target": false
+          },
+          "RunModule": {
+            "expected_file": "pkg/right.py",
+            "actual_files": [
+              "::save"
+            ],
+            "correct_unique_target": false
+          }
+        }
       },
-      "progress_receipt": "eval/p123-typescript-modules-progress-20261112.json",
-      "delivery_receipt": "eval/p123-typescript-modules-delivery-20261112.json"
+      "progress_receipt": "eval/p124-python-modules-progress-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
@@ -12296,29 +12309,40 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "status": "DELIVERED_SELECTED_EG15_EG17_CONTRACT",
-      "original_requirement": "EG15-17: generated instruction ownership safety, complete root-overflow accounting, and preservation of manual/legacy scope and exceptions. These generator-specific requirements remain open after the bounded EG14 draft/QA handoff.",
-      "observed_missing_behavior": "Installed public root-budget case preserved the authored CLAUDE.md but generated rules lost all 40 multiline exceptions. The existing renderer test bypassed the extractor by constructing multiline CriticalRule objects directly. Repair complete bullet extraction and validate the same authored input through candidate and installed public tools.",
-      "existing_evidence": [
-        "eval/eg14-draft-delivery-20261111.json",
-        "eval/audit-inventory-20261101.json EG15/16/17 and peer_refresh_publication_recovery_cutoff_and_delivery_20261103",
-        "crates/engram_server/tests/claude_md_contract_tests.rs",
-        "crates/engram_server/tests/agent_integration_pack_tests.rs",
-        "crates/engram_server/src/services/generated_files.rs"
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java. The original item explicitly starts with TypeScript and Python and is sized per language. This active delivery is TypeScript; the parent requirement and remaining languages stay open.",
+      "observed_missing_behavior": "Current parsing captures imported module spelling as a generic Imports edge, but not named/default/namespace binding or export identity. JS/TS member calls other than local this are deliberately receiver-unbound; bare calls use file-local FQNs then generic post-ingest name resolution. No tsconfig path/import-alias resolver was found in the selected parsing/index/graph paths. This is inspected source evidence, not a measured public baseline.",
+      "finite_acceptance": [
+        "Retain authored TypeScript/TSX ES-module import bindings and exported callable identities with source file, declaration and call locations; named aliases, default imports and namespace imports must distinguish identically named exports from different modules.",
+        "Resolve supported local relative imports and tsconfig baseUrl/paths to the actual indexed source module and unique exported callable. Include supported re-export/barrel paths with bounded cycle handling; do not turn receiver variables, external packages, dynamic imports, ambiguous exports or unsupported module forms into name-only guesses.",
+        "Expose the resulting source-cited Calls relationships through existing public graph/reference workflows. Preserve prior receiver-unbound protections and clearly label unsupported/unresolved cases and syntax-based evidence; no TypeScript compiler or runtime proof claim.",
+        "Use independently authored TS fixtures with duplicate export names, renamed/default/namespace imports, relative/index/extension lookup, path aliases and re-exports. Negative cases include shadowed bindings, unresolved/external modules, ambiguity and cycles; expected target identities come from fixture source.",
+        "Updating an import, target export or relevant tsconfig mapping must retract stale bindings even when dependent source is unchanged. Graph-only repair must preserve source/search/vector storage. Run relevant native/no-vector behavior checks and candidate/installed public acceptance before marking this TypeScript delivery complete."
       ],
       "implementation_files": [
-        "crates/engram_server/src/services/produce_claude_md_service.rs",
-        "crates/engram_server/tests/claude_md_contract_tests.rs (correct stale blocked-parent expectation)"
+        "crates/engram_index/src/parsing.rs",
+        "crates/engram_index/src/parsing/typescript_modules.rs (new focused module)",
+        "crates/engram_index/src/source_contract.rs",
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/services/ingest_service.rs",
+        "crates/engram_graph/src/store.rs",
+        "crates/engram_graph/src/store/typescript_modules.rs (new focused resolver)"
       ],
-      "finite_acceptance": [
-        "Use installed produce_claude_md and generate_agent_integration in owned private projects. Compare returned/written paths, hashes and delivery counts against filesystem bytes and independently authored rules/exceptions; preview must not publish.",
-        "Exercise owned refresh plus conflicting/unreceipted/human-edited root, diverted, companion and integration files. Preserve exact human bytes; return complete proposals or explicit conflict/skips. Verify existing interruption-recovery evidence without inventing another publication subsystem.",
-        "Exercise root budget pressure and a rule beyond the catalog cap, disabled optional AGENTS output, and a blocked output directory. Every original rule/qualification must be present in an appropriate artifact or a complete explicit recovery ledger; no successful-write claim for an unwritten file.",
-        "Distinct directory/file/language scopes, zero-match scope, manual exceptions and legacy/unknown authority stay distinct. Imported closed/fixed/rejected status cannot manufacture policy acceptance. Reuse existing supported fixture access where needed; do not adopt production legacy rules.",
-        "Check actual Claude loading of the generated instruction contract with the installed CLI in an owned fixture, using constrained read-only/no-write behavior and independently checkable scoped markers. Distinguish native loading from model inference and record unavailable consumer acceptance honestly.",
-        "If a concrete product failure is found, repair only that contract, run relevant checks and deploy/verify as required. Otherwise record the installed behavioral evidence without rebuilding unchanged code. Preserve all remaining EG14/EG24/25 and full-backlog limits."
-      ],
-      "constraints": "No OciusX authored-policy publication, new approval UI, expanded area pilot, CodeMap/Blast work, catalog/ownership investigation beyond this existing generator requirement, or preexisting-folder deletion. One active implementation/acceptance item."
+      "constraints": "One implementation item active. No CodeMap/Blast improvement or broad non-.NET service audit. Preserve TODO22 and all prior deliveries, remaining EG14 acceptance and full original backlog. TODO25 shared fixture-corpus delivery remains separate; local fixtures here validate this implementation.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
+      "next_action": "Select Python within original TODO23 once, preserving other unfinished original requirements.",
+      "baseline_receipt": "eval/p123-typescript-modules-baseline-20261112.json",
+      "public_baseline": {
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\baseline-v2\\receipt.json",
+        "observed": {
+          "RunNamed": "Wrongly bound decoy.ts:persist instead of lib/left.ts:save",
+          "RunNamespace": "Unbound right.save instead of lib/right.ts:save",
+          "RunMapped": "Unbound mapped instead of @lib mapping to lib/left.ts:save"
+        },
+        "helper_correction": "baseline/receipt.json retains initial text-vs-JSON helper failure; baseline-v2 corrected Calls response parsing. Both fixtures closed and removed."
+      },
+      "progress_receipt": "eval/p123-typescript-modules-progress-20261112.json",
+      "delivery_receipt": "eval/p123-typescript-modules-delivery-20261112.json"
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

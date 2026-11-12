@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "at_utc": "2026-11-12T06:11:56.431040+00:00",
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "active_item": "TODO23 Python; parent Rust/Go/Java remain open",
+  "implementation_sha256": {
+    "crates/engram_core/src/python_modules.rs": "02547b7f5a7fc0632482f967193cd83cdde4d844eabbc88ae9bd70b695ac6182",
+    "crates/engram_index/src/parsing/python_modules.rs": "5c814c9bc7ec3bd4a8c1e2bef7711012042b48d6f566e0a788050a62a39279f8",
+    "crates/engram_index/src/parsing.rs": "de66a170ab3301735aad3ddeb40beabccb276c67a65818d5842171d4693243dd",
+    "crates/engram_index/src/source_contract.rs": "7eb01a24bbdf2cac5945160e86480a4884dd33fda94a6c2a183789b0456810ff",
+    "crates/engram_graph/src/store/python_modules.rs": "62e94380a22fa39b68a5a301802ef58306eea5f15ec249e8c7bed7504bd35b93",
+    "crates/engram_graph/src/store.rs": "94fa6b1afd1b5d1f0337c425644c601dd525fadb8902ddf81d33ca3b75b7adcb",
+    "crates/engram_server/src/services/ingest_service.rs": "5ce194ce16791897a234c567a9d627da9ece218f41e78db0038c9802bda3944f",
+    "crates/engram_server/src/handlers/graph_tools.rs": "c73bdaa0f3886d9e0121106bc60dccc6606102612d97c70caadbb3bde16f664d",
+    "crates/engram_core/src/lib.rs": "ba7043888c285c8514b92ca7e12b4f6efce9d08aa473424de85083ace815a19a",
+    "crates/engram_server/src/services/ingest_service/python_module_tests.rs": "899bdab3ed62c81884e5612b124ba66ef39bd5d7fdbf86f68805c290b55e1a29",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "5a314e5654f05300e11dae8e1c671296bd98928313afd31c72f3aaefd81e971c"
+  },
+  "implemented": [
+    "Retained source import bindings, lexical scope, exact declaration/call sites and file-owned call facts.",
+    "Indexed absolute/relative imports, package and namespace modules, root/src layouts, aliases, local imports and reexports resolve canonical declarations without same-name guesses.",
+    "Source-cited public Calls, explicit unresolved reasons and changed-target rebinding with unchanged callers.",
+    "Python extraction freshness checks require actual versioned source facts before reuse/publication."
+  ],
+  "checks": [
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\module-no-vector-final-result.json",
+      "sha256": "124273348a0f53b3ed5ee423020a44bdb18f14ec7b12d87ff25f71409a0d9707",
+      "status": "PASS"
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\module-native-final-result.json",
+      "sha256": "b90d9bfba1c418fb68561a0866ba24987b4d52ea46e0d6030719d3976b96af4b",
+      "status": "PASS"
+    }
+  ],
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112\\baseline\\receipt.json",
+    "observed": {
+      "RunNamed": {
+        "expected_file": "pkg/left.py",
+        "actual_files": [
+          "decoy.py"
+        ],
+        "correct_unique_target": false
+      },
+      "RunModule": {
+        "expected_file": "pkg/right.py",
+        "actual_files": [
+          "::save"
+        ],
+        "correct_unique_target": false
+      }
+    }
+  },
+  "remaining": [
+    "Release build",
+    "Candidate public old-index upgrade, source updates, target delete/restore and graph repair preserving storage/chunks",
+    "Install and repeat public acceptance; verify normal daemon; push deployment evidence"
+  ],
+  "next_action": "Commit validated implementation and build p124-py-modules-source-20261112 with the existing owned shared-target runner.",
+  "limitations": [
+    "Syntax-based source identity, not runtime import execution or sys.path/import-hook proof.",
+    "Root/src source layout candidates; conflicting identities remain ambiguous. External/custom roots are not guessed.",
+    "Decorated callables, wildcard/conditional imports and global/nonlocal directives remain explicitly unresolved.",
+    "Runtime monkey-patching and attribute mutation are not modeled. No whole-program behavior claim."
+  ],
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p124-python-modules-20261112",
+    "completed_test_fixture_roots_removed": true,
+    "baseline_fixture_removed": true,
+    "retained": "Authored cases, helpers, logs and receipts; release package retained for deployment evidence."
+  },
+  "full_original_goal": "ACTIVE; no Python deployment or TODO23 parent completion claim."
+}

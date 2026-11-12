@@ -14,6 +14,7 @@ mod source_rebuild;
 mod signature_types;
 mod value_flow;
 mod typescript_modules;
+mod python_modules;
 pub use source_rebuild::SourceGraphReplacement;
 use atomic_learning::{increment_edges_in_tx, upsert_nodes_in_tx};
 
@@ -1979,7 +1980,7 @@ impl GraphStore {
         node_type: Option<&str>,
         prefer_file_path: Option<&str>,
     ) -> anyhow::Result<ResolveResult> {
-        if input.starts_with(UNBOUND_RECEIVER_PREFIX) || input.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX) {
+        if input.starts_with(UNBOUND_RECEIVER_PREFIX) || (input.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::python_modules::UNBOUND_PREFIX)) {
             return Ok(ResolveResult::NotFound);
         }
         const DIRECT_PREFIXES: [&str; 11] = [
@@ -2103,7 +2104,7 @@ impl GraphStore {
     }
 
     fn try_resolve_unresolved_target(&self, project_id: &str, source_id: &str, target_id: &str) -> Option<String> {
-        if target_id.starts_with(UNBOUND_RECEIVER_PREFIX) || target_id.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX) { return None; }
+        if target_id.starts_with(UNBOUND_RECEIVER_PREFIX) || (target_id.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX) || target_id.starts_with(engram_core::python_modules::UNBOUND_PREFIX)) { return None; }
         if !target_id.starts_with("::") {
             return None;
         }
@@ -3184,7 +3185,7 @@ impl GraphStore {
 
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let declarations = self.resolve_declared_symbol_edges(project_id)?;
-        Ok(declarations + self.resolve_typescript_modules(project_id)? + self.resolve_value_flows(project_id)?)
+        Ok(declarations + self.resolve_typescript_modules(project_id)? + self.resolve_python_modules(project_id)? + self.resolve_value_flows(project_id)?)
     }
 
     fn resolve_declared_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
@@ -3411,7 +3412,8 @@ impl GraphStore {
         for entry in &unresolved {
             if requires_source_call_binding(&entry.edge)
                 || entry.edge.target_id.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX)
-                || entry.edge.metadata.as_ref().is_some_and(|m| m.get(engram_core::typescript_modules::CALL_KEY).is_some())
+                || entry.edge.target_id.starts_with(engram_core::python_modules::UNBOUND_PREFIX)
+                || entry.edge.metadata.as_ref().is_some_and(|m| m.get(engram_core::typescript_modules::CALL_KEY).is_some() || m.get(engram_core::python_modules::CALL_KEY).is_some())
                 || entry.edge.target_id.starts_with(UNBOUND_RECEIVER_PREFIX)
                 || entry.edge.metadata.as_ref().is_some_and(|m|
                     m.get("receiver_unbound").is_some_and(|v| v == true || v.as_str() == Some("true"))) {
