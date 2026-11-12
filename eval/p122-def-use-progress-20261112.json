@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
+  "at_utc": "2026-11-12T03:26:46.027480+00:00",
+  "original_requirement": "TODO22 lightweight def-use and cross-method parameter lineage; full selected acceptance remains in current_execution_focus.",
+  "baseline": "eval/p122-def-use-baseline-20261112.json",
+  "implemented": [
+    "Shared authored FlowProgram schema with expressions, branch/block structure, parameters, argument source positions and semantic mapping.",
+    "C# tree-sitter extraction attached to callable metadata, keeping assignment/update distinctions, names and source sites.",
+    "VB Roslyn companion emits the same schema, compiler method identities and named/ByRef argument-to-parameter positions.",
+    "Bounded node/depth/text retention and explicit unsupported syntax; deep facts remain JSON-readable."
+  ],
+  "source_sha256": {
+    "crates/engram_core/src/lib.rs": "1dda84f51cde9b6d2b7226acf7aab3dba707e2a9b1aa7f0d78a7609e4798abc1",
+    "crates/engram_core/src/value_flow.rs": "0c63f10c89d8937772ceb04c114f6eb6ac61f8886f00b65668c6644a10416baf",
+    "crates/engram_index/src/parsing.rs": "270e50813eb3f7ba812fc5d4e22593ccdbfca43ac4a409f8ea19d60ea6d49b56",
+    "crates/engram_index/src/parsing/value_flow.rs": "6fee48ae7580b3616605d4b2d8e5a9e01008809088149366ac41879f02d514f6",
+    "crates/engram_index/src/parsing/value_flow/tests.rs": "8cd29e40aada9c4390b7504d3ea10c17dad3dbafb243fe0d3757bb43c0b45bf5",
+    "tools/vb_roslyn_sidecar/AstEmitter.cs": "7f36cb5935996639fcdb33921ca2a7bf535b06e6be8623602b0b925b616bfa68",
+    "tools/vb_roslyn_sidecar/Program.cs": "5b57abb657516763beb48df01865eab50b2c2f4133d8279b8403fab9848e928c",
+    "tools/vb_roslyn_sidecar/ValueFlowEmitter.cs": "2b1ac86c045b67ec54eda489556746b50e31abb9b9a529e009b765ea09b74d56"
+  },
+  "checks": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\syntax-native-result.json",
+      "sha256": "c6ec0c3b8cf66dfe526e6e3c4216a8f20fd850cb939de88c625044641b7433ec"
+    },
+    "no_vector": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\syntax-no-vector-result.json",
+      "sha256": "e46215abf8b9f6f0a974935afa9d7e903e65bbecf753b6c7e4254d6f76b0fbbd"
+    },
+    "native_selected_passed": 6,
+    "no_vector_selected_passed": 6,
+    "sidecar_build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\sidecar-build-v3.json",
+      "sha256": "30735624175eda6f2cefa4347e0d0d4c4a8eaa0dfb944593a7612bd342172a92"
+    },
+    "sidecar_public_extraction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112\\sidecar-context-v3-acceptance.json",
+      "sha256": "b1d37d38773f052396298df55365c56efe33e588928118de5b3643fe325210fd"
+    }
+  },
+  "remaining": [
+    "Implement post-ingest local reaching-definition/use nodes and edges, with assignments, lexical scopes, conservative branches and unsupported-path invalidation.",
+    "Connect arguments/returns only through supported source call bindings and correct parameter mapping. Preserve call-site context so two calls to one helper cannot exchange each other's returned values.",
+    "Add source-cited bounded lineage to trace_data_flow, preserving existing business-flow output and exposing incomplete/ambiguous paths.",
+    "Integrate source-index version, incremental cleanup and graph_only rebuild; ensure synthetic value nodes cannot crowd ordinary declaration/call lookup.",
+    "Run actual public candidate/installed lineage and source-update/rebuild acceptance, deploy matching server/sidecar, record final evidence."
+  ],
+  "review_notes": [
+    "Parent manual review only; no external CodeRabbit review ran (previous authenticated:false remains, no login/auth retry).",
+    "Before consuming these facts as value reads, handle compile-time NameOf/nameof and VB Static local declarations explicitly; these are remaining TODO22 semantic cases, not delivered claims.",
+    "C# source binding is syntax-based; do not label name-only candidates compiler-proven. VB target_semantic_id must be corroborated by admitted Calls target metadata.",
+    "No def-use graph, public lineage behavior, source-version increment or deployment is claimed yet."
+  ],
+  "retained_failures": {
+    "sidecar-build.json": "C# switch-section pattern variable name collisions; fixed in ValueFlowEmitter and v2/v3 builds pass.",
+    "sidecar-value-acceptance.json": "Initial probe incorrectly expected compiler-selected call identity in source-only standalone compilation; no framework metadata present.",
+    "sidecar-context-acceptance.json": "Owned fixture wrote CRLF while supplying LF source; existing prepared-source fence correctly refused. Exact newline write fixed; v2/v3 configured context pass."
+  },
+  "temporary_resources": {
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
+    "new_rust_fixtures_removed": true,
+    "sidecar_build_temps_removed": true,
+    "all_sidecar_probe_processes_closed_and_temps_removed": true,
+    "retained_outputs": [
+      "sidecar-publish-v2",
+      "sidecar-publish-v3"
+    ],
+    "retention_condition": "Keep companion artifacts and wire/source evidence until complete TODO22 deployment; preserve failed-run receipts. No preexisting folders removed."
+  },
+  "installed": "TODO21 release remains installed; no TODO22 deployment."
+}

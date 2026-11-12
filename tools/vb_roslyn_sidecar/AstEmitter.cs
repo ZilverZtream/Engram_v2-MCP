@@ -809,6 +809,7 @@ internal sealed class AstEmitter
             var metadata = new Dictionary<string, string>
             {
                 ["signature"] = declaration.WithoutTrivia().NormalizeWhitespace().ToFullString(),
+                ["value_flow_v1"] = ValueFlowEmitter.Extract(declaration, declaration, model, SemanticId),
                 ["interface_member_contract"] = "1",
                 ["interface_member_declaration"] = "true",
                 ["arity"] = (declaration.ParameterList?.Parameters.Count ?? 0).ToString(),
@@ -839,6 +840,7 @@ internal sealed class AstEmitter
             EmitSignatureTypes(stmt, fqn, methodStartLine);
             var metadata = new Dictionary<string, string>();
             metadata["signature"] = stmt.WithoutTrivia().NormalizeWhitespace().ToFullString();
+            metadata["value_flow_v1"] = ValueFlowEmitter.Extract(node, stmt, model, SemanticId);
             metadata["interface_member_contract"] = "1";
             metadata["interface_dispatch_status"] = (stmt as MethodStatementSyntax)?.ImplementsClause is null
                 ? "no_explicit_contract" : "unknown";
