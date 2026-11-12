@@ -577,6 +577,26 @@ fn reached_orm_member_uses_its_context_mapping_and_preserves_graph_evidence() {
 }
 
 #[test]
+fn bom_and_crlf_dbml_citations_keep_original_lines_and_content_hash() {
+    let mapping = format!(
+        "\u{feff}<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n{}",
+        DBML.replace('\n', "\r\n")
+    );
+    let trace = orm_trace(ORM_BODY, &mapping, None, "current", true);
+    let mapped = trace
+        .paths
+        .iter()
+        .find_map(|p| p.table_mapping.as_ref())
+        .expect("BOM DBML mapping");
+    assert_eq!(mapped["mapping_source"]["line"], 3);
+    assert_eq!(
+        mapped["mapping_source"]["source_blake3"],
+        blake3::hash(mapping.as_bytes()).to_hex().to_string()
+    );
+    assert!(mapping.lines().nth(2).unwrap().contains("<Table Name="));
+}
+
+#[test]
 fn dbml_mapping_withholds_ambiguous_stale_missing_and_unselected_evidence() {
     for state in ["stale", "revision", "missing", "unselected"] {
         let trace = orm_trace(ORM_BODY, DBML, None, state, true);
