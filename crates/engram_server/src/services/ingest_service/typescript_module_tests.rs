@@ -66,8 +66,10 @@ async fn typescript_modules_bind_import_identity_and_publish_correct_public_call
             ("lib/default.ts", "export default function () { return 33; }"),
             ("lib/folder/index.ts", "export const save = () => 44;"),
             ("lib/barrel.ts", "export { save as publicSave } from './left';"),
+            ("lib/widget.ts", "export function save() { return 55; }"),
+            ("lib/widget.tsx", "export function save() { return <button/>; }"),
             ("decoy.ts", "export function persist() { return 99; }"),
-            ("app.ts", "import { save as persist } from './lib/left';\nimport * as right from './lib/right';\nimport send from './lib/default';\nimport { save as folder } from './lib/folder';\nimport { publicSave } from './lib/barrel.js';\nexport function RunNamed() { persist(); persist(); }\nexport function RunNamespace() { return right.save(); }\nexport function RunDefault() { return send(); }\nexport function RunFolder() { return folder(); }\nexport function RunBarrel() { return publicSave(); }"),
+            ("app.ts", "import { save as persist } from './lib/left';\nimport * as right from './lib/right';\nimport send from './lib/default';\nimport { save as folder } from './lib/folder';\nimport { publicSave } from './lib/barrel.js';\nimport { save as js } from './lib/widget.js';\nimport { save as jsx } from './lib/widget.jsx';\nexport function RunNamed() { persist(); persist(); }\nexport function RunNamespace() { return right.save(); }\nexport function RunDefault() { return send(); }\nexport function RunFolder() { return folder(); }\nexport function RunBarrel() { return publicSave(); }\nexport function RunJs() { return js(); }\nexport function RunJsx() { return jsx(); }"),
         ];
         process_ingest_stats(&state, "tsmodules", 1, &stats(&files)).await?;
         state.graph.resolve_symbol_edges("tsmodules")?;
@@ -76,6 +78,8 @@ async fn typescript_modules_bind_import_identity_and_publish_correct_public_call
             ("RunNamed", "lib/left.ts", "save"), ("RunNamespace", "lib/right.ts", "save"),
             ("RunDefault", "lib/default.ts", "default"), ("RunFolder", "lib/folder/index.ts", "save"),
             ("RunBarrel", "lib/left.ts", "save"),
+            ("RunJs", "lib/widget.ts", "save"),
+            ("RunJsx", "lib/widget.tsx", "save"),
         ] {
             let edges = outgoing(&state, caller)?;
             assert_eq!(edges.len(), 1, "{caller}: {edges:?}");

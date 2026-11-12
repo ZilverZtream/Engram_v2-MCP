@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "at_utc": "2026-11-12T05:09:01.252107+00:00",
+  "at_utc": "2026-11-12T05:28:32.163196+00:00",
   "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
   "active_item": "TODO23 TypeScript (other parent languages remain open)",
   "implemented": [
@@ -40,6 +40,14 @@
     {
       "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\module-native-01-result.json",
       "result": "6 native/vector-enabled server tests PASS; current source hashes match. All owned test temporary resources removed."
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\module-native-02-result.json",
+      "result": "6 native cases PASS including duplicate widget.ts/widget.tsx: .js selects TS, .jsx selects TSX."
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\module-config-resolution-02-result.json",
+      "result": "Same 6 server cases PASS without vector feature after JSX ordering correction."
     }
   ],
   "in_flight": null,
@@ -48,7 +56,7 @@
     "Graph-only source/search/vector/chunk preservation acceptance",
     "Release deployment, installed MCP verification, push/delivery receipt; TODO23 parent other languages stay open"
   ],
-  "next_action": "Commit validated implementation, build release with retained owned runner, package unchanged companion assets, run prepared public MCP upgrade/update/graph-only acceptance, then deploy and verify installed behavior.",
+  "next_action": "Build p123-ts-modules-source-v2-20261112 from corrected source, then run existing candidate MCP upgrade/update/rebuild acceptance and installed verification. First build is superseded before packaging.",
   "full_original_goal": "ACTIVE; no claim of TODO23 delivery or parent completion.",
   "scope_notes": [
     "Resolution is syntax-based; nearest indexed tsconfig is used, not a TypeScript compiler project-membership proof.",
@@ -59,18 +67,19 @@
     "retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
     "purpose": "Baseline/helper scripts, wire output, test logs and receipts for active TODO23 delivery",
     "cleanup_condition": "Retain until installed acceptance and delivery evidence are complete; preserve preexisting artifacts.",
-    "completed_test_fixtures": "All eight completed runner receipts have source_stable=true, empty fixture_entries, and fixture_root_removed=true.",
-    "production": "No installed binary/config/data mutation in this implementation turn."
+    "completed_test_fixtures": "All ten completed runner receipts have stable source, no fixture leftovers, and owned fixture roots removed.",
+    "production": "No installed binary/config/data mutation in this implementation turn.",
+    "superseded_build": "First build completed with stable source and owned resources closed/removed; do not package its binary."
   },
-  "checkpoint": "Native and no-vector source checks passed. Prepare source commit and release candidate; actual public MCP and installed acceptance remain unproven.",
+  "checkpoint": "216457f pushed. JSX ordering correction validated; commit correction and build replacement before packaging.",
   "implementation_sha256": {
     "crates/engram_core/src/typescript_modules.rs": "599e6954ce3cd41f074d84f226272b021b306f5521b236f74ed28cf5de94ef21",
-    "crates/engram_graph/src/store/typescript_modules.rs": "059a4c6f1f3b72ecc2cf6b889e71db55a9e3ad71f5121bb97170d27c96df517c",
+    "crates/engram_graph/src/store/typescript_modules.rs": "1f6e22c530a34247f9ad499285abf448dfe0914ebceab6ed70d00c405a88e890",
     "crates/engram_graph/src/store/typescript_modules/config.rs": "6cbad6b7e57e5ec064a7f9d0834b80966660fe6b937c55a677963dea5966d35e",
     "crates/engram_index/src/parsing/typescript_modules.rs": "929842af5ba88ba30e3a1f917fe8c8eb9aa659cf3da0bfaf44f19edbf07d9fb8",
     "crates/engram_index/src/parsing/typescript_modules/config.rs": "5742efbeb4836dc363eaf68a4dae6edec3be8e2f6002b619499c66f5e6b76786",
     "crates/engram_index/src/parsing/typescript_modules/tests.rs": "c21af2360d98762d743effccb1ecdb491098bff1cc8df397c6b8d593b7ff175c",
-    "crates/engram_server/src/services/ingest_service/typescript_module_tests.rs": "7893e8a4cce52a831f6a0204558320529664c74da45a24f87476dbf789c41e65",
+    "crates/engram_server/src/services/ingest_service/typescript_module_tests.rs": "ceb9450fa40521c13a452a0a37fb991f6d1c40149c53c390db66b55582395a49",
     "crates/engram_core/src/lib.rs": "6d476a6442f98338925330d1c1b463431723f65ac83757318779392d25d741c0",
     "crates/engram_graph/src/store.rs": "01e1a7beb8ba9b811b25840441209f56aed22662ebee93aec542e1fe8cfe5631",
     "crates/engram_index/src/parsing.rs": "f2975f881974ab47131f06b072818f0fbbb30e1310fd02784a1f2110425394cd",
@@ -79,5 +88,12 @@
     "crates/engram_server/src/handlers/graph_tools.rs": "98b34a3f2c216e181149cdd5f396807a1e41f919c5cecd702a7e0015579783cb",
     "crates/engram_server/src/services/ingest_service.rs": "66acce935caddaa98cb1022fcd618281e4365151a317da1e2896ee33b477ecbc"
   },
-  "public_acceptance_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\verify-public.py"
+  "public_acceptance_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\verify-public.py",
+  "current_delivery_correction": {
+    "finding": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\jsx-priority-finding.json",
+    "status": "IMPLEMENTED_NATIVE_AND_NO_VECTOR_VERIFIED",
+    "scope": "Correct .jsx sibling lookup order; no new module-resolution forms or acceptance expansion.",
+    "source": "https://raw.githubusercontent.com/microsoft/TypeScript/v5.9.3/src/compiler/moduleNameResolver.ts",
+    "superseded_build": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-ts-modules-source-20261112.json"
+  }
 }

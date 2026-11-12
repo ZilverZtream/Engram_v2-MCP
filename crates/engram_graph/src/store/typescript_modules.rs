@@ -50,10 +50,15 @@ impl Resolver {
         // TypeScript extension substitution; package manifests and runtime
         // loader semantics are deliberately not inferred from a file name.
         let mut candidates = Vec::new();
-        if let Some(stem) = base
-            .strip_suffix(".js")
-            .or_else(|| base.strip_suffix(".jsx"))
-        {
+        if let Some(stem) = base.strip_suffix(".jsx") {
+            // JSX specifiers prefer the TSX sibling; JS specifiers prefer TS.
+            // Sharing the order can bind to the wrong same-named export.
+            candidates.extend([
+                format!("{stem}.tsx"),
+                format!("{stem}.ts"),
+                format!("{stem}.d.ts"),
+            ]);
+        } else if let Some(stem) = base.strip_suffix(".js") {
             candidates.extend([
                 format!("{stem}.ts"),
                 format!("{stem}.tsx"),
