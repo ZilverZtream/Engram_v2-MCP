@@ -9976,42 +9976,35 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "QUERY_SCHEMA_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
-      "original_requirement": "TODO35 / spec39-3 query_schema: eleven structured schema query modes, narrative summary and source-backed table details for OciusX SQL.",
-      "missing_behavior": "No query_schema tool. Existing table graph lookup and legacy schema regex lose qualified identities and do not implement the eleven modes.",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "original_requirement": "TODO35 / spec39-4 detect_n_plus_one: find database calls repeated by loops or authored WebForms row-binding handlers, show loop/handler and inner SQL call locations, estimated severity and JOIN/batch guidance.",
+      "missing_behavior": "No N+1 detector exists. Existing Roslyn invocation report verifies source spans but omits enclosing repetition contexts; existing database/call graph can supply source relationships.",
       "implementation_files": [
         "README.md",
-        "crates/engram_server/src/capabilities.rs",
+        "tools/vb_roslyn_sidecar/InvocationAnalyzer.cs",
+        "crates/engram_index/src/vb_extractor.rs",
+        "crates/engram_server/src/handlers/test_derivation.rs",
         "crates/engram_server/src/handlers/mod.rs",
-        "crates/engram_server/src/handlers/schema_tools.rs",
-        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/n_plus_one_tools.rs",
         "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/services/schema_query.rs",
-        "crates/engram_server/src/services/schema_query/tests.rs",
-        "crates/engram_server/src/tools.rs"
+        "crates/engram_server/src/services/n_plus_one.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/src/capabilities.rs"
       ],
       "finite_acceptance": [
-        "All eleven query types answer source-declared tables/columns/keys/defaults/computed columns/indexes/triggers/views/procedures and related references with citations. Preserve qualified names, duplicate definitions and ambiguity; never guess a default schema.",
-        "Use selected indexed SQL membership and verify current source fingerprint and physical revision. Disclose unavailable/stale/unsupported evidence; source declarations do not establish deployed database state or execution.",
-        "Comments/string examples do not become declarations or references. Composite keys, nested default expressions, and commas in SQL strings preserve meaning.",
-        "Bound input scan, pagination and complete JSON response; reject invalid controls before project access. Read-only, no project/schema mutation.",
-        "Focused native behavior checks, candidate and installed public MCP checks, and one actual OciusX SQL lookup verified against source. Commit/push only origin/master and deploy using existing isolated checkout."
+        "Use source-checked Roslyn invocation/loop ownership and authored RowDataBound/ItemDataBound binding, with helper-call paths to database evidence. Never infer SQL from a helper name alone.",
+        "Report exact repeated call and inner database evidence with source paths/lines/hashes, contexts, heuristic severity, unknown cardinality when no measurements exist, and JOIN/batch guidance appropriate to read/write evidence.",
+        "Exclude comments/string examples, loop collection/bound expressions evaluated once, calls after the loop, unrelated helpers and deferred lambdas. Preserve uncertainty for unresolved dispatch, caching, branches and runtime execution.",
+        "Use selected source membership/revisions/hashes, bound file pages and graph expansion and complete JSON response, disclose all unavailable/stale/truncated coverage. Read-only; no OciusX edits or live database execution.",
+        "Verify focused positive/negative Roslyn and service cases, candidate/installed public MCP, and one actual OciusX source case. Commit/push origin/master; deploy matched server/sidecar and preserve all parked work."
       ],
-      "source_baseline": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
+      "source_baseline": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema",
-      "removal_condition": "Reuse existing delivery checkout until parked work no longer requires isolation; remove only through Git after checking preserved commits and ignored files.",
-      "scope_guard": "OciusX SQL schema lookup only. No target-language expansion, CodeMap/Blast work, new database connection, migration execution or benchmark. TODO35 N+1 and index recommendations remain unfinished.",
-      "implementation_progress": {
-        "source_commit": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
-        "native_tests": 5,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\nativefinal2.json",
-        "public_mcp_verified": true,
-        "deployed": true,
-        "delivery_receipt": "eval/ociusx-query-schema-delivery-20261112.json",
-        "candidate_public_calls": 18,
-        "installed_public_calls": 18
-      }
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one",
+      "scope_guard": "OciusX VB.NET/WebForms and SQL only. Extend existing sidecar query/report, not indexing formats or a new parser platform. No CodeMap/Blast, foreign-language work, broad audits or unrelated cleanup. find_missing_indexes and other original items stay unfinished.",
+      "removal_condition": "Reuse the one existing delivery checkout while parked work must remain excluded; remove through Git only after clean/ignored checks and source commits are preserved on origin/master.",
+      "delivery_receipt": "eval/ociusx-n-plus-one-delivery-20261112.json"
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10043,8 +10036,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO33 batch hot reads",
-    "next_user_visible_deliverable": "Select the next ready original OciusX item after checking existing implementation and delivery evidence once.",
+    "active_original_item": "TODO35 next remainder: find_missing_indexes (not yet selected/implemented)",
+    "next_user_visible_deliverable": "Inspect existing SQL-query/schema evidence once and record original spec39-5 finite contract for find_missing_indexes; preserve unknown runtime selectivity/cost and existing completed deliveries.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10063,7 +10056,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "TODO33 built, candidate/installed13-call acceptance passed, actual OciusX3-read batch byte-equivalent and source/generation unchanged. Deployed; source pushed as41e9998. Shared source checkout retained for reuse with explicit cleanup condition."
+      "evidence": "N+1 release built, candidate/installed10-call acceptance passed, matched server/sidecar deployed, actual OciusX query148/loop146 verified with generation3148/source unchanged."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13185,6 +13178,44 @@
       "receipt": "eval/ociusx-query-schema-delivery-20261112.json",
       "status": "QUERY_SCHEMA_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
       "remaining": "TODO35 N+1 detection and index recommendations remain open; select next original missing OciusX behavior without reopening delivered schema queries."
+    },
+    "previous_query_schema_delivery_contract": {
+      "status": "QUERY_SCHEMA_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
+      "original_requirement": "TODO35 / spec39-3 query_schema: eleven structured schema query modes, narrative summary and source-backed table details for OciusX SQL.",
+      "missing_behavior": "No query_schema tool. Existing table graph lookup and legacy schema regex lose qualified identities and do not implement the eleven modes.",
+      "implementation_files": [
+        "README.md",
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/handlers/schema_tools.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/services/schema_query.rs",
+        "crates/engram_server/src/services/schema_query/tests.rs",
+        "crates/engram_server/src/tools.rs"
+      ],
+      "finite_acceptance": [
+        "All eleven query types answer source-declared tables/columns/keys/defaults/computed columns/indexes/triggers/views/procedures and related references with citations. Preserve qualified names, duplicate definitions and ambiguity; never guess a default schema.",
+        "Use selected indexed SQL membership and verify current source fingerprint and physical revision. Disclose unavailable/stale/unsupported evidence; source declarations do not establish deployed database state or execution.",
+        "Comments/string examples do not become declarations or references. Composite keys, nested default expressions, and commas in SQL strings preserve meaning.",
+        "Bound input scan, pagination and complete JSON response; reject invalid controls before project access. Read-only, no project/schema mutation.",
+        "Focused native behavior checks, candidate and installed public MCP checks, and one actual OciusX SQL lookup verified against source. Commit/push only origin/master and deploy using existing isolated checkout."
+      ],
+      "source_baseline": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema",
+      "removal_condition": "Reuse existing delivery checkout until parked work no longer requires isolation; remove only through Git after checking preserved commits and ignored files.",
+      "scope_guard": "OciusX SQL schema lookup only. No target-language expansion, CodeMap/Blast work, new database connection, migration execution or benchmark. TODO35 N+1 and index recommendations remain unfinished.",
+      "implementation_progress": {
+        "source_commit": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
+        "native_tests": 5,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\nativefinal2.json",
+        "public_mcp_verified": true,
+        "deployed": true,
+        "delivery_receipt": "eval/ociusx-query-schema-delivery-20261112.json",
+        "candidate_public_calls": 18,
+        "installed_public_calls": 18
+      }
     }
   }
 }

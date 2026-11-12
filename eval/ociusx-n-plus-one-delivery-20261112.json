@@ -1,0 +1,223 @@
+{
+  "status": "N_PLUS_ONE_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
+  "at_utc": "2026-11-12T20:03:54.757268+00:00",
+  "original_requirement": "TODO35 / spec39-4 detect_n_plus_one: find database calls repeated by loops or authored WebForms row-binding handlers, show loop/handler and inner SQL call locations, estimated severity and JOIN/batch guidance.",
+  "source_commit": "34a0149d9968d079046dc6cdb5b3c6e7ba8693ce",
+  "main_merge_commit": "829f154",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "c6f10b2432cad4043b94c6150295f0c08199f40f4eea589d4fb8e870706cbe12",
+    "manifest_sha256": "4269a796ed1af318355d999e86632267b42b3b462eaef9104f33a3ff976cbca9",
+    "sidecar_assembly_sha256": "3c4ea4822dfbe860c77a6f4172048c2747211aa0821e0a0dd36eeea046a7ed5d",
+    "changed_assets": [
+      "engram_server.exe",
+      "sidecar/vb_roslyn_sidecar-win-x64.dll",
+      "sidecar/vb_roslyn_sidecar-win-x64.exe"
+    ],
+    "unchanged_assets": 212
+  },
+  "delivered": [
+    "Public detect_n_plus_one returns candidate repeated database-call paths from selected VB methods and authored WebForms row-binding handlers, including bounded indexed helper calls across files.",
+    "Fresh Roslyn loop ownership, declared ADO.NET command receivers and LINQ-to-SQL/DataContext query materialization with exact repeated-call/database-call source locations.",
+    "Heuristic severity, explicit unknown row/query counts and read/write-specific batch guidance. No SQL execution or source edits.",
+    "Selected membership/revision/fingerprint checks, file paging, bounded call expansion, complete response budgets and explicit stale/unavailable/truncated/unresolved coverage."
+  ],
+  "checks": {
+    "native_tests": 3,
+    "candidate_public_calls": 10,
+    "installed_public_calls": 10,
+    "cross_file_helpers_verified": true,
+    "markup_binding_verified": true,
+    "linq_cached_collection_excluded": true,
+    "stale_helper_and_markup_withheld": true,
+    "sidecar_repetition_forms": 5,
+    "source_stable_during_release_build": true
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation_before_and_after": 3148,
+    "source_path": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+    "source_preserved": true,
+    "verified_finding": {
+      "call_path": [
+        {
+          "callee": "db.gil_gisImageLayers.Where(Function(d) d.gil_id = layer.gil_id).FirstOrDefault",
+          "end_line": 148,
+          "file": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+          "method": "UpdateLayers",
+          "source_hash": "32e24576a5f730ab268a3188bd049221b3e81bdaef372940a7ff3cd3ab606624",
+          "start_line": 148
+        }
+      ],
+      "contexts": [
+        {
+          "binding": null,
+          "end_line": 146,
+          "file": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+          "kind": "for_each",
+          "source_hash": "32e24576a5f730ab268a3188bd049221b3e81bdaef372940a7ff3cd3ab606624",
+          "start_line": 146
+        }
+      ],
+      "database_call": {
+        "evidence": {
+          "command_text_origin": "LINQ/provider SQL is not translated or executed; declared DataContext/DbContext source syntax is candidate evidence",
+          "declaration_line": 136,
+          "evidence": "query_materialization_from_declared_context",
+          "literal_command": null,
+          "method": "FirstOrDefault",
+          "receiver_type": "iFaltDataContext"
+        },
+        "site": {
+          "callee": "db.gil_gisImageLayers.Where(Function(d) d.gil_id = layer.gil_id).FirstOrDefault",
+          "end_line": 148,
+          "file": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+          "method": "UpdateLayers",
+          "source_hash": "32e24576a5f730ab268a3188bd049221b3e81bdaef372940a7ff3cd3ab606624",
+          "start_line": 148
+        }
+      },
+      "estimated_database_calls": null,
+      "estimated_iterations": null,
+      "limits": "Static possible call path. Guards, caching, dispatch, exceptions, dataset size and actual database execution are not proved.",
+      "repeated_call": {
+        "callee": "db.gil_gisImageLayers.Where(Function(d) d.gil_id = layer.gil_id).FirstOrDefault",
+        "end_line": 148,
+        "file": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+        "method": "UpdateLayers",
+        "source_hash": "32e24576a5f730ab268a3188bd049221b3e81bdaef372940a7ff3cd3ab606624",
+        "start_line": 148
+      },
+      "severity": "medium",
+      "severity_basis": "Heuristic repeated-database pattern; actual cardinality and latency unknown",
+      "status": "possible_n_plus_one",
+      "suggested_fix": "JOIN the needed data into the initial query, or batch-fetch it before the loop/row binding and look up each row locally; preserve filtering, ordering and access rules."
+    },
+    "query_seconds": 9.878123000031337,
+    "response_bytes": 50322,
+    "coverage": {
+      "call_steps": 228,
+      "gaps": [],
+      "no_findings_means": "No supported repeated database-call evidence found within this file page and bounds; not proof that N+1 queries are absent.",
+      "runtime_query_count_known": false,
+      "scope": "VB.NET For Each/For/While/Do bodies or repeated conditions, explicit Handles RowDataBound/ItemDataBound and paired selected markup bindings. Deferred lambdas are excluded. Typed ADO.NET receiver declarations, declared DataContext/DbContext query materialization and direct execution methods provide candidate evidence. Query origin tracing is bounded to 8 syntax steps; materialized collections and reassigned local query aliases are excluded. Constructor SQL text is not effective command-state proof. Constructors/accessors, provider inheritance, injected receiver parameters, translated SQL and dynamic dispatch remain unassessed.",
+      "source_admission": "Selected membership, physical file/node revision and current BLAKE3 fingerprint; fresh Roslyn syntax report SHA256 checked. No atomic source/graph snapshot.",
+      "source_bytes_read": 186180,
+      "truncated": false,
+      "unavailable_files": [],
+      "unresolved_calls_observed": 154,
+      "vb_files_parsed": 7
+    },
+    "interpretation": "Installed tool identifies the authored DataContext query at line148 inside the loop at line146. Other results retained, not independently asserted as actual performance defects. No live database, execution-count, latency-benefit or comparative productivity claim."
+  },
+  "limitations": [
+    "Static candidate evidence does not establish provider SQL, actual execution count, table size, selectivity, latency cost or comparative productivity. The actual source query took9.878seconds; no speed improvement is established.",
+    "Constructors/accessors, injected receiver parameters, provider inheritance and dynamic dispatch remain unassessed. Deferred lambdas excluded. Query origin tracing is bounded to8 syntax steps; source-defined command lookalikes and cached/reassigned local queries are excluded.",
+    "ADO constructor literal text is not proof of effective CommandText after later assignments. LINQ SQL translation is not executed or inferred.",
+    "Analysis bounds:1..16 root files/page (default8),32 parsed VB files,512 invocations/file,1024 method nodes/file,6 helper levels,128 visits/root,2048 call steps,256 findings,64MiB source. Actual OciusX case had154 unresolved calls disclosed; absence of findings never proves absence of N+1 behavior.",
+    "Existing markup indexing inventory omits OnRowDataBound; this tool reads authored literal paired markup directly. Indexing behavior was not expanded.",
+    "CodeRabbit was unauthenticated; parent manual review only. Original19 gates and comparative usefulness remain separately unfinished.",
+    "find_missing_indexes remains unimplemented; TODO35 is partial. Other original open/held findings remain preserved."
+  ],
+  "verification_corrections": [
+    "Initial native run exposed missing call-graph edges in helper fixture and missing OnRowDataBound in legacy markup extraction. Fixture and tool binding read corrected; native2 passed.",
+    "Published assembly differs from the pre-commit built DLL; first publish verifier failed its obsolete equality assertion after successful publish. Preserved first log/runner and verified published sidecar behavior as acceptance4 before packaging.",
+    "Initial main-merge resolution script failed; own unpushed merge was corrected and amended before push. Final release checkout was unaffected."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one",
+    "test_build_public_fixture_temps_removed": true,
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_state": "Clean including ignored files; source commit preserved on origin/master.",
+    "source_worktree_retention": "Reuse existing isolated checkout while parked main work must remain excluded. Remove through Git only after clean/ignored/preserved-commit checks.",
+    "package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\package",
+    "package_retention": "Retain exact deployed assets with receipts for reproduction and rollback review.",
+    "previous_pair_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-cb7ee579f4644c9bb28269cb3d18a496",
+    "backup_retention": "Installer rollback retention; no deletion of preexisting folders.",
+    "config_hold_released_without_change": true,
+    "normal_daemon": "Installed normal daemon started pid58556; normal idle lifecycle.",
+    "parked_work_unchanged": 9
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\contract.json",
+      "sha256": "08f48fda9da716020d159dd7009bb9294e30b9de9585a813bee6fef713e5de2b"
+    },
+    "implementation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\implementation.json",
+      "sha256": "d48875688de976ea56c50d61e3b2b86a1b45b904de183d7fb27322aa8b62948b"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\native2.json",
+      "sha256": "b049e699b415fd8f7eea38bc76680fe764e0d6b5c98b9acadcc8cc41473d9092"
+    },
+    "native-text-only-delta.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\native-text-only-delta.json",
+      "sha256": "f678e22d0df7a537ab18819ae63feb72f210de3945254923ee31598c3de454c7"
+    },
+    "sidecar-acceptance3.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\sidecar-acceptance3.json",
+      "sha256": "81b2194b56e8738ead634b86cb25bda9e4e918cca7751df19833a682a242f71f"
+    },
+    "sidecar-acceptance4.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\sidecar-acceptance4.json",
+      "sha256": "8431d94e74a0c0d65130e4f9b003efb508ddd3f2cd6424adc1f106afca4a48b7"
+    },
+    "publish-verifier-correction.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\publish-verifier-correction.json",
+      "sha256": "66327fed1ed890f48cb70dafaf86efaaccdee9a4a11c501c8a4cf50d8292b31b"
+    },
+    "real-inputs.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\real-inputs.json",
+      "sha256": "4cf03e476c3f10fb78e224d19fb6db66b9eda8a8d6656fa8e4df5d29f19a752e"
+    },
+    "real-sidecar-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\real-sidecar-acceptance.json",
+      "sha256": "5dab68a6ad9f64664fc1d35d9cdf144f2823105b84b854ea01e847fa072b0168"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\release1.json",
+      "sha256": "cf89ab9e192366e546a7bed21b6f45c070866011eaf5ec0a375c4df46b5b706e"
+    },
+    "pair.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\pair.json",
+      "sha256": "32c81fca5b584c214fb8dd9635eb0d41a0080f509ba358efe13dd60f72778129"
+    },
+    "candidate/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\candidate\\acceptance.json",
+      "sha256": "b35dbe9f587937135aad58855b3ba1d9d480296fdf5eb42b4bdb7a031133180d"
+    },
+    "installed/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\installed\\acceptance.json",
+      "sha256": "4d3604e9b25d9e2c02ad636d1907f7f72584b1a3a1d46a02ad45d7eb1b7273a3"
+    },
+    "normal/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\normal\\acceptance.json",
+      "sha256": "ed50347347440b3498f09fde424ab4488375a2811d51478295341a02bae44f30"
+    },
+    "release-helper-review.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\release-helper-review.json",
+      "sha256": "45f68be27a728878fd92a73c55b2b3f522f46148f0825413b571ccf9f2d60008"
+    },
+    "scoped-applicability.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\scoped-applicability.json",
+      "sha256": "b35b84629e8295dd04255ad443d454628c4b4ef80dedaf44367975760eaed01d"
+    },
+    "release-gates.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\release-gates.json",
+      "sha256": "828d9a88181038fc83b5b08f8dee9b69490ec013dbe5a4e09cb9bde8da56274d"
+    },
+    "nplus-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\nplus-install-Upgrade.json",
+      "sha256": "ce74f7f9e5f0d22e8c8fd7cc36d1cf391e23a89576a9018c220758869dfd7c6d"
+    },
+    "nplus-config-hold.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\nplus-config-hold.json.released.json",
+      "sha256": "d7085fcdbed17968827fa3d667cfcb1a0bf9c7c2251b26cf5e25162b6b661642"
+    },
+    "preserved-work.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one\\preserved-work.json",
+      "sha256": "1cd9bea1c705ab1446c8d1ba42573d3f85eaa79bb0bbaf050521c2bff026d449"
+    }
+  }
+}
