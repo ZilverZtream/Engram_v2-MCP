@@ -1,0 +1,27 @@
+{
+  "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_PENDING",
+  "source_commit": "784e9a95b1337a86bedece1acdaaf5e1a43abeb7",
+  "native_checks": 19,
+  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping\\native1.json",
+  "demonstrated": [
+    "Reached explicit local VB context/member maps through selected-current DBML declarations, preserving indexed ORM edge and separate physical-table verification.",
+    "Mapping and query citations include source path, line and mapping BLAKE3; actual SQL table name comes from DBML, not naming guesses.",
+    "Ambiguous context/member mappings, stale/revision-mismatched/missing/malformed source and unsupported/aliased/reassigned/chained receivers stay unresolved. Database opt-out returns no mappings.",
+    "Existing route, handler, call and procedure checks pass unchanged."
+  ],
+  "review": {
+    "kind": "Parent manual review, not independent",
+    "findings": [],
+    "limitation": "CodeRabbit host authentication previously false; no remote review performed."
+  },
+  "limitations": [
+    "Source-declared mapping is not generated SQL, deployed database identity, physical table definition, proof of execution or trigger effects.",
+    "Only explicit local VB context construction and existing indexed ORM references are covered; aliases, external contexts, namespaces requiring inference and general LINQ/ORM translation remain unresolved.",
+    "Any unadmitted/malformed selected DBML file withholds all DBML bindings to avoid unproved context uniqueness.",
+    "No productivity or full TODO31/full-backlog completion claim."
+  ],
+  "public_candidate_verified": false,
+  "installed": false,
+  "main_merge_commit": "805c0f6933c387a78ee0194f8d1ce6933ea2b99b",
+  "release_build_session": 17419
+}
