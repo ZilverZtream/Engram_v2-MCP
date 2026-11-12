@@ -41,8 +41,8 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO16c indexing survives embedding-backend failure",
-    "status": "INSTALLED_BASELINE_CONFIRMED_NOT_IMPLEMENTED",
+    "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
     "execution_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\execution-state.json",
-    "remaining": "Implement provider-specific degraded source batches/reporting; verify mixed-batch and vector repair recovery, then deploy. Installed baseline is recorded; do not repeat it."
+    "remaining": "Build, verify candidate and installed outage/recovery behavior, deploy, record normal runtime identity."
   }
 }

@@ -30,6 +30,8 @@ mod reader_experiment;
 mod selected_source_recovery_tests;
 #[cfg(test)]
 mod graph_extraction_tests;
+#[cfg(test)]
+mod embedding_failure_tests;
 mod selected_source_membership;
 pub use selected_source_membership::{SelectedSourceNavigation, SelectedSourceRevisionLookup, SelectedSourceSummary};
 #[cfg(all(test, feature = "vector"))]
@@ -243,6 +245,11 @@ pub struct IngestStats {
     pub script_call_contracts: std::collections::HashMap<String, u64>,
     pub files: usize,
     pub chunks: usize,
+    /// Source chunks retained lexically after their embedding batch failed.
+    /// Counts the entire unwritten vector batch, including any earlier
+    /// provider sub-batches whose vectors were never committed.
+    pub unembedded_chunks: usize,
+    pub failed_embedding_batches: usize,
     pub bytes: u64,
     pub all_files: Vec<RelPath>,
     pub fingerprints: Vec<crate::docstore::FileFingerprint>,
@@ -254,6 +261,22 @@ pub struct IngestStats {
     pub languages: std::collections::HashMap<String, usize>,
     pub warnings: Vec<String>,
 }
+
+impl IngestStats {
+    pub fn embedding_warning(&self) -> Option<String> {
+        (self.unembedded_chunks > 0).then(|| format!(
+            "Embeddings degraded: {} chunks unembedded across {} failed batches; source text and graph extraction retained. After restoring the embedding provider, run repair_project(scope=\"vector_only\") for this project. Counts describe this indexing operation; earlier missing vectors may also require repair.",
+            self.unembedded_chunks, self.failed_embedding_batches
+        ))
+    }
+}
+
+// Only errors originating in the embedding call/response receive this marker.
+// Storage, allocation and admission errors must never become degraded success.
+#[cfg(feature = "vector")]
+#[derive(Debug, thiserror::Error)]
+#[error("{0}")]
+struct EmbeddingProviderFailure(#[source] anyhow::Error);
 
 /// Escape SQL LIKE wildcards (`%`, `_`) and single quotes in a string
 /// so it can be safely used in a `LIKE '...' ESCAPE '\'` clause.
@@ -1271,15 +1294,16 @@ impl HybridSearchEngine {
                     if cancel.is_cancelled() {
                         break;
                     }
-                    let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel).await?;
-                    anyhow::ensure!(
-                        batch_vecs.len() == chunk.len()
+                    let batch_vecs = self.embedder.embed_batch_cancellable(chunk, cancel)
+                        .await.map_err(|error| anyhow::Error::new(EmbeddingProviderFailure(error)))?;
+                    if !(batch_vecs.len() == chunk.len()
                             && batch_vecs
                                 .iter()
                                 .all(|vector| vector.len() == self.embedder.dimension()
-                                    && vector.iter().all(|value| value.is_finite())),
-                        "Embedding provider returned invalid count, dimensions or non-finite values; vectors were not written"
-                    );
+                                    && vector.iter().all(|value| value.is_finite()))) {
+                        return Err(anyhow::Error::new(EmbeddingProviderFailure(anyhow::anyhow!(
+                            "Embedding provider returned invalid count, dimensions or non-finite values; vectors were not written"))));
+                    }
                     vectors.extend(batch_vecs);
                 }
             }
@@ -1326,6 +1350,36 @@ impl HybridSearchEngine {
         }
 
         Ok(())
+    }
+
+    async fn embed_source_batch(
+        &self,
+        writer: &mut BulkWriterGuard,
+        project_id: &str,
+        docs: &[IndexDoc],
+        cancel: &CancellationToken,
+        stats: &mut IngestStats,
+    ) -> anyhow::Result<()> {
+        let result = self.embed_and_upsert_vectors_with_writer(writer, project_id, docs, cancel).await;
+        anyhow::ensure!(!cancel.is_cancelled(), "Source indexing cancelled during embedding");
+        if let Err(error) = &result {
+            if Self::embedding_provider_failed(error) {
+                stats.unembedded_chunks += docs.len();
+                stats.failed_embedding_batches += 1;
+                tracing::warn!(project_id, chunks = docs.len(), "Source embedding batch unavailable; lexical content retained: {error:#}");
+                return Ok(());
+            }
+        }
+        result
+    }
+
+    /// Identify failure before vector storage was written, at the provider
+    /// boundary. Callers must separately honor their cancellation token.
+    pub fn embedding_provider_failed(error: &anyhow::Error) -> bool {
+        #[cfg(feature = "vector")]
+        { error.is::<EmbeddingProviderFailure>() }
+        #[cfg(not(feature = "vector"))]
+        { let _ = error; false }
     }
 
     pub async fn index_docs(
@@ -3276,7 +3330,7 @@ impl HybridSearchEngine {
                 Self::write_docs_to_writer(&fields, guard, project_id, &batch)?;
                 guard.maybe_commit(1000)?;
                 scoped
-                    .embed_and_upsert_vectors_with_writer(guard, project_id, &batch, cancel)
+                    .embed_source_batch(guard, project_id, &batch, cancel, &mut stats)
                     .await?;
                 batch.clear();
             }
@@ -3289,7 +3343,7 @@ impl HybridSearchEngine {
             let guard = guard.as_mut().expect("document batches require a search writer");
             Self::write_docs_to_writer(&fields, guard, project_id, &batch)?;
             scoped
-                .embed_and_upsert_vectors_with_writer(guard, project_id, &batch, cancel)
+                .embed_source_batch(guard, project_id, &batch, cancel, &mut stats)
                 .await?;
         }
 

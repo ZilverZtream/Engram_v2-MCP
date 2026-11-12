@@ -1676,6 +1676,10 @@ impl Engram {
                             tracing::warn!(project_id = %pid, "index_project[job]: resolve_symbol_edges timed out after 600s — skipping")
                         }
                     }
+                    if let Some(warning) = stats.embedding_warning() {
+                        status = "degraded";
+                        msg = warning;
+                    }
                     let report = engram.generate_indexing_report(stats);
                     let _ = engram
                         .handle_update_memory_bank(UpdateMemoryBankRequest {
@@ -1955,6 +1959,9 @@ impl Engram {
                     .await?;
 
                 extraction.verify_produced(&stats)?;
+                if let Some(warning) = stats.embedding_warning() {
+                    if let Ok(mut warnings) = enrich_warn_inner.lock() { warnings.push(warning); }
+                }
                 // Fix 11: Checkpoint after vector indexing completes.
                 engram
                     .write_checkpoint(
@@ -1972,7 +1979,7 @@ impl Engram {
                 engram
                     .process_ingest_stats(&project_id_for_job, new_gen, &stats)
                     .await?;
-                if let Err(e) = engram
+                let history_result = engram
                     .git_update_stream(
                         &project_id_for_job,
                         &ps.info.directory,
@@ -1989,9 +1996,13 @@ impl Engram {
                         Box::new(|_, _| {}),
                         false,
             )
-                    .await
-                {
-                    let msg = format!("git_update_stream failed (enrichment degraded): {e:#}");
+                    .await;
+                let history_warning = match history_result {
+                    Ok(summary) if summary.lines().any(|line| line == "status: degraded") => Some(summary),
+                    Ok(_) => None,
+                    Err(e) => Some(format!("git_update_stream failed (enrichment degraded): {e:#}")),
+                };
+                if let Some(msg) = history_warning {
                     tracing::warn!(project_id = %project_id_for_job, "ENG-AUD-2026-S03-0001: {msg}");
                     if let Ok(mut w) = enrich_warn_inner.lock() {
                         w.push(msg);
@@ -2429,6 +2440,7 @@ impl Engram {
             "update cancelled during unchanged-source refresh"
         );
         let (status, history, warning) = match history {
+            Ok(summary) if summary.lines().any(|line| line == "status: degraded") => ("degraded", summary.clone(), Some(summary)),
             Ok(summary) => ("done", summary, None),
             Err(error) => {
                 let warning = format!(
@@ -2699,6 +2711,7 @@ impl Engram {
         // failure must not strand a successfully indexed source generation.
         // Keep the degradation explicit rather than reporting clean success.
         let (mut update_status, git_summary) = match git_result {
+            Ok(summary) if summary.lines().any(|line| line == "status: degraded") => ("degraded", summary),
             Ok(summary) => ("done", summary),
             Err(error) => {
                 let warning = format!(
@@ -2882,6 +2895,9 @@ impl Engram {
             finalization_warnings.push(format!(
                 "Source generation {new_gen} was published before cancellation; the committed update remains visible."
             ));
+        }
+        if let Some(warning) = stats.embedding_warning() {
+            finalization_warnings.push(warning);
         }
         if !finalization_warnings.is_empty() {
             update_status = "degraded";
@@ -4078,8 +4094,9 @@ impl Engram {
             }
         }};
 
+        let embedding_report = stats.embedding_warning().map(|warning| format!("status: degraded\n{warning}\n")).unwrap_or_default();
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\nfiles={} chunks={}\n{git_note}",
+            "\u{2705} Project repaired project_id: {pid}\nactive_generation: {new_gen}\n{embedding_report}files={} chunks={}\n{git_note}",
             stats.files, stats.chunks
         ))]))
     }

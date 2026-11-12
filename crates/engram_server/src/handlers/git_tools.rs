@@ -852,6 +852,9 @@ impl Engram {
                             )
                             .await
                         {
+                            if cancel_consumer.is_cancelled() || !engram_index::HybridSearchEngine::embedding_provider_failed(&e) {
+                                return Err(e);
+                            }
                             unembedded_docs += vq.len();
                             tracing::warn!(
                                 "history vector batch failed ({} docs, total unembedded {}): {e:#}",
@@ -877,6 +880,9 @@ impl Engram {
                             )
                             .await
                         {
+                            if cancel_consumer.is_cancelled() || !engram_index::HybridSearchEngine::embedding_provider_failed(&e) {
+                                return Err(e);
+                            }
                             unembedded_docs += queue.len();
                             tracing::warn!(
                                 "history final vector flush failed ({} docs): {e:#}",
@@ -889,14 +895,14 @@ impl Engram {
             if unembedded_docs > 0 {
                 tracing::warn!(
                     "history indexing completed with {unembedded_docs} doc(s) unembedded — \
-                     lexical search covers them; rerun index_git_history to backfill vectors"
+                     lexical search covers them; run repair_project(scope=vector_only) to recover vectors"
                 );
             }
 
             // finish() commits + waits for merge threads (the one expensive call).
             // If this is reached via cancel, Drop will do best-effort instead.
             guard.finish()?;
-            Ok::<(), anyhow::Error>(())
+            Ok::<usize, anyhow::Error>(unembedded_docs)
         });
 
         // ── Blocking producer: git walk + graph writes ───────────────────
@@ -1349,13 +1355,14 @@ impl Engram {
         let consumer_result = consumer_handle
             .await
             .map_err(|e| McpError::internal_error(format!("index consumer panicked: {e}"), None))?;
-        if let Err(consumer_err) = consumer_result {
-            return Err(McpError::internal_error(
+        let unembedded_docs = consumer_result.map_err(|consumer_err| McpError::internal_error(
                 format!("index consumer failed: {consumer_err:#}"),
                 None,
-            ));
+            ))?;
+        let mut summary = summary.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        if unembedded_docs > 0 {
+            summary.push_str(&format!("\nstatus: degraded\nunembedded_docs: {unembedded_docs}\nHistory text and graph retained. After restoring the embedding provider, run repair_project(scope=\"vector_only\") for this project; history watermarks have advanced.\n"));
         }
-        let summary = summary.map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         // Update git checkpoints meta best-effort.
         if let Some(last_line) = summary.lines().find(|l| l.starts_with("last_oid: ")) {
@@ -1516,6 +1523,7 @@ impl Engram {
                     )
                     .await
                     .map_err(|e| anyhow::anyhow!(e.message.to_string()))?;
+                if summary.lines().any(|line| line == "status: degraded") { status = "degraded"; }
                 msg = summary;
 
                 Ok::<(), anyhow::Error>(())
