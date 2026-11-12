@@ -343,10 +343,14 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
 A slow or flaky brain gets dropped from the loop. These are mostly known issues with
 specs already written.
 
-- [ ] **36. Implement the 4-task git-history indexing perf plan** (M — already fully specced)
+- [~] **36. Implement the 4-task git-history indexing perf plan** (M — already fully specced)
   `docs/superpowers/plans/2026-04-16-index-git-history-perf.md`. Tree-ID precheck, drop
   BTreeSet, bulk IndexWriter, batched channel pipeline. 50–80% projected gain; git
   indexing measured in hours on big repos is an adoption blocker.
+  Reconciled 2026-11-12: all four implementation tasks already exist and are
+  included in the installed build; do not reimplement. The projected large-repo
+  speedup remains unmeasured, so this item stays partial.
+  Evidence: [existing implementation](eval/todo36-existing-implementation-20261112.json).
 
 - [ ] **37. Indexing progress reporting an agent can poll** (M)
   `project_tools.rs`, `git_tools.rs`, job service. Long indexing returns nothing until
