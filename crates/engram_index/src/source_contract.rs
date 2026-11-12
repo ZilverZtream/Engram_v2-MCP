@@ -10,18 +10,20 @@ pub fn requires_script_call_contract(path: &std::path::Path) -> bool {
         matches!(extension.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx"))
 }
 
-/// Separate from JS receiver compatibility: only TypeScript module sources
-/// and JSON config candidates need the new facts for second-pass resolution.
-fn typescript_fact_key(path: &str) -> Option<&'static str> {
+/// Per-language facts required for second-pass import resolution.
+fn module_fact_key(path: &str) -> Option<&'static str> {
     match std::path::Path::new(path).extension()?.to_str()?.to_ascii_lowercase().as_str() {
         "ts" | "tsx" => Some(engram_core::typescript_modules::MODULE_KEY),
         "json" => Some(engram_core::typescript_modules::CONFIG_KEY),
+        "py" => Some(engram_core::python_modules::MODULE_KEY),
         _ => None,
     }
 }
 
-fn current_typescript_fact(key: &str, raw: &str) -> bool {
-    if key == engram_core::typescript_modules::MODULE_KEY {
+fn current_module_fact(key: &str, raw: &str) -> bool {
+    if key == engram_core::python_modules::MODULE_KEY {
+        serde_json::from_str::<engram_core::python_modules::Module>(raw).is_ok_and(|m|m.version == 1)
+    } else if key == engram_core::typescript_modules::MODULE_KEY {
         serde_json::from_str::<engram_core::typescript_modules::Module>(raw).is_ok_and(|m| m.version == 1)
     } else {
         serde_json::from_str::<engram_core::typescript_modules::Config>(raw).is_ok_and(|c| c.version == 1)
@@ -79,8 +81,8 @@ impl SourceExtractionExpectation {
         if requires_script_call_contract(std::path::Path::new(path))
             && metadata.get("script_call_contract").and_then(serde_json::Value::as_u64)
                 != Some(SCRIPT_CALL_CONTRACT) { return false; }
-        if let Some(key) = typescript_fact_key(path) {
-            if !metadata.get(key).and_then(|v| v.as_str()).is_some_and(|raw| current_typescript_fact(key, raw)) {
+        if let Some(key) = module_fact_key(path) {
+            if !metadata.get(key).and_then(|v| v.as_str()).is_some_and(|raw| current_module_fact(key, raw)) {
                 return false;
             }
         }
@@ -118,15 +120,15 @@ impl SourceExtractionExpectation {
                 && stats.all_files.iter().any(|produced| produced.as_str() == path),
                 "Script call receipt does not belong to current produced output: {}", path);
         }
-        let typescript_receipts: std::collections::BTreeMap<_, _> = stats.symbols.iter()
+        let module_receipts: std::collections::BTreeMap<_, _> = stats.symbols.iter()
             .filter(|(_, symbol)| symbol.kind == "file")
             .filter_map(|(path, symbol)| symbol.metadata.as_ref().map(|metadata| (path.as_str(), metadata)))
             .collect();
         for path in &stats.all_files {
-            if let Some(key) = typescript_fact_key(path.as_str()) {
-                anyhow::ensure!(typescript_receipts.get(path.as_str()).and_then(|m| m.get(key))
-                    .is_some_and(|raw| current_typescript_fact(key, raw)),
-                    "Produced source {} has no current TypeScript module/config facts", path.as_str());
+            if let Some(key) = module_fact_key(path.as_str()) {
+                anyhow::ensure!(module_receipts.get(path.as_str()).and_then(|m| m.get(key))
+                    .is_some_and(|raw| current_module_fact(key, raw)),
+                    "Produced source {} has no current module/config facts", path.as_str());
             }
             if requires_script_call_contract(std::path::Path::new(path.as_str())) {
                 anyhow::ensure!(stats.script_call_contracts.get(path.as_str()) == Some(&SCRIPT_CALL_CONTRACT),

@@ -60,6 +60,31 @@ fn typescript_config_reuse_requires_extracted_facts_even_for_unchanged_json() ->
 }
 
 struct ParserOwner;
+
+#[test]
+fn python_modules_upgrade_legacy_facts_and_require_actual_production() -> Result<()> {
+    let expected = SourceExtractionExpectation::for_paths(2000, ["app.py"])?;
+    let mut metadata = serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
+        "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
+    ensure!(!expected.metadata_is_compatible(&metadata, "app.py"));
+    ensure!(expected.metadata_is_compatible(&metadata, "app.rs"));
+    let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new("app.py"),
+        "from api import save\ndef run():\n    return save()\n");
+    for (key,value) in symbols.iter().find(|s|s.kind=="file").unwrap().metadata.as_ref().unwrap() {
+        metadata[key]=serde_json::json!(value);
+    }
+    ensure!(expected.metadata_is_compatible(&metadata, "app.PY"));
+    let mut output=crate::IngestStats {
+        source_extraction_identity:Some(SourceExtractionIdentity::for_chunk_target(2000)),
+        files:1,all_files:vec![engram_core::RelPath::new("app.py")],..Default::default()
+    };
+    ensure!(expected.verify_produced(&output).is_err());
+    output.symbols.extend(symbols.into_iter().map(|s|(std::sync::Arc::new(engram_core::RelPath::new("app.py")),s)));
+    expected.verify_produced(&output)?;
+    metadata[engram_core::python_modules::MODULE_KEY]=serde_json::json!("{}");
+    ensure!(!expected.metadata_is_compatible(&metadata,"app.py"));
+    Ok(())
+}
 impl Drop for ParserOwner {
     fn drop(&mut self) {
         if let Err(error) = vb_extractor::shutdown_idle_parser() {

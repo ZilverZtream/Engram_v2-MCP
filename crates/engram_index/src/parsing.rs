@@ -6,6 +6,7 @@ use tree_sitter::{Parser, Query, QueryCursor};
 pub(crate) mod signature_types;
 mod value_flow;
 mod typescript_modules;
+mod python_modules;
 
 /// Ordinary JS/TS quoted strings only. None means unsupported, malformed or
 /// over budget; callers must not fall back to counting punctuation as strings.
@@ -906,6 +907,7 @@ impl SymbolExtractor {
 
         let mut symbols = Vec::new();
         let mut edges = Vec::new();
+        let mut python = (ext == "py").then(|| python_modules::Extraction::new(tree.root_node(), content));
         let mut module = matches!(ext, "ts" | "tsx")
             .then(|| typescript_modules::Extraction::new(tree.root_node(), content));
 
@@ -1004,7 +1006,8 @@ impl SymbolExtractor {
                     });
                     let js_member = matches!(ext, "ts" | "tsx" | "js" | "jsx")
                         && member_object.is_some();
-                    let module_call = module.as_ref().and_then(|m| m.call(node, content));
+                    let module_call = module.as_ref().and_then(|m| m.call(node, content))
+                        .or_else(|| python.as_ref().map(|m|m.call(node,content)));
                     let callee_fqn = if module_call.is_some() { None } else if js_member {
                         if member_object.is_some_and(|n| n.kind() == "this") {
                             local_this_member(node, callee_short, content, &fqn_table)
@@ -1040,12 +1043,19 @@ impl SymbolExtractor {
                             }
                         }
                         if let Some(call) = module_call {
-                            module.as_mut().expect("module call requires module extraction").facts.calls.push(engram_core::typescript_modules::OwnedCall {
+                            let owned = engram_core::typescript_modules::OwnedCall {
                                 source_name: parent_fqn.as_ref().unwrap_or(parent_name).clone(),
                                 source_kind: parent_kind.to_string(), source_line: *parent_line,
                                 call: call.clone(),
-                            });
-                            meta.insert(engram_core::typescript_modules::CALL_KEY.into(),
+                            };
+                            let key = if let Some(python) = python.as_mut() {
+                                python.facts.calls.push(owned);
+                                engram_core::python_modules::CALL_KEY
+                            } else {
+                                module.as_mut().expect("module call requires extraction").facts.calls.push(owned);
+                                engram_core::typescript_modules::CALL_KEY
+                            };
+                            meta.insert(key.into(),
                                 serde_json::to_string(&call).expect("serializable module call"));
                         }
                         let (target_name, target_kind): (String, Option<String>) =
@@ -1268,6 +1278,15 @@ impl SymbolExtractor {
                 metadata: Some(std::collections::HashMap::from([(
                     engram_core::typescript_modules::MODULE_KEY.into(),
                     serde_json::to_string(&module.facts).expect("serializable module facts"),
+                )])),
+            });
+        }
+        if let Some(python) = &python {
+            symbols.push(ExtractedSymbol { name: "file".into(), kind: "file".into(), start_line: 1,
+                end_line: tree.root_node().end_position().row as u32 + 1,
+                metadata: Some(std::collections::HashMap::from([(
+                    engram_core::python_modules::MODULE_KEY.into(),
+                    serde_json::to_string(&python.facts).expect("serializable Python facts"),
                 )])),
             });
         }
