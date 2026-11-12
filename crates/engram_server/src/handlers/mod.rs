@@ -2,6 +2,7 @@ pub mod access_layer_tools;
 pub mod ask_tools;
 pub mod batch_read_tools;
 pub mod schema_tools;
+pub mod n_plus_one_tools;
 mod business_source;
 mod caller_excerpts;
 mod unresolved_callers;
