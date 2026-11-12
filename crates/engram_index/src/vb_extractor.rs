@@ -736,6 +736,8 @@ struct SidecarResponse {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct VbInvocationReport {
+    #[serde(default)]
+    pub repetition_version: Option<String>,
     pub version: String,
     pub request_id: Option<String>,
     pub source_sha256: String,
@@ -757,6 +759,8 @@ pub struct VbInvocationReport {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct VbInvocation {
+    #[serde(default)]
+    pub repetition: Option<VbInvocationRepetition>,
     pub source_index: u32,
     pub span_start: u32,
     pub span_length: u32,
@@ -781,6 +785,39 @@ pub struct VbInvocationArgument {
     pub classification: String,
     pub syntax_ordinal: u32,
     pub parameter_ordinal: Option<u32>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VbInvocationRepetition {
+    pub method_name: String,
+    pub method_id: Option<String>,
+    pub method_start_line: u32,
+    pub method_end_line: u32,
+    #[serde(default)]
+    pub contexts: Vec<VbRepetitionContext>,
+    #[serde(default)]
+    pub contexts_truncated: bool,
+    pub database_call: Option<VbDatabaseCall>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VbRepetitionContext {
+    pub kind: String,
+    pub start_line: u32,
+    pub end_line: u32,
+    pub span_start: u32,
+    pub span_length: u32,
+    pub binding: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct VbDatabaseCall {
+    pub method: String,
+    pub receiver_type: String,
+    pub declaration_line: u32,
+    pub literal_command: Option<String>,
+    pub command_text_origin: Option<String>,
+    pub evidence: String,
 }
 
 #[derive(Debug, Deserialize)]

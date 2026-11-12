@@ -285,6 +285,7 @@ without re-reading an entire file:
 | `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
 | `batch_read` | Up to 16 method, identity and stored-chunk reads under one response budget |
 | `query_schema` | Qualified, source-cited SQL table, column, key, index, view, trigger and procedure queries |
+| `detect_n_plus_one` | Source-cited candidates for database calls repeated by VB loops or WebForms row binding |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
@@ -336,6 +337,22 @@ Missing nullability stays unknown; `nullable_columns` returns explicit `NULL`.
 Procedure/view references are lexical candidates, and unqualified relationships
 do not establish a default schema. Table queries also return bounded, freshly
 verified indexed code-reference leads with their qualified-binding limitation.
+
+`detect_n_plus_one` accepts `project_id` and an optional selected VB `file_path`.
+Without a file, use `max_files` (1–16, default 8), `file_offset`, and the returned
+`next_page`. Findings connect loop or row-binding locations to database calls,
+including bounded indexed helper paths. They include heuristic severity and
+JOIN/batch guidance. Actual query counts, row counts and runtime cost remain
+unknown. Selected source revisions and current file fingerprints must match.
+
+The paired VB sidecar recognizes method-body loops, explicit `Handles` and
+authored paired markup row bindings, ADO.NET command declarations and declared
+DataContext/DbContext query materialization. Cached collections and deferred
+lambdas are excluded. Constructors/accessors, dynamic dispatch, injected
+receiver parameters and translated SQL remain unassessed. Coverage gaps and
+truncation are explicit; zero findings do not establish absence of N+1 queries.
+The complete JSON budget defaults to 16384 estimated tokens, maximum 65536;
+an insufficient budget fails intact. Analysis does not run SQL or edit sources.
 
 ### Incremental indexing and memory
 

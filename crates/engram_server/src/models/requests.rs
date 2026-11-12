@@ -1,6 +1,18 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct DetectNPlusOneRequest {
+    pub project_id: String,
+    /// Selected project-relative VB file; omitted means a page of selected VB files.
+    pub file_path: Option<String>,
+    pub file_offset: Option<usize>,
+    /// File page size, 1..=16; default 8.
+    pub max_files: Option<usize>,
+    pub max_tokens: Option<usize>,
+}
+
 /// Query source-declared SQL schema, never a live database.
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
