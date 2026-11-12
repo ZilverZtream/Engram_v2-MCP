@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "TODO23 Java package/import/receiver call resolution",
+  "at_utc": "2026-11-12T09:51:48.827515+00:00",
+  "source_commit": "520cd92684ca75d1e48f23ac97df1c37a32ac76a",
+  "source_sha256": {
+    "crates/engram_core/src/java_modules.rs": "dc63e9d9fed6e396d0710d9844e063405820d38627f8645908b8031aa26f4d83",
+    "crates/engram_index/src/parsing/java_modules.rs": "e616469024348e3e82061e7b83ed5b7cce09eb16d9b7d1bd9490bf1046609a6a",
+    "crates/engram_index/src/parsing.rs": "b4749bb39929f1d1e8755cdd6ac3904e031c043a2ddda770d69261f5fb709178",
+    "crates/engram_index/src/source_contract.rs": "46b2c7020ebcaed515a6db6a353871833e711c240273d9faf9e4dec4722b3404",
+    "crates/engram_graph/src/store/java_modules.rs": "557ce3a115893cddbbef54801eaae4c4f1077283a9afca3b67849e870b1d1c41",
+    "crates/engram_graph/src/store.rs": "1e14bde9cb04459740e6d9fe2c92af78a7351c78866e74881c6e6233e6cc3df3",
+    "crates/engram_server/src/services/ingest_service.rs": "d8a4ebfcaf38abb8b476e490e86c480b874c556695a4e5a12a94cd9e0a7fe5ed",
+    "crates/engram_server/src/handlers/graph_tools.rs": "026df2806d84f15ce87d7a0b6812a94ea6e42b89de651a506f118844d201be00",
+    "crates/engram_core/src/lib.rs": "10c3a3723dc711b44fa1ef9d977358f946e0fdae82c10827180cbfbbf048a587",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "474aa760353f0361eab347bc025d35bfc8f4bb0c4df72733a107fe030d482921",
+    "crates/engram_server/src/services/ingest_service/java_module_tests.rs": "cd60510d2d666869fdcb9b3a48986aabf9e265901b9f5eb3a1a977365765ac54"
+  },
+  "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java using the existing two-pass architecture. The first four languages are delivered; Java is the one active item. The original broader backlog remains open.",
+  "demonstrated": [
+    "Calls resolve indexed package/type declarations from file-local single/on-demand type and static imports, fully qualified names and same-package references.",
+    "Explicitly typed parameters, locals and fields, bare/this calls and nested types link to source declarations with bounded call/import/target evidence.",
+    "Ambiguity, access/static restrictions, unsupported receiver inference/inheritance and unindexed dependencies remain explicit unresolved results.",
+    "Package, declaration and import edits retract stale calls and rebind retained callers; target deletion/restoration recovers exact references.",
+    "Old-index and post-update graph-only repair preserve source/search/vector files and source generation without repair embedding requests; post-update repair also preserves recovered source chunks and jobs."
+  ],
+  "limitations": [
+    "Static source-declaration evidence, not Java compiler type checking or runtime dispatch proof.",
+    "Overload selection requiring argument types, inferred/unknown/array receiver types, inherited method lookup and cross-named-module visibility are explicitly unresolved. No Maven/Gradle/classpath or external dependency download.",
+    "Pattern-variable flow and local/anonymous class resolution remain conservative and explicit; source parser errors or unsupported syntax do not produce guessed bindings.",
+    "Legacy indexes need current Java extraction facts via update_project or graph_only repair. Public upgrade/storage preservation and deployment are not yet claimed.",
+    "All five language delivery receipts exist; parent TODO23 acceptance still requires reconciliation before closure.",
+    "Production source was not reindexed. Legacy Java extraction needs update_project or graph_only repair for current facts.",
+    "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-source-20261112.json",
+      "sha256": "888982488a42d68eda92342a1f65ed73831bf380e7bab669e43cecc5cd0ae392"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\pair.json",
+      "sha256": "6e369ad24a9326ca53794e81f591acb5973c38f14db61ff00f22e55ac5eb5f6c"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\candidate\\acceptance.json",
+      "sha256": "c3e6a3950503e3ea337a6c81cc7242cc8ae191d32e8df9126c219e511093896e"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\installed\\acceptance.json",
+      "sha256": "2ee18fc6e694ca9576fee0e698f1456593ed9ae6d56c5d6876a9bed47aad45b2"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\normal\\acceptance.json",
+      "sha256": "ebfcf125e088a3e40463799e4b9fb4c965106f2e1413294cba37a51e423bf847"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\release-gates.json",
+      "sha256": "180f2ac14df7cfc717b43976f91e04bd3e731f9b213dc4c7e0d4af99106c4113"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\install-result.json",
+      "sha256": "750dcf767598ff72b58976ef0055c431e9fa2b2cc6013f927500a8085abca196"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-config-hold-20261112.json.released.json",
+      "sha256": "8aad21a72d6eac3aaa8863d3dad027f08877a671faf4fc90c87e4c0055a70b79"
+    },
+    "server_sha256": "efe961d790233f2cbcd806f9b1f3bd613a8972c5e1b21440db96f9be51a79d21",
+    "manifest_sha256": "d3f9b060020bf75f709d1ba203ea917130daf6d59d0245c9fbf767dd3fb6096b",
+    "all_manifest_assets_verified": 215,
+    "unchanged_companion_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b3bcd376a3d04c80bda1635f73276030",
+    "cleanup_condition": "Retain package, complete old pair, journals and evidence. No preexisting folder deletion authorized."
+  },
+  "broader_goal": "ACTIVE; Java delivery alone does not close parent TODO23 acceptance or the original backlog."
+}

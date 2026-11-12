@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "at_utc": "2026-11-12T09:23:38.157496+00:00",
-  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "active_item": "TODO23 Java; parent and broader backlog remain open",
   "implementation_sha256": {
     "crates/engram_core/src/java_modules.rs": "dc63e9d9fed6e396d0710d9844e063405820d38627f8645908b8031aa26f4d83",
@@ -80,12 +80,8 @@
       }
     }
   },
-  "remaining": [
-    "Release build",
-    "Candidate old-index graph upgrade and public edit/delete/restore/repair acceptance",
-    "Install, repeat public acceptance and verify normal daemon; record and push delivery evidence"
-  ],
-  "next_action": "Commit validated implementation and build p127-java-modules-source-20261112 with the existing owned shared-target runner.",
+  "remaining": [],
+  "next_action": "Reconcile original TODO23 acceptance against the five language deliveries, then advance the next accepted backlog item.",
   "limitations": [
     "Static source-declaration evidence, not Java compiler type checking or runtime dispatch proof.",
     "Overload selection requiring argument types, inferred/unknown/array receiver types, inherited method lookup and cross-named-module visibility are explicitly unresolved. No Maven/Gradle/classpath or external dependency download.",
@@ -103,5 +99,8 @@
     "baseline_fixture_removed": true,
     "retained": "Authored scripts, source/wire evidence, logs, stable input hashes and subsequent release package; no preexisting folder deletion."
   },
-  "full_original_goal": "ACTIVE; Java deployment, parent TODO23 closure and the broader original backlog are not claimed."
+  "full_original_goal": "ACTIVE; Java delivered. Parent acceptance and the original backlog remain open.",
+  "in_flight": null,
+  "delivery_receipt": "eval/p127-java-modules-delivery-20261112.json",
+  "checkpoint": "Java pair installed and verified; parent acceptance reconciliation remains open."
 }
