@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
       "at_utc": "2026-11-12T20:05:51.350547+00:00",
       "original_requirement": "TODO35 / AGENT_ENHANCEMENT_SPEC.md39-5 find_missing_indexes: collect WHERE/JOIN/ORDER BY column patterns from indexed inline SQL and stored procedures, cross-reference source-declared indexes, rank by static call-site frequency, and return CREATE INDEX candidates with file:line reasons, index-type guidance and selectivity warnings.",
       "observed_missing_behavior": "No find_missing_indexes handler/tool exists. Existing schema_query catalog supplies qualified SQL declaration/index evidence; sqlparser0.59 is already a dependency. Indexed SqlCalls edges carry sql_text and source method identity. Existing sql_binding/sql_scopes shows AST scope handling. Regex scaffold SQL analysis does not supply sufficient qualified binding/ORDER BY coverage for this requirement.",
@@ -10005,7 +10005,9 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes",
       "scope_guard": "OciusX SQL Server and existing VB static SQL evidence only. CodeMap/Blast and unrelated Java/Python/Rust/Go analysis remain closed/parked. query_schema and detect_n_plus_one are delivered; do not reopen them absent a direct integration regression.",
       "resources": "Reuse shared build target and existing isolated source checkout. Own and close new fixtures; retain evidence here. No preexisting folder deletion.",
-      "retained_limits": "Original19 gates, overall comparative usefulness and other unfinished/held backlog requirements stay open. LINQ generated SQL is outside available static SQL evidence and must be disclosed, not fabricated."
+      "retained_limits": "Original19 gates, overall comparative usefulness and other unfinished/held backlog requirements stay open. LINQ generated SQL is outside available static SQL evidence and must be disclosed, not fabricated.",
+      "source_commit": "96882b0",
+      "native_tests": 7
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10038,7 +10040,7 @@
       }
     ],
     "active_original_item": "TODO35 find_missing_indexes",
-    "next_user_visible_deliverable": "Source-cited index candidates from existing inline/stored-procedure SQL and source schema, with coverage/index-applicability limits and no live database action.",
+    "next_user_visible_deliverable": "Finish source-pinned index-suggestion release build, public candidate/installed checks and pinned OciusX rl_pris_view existing-index suppression acceptance; then advance.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10057,7 +10059,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "N+1 release built, candidate/installed10-call acceptance passed, matched server/sidecar deployed, actual OciusX query148/loop146 verified with generation3148/source unchanged."
+      "evidence": "Index-suggestion implementation committed96882b0; native2 all7 focused checks pass. Release build73628 live, public/installed acceptance pending. N+1 remains deployed; parked9 files unchanged."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
