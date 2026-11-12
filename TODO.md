@@ -215,7 +215,7 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   that's where most agent work happens today. Reuse the existing two-pass FQN
   architecture from the .NET side.
 
-  Active: TypeScript import/module resolution (`eval/p123-typescript-modules-baseline-20261112.json`); Python, Rust, Go and Java remain open.
+  TypeScript delivered: `eval/p123-typescript-modules-delivery-20261112.json` (candidate and installed module/alias calls, incremental changes and storage-preserving graph repair). Python, Rust, Go and Java remain open.
 
 - [ ] **24. Project-type detection + capability gating** (M)
   `project_service.rs`, `capabilities.rs`. Detect ecosystem at index time (csproj/sln vs

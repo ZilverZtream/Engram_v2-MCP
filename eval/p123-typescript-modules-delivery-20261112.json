@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "TODO23 TypeScript import/module call resolution",
+  "at_utc": "2026-11-12T05:47:17.003651+00:00",
+  "source_commit": "4b9a2fc47ae9a1a43c5c7ff43b64abcdc2f2d02b",
+  "source_sha256": {
+    "crates/engram_core/src/typescript_modules.rs": "599e6954ce3cd41f074d84f226272b021b306f5521b236f74ed28cf5de94ef21",
+    "crates/engram_graph/src/store/typescript_modules.rs": "1f6e22c530a34247f9ad499285abf448dfe0914ebceab6ed70d00c405a88e890",
+    "crates/engram_graph/src/store/typescript_modules/config.rs": "6cbad6b7e57e5ec064a7f9d0834b80966660fe6b937c55a677963dea5966d35e",
+    "crates/engram_index/src/parsing/typescript_modules.rs": "929842af5ba88ba30e3a1f917fe8c8eb9aa659cf3da0bfaf44f19edbf07d9fb8",
+    "crates/engram_index/src/parsing/typescript_modules/config.rs": "5742efbeb4836dc363eaf68a4dae6edec3be8e2f6002b619499c66f5e6b76786",
+    "crates/engram_index/src/parsing/typescript_modules/tests.rs": "c21af2360d98762d743effccb1ecdb491098bff1cc8df397c6b8d593b7ff175c",
+    "crates/engram_server/src/services/ingest_service/typescript_module_tests.rs": "ceb9450fa40521c13a452a0a37fb991f6d1c40149c53c390db66b55582395a49",
+    "crates/engram_core/src/lib.rs": "6d476a6442f98338925330d1c1b463431723f65ac83757318779392d25d741c0",
+    "crates/engram_graph/src/store.rs": "01e1a7beb8ba9b811b25840441209f56aed22662ebee93aec542e1fe8cfe5631",
+    "crates/engram_index/src/parsing.rs": "f2975f881974ab47131f06b072818f0fbbb30e1310fd02784a1f2110425394cd",
+    "crates/engram_index/src/source_contract.rs": "4f91049d0b0dafa7d857999ffff64b8dadf1f9f8e8b9bf6fb00ce81580d1b85b",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "3e0b5bc83213acc65f57e40a9169422204aa864deae96f2b6df1972092848b1f",
+    "crates/engram_server/src/handlers/graph_tools.rs": "98b34a3f2c216e181149cdd5f396807a1e41f919c5cecd702a7e0015579783cb",
+    "crates/engram_server/src/services/ingest_service.rs": "66acce935caddaa98cb1022fcd618281e4365151a317da1e2896ee33b477ecbc"
+  },
+  "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java. The original item explicitly starts with TypeScript and Python and is sized per language. This active delivery is TypeScript; the parent requirement and remaining languages stay open.",
+  "demonstrated": [
+    "Named aliases, default and namespace imports target the actual source export instead of same-named functions in unrelated files.",
+    "Relative, extension/index, barrel and tsconfig baseUrl/paths imports resolve from indexed source facts. JSX specifiers prefer TSX siblings; JS specifiers prefer TS.",
+    "Public Calls responses retain bounded import/call/target source locations and explicitly identify syntax-only evidence and unbound reasons.",
+    "Ambiguous/cyclic/external/type-only/dynamic/shadowed/unsupported cases remain unbound; receiver variables retain their earlier protections.",
+    "Changing imports, exports or config mappings retracts old targets; unchanged callers retain their source, and deleting/restoring a target recovers links from retained call facts.",
+    "Actual old-index graph upgrade and graph-only repair preserve search/vector files and recovered source chunks, with no repair embedding requests."
+  ],
+  "limitations": [
+    "Static authored module relationships, not TypeScript compiler, runtime, general receiver-type or whole-program proof.",
+    "Uses nearest indexed tsconfig with supported local relative extends; package/array extends and unsupported forms stay unbound.",
+    "Python, Rust, Go and Java portions of TODO23 remain unfinished; the parent TODO stays unchecked.",
+    "Production source was not reindexed. Legacy TypeScript/config extraction requires update_project or graph_only repair for new facts.",
+    "Parent manual review only; no external CodeRabbit review or full original backlog/19-gate closure."
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-ts-modules-source-v2-20261112.json",
+      "sha256": "9d4c1a81f8c37fa45279ed9bfc5c5a260d3974b513b9cb7eab086a1c3aef5856"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\pair.json",
+      "sha256": "98b84153ab48da8b7fa5c633e0d66c62f0da9b32048ced7bc7ad6d55d03ef29c"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\candidate-v3\\acceptance.json",
+      "sha256": "92a844fc784ccd7060e18abfdbaea9231a0106b6eeb375b635eb899befa2ac0e"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\installed\\acceptance.json",
+      "sha256": "be74064c81846d9a3c747e45cbb1bce7212d92ce80f411b4a4c09ebcb5a8e793"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\normal\\acceptance.json",
+      "sha256": "ca710715cd395051f58be51b4d1216ad6338943b3f98a63f4cd54a58dae304c2"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\release-gates.json",
+      "sha256": "1ea0e610af2427742b3b6fe60d0eea1744762d7389f581ff1169ad7109215475"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\install-result.json",
+      "sha256": "f7df1e28f16edab67738c4fc43aa6c3704ee79e1502d73d19d9120c4dbd911d8"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-ts-modules-config-hold-20261112.json.released.json",
+      "sha256": "7d601298c7f3b7768e10618973d069282304ba67f1477eabb3a4175101e12f9b"
+    },
+    "server_sha256": "b3c8dbf65a291171ff049db95dda5aab7033ca722073c8027a793ebe9b5ffb69",
+    "manifest_sha256": "f826778dbe5136935e04144b02a3fb8e965cc3139e707dd0437f37c8cfe7dbd8",
+    "all_manifest_assets_verified": 215,
+    "unchanged_companion_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-135e021fddbf48a4b4a4587f55bac6e8",
+    "cleanup_condition": "Retain package, old complete pair, journals and evidence. No preexisting folder deletion authorized."
+  },
+  "broader_goal": "ACTIVE; TypeScript delivery does not complete TODO23 or the original backlog.",
+  "verification_retries": {
+    "retained_failures": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\candidate\\acceptance.json",
+        "status": "FAIL",
+        "error": "AssertionError(\"Outgoing references (kind='calls'):\\n- ::persist (weight=1)\")",
+        "resources_closed": true,
+        "owned_fixture_removed": true,
+        "production_unchanged": true
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\candidate-v2\\acceptance.json",
+        "status": "FAIL",
+        "error": "AssertionError(('RunJs', '- sym:function:app.ts:RunJs:23 | function | app.ts (lines 23-23 | gen 1)\\n- sym:function:app.ts:RunJsx:24 | function | app.ts (lines 24-24 | gen 1)'))",
+        "resources_closed": true,
+        "owned_fixture_removed": true,
+        "production_unchanged": true
+      }
+    ],
+    "corrections": [
+      "Old baseline must lack the correct module target and source proof; unresolved or decoy targets are both missing behavior.",
+      "Filter substring node search results to the exact authored caller name before checking outgoing calls."
+    ],
+    "implementation_changed_during_retries": false,
+    "passing_candidate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\candidate-v3\\acceptance.json"
+  }
+}
