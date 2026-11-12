@@ -16,6 +16,7 @@ pub struct CapabilityFlag {
 
 #[allow(dead_code)]
 pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
+    CapabilityFlag { key: "find_missing_indexes", status: CapabilityStatus::Implemented },
     CapabilityFlag {
         key: "detect_n_plus_one",
         status: CapabilityStatus::Implemented,

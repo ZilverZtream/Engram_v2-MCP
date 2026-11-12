@@ -10,9 +10,9 @@ use sqlparser::{
 };
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub struct Name(Vec<String>);
+pub struct Name(pub(super) Vec<String>);
 impl Name {
-    fn matches(&self, other: &Self) -> bool {
+    pub(super) fn matches(&self, other: &Self) -> bool {
         self.0.len() == other.0.len()
             && self
                 .0
@@ -20,7 +20,7 @@ impl Name {
                 .zip(&other.0)
                 .all(|(a, b)| a.eq_ignore_ascii_case(b))
     }
-    fn lookup(&self, query: &Self) -> bool {
+    pub(super) fn lookup(&self, query: &Self) -> bool {
         self.matches(query)
             || (query.0.len() == 1
                 && self
@@ -28,7 +28,7 @@ impl Name {
                     .last()
                     .is_some_and(|s| s.eq_ignore_ascii_case(&query.0[0])))
     }
-    fn display(&self) -> String {
+    pub(super) fn display(&self) -> String {
         self.0
             .iter()
             .map(|s| format!("[{}]", s.replace(']', "]]")))
@@ -37,17 +37,17 @@ impl Name {
     }
 }
 
-fn tokens(sql: &str) -> anyhow::Result<Vec<TokenWithSpan>> {
+pub(super) fn tokens(sql: &str) -> anyhow::Result<Vec<TokenWithSpan>> {
     Ok(Tokenizer::new(&MsSqlDialect {}, sql)
         .tokenize_with_location()?
         .into_iter()
         .filter(|t| !matches!(t.token, Token::Whitespace(_)))
         .collect())
 }
-fn kw(t: &[TokenWithSpan], i: usize, text: &str) -> bool {
+pub(super) fn kw(t: &[TokenWithSpan], i: usize, text: &str) -> bool {
     t.get(i).is_some_and(|t| matches!(&t.token, Token::Word(w) if w.quote_style.is_none() && w.value.eq_ignore_ascii_case(text)))
 }
-fn name_at(t: &[TokenWithSpan], mut i: usize) -> Option<(Name, usize)> {
+pub(super) fn name_at(t: &[TokenWithSpan], mut i: usize) -> Option<(Name, usize)> {
     let mut parts = vec![];
     loop {
         let Token::Word(w) = &t.get(i)?.token else {
@@ -62,7 +62,7 @@ fn name_at(t: &[TokenWithSpan], mut i: usize) -> Option<(Name, usize)> {
     }
     (parts.len() <= 4).then_some((Name(parts), i))
 }
-fn input_name(s: &str) -> anyhow::Result<Name> {
+pub(super) fn input_name(s: &str) -> anyhow::Result<Name> {
     anyhow::ensure!(
         !s.trim().is_empty() && s.len() <= 512 && !s.chars().any(char::is_control),
         "SQL name must contain 1..=512 bytes without control characters"
@@ -73,13 +73,13 @@ fn input_name(s: &str) -> anyhow::Result<Name> {
     anyhow::ensure!(end == t.len(), "Expected only a SQL identifier");
     Ok(name)
 }
-fn text(t: &[TokenWithSpan]) -> String {
+pub(super) fn text(t: &[TokenWithSpan]) -> String {
     t.iter()
         .map(|t| t.token.to_string())
         .collect::<Vec<_>>()
         .join(" ")
 }
-fn close(t: &[TokenWithSpan], start: usize) -> Option<usize> {
+pub(super) fn close(t: &[TokenWithSpan], start: usize) -> Option<usize> {
     if t.get(start)?.token != Token::LParen {
         return None;
     }
@@ -97,7 +97,7 @@ fn close(t: &[TokenWithSpan], start: usize) -> Option<usize> {
     }
     None
 }
-fn segments(t: &[TokenWithSpan]) -> Vec<&[TokenWithSpan]> {
+pub(super) fn segments(t: &[TokenWithSpan]) -> Vec<&[TokenWithSpan]> {
     let (mut result, mut start, mut depth) = (vec![], 0, 0i32);
     for (i, token) in t.iter().enumerate() {
         match token.token {
@@ -134,15 +134,15 @@ pub struct Citation {
     pub source_hash: String,
 }
 #[derive(Clone, Serialize)]
-struct Column {
-    name: String,
-    data_type: Option<String>,
-    nullable: Option<bool>,
-    default_value: Option<String>,
-    computed_expression: Option<String>,
-    identity: Option<String>,
-    primary_key: bool,
-    declaration: String,
+pub(super) struct Column {
+    pub(super) name: String,
+    pub(super) data_type: Option<String>,
+    pub(super) nullable: Option<bool>,
+    pub(super) default_value: Option<String>,
+    pub(super) computed_expression: Option<String>,
+    pub(super) identity: Option<String>,
+    pub(super) primary_key: bool,
+    pub(super) declaration: String,
 }
 #[derive(Clone, Serialize)]
 struct ForeignKey {
@@ -156,38 +156,38 @@ struct ForeignKey {
     target: Name,
 }
 #[derive(Clone, Serialize)]
-struct Table {
-    name: String,
-    columns: Vec<Column>,
-    primary_key: Vec<String>,
+pub(super) struct Table {
+    pub(super) name: String,
+    pub(super) columns: Vec<Column>,
+    pub(super) primary_key: Vec<String>,
     foreign_keys: Vec<ForeignKey>,
-    constraints: Vec<String>,
-    constraint_indexes: Vec<Value>,
-    citation: Citation,
-    gaps: Vec<String>,
+    pub(super) constraints: Vec<String>,
+    pub(super) constraint_indexes: Vec<Value>,
+    pub(super) citation: Citation,
+    pub(super) gaps: Vec<String>,
     #[serde(skip)]
-    key: Name,
+    pub(super) key: Name,
 }
 #[derive(Clone, Serialize)]
-struct Object {
-    kind: &'static str,
-    name: String,
-    target_table: Option<String>,
-    references: Vec<String>,
-    declaration: String,
-    citation: Citation,
+pub(super) struct Object {
+    pub(super) kind: &'static str,
+    pub(super) name: String,
+    pub(super) target_table: Option<String>,
+    pub(super) references: Vec<String>,
+    pub(super) declaration: String,
+    pub(super) citation: Citation,
     #[serde(skip)]
-    key: Name,
+    pub(super) key: Name,
     #[serde(skip)]
-    target: Option<Name>,
+    pub(super) target: Option<Name>,
     #[serde(skip)]
-    refs: Vec<Name>,
+    pub(super) refs: Vec<Name>,
 }
 
 #[derive(Default)]
 pub struct Catalog {
-    tables: Vec<Table>,
-    objects: Vec<Object>,
+    pub(super) tables: Vec<Table>,
+    pub(super) objects: Vec<Object>,
     pub gaps: Vec<String>,
 }
 
