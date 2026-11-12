@@ -233,7 +233,7 @@ impl Catalog {
                 || format!("unresolved-sp:{}", command.name),
                 |d| format!("source-sp:{}:{}:{}", d.path, d.line, d.name),
             );
-            hops.push(Hop {from:method.node_id.clone(),to:id.clone(),kind:"calls_stored_procedure".into(),target_name:command.name.clone(),
+            hops.push(Hop {table_mapping:None,from:method.node_id.clone(),to:id.clone(),kind:"calls_stored_procedure".into(),target_name:command.name.clone(),
                 target_file:definition.map(|d|d.path.clone()),target_line:definition.map(|d|d.line),target_source_verified:definition.is_some(),
                 evidence:Some(json!({"origin":"current_method_source_command_candidate","receiver":command.receiver,"call_site_line":method.start_line+command.line as u32-1,
                     "interpretation":"Single literal command name and StoredProcedure assignment on this local receiver. Aliasing, branch reachability, server identity and successful execution are not proven."}))});
@@ -255,7 +255,7 @@ impl Catalog {
                         );
                         break;
                     }
-                    hops.push(Hop {from:id.clone(),to:format!("sql-table-reference:{table}"),kind:kind.into(),target_name:table.clone(),target_file:None,target_line:None,target_source_verified:false,
+                    hops.push(Hop {table_mapping:None,from:id.clone(),to:format!("sql-table-reference:{table}"),kind:kind.into(),target_name:table.clone(),target_file:None,target_line:None,target_source_verified:false,
                         evidence:Some(json!({"origin":"existing_source_sp_analyzer","file":definition.path,"line":definition.line,"source_blake3":definition.hash,"interpretation":"Lexical table reference in the cited procedure. Database/schema binding, branch reachability and execution are not established."}))});
                 }
             }
