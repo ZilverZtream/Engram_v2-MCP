@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement": "TODO23: second-pass import/module call resolution. TypeScript, Python and Rust are delivered; Go packages are the one active item. Java and the original parent/backlog remain open.",
       "observed_missing_behavior": "Go call extraction drops selector/import identity and retains only terminal names. Package imports and module manifests are not retained; default indexing omits go.mod/go.work.",
       "finite_acceptance": [
@@ -9982,7 +9982,7 @@
         "crates/engram_server/src/utils/files.rs"
       ],
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112",
-      "next_action": "Commit validated implementation and build p126-go-modules-source-20261112 with existing owned shared-target runner.",
+      "next_action": "Select Java within original TODO23 once, preserving other unfinished original requirements.",
       "constraints": "One implementation item. No CodeMap/Blast work, compiler infrastructure, network module downloads or environment selection. Source evidence is not Go compiler/build-tag/runtime proof. Preserve all remaining original backlog work.",
       "semantic_sources": [
         "https://go.dev/ref/spec#Import_declarations",
@@ -10009,7 +10009,8 @@
           }
         }
       },
-      "progress_receipt": "eval/p126-go-modules-progress-20261112.json"
+      "progress_receipt": "eval/p126-go-modules-progress-20261112.json",
+      "delivery_receipt": "eval/p126-go-modules-delivery-20261112.json"
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",

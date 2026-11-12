@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "at_utc": "2026-11-12T08:14:44.855043+00:00",
-  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "active_item": "TODO23 Go; Java and parent remain open",
   "implementation_sha256": {
     "crates/engram_core/src/go_modules.rs": "334a4755fde601c1422f6740c923eaf5575f12971a7f842ddfe6512716221eed",
@@ -64,12 +64,8 @@
       }
     }
   },
-  "remaining": [
-    "Release build",
-    "Candidate old-index update admitting manifests, source/import/package/manifest changes and storage-preserving post-update graph repair",
-    "Install and repeat public acceptance; normal daemon verification; push delivery evidence"
-  ],
-  "next_action": "Commit validated implementation and build p126-go-modules-source-20261112 with existing owned shared-target runner.",
+  "remaining": [],
+  "next_action": "Advance to Java, the next language in original TODO23; preserve the full remaining backlog.",
   "limitations": [
     "Static source evidence, not Go compiler, runtime, build-tag/platform, GOWORK environment or receiver-dispatch proof.",
     "Only indexed project-local module/workspace/replacement paths are resolved. No network/module-cache lookup or full minimal-version selection.",
@@ -87,5 +83,8 @@
     "baseline_fixture_removed": true,
     "retained": "Authored cases, helpers, logs, source hashes and release package retained for delivery evidence."
   },
-  "full_original_goal": "ACTIVE; Go deployment and parent TODO23 completion are not claimed."
+  "full_original_goal": "ACTIVE; Go delivered. Java and the original backlog remain open.",
+  "in_flight": null,
+  "delivery_receipt": "eval/p126-go-modules-delivery-20261112.json",
+  "checkpoint": "Go pair installed and verified; parent languages remain open."
 }

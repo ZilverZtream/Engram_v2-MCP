@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "TODO23 Go package/import call resolution",
+  "at_utc": "2026-11-12T08:50:05.452734+00:00",
+  "source_commit": "73b3e392f22982f239336bf32bcf91e6668c3f36",
+  "source_sha256": {
+    "crates/engram_core/src/go_modules.rs": "334a4755fde601c1422f6740c923eaf5575f12971a7f842ddfe6512716221eed",
+    "crates/engram_index/src/parsing/go_modules.rs": "ab433707317c3399abda08011d8df7815c527af8e75814d2dc510cca433688b3",
+    "crates/engram_index/src/parsing/go_modules/config.rs": "0915b1f79dd847a6f0a9be3c83aec7129d6b6a727a532d7957572d56d3060bce",
+    "crates/engram_index/src/parsing.rs": "fdf916b85e1fdc551c0fdd51de53c8501cddd91269ca9537c56a3ab5a27a49fa",
+    "crates/engram_index/src/source_contract.rs": "7ea38ae28cd06db505c2802dbefbe82662dba71ee3f3fb16eca5d727ed5c78de",
+    "crates/engram_graph/src/store/go_modules.rs": "c9b7c1d7019f74a1a51717dbb5a890272579f9d78f7bceaa3274679d5069e487",
+    "crates/engram_graph/src/store.rs": "e163c2716c22812dff60121def7807f74b7c05a0d0629f65ebabde9da0438cb8",
+    "crates/engram_server/src/services/ingest_service.rs": "85faa03eb14dda6c1bc8cfe7831c2818dc98246cc7df493c19175ac57016dbae",
+    "crates/engram_server/src/handlers/graph_tools.rs": "7aaf96ddcd5b6e71f3372aa181fe6fab72f1b80bd6ec06a4cba6071ee5b2cad7",
+    "crates/engram_server/src/utils/files.rs": "f68983cea749590cde27789ec7d012bc1544fc08cce4080b767533a3f4204bfb",
+    "crates/engram_core/src/lib.rs": "04191083ab3f59f304c2e2bfe78816550172a0a5e2845edf2e6ca3f21195bb62",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "4769403f8faf14e83c2cca7d954ba3caf3d9a228c07f45ae65493ec01b95dab3",
+    "crates/engram_server/src/services/ingest_service/go_module_tests.rs": "37c6b2d0c79444c7199b7bcd61fde5a2f804b0ce9595c66585214f4abef7fb56"
+  },
+  "original_requirement": "TODO23: second-pass import/module call resolution. TypeScript, Python and Rust are delivered; Go packages are the one active item. Java and the original parent/backlog remain open.",
+  "demonstrated": [
+    "Cross-file functions and imported package calls resolve authored declarations using aliases and declared default package names instead of terminal-name guesses.",
+    "Dot/blank imports, lexical shadowing, exported members and test-package boundaries remain distinct in public Calls.",
+    "Module replacement and workspace edits rebind unchanged callers to the selected indexed package.",
+    "Package, declaration and import edits retract stale links; deletion/restoration recovers target calls.",
+    "Old-index update admits go.mod/go.work metadata. Subsequent graph-only repair preserves source/search/vector files and recovered chunks without repair embedding requests."
+  ],
+  "limitations": [
+    "Static source evidence, not Go compiler, runtime, build-tag/platform, GOWORK environment or receiver-dispatch proof.",
+    "Only indexed project-local module/workspace/replacement paths are resolved. No network/module-cache lookup or full minimal-version selection.",
+    "Build-constrained/cgo/ignored sources, ambiguous declarations/imports, unsupported configs and unindexed external packages remain unresolved.",
+    "Old indexes need update_project to admit go.mod/go.work files newly included by default indexing. Graph-only repair preserves the admitted source set; no production reindex is performed.",
+    "The Java portion of TODO23 remains unfinished; the parent TODO stays unchecked.",
+    "Production source was not reindexed. Legacy Go indexes need update_project to admit go.mod/go.work and current source facts.",
+    "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-source-20261112.json",
+      "sha256": "a6fc39cad2718006b264dd396e628199ee6b4bdb08a0d21c31d391a5b22fdecf"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\pair.json",
+      "sha256": "b4bd9c328aa079a89636aab90acbeabb6408c5695df07f6860e7a9eab446d716"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\candidate\\acceptance.json",
+      "sha256": "e6739f2f98ed62bfd5824904681dad556f2fed6cdb3b86d98eb2e89d69bc2047"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\installed\\acceptance.json",
+      "sha256": "3c563ab66272140621d6136158ddd77e8d1631a0520d10777c687e062da9d3d2"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\normal\\acceptance.json",
+      "sha256": "b5811fedee2fcfbe525eaba49176e205f71607b4323dbc9fef81f3d958304fa9"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\release-gates.json",
+      "sha256": "3708c497199183283ec078b066597c3a2c3b5e56b9bd22801469750825d8970a"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\install-result.json",
+      "sha256": "227b89de90779d0a075065ea852785356b44349c171e29de6bb2868061cc4e87"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-config-hold-20261112.json.released.json",
+      "sha256": "525331839bf54797faea0cd34f408e873bb9d109e269bb7aacd7d51f47f94c03"
+    },
+    "server_sha256": "565d1cdc8eb5800e8957ae64b9561aca7c94887d19b35b8a72bc7bb532525505",
+    "manifest_sha256": "b11067acb45a3db1b6e50c76796a54923e8c911ff9d92a261e93bbcd5781549d",
+    "all_manifest_assets_verified": 215,
+    "unchanged_companion_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c1f7616f329a476cb7f6297b3a4efa3f",
+    "cleanup_condition": "Retain package, complete old pair, journals and evidence. No preexisting folder deletion authorized."
+  },
+  "broader_goal": "ACTIVE; Go delivery does not complete TODO23 or the original backlog."
+}
