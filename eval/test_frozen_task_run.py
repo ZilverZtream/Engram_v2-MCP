@@ -5,6 +5,8 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+import subprocess
+import sys
 
 import frozen_task_eval as evaluation
 import frozen_task_run as collection
@@ -121,6 +123,77 @@ class FrozenTaskRunTests(unittest.TestCase):
         self.assertEqual(sum(m['additional_reads'] for m in metrics), 1)
         self.assertTrue(all(m['output_bytes'] == len(raw) for m in metrics))
         self.assertEqual(evaluation.read_json(self.root, 'report.json')['kind'], 'protocol_test')
+
+    def check_command(self, command='check'):
+        return subprocess.run([sys.executable, '-B', str(Path(evaluation.__file__)), command, str(self.root)],
+                              capture_output=True, text=True, check=False)
+
+    def finish_judgments(self, change):
+        self.finish_candidates()
+        judgments = self.judgments()
+        mapping = evaluation.read_json(self.root, 'judge/mapping.json')
+        change(judgments, mapping)
+        self.write(self.response, judgments)
+        collection.judge(self.root, 'independent-quality-judge', self.response)
+
+    def test_quality_check_passes_assisted_tasks_and_reports_baseline_failures(self):
+        def baseline_failure(judgments, mapping):
+            for judgment in judgments:
+                if mapping[judgment['candidate_id']]['arm'] == 'baseline':
+                    judgment['criteria']['correct'] = 'not_satisfied'
+                    judgment['false_guidance'] = ['Synthetic baseline error.']
+        self.finish_judgments(baseline_failure)
+        outcome = self.check_command()
+        self.assertEqual(outcome.returncode, 0, outcome.stderr)
+        report = json.loads(outcome.stdout)
+        self.assertEqual(report['status'], 'saved_assisted_quality_passed')
+        self.assertEqual(sum(m['false_guidance'] for m in report['metrics']), 4)
+        # The quality command must retain integrity checks before considering scores.
+        source = self.manifest['cases'][0]['arms']['baseline']['input']
+        self.write(self.root / source, {'source': 'changed after freezing'})
+        outcome = self.check_command()
+        self.assertNotEqual(outcome.returncode, 0)
+        self.assertIn('Frozen input changed', outcome.stderr)
+
+    def assert_assisted_quality_failure(self, criterion='satisfied', false_guidance=()):
+        def assisted_failure(judgments, mapping):
+            judgment = next(j for j in judgments if mapping[j['candidate_id']]['arm'] == 'assisted')
+            judgment['criteria']['correct'] = criterion
+            judgment['false_guidance'] = list(false_guidance)
+        self.finish_judgments(assisted_failure)
+        informational = self.check_command('report')
+        self.assertEqual(informational.returncode, 0, informational.stderr)
+        outcome = self.check_command()
+        self.assertEqual(outcome.returncode, 1, outcome.stderr)
+        checked = json.loads(outcome.stdout)
+        self.assertEqual(checked['status'], 'saved_assisted_quality_failed')
+        self.assertEqual(len(checked['failed_cases']), 1)
+        self.assertEqual(len(checked['metrics']), 8)
+
+    def test_quality_check_fails_valid_recorded_unmet_task_criteria(self):
+        self.assert_assisted_quality_failure(criterion='not_satisfied')
+
+    def test_quality_check_does_not_count_justified_withholding_as_task_completion(self):
+        self.assert_assisted_quality_failure(criterion='justified_withholding')
+
+    def test_quality_check_fails_false_guidance_despite_satisfied_criteria(self):
+        self.assert_assisted_quality_failure(false_guidance=['Synthetic unsupported advice.'])
+
+    def test_quality_check_rejects_a_task_without_acceptance_criteria(self):
+        case_id = self.manifest['cases'][0]['id']
+        self.oracle['cases'][case_id]['criteria'] = {}
+        self.write(self.corpus / 'oracle.json', self.oracle)
+        self.manifest['frozen_files']['oracle.json'] = self.sha(self.corpus / 'oracle.json')
+        self.freeze()
+        def empty_criteria(judgments, mapping):
+            for judgment in judgments:
+                if mapping[judgment['candidate_id']]['case_id'] == case_id:
+                    judgment['criteria'] = {}
+        self.finish_judgments(empty_criteria)
+        outcome = self.check_command()
+        self.assertEqual(outcome.returncode, 1, outcome.stderr)
+        self.assertEqual(json.loads(outcome.stdout)['failed_cases'], [
+            {'case_id': case_id, 'reasons': ['No task criteria were judged']}])
 
     def test_reused_agent_unbound_response_and_wrong_agent_are_rejected(self):
         pending = self.prepare()['pending_candidates']

@@ -20,9 +20,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Test frozen-task collection protocol (no model evaluation)
+      - name: Test frozen-task protocol and quality-check exit status (no model evaluation)
         id: task_protocol
         run: |
+          set -o pipefail
           mkdir -p benchmark-artifacts
           ENGRAM_TEST_TMPDIR="$PWD/benchmark-artifacts" python3 -B -m unittest discover -s eval -p 'test_frozen_task_*.py' -v 2>&1 | tee benchmark-artifacts/frozen-task-protocol.log
 
@@ -87,7 +88,7 @@ jobs:
           {
             printf '%s\n' '## Benchmark CI Report' '' "**Build:** $GITHUB_SHA" ''
             printf '%s\n' '| Check | Outcome |' '| --- | --- |'
-            printf '| Frozen-task collection protocol (no model run) | %s |\n' "${TASK_PROTOCOL_OUTCOME:-not_run}"
+            printf '| Frozen-task protocol and quality-check exit status (no model run) | %s |\n' "${TASK_PROTOCOL_OUTCOME:-not_run}"
             printf '| Benchmark and decision contracts | %s |\n' "${BENCHMARK_OUTCOME:-not_run}"
             printf '| ADP corpus replay | %s |\n' "${ADP_OUTCOME:-not_run}"
             printf '| WebForms mutation | %s |\n' "${WEBFORMS_OUTCOME:-not_run}"

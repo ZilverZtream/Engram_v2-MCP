@@ -222,9 +222,31 @@ def results(root, manifest, oracle, judgments=None):
     return metrics
 
 
+def quality_check(manifest, metrics):
+    """Gate the assisted condition; baseline quality remains comparative evidence."""
+    failures = []
+    for item in metrics:
+        if item['arm'] != 'assisted':
+            continue
+        reasons = []
+        if not item['total_criteria']:
+            reasons.append('No task criteria were judged')
+        elif item['satisfied'] != item['total_criteria']:
+            reasons.append('Required task criteria remain unsatisfied or withheld')
+        if item['false_guidance']:
+            reasons.append('The judge identified false guidance')
+        if reasons:
+            failures.append(dict(case_id=item['case_id'], reasons=reasons))
+    return dict(status='saved_assisted_quality_failed' if failures else 'saved_assisted_quality_passed',
+        producer_kind=manifest.get('producer_kind', 'historical_frozen'),
+        checked_arm='assisted', failed_cases=failures, metrics=metrics,
+        limits='Checks recorded judgments and frozen-run integrity only. Does not invoke models, '
+               'verify the current installed build, establish a fresh holdout, or prove productivity.')
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('command', choices=['verify','packet','report'])
+    parser.add_argument('command', choices=['verify','packet','report','check'])
     parser.add_argument('corpus',type=Path)
     parser.add_argument('--case')
     parser.add_argument('--arm',choices=['baseline','assisted'])
@@ -237,6 +259,10 @@ def main():
         if not args.case or not args.arm:
             parser.error('packet needs --case and --arm')
         print(json.dumps(packet(root,manifest,args.case,args.arm,args.read),ensure_ascii=False,indent=2))
+    elif args.command == 'check':
+        checked = quality_check(manifest, results(root, manifest, oracle))
+        print(json.dumps(checked, indent=2))
+        return int(bool(checked['failed_cases']))
     elif args.command == 'report' or args.require_results:
         print(json.dumps(dict(status='saved_run_verified',metrics=results(root,manifest,oracle),
             limits='Saved-run integrity and recorded judgments, not a fresh model evaluation or completed OX implementation/QA productivity.'),indent=2))
@@ -248,6 +274,6 @@ if __name__ == '__main__':
     try:
         if hasattr(sys.stdout,'reconfigure'):
             sys.stdout.reconfigure(encoding='utf-8')
-        main()
+        sys.exit(main())
     except (ValueError,KeyError,FileNotFoundError,StopIteration) as error:
         raise SystemExit(str(error))
