@@ -41,9 +41,10 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "finding": "TODO42 LLM integration",
-    "status": "RECONCILE_EXISTING_BEHAVIOR",
-    "remaining": "Reconcile original TODO42 visible LLM degradation against existing configured providers, deadlines, retry diagnostics and deterministic fallbacks; select only a demonstrated missing OciusX behavior.",
-    "scope_guard": "OciusX user-visible reliability only; reuse existing providers/deadlines/fallbacks. No unrelated language, CodeMap/Blast or broad framework work."
+    "status": "SELECTED_IMPLEMENTATION_NOT_STARTED",
+    "remaining": "Preserve provider failure reasons, avoid the misplaced larger-output retry on outages, and return a bounded source-cited deterministic fallback without treating failed analysis as extracted business rules.",
+    "scope_guard": "OciusX user-visible reliability only; reuse existing providers/deadlines/fallbacks. No unrelated language, CodeMap/Blast or broad framework work.",
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation\\contract.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

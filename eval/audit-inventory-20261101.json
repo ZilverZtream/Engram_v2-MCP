@@ -9976,37 +9976,36 @@
   "last_updated_at": "2026-11-12T22:01:05.227941+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "at_utc": "2026-11-12T21:22:40.989271+00:00",
-      "original_requirement": "TODO39 remaining per-generation vector/Tantivy consistency sentinel and symmetric vector>FTS reconciliation beyond the existing project-wide VectorOrphan threshold.",
-      "observed_missing_behavior": "check_project_integrity compares only project-wide physical totals, tolerating shortfalls<=max(5percent,20) and excess<=100. The automatic repair recheck repeats only those totals. A selected source generation can be short or have extra vector rows while aggregate totals are equal or below thresholds. Both mismatch directions already route to scoped recover_vectors; do not replace that recovery machinery.",
+      "status": "SELECTED_IMPLEMENTATION_NOT_STARTED",
+      "at_utc": "2026-11-12T22:04:00.044992+00:00",
+      "original_requirement": "TODO42: when the business-logic LLM is unavailable, degrade visibly to a deterministic summary; enforce bounded requests/retries and explicit backend/model configuration.",
+      "observed_missing_behavior": "Method analysis catches typed provider errors, logs them and substitutes an empty response, then runs the larger-output retry intended for incomplete model JSON. Public responses lose the specific outage/timeout/auth reason and return failed analysis with no explicit deterministic summary of nonempty source. File summary similarly reports unavailable without the requested fallback.",
       "existing_reuse": [
-        "HybridSearchEngine::count_docs_in_generation already uses exact_generation_selection and managed source snapshot membership; it is not a raw physical-generation equality filter.",
-        "count_vectors_in_generation already uses the selected snapshot SQL but includes same-generation non-memory namespaces; a matching namespace-specific vector count is missing.",
-        "project_service::run_scoped_repair already owns the project lock, revalidates mismatches and retains the recovery worker through requester cancellation.",
-        "S12/S13 selected installed metadata recovery acceptance is retained in eval/s12-installed-recovery-validation-20261111.json and eval/s13-installed-recovery-validation-20261111.json. These are not new work or claims that all original19gates are complete."
+        "DreamingEngine already captures configured provider/model and wraps calls in deadlines; HTTP connect/total timeouts exist.",
+        "llm_provider already implements bounded retry/backoff and typed Timeout/Auth/RateLimited/InvalidResponse/Upstream5xx/Transport/Parse errors with status and retry exhaustion.",
+        "Existing provenance, source/outcome evidence and failed-extraction guards prevent unsuccessful LLM outputs being persisted as usable business rules. Preserve these.",
+        "Existing malformed/truncated JSON retry, empty-body deterministic behavior, configured identity and file-summary source restrictions have authored tests. Reuse them; do not rebuild provider plumbing."
       ],
       "implementation_files": [
-        "crates/engram_index/src/hybrid.rs",
-        "crates/engram_server/src/services/integrity_service.rs",
-        "crates/engram_server/src/services/project_service.rs",
-        "crates/engram_server/tests/integrity_service_tests.rs"
+        "crates/engram_server/src/services/business_logic_service.rs",
+        "crates/engram_server/tests/business_logic_degradation_tests.rs",
+        "crates/engram_server/tests/business_logic_retry.rs",
+        "crates/engram_server/tests/business_logic_provenance.rs"
       ],
+      "necessary_supporting_edits": "Only existing fixture literals/expectations directly affected by additive failure/fallback metadata, and user-facing documentation where needed. No unrelated handler/graph/provider refactor.",
       "finite_acceptance": [
-        "Compare lexical and vector counts for the same published source snapshot and memory namespace, including inherited physical revisions. Hold the existing snapshot lease through observation; exclude unrelated history, retained old revisions and unpublished candidates. Keep existing whole-project signals and label scope/unknown coverage explicitly.",
-        "Detect a source-generation shortfall and excess even when project-wide counts cancel or fall within the old thresholds. Embeddings-disabled projects must not report absent vectors as corruption; unavailable/unmanaged source evidence must not manufacture a precise healthy comparison.",
-        "Under the existing owned repair path and project lock, repeat the same source-generation and whole-project checks before invoking recover_vectors. Reuse existing repair behavior for both mismatch directions; preserve no-mismatch no-op and cancellation ownership.",
-        "Focused authored tests demonstrate cross-generation/namespace masking, inherited files and staging exclusions, small excess/shortfall, disabled embeddings and recovery/no-op behavior. Do not rerun broad storage, native backend, CodeMap or Blast gate suites without a new concrete failure.",
-        "Verify the public check_integrity response with auto_repair=false on candidate and installed owned fixtures, and a read-only actual OciusX check if its configured vector source is available. Controlled fixture repair may exercise existing recovery; never inject corruption into production data. Commit/push only origin/master and deploy the matched package."
+        "An unavailable/unconfigured provider, timeout, exhausted transport/rate-limit/5xx retry or authentication failure produces explicit safe failure metadata and a bounded, source-cited deterministic summary in method/file output. Do not expose raw errors containing endpoints/credentials.",
+        "A provider failure does not trigger the larger-output JSON retry. Reuse existing provider retries/deadlines. Preserve one larger-budget retry for successful transport with incomplete model JSON; an eventually valid response remains an LLM result.",
+        "Fallback facts come from the supplied current source and existing deterministic extraction. Mark them as observations, distinguish them from inferred business purpose/rules, state incomplete coverage and preserve source locations/hashes. Do not invent rules, claim semantic validation, or persist failed extraction as successful business-rule documents.",
+        "Focused owned-provider tests cover outage/auth/deadline or exhaustion, configuration disabled, malformed-output retry, successful output and nonempty VB.NET fallback, including file summary. Preserve existing empty-method/provenance/source-summary guards and close all fixture owners on success/unwinding.",
+        "Verify candidate and installed public method/file outputs against an authored VB.NET fixture with controlled provider failure and healthy response. No production provider config changes, live outage injection, paid external model requests or fresh broad benchmark. Commit/push/deploy and advance."
       ],
-      "source_baseline": "1c9bc3d310380f0d55b945d107969a503ea15491",
+      "source_baseline": "84dd480b4b06b171265b3fb7e52757937c89fa8c",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity",
-      "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support.",
-      "retained_limits": "Exact per-row semantic/vector-content equality and append-only namespace completeness are not implied by matching counts. Preserve any unmet original TODO39 scope explicitly; do not claim all recovery gates, comparative usefulness or the full backlog complete.",
-      "resources": "Reuse current isolated checkout and shared target. New fixture resources owned/closed/removed; retain receipts here. No preexisting folder deletion.",
-      "delivery_evidence": "eval/ociusx-source-integrity-delivery-20261112.json",
-      "build_session": null
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\llm-degradation",
+      "prior_inspection": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-todo42-after-source-integrity.json",
+      "scope_guard": "One OciusX user-visible failure/fallback gap. No new LLM provider or retry framework, language support, CodeMap/Blast, broad audits or storage work.",
+      "resources": "Reuse existing isolated checkout/shared target. Own, close and remove new provider/test fixtures. Retain receipts here; no preexisting-folder deletion."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10038,8 +10037,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO42: reconcile existing implementation before selecting missing behavior",
-    "next_user_visible_deliverable": "Reconcile original TODO42 visible LLM degradation against existing configured providers, deadlines, retry diagnostics and deterministic fallbacks; select only a demonstrated missing OciusX behavior.",
+    "active_original_item": "TODO42 visible LLM degradation for OciusX business-logic analysis",
+    "next_user_visible_deliverable": "Preserve provider failure reasons, avoid the misplaced larger-output retry on outages, and return a bounded source-cited deterministic fallback without treating failed analysis as extracted business rules.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -13273,11 +13272,44 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "selected_delivery_progress": "eval/ociusx-source-integrity-progress-20261112.json",
-    "next_user_visible_delivery": "Deploy validated detection and scoped repair recheck for source-generation vector shortages/surpluses hidden by project-wide totals.",
+    "next_user_visible_delivery": "Preserve provider failure reasons, avoid the misplaced larger-output retry on outages, and return a bounded source-cited deterministic fallback without treating failed analysis as extracted business rules.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
-    }
+    },
+    "previous_source_integrity_delivery_contract": {
+      "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "at_utc": "2026-11-12T21:22:40.989271+00:00",
+      "original_requirement": "TODO39 remaining per-generation vector/Tantivy consistency sentinel and symmetric vector>FTS reconciliation beyond the existing project-wide VectorOrphan threshold.",
+      "observed_missing_behavior": "check_project_integrity compares only project-wide physical totals, tolerating shortfalls<=max(5percent,20) and excess<=100. The automatic repair recheck repeats only those totals. A selected source generation can be short or have extra vector rows while aggregate totals are equal or below thresholds. Both mismatch directions already route to scoped recover_vectors; do not replace that recovery machinery.",
+      "existing_reuse": [
+        "HybridSearchEngine::count_docs_in_generation already uses exact_generation_selection and managed source snapshot membership; it is not a raw physical-generation equality filter.",
+        "count_vectors_in_generation already uses the selected snapshot SQL but includes same-generation non-memory namespaces; a matching namespace-specific vector count is missing.",
+        "project_service::run_scoped_repair already owns the project lock, revalidates mismatches and retains the recovery worker through requester cancellation.",
+        "S12/S13 selected installed metadata recovery acceptance is retained in eval/s12-installed-recovery-validation-20261111.json and eval/s13-installed-recovery-validation-20261111.json. These are not new work or claims that all original19gates are complete."
+      ],
+      "implementation_files": [
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_server/src/services/integrity_service.rs",
+        "crates/engram_server/src/services/project_service.rs",
+        "crates/engram_server/tests/integrity_service_tests.rs"
+      ],
+      "finite_acceptance": [
+        "Compare lexical and vector counts for the same published source snapshot and memory namespace, including inherited physical revisions. Hold the existing snapshot lease through observation; exclude unrelated history, retained old revisions and unpublished candidates. Keep existing whole-project signals and label scope/unknown coverage explicitly.",
+        "Detect a source-generation shortfall and excess even when project-wide counts cancel or fall within the old thresholds. Embeddings-disabled projects must not report absent vectors as corruption; unavailable/unmanaged source evidence must not manufacture a precise healthy comparison.",
+        "Under the existing owned repair path and project lock, repeat the same source-generation and whole-project checks before invoking recover_vectors. Reuse existing repair behavior for both mismatch directions; preserve no-mismatch no-op and cancellation ownership.",
+        "Focused authored tests demonstrate cross-generation/namespace masking, inherited files and staging exclusions, small excess/shortfall, disabled embeddings and recovery/no-op behavior. Do not rerun broad storage, native backend, CodeMap or Blast gate suites without a new concrete failure.",
+        "Verify the public check_integrity response with auto_repair=false on candidate and installed owned fixtures, and a read-only actual OciusX check if its configured vector source is available. Controlled fixture repair may exercise existing recovery; never inject corruption into production data. Commit/push only origin/master and deploy the matched package."
+      ],
+      "source_baseline": "1c9bc3d310380f0d55b945d107969a503ea15491",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity",
+      "scope_guard": "One original consistency gap affecting OciusX source retrieval. No storage format, new repair framework, new vector backend, kernel/SSD investigation, broad audit, benchmark campaign or unrelated language support.",
+      "retained_limits": "Exact per-row semantic/vector-content equality and append-only namespace completeness are not implied by matching counts. Preserve any unmet original TODO39 scope explicitly; do not claim all recovery gates, comparative usefulness or the full backlog complete.",
+      "resources": "Reuse current isolated checkout and shared target. New fixture resources owned/closed/removed; retain receipts here. No preexisting folder deletion.",
+      "delivery_evidence": "eval/ociusx-source-integrity-delivery-20261112.json",
+      "build_session": null
+    },
+    "previous_source_integrity_progress": "eval/ociusx-source-integrity-progress-20261112.json"
   }
 }
