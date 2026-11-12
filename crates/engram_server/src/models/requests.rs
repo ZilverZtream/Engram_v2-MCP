@@ -129,6 +129,15 @@ impl MinSeverity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ProjectType {
+    /// Detect an indexing preset from eligible manifests and source files at registration.
+    #[serde(alias = "detect")]
+    Auto,
+    /// JavaScript and TypeScript sources, configuration and web assets.
+    #[serde(alias = "javascript", alias = "typescript", alias = "js", alias = "ts")]
+    JavaScript,
+    /// Python sources and project configuration.
+    #[serde(alias = "py")]
+    Python,
     /// ASP.NET WebForms — C# backend.
     /// Aliases: `dotnetwebformscs`, `webforms_cs`, `webformscs`
     #[serde(
@@ -190,6 +199,9 @@ pub enum ProjectType {
 impl ProjectType {
     pub fn as_str(self) -> &'static str {
         match self {
+            Self::Auto => "auto",
+            Self::JavaScript => "javascript",
+            Self::Python => "python",
             Self::DotnetWebformsCs => "dotnet_webforms_cs",
             Self::DotnetWebformsVb => "dotnet_webforms_vb",
             Self::General => "general",
@@ -211,7 +223,13 @@ impl ProjectType {
             return None;
         }
 
-        if [
+        if ["auto", "detect"].iter().any(|x| v.eq_ignore_ascii_case(x)) {
+            Some(Self::Auto)
+        } else if ["javascript", "java_script", "typescript", "js", "ts"].iter().any(|x| v.eq_ignore_ascii_case(x)) {
+            Some(Self::JavaScript)
+        } else if ["python", "py"].iter().any(|x| v.eq_ignore_ascii_case(x)) {
+            Some(Self::Python)
+        } else if [
             "dotnetwebformscs",
             "dotnet_webforms_cs",
             "webforms_cs",
@@ -394,12 +412,16 @@ pub const MAX_SQL_LENGTH: usize = 1_000_000;
 pub struct IndexProjectRequest {
     pub directory: String,
     pub project_name: String,
+    /// Omit or use auto to select a preset at registration. Explicit presets are retained.
+    #[serde(default = "default_project_type")]
     pub project_type: ProjectType,
     #[serde(default = "default_true")]
     pub wait: bool,
     #[serde(default = "default_true")]
     pub dedupe_by_directory: bool,
 }
+
+pub fn default_project_type() -> ProjectType { ProjectType::Auto }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
@@ -4561,6 +4583,9 @@ mod project_type_round_trip_tests {
     /// variant forces a new match arm there, which puts a maintainer in this
     /// module with this list in view.
     const ALL: &[ProjectType] = &[
+        ProjectType::Auto,
+        ProjectType::JavaScript,
+        ProjectType::Python,
         ProjectType::DotnetWebformsCs,
         ProjectType::DotnetWebformsVb,
         ProjectType::General,
@@ -4573,7 +4598,10 @@ mod project_type_round_trip_tests {
 
     fn _exhaustiveness_guard(pt: ProjectType) {
         match pt {
-            ProjectType::DotnetWebformsCs
+            ProjectType::Auto
+            | ProjectType::JavaScript
+            | ProjectType::Python
+            | ProjectType::DotnetWebformsCs
             | ProjectType::DotnetWebformsVb
             | ProjectType::General
             | ProjectType::Rust

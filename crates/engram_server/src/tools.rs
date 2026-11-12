@@ -1618,7 +1618,7 @@ impl Engram {
 
 impl ServerHandler for Engram {
     fn get_info(&self) -> ServerInfo {
-        let core_instructions = "Engram's limited profile advertises 32 tools. Start with \
+        let core_instructions = "Engram's limited profile advertises up to 32 tools, filtered by registered project capabilities. Start with \
             `list_projects` and `project_info` to select the project. Use `search_memory` \
             or `grep_project` to find indexed code, then pass returned citation arguments \
             to `get_chunk` for exact stored evidence. Discover stored project memory with \
@@ -1651,11 +1651,12 @@ impl ServerHandler for Engram {
                  editing) → pre_commit_review (on your diff). If results look stale, \
                  call get_index_freshness; update_project refreshes incrementally. \
                  Tools prefixed [.NET legacy] target ASP.NET WebForms / VB.NET / Classic \
-                 ASP migration work and return little on other stacks."
+                 ASP migration work. Discovery reflects the union of registered project capabilities; \
+                 project_info reports source evidence and coverage. Re-list tools after indexing jobs finish."
                         .to_string(),
                 )
             },
-            capabilities: ServerCapabilities::builder().enable_tools().build(),
+            capabilities: ServerCapabilities::builder().enable_tools().enable_tool_list_changed().build(),
             ..Default::default()
         }
     }
@@ -1675,9 +1676,17 @@ impl ServerHandler for Engram {
         // — logging it here is what turns "the review 400s somewhere" into
         // "grep_project on <x> returned N bytes". One line per call, cheap.
         let tool_name = request.name.to_string();
+        let peer = context.peer.clone();
         let started = std::time::Instant::now();
         let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
         let result = self.tool_router.call(tcc).await;
+        if matches!(tool_name.as_str(), "index_project" | "update_project" | "delete_project" | "repair_project" | "get_job_status") && result.is_ok() {
+            // Async writers can finish later; clients can always re-list after
+            // polling their job. This notification covers foreground changes.
+            if let Err(error) = peer.notify_tool_list_changed().await {
+                tracing::debug!(%error, "tool discovery notification unavailable");
+            }
+        }
         let ms = started.elapsed().as_millis();
         match &result {
             Ok(r) => {
@@ -1705,6 +1714,34 @@ impl ServerHandler for Engram {
             self.tool_router.list_all(),
             self.state.cfg.advertise_all_tools,
         );
+        let registry = self.state.registry.clone();
+        let projects = tokio::task::spawn_blocking(move || registry.list_projects()).await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        let mut capabilities = crate::capabilities::project::ProjectCapabilities::default();
+        let mut unknown = false;
+        for project in projects {
+            if project.directory.is_empty() { continue; } // user memory is not a source project
+            capabilities.include_explicit_profile(&project.project_type);
+            // Narrow explicit presets cannot admit WebForms/VB files. Broad
+            // and WebForms profiles need their actual published file evidence.
+            if matches!(crate::models::ProjectType::from_registry_str(&project.project_type),
+                Some(crate::models::ProjectType::Rust | crate::models::ProjectType::Python
+                    | crate::models::ProjectType::JavaScript | crate::models::ProjectType::CSharp
+                    | crate::models::ProjectType::C | crate::models::ProjectType::Cpp)) { continue; }
+            let observation = async {
+                let runtime = self.ensure_project_runtime(&project.project_id).await?;
+                let (generation, view) = self.pin_active_source_generation(&project.project_id, &runtime.search).await?;
+                Ok::<_, McpError>((crate::services::project_service::selected_project_capabilities(
+                    &project.project_type, generation, &view).0, view.is_managed()))
+            }.await;
+            match observation {
+                Ok((observed, complete)) => { capabilities.union(&observed); unknown |= !complete; }
+                Err(error) => { unknown = true; tracing::debug!(project_id=%project.project_id,%error,"project capability coverage unavailable"); }
+            }
+        }
+        items.retain(|tool| unknown || !tool.description.as_deref().is_some_and(|d| d.starts_with("[.NET legacy]"))
+            || capabilities.allows_legacy_tool(tool.name.as_ref()));
         for t in items.iter_mut() {
             let cleaned = crate::tool_surface::sanitize_schema(&t.input_schema);
             t.input_schema = std::sync::Arc::new(cleaned);

@@ -1,0 +1,57 @@
+{
+  "status": "IMPLEMENTED_SOURCE_VALIDATED_RUNTIME_PENDING",
+  "at_utc": "2026-11-12T10:20:10.867655+00:00",
+  "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
+  "source_sha256": {
+    "crates/engram_server/src/services/project_service.rs": "3a510e95db89b15d1a4595630ef061423965c24a248a6663d0b3084c5fc9f68e",
+    "crates/engram_server/src/capabilities.rs": "f240ce43ecda69b6eb1f207d5573549b4d0a014e27f825f0b2480680bfbb7387",
+    "crates/engram_server/src/handlers/project_tools.rs": "c8fa60510ff4d2cc27fedc37085000453c8ca12aa79830d7a922c111275d9fec",
+    "crates/engram_server/src/models/requests.rs": "dac2fc6e75f8dcdcdc427ca29de422ee1cef97baf4ad0f71225177c0882d1422",
+    "crates/engram_server/src/utils/files.rs": "b76256265279491801dc6411d024ec9b3b6afca29aba45988666f3761a4750ff",
+    "crates/engram_server/src/tools.rs": "8e12885c02c162218a36d7eacc23c7aafb14f6cb62154ca42a087b5b20c9a71d",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "dd0b2fe412d775f2bb371a3d1f962b50fde440411fef67a438b9d59eacade8a3",
+    "crates/engram_server/src/capabilities/project.rs": "cfff50f088bdc3a2b8eb08c61f4fc88f547cea94250a12d84f920cf5bf8d00a3"
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112\\baseline\\receipt.json",
+    "sha256": "016e0804f1b24b007d323ff9402f37b7dd9b0038f573b140b7c9df39cdf66d23"
+  },
+  "tests": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112\\capabilities-no-vector-final-result.json",
+      "sha256": "f3affef93beef863ad83db3e8d12d9be493eb175edcb1c4af18dac08ce15431d"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112\\publication-no-vector-final-result.json",
+      "sha256": "e45ab9c8c74453aedc02ddb920b4e42df512ff8431cda3f3be64b70ae1e1f682"
+    }
+  ],
+  "implemented": [
+    "Omitted/auto type selects a suitable preset once at registration; all admitted paths must fit or general is retained. Explicit profiles/aliases and existing deduplicated registrations are preserved.",
+    "General indexing includes the manifest/source assets needed for mixed .NET, JavaScript/TypeScript, Rust and Python coverage.",
+    "Project information and the overview summary report bounded path evidence from the held published source manifest, including empty files and explicit unavailable/legacy coverage.",
+    "Visible specialized tools reflect the union of registered project capabilities intersected with full/core configuration. Explicit WebForms profiles and unknown source coverage preserve specialized access; generic core dependencies remain.",
+    "Foreground project mutations and job polling emit discovery-change notifications. All existing tools remain directly callable."
+  ],
+  "manual_review": {
+    "kind": "Parent manual review, not independent or CodeRabbit",
+    "resolved": [
+      "Avoid automatic rescans when deduplicating an existing registration.",
+      "Do not narrow an automatic profile if it would drop any admitted source/assets.",
+      "Published capability evidence must not use live graph/disk state.",
+      "Unavailable source metadata must not turn project_info into a new failure or silently conceal specialized discovery."
+    ]
+  },
+  "limitations": [
+    "Public candidate and installed acceptance, release build and deployment are pending.",
+    "Path/manifest-name evidence is not compiler, build, dependency-installation or runtime proof. Metadata covers the configured indexing preset and ignore rules.",
+    "Presets are fixed at registration; refreshing does not silently switch an explicitly supported source profile.",
+    "Clients should re-list tools after background indexing finishes. Unknown legacy/unavailable source coverage conservatively keeps specialized tools discoverable.",
+    "Broader original backlog and full nineteen storage gates remain open."
+  ],
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
+    "owned_fixtures_removed": true,
+    "retained": "Scripts, wire logs, authored input and test receipts; no preexisting folder deletion."
+  }
+}

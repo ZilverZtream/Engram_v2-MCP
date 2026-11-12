@@ -5,7 +5,10 @@ fn default_exts() -> Vec<&'static str> {
         "mod", "work", "rs", "py", "js", "ts", "tsx", "jsx", "mjs", "cjs", "go", "java", "cs", "vb", "ml",
         "mlinc", "c", "cpp", "cc", "cxx", "h", "hpp", "md", "toml", "yaml", "yml", "json", "aspx",
         "ascx", "master", "asmx", "ashx", "svc", "asax", "config", "xml", "html", "htm", "css",
-        "scss", "less", "cshtml", "vbhtml", "razor",
+        "scss", "less", "cshtml", "vbhtml", "razor", "csproj", "vbproj", "sln", "slnx",
+        "props", "targets", "resx", "xaml", "sql", "rdlc", "rdl", "asp", "rpt", "dbml", "edmx",
+        "pyi", "cfg", "ini", "txt", "gradle", "kts", "c++", "hh", "hxx", "h++", "inl",
+        "ipp", "tpp", "ixx", "cppm", "cmake", "inc", "s", "asm", "lds", "ld", "mak", "mk",
     ]
 }
 
@@ -148,6 +151,9 @@ fn minilang_exts() -> Vec<&'static str> {
 pub fn exts_for_project_type_enum(pt: crate::models::ProjectType) -> Vec<&'static str> {
     use crate::models::ProjectType;
     match pt {
+        ProjectType::Auto => default_exts(),
+        ProjectType::JavaScript => vec!["js", "ts", "tsx", "jsx", "mjs", "cjs", "json", "html", "htm", "css", "scss", "less", "md", "yaml", "yml"],
+        ProjectType::Python => vec!["py", "pyi", "toml", "cfg", "ini", "txt", "md", "json", "yaml", "yml"],
         ProjectType::DotnetWebformsCs => dotnet_webforms_cs_exts(),
         ProjectType::DotnetWebformsVb => dotnet_webforms_vb_exts(),
         ProjectType::General => default_exts(),

@@ -980,6 +980,20 @@ impl Engram {
         Ok(())
     }
 
+    async fn existing_project_registration(&self, p: ProjectRecord) -> Result<CallToolResult, McpError> {
+        let format = project_service::source_index_format_coverage(&self.state, &p.project_id).await;
+        let advice = match format {
+            Ok((0, _)) => "Source index status unknown: no file metadata. Run update_project to build or recover this registered project.",
+            Ok((_, paths)) if !paths.is_empty() => "Source index migration or interrupted update requires update_project before trusting cached source evidence.",
+            Ok(_) => "Existing registration retained. Check get_index_freshness before trusting cached source evidence.",
+            Err(_) => "Source index status unavailable. Check get_index_freshness and restore store access before relying on this registration.",
+        };
+        Ok(CallToolResult::success(vec![Content::text(format!(
+            "Existing project registration.\nproject_id: {}\nproject_name: {}\ndirectory: {}\n{}",
+            p.project_id, p.project_name, p.directory, advice
+        ))]))
+    }
+
     pub async fn handle_index_project(
         &self,
         req: IndexProjectRequest,
@@ -994,11 +1008,24 @@ impl Engram {
         };
 
         let dir_str = dir.to_string_lossy().to_string();
+        if req.project_type == ProjectType::Auto && req.dedupe_by_directory {
+            let registry = self.state.registry.clone();
+            let directory = dir_str.clone();
+            let existing = tokio::task::spawn_blocking(move || registry.list_projects()
+                .map(|projects| projects.into_iter().find(|p| p.directory == directory))).await
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            if let Some(existing) = existing { return self.existing_project_registration(existing).await; }
+        }
         let project_id = Uuid::new_v4().to_string();
         let project_name = req.project_name.clone();
         // ENG-AUD-2026-EXH-P1-0001: project_type is now a validated enum;
         // store the canonical string so registry reads work unchanged.
-        let project_type = req.project_type.as_str().to_owned();
+        let selected_type = if req.project_type == ProjectType::Auto {
+            project_service::detect_indexing_preset(&self.state, &dir).await
+                .map_err(|e| McpError::internal_error(format!("Project detection failed: {e:#}"), None))?
+        } else { req.project_type };
+        let project_type = selected_type.as_str().to_owned();
         let now = now_ms();
         let rec_candidate = ProjectRecord {
             project_id: project_id.clone(),
@@ -1028,26 +1055,7 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         if let Some(p) = existing_opt {
-            let format =
-                project_service::source_index_format_coverage(&self.state, &p.project_id).await;
-            let advice = match format {
-                Ok((0, _)) => {
-                    "Source index status unknown: no file metadata. Run update_project to build or recover this registered project."
-                }
-                Ok((_, paths)) if !paths.is_empty() => {
-                    "Source index migration or interrupted update requires update_project before trusting cached source evidence."
-                }
-                Ok(_) => {
-                    "Existing registration retained. Check get_index_freshness before trusting cached source evidence."
-                }
-                Err(_) => {
-                    "Source index status unavailable. Check get_index_freshness and restore store access before relying on this registration."
-                }
-            };
-            return Ok(CallToolResult::success(vec![Content::text(format!(
-                "Existing project registration.\nproject_id: {}\nproject_name: {}\ndirectory: {}\n{}",
-                p.project_id, p.project_name, p.directory, advice
-            ))]));
+            return self.existing_project_registration(p).await;
         }
         let runtime = self.state.acquire_project_runtime_lock(&project_id).await;
         self.ensure_project_record(&project_id).await?;
@@ -2955,9 +2963,19 @@ impl Engram {
             return Err(McpError::invalid_params("Unknown project", None));
         };
         let gen_ = self.get_active_generation(&req.project_id).await?;
+        let observation = async {
+            let runtime = self.ensure_project_runtime(&req.project_id).await?;
+            let (generation, view) = self.pin_active_source_generation(&req.project_id, &runtime.search).await?;
+            Ok::<_, McpError>((generation, project_service::selected_project_capabilities(&rec.project_type, generation, &view).1))
+        }.await;
+        let (gen_, capabilities) = observation.unwrap_or_else(|_| (gen_, serde_json::json!({
+            "format":"engram-project-capabilities-v1", "coverage":"unavailable_source_selection",
+            "indexing_preset":rec.project_type,
+            "recovery":"Check get_index_freshness; complete indexing or repair before relying on detected capabilities."
+        })));
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "project_id: {}\nname: {}\ndirectory: {}\nactive_generation: {}",
-            rec.project_id, rec.project_name, rec.directory, gen_
+            "project_id: {}\nname: {}\ndirectory: {}\nproject_type: {}\nproject_capabilities: {}\nactive_generation: {}",
+            rec.project_id, rec.project_name, rec.directory, rec.project_type, capabilities, gen_
         ))]))
     }
 

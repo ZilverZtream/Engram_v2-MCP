@@ -1,7 +1,7 @@
 {
-  "status": "SELECTED_IMPLEMENTATION_PENDING",
+  "status": "IMPLEMENTED_SOURCE_VALIDATED_RUNTIME_PENDING",
   "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
-  "observed_missing_behavior": "Initial source inspection: handle_index_project persists req.project_type directly; ProjectType lacks automatic ecosystem selection and dedicated JS/TS/Python profiles; capabilities.rs is a static feature-status catalogue. No existing TODO24 delivery record was found. Public baseline remains to be captured before implementation.",
+  "observed_missing_behavior": "Installed authored TypeScript fixture requires project_type, advertises all 32 legacy .NET tools, and has no ecosystem/capability metadata in project_info or overview. Owned MCP/Git handles closed and fixture removed.",
   "finite_acceptance": [
     "Detect and retain evidence-backed project ecosystem/capability metadata for .NET, JS/TS, Rust and Python during indexing, including mixed/unknown repositories. Distinguish WebForms evidence from an arbitrary .NET solution; do not label all .NET as WebForms.",
     "Use detection to select appropriate extractor/indexing presets when the caller requests automatic/default selection, while preserving explicit supported profiles and aliases. Mixed projects retain their relevant source coverage; no destructive source-set or publication shortcuts.",
@@ -16,9 +16,18 @@
     "crates/engram_server/src/models/requests.rs",
     "crates/engram_server/src/utils/files.rs",
     "crates/engram_server/src/tools.rs",
-    "crates/engram_server/src/handlers/cognitive_tools.rs"
+    "crates/engram_server/src/handlers/cognitive_tools.rs",
+    "crates/engram_server/src/capabilities/project.rs"
   ],
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
-  "next_action": "Inspect existing tool-profile selection and project-type handling once, then capture an owned installed-runtime baseline and implement the recorded original TODO24 behavior.",
-  "constraints": "One implementation item. Preserve delivered TODO23 and all other original findings; no broad service audit (TODO26), corpus expansion (TODO25), CodeMap/Blast improvement, new approval UI or unrelated infrastructure. Existing source publication/ownership guarantees and held kernel/SSD/deletion work remain unchanged."
+  "next_action": "Build the validated release; verify owned public candidate and installed behavior, deploy, and record before advancing.",
+  "constraints": "One implementation item. Preserve delivered TODO23 and all other original findings; no broad service audit (TODO26), corpus expansion (TODO25), CodeMap/Blast improvement, new approval UI or unrelated infrastructure. Existing source publication/ownership guarantees and held kernel/SSD/deletion work remain unchanged.",
+  "baseline_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112\\baseline\\receipt.json",
+  "behavior_contract": {
+    "auto": "Omitted/auto project_type selects a fixed indexing preset at registration from eligible manifest/source paths. Explicit profiles and existing registrations remain unchanged. Mixed ecosystems use general coverage.",
+    "metadata": "Evidence derived from held persisted source-file revisions, including empty files; no stale graph metadata or live disk inference. Scope is the chosen preset and ignore rules, not all files on disk or compiler/build semantics.",
+    "discovery": "Union across all registered source projects, intersected with configured full/core surface. No source project means no legacy tools; unknown legacy/unavailable source coverage conservatively preserves specialized discovery. Explicit WebForms profiles retain access. General core dependencies remain visible.",
+    "limitations": "Candidate/installed public acceptance and deployment are pending. No external review claim."
+  },
+  "progress": "eval/p128-project-capabilities-progress-20261112.json"
 }
