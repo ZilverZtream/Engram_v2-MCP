@@ -36,6 +36,7 @@ arrow-schema = { workspace = true, optional = true }
 
 tree-sitter.workspace = true
 tree-sitter-rust.workspace = true
+toml_edit = { version = "=0.23.10", default-features = false, features = ["parse"] }
 tree-sitter-python.workspace = true
 tree-sitter-go.workspace = true
 tree-sitter-java.workspace = true

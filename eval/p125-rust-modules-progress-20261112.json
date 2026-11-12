@@ -1,0 +1,89 @@
+{
+  "schema_version": 1,
+  "at_utc": "2026-11-12T07:17:26.425395+00:00",
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "active_item": "TODO23 Rust; parent Go/Java remain open",
+  "implementation_sha256": {
+    "crates/engram_core/src/rust_modules.rs": "d7fc59d71cc9327d1bf6fead015fa03841e3f8221a737b9bf51ca430deb6786d",
+    "crates/engram_index/src/parsing/rust_modules.rs": "70cbf71e7f0dd16e1013eb0ad0c3bd88b7308b608c49fe3cd715953be285fac4",
+    "crates/engram_index/src/parsing/rust_modules/config.rs": "50a1ebe12383c457b589277bd4a2dc7ecec5a562a9c5394bcd92bcc2376ab480",
+    "crates/engram_index/src/parsing.rs": "26daf91ad77283d1bf3377b93ec3217b6ff0f14d3c488c0e9d79677c066d2539",
+    "crates/engram_index/src/source_contract.rs": "19f001b17df095b4c074c9cf75e4339b29fd533aab73b8988321bc271d2632cf",
+    "crates/engram_graph/src/store/rust_modules.rs": "65c96a8e08201fe2dddbf01a38b3ba4194857683ce4ea0cdb32f56f1ca502d32",
+    "crates/engram_graph/src/store.rs": "e778cb671aef245b9dc7c1d76f557c7424ffcdc7ece5a39c47236c4d35c1b074",
+    "crates/engram_server/src/services/ingest_service.rs": "8d5fb0669db88d68209b3f2664a6ba1e04dfddf4cf560861bf062608e04c55a3",
+    "crates/engram_server/src/handlers/graph_tools.rs": "19aabd3b014eaecbc7701d5ed85caa6188b5cf04337c269ca508c91193b772a3",
+    "crates/engram_core/src/lib.rs": "bcdc1581af70ac4375531ee5515cf5346373491ca833f6dd66798aa783b03c79",
+    "crates/engram_graph/src/store/rust_modules/contexts.rs": "5f463add6d733b79d78e466ad3593965397dc512b9cf0932fde7c61ecf749d8e",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "c0a150592f31cceb9219e0dd65df83d734acd075c35a57c4893b7d43cbe0b208",
+    "crates/engram_server/src/services/ingest_service/rust_module_tests.rs": "5323c75158d76ebdfad093a6654b1c9393605a8d9207eb49e03d0beb639503e6",
+    "crates/engram_index/Cargo.toml": "fc4072973a21d29d50f2fb9df02b23958f12f51cfc2b5c7df1faa99626458f86",
+    "Cargo.lock": "4cdf945a9cc2191566ed17548bd2b99458da4a6c7e7599807fb1a571662738d5"
+  },
+  "implemented": [
+    "Retained Rust use trees, aliases, scopes, declaration/call sites and module declarations; qualified/generic callees are extracted.",
+    "Declared inline/file modules, crate/self/super paths, grouped imports, reexports and bounded glob/cycle resolution use exact canonical source identities.",
+    "Cargo library/binary roots, editions and indexed path dependencies prevent cross-crate same-name guesses; manifest-only changes rebind retained callers.",
+    "Public Calls show bounded source evidence and explicit unresolved reasons; changed imports/declarations retract stale links.",
+    "Rust source and Cargo manifest freshness require actual versioned facts before reuse/publication."
+  ],
+  "checks": [
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\module-no-vector-final-result.json",
+      "sha256": "62b5b8b9dfaecf1361d0e8072903387b56b70947752654ffe0d9358771bf4644",
+      "status": "PASS"
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\module-native-final-result.json",
+      "sha256": "39965fcf6d47a7b71c89d5c9af850bffaf881b4adebeaa85a86177ab09fffb1a",
+      "status": "PASS"
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\publication-no-vector-final-result.json",
+      "sha256": "9dd161dd0326f6ad9d33a7cdd4e06aa1854603cf5d0ec142d8cd7eb0a6396256",
+      "status": "PASS"
+    }
+  ],
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\baseline\\receipt.json",
+    "observed": {
+      "RunNamed": {
+        "expected_file": "src/left.rs",
+        "actual_files": [
+          "src/decoy.rs"
+        ],
+        "correct_unique_target": false
+      },
+      "RunQualified": {
+        "expected_file": "src/right.rs",
+        "actual_files": [],
+        "correct_unique_target": false
+      }
+    }
+  },
+  "remaining": [
+    "Release build",
+    "Candidate public old-index upgrade, source/manifest updates, target deletion/restoration and storage-preserving graph repair",
+    "Install and repeat public acceptance; verify normal daemon; push delivery evidence"
+  ],
+  "next_action": "Commit validated implementation and build p125-rs-modules-source-20261112 with the existing owned shared-target runner.",
+  "limitations": [
+    "Static source evidence only; no compiler, macro-expansion, cfg-selection, trait-dispatch or execution proof.",
+    "Conditional bindings, unsupported associated/receiver calls, ambiguity, cycles and unindexed external crates remain unresolved.",
+    "Source roots and path dependencies must be indexed inside the project; no registry or external filesystem lookup.",
+    "Standalone conventional lib.rs/main.rs trees use a 2021 source assumption; Cargo manifests establish supported editions.",
+    "Legacy Rust/Cargo facts require an update or graph repair. This delivery does not reindex production projects."
+  ],
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112",
+    "completed_test_fixture_roots_removed": true,
+    "baseline_fixture_removed": true,
+    "retained": "Authored cases, helpers, logs and source-hash receipts retained for delivery evidence; release package retained once built."
+  },
+  "review": {
+    "kind": "Parent manual review, not independent",
+    "external_review_ran": false,
+    "note": "Existing CodeRabbit authentication is unavailable; no login or review retry. Reviewed resolver bounds, module/crate identity, visibility, dedicated unbound fallback and retained-edge replacement."
+  },
+  "full_original_goal": "ACTIVE; no Rust deployment or parent TODO23 completion claim."
+}

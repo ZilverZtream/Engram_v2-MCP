@@ -18,13 +18,13 @@ fn module_reference_evidence(
     let edges = graph.get_edges_by_endpoints(project, &[(source.into(), EdgeKind::Calls, target.into())])
         .map_err(|e| e.to_string())?;
     let Some(bindings) = edges.first().and_then(|e| e.metadata.as_ref())
-        .and_then(|m| m.get("typescript_module_bindings_v1").or_else(||m.get("python_module_bindings_v1"))).and_then(|v| v.as_array()) else { return Ok(String::new()); };
+        .and_then(|m| m.get("typescript_module_bindings_v1").or_else(||m.get("python_module_bindings_v1")).or_else(||m.get("rust_module_bindings_v1"))).and_then(|v| v.as_array()) else { return Ok(String::new()); };
     let limit = (*remaining).min(8);
     let rows: Vec<_> = bindings.iter().take(limit).map(|binding| {
         let call = &binding["call"];
         let module = call["module"].as_str().unwrap_or("");
         serde_json::json!({"source_file": binding["source_file"], "call_site": call["site"],
-            "import_site": if matches!(module, "<local>" | "<unknown>") { serde_json::Value::Null } else { call["import_site"].clone() },
+            "import_site": if matches!(module, "<local>" | "<unknown>") || call.get("path_from_use").and_then(|v|v.as_bool())==Some(false) { serde_json::Value::Null } else { call["import_site"].clone() },
             "binding_site": call["import_site"], "module": module.chars().take(512).collect::<String>(),
             "module_truncated": module.chars().count() > 512, "target_file": binding["target_file"],
             "target_line": binding["target_line"], "binding": binding["binding"], "reason": binding["reason"]})
