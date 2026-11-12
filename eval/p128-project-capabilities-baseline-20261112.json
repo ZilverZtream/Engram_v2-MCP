@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_SOURCE_VALIDATED_RUNTIME_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
   "observed_missing_behavior": "Installed authored TypeScript fixture requires project_type, advertises all 32 legacy .NET tools, and has no ecosystem/capability metadata in project_info or overview. Owned MCP/Git handles closed and fixture removed.",
   "finite_acceptance": [
@@ -20,14 +20,15 @@
     "crates/engram_server/src/capabilities/project.rs"
   ],
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
-  "next_action": "Build the validated release; verify owned public candidate and installed behavior, deploy, and record before advancing.",
+  "next_action": "Inspect the next unfinished accepted original item once and select its finite delivery contract; preserve all completed deliveries and remaining gates.",
   "constraints": "One implementation item. Preserve delivered TODO23 and all other original findings; no broad service audit (TODO26), corpus expansion (TODO25), CodeMap/Blast improvement, new approval UI or unrelated infrastructure. Existing source publication/ownership guarantees and held kernel/SSD/deletion work remain unchanged.",
   "baseline_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112\\baseline\\receipt.json",
   "behavior_contract": {
     "auto": "Omitted/auto project_type selects a fixed indexing preset at registration from eligible manifest/source paths. Explicit profiles and existing registrations remain unchanged. Mixed ecosystems use general coverage.",
     "metadata": "Evidence derived from held persisted source-file revisions, including empty files; no stale graph metadata or live disk inference. Scope is the chosen preset and ignore rules, not all files on disk or compiler/build semantics.",
     "discovery": "Union across all registered source projects, intersected with configured full/core surface. No source project means no legacy tools; unknown legacy/unavailable source coverage conservatively preserves specialized discovery. Explicit WebForms profiles retain access. General core dependencies remain visible.",
-    "limitations": "Candidate/installed public acceptance and deployment are pending. No external review claim."
+    "limitations": "Delivered within filename-based, configured source coverage and fixed-at-registration presets; see delivery receipt for explicit legacy/discovery limitations. No external review claim."
   },
-  "progress": "eval/p128-project-capabilities-progress-20261112.json"
+  "progress": "eval/p128-project-capabilities-progress-20261112.json",
+  "delivery_receipt": "eval/p128-project-capabilities-delivery-20261112.json"
 }
