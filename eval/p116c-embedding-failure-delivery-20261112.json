@@ -1,0 +1,38 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T00:47:12.725497+00:00",
+  "original_requirement": "TODO16c: source indexing and graph extraction survive an unavailable embedding backend; failed batches remain lexical-only with accurate counts and recovery guidance.",
+  "behavior": "Provider-boundary failures preserve accumulated source extraction and lexical writes while counting the entire unwritten vector batch. Successful batches remain. Source/history direct and job results expose degradation; vector_only repairs retained namespaces. Cancellation and incompatible storage/admission failures are not degraded success.",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\p116c-embedding-failure-baseline-20261112.json",
+    "sha256": "654c62d764988512542300a763bfa50b1cc5e212dfdfdd9f43eb3be43e38654a"
+  },
+  "source_sha256": {
+    "crates/engram_index/src/hybrid/embedding_failure_tests.rs": "5fe326f5cab10898861828627901f9adec73713b13f06a201f96e742a36f878b",
+    "crates/engram_server/src/handlers/project_tools/source_publication_tests/embedding_failure.rs": "354965bcad6f86dbaa3f066cd1573bfd0e1a6cf828ec7d4d1947d4c3923b4c47",
+    "crates/engram_index/src/hybrid.rs": "350eedb5288d8bd52ddfd0b3c4c15abb58e9c9cf7e76f80148f9ff7ca36bcd2a",
+    "crates/engram_server/src/handlers/git_tools.rs": "549f4db87742e83944249a12e18702c054ca12677d98813f1fb6d87233d9e301",
+    "crates/engram_server/src/handlers/project_tools.rs": "6c9555f38596a1a2eeb96c4888c5a29a729695e53165de7e0ff9255abc1746c2",
+    "crates/engram_server/src/handlers/project_tools/source_publication_tests.rs": "6546730d4c762f7dbf5e96d0d2b7d9413b5a4fc6c46b162af382bc8f3fb05f22",
+    "crates/engram_server/src/services/project_service.rs": "d711dc484547959174a3ce69dd67d5519ba5180f350fd8e32efb1292a13c9f97"
+  },
+  "source_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\source-review.json",
+    "sha256": "932f259c10cce159e138ce87bb892cbc15ec7bf0abab03b86074dad91ca896a4"
+  },
+  "helper_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\helper-review.json",
+    "sha256": "03b560fe807c82cecc2fbd3b039db0703808a14d793a96a9d6d1af0d388ebc8e"
+  },
+  "validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112\\source-validation.json",
+    "sha256": "cdeecb2e29bbe05189ae072c82bcff2aa51e626a2e12ff2103e8f36c0cf34dc3"
+  },
+  "source_commit": null,
+  "outstanding": [
+    "Release build/package.",
+    "Candidate and installed public outage/recovery acceptance.",
+    "Deployment and normal daemon identity verification."
+  ],
+  "limitations": "No production source reindex, new retry policy, large-project latency claim, full backlog/19-gate completion or independent external review claim."
+}

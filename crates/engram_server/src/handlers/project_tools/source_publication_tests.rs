@@ -24,6 +24,8 @@ mod project_deletion;
 mod diagnostic_selection;
 #[path = "source_publication_tests/job_cancellation.rs"]
 mod job_cancellation;
+#[path = "source_publication_tests/embedding_failure.rs"]
+mod embedding_failure;
 
 #[derive(Clone)]
 struct PublicationPause {

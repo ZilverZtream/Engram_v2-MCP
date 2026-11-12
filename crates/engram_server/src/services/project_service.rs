@@ -179,6 +179,9 @@ pub fn generate_indexing_report(stats: &engram_index::IngestStats) -> String {
     ));
     report.push_str(&format!("- Files skipped: {}\n", stats.skipped_files.len()));
     report.push_str(&format!("- Total chunks created: {}\n", stats.chunks));
+    if let Some(warning) = stats.embedding_warning() {
+        report.push_str(&format!("- status: degraded\n- {warning}\n"));
+    }
     report.push_str(&format!(
         "- Total bytes processed: {} ({:.2} MB)\n",
         stats.bytes,
