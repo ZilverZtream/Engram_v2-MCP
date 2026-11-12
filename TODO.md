@@ -231,6 +231,7 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   into CI. Without these, #23 can't be verified and regressions are invisible.
 
 - [ ] **26. Audit the 56 WebForms-biased service files for non-.NET behavior** (M)
+  Active: `eval/p130-service-applicability-baseline-20261112.json`.
   Services hardcode Page_Load/ViewState/Master Pages. Each must either no-op cleanly with
   a clear "not applicable to this project type" message, or generalize (e.g.
   `produce_claude_md`, `pre_commit_review` gates, coding-style analysis should be fully
