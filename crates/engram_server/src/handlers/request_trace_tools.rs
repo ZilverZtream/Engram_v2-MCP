@@ -49,7 +49,7 @@ impl Engram {
             let mut bytes = 0usize;
             for path in selected.keys() {
                 let lower = path.to_ascii_lowercase();
-                if ![".vb", ".cs", ".aspx", ".ashx", ".asmx", ".asax", ".sql"].iter().any(|extension| lower.ends_with(extension)) { continue; }
+                if ![".vb", ".cs", ".aspx", ".ashx", ".asmx", ".asax", ".sql", ".dbml"].iter().any(|extension| lower.ends_with(extension)) { continue; }
                 let target = match engram_core::safe_join(Path::new(&record.directory), path) {
                     Ok(target) => target, Err(error) => { gaps.push(format!("{path}: {error}")); continue; }
                 };
