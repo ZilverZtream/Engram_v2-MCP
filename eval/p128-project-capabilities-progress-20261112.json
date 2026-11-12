@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_SOURCE_VALIDATED_RUNTIME_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "at_utc": "2026-11-12T10:20:10.867655+00:00",
   "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
   "source_sha256": {
@@ -43,15 +43,17 @@
     ]
   },
   "limitations": [
-    "Public candidate and installed acceptance, release build and deployment are pending.",
-    "Path/manifest-name evidence is not compiler, build, dependency-installation or runtime proof. Metadata covers the configured indexing preset and ignore rules.",
-    "Presets are fixed at registration; refreshing does not silently switch an explicitly supported source profile.",
-    "Clients should re-list tools after background indexing finishes. Unknown legacy/unavailable source coverage conservatively keeps specialized tools discoverable.",
-    "Broader original backlog and full nineteen storage gates remain open."
+    "Detection uses eligible manifest/source file names; it does not execute builds, resolve dependencies, or prove runtime behavior.",
+    "Indexing presets are fixed at registration. Explicit profiles are honored; metadata covers their selected source paths and ignore rules, not excluded working-tree files.",
+    "Metadata describes the held published source generation. Run update_project to reflect disk edits. Legacy/unavailable source coverage is explicit and conservatively retains specialized tool discovery.",
+    "Tool visibility is a union across registered projects, intersected with full/core configuration. Clients should re-list after background indexing finishes; direct calls remain supported.",
+    "Evidence output is bounded and reports omissions. Parent manual review only; no external review or full original nineteen-gate closure. Production source was not reindexed."
   ],
   "temporary_resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
     "owned_fixtures_removed": true,
     "retained": "Scripts, wire logs, authored input and test receipts; no preexisting folder deletion."
-  }
+  },
+  "delivery_receipt": "eval/p128-project-capabilities-delivery-20261112.json",
+  "next_action": "Inspect the next unfinished accepted original item once and select its finite delivery contract; preserve all completed deliveries and remaining gates."
 }

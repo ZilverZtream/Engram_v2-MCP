@@ -820,7 +820,7 @@ allowed_roots:
 data_dir: /home/user/.engram-data
 
 embedding_backend: local       # "local" | "ollama" | "openai"
-advertise_all_tools: true       # default: full tool discovery, including .NET tools
+advertise_all_tools: true       # default: full profile, filtered by project capabilities
 ```
 
 Set `advertise_all_tools: false` only for clients requiring the limited core
@@ -828,7 +828,7 @@ tool list. Tools omitted from `tools/list` may be unavailable to client agents;
 The full profile includes `list_advanced_tools` as a catalog; it is not a
 substitute for protocol discovery.
 Restart the daemon and reconnect clients after changing this setting.
-The 32-tool core includes `list_projects`, `project_info`, `get_chunk`,
+The core tier has up to 32 tools and includes `list_projects`, `project_info`, `get_chunk`,
 `get_full_method_body` and `read_memory_bank` for project discovery, stored
 citations and current-source recovery. Detailed `project_health` diagnostics
 remain in the full profile; Core retains `get_index_freshness` for index freshness. Dedicated blast
@@ -902,9 +902,27 @@ messages; logs go to stderr. Enable debug logs with `RUST_LOG=debug`.
 ### First session
 
 ```
-Index /home/user/myapp as project "myapp" (project_type: dotnetwebformscs).
+Index /home/user/myapp as project "myapp".
 Wait for indexing to complete. Then give me a codebase overview.
 ```
+
+Omit `project_type` or use `auto` to select an indexing preset from eligible
+manifests and source files. Mixed projects, or projects whose assets do not fit
+a narrower preset, use `general`. Selection happens once at registration;
+refreshing preserves that preset. Explicit types and aliases remain supported,
+including `rust`, `python`, `typescript`, `csharp` and `dotnetwebformscs`.
+
+`project_info` and the overview summary report the preset, detected ecosystems,
+path evidence and coverage from the published source index. These observations
+respect the preset and ignore rules; they do not evaluate builds or establish
+working-tree freshness. Run `update_project` to reflect disk changes.
+
+WebForms and migration tools appear when a registered project's indexed files
+or explicit profile support them. Discovery combines capabilities across all
+registered projects and applies the configured full/core tier. An ordinary
+`.csproj` or `.sln` does not by itself establish WebForms support. Unknown legacy
+or unavailable source coverage conservatively retains specialized discovery.
+Re-list tools after background indexing finishes.
 
 After any set of staged changes:
 

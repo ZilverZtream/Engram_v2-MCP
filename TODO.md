@@ -217,8 +217,8 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
 
   TypeScript delivered: `eval/p123-typescript-modules-delivery-20261112.json` (candidate and installed module/alias calls, incremental changes and storage-preserving graph repair). Python delivered: `eval/p124-python-modules-delivery-20261112.json` (candidate/installed import calls, incremental changes and storage-preserving graph repair). Rust delivered: `eval/p125-rust-modules-delivery-20261112.json` (candidate/installed use/module calls, Cargo manifest updates and storage-preserving graph repair). Go delivered: `eval/p126-go-modules-delivery-20261112.json` (candidate/installed package calls, manifest/workspace updates and storage-preserving graph repair). Java delivered: `eval/p127-java-modules-delivery-20261112.json` (candidate/installed import and typed-receiver calls, incremental rebinding and storage-preserving graph repair). All five language deliveries reconciled: `eval/p127-todo23-acceptance-20261112.json`; static source scope and explicit limitations retained.
 
-- [ ] **24. Project-type detection + capability gating** (M)
-  Active: `eval/p128-project-capabilities-baseline-20261112.json`.
+- [x] **24. Project-type detection + capability gating** (M)
+  Delivered: `eval/p128-project-capabilities-delivery-20261112.json` (candidate/installed automatic presets, source recovery, capability-filtered discovery, refresh/reopen and explicit overrides).
   `project_service.rs`, `capabilities.rs`. Detect ecosystem at index time (csproj/sln vs
   package.json vs Cargo.toml vs pyproject). Use it to: gate WebForms/migration tools out
   of the visible tool list (#3), pick extractor presets, and tailor
