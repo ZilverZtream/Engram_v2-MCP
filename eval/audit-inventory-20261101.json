@@ -9976,71 +9976,60 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "BOUNDED_REQUEST_TRACE_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ORIGINAL_TODO31_PARTIAL",
-      "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace_user_request, URL or page and optional action through handler, calls, database operations, trigger side effects and response.",
-      "missing_behavior": "No trace_user_request request model, tool or handler exists. OciusX registers MapPageRoute URLs in Site/App_Code/RouteConfig.vb; existing get_page_context and trace_data_flow require the agent to resolve the entry manually.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING_NOT_DEPLOYED",
+      "original_requirement": "TODO33: batch/multi-get hot reads (method information, node lookups and document fetches) with a shared response token budget.",
+      "missing_behavior": "get_method_info, resolve_id and get_chunk are individual public calls. No batch read handler/request/tool currently exists.",
       "implementation_files": [
         "README.md",
         "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/handlers/batch_read_tools.rs",
         "crates/engram_server/src/handlers/mod.rs",
-        "crates/engram_server/src/handlers/request_trace_tools.rs",
         "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/services/request_trace.rs",
-        "crates/engram_server/src/services/request_trace/database.rs",
-        "crates/engram_server/src/services/request_trace/execution.rs",
-        "crates/engram_server/src/services/request_trace/routing.rs",
-        "crates/engram_server/src/services/request_trace/tests.rs",
-        "crates/engram_server/src/tools.rs"
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/batch_read_tests.rs"
       ],
       "finite_acceptance": [
-        "Resolve explicit pages and authored MapPageRoute patterns to real OciusX source with file/line evidence; report ambiguous or unresolved routes rather than selecting an arbitrary page.",
-        "Select page lifecycle and requested control/action handlers from authored bindings, not naming guesses; preserve conditional execution limits.",
-        "Compose bounded call, SQL/stored-procedure/table, state and response evidence. Respect include_db/include_triggers; disclose unsupported or missing trigger evidence and graph/source coverage.",
-        "Behavioral fixtures cover routes, action binding, cross-file calls and database path, decoys, ambiguity, traversal and truncation; check actual candidate/installed MCP including a read-only real OciusX URL.",
-        "Commit/push origin/master and deploy only this change on the installed source baseline; preserve parked language work."
+        "Typed read-only operation list supports the existing method, identity and document arguments; no arbitrary tool dispatch or mutations.",
+        "Return one correlated row per input in input order, with the original tool result or error; a failed item does not erase independent results.",
+        "Bound the complete JSON text under one declared UTF-8 token estimate. Never truncate source or guidance inside a result; preserve exact single-read recovery for every budget-omitted item. Reject a budget too small for identities/recovery before executing reads.",
+        "Keep normal source/citation validation and per-read freshness semantics by reusing existing handlers; make lack of atomic multi-read snapshot explicit.",
+        "Verify mixed operations, ambiguity/errors, budget pressure and invalid/mutating inputs through focused checks and actual candidate/installed MCP; verify one read-only real OciusX batch without source/index changes.",
+        "Commit/push only origin/master, deploy isolated installed-baseline source, preserve parked work and account for all new resources."
       ],
-      "scope_guard": "Existing OciusX VB.NET/WebForms routing and existing graph APIs; no CodeMap/Blast/parser expansion, benchmark rerun or new language support.",
-      "source_baseline": "4837b7c043990c6006a342f93936e8a5ba4214b5",
-      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace-source",
-      "isolation_reason": "Keep parked modern-language commits and working changes out of runtime delivery.",
-      "removal_condition": "After accepted delivery and merged/pushed source, verify clean unique-work preservation and remove through git worktree remove.",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace",
-      "implementation_progress": {
-        "status": "BOUNDED_REQUEST_TRACE_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ORIGINAL_TODO31_PARTIAL",
-        "source_commit": "bf240606d243de0aa7db06caab86d8c6bfe87933",
-        "source_baseline": "4837b7c043990c6006a342f93936e8a5ba4214b5",
-        "native_tests": 14,
-        "schema_tests": 2,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\native4.json",
-        "schema_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\surface.json",
-        "post_test_changes": [],
-        "public_mcp_verified": true,
-        "resources": {
-          "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace",
-          "owned_test_temps_removed": true,
-          "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace-source",
-          "source_worktree_removal": "After accepted delivery and merged/pushed source; verify clean and remove through Git."
-        },
-        "remaining": [
-          "Trigger effects remain unknown; include_triggers does not prove trigger execution.",
-          "Dynamic/optional route defaults, inherited or dynamic bindings, inline SQL/ORM translation, nested procedure execution and database deployment identity remain unresolved.",
-          "Static source evidence does not prove branch reachability, validation outcomes, successful writes or an actual HTTP response.",
-          "Full original TODO31 remains open; original 19 storage gates and EG25 comparative usefulness are not closed by this delivery."
-        ],
-        "first_public_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\first-candidate\\acceptance.json",
-        "installed_mcp_verified": true,
-        "real_ociusx_route_verified": true
+      "limits": {
+        "max_requests": 16,
+        "default_max_tokens": 8192,
+        "max_max_tokens": 65536
       },
-      "live_build_session": null,
-      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\release2.json",
-      "delivery_evidence": "eval\\ociusx-request-trace-delivery-20261112.json",
-      "original_requirement_remaining": [
-        "Trigger effects remain unknown; include_triggers does not prove trigger execution.",
-        "Dynamic/optional route defaults, inherited or dynamic bindings, inline SQL/ORM translation, nested procedure execution and database deployment identity remain unresolved.",
-        "Static source evidence does not prove branch reachability, validation outcomes, successful writes or an actual HTTP response.",
-        "Full original TODO31 remains open; original 19 storage gates and EG25 comparative usefulness are not closed by this delivery."
-      ]
+      "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "isolation_reason": "Main checkout contains parked modern-language commits and working changes; runtime delivery must exclude them.",
+      "removal_condition": "After accepted delivery and merged/pushed source, verify clean unique-work preservation and remove via git worktree remove.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
+      "scope_guard": "One accepted OciusX-relevant read workflow improvement. No CodeMap/Blast, target-language work, new benchmark, migration generator or editing pipeline.",
+      "implementation_progress": {
+        "status": "IMPLEMENTED_FOCUSED_TESTS_PASSED_NOT_DEPLOYED",
+        "source_commit": "83d00e7c2d23668f48e34395d0a01a949f8a69e0",
+        "source_baseline": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+        "native_tests": 4,
+        "native_receipts": [
+          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\unit3.json",
+          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\integration3.json"
+        ],
+        "public_mcp_verified": false,
+        "post_test_changes": [
+          "README clarification only: complete means response delivery, not success of every read."
+        ],
+        "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\review.json",
+        "resources": {
+          "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read",
+          "all_test_temps_removed": true,
+          "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+          "removal": "After accepted delivery and merged/pushed source, verify clean unique-work preservation and remove via git worktree remove."
+        }
+      },
+      "live_build_session": 16303,
+      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json"
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10072,11 +10061,10 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO31 trace_user_request for OciusX",
-    "next_user_visible_deliverable": "Original EG25 matched OciusX implementation/QA evidence; inspect retained task material before selecting a concrete case.",
+    "active_original_item": "TODO33 batch hot reads",
+    "next_user_visible_deliverable": "Batch method, graph identity and stored-document reads with one complete response budget.",
     "following_original_items": [
-      "EG25 matched OciusX implementation/QA benefit using existing tasks",
-      "Retained EG14 and EG27/31 gaps that affect an actual OciusX workflow; no pilot expansion"
+      "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
     "parked_supporting_work": [
       "EG26 catalog/schema expansion",
@@ -10093,7 +10081,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Request trace built, candidate and installed public MCP passed, real OciusX route passed, source pushed and installed. Temporary worktree removed; failed-probe package retained after policy rejection."
+      "evidence": "Implemented typed batch reads and shared complete-response budget; three unit and one real-handler integration tests passed, all owned test resources removed, source committed as83d00e7. Public MCP and deployment remain pending."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13073,6 +13061,83 @@
       },
       "remaining": "Broader EG26 reconciliation is unfinished; no complete tool catalog audit claimed."
     },
-    "latest_request_trace_delivery": "eval\\ociusx-request-trace-delivery-20261112.json"
+    "latest_request_trace_delivery": "eval\\ociusx-request-trace-delivery-20261112.json",
+    "previous_request_trace_contract": {
+      "status": "BOUNDED_REQUEST_TRACE_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ORIGINAL_TODO31_PARTIAL",
+      "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace_user_request, URL or page and optional action through handler, calls, database operations, trigger side effects and response.",
+      "missing_behavior": "No trace_user_request request model, tool or handler exists. OciusX registers MapPageRoute URLs in Site/App_Code/RouteConfig.vb; existing get_page_context and trace_data_flow require the agent to resolve the entry manually.",
+      "implementation_files": [
+        "README.md",
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/handlers/request_trace_tools.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/database.rs",
+        "crates/engram_server/src/services/request_trace/execution.rs",
+        "crates/engram_server/src/services/request_trace/routing.rs",
+        "crates/engram_server/src/services/request_trace/tests.rs",
+        "crates/engram_server/src/tools.rs"
+      ],
+      "finite_acceptance": [
+        "Resolve explicit pages and authored MapPageRoute patterns to real OciusX source with file/line evidence; report ambiguous or unresolved routes rather than selecting an arbitrary page.",
+        "Select page lifecycle and requested control/action handlers from authored bindings, not naming guesses; preserve conditional execution limits.",
+        "Compose bounded call, SQL/stored-procedure/table, state and response evidence. Respect include_db/include_triggers; disclose unsupported or missing trigger evidence and graph/source coverage.",
+        "Behavioral fixtures cover routes, action binding, cross-file calls and database path, decoys, ambiguity, traversal and truncation; check actual candidate/installed MCP including a read-only real OciusX URL.",
+        "Commit/push origin/master and deploy only this change on the installed source baseline; preserve parked language work."
+      ],
+      "scope_guard": "Existing OciusX VB.NET/WebForms routing and existing graph APIs; no CodeMap/Blast/parser expansion, benchmark rerun or new language support.",
+      "source_baseline": "4837b7c043990c6006a342f93936e8a5ba4214b5",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace-source",
+      "isolation_reason": "Keep parked modern-language commits and working changes out of runtime delivery.",
+      "removal_condition": "After accepted delivery and merged/pushed source, verify clean unique-work preservation and remove through git worktree remove.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace",
+      "implementation_progress": {
+        "status": "BOUNDED_REQUEST_TRACE_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ORIGINAL_TODO31_PARTIAL",
+        "source_commit": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+        "source_baseline": "4837b7c043990c6006a342f93936e8a5ba4214b5",
+        "native_tests": 14,
+        "schema_tests": 2,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\native4.json",
+        "schema_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\surface.json",
+        "post_test_changes": [],
+        "public_mcp_verified": true,
+        "resources": {
+          "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace",
+          "owned_test_temps_removed": true,
+          "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace-source",
+          "source_worktree_removal": "After accepted delivery and merged/pushed source; verify clean and remove through Git."
+        },
+        "remaining": [
+          "Trigger effects remain unknown; include_triggers does not prove trigger execution.",
+          "Dynamic/optional route defaults, inherited or dynamic bindings, inline SQL/ORM translation, nested procedure execution and database deployment identity remain unresolved.",
+          "Static source evidence does not prove branch reachability, validation outcomes, successful writes or an actual HTTP response.",
+          "Full original TODO31 remains open; original 19 storage gates and EG25 comparative usefulness are not closed by this delivery."
+        ],
+        "first_public_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\first-candidate\\acceptance.json",
+        "installed_mcp_verified": true,
+        "real_ociusx_route_verified": true
+      },
+      "live_build_session": null,
+      "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\release2.json",
+      "delivery_evidence": "eval\\ociusx-request-trace-delivery-20261112.json",
+      "original_requirement_remaining": [
+        "Trigger effects remain unknown; include_triggers does not prove trigger execution.",
+        "Dynamic/optional route defaults, inherited or dynamic bindings, inline SQL/ORM translation, nested procedure execution and database deployment identity remain unresolved.",
+        "Static source evidence does not prove branch reachability, validation outcomes, successful writes or an actual HTTP response.",
+        "Full original TODO31 remains open; original 19 storage gates and EG25 comparative usefulness are not closed by this delivery."
+      ]
+    },
+    "eg25_reconciliation_20261112": {
+      "status": "RETAINED_MATCHED_IMPLEMENTATION_COMPLETED_NO_ADVANTAGE",
+      "evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\core-matched-implementation-20261110\\independent-qa\\summary.json",
+        "sha256": "8d0c0f90da3bfcec7d98b50c769668ccb7e70a9d925f75c8645f8cd922327717"
+      },
+      "outcome": "Both candidates produced identical changes; both passed frozen9 source and crosscheck15 full-bundle checks. No assistance advantage established. Current four-task evaluation also showed equal correctness and no matched implementation/QA benefit.",
+      "decision": "Do not rerun CodeMap/Blast comparisons or chase a favorable metric. EG25 comparative benefit remains unestablished; advance the next ready original OciusX improvement.",
+      "todo32": "Preserved unfinished; original tool_roi research defers deeper autonomous-edit machinery until a recurring OX task demonstrates need. Batch hot reads reuse existing services and directly address repeated read round trips."
+    }
   }
 }
