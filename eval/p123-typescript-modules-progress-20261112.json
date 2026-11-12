@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "at_utc": "2026-11-12T05:28:32.163196+00:00",
-  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "at_utc": "2026-11-12T05:47:44.441779+00:00",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "active_item": "TODO23 TypeScript (other parent languages remain open)",
   "implemented": [
     "Versioned ES-module facts on file nodes: named/default/namespace imports, declarations, exports and per-call locations.",
@@ -51,13 +51,9 @@
     }
   ],
   "in_flight": null,
-  "remaining": [
-    "Actual candidate MCP old-index upgrade, incremental import/export/config updates and target deletion/restoration",
-    "Graph-only source/search/vector/chunk preservation acceptance",
-    "Release deployment, installed MCP verification, push/delivery receipt; TODO23 parent other languages stay open"
-  ],
-  "next_action": "Build p123-ts-modules-source-v2-20261112 from corrected source, then run existing candidate MCP upgrade/update/rebuild acceptance and installed verification. First build is superseded before packaging.",
-  "full_original_goal": "ACTIVE; no claim of TODO23 delivery or parent completion.",
+  "remaining": [],
+  "next_action": "Advance to Python, the next language in original TODO23; preserve the full remaining backlog.",
+  "full_original_goal": "ACTIVE; TypeScript portion delivered. TODO23 parent and other languages remain open.",
   "scope_notes": [
     "Resolution is syntax-based; nearest indexed tsconfig is used, not a TypeScript compiler project-membership proof.",
     "Relative config extends supported; package/array extends and malformed config patterns explicitly unbound.",
@@ -68,10 +64,10 @@
     "purpose": "Baseline/helper scripts, wire output, test logs and receipts for active TODO23 delivery",
     "cleanup_condition": "Retain until installed acceptance and delivery evidence are complete; preserve preexisting artifacts.",
     "completed_test_fixtures": "All ten completed runner receipts have stable source, no fixture leftovers, and owned fixture roots removed.",
-    "production": "No installed binary/config/data mutation in this implementation turn.",
+    "production": "Verified server/manifest installed. Configuration and production registry/source selection unchanged; normal daemon verified at generation 3147. No production reindex.",
     "superseded_build": "First build completed with stable source and owned resources closed/removed; do not package its binary."
   },
-  "checkpoint": "216457f pushed. JSX ordering correction validated; commit correction and build replacement before packaging.",
+  "checkpoint": "TypeScript pair installed and verified; parent languages remain open.",
   "implementation_sha256": {
     "crates/engram_core/src/typescript_modules.rs": "599e6954ce3cd41f074d84f226272b021b306f5521b236f74ed28cf5de94ef21",
     "crates/engram_graph/src/store/typescript_modules.rs": "1f6e22c530a34247f9ad499285abf448dfe0914ebceab6ed70d00c405a88e890",
@@ -95,5 +91,6 @@
     "scope": "Correct .jsx sibling lookup order; no new module-resolution forms or acceptance expansion.",
     "source": "https://raw.githubusercontent.com/microsoft/TypeScript/v5.9.3/src/compiler/moduleNameResolver.ts",
     "superseded_build": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-ts-modules-source-20261112.json"
-  }
+  },
+  "delivery_receipt": "eval/p123-typescript-modules-delivery-20261112.json"
 }
