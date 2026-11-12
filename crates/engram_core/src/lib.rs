@@ -19,6 +19,7 @@ pub mod value_flow;
 pub mod typescript_modules;
 pub mod python_modules;
 pub mod rust_modules;
+pub mod go_modules;
 
 pub use benchmark::{
     AdpCorpus, AdpScenario, AdpScenarioInput, BenchmarkPack, BenchmarkQueryEntry, BenchmarkReport,

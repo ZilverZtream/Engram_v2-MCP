@@ -1,0 +1,53 @@
+{
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "original_requirement": "TODO23: second-pass import/module call resolution. TypeScript, Python and Rust are delivered; Go packages are the one active item. Java and the original parent/backlog remain open.",
+  "observed_missing_behavior": "Go call extraction drops selector/import identity and retains only terminal names. Package imports and module manifests are not retained; default indexing omits go.mod/go.work.",
+  "finite_acceptance": [
+    "Resolve package functions across files and imported package calls using authored package clauses, import paths, explicit aliases and declared default names. Dot imports expose exported functions; blank imports do not bind calls. No same-name guesses across packages.",
+    "Index and retain go.mod/go.work facts. Resolve the owning module, indexed local replacements and declared workspace modules; keep nested modules separate. Manifest-only changes rebind unchanged callers.",
+    "Respect file-local imports, lexical variable/parameter/result shadowing, package export visibility and test-package boundaries. Build-constrained files, unsupported receivers/dynamic function values, ambiguity and unindexed dependencies remain explicitly unresolved.",
+    "Publish bounded call/import/target source evidence through existing public references. Native/no-vector authored cases assert exact target identities and preserve TypeScript/Python/Rust integration checks.",
+    "Source, import, package and manifest edits retract stale calls; target deletion/restoration recovers retained callers. Candidate and installed public old-index update/graph repair preserve source/search/vector storage and recovered chunks; verify normal daemon identity."
+  ],
+  "implementation_files": [
+    "crates/engram_core/src/go_modules.rs",
+    "crates/engram_index/src/parsing/go_modules.rs",
+    "crates/engram_index/src/parsing/go_modules/config.rs",
+    "crates/engram_index/src/parsing.rs",
+    "crates/engram_index/src/source_contract.rs",
+    "crates/engram_graph/src/store/go_modules.rs",
+    "crates/engram_graph/src/store.rs",
+    "crates/engram_server/src/services/ingest_service.rs",
+    "crates/engram_server/src/handlers/graph_tools.rs",
+    "crates/engram_server/src/utils/files.rs"
+  ],
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112",
+  "next_action": "Commit validated implementation and build p126-go-modules-source-20261112 with existing owned shared-target runner.",
+  "constraints": "One implementation item. No CodeMap/Blast work, compiler infrastructure, network module downloads or environment selection. Source evidence is not Go compiler/build-tag/runtime proof. Preserve all remaining original backlog work.",
+  "semantic_sources": [
+    "https://go.dev/ref/spec#Import_declarations",
+    "https://go.dev/ref/spec#Declarations_and_scope",
+    "https://go.dev/ref/mod#go-mod-file",
+    "https://go.dev/ref/mod#workspaces"
+  ],
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\baseline\\receipt.json",
+    "observed": {
+      "RunLeft": {
+        "expected_file": "left/api.go",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      },
+      "RunRight": {
+        "expected_file": "right/api.go",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      }
+    }
+  },
+  "progress_receipt": "eval/p126-go-modules-progress-20261112.json"
+}

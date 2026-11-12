@@ -24,7 +24,7 @@ fn script_reuse_requires_produced_receiver_contract_without_invalidating_other_l
         }
         ensure!(expected.metadata_is_compatible(&metadata, path));
     }
-    for path in ["owned.go", "style.css", "page.html", "server.cs"] {
+    for path in ["owned.java", "style.css", "page.html", "server.cs"] {
         ensure!(expected.metadata_is_compatible(&legacy, path));
     }
     let mut output = crate::IngestStats {
@@ -87,6 +87,35 @@ fn rust_modules_upgrade_legacy_source_and_manifest_facts_before_publication() ->
     Ok(())
 }
 
+#[test]
+fn go_modules_upgrade_legacy_source_and_manifest_facts_before_publication() -> Result<()> {
+    for (path, source, key) in [
+        ("app.go", "package app\nfunc Run() { Save() }\n", engram_core::go_modules::MODULE_KEY),
+        ("go.mod", "module example.com/app\ngo 1.23\n", engram_core::go_modules::CONFIG_KEY),
+        ("go.work", "go 1.23\nuse ./app\n", engram_core::go_modules::CONFIG_KEY),
+    ] {
+        let expected = SourceExtractionExpectation::for_paths(2000, [path])?;
+        let mut metadata = serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
+            "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
+        ensure!(!expected.metadata_is_compatible(&metadata, path), "Legacy facts require upgrade: {path}");
+        let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new(path), source);
+        for (key, value) in symbols.iter().find(|s| s.kind == "file").unwrap().metadata.as_ref().unwrap() {
+            metadata[key] = serde_json::json!(value);
+        }
+        ensure!(expected.metadata_is_compatible(&metadata, path));
+        let mut output = crate::IngestStats {
+            source_extraction_identity: Some(SourceExtractionIdentity::for_chunk_target(2000)),
+            files: 1, all_files: vec![engram_core::RelPath::new(path)], ..Default::default()
+        };
+        ensure!(expected.verify_produced(&output).is_err(), "Publication requires produced facts: {path}");
+        output.symbols.extend(symbols.into_iter().map(|s| (std::sync::Arc::new(engram_core::RelPath::new(path)), s)));
+        expected.verify_produced(&output)?;
+        metadata[key] = serde_json::json!("{}");
+        ensure!(!expected.metadata_is_compatible(&metadata, path));
+    }
+    Ok(())
+}
+
 struct ParserOwner;
 
 #[test]
@@ -95,7 +124,7 @@ fn python_modules_upgrade_legacy_facts_and_require_actual_production() -> Result
     let mut metadata = serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
         "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
     ensure!(!expected.metadata_is_compatible(&metadata, "app.py"));
-    ensure!(expected.metadata_is_compatible(&metadata, "app.go"));
+    ensure!(expected.metadata_is_compatible(&metadata, "app.java"));
     let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new("app.py"),
         "from api import save\ndef run():\n    return save()\n");
     for (key,value) in symbols.iter().find(|s|s.kind=="file").unwrap().metadata.as_ref().unwrap() {

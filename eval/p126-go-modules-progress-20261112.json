@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "at_utc": "2026-11-12T08:14:44.855043+00:00",
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "active_item": "TODO23 Go; Java and parent remain open",
+  "implementation_sha256": {
+    "crates/engram_core/src/go_modules.rs": "334a4755fde601c1422f6740c923eaf5575f12971a7f842ddfe6512716221eed",
+    "crates/engram_index/src/parsing/go_modules.rs": "ab433707317c3399abda08011d8df7815c527af8e75814d2dc510cca433688b3",
+    "crates/engram_index/src/parsing/go_modules/config.rs": "0915b1f79dd847a6f0a9be3c83aec7129d6b6a727a532d7957572d56d3060bce",
+    "crates/engram_index/src/parsing.rs": "fdf916b85e1fdc551c0fdd51de53c8501cddd91269ca9537c56a3ab5a27a49fa",
+    "crates/engram_index/src/source_contract.rs": "7ea38ae28cd06db505c2802dbefbe82662dba71ee3f3fb16eca5d727ed5c78de",
+    "crates/engram_graph/src/store/go_modules.rs": "c9b7c1d7019f74a1a51717dbb5a890272579f9d78f7bceaa3274679d5069e487",
+    "crates/engram_graph/src/store.rs": "e163c2716c22812dff60121def7807f74b7c05a0d0629f65ebabde9da0438cb8",
+    "crates/engram_server/src/services/ingest_service.rs": "85faa03eb14dda6c1bc8cfe7831c2818dc98246cc7df493c19175ac57016dbae",
+    "crates/engram_server/src/handlers/graph_tools.rs": "7aaf96ddcd5b6e71f3372aa181fe6fab72f1b80bd6ec06a4cba6071ee5b2cad7",
+    "crates/engram_server/src/utils/files.rs": "f68983cea749590cde27789ec7d012bc1544fc08cce4080b767533a3f4204bfb",
+    "crates/engram_core/src/lib.rs": "04191083ab3f59f304c2e2bfe78816550172a0a5e2845edf2e6ca3f21195bb62",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "4769403f8faf14e83c2cca7d954ba3caf3d9a228c07f45ae65493ec01b95dab3",
+    "crates/engram_server/src/services/ingest_service/go_module_tests.rs": "37c6b2d0c79444c7199b7bcd61fde5a2f804b0ce9595c66585214f4abef7fb56"
+  },
+  "implemented": [
+    "Retained file-local imports, declared package names, exact declarations/call sites and lexical shadowing; imports are not borrowed from neighboring files.",
+    "Cross-file package functions, default/aliased imports, dot imports and generics resolve exact source declarations; blank imports do not bind calls.",
+    "Indexed go.mod/go.work facts resolve owning module, local replacements and workspace members, including unchanged-caller rebinding after manifest edits.",
+    "Package export/internal/test boundaries, ignored/build-constrained sources and unsupported receiver/dynamic cases remain explicitly distinguished.",
+    "Public Calls expose bounded syntax evidence; extraction freshness requires actual versioned Go source/config facts."
+  ],
+  "checks": [
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\module-no-vector-final-result.json",
+      "sha256": "da4dd47a28e68f7be7a82130eecb4d1198af8ae895d51395ebb8f8b0a2dd8b2d",
+      "status": "PASS",
+      "passed": 20
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\module-native-final-result.json",
+      "sha256": "78f828ba556aaf1e27467d9aceeb1753305c6ed31521646f6d7f417ec693cd38",
+      "status": "PASS",
+      "passed": 6
+    },
+    {
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\publication-no-vector-final-result.json",
+      "sha256": "7a7ba7c946c52435f778f28ec760d29becc7aad8b6b72fe3fe9428173bcab159",
+      "status": "PASS",
+      "passed": 5
+    }
+  ],
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\baseline\\receipt.json",
+    "observed": {
+      "RunLeft": {
+        "expected_file": "left/api.go",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      },
+      "RunRight": {
+        "expected_file": "right/api.go",
+        "actual_files": [
+          "::Save"
+        ],
+        "correct_unique_target": false
+      }
+    }
+  },
+  "remaining": [
+    "Release build",
+    "Candidate old-index update admitting manifests, source/import/package/manifest changes and storage-preserving post-update graph repair",
+    "Install and repeat public acceptance; normal daemon verification; push delivery evidence"
+  ],
+  "next_action": "Commit validated implementation and build p126-go-modules-source-20261112 with existing owned shared-target runner.",
+  "limitations": [
+    "Static source evidence, not Go compiler, runtime, build-tag/platform, GOWORK environment or receiver-dispatch proof.",
+    "Only indexed project-local module/workspace/replacement paths are resolved. No network/module-cache lookup or full minimal-version selection.",
+    "Build-constrained/cgo/ignored sources, ambiguous declarations/imports, unsupported configs and unindexed external packages remain unresolved.",
+    "Old indexes need update_project to admit go.mod/go.work files newly included by default indexing. Graph-only repair preserves the admitted source set; no production reindex is performed."
+  ],
+  "review": {
+    "kind": "Parent manual review, not independent",
+    "external_review_ran": false,
+    "note": "Existing CodeRabbit authentication unavailable; no login/review retry. Reviewed module-root separation, file-local imports, visibility/test scope, local path boundaries, dedicated unresolved prefix and retained-edge replacement."
+  },
+  "temporary_resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112",
+    "completed_test_fixture_roots_removed": true,
+    "baseline_fixture_removed": true,
+    "retained": "Authored cases, helpers, logs, source hashes and release package retained for delivery evidence."
+  },
+  "full_original_goal": "ACTIVE; Go deployment and parent TODO23 completion are not claimed."
+}
