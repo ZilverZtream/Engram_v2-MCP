@@ -19,6 +19,7 @@ pub mod pr_history_tools;
 pub mod project_tools;
 pub mod quality_gate_tools;
 pub mod review_tools;
+pub mod request_trace_tools;
 pub mod review_decisions;
 mod review_discussion;
 pub mod review_verdict_tools;
