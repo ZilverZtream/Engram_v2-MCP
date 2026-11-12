@@ -582,7 +582,7 @@
       "id": "EG-14",
       "finding": "Area-specific instruction drafting",
       "bounded_delivery_20261111": "eval/eg14-draft-delivery-20261111.json: installed proposal + deterministic/stale acceptance + existing OX QA draft stage and independent review completed. Full EG14 remains open; publication/current-master and generator-specific acceptance not claimed.",
-      "ledger_disposition": "Open original proposal",
+      "ledger_disposition": "Original evidence-pack and existing QA draft handoff delivered; publication and broader usefulness limits retained",
       "existing_evidence_and_next_gate": "Produce a reviewable area draft with cited entry points, consumers, accepted rules, examples and validation paths. Distinguish observed code from authored intent. Scoped retrieval and the language generator do not complete this feature.",
       "required_behavior": [
         "Draft selected-area purpose, invariants, house examples, companion files and accepted exceptions.",
@@ -590,9 +590,9 @@
         "Keep observed implementation, authored intent and proposed policy distinct; workflow status alone is not an accepted ruling.",
         "Weak evidence exposes gaps and unchanged inputs yield stable output; pilot through existing OX QA draft/improve workflow."
       ],
-      "closure_state": "Partial generic area creation/provenance now31 publicmaintenance casesPASS including independent-review historical/current case alias and missingODB corrections. Generic usefulness evaluation, full review/release/deployment remain open.",
+      "closure_state": "Original proposal contract verified against retained installed evidence and current selected-source hashes; see November 12 reconciliation. No authored policy publication, end-to-end application validation or matched productivity claimed.",
       "dependencies": [],
-      "next_concrete_slice": "Current genericarea workflow implemented and31nativecasesPASS, includingindependent-review corrections. Remaining: representative usefulness/replay, fullreview, release/deployment; OX-specificintegrationrequires explicitscope.",
+      "next_concrete_slice": "Do not repeat delivered draft/pilot/deployment. Preserve explicit consumer/client and any future publication gaps; broader usefulness remains EG24/25.",
       "current_area_draft_evidence": "execution_evidence_20261101.area_draft_progress_20261102",
       "latest_runtime_delivery": {
         "package": "79c320d8/sourceb515a5e; deployed for liveOciusX",
@@ -632,7 +632,8 @@
         "verification_failure_retained": "Firstnormalverifier FAIL comparedfullsafety tohistorical livegraphcoverage. Historicalmissing/unknownrowobservations changed; they are not invariant. CurrentpairedAPIs/33selectednodes verified, changedgapcountsreportedwithoutattributingcause. OriginalFAILreceipt retained; normalpacketrecapturebyteidenticaltopinnedfirstreceipt.",
         "closure": "PARTIAL: discoverydeliveryverified. UserexplicitlystoppedinstructiondraftingtofocusCodeMap+Blast. Data-only12claimdraft semanticallyreviewedbutunsubmitted/unfinished; notcompletionofagentcoretools orentireEG14.",
         "retained_previous_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-88bfa21dda824592befa22ef06eaa58a"
-      }
+      },
+      "reconciliation": "eval/eg14-evidence-pack-reconciliation-20261112.json"
     },
     {
       "id": "EG-15",
@@ -888,7 +889,7 @@
     {
       "id": "EG-28",
       "finding": "Legacy quality-rule ownership migration",
-      "ledger_disposition": "Open provenance finding",
+      "ledger_disposition": "Exact installed live inventory and owned adoption acceptance verified; live source/authority decisions remain open",
       "existing_evidence_and_next_gate": "Inventory basename-derived promotions, resolve ownership with evidence or explicit decisions, and disclose stale broad enforcement. New-import collision rejection is containment, not migration.",
       "required_behavior": [
         "Read-only legacy inventory identifies exact rule rows, enforcement, manual ownership, ambiguity and receipt conflicts.",
@@ -896,7 +897,7 @@
         "Collisions, ambiguity, interruptions and human edits preserve existing rows and disclose incomplete coverage.",
         "Prepare concrete evidence for unresolved human policy/ownership decisions; never guess acceptance or ownership."
       ],
-      "closure_state": "Partial: exact legacy inventory/adoption and reviewed alias lifecycle verified locally in both actual feature configurations. Current native26 and no-vector58 milestone include actual alias/adoption/ownership/MCP functions. Live exact raw OX evidence, human ownership decisions and feature-specific deployed acceptance remain open; code is in shipped lineage; installed rendered94-row inventory is not raw ownership proof.",
+      "closure_state": "94 exact live raw rules verified; zero ownership receipts, all legacy_unverified, 56 global scopes. Read-only inventories and identity unchanged. Installed owned preview/manual-transfer/stale/apply acceptance passed and fixtures removed. All live ownership decisions remain unresolved; no policy adoption inferred.",
       "dependencies": [
         "Any legacy row with unresolved authority requires a concrete human decision after its evidence inventory is prepared."
       ],
@@ -905,7 +906,8 @@
       "latest_live_inventory_evidence": "execution_evidence_20261101.eg28_installed_readonly_ipc_rendered_inventory_20261103",
       "latest_alias_lifecycle_evidence": "execution_evidence_20261101.eg28_alias_lifecycle_native_behavior_20261103",
       "latest_both_features_alias_evidence": "execution_evidence_20261101.no_vector_alias_v4_publication_and_tool_milestone_20261103",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "current_installed_delivery": "eval/eg28-installed-ownership-delivery-20261112.json"
     },
     {
       "id": "EG-29",
@@ -9959,88 +9961,23 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "RECORDED_QUALITY_CHECK_DELIVERED_PRIVATE_CI_UNCONFIGURED",
-      "original_requirement": "Put a small accepted-task benchmark into regular checks. Reuse existing OX evaluation assets.",
-      "missing_behavior": "Inventory records existing frozen task results and saved-run verifier, but regular CI remains open.",
+      "status": "EXACT_INVENTORY_AND_INSTALLED_ADOPTION_VERIFIED_LIVE_DECISIONS_OPEN",
+      "original_requirement": "EG28: exact read-only inventory of legacy rule rows, enforcement, manual ownership, ambiguity and receipt conflicts; prepare concrete evidence for unresolved decisions without guessing ownership.",
+      "missing_behavior": "Only installed rendered 94-row inventory is recorded; exact raw OX row/receipt evidence and feature-specific deployed inventory acceptance remain open.",
       "implementation_files": [
-        "eval/frozen_task_capture.py",
-        "eval/test_frozen_task_capture.py",
-        "eval/README.md"
+        "crates/engram_server/src/services/legacy_rule_ownership.rs",
+        "crates/engram_server/src/handlers/project_tools.rs"
       ],
       "finite_acceptance": [
-        "Reuse retained accepted tasks for instruction routing, history, companions and diagnosis; do not create a new benchmark platform.",
-        "A normal verification command and CI job run the existing checks and fail on a deliberately invalid retained-result fixture.",
-        "Report correctness, false guidance, context/read cost and latency where actually measured; missing comparative productivity remains explicit."
+        "Use existing list_repo_rules ownership_inventory on the installed OX project.",
+        "Verify every returned raw row/receipt byte count and BLAKE3 independently; decode and identify ambiguous/manual/foreign/conflicting cases.",
+        "Fingerprint only concrete candidate source paths and retain unchanged raw row evidence; do not infer ownership from matching content or filenames.",
+        "Prepare specific unresolved decisions with exact evidence. No live adoption without explicit source-bound ownership decision."
       ],
-      "remaining_eg14": "Bounded draft/QA handoff delivered; broader publication and evidence gaps remain open, not silently completed.",
-      "completed_implementation_slice": {
-        "requirement": "Review the requested diff and disclose actual coverage; do not redirect an explicit patch review to unrelated working-tree changes.",
-        "implementation_files": [
-          "crates/engram_server/src/handlers/review_tools.rs",
-          "crates/engram_server/tests/top10_audit_tests.rs"
-        ],
-        "finite_acceptance": [
-          "Empty patch file and empty inline diff return NO_CHANGES within requested scope in JSON and text even with unrelated untracked VB source.",
-          "Invalid controls/diff remain rejected.",
-          "Empty staged review still reports omitted tracked/untracked changes."
-        ],
-        "remaining": "EG24 current-producer quality and EG25 benefit are not closed by this correction.",
-        "delivery": "eval/ociusx-review-scope-fix-20261112.json"
-      },
-      "current_missing_behavior": "Existing automatic model execution is delivered, but CI covers collector protocol and current capture recipes target closed CodeMap/Blast. Reuse existing collector for original OX instruction/history/companion/diagnosis tasks; do not repeat old packets and call that current-build quality.",
-      "current_implementation_slice": {
-        "requirement": "Regular verification must fail when recorded assisted OciusX task judgments fail required criteria or identify false guidance.",
-        "missing_behavior": "The existing report command checks integrity but exits successfully for valid failed judgments; it is not a task-quality gate.",
-        "implementation_files": [
-          "eval/frozen_task_eval.py",
-          "eval/test_frozen_task_run.py",
-          ".github/workflows/benchmark-ci.yml",
-          "eval/README.md"
-        ],
-        "finite_acceptance": [
-          "Existing check command validates complete frozen-run integrity before judging quality.",
-          "Assisted unmet/withheld/empty criteria or false guidance return nonzero; baseline failures remain reported without failing assisted quality.",
-          "Existing CI tests these exit statuses using owned synthetic recorded runs.",
-          "Actual November 12 current-output OX run passes the check; no new model run or benchmark expansion."
-        ],
-        "limits": "Private current-output OX model execution is not configured on existing hosted CI. Do not call protocol tests a private task evaluation or claim full EG24 closure.",
-        "status": "IMPLEMENTED_VALIDATED",
-        "delivery": "eval/eg24-quality-check-delivery-20261112.json",
-        "runner_availability": "Repository reports zero self-hosted runners; private current-output model execution remains unconfigured. Do not substitute hosted protocol tests for task evaluation."
-      },
-      "previous_implementation_slice": {
-        "requirement": "Use current Engram outputs in original accepted OX tasks rather than replay historical packets or closed core-tool investigations.",
-        "missing_behavior": "Collector rejects get_change_set/search_history/derive_test_matrix and requires unrelated optional tools in discovery.",
-        "finite_acceptance": [
-          "Capture all four original task categories with these existing read-only tools while retaining frozen source/oracle and complete response identities.",
-          "Absent unrequested optional tools must not prevent capture; a missing requested tool or mutating request must fail before producer calls.",
-          "Run actual installed capture on existing OX scope/reporting/history/KML evidence; preserve historical memory-diagnosis results separately.",
-          "Use the existing collector/evaluator for resulting current-reply corpus; report context/read/latency and quality honestly, without claiming fresh holdout or implementation productivity."
-        ],
-        "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation",
-        "blocking_regression": {
-          "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\source-refresh\\state.json",
-          "behavior": "OciusX source update fails on deliberately graph-suppressed vendor JSON. Old complete generation 3147 remains active but incompatible with current source extraction contract.",
-          "implementation_files": [
-            "crates/engram_index/src/source_contract.rs",
-            "crates/engram_index/tests/vendor_source_publication_test.rs"
-          ],
-          "acceptance": [
-            "Vendor JSON/JS publish and remain searchable without graph facts",
-            "Application facts, source identity and suppression receipts remain enforced",
-            "Deploy only the narrow installed-source delta and publish a complete fresh OX source generation",
-            "Resume selected current-output OX capture after successful refresh"
-          ],
-          "release_source_commit": "4837b7c043990c6006a342f93936e8a5ba4214b5",
-          "tests": "Two regression tests pass; original source reproduced exact publication failure; test resources removed",
-          "state": "RESOLVED_DEPLOYED_OX_REFRESH_COMPLETED",
-          "delivery": "eval/ociusx-vendor-publication-fix-20261112.json",
-          "active_generation": 3148
-        },
-        "status": "IMPLEMENTED_VALIDATED_CURRENT_OUTPUT_RUN_COMPLETE",
-        "delivery": "eval/ociusx-current-task-evaluation-20261112.json",
-        "remaining": "EG24 regular current-output verification integration remains open; EG25 benefit is not established."
-      }
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership",
+      "implementation_policy": "Existing implementation is deployed; first verify this missing actual behavior. Change code only for a demonstrated delivery blocker.",
+      "delivery": "eval/eg28-installed-ownership-delivery-20261112.json",
+      "next_action": "Leave live policy unchanged pending explicit source/authority evidence. Continue another ready original OciusX requirement; do not rerun this acceptance or build an approval UI."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -12801,36 +12738,88 @@
       "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103"
     },
     "previous_selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO22: Lightweight def-use (data-flow) edges, including method-local definition/use and cross-method parameter linking so trace_data_flow answers lineage questions that currently require source reading.",
-      "observed_missing_behavior": "Current trace_data_flow combines line-oriented .NET control/state/SQL parsing with bounded Calls follow. DataFlowTrace has no value lineage field; graph EdgeKind has no local def/use relation. Existing ParameterBinding is WebForms SQL-data-source parameter binding, not method argument-to-parameter lineage. No prior TODO22 delivery receipt found.",
+      "status": "RECORDED_QUALITY_CHECK_DELIVERED_PRIVATE_CI_UNCONFIGURED",
+      "original_requirement": "Put a small accepted-task benchmark into regular checks. Reuse existing OX evaluation assets.",
+      "missing_behavior": "Inventory records existing frozen task results and saved-run verifier, but regular CI remains open.",
       "implementation_files": [
-        "crates/engram_core/src/value_flow.rs",
-        "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/parsing/value_flow.rs (new)",
-        "tools/vb_roslyn_sidecar/AstEmitter.cs or a focused companion value-flow module",
-        "tools/vb_roslyn_sidecar/Program.cs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_graph/src/store/value_flow.rs (new post-ingest pass)",
-        "crates/engram_graph/src/store/source_rebuild.rs",
-        "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/services/data_flow_service.rs",
-        "crates/engram_server/src/handlers/migration_tools.rs",
-        "crates/engram_server/src/tools.rs"
+        "eval/frozen_task_capture.py",
+        "eval/test_frozen_task_capture.py",
+        "eval/README.md"
       ],
       "finite_acceptance": [
-        "Store source-located definition/use evidence for parameters, local declarations, assignments, reads, returns and call arguments in the existing C#/VB trace workflows. Variable identity must include method and lexical scope; reassignment must not invent stale straight-line lineage.",
-        "Post-ingest linking connects actual argument uses to the corresponding parameter only when the existing source call binding and argument mapping establish the target. Ambiguous/external/unsupported flows remain visibly incomplete, not guessed.",
-        "Expose bounded, source-cited lineage through existing trace_data_flow JSON and readable output, allowing an agent to follow an input through local aliases into a helper parameter and a returned/consumed value. Report branch/loop/alias uncertainty and truncation honestly; no whole-program or runtime-proof claim.",
-        "Use independently authored C# and real VB sidecar fixtures to verify local aliases, overwritten values, same-name scopes, argument positions and cross-method links; negative cases cover unresolved calls and unsupported control-flow without false proven paths.",
-        "Incremental source replacement and graph_only repair retract obsolete value edges while preserving source/search/vector storage. Reuse existing acceptance/deployment tooling; run relevant native/no-vector/sidecar checks and verify candidate plus installed public lineage before completion."
+        "Reuse retained accepted tasks for instruction routing, history, companions and diagnosis; do not create a new benchmark platform.",
+        "A normal verification command and CI job run the existing checks and fail on a deliberately invalid retained-result fixture.",
+        "Report correctness, false guidance, context/read cost and latency where actually measured; missing comparative productivity remains explicit."
       ],
-      "constraints": "One active implementation item. Existing trace_data_flow is explicitly .NET legacy; preserve broader P2 generalization TODO23-25. Do not reopen CodeMap/Blast, redesign general call resolution, expand pilots, or turn this into whole-program points-to analysis. Keep all remaining original requirements and partial EG14 open.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p122-def-use-20261112",
-      "temporary_resource_policy": "New fixtures own their resources beneath this recorded diagnostics case, close database/process owners, then remove only their own fixtures. Retain evidence with explicit cleanup conditions.",
-      "next_action": "Select the next ready original requirement once; preserve remaining EG14 and full backlog.",
-      "progress_receipt": "eval/p122-def-use-progress-20261112.json",
-      "delivery_receipt": "eval/p122-def-use-delivery-20261112.json"
+      "remaining_eg14": "Bounded draft/QA handoff delivered; broader publication and evidence gaps remain open, not silently completed.",
+      "completed_implementation_slice": {
+        "requirement": "Review the requested diff and disclose actual coverage; do not redirect an explicit patch review to unrelated working-tree changes.",
+        "implementation_files": [
+          "crates/engram_server/src/handlers/review_tools.rs",
+          "crates/engram_server/tests/top10_audit_tests.rs"
+        ],
+        "finite_acceptance": [
+          "Empty patch file and empty inline diff return NO_CHANGES within requested scope in JSON and text even with unrelated untracked VB source.",
+          "Invalid controls/diff remain rejected.",
+          "Empty staged review still reports omitted tracked/untracked changes."
+        ],
+        "remaining": "EG24 current-producer quality and EG25 benefit are not closed by this correction.",
+        "delivery": "eval/ociusx-review-scope-fix-20261112.json"
+      },
+      "current_missing_behavior": "Existing automatic model execution is delivered, but CI covers collector protocol and current capture recipes target closed CodeMap/Blast. Reuse existing collector for original OX instruction/history/companion/diagnosis tasks; do not repeat old packets and call that current-build quality.",
+      "current_implementation_slice": {
+        "requirement": "Regular verification must fail when recorded assisted OciusX task judgments fail required criteria or identify false guidance.",
+        "missing_behavior": "The existing report command checks integrity but exits successfully for valid failed judgments; it is not a task-quality gate.",
+        "implementation_files": [
+          "eval/frozen_task_eval.py",
+          "eval/test_frozen_task_run.py",
+          ".github/workflows/benchmark-ci.yml",
+          "eval/README.md"
+        ],
+        "finite_acceptance": [
+          "Existing check command validates complete frozen-run integrity before judging quality.",
+          "Assisted unmet/withheld/empty criteria or false guidance return nonzero; baseline failures remain reported without failing assisted quality.",
+          "Existing CI tests these exit statuses using owned synthetic recorded runs.",
+          "Actual November 12 current-output OX run passes the check; no new model run or benchmark expansion."
+        ],
+        "limits": "Private current-output OX model execution is not configured on existing hosted CI. Do not call protocol tests a private task evaluation or claim full EG24 closure.",
+        "status": "IMPLEMENTED_VALIDATED",
+        "delivery": "eval/eg24-quality-check-delivery-20261112.json",
+        "runner_availability": "Repository reports zero self-hosted runners; private current-output model execution remains unconfigured. Do not substitute hosted protocol tests for task evaluation."
+      },
+      "previous_implementation_slice": {
+        "requirement": "Use current Engram outputs in original accepted OX tasks rather than replay historical packets or closed core-tool investigations.",
+        "missing_behavior": "Collector rejects get_change_set/search_history/derive_test_matrix and requires unrelated optional tools in discovery.",
+        "finite_acceptance": [
+          "Capture all four original task categories with these existing read-only tools while retaining frozen source/oracle and complete response identities.",
+          "Absent unrequested optional tools must not prevent capture; a missing requested tool or mutating request must fail before producer calls.",
+          "Run actual installed capture on existing OX scope/reporting/history/KML evidence; preserve historical memory-diagnosis results separately.",
+          "Use the existing collector/evaluator for resulting current-reply corpus; report context/read/latency and quality honestly, without claiming fresh holdout or implementation productivity."
+        ],
+        "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation",
+        "blocking_regression": {
+          "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\source-refresh\\state.json",
+          "behavior": "OciusX source update fails on deliberately graph-suppressed vendor JSON. Old complete generation 3147 remains active but incompatible with current source extraction contract.",
+          "implementation_files": [
+            "crates/engram_index/src/source_contract.rs",
+            "crates/engram_index/tests/vendor_source_publication_test.rs"
+          ],
+          "acceptance": [
+            "Vendor JSON/JS publish and remain searchable without graph facts",
+            "Application facts, source identity and suppression receipts remain enforced",
+            "Deploy only the narrow installed-source delta and publish a complete fresh OX source generation",
+            "Resume selected current-output OX capture after successful refresh"
+          ],
+          "release_source_commit": "4837b7c043990c6006a342f93936e8a5ba4214b5",
+          "tests": "Two regression tests pass; original source reproduced exact publication failure; test resources removed",
+          "state": "RESOLVED_DEPLOYED_OX_REFRESH_COMPLETED",
+          "delivery": "eval/ociusx-vendor-publication-fix-20261112.json",
+          "active_generation": 3148
+        },
+        "status": "IMPLEMENTED_VALIDATED_CURRENT_OUTPUT_RUN_COMPLETE",
+        "delivery": "eval/ociusx-current-task-evaluation-20261112.json",
+        "remaining": "EG24 regular current-output verification integration remains open; EG25 benefit is not established."
+      }
     },
     "p122_def_use_20261112": {
       "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",

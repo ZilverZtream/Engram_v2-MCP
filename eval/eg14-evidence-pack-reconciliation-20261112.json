@@ -1,0 +1,65 @@
+{
+  "status": "ORIGINAL_EVIDENCE_PACK_AND_QA_HANDOFF_VERIFIED",
+  "at_utc": "2026-11-12T16:17:20.830040+00:00",
+  "requirement_source": "Original ocius_workflows research explicitly allows a structured evidence pack consumed by existing OX QA draft/improve prompts; it does not require automatic policy publication.",
+  "delivery": "eval/eg14-draft-delivery-20261111.json",
+  "verification": {
+    "retained_delivery_artifact_hashes_matched": 13,
+    "claims": 12,
+    "claim_quotes_resolved_in_hash_bound_complete_sources": 52,
+    "deduplicated_complete_sources": 6,
+    "shared_rule_references": 4,
+    "claim_sections": [
+      "purpose",
+      "invariant",
+      "house_example",
+      "companion_file",
+      "accepted_exception",
+      "entry_point",
+      "consumer",
+      "validation_path"
+    ],
+    "explicit_gaps": 8,
+    "current_selected_source_files_unchanged": 11,
+    "authored_files_written": 0,
+    "unchanged_request_stable_pair": true,
+    "stale_proposal_refused": true,
+    "existing_qa_draft_stage_exit": 0,
+    "independent_source_and_consumer_reviews_retained": true
+  },
+  "acceptance_mapping": {
+    "resolvable_claim_evidence": "Returned provenance contains full source snapshots; all 52 quotations and their BLAKE3 values checked. Independent review supports all 12 claims.",
+    "compact_guidance_and_shared_rules": "Separate instruction/provenance artifacts with four shared-rule references; existing QA output reviewed to 89 lines.",
+    "authority_and_exception_scope": "Observed implementation, authored intent and proposed policy remain separate; authored UI-only and conversion no-bump exceptions preserved. No workflow status used as policy acceptance.",
+    "weak_evidence_and_stability": "Eight explicit gaps; deterministic same-input pair and saved stale-proposal refusal.",
+    "existing_workflow": "Existing OX QA draft prompt/runner consumed the evidence; unsupported consumer assertions were identified and corrected, with raw output retained."
+  },
+  "evidence": {
+    "mechanical-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\mechanical-acceptance.json",
+      "sha256": "d02b2d31f65bd99f91c99e2d2ddd13db54cb9f895ccec801098b3c69e1ac618f"
+    },
+    "independent-draft-review.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\independent-draft-review.json",
+      "sha256": "b9ddf706c913f59216d7be044d45b2958609f265ac5f55bd73f615d4a71fba9e"
+    },
+    "consumer-draft-review.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\consumer-draft-review.json",
+      "sha256": "b3f0bc95bb83072d98a4cb5fe60c313f3e0de104001c20a9c3bf95d1fd0507b2"
+    },
+    "engram-file-layer-implementation-preview.provenance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.provenance.json",
+      "sha256": "313772f465806445e9eaa3af281ae83a69f1a22d059a22fafd34bd2f9654b9aa"
+    },
+    "engram-file-layer-implementation-preview.instructions.md": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\engram-file-layer-implementation-preview.instructions.md",
+      "sha256": "44f9ab3f9ec659312ca1761d975a71e3c2ab3a273a5fad74d6737b1168e8b89f"
+    }
+  },
+  "limits": [
+    "No OciusX guidance publication or policy approval performed; any future publication requires the intended revision and exact reviewed content to be checked.",
+    "Two missing complete consumer bodies, client/HTTP coverage and unexecuted application validation remain explicit gaps; no end-to-end behavior claim.",
+    "Generic usefulness and matched productivity are separate EG24/25 requirements. This reconciliation does not close the whole goal."
+  ],
+  "action": "Replace stale deployment/pilot-pending ledger wording with the verified November 11 delivery. Preserve all historical and unfinished findings."
+}

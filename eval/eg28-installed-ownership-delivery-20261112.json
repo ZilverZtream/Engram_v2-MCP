@@ -1,0 +1,74 @@
+{
+  "status": "EXACT_INSTALLED_INVENTORY_AND_OWNED_ADOPTION_ACCEPTANCE_COMPLETE_LIVE_DECISIONS_OPEN",
+  "at_utc": "2026-11-12T16:17:20.831439+00:00",
+  "original_requirement": "EG28 exact raw legacy-rule ownership evidence and explicit source-bound adoption preserving existing policy.",
+  "installed_server_sha256": "4bdbf01f9df0f9287ed84004098fd1fd751e379859e6c8c745f44dca842e6107",
+  "live_ociusx": {
+    "rules": 94,
+    "ownership_receipts": 0,
+    "unverified_legacy_rules": 94,
+    "all_file_patterns": 56,
+    "verified_raw_records": 96,
+    "comparison_source_fingerprints": 3,
+    "registry_identity_and_rows_unchanged": true,
+    "adoptions": 0,
+    "authored_files_written": 0
+  },
+  "installed_fixture": {
+    "calls": 13,
+    "preview_no_write": true,
+    "manual_transfer_required": true,
+    "stale_source_refused": true,
+    "policy_fields_preserved": true,
+    "manual_control_unchanged": true,
+    "source_file_unchanged": true,
+    "owned_resources_closed": true,
+    "owned_fixture_removed": true
+  },
+  "evidence": {
+    "initial/inventory.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership\\initial\\inventory.json",
+      "sha256": "6d78caeac405968cf5ebb8fac249de6d37606cf5e1ff1e963dbb7f91b5e6122b"
+    },
+    "sources/inventory.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership\\sources\\inventory.json",
+      "sha256": "cc7651b2c1a3083e2e4913e69a71286ec279232f5ba0359e742dace5eea6ccf4"
+    },
+    "after-fixture2/inventory.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership\\after-fixture2\\inventory.json",
+      "sha256": "cc7651b2c1a3083e2e4913e69a71286ec279232f5ba0359e742dace5eea6ccf4"
+    },
+    "decision-packet.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership\\decision-packet.json",
+      "sha256": "53ba688016bffa0e280f4b89ab1e9aa90f20d651c41b7a0c8f860ce605f1fab0"
+    },
+    "acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership\\acceptance.json",
+      "sha256": "2891cc17190e3ac88e4e7b916a7f07186df75912de5bbbeac2c4e2ad62aa5b6c"
+    },
+    "installed-adoption3/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership\\installed-adoption3\\acceptance.json",
+      "sha256": "fa54958e1f9c1da3649842f5f70141c7685906de94b00f83bd7490d8df1eddca"
+    }
+  },
+  "observer_corrections": [
+    "First verifier expected an RPC/tool error for manual refusal; actual structured blocked response correctly disclosed no adoption.",
+    "Second verifier expected invalid-params for stale source; actual invalid-request carried the correct stale-source refusal.",
+    "Both failed verifier attempts retain their exact evidence; their owned fixtures were removed. Final verifier accepts only refusal forms with the exact expected reason.",
+    "One after-fixture observer found the normal daemon had idled out before connecting; no request was sent. Process absence was checked before restarting the normal daemon."
+  ],
+  "remaining": [
+    "All 94 live ownership decisions remain unresolved; fix rates, IDs, matching text and current guidance fingerprints are not ownership or policy acceptance.",
+    "Asked asynchronously whether an existing reviewed source can be identified; no decision inferred and broader work continues.",
+    "No live adoption, retirement, enforcement weakening or policy publication occurred. Existing native interruption/collision evidence remains separate; no new broad storage audit performed."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\ox-task-evaluation\\legacy-ownership",
+    "private_inventory_and_decision_packet_retained": true,
+    "all_three_owned_fixture_directories_removed": true,
+    "pipe_observers_closed": true,
+    "normal_daemon": "Intentionally available; normal lifecycle",
+    "preexisting_folders_removed": false
+  },
+  "runtime_code_change": "None required: existing installed inventory/adoption behavior passed actual MCP acceptance."
+}
