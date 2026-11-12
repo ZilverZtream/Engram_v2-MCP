@@ -9959,72 +9959,28 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java using the existing two-pass architecture. The first four languages are delivered; Java is the one active item. The original broader backlog remains open.",
-      "observed_missing_behavior": "Java method_invocation extraction captures only the method name. It does not retain receiver/type qualification, file-local import identity or package-aware target evidence; generic name/FQN lookup cannot reliably distinguish same-name methods in imported classes.",
+      "status": "SELECTED_IMPLEMENTATION_PENDING",
+      "original_requirement": "Original TODO24: detect ecosystem at index time from csproj/sln, package.json, Cargo.toml and pyproject; use it to gate WebForms/migration tools out of the visible tool list, select extractor presets and tailor get_codebase_overview output.",
+      "observed_missing_behavior": "Initial source inspection: handle_index_project persists req.project_type directly; ProjectType lacks automatic ecosystem selection and dedicated JS/TS/Python profiles; capabilities.rs is a static feature-status catalogue. No existing TODO24 delivery record was found. Public baseline remains to be captured before implementation.",
       "finite_acceptance": [
-        "Resolve same-package and fully qualified class calls, single-type and on-demand imports, and single/static-on-demand imported bare methods from indexed Java declarations. Preserve canonical nested type identity and file-local import scope; never guess by terminal method name.",
-        "Resolve ordinary calls through explicitly declared local/parameter/field receiver types and same-class bare/this calls to source declarations. Respect lexical shadowing and access/static distinctions. Distinguish arity and retain ambiguous overloads, unsupported type inference/inheritance/dynamic dispatch, inaccessible declarations, unindexed dependencies and unsupported module semantics as explicit unresolved evidence rather than fabricated certainty.",
-        "Publish bounded call/import/target source evidence through the existing public references surface. Independent authored cases assert exact declaration identity and negative cases under native/no-vector builds; preserve prior language integration checks.",
-        "Retain Java facts in source publication so import/package/declaration edits rebind unchanged callers, stale targets retract and deletion/restoration recovers the right links. Old-index graph repair must upgrade retained source facts and preserve source/search/vector storage, recovered chunks and generation without embedding work where the source set is unchanged.",
-        "Verify the authored behavior through actual candidate and installed MCP, verify normal installed daemon identity, record temporary-resource cleanup, commit and push only origin/master. Parent TODO23 and remaining original requirements are evaluated honestly after Java delivery, not closed merely because tests pass."
+        "Detect and retain evidence-backed project ecosystem/capability metadata for .NET, JS/TS, Rust and Python during indexing, including mixed/unknown repositories. Distinguish WebForms evidence from an arbitrary .NET solution; do not label all .NET as WebForms.",
+        "Use detection to select appropriate extractor/indexing presets when the caller requests automatic/default selection, while preserving explicit supported profiles and aliases. Mixed projects retain their relevant source coverage; no destructive source-set or publication shortcuts.",
+        "Apply project capabilities to visible WebForms/migration tools while preserving core tool dependencies and legitimate WebForms access. Define truthful behavior for empty, unknown and multiple-project contexts rather than inferring a single active project incorrectly.",
+        "Expose detected ecosystem, evidence/coverage and relevant capabilities through project information and the existing overview summary. Keep this to project metadata; do not reopen CodeMap traversal/layout or Blast Radius improvements.",
+        "Authored non-.NET, .NET-non-WebForms, WebForms and mixed fixtures verify actual indexed source coverage and public tool visibility/overview behavior, including refresh/reopen and explicit overrides. Run relevant checks, verify candidate and installed runtime behavior, deploy and record before advancing."
       ],
       "implementation_files": [
-        "crates/engram_core/src/java_modules.rs",
-        "crates/engram_index/src/parsing/java_modules.rs",
-        "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/source_contract.rs",
-        "crates/engram_graph/src/store/java_modules.rs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/handlers/graph_tools.rs"
+        "crates/engram_server/src/services/project_service.rs",
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/utils/files.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/src/handlers/cognitive_tools.rs"
       ],
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
-      "next_action": "Select the next unfinished accepted original backlog item; preserve all other open findings and full gates.",
-      "constraints": "One implementation item. No CodeMap/Blast changes, compiler/build-system infrastructure, dependency downloads, runtime-dispatch or full compiler claims. Preserve other unfinished original findings.",
-      "semantic_sources": [
-        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-7.html#jls-7.5",
-        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-6.html",
-        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-15.html#jls-15.12"
-      ],
-      "public_baseline": {
-        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\baseline\\receipt.json",
-        "sha256": "54835aafc55eca1dc48ad8159b20f313df5575bdd12228ddee9c7e18b6e4fc25",
-        "server_sha256": "565d1cdc8eb5800e8957ae64b9561aca7c94887d19b35b8a72bc7bb532525505",
-        "observed": {
-          "RunType": {
-            "expected_file": "left/Api.java",
-            "actual_files": [
-              "::Save"
-            ],
-            "correct_unique_target": false
-          },
-          "RunStatic": {
-            "expected_file": "right/Api.java",
-            "actual_files": [
-              "::Save"
-            ],
-            "correct_unique_target": false
-          },
-          "RunQualified": {
-            "expected_file": "right/Api.java",
-            "actual_files": [
-              "::Save"
-            ],
-            "correct_unique_target": false
-          },
-          "RunReceiver": {
-            "expected_file": "left/Api.java",
-            "actual_files": [
-              "::Read"
-            ],
-            "correct_unique_target": false
-          }
-        }
-      },
-      "progress_receipt": "eval/p127-java-modules-progress-20261112.json",
-      "delivery_receipt": "eval/p127-java-modules-delivery-20261112.json",
-      "parent_acceptance": "eval/p127-todo23-acceptance-20261112.json"
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
+      "next_action": "Inspect existing tool-profile selection and project-type handling once, then capture an owned installed-runtime baseline and implement the recorded original TODO24 behavior.",
+      "constraints": "One implementation item. Preserve delivered TODO23 and all other original findings; no broad service audit (TODO26), corpus expansion (TODO25), CodeMap/Blast improvement, new approval UI or unrelated infrastructure. Existing source publication/ownership guarantees and held kernel/SSD/deletion work remain unchanged."
     },
     "at_utc": "2026-11-12T03:26:46.027480+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
@@ -12329,57 +12285,71 @@
     },
     "previous_delivery_contract": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO23: second-pass import/module call resolution. TypeScript, Python and Rust are delivered; Go packages are the one active item. Java and the original parent/backlog remain open.",
-      "observed_missing_behavior": "Go call extraction drops selector/import identity and retains only terminal names. Package imports and module manifests are not retained; default indexing omits go.mod/go.work.",
+      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java using the existing two-pass architecture. The first four languages are delivered; Java is the one active item. The original broader backlog remains open.",
+      "observed_missing_behavior": "Java method_invocation extraction captures only the method name. It does not retain receiver/type qualification, file-local import identity or package-aware target evidence; generic name/FQN lookup cannot reliably distinguish same-name methods in imported classes.",
       "finite_acceptance": [
-        "Resolve package functions across files and imported package calls using authored package clauses, import paths, explicit aliases and declared default names. Dot imports expose exported functions; blank imports do not bind calls. No same-name guesses across packages.",
-        "Index and retain go.mod/go.work facts. Resolve the owning module, indexed local replacements and declared workspace modules; keep nested modules separate. Manifest-only changes rebind unchanged callers.",
-        "Respect file-local imports, lexical variable/parameter/result shadowing, package export visibility and test-package boundaries. Build-constrained files, unsupported receivers/dynamic function values, ambiguity and unindexed dependencies remain explicitly unresolved.",
-        "Publish bounded call/import/target source evidence through existing public references. Native/no-vector authored cases assert exact target identities and preserve TypeScript/Python/Rust integration checks.",
-        "Source, import, package and manifest edits retract stale calls; target deletion/restoration recovers retained callers. Candidate and installed public old-index update/graph repair preserve source/search/vector storage and recovered chunks; verify normal daemon identity."
+        "Resolve same-package and fully qualified class calls, single-type and on-demand imports, and single/static-on-demand imported bare methods from indexed Java declarations. Preserve canonical nested type identity and file-local import scope; never guess by terminal method name.",
+        "Resolve ordinary calls through explicitly declared local/parameter/field receiver types and same-class bare/this calls to source declarations. Respect lexical shadowing and access/static distinctions. Distinguish arity and retain ambiguous overloads, unsupported type inference/inheritance/dynamic dispatch, inaccessible declarations, unindexed dependencies and unsupported module semantics as explicit unresolved evidence rather than fabricated certainty.",
+        "Publish bounded call/import/target source evidence through the existing public references surface. Independent authored cases assert exact declaration identity and negative cases under native/no-vector builds; preserve prior language integration checks.",
+        "Retain Java facts in source publication so import/package/declaration edits rebind unchanged callers, stale targets retract and deletion/restoration recovers the right links. Old-index graph repair must upgrade retained source facts and preserve source/search/vector storage, recovered chunks and generation without embedding work where the source set is unchanged.",
+        "Verify the authored behavior through actual candidate and installed MCP, verify normal installed daemon identity, record temporary-resource cleanup, commit and push only origin/master. Parent TODO23 and remaining original requirements are evaluated honestly after Java delivery, not closed merely because tests pass."
       ],
       "implementation_files": [
-        "crates/engram_core/src/go_modules.rs",
-        "crates/engram_index/src/parsing/go_modules.rs",
-        "crates/engram_index/src/parsing/go_modules/config.rs",
+        "crates/engram_core/src/java_modules.rs",
+        "crates/engram_index/src/parsing/java_modules.rs",
         "crates/engram_index/src/parsing.rs",
         "crates/engram_index/src/source_contract.rs",
-        "crates/engram_graph/src/store/go_modules.rs",
+        "crates/engram_graph/src/store/java_modules.rs",
         "crates/engram_graph/src/store.rs",
         "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/handlers/graph_tools.rs",
-        "crates/engram_server/src/utils/files.rs"
+        "crates/engram_server/src/handlers/graph_tools.rs"
       ],
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112",
-      "next_action": "Select Java within original TODO23 once, preserving other unfinished original requirements.",
-      "constraints": "One implementation item. No CodeMap/Blast work, compiler infrastructure, network module downloads or environment selection. Source evidence is not Go compiler/build-tag/runtime proof. Preserve all remaining original backlog work.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
+      "next_action": "Select the next unfinished accepted original backlog item; preserve all other open findings and full gates.",
+      "constraints": "One implementation item. No CodeMap/Blast changes, compiler/build-system infrastructure, dependency downloads, runtime-dispatch or full compiler claims. Preserve other unfinished original findings.",
       "semantic_sources": [
-        "https://go.dev/ref/spec#Import_declarations",
-        "https://go.dev/ref/spec#Declarations_and_scope",
-        "https://go.dev/ref/mod#go-mod-file",
-        "https://go.dev/ref/mod#workspaces"
+        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-7.html#jls-7.5",
+        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-6.html",
+        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-15.html#jls-15.12"
       ],
       "public_baseline": {
-        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p126-go-modules-20261112\\baseline\\receipt.json",
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\baseline\\receipt.json",
+        "sha256": "54835aafc55eca1dc48ad8159b20f313df5575bdd12228ddee9c7e18b6e4fc25",
+        "server_sha256": "565d1cdc8eb5800e8957ae64b9561aca7c94887d19b35b8a72bc7bb532525505",
         "observed": {
-          "RunLeft": {
-            "expected_file": "left/api.go",
+          "RunType": {
+            "expected_file": "left/Api.java",
             "actual_files": [
               "::Save"
             ],
             "correct_unique_target": false
           },
-          "RunRight": {
-            "expected_file": "right/api.go",
+          "RunStatic": {
+            "expected_file": "right/Api.java",
             "actual_files": [
               "::Save"
+            ],
+            "correct_unique_target": false
+          },
+          "RunQualified": {
+            "expected_file": "right/Api.java",
+            "actual_files": [
+              "::Save"
+            ],
+            "correct_unique_target": false
+          },
+          "RunReceiver": {
+            "expected_file": "left/Api.java",
+            "actual_files": [
+              "::Read"
             ],
             "correct_unique_target": false
           }
         }
       },
-      "progress_receipt": "eval/p126-go-modules-progress-20261112.json",
-      "delivery_receipt": "eval/p126-go-modules-delivery-20261112.json"
+      "progress_receipt": "eval/p127-java-modules-progress-20261112.json",
+      "delivery_receipt": "eval/p127-java-modules-delivery-20261112.json",
+      "parent_acceptance": "eval/p127-todo23-acceptance-20261112.json"
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
