@@ -1,6 +1,36 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+/// Query source-declared SQL schema, never a live database.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct QuerySchemaRequest {
+    pub project_id: String,
+    pub query_type: SchemaQueryType,
+    /// Zero-based result offset; repeat against the same source generation.
+    pub offset: Option<usize>,
+    /// Results per page, 1..=100 (default 25).
+    pub limit: Option<usize>,
+    pub max_tokens: Option<usize>,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]
+pub enum SchemaQueryType {
+    Table { name: String },
+    Column { table: String, column: String },
+    TablesThatReferenceForeignKey { table: String, column: String },
+    /// Case-insensitive literal substring, not SQL LIKE or a regular expression.
+    TablesWithColumn { column_name_pattern: String },
+    AllTables,
+    TriggersOnTable { table: String },
+    StoredProc { sp_name: String },
+    ViewsSourcedFrom { table: String },
+    IndexesOnTable { table: String },
+    NullableColumns { table: String },
+    ComputedColumns { table: String },
+}
+
 // ── Validated enum types (fail-closed at JSON deserialization) ────────────────
 //
 // These replace String fields that previously accepted arbitrary values and
