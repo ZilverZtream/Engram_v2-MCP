@@ -1,0 +1,51 @@
+{
+  "status": "SELECTED_INSTALLED_BASELINE_CONFIRMED",
+  "at_utc": "2026-11-12T12:50:15.174172+00:00",
+  "original_requirement": "Original TODO27: Generalize state tracking to modern equivalents. state_extractor.rs knows Session/ViewState/Application; equivalents are environment variables, global singletons, React context/Redux stores and module-level mutable state. Reuse the same state edge kinds with new extractors.",
+  "observed_missing_behavior": "hybrid.rs invokes state extraction only for csharp/vbnet; state_extractor.rs returns empty for other languages. Installed trace_state_usage declines the authored TypeScript project for all five named modern-state categories. The handler also gives C#/VB-only missing-key guidance. Baseline proves current unavailability, not a delivered modern category/key API.",
+  "implementation_files": [
+    "crates/engram_index/src/state_extractor.rs",
+    "crates/engram_index/src/hybrid.rs",
+    "crates/engram_index/src/parsing/ (reuse existing syntax and module identity evidence where needed)",
+    "crates/engram_index/src/source_contract.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/capabilities/project.rs",
+    "crates/engram_server/src/handlers/cognitive_tools.rs",
+    "crates/engram_server/tests/ (independently authored modern-state behavior)"
+  ],
+  "finite_acceptance": [
+    "Extract source-backed reads_state/writes_state relationships for environment-variable access and mutable module/global/singleton state in the original TS/JS, Python, Rust and Go source families. Distinguish reads, writes and read-modify-writes. Keep module/member identities separate across files; never merge unrelated same-name bindings.",
+    "Recognize source-backed React context and Redux store/reducer/selector/dispatch relationships in TS/JS, using declaration/import evidence to distinguish framework operations from unrelated same-name helpers. Include all original named categories; do not substitute only environment-variable support.",
+    "Ignore comments/string examples, local shadowing and ordinary local variables. Dynamic keys, unbound framework aliases and unsupported indirection remain explicitly unknown/unresolved rather than guessed concrete keys or runtime behavior. Preserve existing C#/VB and Classic ASP state extraction.",
+    "Expose modern state through the existing public trace_state_usage/discovery and relevant existing graph interfaces with usable state identity, source evidence and truthful coverage. Update legacy-only wording/applicability for the now-supported route. Keep unrelated specialized migration/UI tools scoped as delivered in TODO26.",
+    "Index, update, rename/delete and reopen independently authored sources; retract stale state relationships and retain unrelated facts. Use existing extraction-contract/update mechanisms so older indexes can acquire the new state facts without silent stale skips. Preserve source publication, storage and worker ownership.",
+    "Verify actual candidate and installed MCP behavior against authored readers/writers and negative examples, including cross-file and same-name decoys. Relevant native/no-vector and existing legacy regressions must pass; source/node counts alone are not acceptance.",
+    "Commit and push only origin/master, deploy required runtime changes, record installed identity/behavior/limits and close newly owned fixture resources. Deliver then advance the remaining accepted backlog; no CodeMap/Blast expansion, broad framework research or supporting infrastructure project."
+  ],
+  "scope_note": "Keep all original modern-state categories. Language coverage and static syntax limitations must be explicit; no claim of complete compiler analysis or arbitrary framework/runtime state. Reuse current parsers, graph identities, module facts and public tools.",
+  "constraints": "One implementation item: original TODO27. Preserve delivered TODO23/24/25/26, retained EG14/freshness work, all original findings and held items. No CodeMap/Blast improvement, new approval UI, kernel/SSD investigation, preexisting-folder deletion or new scratch roots.",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
+  "baseline_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\baseline\\receipt.json",
+    "sha256": "628ad493cffaefde066b6e8e2abeeebf3786b8e6cf3f504b01b3031f7a3d59b4"
+  },
+  "source_evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\state_extractor.rs",
+      "sha256": "9f148e9e7f1d1e366cc10102af9bbd21815f69e2aa2b19b7361782c513cc1cfc"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid.rs",
+      "sha256": "350eedb5288d8bd52ddfd0b3c4c15abb58e9c9cf7e76f80148f9ff7ca36bcd2a"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\cognitive_tools.rs",
+      "sha256": "e347f91524d8e2342d10390d4033f3b6d0254e2dbc7f7c5b7b1970d7910c7dd8"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\capabilities\\project.rs",
+      "sha256": "8fc547b994da23b12c73fcb401fec375e1b302e1580c1d692825ed303b0d3ed6"
+    }
+  ],
+  "next_action": "Implement syntax-backed modern state facts and connect them to existing ingestion/public tracing, using independently authored positive/negative sources for the finite categories. Keep other improvements closed."
+}

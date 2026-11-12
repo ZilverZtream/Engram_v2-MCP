@@ -39,12 +39,7 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\service-inventory.json",
     "sha256": "ea57419a1ed95762930b343c95607b31216e1ee1efb8fd8a6ff2f1984d1d090f"
   },
-  "scope_reconciliation": "TODO26 was introduced at 03d4c98. Its text names 56 biased service files without listing them. That tree contains 86 service files including internal analyzers/renderers; all remain present. The bounded inventory accounts for the introduction tree rather than inventing a 56-file subset. No audit completion is claimed.",
-  "implemented_not_yet_delivered": [
-    "Typed public wrappers for 31 project-based legacy tools use per-request project/source capability checks before analysis or mutation. Concrete target paths are checked separately in mixed projects. Unknown source coverage has an explicit outcome.",
-    "Removed invented npm test fallback when a Node manifest has no scripts.",
-    "Added actual-indexing behavioral tests for cross-project isolation, no migration-status mutation, mixed-file rejection, authored WebForms validation, path traversal rejection and neutral TypeScript guidance/style."
-  ],
+  "scope_reconciliation": "The original text names 56 biased service files without enumerating them. The full 86-file introduction-tree boundaries are accounted in the service dispositions; candidate and installed public behavior passed in the separate delivery receipt. Counts alone do not establish behavior.",
   "unfinished_audit_observations": [
     {
       "path": "crates/engram_server/src/services/slice_service.rs",
@@ -64,5 +59,10 @@
   ],
   "progress": "eval/p130-service-applicability-progress-20261112.json",
   "service_dispositions": "eval/p130-service-applicability-service-dispositions-20261112.json",
-  "delivery_receipt": "eval/p130-service-applicability-delivery-20261112.json"
+  "delivery_receipt": "eval/p130-service-applicability-delivery-20261112.json",
+  "initial_partial_implementation": [
+    "Typed public wrappers for 31 project-based legacy tools use per-request project/source capability checks before analysis or mutation. Concrete target paths are checked separately in mixed projects. Unknown source coverage has an explicit outcome.",
+    "Removed invented npm test fallback when a Node manifest has no scripts.",
+    "Added actual-indexing behavioral tests for cross-project isolation, no migration-status mutation, mixed-file rejection, authored WebForms validation, path traversal rejection and neutral TypeScript guidance/style."
+  ]
 }

@@ -239,6 +239,7 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   nonsense.
 
 - [ ] **27. Generalize state tracking to modern equivalents** (L)
+  Active: `eval/p131-modern-state-baseline-20261112.json`.
   `state_extractor.rs` knows Session/ViewState/Application. Equivalent value for modern
   stacks: env vars, global singletons, React context/Redux stores, module-level mutable
   state. Same edge kinds, new extractors.

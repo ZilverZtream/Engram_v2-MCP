@@ -9959,75 +9959,58 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "at_utc": "2026-11-12T11:35:42.569629+00:00",
-      "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
-      "observed_missing_behavior": "Installed public MCP on an authored Node project returns migration plans/order and progress instead of not-applicable even though discovery hides those tools. Neutral TypeScript style output is useful; generated guidance incorrectly adds npm test when package.json has no test script. Baseline owners closed and fixture removed.",
+      "status": "SELECTED_INSTALLED_BASELINE_CONFIRMED",
+      "at_utc": "2026-11-12T12:50:15.174172+00:00",
+      "original_requirement": "Original TODO27: Generalize state tracking to modern equivalents. state_extractor.rs knows Session/ViewState/Application; equivalents are environment variables, global singletons, React context/Redux stores and module-level mutable state. Reuse the same state edge kinds with new extractors.",
+      "observed_missing_behavior": "hybrid.rs invokes state extraction only for csharp/vbnet; state_extractor.rs returns empty for other languages. Installed trace_state_usage declines the authored TypeScript project for all five named modern-state categories. The handler also gives C#/VB-only missing-key guidance. Baseline proves current unavailability, not a delivered modern category/key API.",
       "implementation_files": [
-        "crates/engram_server/src/capabilities.rs",
-        "crates/engram_server/src/capabilities/applicability.rs",
+        "crates/engram_index/src/state_extractor.rs",
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_index/src/parsing/ (reuse existing syntax and module identity evidence where needed)",
+        "crates/engram_index/src/source_contract.rs",
+        "crates/engram_server/src/tools.rs",
         "crates/engram_server/src/capabilities/project.rs",
         "crates/engram_server/src/handlers/cognitive_tools.rs",
-        "crates/engram_server/src/handlers/review_tools.rs",
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/services/business_logic_service.rs",
-        "crates/engram_server/src/services/code_review_ingest_service.rs",
-        "crates/engram_server/src/services/pre_commit_review_service.rs",
-        "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
-        "crates/engram_server/src/services/produce_claude_md_service.rs",
-        "crates/engram_server/src/services/slice_service.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/legacy_applicability_test.rs",
-        "crates/engram_server/tests/pre_commit_empty_corpus_tests.rs",
-        "crates/engram_server/tests/pre_commit_gate_outcomes_tests.rs"
+        "crates/engram_server/tests/ (independently authored modern-state behavior)"
       ],
       "finite_acceptance": [
-        "Account for the original service audit across the current corresponding service modules. Record each disposition and supporting source paths, including shared internals; do not equate file counts or an audit report with working behavior.",
-        "Direct MCP calls to specialized legacy tools on known-inapplicable source projects return an explicit not-applicable outcome without misleading analysis, generated migration output, mutation or jobs. Evaluate the requested project rather than the discovery union. Preserve applicable .NET/WebForms/VB/JavaScript cases according to each tool actual supported inputs.",
-        "File-scoped tools in mixed projects do not misinterpret non-supported target files. Unknown source capability coverage is explicit, never represented as proved applicability or a clean analysis. Preserve request validation and existing source publication ownership.",
-        "Independently authored TS/Python/Rust/Go source/diff examples verify useful neutral instruction generation, review findings and style output without invented WebForms defaults. Preserve already delivered instruction scope/freshness and review authority semantics; record any unsupported analyzer coverage honestly.",
-        "Relevant checks and owned candidate/installed public MCP acceptance demonstrate inapplicable no-op, applicable legacy behavior and neutral examples. Commit/push origin/master, deploy runtime changes, record installed identity and close owned fixture resources before advancing."
+        "Extract source-backed reads_state/writes_state relationships for environment-variable access and mutable module/global/singleton state in the original TS/JS, Python, Rust and Go source families. Distinguish reads, writes and read-modify-writes. Keep module/member identities separate across files; never merge unrelated same-name bindings.",
+        "Recognize source-backed React context and Redux store/reducer/selector/dispatch relationships in TS/JS, using declaration/import evidence to distinguish framework operations from unrelated same-name helpers. Include all original named categories; do not substitute only environment-variable support.",
+        "Ignore comments/string examples, local shadowing and ordinary local variables. Dynamic keys, unbound framework aliases and unsupported indirection remain explicitly unknown/unresolved rather than guessed concrete keys or runtime behavior. Preserve existing C#/VB and Classic ASP state extraction.",
+        "Expose modern state through the existing public trace_state_usage/discovery and relevant existing graph interfaces with usable state identity, source evidence and truthful coverage. Update legacy-only wording/applicability for the now-supported route. Keep unrelated specialized migration/UI tools scoped as delivered in TODO26.",
+        "Index, update, rename/delete and reopen independently authored sources; retract stale state relationships and retain unrelated facts. Use existing extraction-contract/update mechanisms so older indexes can acquire the new state facts without silent stale skips. Preserve source publication, storage and worker ownership.",
+        "Verify actual candidate and installed MCP behavior against authored readers/writers and negative examples, including cross-file and same-name decoys. Relevant native/no-vector and existing legacy regressions must pass; source/node counts alone are not acceptance.",
+        "Commit and push only origin/master, deploy required runtime changes, record installed identity/behavior/limits and close newly owned fixture resources. Deliver then advance the remaining accepted backlog; no CodeMap/Blast expansion, broad framework research or supporting infrastructure project."
       ],
-      "constraints": "One implementation item: original TODO26. No CodeMap/Blast improvement, modern state-extractor expansion (TODO27), new approval UI, broad infrastructure, kernel/SSD investigation or preexisting-folder deletion. Preserve completed TODO23/24/25 and all original unfinished findings.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
-      "next_action": "Inspect original TODO27 modern state tracking and existing evidence once, then select its finite delivery contract. Preserve all completed deliveries and remaining accepted findings; CodeMap/Blast improvements remain closed.",
+      "scope_note": "Keep all original modern-state categories. Language coverage and static syntax limitations must be explicit; no claim of complete compiler analysis or arbitrary framework/runtime state. Reuse current parsers, graph identities, module facts and public tools.",
+      "constraints": "One implementation item: original TODO27. Preserve delivered TODO23/24/25/26, retained EG14/freshness work, all original findings and held items. No CodeMap/Blast improvement, new approval UI, kernel/SSD investigation, preexisting-folder deletion or new scratch roots.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
       "baseline_evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\baseline\\receipt.json",
-        "sha256": "008642bf3e4f0ec198f518b95d700a6c92d1da6bc97a69373df89018cad95d3a"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\baseline\\receipt.json",
+        "sha256": "628ad493cffaefde066b6e8e2abeeebf3786b8e6cf3f504b01b3031f7a3d59b4"
       },
-      "service_inventory": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\service-inventory.json",
-        "sha256": "ea57419a1ed95762930b343c95607b31216e1ee1efb8fd8a6ff2f1984d1d090f"
-      },
-      "scope_reconciliation": "TODO26 was introduced at 03d4c98. Its text names 56 biased service files without listing them. That tree contains 86 service files including internal analyzers/renderers; all remain present. The bounded inventory accounts for the introduction tree rather than inventing a 56-file subset. No audit completion is claimed.",
-      "implemented_not_yet_delivered": [
-        "Typed public wrappers for 31 project-based legacy tools use per-request project/source capability checks before analysis or mutation. Concrete target paths are checked separately in mixed projects. Unknown source coverage has an explicit outcome.",
-        "Removed invented npm test fallback when a Node manifest has no scripts.",
-        "Added actual-indexing behavioral tests for cross-project isolation, no migration-status mutation, mixed-file rejection, authored WebForms validation, path traversal rejection and neutral TypeScript guidance/style."
-      ],
-      "unfinished_audit_observations": [
+      "source_evidence": [
         {
-          "path": "crates/engram_server/src/services/slice_service.rs",
-          "evidence": "apply_logical_slice names its language argument _language and applies ASP.NET-specific event/UI/data/state regexes regardless of source language. Need explicit applicability in caller output while preserving requested source recovery.",
-          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\state_extractor.rs",
+          "sha256": "9f148e9e7f1d1e366cc10102af9bbd21815f69e2aa2b19b7361782c513cc1cfc"
         },
         {
-          "path": "crates/engram_server/src/services/benchmark_service.rs",
-          "evidence": "Default generator is generate_legacy_benchmark_queries; inspect public benchmark handler so a non-WebForms project is not silently graded against WebForms queries.",
-          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_index\\src\\hybrid.rs",
+          "sha256": "350eedb5288d8bd52ddfd0b3c4c15abb58e9c9cf7e76f80148f9ff7ca36bcd2a"
         },
         {
-          "path": "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
-          "evidence": "GuardParityGate recognizes WebMethod/Click handlers and UiHouseStyleGate is markup-specific. Verify neutral review usefulness and whether non-applicable gate coverage is explicit; do not equate absent matches with supported analysis.",
-          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\handlers\\cognitive_tools.rs",
+          "sha256": "e347f91524d8e2342d10390d4033f3b6d0254e2dbc7f7c5b7b1970d7910c7dd8"
+        },
+        {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\crates\\engram_server\\src\\capabilities\\project.rs",
+          "sha256": "8fc547b994da23b12c73fcb401fec375e1b302e1580c1d692825ed303b0d3ed6"
         }
       ],
-      "progress": "eval/p130-service-applicability-progress-20261112.json",
-      "service_dispositions": "eval/p130-service-applicability-service-dispositions-20261112.json",
-      "delivery_receipt": "eval/p130-service-applicability-delivery-20261112.json"
+      "next_action": "Implement syntax-backed modern state facts and connect them to existing ingestion/public tracing, using independently authored positive/negative sources for the finite categories. Keep other improvements closed."
     },
-    "at_utc": "2026-11-12T12:29:36.271878+00:00",
-    "reason": "TODO25 implementation 8a37398 and delivery ae37f89 pushed; both strict modes passed and absent matching CI runs explicitly recorded. Original TODO26 is active.",
+    "at_utc": "2026-11-12T12:50:15.174172+00:00",
+    "reason": "Original TODO26 is implemented, validated, deployed and pushed as bd6e796; seven native/no-vector applicability checks and 69 candidate/installed MCP calls passed. Original TODO27 is the next unfinished accepted item.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
       {
@@ -10056,8 +10039,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO26 Service applicability and neutral non-.NET behavior",
-    "next_user_visible_deliverable": "Explicit inapplicable legacy-tool outcomes and useful non-.NET instruction/style/review behavior, demonstrated through actual MCP.",
+    "active_original_item": "TODO27 Modern state tracking",
+    "next_user_visible_deliverable": "Source-backed modern-state readers/writers through existing Engram tracing, across environment, module/global/singleton and React/Redux categories.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10071,7 +10054,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: source coverage fixtures corrected; selected regression and focused unit checks passed; native and no-vector applicability validated; original service dispositions accounted.",
+    "previous_goal_turn_classification": "Progress: resolved regression fixture failures, completed TODO26 acceptance, built/deployed/pushed verified runtime and captured the next installed baseline.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -10747,7 +10730,7 @@
       "interpretation": "Current collection-element calls do not corroborate explicit self-recursion. Selected links carry weaker extractor-anchor positions; existing contract separates revision admission from binding. Source checks, not indexed labels, support the plan.",
       "disposition": "Recorded; no reindex, extraction/ownership investigation, scan expansion or speculative read-side filtering selected."
     },
-    "current_owned_resource_state": "TODO26 deployed, owned fixture/build resources closed and removed; config hold released, normal installed daemon verified.",
+    "current_owned_resource_state": "No active test/build/hold. TODO26 private and build fixtures cleaned; normal daemon PID66600 intentionally retained. TODO27 baseline owners closed and fixture removed; diagnostics retained in p131.",
     "latest_fresh_batch_cancellation_run": {
       "status": "FRESH_BATCH_CANCELLATION_BOUNDED_PLANNING_CRITERIA_PASS_SOURCE_VERIFIED",
       "agent": "/root/batchcancel_fresh01",
@@ -11044,7 +11027,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Inspect original TODO27 modern state tracking and existing evidence once, then select its finite delivery contract. Preserve all completed deliveries and remaining accepted findings; CodeMap/Blast improvements remain closed.",
+    "independent_next_action": "Implement syntax-backed modern state facts and connect them to existing ingestion/public tracing, using independently authored positive/negative sources for the finite categories. Keep other improvements closed.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -12823,6 +12806,74 @@
       ]
     },
     "historical_checkpoint_scope": "Earlier named checkpoint entries retain historical/partial evidence. Current active selection is selected_delivery_contract; completed delivery receipts supersede their stale next-step text without discarding unfinished findings.",
-    "historical_next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success."
+    "historical_next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success.",
+    "previous_completed_delivery_contract": {
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "at_utc": "2026-11-12T11:35:42.569629+00:00",
+      "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
+      "observed_missing_behavior": "Installed public MCP on an authored Node project returns migration plans/order and progress instead of not-applicable even though discovery hides those tools. Neutral TypeScript style output is useful; generated guidance incorrectly adds npm test when package.json has no test script. Baseline owners closed and fixture removed.",
+      "implementation_files": [
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/capabilities/applicability.rs",
+        "crates/engram_server/src/capabilities/project.rs",
+        "crates/engram_server/src/handlers/cognitive_tools.rs",
+        "crates/engram_server/src/handlers/review_tools.rs",
+        "crates/engram_server/src/handlers/search_tools.rs",
+        "crates/engram_server/src/services/business_logic_service.rs",
+        "crates/engram_server/src/services/code_review_ingest_service.rs",
+        "crates/engram_server/src/services/pre_commit_review_service.rs",
+        "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
+        "crates/engram_server/src/services/produce_claude_md_service.rs",
+        "crates/engram_server/src/services/slice_service.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/legacy_applicability_test.rs",
+        "crates/engram_server/tests/pre_commit_empty_corpus_tests.rs",
+        "crates/engram_server/tests/pre_commit_gate_outcomes_tests.rs"
+      ],
+      "finite_acceptance": [
+        "Account for the original service audit across the current corresponding service modules. Record each disposition and supporting source paths, including shared internals; do not equate file counts or an audit report with working behavior.",
+        "Direct MCP calls to specialized legacy tools on known-inapplicable source projects return an explicit not-applicable outcome without misleading analysis, generated migration output, mutation or jobs. Evaluate the requested project rather than the discovery union. Preserve applicable .NET/WebForms/VB/JavaScript cases according to each tool actual supported inputs.",
+        "File-scoped tools in mixed projects do not misinterpret non-supported target files. Unknown source capability coverage is explicit, never represented as proved applicability or a clean analysis. Preserve request validation and existing source publication ownership.",
+        "Independently authored TS/Python/Rust/Go source/diff examples verify useful neutral instruction generation, review findings and style output without invented WebForms defaults. Preserve already delivered instruction scope/freshness and review authority semantics; record any unsupported analyzer coverage honestly.",
+        "Relevant checks and owned candidate/installed public MCP acceptance demonstrate inapplicable no-op, applicable legacy behavior and neutral examples. Commit/push origin/master, deploy runtime changes, record installed identity and close owned fixture resources before advancing."
+      ],
+      "constraints": "One implementation item: original TODO26. No CodeMap/Blast improvement, modern state-extractor expansion (TODO27), new approval UI, broad infrastructure, kernel/SSD investigation or preexisting-folder deletion. Preserve completed TODO23/24/25 and all original unfinished findings.",
+      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
+      "next_action": "Inspect original TODO27 modern state tracking and existing evidence once, then select its finite delivery contract. Preserve all completed deliveries and remaining accepted findings; CodeMap/Blast improvements remain closed.",
+      "baseline_evidence": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\baseline\\receipt.json",
+        "sha256": "008642bf3e4f0ec198f518b95d700a6c92d1da6bc97a69373df89018cad95d3a"
+      },
+      "service_inventory": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\service-inventory.json",
+        "sha256": "ea57419a1ed95762930b343c95607b31216e1ee1efb8fd8a6ff2f1984d1d090f"
+      },
+      "scope_reconciliation": "The original text names 56 biased service files without enumerating them. The full 86-file introduction-tree boundaries are accounted in the service dispositions; candidate and installed public behavior passed in the separate delivery receipt. Counts alone do not establish behavior.",
+      "unfinished_audit_observations": [
+        {
+          "path": "crates/engram_server/src/services/slice_service.rs",
+          "evidence": "apply_logical_slice names its language argument _language and applies ASP.NET-specific event/UI/data/state regexes regardless of source language. Need explicit applicability in caller output while preserving requested source recovery.",
+          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
+        },
+        {
+          "path": "crates/engram_server/src/services/benchmark_service.rs",
+          "evidence": "Default generator is generate_legacy_benchmark_queries; inspect public benchmark handler so a non-WebForms project is not silently graded against WebForms queries.",
+          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
+        },
+        {
+          "path": "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
+          "evidence": "GuardParityGate recognizes WebMethod/Click handlers and UiHouseStyleGate is markup-specific. Verify neutral review usefulness and whether non-applicable gate coverage is explicit; do not equate absent matches with supported analysis.",
+          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
+        }
+      ],
+      "progress": "eval/p130-service-applicability-progress-20261112.json",
+      "service_dispositions": "eval/p130-service-applicability-service-dispositions-20261112.json",
+      "delivery_receipt": "eval/p130-service-applicability-delivery-20261112.json",
+      "initial_partial_implementation": [
+        "Typed public wrappers for 31 project-based legacy tools use per-request project/source capability checks before analysis or mutation. Concrete target paths are checked separately in mixed projects. Unknown source coverage has an explicit outcome.",
+        "Removed invented npm test fallback when a Node manifest has no scripts.",
+        "Added actual-indexing behavioral tests for cross-project isolation, no migration-status mutation, mixed-file rejection, authored WebForms validation, path traversal rejection and neutral TypeScript guidance/style."
+      ]
+    }
   }
 }
