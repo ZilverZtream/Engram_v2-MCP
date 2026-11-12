@@ -791,6 +791,11 @@ impl Engram {
         self.handle_query_schema(params.0).await
     }
 
+    #[tool(description = "Suggest SQL Server indexes from selected indexed SQL and inline VB query evidence. Compares WHERE/JOIN/ORDER BY access columns with source-declared leading keys, INCLUDE columns and applicable filters. Returns ranked source-site counts, citations, review-only CREATE INDEX candidates and coverage/selectivity warnings. No live database, execution plan, actual frequency or performance benefit is established. Optional file_path narrows query evidence; limit/offset page results.")]
+    pub async fn find_missing_indexes(&self, params: Parameters<FindMissingIndexesRequest>) -> Result<CallToolResult, McpError> {
+        self.handle_find_missing_indexes(params.0).await
+    }
+
     #[tool(
         description = "Find possible repeated database calls in indexed VB.NET loops and authored WebForms RowDataBound/ItemDataBound handlers. Uses fresh Roslyn invocation ownership and bounded helper-call paths with source revision/hash checks. Returns repeated-call and database-call citations, heuristic severity and batching/JOIN guidance. Runtime execution, cache behavior and row counts remain unknown. Use file_path for one file, or file_offset/max_files to page selected VB files."
     )]
