@@ -41,6 +41,7 @@ pub mod legacy_rule_ownership;
 pub(crate) mod legacy_rule_adoption;
 pub(crate) mod legacy_rule_alias_review;
 pub mod job_service;
+pub mod job_progress;
 pub mod lexicon;
 pub mod lifecycle_service;
 pub mod memory_portability;

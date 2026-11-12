@@ -1321,6 +1321,13 @@ respects repository ignore rules; tracked vendor and generated files can remain.
 | `get_job_status` · `list_jobs` · `cancel_job` | Background job control |
 | `export_capture_pack` | Export a zip for offline agentic usage |
 
+`get_job_status` appends a `progress` JSON object for background source indexing,
+updates and Git-history jobs. Counts and ETA describe the current observed phase,
+not the entire job; flush, graph and publication work can have unknown duration.
+A phase at 100% is not job completion. Null values mean unobserved or unknown.
+Terminal and cancelled jobs retain their last phase observation without a live
+ETA. Older jobs and other job types can report phase coverage as unavailable.
+
 </details>
 
 ---

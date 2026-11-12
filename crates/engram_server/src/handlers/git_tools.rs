@@ -1,3 +1,4 @@
+use crate::services::job_progress::Reporter;
 use crate::handlers::{validate_project_id, history_response};
 use serde_json::json;
 use crate::models::{
@@ -640,9 +641,17 @@ impl Engram {
         policy: engram_git::history::MergeCommitPolicy,
         cancel: &tokio_util::sync::CancellationToken,
         mut progress_cb: Box<dyn FnMut(usize, usize) + Send>,
+        job_progress: Option<Reporter>,
         force_flag: bool,
     ) -> Result<String, McpError> {
+        if let Some(progress) = &job_progress { progress.phase("history_preparation", None, None); }
         if mode == GitHistoryMode::Refresh {
+            let reporter = job_progress.clone();
+            let mut original_callback = progress_cb;
+            let progress_cb = Box::new(move |done, total| {
+                if let Some(progress) = &reporter { progress.advance("history_refresh", done, total, "commits"); }
+                original_callback(done, total);
+            });
             return self
                 .refresh_history_documents(
                     project_id,
@@ -906,6 +915,7 @@ impl Engram {
         });
 
         // ── Blocking producer: git walk + graph writes ───────────────────
+        let producer_progress = job_progress.clone();
         let summary = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
             use engram_graph::EdgeKind;
 
@@ -951,7 +961,9 @@ impl Engram {
             let rt = tokio::runtime::Handle::current();
 
             let mut process_commit = |oid: Oid, curr: usize, total: usize| -> anyhow::Result<()> {
-                progress_cb(curr, total);
+                if let Some(progress) = &producer_progress {
+                    progress.advance(if in_backfill.get() { "history_backfill" } else { "history_forward" }, curr.saturating_sub(1), total, "commits");
+                }
                 if in_backfill.get() {
                     // Backfill STREAMS oldest→newest (walk_older_commits
                     // reverses the newest→oldest revwalk output), so the
@@ -1199,6 +1211,10 @@ impl Engram {
                         .map_err(|_| anyhow::anyhow!("index consumer dropped"))?;
                 }
 
+                progress_cb(curr, total);
+                if let Some(progress) = &producer_progress {
+                    progress.advance(if in_backfill.get() { "history_backfill" } else { "history_forward" }, curr, total, "commits");
+                }
                 Ok(())
             };
 
@@ -1268,6 +1284,7 @@ impl Engram {
                 remaining,
             );
 
+            if let Some(progress) = &producer_progress { progress.phase("history_flush", None, None); }
             let commits_processed = processed_total + backfill_processed;
             let effective_last_oid = newest_processed_oid.get().or(stop);
             let effective_oldest_oid = backfill_oldest_oid
@@ -1364,6 +1381,7 @@ impl Engram {
             summary.push_str(&format!("\nstatus: degraded\nunembedded_docs: {unembedded_docs}\nHistory text and graph retained. After restoring the embedding provider, run repair_project(scope=\"vector_only\") for this project; history watermarks have advanced.\n"));
         }
 
+        if let Some(progress) = &job_progress { progress.phase("history_checkpoint", None, None); }
         // Update git checkpoints meta best-effort.
         if let Some(last_line) = summary.lines().find(|l| l.starts_with("last_oid: ")) {
             let oid = last_line.trim_start_matches("last_oid: ").trim();
@@ -1475,6 +1493,8 @@ impl Engram {
             }
             let _active_guard = ActiveGuard(state_for_decrement);
 
+            let phase = Reporter::new(state.registry.clone(), &job_id_for_job);
+            phase.phase("waiting_for_project", None, None);
             let mut status = "done";
             let mut msg = "completed".to_string();
             let mut progress = 100;
@@ -1495,8 +1515,6 @@ impl Engram {
                     .await
                     .map_err(|e| anyhow::anyhow!(e.message.to_string()))?;
 
-                let reg_for_git = state.registry.clone();
-                let jid_for_git = job_id_for_job.clone();
                 let summary = engram
                     .git_update_stream(
                         &project_id_for_job,
@@ -1507,18 +1525,8 @@ impl Engram {
                         index_antipatterns,
                         engram_git::history::MergeCommitPolicy::AllParents,
                         &token,
-                        Box::new(move |curr, total| {
-                            if let Ok(Some(mut job)) = reg_for_git.get_job(&jid_for_git) {
-                                let pct = ((curr as f32 / total as f32) * 100.0) as u8;
-                                if job.progress_pct != pct && (curr % 20 == 0 || curr == total) {
-                                    job.progress_pct = pct;
-                                    job.message =
-                                        format!("Analyzing history: {}/{} commits", curr, total);
-                                    job.updated_at_ms = now_ms();
-                                    let _ = reg_for_git.put_job(&job);
-                                }
-                            }
-                        }),
+                        Box::new(|_, _| {}),
+                        Some(phase.clone()),
                         force_for_job,
                     )
                     .await
@@ -1613,6 +1621,7 @@ impl Engram {
                     engram_git::history::MergeCommitPolicy::AllParents,
                     &cancel,
                     Box::new(|_, _| {}),
+                    None,
                     req.force,
                 )
                 .await?;
