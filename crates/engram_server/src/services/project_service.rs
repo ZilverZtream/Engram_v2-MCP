@@ -4,6 +4,50 @@ use crate::state::{AppState, ProjectInfo, ProjectState};
 use engram_core::ProjectRecord;
 use std::path::{Path, PathBuf};
 
+/// Detection uses the same eligible-file walk as ingestion, without invoking
+/// language sidecars before choosing a preset. Explicit profiles bypass it.
+pub async fn detect_indexing_preset(state: &AppState, root: &Path) -> anyhow::Result<ProjectType> {
+    let exts = crate::utils::files::exts_for_project_type_enum(ProjectType::Auto);
+    let files = scan_source_files_with_parser_preflight(state, root, &exts, false).await?;
+    let paths = files.iter().filter_map(|path| path.strip_prefix(root).ok())
+        .map(|path| path.to_string_lossy().replace('\\', "/")).collect::<Vec<_>>();
+    let candidate = crate::capabilities::project::ProjectCapabilities::from_paths(paths.iter().map(String::as_str)).indexing_preset();
+    let selected = crate::utils::files::exts_for_project_type_enum(candidate);
+    // An otherwise single-ecosystem repository may also contain SQL, templates,
+    // native headers or other admitted assets. Do not silently drop them when
+    // narrowing the automatic preset. Explicit caller profiles still narrow.
+    let complete = files.iter().all(|path| path.extension().and_then(|ext| ext.to_str())
+        .is_some_and(|ext| selected.iter().any(|allowed| ext.eq_ignore_ascii_case(allowed))));
+    Ok(if complete { candidate } else { ProjectType::General })
+}
+
+/// Capabilities are derived from the held, persisted source manifest, including
+/// zero-chunk files. Unpublished graph/disk changes cannot alter this report.
+pub fn selected_project_capabilities(
+    profile: &str,
+    generation: u64,
+    view: &engram_index::SourceSnapshotGuard,
+) -> (crate::capabilities::project::ProjectCapabilities, serde_json::Value) {
+    use crate::capabilities::project::ProjectCapabilities;
+    let files = view.selected_file_revisions();
+    let detected = files.map(|files| ProjectCapabilities::from_paths(files.keys().map(String::as_str)));
+    let mut effective = detected.clone().unwrap_or_default();
+    effective.include_explicit_profile(profile);
+    let metadata = serde_json::json!({
+        "format": "engram-project-capabilities-v1",
+        "source_generation": generation,
+        "indexing_preset": profile,
+        "preset_selection": "Fixed at registration; auto selects from eligible manifests and source paths. Explicit profiles are honored.",
+        "coverage": if files.is_some() { "selected_source_paths" } else { "unknown_legacy_source_manifest" },
+        "scope": "Configured indexing preset and ignore rules; file-name evidence, not build evaluation or working-tree freshness.",
+        "detected": detected,
+        "available": { "webforms":effective.webforms,"classic_asp":effective.classic_asp,
+            "dotnet":effective.dotnet,"visual_basic":effective.visual_basic,"javascript":effective.javascript },
+        "visibility": "Union across registered source projects, intersected with the configured tool profile; explicit WebForms profiles retain access. Unknown source coverage preserves specialized discovery."
+    });
+    (effective, metadata)
+}
+
 /// Ensure a project record exists in the registry. Returns `EngramError::ProjectNotFound` if missing.
 pub async fn ensure_project_record(
     state: &AppState,

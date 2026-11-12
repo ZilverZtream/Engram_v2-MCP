@@ -41,10 +41,11 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO24 Project-type detection and capability gating",
-    "status": "SELECTED_IMPLEMENTATION_PENDING",
+    "status": "IMPLEMENTED_SOURCE_VALIDATED_RUNTIME_PENDING",
     "baseline": "eval/p128-project-capabilities-baseline-20261112.json",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p128-project-capabilities-20261112",
-    "remaining": "Capture baseline, implement finite acceptance, validate, deploy and record. Broader original goal remains active."
+    "remaining": "Build the validated release; verify owned public candidate and installed behavior, deploy, and record before advancing.",
+    "progress": "eval/p128-project-capabilities-progress-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO23 Java package/import call resolution",

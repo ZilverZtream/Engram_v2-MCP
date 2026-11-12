@@ -2849,6 +2849,8 @@ impl Engram {
         if encoded.len()>64*1024{return Err(McpError::internal_error("CodeMap response metadata exceeds bound; narrow scope/exclusions",None));}
         let mut out=format!("Codebase Overview: {}\nproject_id: {}\nproject_type: {}\nactive_generation: {}\n",rec.project_name,req.project_id,rec.project_type,generation);
         if !compact_navigation {
+        let (_, capabilities) = crate::services::project_service::selected_project_capabilities(&rec.project_type, generation, &source_hold);
+        out.push_str(&format!("project_capabilities: {capabilities}\n"));
         let summary = summary.as_ref().expect("normal overview collects its project summary");
         out.push_str(if req.path_contains.is_some() {
             "\n--- Current Source (entire held project selection; navigation scope/exclusions/path filter apply below) ---\n"
