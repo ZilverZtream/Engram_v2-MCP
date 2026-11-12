@@ -738,10 +738,74 @@ internal sealed class AstEmitter
             typeStartLines.Pop();
         }
 
+        void EmitSignatureTypes(MethodBaseSyntax declaration, string owner, int ownerLine)
+        {
+            var groups = new Dictionary<(string Role, string Name, string Classification), List<SignatureTypeUseDto>>();
+            void Add(TypeSyntax syntax, string role, int? position, string? parameterName, string declarationText, string suffix = "")
+            {
+                var use = new SignatureTypeUseDto
+                {
+                    TypeExpression = syntax.ToString() + suffix, ParameterIndex = position,
+                    ParameterName = parameterName, TypeLine = Line(tree, syntax), Declaration = declarationText,
+                };
+                var seen = new HashSet<(string, string)>();
+                void Visit(SyntaxNode node)
+                {
+                    if (node is IdentifierNameSyntax or GenericNameSyntax or QualifiedNameSyntax or PredefinedTypeSyntax)
+                    {
+                        var type = model.GetTypeInfo(node).Type;
+                        var classification = node is PredefinedTypeSyntax ? "builtin"
+                            : type is ITypeParameterSymbol ? "type_parameter" : "named";
+                        var name = type is INamedTypeSymbol named && type.TypeKind != TypeKind.Error
+                            ? named.OriginalDefinition.ToDisplayString(BareQualifiedNameFormat)
+                            : node is GenericNameSyntax generic ? generic.Identifier.Text : node.ToString();
+                        if (seen.Add((name, classification)))
+                        {
+                            var key = (role, name, classification);
+                            if (!groups.TryGetValue(key, out var uses)) groups[key] = uses = new();
+                            uses.Add(use);
+                        }
+                        // A qualified name is one reference, not separate namespace
+                        // and terminal guesses. Constructed arguments remain inputs.
+                        foreach (var arguments in node.DescendantNodesAndSelf().OfType<TypeArgumentListSyntax>())
+                            foreach (var argument in arguments.Arguments) Visit(argument);
+                        return;
+                    }
+                    foreach (var child in node.ChildNodes()) Visit(child);
+                }
+                Visit(syntax);
+            }
+            if (declaration is MethodStatementSyntax method && method.AsClause is SimpleAsClauseSyntax returns)
+                Add(returns.Type, "returns_type", null, null, returns.Type.ToString());
+            var parameters = declaration.ParameterList?.Parameters ?? default;
+            for (var i = 0; i < parameters.Count; i++)
+            {
+                var parameter = parameters[i];
+                if (parameter.AsClause is SimpleAsClauseSyntax typed)
+                    Add(typed.Type, "parameter_type", i, parameter.Identifier.Identifier.Text, parameter.ToString(),
+                        parameter.Identifier.ToString()[parameter.Identifier.Identifier.Text.Length..]);
+            }
+            foreach (var (key, uses) in groups)
+            {
+                edges.Add(new EdgeDto
+                {
+                    SourceName = owner, SourceKind = "function", SourceStartLine = ownerLine,
+                    SourceLanguage = "vb", TargetName = key.Name, TargetKind = "signature_type", Kind = key.Role,
+                    Metadata = new()
+                    {
+                        ["type_uses"] = JsonSerializer.Serialize(uses, AppJsonContext.Default.ListSignatureTypeUseDto),
+                        ["type_reference_kind"] = key.Classification,
+                        ["type_evidence"] = "roslyn_authored_signature",
+                    },
+                });
+            }
+        }
+
         void EmitInterfaceMethod(MethodStatementSyntax declaration)
         {
             var fqn = ComposeName(declaration.Identifier.Text);
             var startLine = Line(tree, declaration);
+            EmitSignatureTypes(declaration, fqn, startLine);
             var metadata = new Dictionary<string, string>
             {
                 ["signature"] = declaration.WithoutTrivia().NormalizeWhitespace().ToFullString(),
@@ -772,6 +836,7 @@ internal sealed class AstEmitter
         {
             var fqn = ComposeName(name);
             var methodStartLine = Line(tree, node);
+            EmitSignatureTypes(stmt, fqn, methodStartLine);
             var metadata = new Dictionary<string, string>();
             metadata["signature"] = stmt.WithoutTrivia().NormalizeWhitespace().ToFullString();
             metadata["interface_member_contract"] = "1";

@@ -2374,7 +2374,7 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                     method.truncate(p);
                 }
                 let mut meta = fallback_method_metadata(source, line_no as usize);
-                meta.insert("signature".to_owned(), line.trim().to_owned());
+                meta.entry("signature".to_owned()).or_insert_with(|| line.trim().to_owned());
                 // TODO-13: parameter count from the signature line so the
                 // degraded path also feeds arity-aware resolution. Counts
                 // top-level commas inside the first paren group; nested
@@ -2577,6 +2577,8 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
     // Item 8: the broker's dispatch arms (fallback path).
     let ranges = fallback_fn_ranges(&symbols);
     edges.extend(vb_dispatch_arm_edges(source, &ranges));
+
+    edges.extend(crate::parsing::signature_types::vb_fallback_edges(&symbols));
 
     (symbols, edges)
 }

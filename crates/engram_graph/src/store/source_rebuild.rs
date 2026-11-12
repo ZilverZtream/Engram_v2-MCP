@@ -77,6 +77,9 @@ fn extracted_kind(kind: &EdgeKind) -> bool {
             | EdgeKind::InheritsFrom
             | EdgeKind::Implements
             | EdgeKind::TestOracle
+            | EdgeKind::ReturnsType
+            | EdgeKind::ParameterType
+            | EdgeKind::TypeDefinition
             | EdgeKind::SpatialCall
             | EdgeKind::StateAffinity
     )

@@ -298,6 +298,38 @@ impl Engram {
         let graph = self.state.graph.clone();
         let edge_kind_str = req.edge_kind.clone();
         let out = tokio::task::spawn_blocking(move || -> Result<String, String> {
+            if let Some(ref selected @ (EdgeKind::ReturnsType | EdgeKind::ParameterType | EdgeKind::TypeDefinition)) = kind {
+                let mut edges = Vec::new();
+                let mut truncated = false;
+                if matches!(req.direction, Direction::In | Direction::Both) {
+                    let (incoming, more) = graph.incoming_edge_prefix(&req.project_id, selected.clone(), &req.node_id, 100)
+                        .map_err(|e| e.to_string())?;
+                    let endpoints: Vec<_> = incoming.into_iter().map(|(source, kind, _)| (source, kind, req.node_id.clone())).collect();
+                    edges.extend(graph.get_edges_by_endpoints(&req.project_id, &endpoints).map_err(|e| e.to_string())?);
+                    truncated |= more;
+                }
+                if matches!(req.direction, Direction::Out | Direction::Both) {
+                    let (outgoing, more) = graph.outgoing_edges_of_kind(&req.project_id, selected.clone(), &req.node_id, 100)
+                        .map_err(|e| e.to_string())?;
+                    edges.extend(outgoing);
+                    truncated |= more;
+                }
+                let describe = |id: &str| -> Result<serde_json::Value, String> {
+                    Ok(match graph.get_node(&req.project_id, id).map_err(|e| e.to_string())? {
+                        Some(node) => serde_json::json!({"node_id":id,"name":node.name,"file_path":node.file_path,"line":node.start_line}),
+                        None => serde_json::json!({"node_id":id,"missing":true}),
+                    })
+                };
+                let mut rows = Vec::new();
+                for edge in edges {
+                    rows.push(serde_json::json!({"kind":edge.edge_kind.as_str(),
+                        "source":describe(&edge.source_id)?,"target":describe(&edge.target_id)?,"evidence":edge.metadata}));
+                }
+                return serde_json::to_string_pretty(&serde_json::json!({
+                    "edges":rows,"truncated":truncated,
+                    "type_contract":"returns_type and parameter_type point to authored type references; type_uses retain expressions and parameter positions. Follow type_definition for a unique type-declaration candidate. Candidate bindings are not compiler proofs; missing candidates remain unbound."
+                })).map_err(|e| e.to_string());
+            }
             let mut out = String::new();
 
             if matches!(req.direction, Direction::In | Direction::Both) {

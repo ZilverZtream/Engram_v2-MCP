@@ -883,6 +883,28 @@ pub(crate) async fn prepare_ingest_graph(
                 target_resolution = Some((1.0, if source_call_binding.is_some() { "exact_source_method" } else { "exact_source_interface_member" }));
             }
             binding.target_id.clone()
+        } else if matches!(edge.kind.as_str(), "returns_type" | "parameter_type") {
+            // A type reference is a real, source-owned node. It must never enter
+            // the callable resolver's any-kind/terminal-name guessing path.
+            let id = engram_core::ids::NodeId::symbol(
+                "type_reference", None, rel_path.as_str(), &edge.target_name,
+                edge.source_start_line,
+            ).0;
+            if seen_virtual_node_ids.insert(id.clone()) {
+                nodes.push(engram_graph::Node {
+                    node_id: id.clone(), node_type: "type_reference".into(),
+                    name: edge.target_name.clone(),
+                    namespace: engram_core::namespaces::NAMESPACE_MEMORY.into(),
+                    language: language.into(), file_path: (**rel_path).clone(),
+                    start_line: edge.source_start_line, end_line: edge.source_start_line,
+                    generation, metadata: Some({
+                        let mut metadata = metadata_to_json(&edge.metadata).unwrap_or_else(|| serde_json::json!({}));
+                        metadata["type_reference_owner"] = serde_json::json!(edge.source_name);
+                        metadata
+                    }),
+                });
+            }
+            id
         } else if edge.kind == "calls" && edge.metadata.as_ref()
             .is_some_and(|m| m.get("receiver_unbound").is_some_and(|v| v == "true")) {
             // An unresolved receiver cannot borrow a same-file FQN, even when
@@ -1212,6 +1234,8 @@ pub(crate) async fn prepare_ingest_graph(
             "state_affinity" => engram_graph::EdgeKind::StateAffinity,
             "injects_script" => engram_graph::EdgeKind::InjectsScript,
             "test_oracle" => engram_graph::EdgeKind::TestOracle,
+            "returns_type" => engram_graph::EdgeKind::ReturnsType,
+            "parameter_type" => engram_graph::EdgeKind::ParameterType,
             _ => engram_graph::EdgeKind::Dependency,
         };
 
@@ -1241,6 +1265,17 @@ pub(crate) async fn prepare_ingest_graph(
                     if k == engram_graph::store::SOURCE_CALL_BINDINGS || k == "source_call_binding_admission" { continue; }
                     obj.insert(k.clone(), serde_json::Value::String(v.clone()));
                 }
+            }
+            if matches!(raw_kind, "returns_type" | "parameter_type") {
+                let uses = edge.metadata.as_ref().and_then(|m| m.get("type_uses"))
+                    .and_then(|v| serde_json::from_str::<serde_json::Value>(v).ok())
+                    .filter(serde_json::Value::is_array)
+                    .ok_or_else(|| anyhow::anyhow!("Signature type edge lacks structured occurrence evidence"))?;
+                obj.insert("type_uses".into(), uses);
+                obj.insert("type_reference_name".into(), serde_json::json!(edge.target_name));
+                obj.insert("type_reference_owner".into(), serde_json::json!(edge.source_name));
+                obj.insert("type_reference_id".into(), serde_json::json!(target_id));
+                obj.insert("type_resolution".into(), serde_json::json!("authored_reference"));
             }
             if unproven_markup_control {
                 obj.insert("control_binding".into(),serde_json::json!("local_unresolved_markup_owner_not_proven"));
@@ -1348,6 +1383,12 @@ pub(crate) async fn prepare_ingest_graph(
                             .metadata
                             .get_or_insert_with(|| serde_json::Value::Object(Default::default()));
                         if let serde_json::Value::Object(base) = slot {
+                            if let Some(serde_json::Value::Array(added)) = extra.get("type_uses") {
+                                let uses = base.entry("type_uses").or_insert_with(|| serde_json::json!([]));
+                                if let serde_json::Value::Array(uses) = uses {
+                                    for usage in added { if !uses.contains(usage) { uses.push(usage.clone()); } }
+                                }
+                            }
                             merge_call_site_metadata(base, &extra);
                             engram_graph::store::merge_interface_bindings(base, &extra)?;
                             engram_graph::store::merge_source_call_bindings(base, &extra)?;
@@ -1541,6 +1582,90 @@ mod prepared_graph_tests {
     use engram_core::RelPath;
     use std::collections::BTreeMap;
     use std::sync::Arc;
+
+    fn signature_stats(signature: &str) -> engram_index::IngestStats {
+        let mut stats = engram_index::IngestStats::default();
+        for (path, source) in [
+            ("Service.cs", signature),
+            ("Contracts.cs", "namespace Contracts { class Request {} class Response {} class Replacement {} }")
+        ] {
+            let path = Arc::new(RelPath::new(path));
+            let (symbols, edges) = engram_index::parsing::SymbolExtractor::new()
+                .extract(std::path::Path::new(path.as_str()), source);
+            stats.fingerprints.push(engram_index::docstore::FileFingerprint {
+                rel_path: path.as_str().into(), size: source.len() as u64, mtime_ms: 1, mtime_ns: None,
+                file_hash: blake3::hash(source.as_bytes()).to_hex().to_string(),
+            });
+            stats.all_files.push((*path).clone());
+            stats.symbols.extend(symbols.into_iter().map(|symbol| (path.clone(), symbol)));
+            stats.edges.extend(edges.into_iter().map(|edge| (path.clone(), edge)));
+        }
+        stats
+    }
+
+    #[tokio::test]
+    async fn signature_types_publish_repeated_parameters_and_rebuild_removes_old_return_contract() -> anyhow::Result<()> {
+        let temporary = tempfile::tempdir()?;
+        let result = async {
+            let (state, _events) = AppState::new(engram_core::Config {
+                data_dir: temporary.path().join("data"),
+                allowed_roots: vec![temporary.path().to_path_buf()],
+                embedding_backend: "fts_only".into(), ..Default::default()
+            })?;
+            let stats = signature_stats("namespace Contracts { class Service { Response Run(Request[] first, Request second) { return null; } } }");
+            process_ingest_stats(&state, "types", 4, &stats).await?;
+            state.graph.resolve_symbol_edges("types")?;
+            let methods = state.graph.query_nodes("types", Some("function"), Some("Run"), None, 10)?;
+            anyhow::ensure!(methods.len() == 1, "One authored callable: {methods:?}");
+            let edges = state.graph.edges_touching("types", &methods[0].node_id, 30)?;
+            let incoming = edges.iter().find(|e| e.edge_kind == engram_graph::EdgeKind::ParameterType).expect("parameter edge");
+            let uses = &incoming.metadata.as_ref().unwrap()["type_uses"];
+            assert_eq!(uses.as_array().unwrap().len(), 2);
+            assert_eq!(uses[0]["parameter_name"], "first");
+            assert_eq!(uses[0]["type_expression"], "Request[]");
+            assert_eq!(uses[1]["parameter_index"], 1);
+            let candidates = state.graph.edges_touching("types", &incoming.target_id, 30)?;
+            let bound = candidates.iter().find(|e| e.edge_kind == engram_graph::EdgeKind::TypeDefinition).expect("cross-file type candidate");
+            let declaration = state.graph.get_node("types", &bound.target_id)?.unwrap();
+            assert_eq!(declaration.file_path.as_str(), "Contracts.cs");
+            assert_eq!(declaration.name, "Request");
+
+            let app = crate::tools::Engram::new(state.clone());
+            let reply = app.handle_find_references(serde_json::from_value(serde_json::json!({
+                "project_id":"types","node_id":methods[0].node_id,"edge_kind":"parameter_type","direction":"out"
+            }))?).await.map_err(|error| anyhow::anyhow!("{error}"))?;
+            let displayed: serde_json::Value = serde_json::from_str(&reply.content[0].as_text().unwrap().text)?;
+            let uses = &displayed["edges"][0]["evidence"]["type_uses"];
+            assert_eq!(uses[0]["parameter_name"], "first");
+            assert_eq!(uses[1]["parameter_name"], "second");
+            assert_eq!(uses[0]["type_expression"], "Request[]");
+            assert_eq!(displayed["truncated"], false);
+
+            let expected_files = state.graph.query_nodes("types", Some("file"), None, None, 10)?;
+            // Simulate stale extraction, not a source edit: graph-only repair
+            // must preserve the independently fingerprinted selected bytes.
+            let mut obsolete = state.graph.get_node("types", &incoming.target_id)?.unwrap();
+            obsolete.node_id = engram_core::ids::NodeId::symbol("type_reference", None, "Service.cs", "Obsolete", 1).0;
+            obsolete.name = "Obsolete".into();
+            let mut old_edge = incoming.clone();
+            old_edge.edge_kind = engram_graph::EdgeKind::ReturnsType;
+            old_edge.target_id = obsolete.node_id.clone();
+            state.graph.upsert_nodes_and_edges("types", &[obsolete.clone()], &[old_edge])?;
+            let prepared = prepare_ingest_graph(&state, "types", 4, &stats, None).await?;
+            state.graph.replace_source_graph("types", &expected_files, &prepared.nodes, &prepared.edges)?;
+            drop(prepared);
+            state.graph.resolve_symbol_edges("types")?;
+            let edges = state.graph.list_edges("types", None)?;
+            let returns: Vec<_> = edges.iter().filter(|e| e.edge_kind == engram_graph::EdgeKind::ReturnsType).collect();
+            assert_eq!(returns.len(), 1);
+            assert_eq!(state.graph.get_node("types", &returns[0].target_id)?.unwrap().name, "Response");
+            assert!(edges.iter().all(|e| e.generation == 4));
+            assert!(state.graph.get_node("types", &obsolete.node_id)?.is_none(), "Retired signature references must not survive graph replacement");
+            Ok(())
+        }.await;
+        temporary.close()?;
+        result
+    }
 
     #[tokio::test]
     async fn graph_rebuild_selected_revisions_stay_attached_without_publishing() -> anyhow::Result<()> {

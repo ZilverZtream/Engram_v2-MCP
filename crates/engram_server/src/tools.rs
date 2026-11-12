@@ -642,7 +642,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Edges in/out of a node_id grouped by kind (calls, SQL, state, UI, imports...). Use resolve_id first if you only have a name. For name-based lookup use find_symbol_references."
+        description = "Edges in/out of a node_id grouped by kind (calls, SQL, state, UI, imports...). Use edge_kind='parameter_type' or 'returns_type' with direction='out' on a callable to inspect authored type expressions and parameter positions; follow 'type_definition' from a type reference for candidate declarations (not compiler proofs). Use resolve_id first if you only have a name. For name-based lookup use find_symbol_references."
     )]
     pub async fn find_references(
         &self,
