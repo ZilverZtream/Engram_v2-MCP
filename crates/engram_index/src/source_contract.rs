@@ -98,6 +98,9 @@ impl SourceExtractionExpectation {
         if requires_script_call_contract(std::path::Path::new(path))
             && metadata.get("script_call_contract").and_then(serde_json::Value::as_u64)
                 != Some(SCRIPT_CALL_CONTRACT) { return false; }
+        // Vendor source is searchable, but ingestion deliberately emits no
+        // semantic symbols. Keep chunk and suppression receipts mandatory.
+        if engram_core::is_vendor_path(path) { return true; }
         if let Some(key) = module_fact_key(path) {
             if !metadata.get(key).and_then(|v| v.as_str()).is_some_and(|raw| current_module_fact(key, raw)) {
                 return false;
@@ -142,11 +145,6 @@ impl SourceExtractionExpectation {
             .filter_map(|(path, symbol)| symbol.metadata.as_ref().map(|metadata| (path.as_str(), metadata)))
             .collect();
         for path in &stats.all_files {
-            if let Some(key) = module_fact_key(path.as_str()) {
-                anyhow::ensure!(module_receipts.get(path.as_str()).and_then(|m| m.get(key))
-                    .is_some_and(|raw| current_module_fact(key, raw)),
-                    "Produced source {} has no current module/config facts", path.as_str());
-            }
             if requires_script_call_contract(std::path::Path::new(path.as_str())) {
                 anyhow::ensure!(stats.script_call_contracts.get(path.as_str()) == Some(&SCRIPT_CALL_CONTRACT),
                     "Produced script file {} has no current call contract", path.as_str());
@@ -155,6 +153,14 @@ impl SourceExtractionExpectation {
                 anyhow::ensure!(stats.webforms_position_contracts.get(path.as_str())
                     == Some(&crate::webforms::POSITION_CONTRACT),
                     "Produced WebForms file {} has no current position contract", path.as_str());
+            }
+            // Match ingestion's vendor suppression; requiring semantic facts
+            // here would prevent publication of otherwise valid source chunks.
+            if engram_core::is_vendor_path(path.as_str()) { continue; }
+            if let Some(key) = module_fact_key(path.as_str()) {
+                anyhow::ensure!(module_receipts.get(path.as_str()).and_then(|m| m.get(key))
+                    .is_some_and(|raw| current_module_fact(key, raw)),
+                    "Produced source {} has no current module/config facts", path.as_str());
             }
             if !crate::vb_extractor::requires_parser_provenance(path.as_str()) { continue; }
             anyhow::ensure!(stats.vb_parser_provenance.contains_key(path.as_str()),
