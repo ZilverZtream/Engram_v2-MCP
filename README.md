@@ -283,6 +283,7 @@ without re-reading an entire file:
 | `get_method_edit_context` | Source + immediate call / caller neighbourhood |
 | `get_page_context` · `prepare_implementation_context` | ASPX-aware context for WebForms edits |
 | `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
+| `batch_read` | Up to 16 method, identity and stored-chunk reads under one response budget |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
@@ -300,6 +301,18 @@ database-trigger bindings remain explicit coverage limits. `include_db: false`
 omits database relationships; `include_triggers: false` skips trigger coverage.
 The complete JSON response defaults to a 16,384-token byte-estimate budget;
 smaller budgets that cannot contain it fail with the required size.
+
+`batch_read` accepts `requests` containing a unique `request_id` and a `request`
+with `tool` (`get_method_info`, `resolve_id` or `get_chunk`) and its ordinary
+`arguments`. Results preserve input order and each underlying result or error.
+`complete` describes delivery; inspect each row's `status` for read failures.
+The shared `max_tokens` budget defaults to 8192 and is capped at 65536, estimated
+as complete JSON UTF-8 bytes divided by four, rounded up. A result that does not
+fit is omitted whole, with its ID, size and exact single-tool `recovery` call;
+source text, citations and applicable guidance are never cut inside that result.
+A budget too small for all IDs and recovery calls fails before executing reads.
+The batch uses the existing read handlers sequentially and is not an atomic
+snapshot. Each read and later recovery retains its own freshness semantics.
 
 ### Incremental indexing and memory
 

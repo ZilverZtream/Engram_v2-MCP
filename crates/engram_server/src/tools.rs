@@ -311,6 +311,14 @@ impl Engram {
         self.handle_ask_codebase(params.0).await
     }
 
+    #[tool(description = "Read up to 16 method-information, graph/document identity or stored-chunk requests in one call. Each request has a unique request_id and a typed request with tool and its normal arguments. Returns ordered complete underlying results/errors under one shared max_tokens budget; whole results omitted for budget retain exact single-tool recovery. Existing source/citation validation applies. Reads run sequentially and are not an atomic snapshot. JSON response.")]
+    pub async fn batch_read(
+        &self,
+        params: Parameters<BatchReadRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_batch_read(params.0).await
+    }
+
     #[tool(description = "Trace a URL/page and optional action to source-cited WebForms route candidates, authored event handlers, indexed calls, SQL/procedures/tables, state and response source. Static navigation, not proof of runtime execution. Ambiguous routing, stale graph/source and missing trigger bindings remain explicit gaps. Requires indexed project; JSON response.")]
     pub async fn trace_user_request(
         &self,
