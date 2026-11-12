@@ -125,6 +125,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "trace_user_request",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "begin_edit_session",
         status: CapabilityStatus::Implemented,
     },

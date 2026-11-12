@@ -282,8 +282,24 @@ without re-reading an entire file:
 | `get_full_method_body` | Indexed method or explicit range, with source fingerprint status |
 | `get_method_edit_context` | Source + immediate call / caller neighbourhood |
 | `get_page_context` · `prepare_implementation_context` | ASPX-aware context for WebForms edits |
+| `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
+
+`trace_user_request` accepts an `entry_point` such as `POST /buy/42` and an
+optional `action` such as `click btnBuy` or `load page`. It resolves literal
+`MapPageRoute` registrations and physical pages from selected project sources,
+preserves competing registrations, and follows authored WebForms bindings.
+Expanded methods require matching source fingerprints and selected physical
+revisions. Source excerpts retain guards and response expressions, with exact
+source-recovery requests when an excerpt is incomplete.
+
+The result is static navigation, not an observed execution trace. Dynamic routes,
+optional route defaults, rewrites, inherited/dynamic event bindings and missing
+database-trigger bindings remain explicit coverage limits. `include_db: false`
+omits database relationships; `include_triggers: false` skips trigger coverage.
+The complete JSON response defaults to a 16,384-token byte-estimate budget;
+smaller budgets that cannot contain it fail with the required size.
 
 ### Incremental indexing and memory
 
@@ -1196,6 +1212,7 @@ respects repository ignore rules; tracked vendor and generated files can remain.
 |---|---|
 | `get_method_info` · `get_full_method_body` · `get_method_edit_context` | Precise method-context retrieval |
 | `get_page_context` · `prepare_implementation_context` | ASPX page / implementation context |
+| `trace_user_request` | Source-cited URL/action navigation with call, database and response evidence |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit code and SQL validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
