@@ -40,10 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "finding": "TODO36 existing Git-history four-task plan",
-    "status": "RECONCILE_RETAINED_DELIVERY_THEN_ADVANCE",
-    "remaining": "Reconcile existing TODO36 four-task Git-history implementation and retained acceptance, then advance the next missing OciusX-relevant original item without repeating implemented work.",
-    "scope_guard": "No further Java/Python/Rust/Go language expansion, modern-state deployment, CodeMap or Blast improvement absent an explicit OciusX need or concrete regression. Engram implementation language Rust is distinct from adding Rust target-language support."
+    "finding": "TODO37 pollable indexing progress",
+    "status": "SELECTED_IMPLEMENTATION",
+    "remaining": "Expose durable phase/count/progress/ETA through get_job_status for source/update/history jobs, then verify installed MCP behavior.",
+    "scope_guard": "OciusX source/history job visibility only; no language expansion, CodeMap/Blast, job framework rewrite, storage redesign or broad benchmark."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -84,5 +84,9 @@
   "index_suggestions_delivery": {
     "receipt": "eval/ociusx-index-suggestions-delivery-20261112.json",
     "status": "INDEX_SUGGESTIONS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
+  },
+  "todo36_reconciliation": {
+    "receipt": "eval/todo36-existing-implementation-20261112.json",
+    "status": "FOUR_TASK_IMPLEMENTATION_ALREADY_PRESENT_PERFORMANCE_TARGET_UNVERIFIED"
   }
 }

@@ -1,0 +1,31 @@
+{
+  "status": "FOUR_TASK_IMPLEMENTATION_ALREADY_PRESENT_PERFORMANCE_TARGET_UNVERIFIED",
+  "at_utc": "2026-11-12T20:47:22.799192+00:00",
+  "original_requirement": "TODO36 four-task Git-history indexing performance plan",
+  "plan": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\docs\\superpowers\\plans\\2026-04-16-index-git-history-perf.md",
+    "sha256": "98afcfd5f22a3a884c4127246a0bc5f6368dd3f9574a83a8bb13536069a84af0"
+  },
+  "historical_completion_commit": "124b9b8",
+  "source_commit_installed": "96882b0cadbfe20ff71e8c937b01c13c824db510",
+  "source_files": {
+    "crates/engram_git/src/history.rs": "2076c82f3af95bc3a545db19edc364aacff8ea230fa3ac555e204acfa8bd181f",
+    "crates/engram_git/src/temporal.rs": "3060500e1195dbdc74b7bec49141b88ada1437f382a2c11b581aeb7075462232",
+    "crates/engram_index/src/hybrid.rs": "350eedb5288d8bd52ddfd0b3c4c15abb58e9c9cf7e76f80148f9ff7ca36bcd2a",
+    "crates/engram_server/src/handlers/git_tools.rs": "cb12e5f6d89944400d9f4f8fa6c6ab51d7e906ced9769040b85c77c18e81eba5"
+  },
+  "verified_implementation": [
+    "Tree-ID structural revert comparison avoids diff loading.",
+    "file_pairs uses sorted/deduplicated Vec; later bulk-change exclusion preserved.",
+    "Long-lived BulkWriterGuard periodically commits, finalizes/joins on finish or drop; separate vector API.",
+    "Bounded64batch channel,1000doc commits,50commit graph edge batches, bounded history and incremental byte accounting."
+  ],
+  "retained_public_history_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p04-history-response-20261111\\installed\\acceptance.json",
+    "sha256": "dce220499680d70d92b84fff09d4bf98a7855f95fb65c18520f4de7eb82b402c"
+  },
+  "acceptance_limit": "Retained public history retrieval/recovery proves selected functional behavior, not the original large-repository throughput target. Current build contains the verified source. No fresh benchmark run.",
+  "unfinished": "Hours-to-minutes/50-80percent projected gain remains unmeasured. Keep partial; do not repeatedly rebuild existing optimizations.",
+  "decision": "Advance original TODO37 missing pollable progress. Performance acceptance stays unfinished; no broad benchmark selected.",
+  "resources": "Read-only inspection; no fixtures or processes created."
+}

@@ -9973,46 +9973,33 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-12T20:43:19.930039+00:00",
+  "last_updated_at": "2026-11-12T20:47:22.799192+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "INDEX_SUGGESTIONS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "at_utc": "2026-11-12T20:05:51.350547+00:00",
-      "original_requirement": "TODO35 / AGENT_ENHANCEMENT_SPEC.md39-5 find_missing_indexes: collect WHERE/JOIN/ORDER BY column patterns from indexed inline SQL and stored procedures, cross-reference source-declared indexes, rank by static call-site frequency, and return CREATE INDEX candidates with file:line reasons, index-type guidance and selectivity warnings.",
-      "observed_missing_behavior": "No find_missing_indexes handler/tool exists. Existing schema_query catalog supplies qualified SQL declaration/index evidence; sqlparser0.59 is already a dependency. Indexed SqlCalls edges carry sql_text and source method identity. Existing sql_binding/sql_scopes shows AST scope handling. Regex scaffold SQL analysis does not supply sufficient qualified binding/ORDER BY coverage for this requirement.",
+      "status": "SELECTED_IMPLEMENTATION",
+      "at_utc": "2026-11-12T20:47:22.799192+00:00",
+      "original_requirement": "TODO37 Indexing progress reporting an agent can poll: persist per-phase progress (files done/total, phase, ETA) and expose via get_job_status.",
+      "observed_missing_behavior": "Index/update/history callbacks persist percent and human count messages, but get_job_status exposes only job_id/status/message. ETA stays None. Phase-boundary checkpoints do not provide live file/commit progress through the requested tool.",
       "implementation_files": [
-        "crates/engram_server/src/services/schema_query.rs",
-        "crates/engram_server/src/services/index_suggestions.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/src/services/job_progress.rs",
         "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/handlers/index_suggestion_tools.rs",
-        "crates/engram_server/src/handlers/mod.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/src/capabilities.rs",
-        "crates/engram_server/tests/index_suggestion_tests.rs",
-        "README.md"
+        "crates/engram_server/tests/job_progress_tests.rs"
       ],
       "finite_acceptance": [
-        "Read selected indexed SQL declarations and static inline/stored-procedure query evidence, verify originating source membership/revision/fingerprint, and cite exact source spans. Use existing SQL parser/declaration extraction; do not add a new parser, ORM SQL translator or analysis platform.",
-        "Extract WHERE predicate, JOIN and ORDER BY access columns, preserving qualified table/column identity and alias/query-scope boundaries. Expose unresolved/ambiguous/unsupported constructs and withhold unsafe DDL rather than binding by basename or regex alone.",
-        "Compare candidate keys with existing standalone indexes and PK/unique constraints, accounting for ordered leading keys, INCLUDE columns and filtered-index applicability. Do not equate an INCLUDE-only or nonleading column with an eligible leading access key; do not claim a filtered index covers predicates it does not imply.",
-        "Return deterministic ranked suggestions, static source-site frequency, file:line reasons, quoted CREATE NONCLUSTERED INDEX SQL and supported covering/filtered guidance. Cardinality, runtime frequency, optimizer plan, write overhead and realized performance remain unknown; warn when schema types constrain cardinality. No database connection, execution or automatic migration.",
-        "Focused tests cover inline SQL and stored procedures, WHERE/JOIN/ORDER BY, multiple aliases/scopes, covered/uncovered leading keys, constraint indexes, INCLUDE/filter distinctions, qualified-name ambiguity, comments/string examples, stale evidence and bounded complete responses.",
-        "Verify candidate and installed public MCP on owned fixtures and one pinned actual OciusX SQL source case; commit/push origin/master, deploy, record evidence and advance. Do not turn useful candidate suggestions into claims of measured dramatic speedup."
+        "Expose explicit current phase, completed/total and unit, observation time, percentage and phase ETA through get_job_status; preserve status/message and existing callers. Unknown totals/ETA stay unknown.",
+        "Persist throttled observations for background index_project, update_project and index_git_history, including transitions after parsing so parsing completion cannot masquerade as job completion. Reuse existing registry/checkpoint ownership; no storage-format migration or new job system.",
+        "Estimate current-phase ETA from completed work and elapsed time; reset on phase changes, handle zero totals/rates/clock anomalies and terminal/cancelled outcomes without fabricated completion.",
+        "Focused checks cover phase transitions, persistence/reopen, update cadence, unknown ETA and terminal state. Public MCP fixture starts and polls an owned background VB/SQL indexing/history job and verifies explicit progress and truthful terminal completion with cleanup.",
+        "Commit/push only origin/master, build/deploy from existing isolated checkout, verify candidate and installed polling. Preserve prior deliveries and parked work."
       ],
-      "source_baseline": "34a0149d9968d079046dc6cdb5b3c6e7ba8693ce",
+      "source_baseline": "96882b0cadbfe20ff71e8c937b01c13c824db510",
       "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes",
-      "scope_guard": "OciusX SQL Server and existing VB static SQL evidence only. CodeMap/Blast and unrelated Java/Python/Rust/Go analysis remain closed/parked. query_schema and detect_n_plus_one are delivered; do not reopen them absent a direct integration regression.",
-      "resources": "Reuse shared build target and existing isolated source checkout. Own and close new fixtures; retain evidence here. No preexisting folder deletion.",
-      "retained_limits": "Original19 gates, overall comparative usefulness and other unfinished/held backlog requirements stay open. LINQ generated SQL is outside available static SQL evidence and must be disclosed, not fabricated.",
-      "source_commit": "96882b0",
-      "native_tests": 7,
-      "delivery_evidence": "eval/ociusx-index-suggestions-delivery-20261112.json",
-      "public_mcp_verified": true,
-      "installed_mcp_verified": true,
-      "real_ociusx_verified": true,
-      "live_build_session": null
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress",
+      "scope_guard": "OciusX source/history job visibility only; no language expansion, CodeMap/Blast, job framework rewrite, storage redesign or broad benchmark.",
+      "resources": "Own and close all new fixtures/processes. Keep scratch here; reuse checkout/shared target. No preexisting deletion.",
+      "retained_limits": "TODO36 performance target, original19 gates, comparative usefulness and all other unfinished/held findings stay open."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10044,8 +10031,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO36 retained Git-history delivery reconciliation; no new implementation selected",
-    "next_user_visible_deliverable": "Reconcile existing TODO36 four-task Git-history implementation and retained acceptance, then advance the next missing OciusX-relevant original item without repeating implemented work.",
+    "active_original_item": "TODO37 pollable indexing progress",
+    "next_user_visible_deliverable": "Expose durable phase/count/progress/ETA through get_job_status for source/update/history jobs, then verify installed MCP behavior.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -13182,6 +13169,50 @@
         "Actual OciusX result discloses an indexed-view target gap for UIDX_rl_pris_view and one ALTER TABLE schema gap. The three base-table key suppressions were independently verified; these gaps are not silently declared solved.",
         "CodeRabbit unauthenticated: parent manual review only. Original19 release gates, comparative usefulness, full request-tracing remainder and held backlog remain open."
       ]
+    },
+    "previous_index_suggestions_delivery_contract": {
+      "status": "INDEX_SUGGESTIONS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "at_utc": "2026-11-12T20:05:51.350547+00:00",
+      "original_requirement": "TODO35 / AGENT_ENHANCEMENT_SPEC.md39-5 find_missing_indexes: collect WHERE/JOIN/ORDER BY column patterns from indexed inline SQL and stored procedures, cross-reference source-declared indexes, rank by static call-site frequency, and return CREATE INDEX candidates with file:line reasons, index-type guidance and selectivity warnings.",
+      "observed_missing_behavior": "No find_missing_indexes handler/tool exists. Existing schema_query catalog supplies qualified SQL declaration/index evidence; sqlparser0.59 is already a dependency. Indexed SqlCalls edges carry sql_text and source method identity. Existing sql_binding/sql_scopes shows AST scope handling. Regex scaffold SQL analysis does not supply sufficient qualified binding/ORDER BY coverage for this requirement.",
+      "implementation_files": [
+        "crates/engram_server/src/services/schema_query.rs",
+        "crates/engram_server/src/services/index_suggestions.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/handlers/index_suggestion_tools.rs",
+        "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/tests/index_suggestion_tests.rs",
+        "README.md"
+      ],
+      "finite_acceptance": [
+        "Read selected indexed SQL declarations and static inline/stored-procedure query evidence, verify originating source membership/revision/fingerprint, and cite exact source spans. Use existing SQL parser/declaration extraction; do not add a new parser, ORM SQL translator or analysis platform.",
+        "Extract WHERE predicate, JOIN and ORDER BY access columns, preserving qualified table/column identity and alias/query-scope boundaries. Expose unresolved/ambiguous/unsupported constructs and withhold unsafe DDL rather than binding by basename or regex alone.",
+        "Compare candidate keys with existing standalone indexes and PK/unique constraints, accounting for ordered leading keys, INCLUDE columns and filtered-index applicability. Do not equate an INCLUDE-only or nonleading column with an eligible leading access key; do not claim a filtered index covers predicates it does not imply.",
+        "Return deterministic ranked suggestions, static source-site frequency, file:line reasons, quoted CREATE NONCLUSTERED INDEX SQL and supported covering/filtered guidance. Cardinality, runtime frequency, optimizer plan, write overhead and realized performance remain unknown; warn when schema types constrain cardinality. No database connection, execution or automatic migration.",
+        "Focused tests cover inline SQL and stored procedures, WHERE/JOIN/ORDER BY, multiple aliases/scopes, covered/uncovered leading keys, constraint indexes, INCLUDE/filter distinctions, qualified-name ambiguity, comments/string examples, stale evidence and bounded complete responses.",
+        "Verify candidate and installed public MCP on owned fixtures and one pinned actual OciusX SQL source case; commit/push origin/master, deploy, record evidence and advance. Do not turn useful candidate suggestions into claims of measured dramatic speedup."
+      ],
+      "source_baseline": "34a0149d9968d079046dc6cdb5b3c6e7ba8693ce",
+      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\missing-indexes",
+      "scope_guard": "OciusX SQL Server and existing VB static SQL evidence only. CodeMap/Blast and unrelated Java/Python/Rust/Go analysis remain closed/parked. query_schema and detect_n_plus_one are delivered; do not reopen them absent a direct integration regression.",
+      "resources": "Reuse shared build target and existing isolated source checkout. Own and close new fixtures; retain evidence here. No preexisting folder deletion.",
+      "retained_limits": "Original19 gates, overall comparative usefulness and other unfinished/held backlog requirements stay open. LINQ generated SQL is outside available static SQL evidence and must be disclosed, not fabricated.",
+      "source_commit": "96882b0",
+      "native_tests": 7,
+      "delivery_evidence": "eval/ociusx-index-suggestions-delivery-20261112.json",
+      "public_mcp_verified": true,
+      "installed_mcp_verified": true,
+      "real_ociusx_verified": true,
+      "live_build_session": null
+    },
+    "todo36_reconciliation": {
+      "receipt": "eval/todo36-existing-implementation-20261112.json",
+      "status": "FOUR_TASK_IMPLEMENTATION_ALREADY_PRESENT_PERFORMANCE_TARGET_UNVERIFIED",
+      "remaining": "Hours-to-minutes/50-80percent projected gain remains unmeasured. Keep partial; do not repeatedly rebuild existing optimizations."
     }
   }
 }
