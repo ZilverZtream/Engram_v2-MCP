@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement": "TODO21: Return-type / parameter-type edges in parsing.rs and extractors, enabling type-boundary reasoning and what flows into a method. TODO22 def-use and TODO23 general call resolution remain separate.",
       "observed_missing_behavior": "EdgeKind has no return/parameter type relations. Tree-sitter declarations retain arity only. VB Roslyn and fallback retain some return_type metadata but emit no signature type edges. No existing TODO21 delivery receipt was found.",
       "implementation_files": [
@@ -9989,7 +9989,7 @@
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112",
       "temporary_resource_policy": "New test fixtures live beneath this diagnostics folder and close/remove their owned resources. Retained logs, source hashes and acceptance receipts remain as delivery evidence."
     },
-    "at_utc": "2026-11-12T02:21:57.854956+00:00",
+    "at_utc": "2026-11-12T02:43:26.349507+00:00",
     "reason": "TODO16c deployed with installed public evidence; TODO21 is next unchecked original TODO item after completed17-20.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10034,7 +10034,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: public overload source-binding failure corrected; native/no-vector typed-handler acceptance passed. Corrected release and deployment remain.",
+    "previous_goal_turn_classification": "Progress: TODO21 corrected release passed candidate and installed public acceptance, deployed matching server/sidecar, normal runtime verified; source/search/vector state preserved and owned resources accounted for. Full backlog remains active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12670,7 +12670,7 @@
       "installed_server_sha256": "cab31b4b88561629ccc7531cb7d88e7863d8c1c6fca3a1f92a08aa74f73ed1b7"
     },
     "p121_signature_types_20261112": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "original_requirement": "TODO21: Return-type / parameter-type edges in parsing.rs and extractors, enabling type-boundary reasoning and what flows into a method. TODO22 def-use and TODO23 general call resolution remain separate.",
       "observed_missing_behavior": "EdgeKind has no return/parameter type relations. Tree-sitter declarations retain arity only. VB Roslyn and fallback retain some return_type metadata but emit no signature type edges. No existing TODO21 delivery receipt was found.",
       "implementation_files": [
@@ -12693,12 +12693,9 @@
       "temporary_resource_policy": "New test fixtures live beneath this diagnostics folder and close/remove their owned resources. Retained logs, source hashes and acceptance receipts remain as delivery evidence.",
       "progress_receipt": "eval/p121-signature-types-progress-20261112.json",
       "receipt": "eval/p121-signature-types-delivery-20261112.json",
-      "remaining": [
-        "Corrected release server build and versioned package; matching sidecar already built and unchanged.",
-        "Unchanged public candidate and installed contracts; deployment and normal daemon identity.",
-        "Final owned-scratch accounting."
-      ],
-      "candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate\\acceptance.json"
+      "remaining": [],
+      "candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p121-signature-types-20261112\\candidate\\acceptance.json",
+      "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103"
     }
   }
 }
