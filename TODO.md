@@ -352,10 +352,16 @@ specs already written.
   speedup remains unmeasured, so this item stays partial.
   Evidence: [existing implementation](eval/todo36-existing-implementation-20261112.json).
 
-- [ ] **37. Indexing progress reporting an agent can poll** (M)
-  `project_tools.rs`, `git_tools.rs`, job service. Long indexing returns nothing until
-  done; agents assume failure and retry. Persist per-phase progress (files done/total,
+- [x] **37. Indexing progress reporting an agent can poll** (M)
+  `project_tools.rs`, `git_tools.rs`, job service. Original requirement: long indexing needs pollable state so agents do not
+  assume failure and retry. Persist per-phase progress (files done/total,
   current phase, ETA) and expose via `get_job_status`.
+  Delivered 2026-11-12: persistent phase/count/unit/percent/timestamp and phase
+  ETA output, unknown values kept explicit, terminal observations preserved.
+  Three new behavior and four startup-cleanup checks passed; candidate and
+  installed MCP each verified five background source/update/history jobs.
+  ETA is phase-only; phase completion is not whole-job completion.
+  Evidence: [installed progress delivery](eval/ociusx-indexing-progress-delivery-20261112.json).
 
 - [x] **38. Windows named-pipe transport for the multi-client daemon** (M) - *done 2026-06-13
   (user-reported: only one CLI window could use the MCP at a time — second died on the

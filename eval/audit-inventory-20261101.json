@@ -9973,10 +9973,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-12T21:04:28.783553+00:00",
+  "last_updated_at": "2026-11-12T21:20:30.040908+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "COMMITTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+      "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "at_utc": "2026-11-12T20:47:22.799192+00:00",
       "original_requirement": "TODO37 Indexing progress reporting an agent can poll: persist per-phase progress (files done/total, phase, ETA) and expose via get_job_status.",
       "observed_missing_behavior": "Index/update/history callbacks persist percent and human count messages, but get_job_status exposes only job_id/status/message. ETA stays None. Phase-boundary checkpoints do not provide live file/commit progress through the requested tool.",
@@ -10013,14 +10013,15 @@
         "debug_public_calls": 44,
         "debug_scope": "Ran before removing one unrelated legacy-ETA cleanup mutation; final native/core checks pass. Final paired candidate and installed acceptance still required.",
         "review": "Parent manual review of coherent status/phase reads, atomic running-job updates, deletion/cancellation handling, backward-compatible optional JSON field, restart preservation, phase ETA/unknowns and fixture ownership. CodeRabbit last authentication unavailable; no independent review claim.",
-        "source_frozen": true,
-        "release_build_session": 34978,
-        "public_candidate_verified": false,
-        "installed_verified": false
+        "source_frozen": false,
+        "release_build_session": null,
+        "public_candidate_verified": true,
+        "installed_verified": true
       },
       "source_commit": "1c9bc3d310380f0d55b945d107969a503ea15491",
       "main_merge_commit": "48616041d884faf8ae878872136035b889ec5857",
-      "build_session": 34978
+      "build_session": null,
+      "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10052,8 +10053,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO37 pollable indexing progress",
-    "next_user_visible_deliverable": "Finish exact progress release build34978, then paired candidate/installed five-job polling acceptance; deploy and record completed delivery before advancing.",
+    "active_original_item": "TODO39 consistency remainder: reconcile retained evidence before implementation selection",
+    "next_user_visible_deliverable": "Continue original TODO39 from the retained single inspection: reconcile selected-source vector/Tantivy consistency and existing symmetric repair evidence before selecting a finite missing behavior. No storage rewrite or repeated passed gates.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10072,7 +10073,7 @@
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
     "previous_goal_turn_classification": {
       "classification": "progress",
-      "evidence": "Phase progress implemented and source1c9bc3d merged/pushed4861604. Native3 and existing startupcleanup4 checks pass; debug public5jobs44calls pass. Release34978 confirmed live. Parked9files unchanged."
+      "evidence": "Progress release built, paired candidate/installed five-job polling passed, deployed and normal OciusX compatibility check passed. All owned resources closed; parked work unchanged."
     },
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
@@ -13234,6 +13235,10 @@
       "receipt": "eval/todo36-existing-implementation-20261112.json",
       "status": "FOUR_TASK_IMPLEMENTATION_ALREADY_PRESENT_PERFORMANCE_TARGET_UNVERIFIED",
       "remaining": "Hours-to-minutes/50-80percent projected gain remains unmeasured. Keep partial; do not repeatedly rebuild existing optimizations."
+    },
+    "index_progress_delivery_20261112": {
+      "receipt": "eval/ociusx-indexing-progress-delivery-20261112.json",
+      "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
     }
   }
 }

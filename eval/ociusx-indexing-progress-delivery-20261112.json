@@ -1,0 +1,158 @@
+{
+  "status": "TODO37_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-12T21:20:30.040908+00:00",
+  "original_requirement": "TODO37 Indexing progress reporting an agent can poll: persist per-phase progress (files done/total, phase, ETA) and expose via get_job_status.",
+  "source_commit": "1c9bc3d310380f0d55b945d107969a503ea15491",
+  "main_merge_commit": "48616041d884faf8ae878872136035b889ec5857",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "d1f40ae07e8d3deb3ea75079e8d4cd44be25de3a25fca63846cf141dfe4ea129",
+    "manifest_sha256": "85260b05819e1b9fb15d44ed231722a8eab2ad7ceb1cac0ccd07300ddbecebeb",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "get_job_status preserves status/message and appends structured phase, completed/total/unit, phase percent, observation timestamps and estimated phase time remaining.",
+    "Background index_project, changed/unchanged update_project and index_git_history forward/backfill/refresh emit durable observations for their actual source/history work and subsequent flush/graph/publication phases.",
+    "Optional phase observation lives in the existing JSON job row. Existing rows remain readable, terminal and restart transitions preserve it, and deleting a job removes its observation with the row.",
+    "Progress writes atomically check that the job still exists and is running; late callbacks cannot revive a cancelled/deleted job. Intermediate writes are throttled; phase changes and phase completion are observed immediately.",
+    "Phase100percent is explicitly distinct from job completion. Unknown phases/counts/ETA remain null, and terminal jobs expose their last observation without a live ETA."
+  ],
+  "checks": {
+    "native_progress_tests": 3,
+    "startup_cleanup_tests": 4,
+    "public": {
+      "candidate": {
+        "calls": 31,
+        "jobs": 5,
+        "observed_phases": [
+          "graph_enrichment",
+          "history_checkpoint",
+          "history_flush",
+          "history_forward",
+          "history_preparation",
+          "history_refresh",
+          "preparing_storage",
+          "scanning",
+          "source_flush",
+          "source_indexing"
+        ]
+      },
+      "installed": {
+        "calls": 31,
+        "jobs": 5,
+        "observed_phases": [
+          "graph_enrichment",
+          "history_checkpoint",
+          "history_flush",
+          "history_forward",
+          "history_preparation",
+          "history_refresh",
+          "preparing_parser",
+          "preparing_storage",
+          "scanning",
+          "source_flush",
+          "source_indexing",
+          "waiting_for_project"
+        ]
+      }
+    },
+    "source_stable_during_build": true,
+    "parked_work_unchanged": true
+  },
+  "normal_ociusx": {
+    "existing_job_verified": true,
+    "job_id": "73f9c70f-d272-4ef5-aa62-cfb5bcb37c3a",
+    "job_kind": "update_project",
+    "job_status": "done",
+    "observation": {
+      "completed": null,
+      "coverage": "phase_unavailable_for_this_job",
+      "estimate_scope": "Current phase at observation time only; not whole-job ETA. Later flush, graph, publication and enrichment work may have unknown duration. A phase at100% does not mean the job is complete.",
+      "estimated_time_remaining_ms": null,
+      "job_complete": true,
+      "job_updated_at_ms": 1794498045231,
+      "observed_at_ms": null,
+      "phase": null,
+      "phase_progress_pct": null,
+      "phase_started_at_ms": null,
+      "phase_state": "last_observation",
+      "total": null,
+      "unit": null
+    },
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation_before_and_after": 3148,
+    "interpretation": "Read-only normal installed compatibility check on existing job metadata; no production indexing, source changes or new performance claim."
+  },
+  "limitations": [
+    "ETA is an estimate for the observed phase, based on completed work and elapsed time; it is not a whole-job completion forecast. Unknown-duration work and slow individual files/commits can make it stale; observation time remains explicit.",
+    "Percent/counters describe the current or last observed phase, not a weighted aggregate across phases. Terminal/cancelled states do not fabricate completed counts.",
+    "Other job types and historical rows without an observation report unavailable phase coverage. An older application can read the JSON row but does not emit/preserve the new observation on its own writes.",
+    "Scoped functional delivery only; no throughput, model-quality or comparative productivity gain is claimed. Original19gates, TODO36 performance acceptance, remaining original backlog and held work stay open.",
+    "CodeRabbit authentication unavailable in the retained review context; parent manual review only."
+  ],
+  "failed_check_resolution": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\registry1.json",
+      "sha256": "5f07303bc3459267ebf15735fc18ea81d8c61502c89c7ed22055b094b0a19eae"
+    },
+    "cause": "An unnecessary startup-abort mutation cleared the legacy ETA field, contradicting the existing preservation contract.",
+    "correction": "Preserve that historical field; public terminal ETA remains null. Final registry2 all4 and native2 all3 checks pass."
+  },
+  "evidence": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\native2.json",
+      "sha256": "203b7bf9c3abe55edc066abfe2fac7ead19116e9c3e9980cb03d4075d37abc83"
+    },
+    "startup_cleanup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\registry2.json",
+      "sha256": "138930e7ef2c86beb69cb1fd9b86ad645871b05aa85d2ffc6c4e674d6be97004"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\release1.json",
+      "sha256": "aaabbeb2527f8c38accd9f2ee7e2a06b2bdca7b28deb930c50c7087c34ac6382"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\pair.json",
+      "sha256": "42187a105c65848934e47e140610ff32b00d4c290ca3731723060825222c2002"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\candidate\\acceptance.json",
+      "sha256": "6a127ef4c67a1a0e6e0ba183f6004af56c7f5f3a327791f0d74ad810026796fd"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\installed\\acceptance.json",
+      "sha256": "3151d9dc2c7c5c5f24c7daf31b919e92fb6a47b27297634335e3c62e9d4b5208"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\normal\\acceptance.json",
+      "sha256": "60d3484a6c65fad3d41f80ecd7f5a42a0c87efea47dd8b80b5b1ea1eff5150d1"
+    },
+    "gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\release-gates.json",
+      "sha256": "8dcfe10926af4ce9e0be5cb873cc737191615cdc161f8c4aeb89b7125b6959ca"
+    },
+    "install": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\progress-install-Upgrade.json",
+      "sha256": "35b60afe5c557e2b117a5f992de33b1102584ee949a2ce6852caff75230a3423"
+    },
+    "hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress\\progress-config-hold.json.released.json",
+      "sha256": "62a2270a5c933bc89b600be7596051f5a6fa0f26a97b6ed55a3e6a56712ac9bf"
+    }
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\index-progress",
+    "owned_test_and_build_temps_removed": true,
+    "owned_test_processes_and_handles_closed": true,
+    "configuration_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c7d240d455884d10a3f7684951589b4d",
+    "retention": "Retain package, logs, failed-run diagnostics and release receipts as delivery evidence; previous pair retained for rollback. Preexisting-folder removal still requires exact-path approval.",
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_removal_condition": "Reuse existing isolated checkout while parked work must remain excluded. Remove through Git only after unique work, ignored files and commits are preserved and isolation is no longer needed."
+  },
+  "next": "Continue original TODO39 from the retained single inspection: reconcile selected-source vector/Tantivy consistency and existing symmetric repair evidence before selecting a finite missing behavior. No storage rewrite or repeated passed gates.",
+  "goal": "ACTIVE; all unfinished original requirements and held findings remain preserved."
+}
