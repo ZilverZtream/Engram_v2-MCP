@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "at_utc": "2026-11-12T07:17:26.425395+00:00",
-  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "active_item": "TODO23 Rust; parent Go/Java remain open",
   "implementation_sha256": {
     "crates/engram_core/src/rust_modules.rs": "d7fc59d71cc9327d1bf6fead015fa03841e3f8221a737b9bf51ca430deb6786d",
@@ -61,12 +61,8 @@
       }
     }
   },
-  "remaining": [
-    "Release build",
-    "Candidate public old-index upgrade, source/manifest updates, target deletion/restoration and storage-preserving graph repair",
-    "Install and repeat public acceptance; verify normal daemon; push delivery evidence"
-  ],
-  "next_action": "Commit validated implementation and build p125-rs-modules-source-20261112 with the existing owned shared-target runner.",
+  "remaining": [],
+  "next_action": "Advance to Go, the next language in original TODO23; preserve the full remaining backlog.",
   "limitations": [
     "Static source evidence only; no compiler, macro-expansion, cfg-selection, trait-dispatch or execution proof.",
     "Conditional bindings, unsupported associated/receiver calls, ambiguity, cycles and unindexed external crates remain unresolved.",
@@ -85,5 +81,8 @@
     "external_review_ran": false,
     "note": "Existing CodeRabbit authentication is unavailable; no login or review retry. Reviewed resolver bounds, module/crate identity, visibility, dedicated unbound fallback and retained-edge replacement."
   },
-  "full_original_goal": "ACTIVE; no Rust deployment or parent TODO23 completion claim."
+  "full_original_goal": "ACTIVE; Rust delivered. Go/Java and the original backlog remain open.",
+  "in_flight": null,
+  "delivery_receipt": "eval/p125-rust-modules-delivery-20261112.json",
+  "checkpoint": "Rust pair installed and verified; parent languages remain open."
 }

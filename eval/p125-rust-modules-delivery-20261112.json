@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "item": "TODO23 Rust use/module call resolution",
+  "at_utc": "2026-11-12T07:40:14.120164+00:00",
+  "source_commit": "829f3d6c404bd07fdfa5145f43b0a85b6a9811f0",
+  "source_sha256": {
+    "crates/engram_core/src/rust_modules.rs": "d7fc59d71cc9327d1bf6fead015fa03841e3f8221a737b9bf51ca430deb6786d",
+    "crates/engram_index/src/parsing/rust_modules.rs": "70cbf71e7f0dd16e1013eb0ad0c3bd88b7308b608c49fe3cd715953be285fac4",
+    "crates/engram_index/src/parsing/rust_modules/config.rs": "50a1ebe12383c457b589277bd4a2dc7ecec5a562a9c5394bcd92bcc2376ab480",
+    "crates/engram_index/src/parsing.rs": "26daf91ad77283d1bf3377b93ec3217b6ff0f14d3c488c0e9d79677c066d2539",
+    "crates/engram_index/src/source_contract.rs": "19f001b17df095b4c074c9cf75e4339b29fd533aab73b8988321bc271d2632cf",
+    "crates/engram_graph/src/store/rust_modules.rs": "65c96a8e08201fe2dddbf01a38b3ba4194857683ce4ea0cdb32f56f1ca502d32",
+    "crates/engram_graph/src/store.rs": "e778cb671aef245b9dc7c1d76f557c7424ffcdc7ece5a39c47236c4d35c1b074",
+    "crates/engram_server/src/services/ingest_service.rs": "8d5fb0669db88d68209b3f2664a6ba1e04dfddf4cf560861bf062608e04c55a3",
+    "crates/engram_server/src/handlers/graph_tools.rs": "19aabd3b014eaecbc7701d5ed85caa6188b5cf04337c269ca508c91193b772a3",
+    "crates/engram_core/src/lib.rs": "bcdc1581af70ac4375531ee5515cf5346373491ca833f6dd66798aa783b03c79",
+    "crates/engram_graph/src/store/rust_modules/contexts.rs": "5f463add6d733b79d78e466ad3593965397dc512b9cf0932fde7c61ecf749d8e",
+    "crates/engram_index/src/source_contract/publication_tests.rs": "c0a150592f31cceb9219e0dd65df83d734acd075c35a57c4893b7d43cbe0b208",
+    "crates/engram_server/src/services/ingest_service/rust_module_tests.rs": "5323c75158d76ebdfad093a6654b1c9393605a8d9207eb49e03d0beb639503e6",
+    "crates/engram_index/Cargo.toml": "fc4072973a21d29d50f2fb9df02b23958f12f51cfc2b5c7df1faa99626458f86",
+    "Cargo.lock": "4cdf945a9cc2191566ed17548bd2b99458da4a6c7e7599807fb1a571662738d5"
+  },
+  "original_requirement": "TODO23: second-pass call resolution for TypeScript, Python, Rust, Go and Java. TypeScript and Python delivered; Rust use and crate paths are the one active implementation item. Go/Java and the parent remain open.",
+  "demonstrated": [
+    "Grouped use aliases, qualified and generic calls target authored indexed declarations rather than same-named decoys.",
+    "Declared inline/file modules, crate/self/super paths, reexports, local imports and Cargo path dependencies retain exact identities.",
+    "Parameters, conditional compilation, ambiguity, cycles and unsupported receiver/external forms stay explicitly unresolved.",
+    "Public Calls retain bounded binding/call/target evidence labelled syntax-only.",
+    "Import, reexport, manifest and target edits retract stale targets with unchanged dependent callers; deletion/restoration recovers links.",
+    "Actual old-index graph upgrade and graph-only repair preserve search/vector files and recovered source chunks without repair embedding requests."
+  ],
+  "limitations": [
+    "Static source evidence only; no compiler, macro-expansion, cfg-selection, trait-dispatch or execution proof.",
+    "Conditional bindings, unsupported associated/receiver calls, ambiguity, cycles and unindexed external crates remain unresolved.",
+    "Source roots and path dependencies must be indexed inside the project; no registry or external filesystem lookup.",
+    "Standalone conventional lib.rs/main.rs trees use a 2021 source assumption; Cargo manifests establish supported editions.",
+    "Legacy Rust/Cargo facts require an update or graph repair. This delivery does not reindex production projects.",
+    "Go and Java portions of TODO23 remain unfinished; the parent TODO stays unchecked.",
+    "Production source was not reindexed. Legacy Rust/Cargo extraction needs update_project or graph_only repair for current facts.",
+    "Parent manual review only; no external CodeRabbit review or original full backlog/19-gate closure."
+  ],
+  "deployment": {
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rs-modules-source-20261112.json",
+      "sha256": "2b6493141d0e896422f9c0fc726f8f8ca9d04c50b95cbbe4a6611386455552be"
+    },
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\pair.json",
+      "sha256": "a99b2794d247eca766d6676328b79b1de707d0df51d3e673acce336d7fe46a2c"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\candidate\\acceptance.json",
+      "sha256": "e57b9aec8d892ae1822f7a81eed74e079ad4b032c995b599f9280a862ab950ed"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\installed\\acceptance.json",
+      "sha256": "9ff45fab979fc1f33b7b8aa6f8709968715335dadaa4a2f977118c11e2633de4"
+    },
+    "normal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\normal\\acceptance.json",
+      "sha256": "4e661c09a7a0b5c9075b5e2d4b36c2ada23986a3b7c4d7a2024f2c9d412c95c0"
+    },
+    "release_gates": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\release-gates.json",
+      "sha256": "f939c96f7005049077d3c76337e8d142b2196ddc8b56028ce1522886741b0f6f"
+    },
+    "installation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\install-result.json",
+      "sha256": "618199fbddec2b28e71e7fc89eff38ce7ba4c9ca4d1dd0afe29876f77544f6ff"
+    },
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rs-modules-config-hold-20261112.json.released.json",
+      "sha256": "f9001e3a3b4af78e7e88df0b9ee189459332b7da839709cbccaf62944c7e9cb3"
+    },
+    "server_sha256": "c9e98ae9e9f1d23b5c9d313fa5c38e5c29c88abbaa13abf8628a4907c7b37b3f",
+    "manifest_sha256": "ac4065535559f9b905675a6395aacd88d62516374535ece3fdaf2844f2d70f6a",
+    "all_manifest_assets_verified": 215,
+    "unchanged_companion_assets": 214,
+    "config_unchanged": true,
+    "production_selected_generation": 3147
+  },
+  "temporary_resources": {
+    "recorded_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112",
+    "owned_fixture_roots_removed": true,
+    "owned_build_temp_removed": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p125-rust-modules-20261112\\package",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-17c5545661164c4fbd360c127ef01461",
+    "cleanup_condition": "Retain package, complete old pair, journals and evidence. No preexisting folder deletion authorized."
+  },
+  "broader_goal": "ACTIVE; Rust delivery does not complete TODO23 or the original backlog."
+}
