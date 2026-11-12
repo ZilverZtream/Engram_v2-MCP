@@ -305,9 +305,20 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   Some tools have `Next:` recommendations; most don't. Standardize a `next_tools` field —
   this is how agents discover the long tail of the surface organically.
 
-- [ ] **35. Database Oracle remainder (spec 39: query_schema, detect_n_plus_one, find_missing_indexes)** (M–L)
+- [~] **35. Database Oracle remainder (spec 39: query_schema, detect_n_plus_one, find_missing_indexes)** (M–L)
   For data-heavy projects. `query_schema` first — agents constantly need "what columns
   does this table actually have."
+
+  `query_schema` delivered 2026-11-12: eleven source-backed query modes with
+  qualified identities, source citations/freshness, keys/defaults/indexes,
+  ambiguity, paging and complete-response budgets. Five native tests and18
+  public calls each on candidate/installed binaries pass. A real OciusX table
+  lookup verified four columns, two cascading foreign keys, identity/default,
+  primary key and unique index without source or generation changes.
+  SQL declarations do not establish deployed database state; ALTER/DROP,
+  execution and unresolved name binding remain explicit limits.
+  `detect_n_plus_one` and `find_missing_indexes` are still unfinished.
+  Evidence: [installed delivery](eval/ociusx-query-schema-delivery-20261112.json).
 
 ---
 

@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VERIFIED_NOT_DEPLOYED",
+      "status": "QUERY_SCHEMA_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
       "original_requirement": "TODO35 / spec39-3 query_schema: eleven structured schema query modes, narrative summary and source-backed table details for OciusX SQL.",
       "missing_behavior": "No query_schema tool. Existing table graph lookup and legacy schema regex lose qualified identities and do not implement the eleven modes.",
       "implementation_files": [
@@ -10006,8 +10006,11 @@
         "source_commit": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
         "native_tests": 5,
         "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\nativefinal2.json",
-        "public_mcp_verified": false,
-        "deployed": false
+        "public_mcp_verified": true,
+        "deployed": true,
+        "delivery_receipt": "eval/ociusx-query-schema-delivery-20261112.json",
+        "candidate_public_calls": 18,
+        "installed_public_calls": 18
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
@@ -13177,6 +13180,11 @@
       "live_build_session": null,
       "build_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read\\release1.json",
       "delivery_evidence": "eval\\ociusx-batch-read-delivery-20261112.json"
+    },
+    "query_schema_delivery_20261112": {
+      "receipt": "eval/ociusx-query-schema-delivery-20261112.json",
+      "status": "QUERY_SCHEMA_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
+      "remaining": "TODO35 N+1 detection and index recommendations remain open; select next original missing OciusX behavior without reopening delivered schema queries."
     }
   }
 }

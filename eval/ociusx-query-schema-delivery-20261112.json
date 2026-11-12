@@ -1,0 +1,147 @@
+{
+  "status": "QUERY_SCHEMA_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO35_PARTIAL",
+  "at_utc": "2026-11-12T19:08:51.851984+00:00",
+  "original_requirement": "TODO35 / spec39-3 query_schema: eleven structured schema query modes, narrative summary and source-backed table details for OciusX SQL.",
+  "source_commit": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
+  "main_merge_commit": "d8e1740",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "656c21678e95396a3e46d5c206e6e9b5c18a78330469bcceeeb5333e2d17ab57",
+    "manifest_sha256": "e930876772f9f979586e54f0b4d9d82d47f2e8ee9c391e3e773341656f571e65",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "Eleven typed query modes over selected indexed SQL declarations: table, column, incoming foreign keys, column-name substring, all tables, triggers, stored procedure, sourcing views, indexes, nullable columns and computed columns.",
+    "Structured columns/types/explicit or unknown nullability/defaults/identity/computed expressions, composite primary and foreign keys with cascade actions, standalone and constraint indexes, and cited related objects.",
+    "Preserved qualified names and ambiguous duplicate definitions, per-file selected revision/raw fingerprint admission, complete JSON budgets, pagination and compact table links with follow-up queries.",
+    "Table queries include bounded source-verified code-reference leads with explicit basename-binding uncertainty; no graph or index mutations."
+  ],
+  "checks": {
+    "native_tests": 5,
+    "candidate_public_calls": 18,
+    "installed_public_calls": 18,
+    "query_modes_verified": 11,
+    "source_stable_during_build": true
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation_before_and_after": 3148,
+    "source_path": "db-ociusx.sql/dbo/Tables/pai_project_available_io.sql",
+    "source_preserved": true,
+    "columns_verified": 4,
+    "foreign_keys_verified": 2,
+    "query_seconds": 0.1021885999944061,
+    "response_bytes": 6506,
+    "coverage_gaps": [
+      "db-ociusx.sql/Scripts/Post/cc_costCenter.sql:53: ALTER TABLE is retained as a coverage gap; source declarations are not an executed migration state"
+    ],
+    "interpretation": "One installed OciusX SQL declaration lookup verified against pinned source. No live database, model quality or comparative productivity claim."
+  },
+  "limitations": [
+    "This is SQL Server source-declaration evidence, not live/deployed database state. ALTER/DROP and migration execution order are not applied; an actual OciusX ALTER TABLE is disclosed as a coverage gap.",
+    "Implicit/computed nullability stays unknown. Lexical procedure/view references, CTE/alias/dynamic SQL binding and code-reference basename candidates do not prove execution or qualified database binding.",
+    "Inventory limits: 50000 selected paths, 2 MiB per admitted file, 64 MiB SQL input and 20000 objects. Pages contain at most100 rows; complete response defaults16384/max65536 estimated tokens. Oversized responses fail intact.",
+    "One actual lookup took0.102 seconds; no comparative speed, model quality or productivity improvement is established.",
+    "CodeRabbit not authenticated; parent manual review only. Original19 gates remain separately unfinished; deployment evidence covers this delta only.",
+    "TODO35 detect_n_plus_one and find_missing_indexes remain unimplemented; full TODO35 remains open."
+  ],
+  "verification_corrections": [
+    "Initial native compile found enum/type name shadowing; corrected before passing tests.",
+    "First public run passed all calls, but scratch select.py shadowed a Python module and rewrote local selection records. Renamed helper, restored committed records and repeated all assertions successfully with the same binary; first run retained."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema",
+    "test_build_and_public_fixture_temps_removed": true,
+    "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_worktree_state": "Clean, no ignored/untracked files; source commit preserved on origin/master.",
+    "source_worktree_retention": "Reuse existing delivery checkout until parked work no longer requires isolation; remove only through Git after checking preserved commits and ignored files.",
+    "package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\package",
+    "package_retention": "Retain pinned deployment package with receipts until reproduction/rollback provenance is reviewable without the assets.",
+    "previous_pair_backup": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-58c4da416e624cf78b3190a43e8593b5",
+    "backup_retention": "Existing installer rollback retention; no preexisting directory deletion.",
+    "config_hold_released_without_change": true,
+    "normal_daemon": "Launched installed binary for normal use; existing idle lifecycle.",
+    "parked_work_unchanged": 9
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\contract.json",
+      "sha256": "9fdad36b609adbe410d7b525ec632ab1362ad0a47c8e443dfeb7dda5e8d7d689"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\native1.json",
+      "sha256": "cd387b2b2e397ee359ed5871bf81d9f5b426c4b2acc386d35a27a68e967d1f8c"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\native2.json",
+      "sha256": "bea9c8a8b26dc7063ff7845b845d3c2495e9c0d5f2b72228c7f167ba5e2b62e7"
+    },
+    "nativefinal.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\nativefinal.json",
+      "sha256": "d227668ff6e952eda55d42052f58182c6011d46e4c3657c0fac0158e9f93c41b"
+    },
+    "nativefinal2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\nativefinal2.json",
+      "sha256": "e0718ad447a66c8ca24fcb9a93226a8fedb2ea8929fba6937cf6ed2dcf5d547d"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\release1.json",
+      "sha256": "8734d90c43b0e77d938df79a52712886e67d5f6214860f3a63236a2a84af7d92"
+    },
+    "pair.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\pair.json",
+      "sha256": "65a8050d1c6b54305a56dc91498fc16da8c968decb086fab9834b9f6cc63c08b"
+    },
+    "review.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\review.json",
+      "sha256": "682a36194b1820398eda9f233d1d23becd906d6f4cce352e6b17ec862956e222"
+    },
+    "release-gates.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\release-gates.json",
+      "sha256": "e9e928ddcfd31c142d65ca0ca9893105f2898153439d09020d67a89ff86418c9"
+    },
+    "candidate/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\candidate\\acceptance.json",
+      "sha256": "a79ae3ea37fca20a6f46baf8fe7f7e3bd065199f258c824fff775d896b0888ed"
+    },
+    "candidate2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\candidate2\\acceptance.json",
+      "sha256": "ad87687d0715663615f2355d567d397a13d913ff95f03860e6e57ecb30dcca00"
+    },
+    "installed/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\installed\\acceptance.json",
+      "sha256": "08bfc20c54aa4e4cfc57f62a2bb2c0cccad841186f437d2d4517fb843d953cd4"
+    },
+    "normal/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\normal\\acceptance.json",
+      "sha256": "22d0e8dc7cb64e11e8a21cdec50f00d48da7d19647fc85f889aeb85f81a88f33"
+    },
+    "real-schema-inputs.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\real-schema-inputs.json",
+      "sha256": "cbbfd89aacd53e00e1eb7564c221a21bf8149bc9caa76f3e5f8e758c930c1e7f"
+    },
+    "selected-source-check.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\selected-source-check.json",
+      "sha256": "214c0f24bc0225b94263a959bfc868154a2cfbdadf21de6aacfd9267ad3c06f1"
+    },
+    "verification-helper-correction.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\verification-helper-correction.json",
+      "sha256": "7a0c3664a296bf2d10aa4cd3bd8d61cfa26798f1f3b69adafe966ad7b0b71c2f"
+    },
+    "schema-config-hold.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\schema-config-hold.json.released.json",
+      "sha256": "1deb53ba4740c92ace1fe2c18c72a5d8be468e1743e3963da483b8ff78d68e1b"
+    },
+    "schema-install-ValidateUpgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\schema-install-ValidateUpgrade.json",
+      "sha256": "10f36bb19a9242831ae1fb11e92260bcf77fbb9c46de71a8847ac62f2534cf39"
+    },
+    "schema-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\query-schema\\schema-install-Upgrade.json",
+      "sha256": "8eaab058b13a64578a7d2d5dc593f5a242accff67e308e439bdadc53dc46cd9f"
+    }
+  }
+}
