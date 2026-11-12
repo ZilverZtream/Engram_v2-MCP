@@ -230,8 +230,8 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   ground-truth projects for TS/Python/Rust/Go with expected symbols + call edges, wired
   into CI. Without these, #23 can't be verified and regressions are invisible.
 
-- [ ] **26. Audit the 56 WebForms-biased service files for non-.NET behavior** (M)
-  Active: `eval/p130-service-applicability-baseline-20261112.json`.
+- [x] **26. Audit the 56 WebForms-biased service files for non-.NET behavior** (M)
+  Delivered: `eval/p130-service-applicability-delivery-20261112.json` (requested-project/target no-ops, explicit review scope, neutral four-language guidance/style/review, source-preserving slices; candidate and installed MCP acceptance).
   Services hardcode Page_Load/ViewState/Master Pages. Each must either no-op cleanly with
   a clear "not applicable to this project type" message, or generalize (e.g.
   `produce_claude_md`, `pre_commit_review` gates, coding-style analysis should be fully

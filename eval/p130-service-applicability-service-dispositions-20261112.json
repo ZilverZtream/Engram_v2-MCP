@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_BOUNDARIES_ACCOUNTED_PUBLIC_RELEASE_ACCEPTANCE_PENDING",
+  "status": "SOURCE_BOUNDARIES_ACCOUNTED_PUBLIC_RELEASE_ACCEPTANCE_PASSED",
   "original_requirement": "TODO26: account for WebForms-biased services and establish truthful non-.NET applicability plus neutral guidance/style/review.",
   "origin_commit": "03d4c98",
   "scope_note": "The original text says 56 WebForms-biased files without an enumerated list. The introduction tree has this complete service inventory (including internal modules); account for it rather than inventing a 56-file subset. Existing closed Blast Radius implementation is preserved without improvement.",
@@ -637,5 +637,13 @@
     "This accounts for the full 86-file introduction tree because the original text did not enumerate its stated 56-file subset. Counts are not behavioral acceptance.",
     "Boundary dispositions do not prove every internal algorithm, full language semantics, runtime dispatch or live LLM behavior. Candidate/installed public acceptance is required separately.",
     "Original unfinished backlog and full 19 gates remain open; CodeMap/Blast Radius closed deliveries are preserved."
-  ]
+  ],
+  "candidate": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\candidate2\\acceptance.json",
+    "sha256": "f321b1861de6a5eef0fb512142e9ac3e0cf6eb43ef2def33ea7315c4ef2a8ac2"
+  },
+  "installed": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\installed\\acceptance.json",
+    "sha256": "594535a47f86517913d01d41086d2feecfc2d116296d123cce67ca34dd30e49a"
+  }
 }
