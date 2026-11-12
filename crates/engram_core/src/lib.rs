@@ -21,6 +21,7 @@ pub mod python_modules;
 pub mod rust_modules;
 pub mod go_modules;
 pub mod java_modules;
+pub mod modern_state;
 
 pub use benchmark::{
     AdpCorpus, AdpScenario, AdpScenarioInput, BenchmarkPack, BenchmarkQueryEntry, BenchmarkReport,

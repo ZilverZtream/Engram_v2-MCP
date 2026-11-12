@@ -41,6 +41,24 @@ impl Engram {
         project_id: &str,
         targets: &[&str],
     ) -> Result<Option<CallToolResult>, McpError> {
+        self.project_tool_applicability(tool, project_id, targets, None).await
+    }
+
+    pub(crate) async fn state_tool_applicability(
+        &self,
+        project_id: &str,
+        state_type: &str,
+    ) -> Result<Option<CallToolResult>, McpError> {
+        self.project_tool_applicability("trace_state_usage", project_id, &[], Some(state_type)).await
+    }
+
+    async fn project_tool_applicability(
+        &self,
+        tool: &str,
+        project_id: &str,
+        targets: &[&str],
+        state_type: Option<&str>,
+    ) -> Result<Option<CallToolResult>, McpError> {
         let runtime = self.ensure_project_runtime(project_id).await?;
         for path in targets {
             engram_core::safe_join(std::path::Path::new(&runtime.info.directory), path)
@@ -55,9 +73,15 @@ impl Engram {
                 generation,
                 &view,
             );
-        let rejection = if !capabilities.allows_legacy_tool(tool) {
+        let applicable = state_type.map_or_else(
+            || capabilities.allows_legacy_tool(tool),
+            |category| capabilities.allows_state_type(category),
+        );
+        let rejection = if !applicable {
             if view.selected_file_revisions().is_none() {
                 Some(("applicability_unknown", "Source capability coverage is unavailable. Update the project before requesting specialized analysis.".to_owned()))
+            } else if let Some(category) = state_type {
+                Some(("not_applicable", format!("Not applicable: the selected project source has no supported extraction for state type {category}. Modern types are Environment, Module and Singleton (JS/TS, Python, Rust, Go), and ReactContext and Redux (JS/TS). Legacy state types require .NET or Classic ASP source.")))
             } else if tool == "benchmark_retrieval_defaults" {
                 Some(("not_applicable", "Not applicable to this project type: built-in benchmark queries target WebForms. Supply nonempty custom_queries with authored relevant_paths for this project's retrieval benchmark.".to_owned()))
             } else {

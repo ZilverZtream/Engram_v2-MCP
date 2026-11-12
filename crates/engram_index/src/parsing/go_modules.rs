@@ -118,6 +118,11 @@ pub(super) struct Extraction {
     shadows: Vec<(String, usize, usize)>,
 }
 impl Extraction {
+    pub(super) fn state_binding_shadowed(&self, node: Node<'_>, name: &str) -> bool {
+        self.shadows.iter().any(|(binding, start, end)| binding == name
+            && *start <= node.start_byte() && node.end_byte() <= *end)
+    }
+
     pub fn new(path: &std::path::Path, root: Node<'_>, source: &str) -> Self {
         let package = children(root)
             .into_iter()

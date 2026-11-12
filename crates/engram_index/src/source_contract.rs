@@ -4,6 +4,17 @@
 /// Earlier version-7 files may contain same-name bindings from the old parser.
 /// Keep this per-file so unrelated source and VB parser receipts stay reusable.
 pub const SCRIPT_CALL_CONTRACT: u64 = 1;
+pub const MODERN_STATE_KEY: &str = engram_core::modern_state::KEY;
+
+pub fn requires_modern_state(path: &std::path::Path) -> bool {
+    path.extension().and_then(|extension| extension.to_str()).is_some_and(|extension|
+        matches!(extension.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx" | "py" | "rs" | "go"))
+}
+
+fn current_modern_state(raw: &str) -> bool {
+    serde_json::from_str::<serde_json::Value>(raw).is_ok_and(|value|
+        value["version"] == engram_core::modern_state::VERSION && value["status"] == "partial_static_coverage")
+}
 
 pub fn requires_script_call_contract(path: &std::path::Path) -> bool {
     path.extension().and_then(|value| value.to_str()).is_some_and(|extension|
@@ -103,6 +114,8 @@ impl SourceExtractionExpectation {
                 return false;
             }
         }
+        if requires_modern_state(std::path::Path::new(path))
+            && !metadata.get(MODERN_STATE_KEY).and_then(|v|v.as_str()).is_some_and(current_modern_state) { return false; }
         if !crate::vb_extractor::requires_parser_provenance(path) { return true; }
         self.vb_parser.as_ref().is_some_and(|expected| metadata.get("vb_parser_provenance")
             .is_some_and(|actual| expected.matches_metadata(actual)))
@@ -142,6 +155,11 @@ impl SourceExtractionExpectation {
             .filter_map(|(path, symbol)| symbol.metadata.as_ref().map(|metadata| (path.as_str(), metadata)))
             .collect();
         for path in &stats.all_files {
+            if requires_modern_state(std::path::Path::new(path.as_str())) {
+                anyhow::ensure!(module_receipts.get(path.as_str()).and_then(|m|m.get(MODERN_STATE_KEY))
+                    .is_some_and(|raw|current_modern_state(raw)),
+                    "Produced source {} has no current modern state coverage",path.as_str());
+            }
             if let Some(key) = module_fact_key(path.as_str()) {
                 anyhow::ensure!(module_receipts.get(path.as_str()).and_then(|m| m.get(key))
                     .is_some_and(|raw| current_module_fact(key, raw)),

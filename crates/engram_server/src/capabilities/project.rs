@@ -15,6 +15,8 @@ pub struct ProjectCapabilities {
     pub dotnet: bool,
     pub visual_basic: bool,
     pub javascript: bool,
+    pub modern_state: bool,
+    pub react_redux_state: bool,
 }
 
 impl ProjectCapabilities {
@@ -30,6 +32,8 @@ impl ProjectCapabilities {
                 .unwrap_or(path)
                 .to_ascii_lowercase();
             let ext = name.rsplit_once('.').map_or("", |(_, ext)| ext);
+            result.modern_state |= matches!(ext, "ts" | "tsx" | "js" | "jsx" | "py" | "rs" | "go");
+            result.react_redux_state |= matches!(ext, "ts" | "tsx" | "js" | "jsx");
             let ecosystem = match name.as_str() {
                 "cargo.toml" => Some("rust"),
                 "package.json" => Some("javascript_typescript"),
@@ -157,14 +161,25 @@ impl ProjectCapabilities {
         self.dotnet |= other.dotnet;
         self.visual_basic |= other.visual_basic;
         self.javascript |= other.javascript;
+        self.modern_state |= other.modern_state;
+        self.react_redux_state |= other.react_redux_state;
+    }
+
+    pub fn allows_state_type(&self, category: &str) -> bool {
+        match category {
+            "Environment" | "Module" | "Singleton" => self.modern_state,
+            "ReactContext" | "Redux" => self.react_redux_state,
+            _ => self.dotnet || self.classic_asp,
+        }
     }
 
     pub fn allows_legacy_tool(&self, name: &str) -> bool {
         match name {
+            "trace_state_usage" => self.modern_state || self.dotnet || self.classic_asp,
             "get_vb_translation_traps" => self.visual_basic,
             "analyze_sync_hazards" | "generate_characterization_tests" => self.dotnet,
             "get_ui_blueprint" | "trace_ui_event" | "trace_ui_action"
-            | "trace_state_usage" | "get_session_workflows" | "trace_data_flow"
+            | "get_session_workflows" | "trace_data_flow"
             | "analyze_full_project_migration" | "map_auth_config"
             | "generate_migration_blueprint" | "generate_migration_plan"
             | "suggest_migration_boundaries" | "suggest_migration_order"
@@ -182,6 +197,28 @@ impl ProjectCapabilities {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn state_discovery_and_requested_categories_follow_supported_source() {
+        for path in ["app.ts", "app.jsx", "app.py", "app.rs", "app.go"] {
+            let source = ProjectCapabilities::from_paths([path]);
+            assert!(source.allows_legacy_tool("trace_state_usage"));
+            assert!(source.allows_state_type("Environment"));
+            assert!(source.allows_state_type("Module"));
+            assert!(!source.allows_state_type("Session"));
+            assert!(!source.allows_legacy_tool("generate_migration_plan"));
+        }
+        for path in ["package.json", "Cargo.toml", "app.java", "app.mjs", "app.pyi"] {
+            let source = ProjectCapabilities::from_paths([path]);
+            assert!(!source.allows_state_type("Environment"));
+        }
+        let mut union = ProjectCapabilities::from_paths(["app.cs"]);
+        assert!(union.allows_state_type("Session"));
+        assert!(!union.allows_state_type("Environment"));
+        union.union(&ProjectCapabilities::from_paths(["client.tsx"]));
+        assert!(union.allows_state_type("ReactContext"));
+        assert!(union.allows_state_type("Session"));
+    }
 
     #[test]
     fn project_detection_distinguishes_webforms_and_preserves_mixed_sources() {

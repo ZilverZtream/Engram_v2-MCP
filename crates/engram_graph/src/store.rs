@@ -1983,7 +1983,7 @@ impl GraphStore {
         node_type: Option<&str>,
         prefer_file_path: Option<&str>,
     ) -> anyhow::Result<ResolveResult> {
-        if input.starts_with(UNBOUND_RECEIVER_PREFIX) || (input.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::python_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::go_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::java_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::rust_modules::UNBOUND_PREFIX)) {
+        if input.starts_with(engram_core::modern_state::UNBOUND_PREFIX) || input.starts_with(UNBOUND_RECEIVER_PREFIX) || (input.starts_with(engram_core::typescript_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::python_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::go_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::java_modules::UNBOUND_PREFIX) || input.starts_with(engram_core::rust_modules::UNBOUND_PREFIX)) {
             return Ok(ResolveResult::NotFound);
         }
         const DIRECT_PREFIXES: [&str; 11] = [
@@ -2658,9 +2658,11 @@ impl GraphStore {
             std::collections::HashMap::new();
         let mut successors: std::collections::HashMap<(String, String, String), String> =
             std::collections::HashMap::new();
+        let mut retained_environment_nodes = Vec::new();
         let node_keys_to_remove = {
             let rtx = self.db.begin_read()?;
             let nt = rtx.open_table(NODES)?;
+            let incoming = rtx.open_table(ADJ_IN)?;
             let mut keys = Vec::new();
             for r in nt.range(prefix.as_str()..)? {
                 let (k, v) = r?;
@@ -2689,6 +2691,41 @@ impl GraphStore {
                     _ => false,
                 };
                 if stale {
+                    // Environment identities are project-wide. Their stored file
+                    // is an observation owner, not a declaration whose removal
+                    // invalidates other files' reads/writes. Transfer ownership
+                    // to an unchanged source before retiring this file's edges.
+                    // Local module/framework state keeps declaration ownership.
+                    if n.node_type == "global_state"
+                        && n.node_id.starts_with("state:Environment:")
+                    {
+                        let mut survivor = None;
+                        'access: for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {
+                            let adjacency = adj_key(project_id, &kind, &n.node_id);
+                            for row in incoming.range((adjacency.as_str(), "")..)? {
+                                let (key, _) = row?;
+                                let (prefix, source) = key.value();
+                                if prefix != adjacency { break; }
+                                let source_key = format!("{project_id}\0{source}");
+                                if let Some(raw) = nt.get(source_key.as_str())? {
+                                    let source: Node = bincode::deserialize(raw.value())?;
+                                    if !paths.contains(source.file_path.as_str()) {
+                                        survivor = Some(source);
+                                        break 'access;
+                                    }
+                                }
+                            }
+                        }
+                        if let Some(source) = survivor {
+                            let mut retained = n.clone();
+                            retained.file_path = source.file_path;
+                            retained.generation = source.generation;
+                            retained.start_line = 0;
+                            retained.end_line = 0;
+                            retained_environment_nodes.push(retained);
+                            continue;
+                        }
+                    }
                     removed_identity.insert(n.node_id.clone(), identity);
                     removed_node_ids.insert(n.node_id);
                     keys.push(k.value().to_string());
@@ -2697,6 +2734,7 @@ impl GraphStore {
             keys
         };
         let nodes_removed = node_keys_to_remove.len();
+        self.upsert_nodes(project_id, &retained_environment_nodes)?;
         for chunk in node_keys_to_remove.chunks(BATCH_SIZE) {
             let wtx = self.db.begin_write()?;
             {
@@ -3188,7 +3226,7 @@ impl GraphStore {
 
     pub fn resolve_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
         let declarations = self.resolve_declared_symbol_edges(project_id)?;
-        Ok(declarations + self.resolve_typescript_modules(project_id)? + self.resolve_python_modules(project_id)? + self.resolve_rust_modules(project_id)? + self.resolve_go_modules(project_id)? + self.resolve_java_modules(project_id)? + self.resolve_value_flows(project_id)?)
+        Ok(declarations + self.resolve_typescript_modules(project_id)? + self.resolve_python_modules(project_id)? + self.resolve_rust_modules(project_id)? + self.resolve_go_modules(project_id)? + self.resolve_java_modules(project_id)? + self.resolve_value_flows(project_id)? + self.resolve_modern_state_imports(project_id)?)
     }
 
     fn resolve_declared_symbol_edges(&self, project_id: &str) -> anyhow::Result<usize> {
@@ -3418,6 +3456,7 @@ impl GraphStore {
                 || entry.edge.target_id.starts_with(engram_core::python_modules::UNBOUND_PREFIX)
                 || entry.edge.target_id.starts_with(engram_core::go_modules::UNBOUND_PREFIX) || entry.edge.target_id.starts_with(engram_core::java_modules::UNBOUND_PREFIX) || entry.edge.target_id.starts_with(engram_core::rust_modules::UNBOUND_PREFIX)
                 || entry.edge.metadata.as_ref().is_some_and(|m| m.get(engram_core::typescript_modules::CALL_KEY).is_some() || m.get(engram_core::python_modules::CALL_KEY).is_some() || m.get(engram_core::go_modules::CALL_KEY).is_some() || m.get(engram_core::java_modules::CALL_KEY).is_some() || m.get(engram_core::rust_modules::CALL_KEY).is_some())
+                || entry.edge.target_id.starts_with(engram_core::modern_state::UNBOUND_PREFIX)
                 || entry.edge.target_id.starts_with(UNBOUND_RECEIVER_PREFIX)
                 || entry.edge.metadata.as_ref().is_some_and(|m|
                     m.get("receiver_unbound").is_some_and(|v| v == true || v.as_str() == Some("true"))) {

@@ -9,11 +9,13 @@ use std::collections::{BTreeMap, BTreeSet};
 const BINDINGS: &str = "typescript_module_bindings_v1";
 const PRESERVED: &str = "typescript_preserved_call_edge_v1";
 mod config;
+mod state;
 
 struct Resolver {
     modules: BTreeMap<String, (Node, Module)>,
     nodes: BTreeMap<String, Node>,
     configs: BTreeMap<String, Option<Config>>,
+    state_category: Option<String>,
 }
 
 fn parent(path: &str) -> &str {
@@ -41,6 +43,10 @@ impl Resolver {
     fn module_path(&self, from: &str, specifier: &str) -> Result<String, &'static str> {
         if specifier.starts_with("./") || specifier.starts_with("../") {
             let base = join(parent(from), specifier).ok_or("module_outside_project")?;
+            if self.state_category.is_some() && (from.ends_with(".js") || from.ends_with(".jsx"))
+                && (base.ends_with(".js") || base.ends_with(".jsx")) && self.modules.contains_key(&base) {
+                return Ok(base);
+            }
             return self.module_at(&base);
         }
         self.configured_module(from, specifier)
@@ -84,6 +90,14 @@ impl Resolver {
                 format!("{prefix}index.tsx"),
                 format!("{prefix}index.d.ts"),
             ]);
+        }
+        if self.state_category.is_some() {
+            if base.ends_with(".js") || base.ends_with(".jsx") {
+                candidates.push(base.to_owned());
+            } else if !base.ends_with(".ts") && !base.ends_with(".tsx") {
+                candidates.extend([format!("{base}.js"), format!("{base}.jsx"),
+                    format!("{base}/index.js"), format!("{base}/index.jsx")]);
+            }
         }
         candidates
             .into_iter()
@@ -187,6 +201,24 @@ impl Resolver {
             .collect();
         let imports: Vec<_> = facts.imports.iter().filter(|i| i.local == name).collect();
         if !declarations.is_empty() {
+            if let Some(category) = &self.state_category {
+                if declarations.len() != 1 || !imports.is_empty() {
+                    return Err("ambiguous_state_declaration");
+                }
+                let categories: &[&str] = match category.as_str() {
+                    "ModuleOrSingleton" => &["Module", "Singleton"],
+                    "ReactContext" => &["ReactContext"],
+                    "Redux" => &["Redux"],
+                    _ => return Err("unsupported_state_category"),
+                };
+                let matches = categories.iter().filter_map(|category| {
+                    let id = engram_core::NodeId::state(category, &format!("{path}::{name}")).0;
+                    self.nodes.get(&id).filter(|node| node.node_type == "global_state"
+                        && node.file_path.as_str() == path).map(|_| id)
+                }).collect::<Vec<_>>();
+                return if matches.len() == 1 { Ok(matches[0].clone()) }
+                    else { Err("not_a_supported_state_declaration") };
+            }
             if !imports.is_empty() || declarations.iter().any(|d| !d.callable) {
                 return Err("ambiguous_or_noncallable_local");
             }
@@ -225,6 +257,7 @@ impl GraphStore {
             modules: BTreeMap::new(),
             nodes: BTreeMap::new(),
             configs: BTreeMap::new(),
+            state_category: None,
         };
         let mut previous = BTreeMap::new();
         {

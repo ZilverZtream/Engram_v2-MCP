@@ -42,7 +42,8 @@ pub fn selected_project_capabilities(
         "scope": "Configured indexing preset and ignore rules; file-name evidence, not build evaluation or working-tree freshness.",
         "detected": detected,
         "available": { "webforms":effective.webforms,"classic_asp":effective.classic_asp,
-            "dotnet":effective.dotnet,"visual_basic":effective.visual_basic,"javascript":effective.javascript },
+            "dotnet":effective.dotnet,"visual_basic":effective.visual_basic,"javascript":effective.javascript,
+            "modern_state":effective.modern_state,"react_redux_state":effective.react_redux_state },
         "visibility": "Union across registered source projects, intersected with the configured tool profile; explicit WebForms profiles retain access. Unknown source coverage preserves specialized discovery."
     });
     (effective, metadata)
