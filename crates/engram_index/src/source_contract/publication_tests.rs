@@ -16,6 +16,12 @@ fn script_reuse_requires_produced_receiver_contract_without_invalidating_other_l
             ensure!(!expected.metadata_is_compatible(&metadata, path));
         }
         let mut metadata = legacy.clone(); metadata["script_call_contract"] = serde_json::json!(SCRIPT_CALL_CONTRACT);
+        if matches!(path, "owned.ts" | "view.TSX") {
+            ensure!(!expected.metadata_is_compatible(&metadata, path), "Legacy receiver facts do not establish module identity");
+            let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new(path), "export function run() {}");
+            let facts = symbols.iter().find(|s| s.kind == "file").unwrap().metadata.as_ref().unwrap();
+            for (key, value) in facts { metadata[key] = serde_json::json!(value); }
+        }
         ensure!(expected.metadata_is_compatible(&metadata, path));
     }
     for path in ["owned.rs", "style.css", "page.html", "server.cs"] {
@@ -27,12 +33,29 @@ fn script_reuse_requires_produced_receiver_contract_without_invalidating_other_l
     };
     ensure!(expected.verify_produced(&output).is_err(), "Cannot publish an unreceipted script parse");
     output.script_call_contracts.insert("owned.ts".into(), SCRIPT_CALL_CONTRACT);
+    ensure!(expected.verify_produced(&output).is_err(), "TypeScript module facts must be produced, not merely a receiver receipt");
+    let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new("owned.ts"), "export function run() {}");
+    output.symbols.extend(symbols.into_iter().map(|s| (std::sync::Arc::new(engram_core::RelPath::new("owned.ts")), s)));
     expected.verify_produced(&output)?;
     output.script_call_contracts.insert("inherited.ts".into(), SCRIPT_CALL_CONTRACT);
     ensure!(expected.verify_produced(&output).is_err(), "Do not claim a parse for inherited source");
     output.script_call_contracts.remove("inherited.ts");
     output.script_call_contracts.insert("owned.ts".into(), SCRIPT_CALL_CONTRACT + 1);
     ensure!(expected.verify_produced(&output).is_err());
+    Ok(())
+}
+
+#[test]
+fn typescript_config_reuse_requires_extracted_facts_even_for_unchanged_json() -> Result<()> {
+    let expected = SourceExtractionExpectation::for_paths(2000, ["tsconfig.json"])?;
+    let mut metadata = serde_json::json!({"source_index_version":crate::SOURCE_INDEX_VERSION,
+        "source_extraction_identity":SourceExtractionIdentity::for_chunk_target(2000)});
+    ensure!(!expected.metadata_is_compatible(&metadata, "tsconfig.json"));
+    let (symbols, _) = crate::parsing::SymbolExtractor::new().extract(std::path::Path::new("tsconfig.json"), r#"{"compilerOptions":{"paths":{"@/*":["src/*"]}}}"#);
+    for (key, value) in symbols[0].metadata.as_ref().unwrap() { metadata[key] = serde_json::json!(value); }
+    ensure!(expected.metadata_is_compatible(&metadata, "tsconfig.json"));
+    metadata[engram_core::typescript_modules::CONFIG_KEY] = serde_json::json!("{}");
+    ensure!(!expected.metadata_is_compatible(&metadata, "tsconfig.json"));
     Ok(())
 }
 

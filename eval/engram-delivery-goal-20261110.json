@@ -41,10 +41,11 @@
   "activation_note": "Replacement goal remains active. Historical S10 text is delivered; selected response contracts and EG15-17 generator contract are deployed. Full original backlog, EG14 broader publication and matched-task verification remain open.",
   "immediate_next_delivery": {
     "finding": "TODO23 TypeScript import/module call resolution (first language; parent remains open)",
-    "status": "SELECTED_NOT_IMPLEMENTED",
+    "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
-    "remaining": "Create a finite source-authored import/alias/duplicate-module behavior fixture, reproduce current missing/wrong call targets once, then implement the TypeScript import/export facts and second pass.",
-    "baseline": "eval/p123-typescript-modules-baseline-20261112.json"
+    "remaining": "Commit validated implementation, build release with retained owned runner, package unchanged companion assets, run prepared public MCP upgrade/update/graph-only acceptance, then deploy and verify installed behavior.",
+    "baseline": "eval/p123-typescript-modules-baseline-20261112.json",
+    "progress": "eval/p123-typescript-modules-progress-20261112.json"
   },
   "previous_delivery": {
     "finding": "TODO22 lightweight def-use (data-flow) edges",

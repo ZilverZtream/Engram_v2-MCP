@@ -11,6 +11,29 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 
+fn module_reference_evidence(
+    graph: &engram_graph::GraphStore, project: &str, source: &str, target: &str,
+    remaining: &mut usize,
+) -> Result<String, String> {
+    let edges = graph.get_edges_by_endpoints(project, &[(source.into(), EdgeKind::Calls, target.into())])
+        .map_err(|e| e.to_string())?;
+    let Some(bindings) = edges.first().and_then(|e| e.metadata.as_ref())
+        .and_then(|m| m.get("typescript_module_bindings_v1")).and_then(|v| v.as_array()) else { return Ok(String::new()); };
+    let limit = (*remaining).min(8);
+    let rows: Vec<_> = bindings.iter().take(limit).map(|binding| {
+        let call = &binding["call"];
+        let module = call["module"].as_str().unwrap_or("");
+        serde_json::json!({"source_file": binding["source_file"], "call_site": call["site"],
+            "import_site": call["import_site"], "module": module.chars().take(512).collect::<String>(),
+            "module_truncated": module.chars().count() > 512, "target_file": binding["target_file"],
+            "target_line": binding["target_line"], "binding": binding["binding"], "reason": binding["reason"]})
+    }).collect();
+    *remaining -= rows.len();
+    Ok(format!("  Module evidence: {}\n", serde_json::json!({
+        "basis":"syntax_only_not_compiler_or_runtime_proof", "calls":rows, "truncated": bindings.len() > limit
+    })))
+}
+
 #[cfg(test)]
 mod graph_row_attribution_tests {
     use super::{GraphRowSource, graph_row, no_graph_matches_note};
@@ -265,6 +288,7 @@ impl Engram {
             }
 
             let mut out = String::new();
+
             for n in nodes {
                 out.push_str(&format!(
                     "- {} | {} | {} (lines {}-{} | gen {})\n",
@@ -332,6 +356,7 @@ impl Engram {
             }
             let mut out = String::new();
 
+            let mut module_evidence_remaining = 32;
             if matches!(req.direction, Direction::In | Direction::Both) {
                 let incoming = graph
                     .find_incoming_edges(&req.project_id, kind.clone(), &req.node_id, 100)
@@ -346,6 +371,9 @@ impl Engram {
                     out.push_str(header);
                     for (n, w) in incoming {
                         out.push_str(&format!("- {} (weight={})\n", n, w));
+                        if kind == Some(EdgeKind::Calls) {
+                            out.push_str(&module_reference_evidence(&graph, &req.project_id, &n, &req.node_id, &mut module_evidence_remaining)?);
+                        }
                     }
                 }
             }
@@ -365,6 +393,9 @@ impl Engram {
                     out.push_str(header);
                     for (n, w) in outgoing {
                         out.push_str(&format!("- {} (weight={})\n", n, w));
+                        if edge_kind_str.as_deref() == Some("calls") {
+                            out.push_str(&module_reference_evidence(&graph, &req.project_id, &req.node_id, &n, &mut module_evidence_remaining)?);
+                        }
                     }
                 }
             }

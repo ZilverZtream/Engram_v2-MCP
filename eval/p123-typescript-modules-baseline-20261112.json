@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "SELECTED_NOT_IMPLEMENTED",
+  "status": "IMPLEMENTED_SELECTED_CHECKS_VALIDATED_NOT_DEPLOYED",
   "at_utc": "2026-11-12T04:22:52.535688+00:00",
   "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java. The original item explicitly starts with TypeScript and Python and is sized per language. This active delivery is TypeScript; the parent requirement and remaining languages stay open.",
   "observed_missing_behavior": "Current parsing captures imported module spelling as a generic Imports edge, but not named/default/namespace binding or export identity. JS/TS member calls other than local this are deliberately receiver-unbound; bare calls use file-local FQNs then generic post-ingest name resolution. No tsconfig path/import-alias resolver was found in the selected parsing/index/graph paths. This is inspected source evidence, not a measured public baseline.",
@@ -40,5 +40,14 @@
   ],
   "constraints": "One implementation item active. No CodeMap/Blast improvement or broad non-.NET service audit. Preserve TODO22 and all prior deliveries, remaining EG14 acceptance and full original backlog. TODO25 shared fixture-corpus delivery remains separate; local fixtures here validate this implementation.",
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112",
-  "next_action": "Create a finite source-authored import/alias/duplicate-module behavior fixture, reproduce current missing/wrong call targets once, then implement the TypeScript import/export facts and second pass."
+  "next_action": "Commit validated implementation, build release with retained owned runner, package unchanged companion assets, run prepared public MCP upgrade/update/graph-only acceptance, then deploy and verify installed behavior.",
+  "public_baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p123-typescript-modules-20261112\\baseline-v2\\receipt.json",
+    "observed": {
+      "RunNamed": "Wrongly bound decoy.ts:persist instead of lib/left.ts:save",
+      "RunNamespace": "Unbound right.save instead of lib/right.ts:save",
+      "RunMapped": "Unbound mapped instead of @lib mapping to lib/left.ts:save"
+    },
+    "helper_correction": "baseline/receipt.json retains initial text-vs-JSON helper failure; baseline-v2 corrected Calls response parsing. Both fixtures closed and removed."
+  }
 }
