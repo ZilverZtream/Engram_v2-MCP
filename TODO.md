@@ -149,7 +149,7 @@ they feed blast radius, edit safety, and the ADP gates.
   already preserve cross-file and temporal edges. Turns extractor iteration from ~80 min
   into ~3 min and keeps the project id stable.
 
-- [ ] **16c. Indexing must survive embed-backend failure** (M)
+- [x] **16c. Indexing must survive embed-backend failure** (M) — delivered 2026-11-12: source/history provider failures retain lexical and graph output, report unembedded counts in direct/job results, and recover through `vector_only`; see `eval/p116c-embedding-failure-delivery-20261112.json`.
   Observed 2026-06-12: machine contention starved Ollama (3x30s retries exhausted) and
   the whole index job died mid-walk (9.5k/28k chunks, 0 graph nodes) and git-history's
   consumer dropped. Embed failure should degrade that BATCH to fts-only + count it in

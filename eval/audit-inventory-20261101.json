@@ -9959,7 +9959,7 @@
   "last_updated_at": "2026-11-11T10:02:05.722454+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "DELIVERED_TODO16C_EMBEDDING_FAILURE_RECOVERY",
       "original_requirement": "TODO16c: an embedding-provider failure degrades that batch to lexical-only with an exact unembedded count and vector_only repair guidance; source graph extraction and history consumption must complete.",
       "observed_missing_behavior": "Source process_source_files propagates both embedding flush errors with await?, abandoning IngestStats before graph publication. History already catches vector batch errors and reports unembedded_docs; preserve that delivered behavior and verify it, not rewrite from scratch. Installed private baseline confirms RPC -32603 after Ollama HTTP503 retries; baseline did not query graph visibility.",
       "implementation_files": [
@@ -9981,7 +9981,7 @@
       "constraints": "One active original item after TODO16b delivery. No CodeMap/Blast changes, whole storage redesign, new retries/circuit-breaker infrastructure or production fixture edits. Preserve other unfinished backlog and retained findings.",
       "history_reporting_gap": "The existing consumer counted failed vectors only in logs and suggested replay despite advanced watermarks. Counts now reach source/history tool and job results with vector_only recovery guidance."
     },
-    "at_utc": "2026-11-12T00:15:17.761536+00:00",
+    "at_utc": "2026-11-12T01:04:28.056859+00:00",
     "reason": "TODO16b is deployed with public installed evidence; TODO16c is the next unfinished accepted indexing requirement in original order.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10011,8 +10011,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO16c source indexing survives embedding-backend failure",
-    "next_user_visible_deliverable": "A failed embedding batch leaves source text and graph usable and reports exactly what vector repair must recover.",
+    "active_original_item": "TODO16c delivered; select the next unfinished original requirement.",
+    "next_user_visible_deliverable": "Advance the next original accepted requirement; preserve remaining partial EG14 and regular-verification scope.",
     "following_original_items": [
       "Remaining accepted indexing/reliability requirements in original order",
       "EG24/25 regular real-task verification and matched benefit; original partial states retained"
@@ -10026,7 +10026,7 @@
     "scope_guard": "Follow latest user priority: move through existing broader backlog. Preserve original31findings/19gates and incomplete states. Do not expand already delivered CodeMap/Blast work or rerun its tasks absent a concrete regression. Existing exact-path cleanup restrictions remain.",
     "latest_user_correction": "November 11 replacement goal: original research-backed backlog, EG14 then EG27/31; CodeMap/Blast closed except concrete regressions or explicit requests.",
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "Progress: provider-specific degraded source indexing and accurate direct/background source/history reporting implemented; native and no-vector contract checks passed. Candidate/installed deployment remains pending.",
+    "previous_goal_turn_classification": "Progress: TODO16c source pushed, native/no-vector and candidate/installed outage/recovery checks passed, paired runtime deployed and normal generation3147 verified.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12652,16 +12652,14 @@
       }
     },
     "p116c_embedding_failure_20261112": {
-      "status": "IMPLEMENTED_VALIDATED_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p116c-embedding-failure-20261112",
       "previous_delivery": "eval/p116b-graph-rebuild-delivery-20261112.json",
       "baseline": "eval/p116c-embedding-failure-baseline-20261112.json",
-      "remaining": [
-        "Release build/package.",
-        "Candidate and installed public outage/recovery acceptance.",
-        "Deployment and normal daemon identity verification."
-      ],
-      "receipt": "eval/p116c-embedding-failure-delivery-20261112.json"
+      "remaining": [],
+      "receipt": "eval/p116c-embedding-failure-delivery-20261112.json",
+      "source_commit": "6b0e44a44e0f0b5a60240dbd02befc2ce29b35e0",
+      "installed_server_sha256": "cab31b4b88561629ccc7531cb7d88e7863d8c1c6fca3a1f92a08aa74f73ed1b7"
     }
   }
 }
