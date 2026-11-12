@@ -261,6 +261,10 @@ impl Lower<'_> {
                 out.name = Some(self.text(node).into());
             }
             "invocation_expression" => {
+                if node.child_by_field_name("function").is_some_and(|n| self.text(n) == "nameof") {
+                    out.kind = "literal".into();
+                    return out;
+                }
                 out.kind = "call".into();
                 if let Some(callee) = node.child_by_field_name("function") {
                     out.name = Some(self.text(callee).into());
