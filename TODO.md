@@ -280,6 +280,12 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  *Partial delivery 2026-11-12: installed source-cited WebForms URL/action tracing,
+  authored handlers, verified calls, literal stored-procedure/table source evidence
+  and response excerpts. Candidate and installed MCP cases pass; an actual OciusX
+  route is verified. Full request-to-database coverage, trigger effects, dynamic
+  bindings and runtime execution remain unproven; this item stays open.
+  Evidence: `eval/ociusx-request-trace-delivery-20261112.json`.*
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 

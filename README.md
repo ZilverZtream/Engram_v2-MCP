@@ -296,6 +296,9 @@ preserves competing registrations, and follows authored WebForms bindings.
 Expanded methods require matching source fingerprints and selected physical
 revisions. Source excerpts retain guards and response expressions, with exact
 source-recovery requests when an excerpt is incomplete.
+Reached methods can also link literal `SqlCommand` stored-procedure candidates
+to matching qualified SQL definitions and their lexical table references.
+Database identity, dynamic commands and ORM translation remain unresolved.
 
 The result is static navigation, not an observed execution trace. Dynamic routes,
 optional route defaults, rewrites, inherited/dynamic event bindings and missing

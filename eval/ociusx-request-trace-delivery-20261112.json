@@ -1,0 +1,147 @@
+{
+  "status": "BOUNDED_REQUEST_TRACE_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ORIGINAL_TODO31_PARTIAL",
+  "at_utc": "2026-11-12T17:43:12.843450+00:00",
+  "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace an HTTP URL/action through handlers, database work, trigger side effects and response.",
+  "scope": "OciusX VB.NET/WebForms source navigation. No new target-language support, CodeMap/Blast improvement, graph extraction/storage changes or companion changes.",
+  "source_commit": "bf240606d243de0aa7db06caab86d8c6bfe87933",
+  "main_merge_commit": "a08888ef439edd22b6fe2715606be19150b1fe99",
+  "origin_master_verified": true,
+  "installed": {
+    "server_sha256": "39e196972c52f7f35c6e62a8ac020491b1f9831a26558c2ff13d71173f065695",
+    "manifest_sha256": "5e10d121afe1a18589e7444efc1f79d1ab269eb1370857d8d339eb9b0000119b",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "behavior_delivered": [
+    "Resolve literal MapPageRoute and explicit pages with source citations and route parameters; preserve ambiguous candidates and explicit bounds.",
+    "Select authored page/control handlers, retain guards and response expressions, and follow bounded calls only with matching source hashes, source spans and selected physical revisions.",
+    "Compose literal local SqlCommand stored-procedure candidates with exact qualified SQL source and lexical table references without database execution or basename guesses.",
+    "Respect database opt-out and withhold paths whose source fingerprint or selected revision is stale."
+  ],
+  "native_tests": 14,
+  "schema_tests": 2,
+  "public_mcp": {
+    "candidate_calls": 5,
+    "installed_calls": 5,
+    "same_assertions_as_failed_first_candidate": true,
+    "production_registry_selection_and_other_metadata_unchanged": true,
+    "owned_fixtures_removed": true
+  },
+  "actual_ociusx": {
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "generation": 3148,
+    "entry_point": "/dashboard/system/geolayers/42",
+    "action": "load page",
+    "resolved_page": "Site/modules/dashboard/pages/admin/system/project/geolayers.aspx",
+    "verified_handlers": [
+      "Page_Load"
+    ],
+    "verified_reached_calls": [
+      "gvMainBind",
+      "GetGeoLayerBypr_id"
+    ],
+    "guard_retained": "If Page.IsPostBack Then Exit Sub",
+    "call_wall_seconds": 2.1179912999505177,
+    "response_bytes": 48825,
+    "path_edges": 38,
+    "source_members": 22,
+    "source_unchanged": true,
+    "interpretation": "One read-only installed source-navigation acceptance; no application execution or comparative productivity result."
+  },
+  "original_requirement_remaining": [
+    "Trigger effects remain unknown; include_triggers does not prove trigger execution.",
+    "Dynamic/optional route defaults, inherited or dynamic bindings, inline SQL/ORM translation, nested procedure execution and database deployment identity remain unresolved.",
+    "Static source evidence does not prove branch reachability, validation outcomes, successful writes or an actual HTTP response.",
+    "Full original TODO31 remains open; original 19 storage gates and EG25 comparative usefulness are not closed by this delivery."
+  ],
+  "evidence": {
+    "native4.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\native4.json",
+      "sha256": "938f1f973748c910515dfe8b5cfcacc51fdf9fd63ded93c8eb75c927bcc311d0"
+    },
+    "surface.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\surface.json",
+      "sha256": "57d5ab874ed6169d0dd2ffc5e44516400d86f93964dc1272cba0fbd9e55b5cf8"
+    },
+    "release2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\release2.json",
+      "sha256": "46dc04686a73e0676dc3cf5428d1b0182a5a750e63abfe74fc89b8bd0ebb558c"
+    },
+    "pair.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\pair.json",
+      "sha256": "be84b4cc61f31c1ee92a096af1cee26ee614eebb776d71df0df48c571878cb8f"
+    },
+    "source-validation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\source-validation.json",
+      "sha256": "63e0d590fd9fef8bd1be9cfce596e725b56aa905b783e65b4b4af5236cc6a87f"
+    },
+    "candidate/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\candidate\\acceptance.json",
+      "sha256": "46847924f037279e2d40847692341e405893e5219f9f29430d9dcf480146392b"
+    },
+    "installed/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\installed\\acceptance.json",
+      "sha256": "65730d5c7605bec44714533a6ebb0843eb92c894d94292c103ac655f8855abd0"
+    },
+    "normal/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\normal\\acceptance.json",
+      "sha256": "81c1dc95c444524d3d6e4a497ccfee055084ad727f84548ce9fc073f2738dd4a"
+    },
+    "normal/trace.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\normal\\trace.json",
+      "sha256": "c6cbdf072bead89eb9deb23b62a905e05e834615f0ad546b87b434299031e140"
+    },
+    "real-route-inputs.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\real-route-inputs.json",
+      "sha256": "53aca4b53581ec843dd25d081697ffff7d362511b57a02fcb63ff6e0045848e3"
+    },
+    "release-gates.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\release-gates.json",
+      "sha256": "3c6ea1114cd21d859958ebf09ec63d9c3ea97cb539c11d5b0831dfd59aca01e4"
+    },
+    "trace-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\trace-install-Upgrade.json",
+      "sha256": "0460928bc8abbb8336a31ff651135fb199e7423b5c724e7f7d05adb734fc435b"
+    },
+    "trace-config-hold.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\trace-config-hold.json.released.json",
+      "sha256": "8ebd212fb822e666f1ac5407aae0b356ecd851e17e744ed31b86a92bf18fddb3"
+    },
+    "worktree-cleanup.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\worktree-cleanup.json",
+      "sha256": "4207c687116fc6c8b9ec0dc57964c36ec640c6da18395fba8af768cf8b1647ea"
+    },
+    "first-package-retention.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\first-package-retention.json",
+      "sha256": "3abe1eb9e507832777ee8d068cf37a8052356bd45271fa3f4cc1ab7906a5c6ba"
+    }
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace",
+    "test_and_build_temps_removed": true,
+    "candidate_and_installed_fixtures_removed": true,
+    "isolated_worktree_removed_via_git": true,
+    "parked_work_unchanged": 9,
+    "normal_daemon": "Installed daemon launched for normal use; follows existing idle lifecycle. Acceptance process identity retained.",
+    "config_hold_released_without_content_change": true,
+    "retained_packages": [
+      {
+        "status": "RETAINED_POLICY_BLOCKED_REMOVAL",
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\owned-first-package",
+        "purpose": "Initial failed candidate package, preserved alongside failure evidence",
+        "reason": "Automatic policy review rejected the cleanup command with blocked by policy; no more specific reason was supplied. No deletion occurred.",
+        "cleanup_condition": "Remove only this exact owned package when policy permits, after rechecking its manifest and confirming no running owner. Current fixture processes and handles are already closed."
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-trace\\package",
+        "purpose": "Exact verified installed package and companion provenance",
+        "cleanup_condition": "Retain with delivery evidence until package reproduction/rollback provenance can be verified without these assets."
+      }
+    ],
+    "installer_retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-f5f4ac22c95b4f0db223064283ddd3db",
+    "previous_pair_retention": "Retained by the existing deployment workflow for rollback; no preexisting-folder deletion."
+  },
+  "next_action": "Advance the original OciusX workflow evidence requirement EG25 using retained research and task material. Preserve TODO31 remainder and all other unfinished original requirements; do not reopen CodeMap/Blast or general language expansion."
+}
