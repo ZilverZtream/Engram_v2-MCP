@@ -792,6 +792,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Find possible repeated database calls in indexed VB.NET loops and authored WebForms RowDataBound/ItemDataBound handlers. Uses fresh Roslyn invocation ownership and bounded helper-call paths with source revision/hash checks. Returns repeated-call and database-call citations, heuristic severity and batching/JOIN guidance. Runtime execution, cache behavior and row counts remain unknown. Use file_path for one file, or file_offset/max_files to page selected VB files."
+    )]
+    pub async fn detect_n_plus_one(
+        &self,
+        params: Parameters<DetectNPlusOneRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_detect_n_plus_one(params.0).await
+    }
+
+    #[tool(
         description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Static extraction has explicit coverage limits; absence does not prove no runtime access."
     )]
     pub async fn trace_state_usage(
