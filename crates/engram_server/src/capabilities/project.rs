@@ -164,7 +164,13 @@ impl ProjectCapabilities {
             "get_vb_translation_traps" => self.visual_basic,
             "analyze_sync_hazards" | "generate_characterization_tests" => self.dotnet,
             "get_ui_blueprint" | "trace_ui_event" | "trace_ui_action"
-            | "trace_state_usage" | "get_session_workflows" | "trace_data_flow" => self.dotnet || self.classic_asp,
+            | "trace_state_usage" | "get_session_workflows" | "trace_data_flow"
+            | "analyze_full_project_migration" | "map_auth_config"
+            | "generate_migration_blueprint" | "generate_migration_plan"
+            | "suggest_migration_boundaries" | "suggest_migration_order"
+            | "generate_migration_scaffold" | "get_migration_dossier"
+            | "check_migration_coverage" | "suggest_state_migration"
+            | "update_migration_status" | "get_migration_progress" => self.dotnet || self.classic_asp,
             "get_jquery_inventory" => self.javascript || self.webforms || self.classic_asp,
             "benchmark_retrieval_defaults" | "get_page_context" | "map_page_lifecycle" | "map_validation_controls"
             | "map_ajax_regions" | "analyze_viewstate_deps" => self.webforms,

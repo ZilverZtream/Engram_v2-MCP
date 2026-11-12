@@ -1316,7 +1316,7 @@ fn render_state_and_data(
     if let Some(a) = auth {
         if !a.mode.is_empty() {
             strong.push(format!(
-                "Auth mode: **{}**. Every API controller action and ASPX `Page_Load` must run its permission check before `IsPostBack` / before any data access — not after.",
+                "Observed authorization evidence: **{}**. Before changing a guarded entry point, inspect its checks and caller contract. These observations do not establish a universal lifecycle or permission-order policy.",
                 a.mode
             ));
         }
@@ -3187,6 +3187,17 @@ Read docs/internal.md first.
         // so both old and new headings must be absent.
         assert!(!md.contains("Database"));
         assert!(!md.contains("## Auth"));
+    }
+
+    #[test]
+    fn authorization_observations_do_not_invent_webforms_lifecycle_policy() {
+        let md = render_state_and_data(None, None, Some(&AuthSummary {
+            mode: "house guard helpers: canAccessOrder (3x)".into(),
+            required_roles: vec![], session_auth_patterns: 3,
+        }));
+        assert!(md.contains("canAccessOrder (3x)"));
+        assert!(md.contains("observations do not establish a universal"));
+        assert!(!md.contains("Page_Load") && !md.contains("IsPostBack"));
     }
 
     #[test]

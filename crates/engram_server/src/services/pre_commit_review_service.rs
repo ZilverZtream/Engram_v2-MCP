@@ -219,6 +219,8 @@ pub enum GateStatus {
     Failed(String),
     Panicked(String),
     Skipped(String),
+    /// No submitted source is in this specialized gate's supported language scope.
+    NotApplicable(String),
     /// The gate ran and returned, but a provider it depends on failed
     /// inside it (file unreadable, graph/search error, runtime missing ⇒
     /// regex-only fallback). Its findings are real; its silence is not.
@@ -251,6 +253,15 @@ pub struct GateOutcome {
     /// of 25 files (FILE_CAP)". A clean gate that stopped looking says so.
     #[serde(default)]
     pub caps: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_scope: Option<GateSourceScope>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct GateSourceScope {
+    pub supported_extensions: Vec<String>,
+    pub applicable_files: Vec<String>,
+    pub not_applicable_files: Vec<String>,
 }
 
 impl GateOutcome {
@@ -512,6 +523,16 @@ impl GateContext<'_> {
 #[async_trait::async_trait]
 pub trait Gate: Send + Sync {
     fn name(&self) -> &'static str;
+
+    /// None means no language restriction, not complete semantic coverage.
+    fn source_extensions(&self) -> Option<&'static [&'static str]> { None }
+
+    fn supports_path(&self, path: &str) -> bool {
+        self.source_extensions().is_none_or(|extensions| {
+            let extension = path.rsplit_once('.').map_or("", |(_, extension)| extension);
+            extensions.iter().any(|supported| extension.eq_ignore_ascii_case(supported))
+        })
+    }
 
     /// Default sync implementation — gates that need async override
     /// `run_async` instead.
@@ -2026,6 +2047,21 @@ fn review_utf8_prefix(value: &str, max_bytes: usize) -> &str {
     &value[..end]
 }
 
+fn render_gate_source_scope(out: &mut String, outcomes: &[GateOutcome]) {
+    for outcome in outcomes {
+        let Some(scope) = &outcome.source_scope else { continue };
+        let status = if matches!(outcome.status, GateStatus::NotApplicable(_)) { "not applicable" } else { "restricted source scope" };
+        out.push_str(&format!("\nGate `{}` — {}: supports {}; applicable {} file(s), not applicable {} file(s).",
+            outcome.name, status, scope.supported_extensions.join(", "), scope.applicable_files.len(), scope.not_applicable_files.len()));
+        if !scope.not_applicable_files.is_empty() {
+            let shown = scope.not_applicable_files.iter().take(8).map(String::as_str).collect::<Vec<_>>().join(", ");
+            out.push_str(&format!(" Not applicable: {}{}.", review_utf8_prefix(&shown, 600),
+                if scope.not_applicable_files.len() > 8 || shown.len() > 600 { " (truncated; output_json returns the full list)" } else { "" }));
+        }
+        out.push('\n');
+    }
+}
+
 /// Bounded default view for an agent tool call. The complete renderer remains
 /// available through `detail_level=full`; this view keeps high-priority
 /// findings visible instead of triggering client-side result offloading.
@@ -2056,6 +2092,8 @@ pub fn render_compact_markdown(
         gates::all_gates().len(),
     );
 
+    render_gate_source_scope(&mut out, outcomes);
+
     if missing + degraded + capped > 0 {
         out.push_str("\n## Incomplete gate evidence\n");
         for outcome in outcomes.iter().filter(|outcome| {
@@ -2065,6 +2103,7 @@ pub fn render_compact_markdown(
                 GateStatus::Failed(reason) => format!("failed: {reason}"),
                 GateStatus::Panicked(reason) => format!("panicked: {reason}"),
                 GateStatus::Skipped(reason) => format!("skipped: {reason}"),
+                GateStatus::NotApplicable(reason) => format!("not applicable: {reason}"),
                 GateStatus::Degraded { findings, notes } => {
                     format!("degraded ({findings} findings): {}", notes.join("; "))
                 }
@@ -2174,6 +2213,8 @@ pub fn render_markdown(
     ));
 
     out.push_str("Scope: static review gates. Compilation: not_run. Test execution: not_run. Green applies only to the reported gate coverage.\n\n");
+    render_gate_source_scope(&mut out, outcomes);
+
     if !not_run.is_empty() {
         out.push_str("## ⚠ Gates that did not run — evidence is INCOMPLETE\n\n");
         for o in &not_run {
@@ -2321,6 +2362,7 @@ pub struct ReviewSummary {
     pub gates_failed: usize,
     pub gates_panicked: usize,
     pub gates_skipped: usize,
+    pub gates_not_applicable: usize,
     pub gates_degraded: usize,
     pub elapsed_ms: u128,
 }
@@ -2353,6 +2395,7 @@ pub fn render_json(
             .iter()
             .filter(|o| matches!(o.status, GateStatus::Skipped(_)))
             .count(),
+        gates_not_applicable: outcomes.iter().filter(|o| matches!(o.status, GateStatus::NotApplicable(_))).count(),
         gates_degraded: outcomes.iter().filter(|o| o.is_degraded()).count(),
         elapsed_ms,
     };
@@ -2633,14 +2676,31 @@ async fn run_pre_commit_review_selected(
     const ASYNC_GATES: &[&str] = &["antipattern", "product_intent", "co_added_family"];
 
     let mut outcomes: Vec<GateOutcome> = Vec::new();
+    let mut source_scopes = BTreeMap::new();
     for gate in gate_list {
         let name = gate.name();
+        if let Some(extensions) = gate.source_extensions() {
+            let (applicable_files, not_applicable_files) = diff_files.iter()
+                .map(|file| file.path.clone()).partition(|path| gate.supports_path(path));
+            source_scopes.insert(name, GateSourceScope {
+                supported_extensions: extensions.iter().map(|extension| (*extension).to_owned()).collect(),
+                applicable_files, not_applicable_files,
+            });
+        }
         if config.skip_gates.iter().any(|s| s.as_str() == name) {
             outcomes.push(GateOutcome {
+                source_scope: None,
                 name,
                 status: GateStatus::Skipped("skip_gates".into()),
                 caps: Vec::new(),
                 elapsed_ms: 0,
+            });
+            continue;
+        }
+        if source_scopes.get(name).is_some_and(|scope| scope.applicable_files.is_empty()) {
+            outcomes.push(GateOutcome {
+                name, status: GateStatus::NotApplicable("No submitted files are in this gate's supported source languages/formats; see source_scope. No analysis performed.".into()),
+                elapsed_ms: 0, caps: Vec::new(), source_scope: None,
             });
             continue;
         }
@@ -2681,6 +2741,7 @@ async fn run_pre_commit_review_selected(
             match h.await {
                 Ok((Ok(fs), ms, notes, caps)) => {
                     sync_outcomes.push(GateOutcome {
+                        source_scope: None,
                         name,
                         status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
@@ -2691,6 +2752,7 @@ async fn run_pre_commit_review_selected(
                 Ok((Err(e), ms, _notes, _caps)) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate failed: {e}");
                     sync_outcomes.push(GateOutcome {
+                        source_scope: None,
                         name,
                         status: GateStatus::Failed(e.to_string()),
                         caps: Vec::new(),
@@ -2700,6 +2762,7 @@ async fn run_pre_commit_review_selected(
                 Err(e) => {
                     tracing::warn!(gate = %name, "pre_commit_review gate panicked: {e}");
                     sync_outcomes.push(GateOutcome {
+                        source_scope: None,
                         name,
                         status: GateStatus::Panicked(e.to_string()),
                         caps: Vec::new(),
@@ -2728,6 +2791,7 @@ async fn run_pre_commit_review_selected(
             match result {
                 Ok(Ok(fs)) => {
                     async_outcomes.push(GateOutcome {
+                        source_scope: None,
                         name,
                         status: GateStatus::from_run(fs.len(), notes),
                         elapsed_ms: ms,
@@ -2738,6 +2802,7 @@ async fn run_pre_commit_review_selected(
                 Ok(Err(e)) => {
                     tracing::warn!(gate = name, "pre_commit_review gate failed: {e}");
                     async_outcomes.push(GateOutcome {
+                        source_scope: None,
                         name,
                         status: GateStatus::Failed(e.to_string()),
                         caps: Vec::new(),
@@ -2752,6 +2817,7 @@ async fn run_pre_commit_review_selected(
                         .unwrap_or_else(|| "panic".into());
                     tracing::warn!(gate = name, "pre_commit_review gate panicked: {reason}");
                     async_outcomes.push(GateOutcome {
+                        source_scope: None,
                         name,
                         status: GateStatus::Panicked(reason),
                         caps: Vec::new(),
@@ -2769,6 +2835,9 @@ async fn run_pre_commit_review_selected(
     findings.extend(async_findings);
     outcomes.extend(sync_outcomes);
     outcomes.extend(async_outcomes);
+    for outcome in &mut outcomes {
+        outcome.source_scope = source_scopes.remove(outcome.name);
+    }
 
     // A display filter must not turn known risk findings into a clean review.
     for outcome in &mut outcomes {
@@ -3396,6 +3465,7 @@ mod tests {
     fn absent_skipped_or_capped_review_evidence_cannot_be_green() {
         assert_eq!(Verdict::with_outcomes(&[], &[]), Verdict::Yellow);
         let mut outcome = GateOutcome {
+            source_scope: None,
             name: "test",
             status: GateStatus::Passed,
             elapsed_ms: 0,

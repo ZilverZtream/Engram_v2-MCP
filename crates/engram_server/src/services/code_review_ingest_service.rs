@@ -1604,10 +1604,10 @@ async fn generalize_rule_text(
         .collect::<Vec<_>>()
         .join("\n");
     let prompt = format!(
-        "You are distilling a recurring code-review finding into ONE reusable rule for a VB.NET / \
-         TypeScript / ASP.NET WebForms codebase.\n\nInstances (same underlying rule, different \
+        "You are distilling a recurring code-review finding into ONE reusable rule for the \
+         codebase represented by the supplied evidence. Do not assume its language or platform.\n\nInstances (same underlying rule, different \
          code):\n{joined}\n\nProduce ONE generic, transferable rule: an imperative a reviewer can \
-         apply to ANY file. Strip every specific variable, method, table/column name and id — keep \
+         apply within the original language, API and condition boundaries. Do not invent authority or global applicability. Strip every specific variable, method, table/column name and id — keep \
          only the transferable pattern and the concrete API or keyword it concerns (for example \
          .Contains, SubmitChanges, redirect, null guard). At most 14 words.\n\nThink briefly if you \
          must, then output the final rule on the LAST line prefixed EXACTLY with `RULE: ` and \
