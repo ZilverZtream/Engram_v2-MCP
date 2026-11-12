@@ -1171,7 +1171,7 @@ pub fn default_path_max_depth() -> usize {
 }
 
 /// P0-8: convert any Engram identifier into all its other identities.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ResolveIdRequest {
     pub project_id: String,
@@ -1531,7 +1531,7 @@ fn default_grep_freshness() -> String {
     "strict".into()
 }
 
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetChunkRequest {
     /// Complete reply budget, estimated as ceil(UTF-8 text bytes / 4).
@@ -1714,7 +1714,7 @@ pub struct ReadMemoryBankRequest {
 }
 
 /// Ranges refer to the stored document, never inferred physical source lines.
-#[derive(Debug, Clone, Default, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Default, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct StoredCitationRequest {
     #[serde(default)]
@@ -3538,7 +3538,7 @@ fn default_max_callers() -> usize {
 }
 
 /// Retrieve method metadata from the method index (sub-200ms per-method queries).
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetMethodInfoRequest {
     pub project_id: String,
@@ -3718,6 +3718,37 @@ pub struct GetPageContextRequest {
     /// Output as JSON instead of Markdown. Default: false.
     #[serde(default)]
     pub output_json: bool,
+}
+
+/// Several existing read operations under one complete response budget.
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BatchReadRequest {
+    /// One to sixteen reads, returned in this order. IDs must be unique.
+    pub requests: Vec<BatchReadItem>,
+    /// Complete JSON text budget, ceil(UTF-8 bytes/4). Default 8192, maximum 65536.
+    /// Omitted whole results retain exact single-tool recovery requests.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+}
+
+#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct BatchReadItem {
+    /// Caller correlation ID: nonempty, unique, at most 128 bytes.
+    pub request_id: String,
+    pub request: BatchReadOperation,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(tag = "tool", content = "arguments", deny_unknown_fields)]
+pub enum BatchReadOperation {
+    #[serde(rename = "get_method_info")]
+    MethodInfo(GetMethodInfoRequest),
+    #[serde(rename = "resolve_id")]
+    ResolveId(ResolveIdRequest),
+    #[serde(rename = "get_chunk")]
+    Chunk(GetChunkRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.
