@@ -1,5 +1,6 @@
 use serde::Serialize;
 use std::collections::BTreeMap;
+pub const MAX_CANDIDATES: usize = 32;
 
 /// Caller supplies an explicitly selected source inventory, never arbitrary disk paths.
 #[derive(Clone, Copy)]
@@ -27,7 +28,21 @@ pub struct Routing {
     pub method: Option<String>,
     pub candidates: Vec<RouteCandidate>,
     pub gaps: Vec<String>,
+    pub candidates_truncated: bool,
     pub interpretation: &'static str,
+}
+
+impl Routing {
+    fn capped(&mut self) -> bool {
+        if self.candidates.len() <= MAX_CANDIDATES && self.gaps.len() <= MAX_CANDIDATES {
+            return false;
+        }
+        self.candidates.truncate(MAX_CANDIDATES);
+        self.gaps.truncate(MAX_CANDIDATES);
+        self.candidates_truncated = true;
+        self.gaps.push("Routing scan stopped at its candidate/diagnostic limit; resolution is incomplete and remaining source was not inspected.".into());
+        true
+    }
 }
 
 #[derive(Debug)]
@@ -244,9 +259,13 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
         method,
         candidates: Vec::new(),
         gaps: Vec::new(),
+        candidates_truncated: false,
         interpretation: "Static source candidates, not a runtime dispatch trace. Registration execution, route ordering, constraints, rewrites, authentication and HTTP-method applicability are not established.",
     };
     for source in sources {
+        if result.capped() {
+            return Ok(result);
+        }
         let lower = source.path.to_ascii_lowercase();
         if lower.ends_with(".aspx") || lower.ends_with(".ashx") || lower.ends_with(".asmx") {
             let relative = app_root(source.path, sources).map(|root| {
@@ -284,6 +303,9 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
         }
         let tokens = tokens(source.content, lower.ends_with(".vb"));
         for window in tokens.windows(8) {
+            if result.capped() {
+                return Ok(result);
+            }
             if window[0].text != "."
                 || window[1].string
                 || !window[1].text.eq_ignore_ascii_case("MapPageRoute")
@@ -294,6 +316,16 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                 || window[6].text != ","
                 || !window[7].string
             {
+                continue;
+            }
+            if [3, 5, 7]
+                .iter()
+                .any(|index| window[*index].text.len() > 4096)
+            {
+                result.gaps.push(format!(
+                    "{}:{}: route literal exceeds 4096-byte limit",
+                    source.path, window[1].line
+                ));
                 continue;
             }
             let Some(values) = parameters(&window[5].text, &path) else {
@@ -356,6 +388,9 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
             });
         }
     }
+    if result.capped() {
+        return Ok(result);
+    }
     if result.candidates.is_empty() {
         result.gaps.push("No route/page candidate in selected sources. Dynamic routes, optional defaults, composite segments and URL rewrites are not resolved.".into());
     }
@@ -370,6 +405,19 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn many_matching_routes_return_bounded_candidates_with_incomplete_coverage() {
+        let code = (0..100)
+            .map(|i| {
+                format!("routes.MapPageRoute(\"r{i}\", \"p/{{id}}\", \"~/admin/project.aspx\")\n")
+            })
+            .collect::<String>();
+        let files = sources(&code);
+        let result = resolve("p/42", &files).unwrap();
+        assert_eq!(result.candidates.len(), MAX_CANDIDATES);
+        assert!(result.candidates_truncated);
+        assert!(result.gaps.iter().any(|gap| gap.contains("incomplete")));
+    }
     fn sources(code: &str) -> [Source<'_>; 3] {
         [
             Source {

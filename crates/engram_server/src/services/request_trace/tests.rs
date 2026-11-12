@@ -319,3 +319,106 @@ fn mismatched_edge_revision_cannot_expand_an_otherwise_current_handler() {
     assert!(trace.paths.is_empty());
     assert!(trace.gaps.iter().any(|gap| gap.contains("edge revision")));
 }
+
+#[test]
+fn unknown_target_span_is_a_reference_not_a_verified_definition() {
+    let fixture = fixture();
+    let sources = sources(VB);
+    let mut target = fixture.graph.get_node("project", "save").unwrap().unwrap();
+    target.start_line = 0;
+    target.end_line = 0;
+    fixture.graph.upsert_nodes("project", &[target]).unwrap();
+    let route = routing::resolve("buy/42", &sources)
+        .unwrap()
+        .candidates
+        .remove(0);
+    let trace = execution::trace_page(
+        &fixture.graph,
+        "project",
+        &route,
+        Some("click btnBuy"),
+        true,
+        true,
+        &sources,
+        &fixture.selected,
+    )
+    .unwrap();
+    let reference = trace.paths.iter().find(|edge| edge.to == "save").unwrap();
+    assert!(!reference.target_source_verified);
+    assert!(reference.target_line.is_none());
+    assert!(
+        !trace
+            .source_members
+            .iter()
+            .any(|member| member["node_id"] == "save")
+    );
+    assert!(!trace.paths.iter().any(|edge| edge.from == "save"));
+}
+
+#[test]
+fn reached_method_resolves_sql_source_without_fabricated_database_graph_edges() {
+    let fixture = fixture();
+    let mut sources = sources(VB);
+    let helper = "Public Class Orders\nPublic Shared Sub Save()\nDim cmd As New SqlCommand(\"dbo.CreateOrder\")\ncmd.CommandType = System.Data.CommandType.StoredProcedure\ncmd.ExecuteNonQuery()\nEnd Sub\nEnd Class\n";
+    sources
+        .iter_mut()
+        .find(|source| source.path == "Site/App_Code/Orders.vb")
+        .unwrap()
+        .content = helper;
+    let mut file = fixture
+        .graph
+        .get_node("project", "file:Site/App_Code/Orders.vb")
+        .unwrap()
+        .unwrap();
+    file.metadata = Some(json!({"file_hash":blake3::hash(helper.as_bytes()).to_hex().to_string()}));
+    let mut method = fixture.graph.get_node("project", "save").unwrap().unwrap();
+    method.end_line = 6;
+    fixture
+        .graph
+        .upsert_nodes("project", &[file, method])
+        .unwrap();
+    fixture
+        .graph
+        .delete_edges_of_kind("project", &EdgeKind::CallsStoredProcedure)
+        .unwrap();
+    fixture
+        .graph
+        .delete_edges_of_kind("project", &EdgeKind::StoredProcWritesTable)
+        .unwrap();
+    let route = routing::resolve("buy/42", &sources)
+        .unwrap()
+        .candidates
+        .remove(0);
+    let trace = execution::trace_page(
+        &fixture.graph,
+        "project",
+        &route,
+        Some("click btnBuy"),
+        true,
+        true,
+        &sources,
+        &fixture.selected,
+    )
+    .unwrap();
+    assert!(
+        trace
+            .paths
+            .iter()
+            .any(|edge| edge.kind == "calls_stored_procedure"
+                && edge.target_name == "dbo.CreateOrder"
+                && edge.target_source_verified)
+    );
+    assert!(
+        trace
+            .paths
+            .iter()
+            .any(|edge| edge.kind == "stored_proc_writes_table" && edge.target_name == "Orders")
+    );
+    assert!(
+        trace
+            .source_members
+            .iter()
+            .any(|member| member["file"] == "db/orders.sql"
+                && member["recovery"]["arguments"]["project_id"] == "project")
+    );
+}
