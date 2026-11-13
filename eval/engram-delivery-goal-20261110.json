@@ -40,26 +40,37 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DOCUMENTATION_CORRECTION_VERIFIED",
-    "finding": "EG26 original shortlist delivery and evaluation status",
-    "original_requirement": "Reconcile roadmap labels and dated evaluation claims; implemented capability is not measured readiness. Goal requires stale next steps to be reconciled with retained delivery evidence.",
-    "observed_missing_behavior": "README points to the November12 passing task run rather than the November13 failed quality run. EG01/02/19/27/31 closure text still says installed acceptance is absent despite attached delivery receipts.",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_RUNNING",
+    "finding": "TODO28 optional cited ask_codebase synthesis",
+    "original_requirement": "TODO28/spec43-1: natural-language entry point returns a synthesized cited answer; deterministic router first, optional LLM synthesis later. OciusX config has llm_backend=openai and a configured text model.",
+    "observed_missing_behavior": "Current AskReport always sets mode=retrieval_only; request schema exposes no synthesis opt-in and handler never calls configured generation.",
+    "behavior": "Opt-in bounded cited synthesis from the existing evidence report using configured generation. Preserve retrieval status, gaps, conflicts and evidence. Default remains deterministic. Invalid citations, unavailable provider and timeout disclose fallback without discarding evidence.",
     "implementation_files": [
-      "README.md",
-      "eval/README.md",
-      "eval/audit-inventory-20261101.json",
-      "eval/engram-delivery-goal-20261110.json"
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/services/ask_engine/synthesis.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/tools.rs"
     ],
     "acceptance": [
-      "Original nine-item shortlist maps to retained delivery receipts and explicit limitations.",
-      "Latest recorded task result says assisted19/20 versus baseline20/20, qualityFAIL; later binary is not certified by that run.",
-      "Referenced receipt hashes and local links verify; historical evidence and unfinished requirements remain intact."
+      "Default request makes no synthesis call; explicit opt-in yields typed statements linked to actual report evidence.",
+      "Fabricated or missing citations and provider failure retain retrieval-only report with an explicit reason.",
+      "JSON/Markdown retain original status, gaps and evidence; generation cannot upgrade retrieval confidence.",
+      "One actual OciusX source question produces a cited answer reviewed against independent source, or is recorded honestly as semantic acceptance failure without repeated tuning."
     ],
-    "scope": "Documentation and status correction only; no runtime implementation, build, model run, workload replay or broadened audit.",
-    "scratch": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/shortlist-status",
-    "delivery": "eval/ociusx-shortlist-status-reconciliation-20261113.json",
+    "limits": [
+      "Reference validation does not establish semantic correctness.",
+      "No change to retrieval ranking, graph expansion, CodeMap, Blast Radius or other language support.",
+      "No claim of matched task benefit or full original backlog completion."
+    ],
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis",
+    "source_commit": "a3c9641aa30613d5c1187e41ee68276c02a120c9",
+    "progress": "eval/ociusx-ask-synthesis-progress-20261113.json",
     "remaining": [
-      "Original broader backlog remains active; do not reopen these delivered behaviors merely because their older closure text was stale."
+      "Complete existing release build.",
+      "Verify candidate and installed public MCP against local fixture provider.",
+      "Run one actual OciusX configured-model answer and review against saved source criteria."
     ]
   },
   "previous_delivery": {
@@ -417,5 +428,28 @@
     "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
     "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
     "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
+  },
+  "retained_shortlist_status_delivery": {
+    "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+    "finding": "EG26 original shortlist delivery and evaluation status",
+    "original_requirement": "Reconcile roadmap labels and dated evaluation claims; implemented capability is not measured readiness. Goal requires stale next steps to be reconciled with retained delivery evidence.",
+    "observed_missing_behavior": "README points to the November12 passing task run rather than the November13 failed quality run. EG01/02/19/27/31 closure text still says installed acceptance is absent despite attached delivery receipts.",
+    "implementation_files": [
+      "README.md",
+      "eval/README.md",
+      "eval/audit-inventory-20261101.json",
+      "eval/engram-delivery-goal-20261110.json"
+    ],
+    "acceptance": [
+      "Original nine-item shortlist maps to retained delivery receipts and explicit limitations.",
+      "Latest recorded task result says assisted19/20 versus baseline20/20, qualityFAIL; later binary is not certified by that run.",
+      "Referenced receipt hashes and local links verify; historical evidence and unfinished requirements remain intact."
+    ],
+    "scope": "Documentation and status correction only; no runtime implementation, build, model run, workload replay or broadened audit.",
+    "scratch": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/shortlist-status",
+    "delivery": "eval/ociusx-shortlist-status-reconciliation-20261113.json",
+    "remaining": [
+      "Original broader backlog remains active; do not reopen these delivered behaviors merely because their older closure text was stale."
+    ]
   }
 }
