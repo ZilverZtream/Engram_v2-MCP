@@ -1,4 +1,5 @@
 pub mod index_suggestions;
+pub mod feature_plan;
 pub mod ajax_region_service;
 pub mod ask_engine;
 pub mod auth_config_service;
