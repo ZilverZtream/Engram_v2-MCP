@@ -99,6 +99,27 @@ query against the current Engram build or matched implementation/QA benefit.
 
 ### Executing the frozen comparison with Codex
 
+For a complete current-build quality check in local or private-runner verification:
+
+```powershell
+python -B eval/frozen_task_run.py check-current <input-spec-directory> <new-private-check> --pins <pins.json> --codex-executable <absolute-native-codex-path>
+```
+
+This command captures fresh installed tool replies, prepares the existing four-task
+comparison, executes its candidates and independent judge, and applies the quality
+gate. Exit 0 requires all assisted criteria to pass with no recorded false guidance.
+Capture, execution, integrity and quality failures return nonzero. A saved green
+run cannot satisfy this command: the destination must be new, and the installed
+binary and manifest hashes must still match after evaluation.
+
+`current-check.json` records the stage, outcome, build identity and task metrics.
+Private capture and execution evidence remains in its `capture/` and `run/`
+directories, including failures. There are no automatic retries, answer repairs,
+service starts or CI-runner provisioning. The existing daemon must be running and
+the pins and recipe described below must be current. The command invokes models
+using the executor's existing configuration. It does not establish a fresh holdout
+or a productivity advantage, and adding the command does not configure hosted CI.
+
 To capture current installed producers before using that same comparison flow:
 
 ```powershell

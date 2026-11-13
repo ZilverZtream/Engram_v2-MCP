@@ -254,6 +254,12 @@ def status(root):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest='command', required=True)
+    p = commands.add_parser('check-current', help='Capture current producers, execute the existing comparison, and fail on unmet quality criteria')
+    p.add_argument('input_spec_directory', type=Path)
+    p.add_argument('destination', type=Path)
+    p.add_argument('--pins', type=Path, required=True)
+    p.add_argument('--codex-executable', type=Path, required=True)
+    p.add_argument('--timeout-seconds', type=float, default=900)
     p = commands.add_parser('prepare-current', help='Capture pinned existing installed tools into a new frozen corpus')
     p.add_argument('input_spec_directory', type=Path)
     p.add_argument('destination', type=Path)
@@ -280,7 +286,11 @@ def main():
         if name in ['record', 'judge']:
             p.add_argument('--response', type=Path, required=True)
     args = parser.parse_args()
-    if args.command == 'prepare-current':
+    if args.command == 'check-current':
+        from frozen_task_check import check_current
+        value = check_current(args.input_spec_directory, args.destination, args.pins,
+                              args.codex_executable, args.timeout_seconds)
+    elif args.command == 'prepare-current':
         from frozen_task_capture import prepare_current
         value = prepare_current(args.input_spec_directory, args.destination, args.pins)
     elif args.command == 'prepare':
@@ -299,10 +309,11 @@ def main():
         else:
             value = judge(root, args.agent_id, args.response)
     print(json.dumps(value, ensure_ascii=False, indent=2))
+    return value.get('exit_code', 0)
 
 
 if __name__ == '__main__':
     try:
-        main()
+        sys.exit(main())
     except (ValueError, KeyError, OSError, StopIteration) as error:
         raise SystemExit(str(error) or 'Unknown candidate or corpus entry')

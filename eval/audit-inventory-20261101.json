@@ -9985,8 +9985,30 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
-      "next_action": "Advance the next unfinished original OciusX requirement; do not expand passed scope acceptance into authority inference or broader evaluation."
+      "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+      "finding": "EG24 current-producer quality command",
+      "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
+      "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
+      "implementation_files": [
+        "eval/frozen_task_run.py",
+        "eval/frozen_task_check.py",
+        "eval/test_frozen_task_check.py",
+        "eval/README.md"
+      ],
+      "behavior": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
+      "acceptance": [
+        "Fresh output directory required; never reuse old responses or judgments.",
+        "Public command returns nonzero for capture/execution failures or failed assisted quality criteria; no success artifact on interrupted stages.",
+        "Passing current output retains binary/manifest identity, four task metrics and explicit limits; existing saved-run check semantics remain.",
+        "Execute once against the current installed Engram and existing OciusX recipe; retain failures as results, not reasons for another model-tuning loop."
+      ],
+      "limits": [
+        "Hosted private CI remains unavailable; this does not provision runners or enable GitHub Actions.",
+        "Known inspected regression cases; not a fresh holdout or demonstrated implementation/QA productivity benefit."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+      "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
+      "progress": "eval/ociusx-current-task-check-progress-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10018,8 +10040,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Declared decision scope delivered; next implementation unselected",
-    "next_user_visible_deliverable": "Advance the next unfinished original OciusX requirement; do not expand passed scope acceptance into authority inference or broader evaluation.",
+    "active_original_item": "EG24 current-producer quality command",
+    "next_user_visible_deliverable": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10036,7 +10058,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: optional decision scope and revision comparisons implemented, validated through public MCP and deployed.",
+    "previous_goal_turn_classification": "PROGRESS: scoped decisions deployed, four candidate and four installed checks passed, delivery records pushed5636cb0.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

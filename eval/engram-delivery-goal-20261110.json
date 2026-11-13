@@ -40,8 +40,30 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
-    "next_action": "Advance the next unfinished original OciusX requirement; do not expand passed scope acceptance into authority inference or broader evaluation."
+    "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+    "finding": "EG24 current-producer quality command",
+    "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
+    "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
+    "implementation_files": [
+      "eval/frozen_task_run.py",
+      "eval/frozen_task_check.py",
+      "eval/test_frozen_task_check.py",
+      "eval/README.md"
+    ],
+    "behavior": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
+    "acceptance": [
+      "Fresh output directory required; never reuse old responses or judgments.",
+      "Public command returns nonzero for capture/execution failures or failed assisted quality criteria; no success artifact on interrupted stages.",
+      "Passing current output retains binary/manifest identity, four task metrics and explicit limits; existing saved-run check semantics remain.",
+      "Execute once against the current installed Engram and existing OciusX recipe; retain failures as results, not reasons for another model-tuning loop."
+    ],
+    "limits": [
+      "Hosted private CI remains unavailable; this does not provision runners or enable GitHub Actions.",
+      "Known inspected regression cases; not a fresh holdout or demonstrated implementation/QA productivity benefit."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
+    "progress": "eval/ociusx-current-task-check-progress-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -147,5 +169,6 @@
   "instruction_scope_delivery": "eval/ociusx-instruction-scope-delivery-20261113.json",
   "history_guidance_delivery": "eval/ociusx-history-guidance-delivery-20261113.json",
   "review_scope_progress": "eval/ociusx-review-scope-progress-20261113.json",
-  "review_scope_delivery": "eval/ociusx-review-scope-delivery-20261113.json"
+  "review_scope_delivery": "eval/ociusx-review-scope-delivery-20261113.json",
+  "current_task_check_progress": "eval/ociusx-current-task-check-progress-20261113.json"
 }

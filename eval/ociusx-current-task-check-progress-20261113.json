@@ -1,0 +1,54 @@
+{
+  "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+  "at_utc": "2026-11-13T08:37:12.891035+00:00",
+  "contract": {
+    "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+    "finding": "EG24 current-producer quality command",
+    "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
+    "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
+    "implementation_files": [
+      "eval/frozen_task_run.py",
+      "eval/frozen_task_check.py",
+      "eval/test_frozen_task_check.py",
+      "eval/README.md"
+    ],
+    "behavior": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
+    "acceptance": [
+      "Fresh output directory required; never reuse old responses or judgments.",
+      "Public command returns nonzero for capture/execution failures or failed assisted quality criteria; no success artifact on interrupted stages.",
+      "Passing current output retains binary/manifest identity, four task metrics and explicit limits; existing saved-run check semantics remain.",
+      "Execute once against the current installed Engram and existing OciusX recipe; retain failures as results, not reasons for another model-tuning loop."
+    ],
+    "limits": [
+      "Hosted private CI remains unavailable; this does not provision runners or enable GitHub Actions.",
+      "Known inspected regression cases; not a fresh holdout or demonstrated implementation/QA productivity benefit."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
+    "progress": "eval/ociusx-current-task-check-progress-20261113.json"
+  },
+  "source_files": {
+    "eval/frozen_task_run.py": "06fc8e7ec343c8ea8d147e15e955ef2ce5a821fc2a321e2540d04757fa9a83f5",
+    "eval/frozen_task_check.py": "e343386f7b94efc88012780201cba6c70696ff43eb6662c20b86b7ccfd339d6d",
+    "eval/test_frozen_task_check.py": "3aefe171c7ca014c3dcad33952f400059d609e26ef874ee8da635d4f2a46fac4",
+    "eval/README.md": "abbf468b4a9800841ede325a07e9cad8396251d6edc85bb1ac69b8a5bac23bcc"
+  },
+  "protocol_validation": {
+    "tests": 42,
+    "exit_code": 0,
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\protocol-tests.log",
+      "sha256": "ae9005c424c8ecc320340f864c9c5c6543585249a9525598cd129a33cbaafc28"
+    },
+    "fixtures_removed": true
+  },
+  "prerequisite": {
+    "reason": "Installed freshness reports1016paths need source-index version9 refresh, while generation3148 is complete.",
+    "observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery\\rpc\\002-frame-001.json",
+    "job_id": "af1c72b0-9a2e-46ac-8bc7-1afbc6f4b02d",
+    "observer_session": 19754,
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh\\state.json"
+  },
+  "remaining": "Observe the submitted update to terminal state, verify current freshness, then run check-current once with the retained original OciusX recipe. Do not repeat model evaluation to tune results or expand its cases.",
+  "runtime_deployment": "Python verification command only; installed server remains scoped-decision releasec3822aa0."
+}
