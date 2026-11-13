@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "RESOLVING_DEMONSTRATED_LIVE_CAPTURE_FAILURE",
+    "status": "RESUMING_CURRENT_TASK_CHECK_AFTER_DEPLOYMENT",
     "finding": "EG24 current-producer quality command",
     "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
     "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
@@ -66,7 +66,7 @@
     "progress": "eval/ociusx-current-task-check-progress-20261113.json",
     "live_outcome": "eval/ociusx-current-task-check-outcome-20261113.json",
     "latency_blocker_fix": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "status": "PUSHED_DEPLOYED_INSTALLED_LATENCY_AND_POLICY_VERIFIED_COMPARISON_PARTIAL",
       "original_requirement": "Complete current installed OciusX task verification without repeated whole-project retrieval work.",
       "observed_missing_behavior": "One change-set calls up to ten concept footprints, each scanning the same whole graph, then separately obtains its cached graph snapshot. Failed real request concept stage87241ms, cochange47668ms, total RPC264324ms. Diagnostic concept22732ms, total RPC85128ms; variability alone is not a fix.",
       "implementation_files": [
@@ -86,8 +86,10 @@
         "Existing current collector passes returned bounded responses to candidates; recovery behavior must remain explicit rather than being mistaken for full evidence."
       ],
       "source_commit": "db351c87a4004e5bbc31fed8ac0a336fa3e570b1",
-      "progress": "eval/ociusx-change-set-shared-read-progress-20261113.json"
-    }
+      "progress": "eval/ociusx-change-set-shared-read-progress-20261113.json",
+      "delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
+    },
+    "latency_blocker_delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

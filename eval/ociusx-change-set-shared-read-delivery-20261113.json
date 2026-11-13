@@ -1,0 +1,91 @@
+{
+  "status": "PUSHED_DEPLOYED_INSTALLED_LATENCY_AND_POLICY_VERIFIED_COMPARISON_PARTIAL",
+  "at_utc": "2026-11-13T09:55:27.199858+00:00",
+  "finding": "EG24 current verification capture blocker / get_change_set repeated graph reads",
+  "source_commit": "db351c87a4004e5bbc31fed8ac0a336fa3e570b1",
+  "behavior": "All concept footprints and downstream planning share the existing generation-keyed graph-node snapshot. Failed scans are not cached as empty evidence.",
+  "runtime": {
+    "server_sha256": "3c4e580961e9664542d4257c1541fa4f1a480a8a175aa5176c8b98d46e7e43f0",
+    "manifest_sha256": "294c84f2b2c6d685c9f602356cfdffc7532f46e6f796c269354cd33dd0fa09ad",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "native_passed": 9,
+    "unchanged_source_failures": 11,
+    "baseline_comparison": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\baseline-comparison.json",
+      "sha256": "72ac0133329874b8e23762bc6400ee78407cd38d24821c3ec1d52f78ab695f94"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\release1.json",
+      "sha256": "01dd1ca0da47856245764263fd91b1a5e64c19401749f8d19580b1f2a97b5510"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\candidate2\\acceptance.json",
+      "sha256": "d6279825da0f8d806f207434a5c50d80342579f3b3d5151b121c21859767b1f1"
+    },
+    "installed_partial": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\installed2\\acceptance.json",
+      "sha256": "74a3283fca1512263e8736addeb943f1af2aa9e3641b51bd81c82325a50ad7ae"
+    },
+    "original_failed_request_seconds": 264.324,
+    "unchanged_diagnostic_seconds": 85.1278482,
+    "candidate_request_seconds": 59.46354549995158,
+    "installed_request_seconds": 65.30642260005698,
+    "installed_full_detail_seconds": 56.75205920008011,
+    "policy_sources_verified_against_actual_bytes": 7,
+    "original_recipe_source_files_unchanged": 21,
+    "source_generation": 3149,
+    "registry_and_selection_unchanged": true,
+    "registry_after": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\post-installed2-registry.json",
+      "sha256": "1d795ff215488b7361e6c54685d3771cb7b5165e3db0e9ee4ec837a70e6bc40d"
+    }
+  },
+  "open_comparison": {
+    "path": "Site/App_Code/api-json/api-sms.vb",
+    "baseline_signal": "broad, tier4, companion",
+    "observed": "Present in candidate full-detail output, absent from installed full-detail evidence/omission rows. Candidate and installed use the same source/binary; cause not established.",
+    "disposition": "Record unresolved; unrelated SMS broad-match visibility does not prevent the selected four-task capture. Do not start ranking expansion or claim full evidence-comparison acceptance."
+  },
+  "retained_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\candidate1\\acceptance.json",
+      "sha256": "9c0476bccd8b347fb7f667a12f60a7aefb6df8a3a944dda4a4978096d9c7255b"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\acceptance-correction.json",
+      "sha256": "14b3501c2ab0f13c2a5236c298522a5f3e98170c3896cdac88924361c9441d84"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interrupted-installed1.json",
+      "sha256": "8d1df51925bdab362882bfa36328e4abd3234ebd82bda3d4eaa28e6b8f01d58c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\installed2\\acceptance.json",
+      "sha256": "74a3283fca1512263e8736addeb943f1af2aa9e3641b51bd81c82325a50ad7ae"
+    }
+  ],
+  "limits": [
+    "Two new-build observed requests satisfy180seconds; not a general latency guarantee or controlled causal speedup.",
+    "Scoped guide bytes/checkpoint are preserved. Bounded ranked results vary when semantic retrieval succeeds; full comparison remains partial.",
+    "Full current model task evaluation has not run; no productivity or quality uplift claimed.",
+    "Native11baseline failures and original full19gates remain open. CodeRabbit host authentication unavailable; parent manual review only."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "build_job_closed": true,
+    "current_test_processes_closed": true,
+    "current_owned_temp_removed": true,
+    "current_owned_config_removed": true,
+    "hold_released": true,
+    "retained_empty_interrupted_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\installed1\\owned-9iof6bck",
+    "cleanup_rejection": "Automatic approval review rejected empty-directory removal: blocked by policy. Retain; no alternative deletion retry.",
+    "retained_rollback_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-5f8388076ade4ddb9a1962d33a886f72",
+    "retention": "Retain wire, receipts, original failures and rollback pair for review. Existing directories untouched."
+  },
+  "next_action": "Resume original check-current once with new installed binary/manifest/process pins and fresh live2 output. Preserve outcomes; no new benchmark or unrelated ranking fix."
+}
