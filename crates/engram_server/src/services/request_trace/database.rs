@@ -304,7 +304,7 @@ fn commands(body: &str, vb: bool) -> Vec<Command> {
         }
         let variable = if word(i - 1, "=") {
             Some(&tokens[i - 2])
-        } else if i >= 3 && word(i - 1, "As") && word(i - 3, "Dim") {
+        } else if i >= 3 && word(i - 1, "As") && (word(i - 3, "Dim") || (vb && word(i - 3, "Using"))) {
             Some(&tokens[i - 2])
         } else {
             None
@@ -412,6 +412,10 @@ mod tests {
         assert_eq!(found.len(), 1);
         assert_eq!(found[0].key, vec!["dbo", "createorder"]);
         assert_eq!(found[0].line, 3);
+        let using = commands(&format!("{}End Using\n", source.replacen("Dim cmd", "Using cmd", 1)), true);
+        assert_eq!(using.len(), 1);
+        assert_eq!(using[0].key, vec!["dbo", "createorder"]);
+        assert_eq!(using[0].line, 3);
         assert!(
             commands(
                 &source.replace("cmd.CommandType", "other.CommandType"),
