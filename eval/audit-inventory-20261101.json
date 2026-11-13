@@ -831,7 +831,8 @@
         "Record correctness, false guidance, useful evidence per read, context cost and latency; do not substitute unit-test counts."
       ],
       "closure_state": "Partial: eight fresh paired four-category real-source tasks completed with frozen inputs, canary/integrity verification and independent opaque-label judging. Botharms20/20; evidenceIDs10?6 but inputpacketbytes+23.14%, noqualityupliftclaim. Saved-run verifier coversdeliveryprotocol and exactallowlistedpackets. RegularCI and broader real task usefulness remain open; EG25 productivity separate.",
-      "dependencies": []
+      "dependencies": [],
+      "current_check_command_outcome_20261113": "eval/ociusx-current-task-check-outcome-20261113.json"
     },
     {
       "id": "EG-25",
@@ -9985,7 +9986,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+      "status": "RESOLVING_DEMONSTRATED_LIVE_CAPTURE_FAILURE",
       "finding": "EG24 current-producer quality command",
       "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
       "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
@@ -10008,7 +10009,8 @@
       ],
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
       "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
-      "progress": "eval/ociusx-current-task-check-progress-20261113.json"
+      "progress": "eval/ociusx-current-task-check-progress-20261113.json",
+      "live_outcome": "eval/ociusx-current-task-check-outcome-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10040,8 +10042,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG24 current-producer quality command",
-    "next_user_visible_deliverable": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
+    "active_original_item": "EG24 current verification: resolve measured get_change_set capture blocker",
+    "next_user_visible_deliverable": "Resolve this concrete current-capture blocker using existing get_change_set coverage/timing and the same original request. Do not increase the deadline, remove required evidence, create another benchmark, or expand into kernel/SSD investigation.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10058,7 +10060,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: scoped decisions deployed, four candidate and four installed checks passed, delivery records pushed5636cb0.",
+    "previous_goal_turn_classification": "PROGRESS: check-current implemented and pushed9076e02;42protocol tests pass. Normal source migration published3149. Actual command correctly failed180s get_change_set capture; server completed264.324s; no models invoked.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -14164,6 +14166,7 @@
       "source_commit": "7ed6b907fbfe67d6a1a79b63d670faaa83e86fe5",
       "progress": "eval/ociusx-review-scope-progress-20261113.json",
       "receipt": "eval/ociusx-review-scope-delivery-20261113.json"
-    }
+    },
+    "current_task_check_outcome_20261113": "eval/ociusx-current-task-check-outcome-20261113.json"
   }
 }

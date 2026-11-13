@@ -1,8 +1,8 @@
 {
-  "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+  "status": "COMMAND_IMPLEMENTED_PUSHED_PROTOCOL_VALIDATED_LIVE_CAPTURE_FAILED",
   "at_utc": "2026-11-13T08:37:12.891035+00:00",
   "contract": {
-    "status": "IMPLEMENTED_PROTOCOL_VALIDATED_CURRENT_CAPTURE_PENDING",
+    "status": "RESOLVING_DEMONSTRATED_LIVE_CAPTURE_FAILURE",
     "finding": "EG24 current-producer quality command",
     "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
     "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
@@ -25,7 +25,8 @@
     ],
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
     "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
-    "progress": "eval/ociusx-current-task-check-progress-20261113.json"
+    "progress": "eval/ociusx-current-task-check-progress-20261113.json",
+    "live_outcome": "eval/ociusx-current-task-check-outcome-20261113.json"
   },
   "source_files": {
     "eval/frozen_task_run.py": "06fc8e7ec343c8ea8d147e15e955ef2ce5a821fc2a321e2540d04757fa9a83f5",
@@ -46,9 +47,15 @@
     "reason": "Installed freshness reports1016paths need source-index version9 refresh, while generation3148 is complete.",
     "observation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery\\rpc\\002-frame-001.json",
     "job_id": "af1c72b0-9a2e-46ac-8bc7-1afbc6f4b02d",
-    "observer_session": 19754,
-    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh\\state.json"
+    "observer_session": null,
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh\\state.json",
+    "status": "done",
+    "published_generation": 3149
   },
-  "remaining": "Observe the submitted update to terminal state, verify current freshness, then run check-current once with the retained original OciusX recipe. Do not repeat model evaluation to tune results or expand its cases.",
-  "runtime_deployment": "Python verification command only; installed server remains scoped-decision releasec3822aa0."
+  "remaining": "Resolve this concrete current-capture blocker using existing get_change_set coverage/timing and the same original request. Do not increase the deadline, remove required evidence, create another benchmark, or expand into kernel/SSD investigation.",
+  "runtime_deployment": "Python verification command only; installed server remains scoped-decision releasec3822aa0.",
+  "source_commit": "9076e02",
+  "live_session": null,
+  "live_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1\\current-check.json",
+  "outcome": "eval/ociusx-current-task-check-outcome-20261113.json"
 }
