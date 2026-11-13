@@ -1,0 +1,28 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+  "finding": "EG19 usable decision-aware reviews / TODO4 complete response budgets",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\baseline1\\observation.json",
+  "native_passed": 17,
+  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\native1.json",
+  "shared_snapshot_session": {
+    "id": 93685,
+    "exit_code": 0
+  },
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "files": [
+    "crates/engram_server/src/handlers/review_tools.rs",
+    "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
+    "crates/engram_server/src/handlers/change_set_delivery.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/tests/review_response_budget_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget",
+  "remaining": [
+    "Build release and verify candidate/installed public workflow.",
+    "Verify one read-only OciusX review and exact evidence recovery.",
+    "Record installed delivery, push origin/master and advance original backlog."
+  ],
+  "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580"
+}

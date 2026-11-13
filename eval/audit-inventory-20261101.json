@@ -10004,37 +10004,42 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "EG01 scoped authored guidance in edit-session bookends",
-      "original_requirement": "Original instruction_capabilities priority1 and ocius_workflows priority1: same task-scoped authored guidance reaches planning, editing and review, with qualifications, live changes and explicit recovery.",
-      "observed_missing_behavior": "begin_edit_session and complete_edit_session return detect_incomplete_changes analysis and learned registry rules, but never resolve checked-out authored policy. Newly authored applicable guidance and its exceptions are absent from these edit bookends.",
-      "behavior": "Reuse project_policy for declared planned files when opening and declared edited files on completion. Resolve before lifecycle mutation, preserve full source/hash/recovery output, refresh after instruction edits, and label guidance as advisory rather than enforcement. Explicit no-edits completion remains no policy applicability analysis.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "finding": "EG19 usable decision-aware reviews / TODO4 complete response budgets",
+      "original_requirement": "Original tool_roi priority2 requires bounded decision-aware reviews without suppressing findings; accepted TODO4 requires whole-response budgets and explicit recovery across tools. Apply to OciusX JavaScript/VB review output.",
+      "observed_missing_behavior": "Installed pre_commit_review on 40 JavaScript files returns 64423 UTF-8 bytes, 40 retained critical findings, no whole-response budget or recovery. max_findings and prior-context caps do not bound the complete report.",
+      "behavior": "Use existing immutable response snapshot machinery for whole review reports, with separate review retention namespace. Preserve verdict, finding ledger and coverage limits in bounded first reply; recover exact original bytes by hash without rerunning review. Add caller max_tokens and recovery controls.",
       "implementation_files": [
+        "crates/engram_server/src/handlers/review_tools.rs",
+        "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
+        "crates/engram_server/src/handlers/change_set_delivery.rs",
         "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/tests/edit_session_policy_tests.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/tests/review_response_budget_tests.rs",
         "docs/TOOL_CONTRACT.md"
       ],
       "acceptance": [
-        "Installed baseline owned WebForms-shaped fixture demonstrates absent root/topic authored guidance.",
-        "Opening returns matching root/topic guidance and complete intentional exception while excluding unrelated topic; new unindexed planned paths can select guidance.",
-        "Completion resolves actual paths including scope drift and current instruction edits; oversized policy has explicit hash-bound full-file recovery.",
-        "Explicit empty completion does not substitute planned paths or evaluate guidance; existing lifecycle/identity checks pass.",
-        "Candidate and installed public cases verify the same behavior. One OciusX planned session receives existing map guidance and is closed with no edits; preserve source, existing sessions and configuration."
+        "Installed baseline demonstrates >40KiB whole response and no recovery.",
+        "JSON and Markdown obey complete text byte budgets, retaining every finding identity/severity and review coverage qualifications; tiny budgets give explicit minimum.",
+        "Recovery reconstructs exact original full report/hash, including authored exceptions and prior decision evidence, even after source changes; review is not rerun.",
+        "Small/default and empty review behavior retained; existing planning snapshot behavior still passes.",
+        "Candidate and installed public checks plus one read-only OciusX review verify contract; no application edits."
       ],
-      "scope": "Existing session responses and shared policy resolver only. No graph/Blast/CodeMap changes, new policy engine, implicit code edits, instruction publication or session approval flow.",
+      "scope": "Response delivery and request controls only. No gate algorithms, ranking, CodeMap, Blast Radius, new model calls or benchmarks.",
       "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy",
-      "resource_retention": "Own fixture data/processes under this case; close handles before teardown. Retain source/test/build/runtime evidence and rollback package. Actual acceptance closes only its own new session and makes no application edits.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\baseline1\\observation.json",
       "limits": [
-        "Guidance delivery is not semantic enforcement or proof of edit correctness.",
-        "Existing resolver discovery/source/output caps remain explicit; no full backlog/productivity claim."
+        "Snapshot recovery is historical report delivery, not current-source clearance.",
+        "Existing max_findings/severity/compact-view limits persist and are disclosed; no new completeness or productivity claim."
       ],
       "remaining": [
-        "Advance next unfinished original OciusX requirement; preserve all failed/unproved outcomes."
+        "Build release and verify candidate/installed public workflow.",
+        "Verify one read-only OciusX review and exact evidence recovery.",
+        "Record installed delivery, push origin/master and advance original backlog."
       ],
-      "source_commit": "7a603c39fdbf7057b668a26869959d4f007e9e45",
-      "progress": "eval/ociusx-edit-session-policy-progress-20261113.json",
-      "delivery": "eval/ociusx-edit-session-policy-delivery-20261113.json"
+      "progress": "eval/ociusx-review-response-budget-progress-20261113.json",
+      "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10084,7 +10089,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: scoped session guidance deployed; candidate/installed behavior and one actual OciusX planned/no-edit session verified.",
+    "previous_goal_turn_classification": "PROGRESS: edit-session guidance deployed and pushed a2f20c9; review full-response gap now reproduced.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -12341,72 +12346,37 @@
       "remaining_limits_preserved": true
     },
     "previous_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "original_requirement": "TODO23: second-pass import/module call resolution for TypeScript, Python, Rust, Go and Java using the existing two-pass architecture. The first four languages are delivered; Java is the one active item. The original broader backlog remains open.",
-      "observed_missing_behavior": "Java method_invocation extraction captures only the method name. It does not retain receiver/type qualification, file-local import identity or package-aware target evidence; generic name/FQN lookup cannot reliably distinguish same-name methods in imported classes.",
-      "finite_acceptance": [
-        "Resolve same-package and fully qualified class calls, single-type and on-demand imports, and single/static-on-demand imported bare methods from indexed Java declarations. Preserve canonical nested type identity and file-local import scope; never guess by terminal method name.",
-        "Resolve ordinary calls through explicitly declared local/parameter/field receiver types and same-class bare/this calls to source declarations. Respect lexical shadowing and access/static distinctions. Distinguish arity and retain ambiguous overloads, unsupported type inference/inheritance/dynamic dispatch, inaccessible declarations, unindexed dependencies and unsupported module semantics as explicit unresolved evidence rather than fabricated certainty.",
-        "Publish bounded call/import/target source evidence through the existing public references surface. Independent authored cases assert exact declaration identity and negative cases under native/no-vector builds; preserve prior language integration checks.",
-        "Retain Java facts in source publication so import/package/declaration edits rebind unchanged callers, stale targets retract and deletion/restoration recovers the right links. Old-index graph repair must upgrade retained source facts and preserve source/search/vector storage, recovered chunks and generation without embedding work where the source set is unchanged.",
-        "Verify the authored behavior through actual candidate and installed MCP, verify normal installed daemon identity, record temporary-resource cleanup, commit and push only origin/master. Parent TODO23 and remaining original requirements are evaluated honestly after Java delivery, not closed merely because tests pass."
-      ],
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "finding": "EG01 scoped authored guidance in edit-session bookends",
+      "original_requirement": "Original instruction_capabilities priority1 and ocius_workflows priority1: same task-scoped authored guidance reaches planning, editing and review, with qualifications, live changes and explicit recovery.",
+      "observed_missing_behavior": "begin_edit_session and complete_edit_session return detect_incomplete_changes analysis and learned registry rules, but never resolve checked-out authored policy. Newly authored applicable guidance and its exceptions are absent from these edit bookends.",
+      "behavior": "Reuse project_policy for declared planned files when opening and declared edited files on completion. Resolve before lifecycle mutation, preserve full source/hash/recovery output, refresh after instruction edits, and label guidance as advisory rather than enforcement. Explicit no-edits completion remains no policy applicability analysis.",
       "implementation_files": [
-        "crates/engram_core/src/java_modules.rs",
-        "crates/engram_index/src/parsing/java_modules.rs",
-        "crates/engram_index/src/parsing.rs",
-        "crates/engram_index/src/source_contract.rs",
-        "crates/engram_graph/src/store/java_modules.rs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_server/src/services/ingest_service.rs",
-        "crates/engram_server/src/handlers/graph_tools.rs"
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/tests/edit_session_policy_tests.rs",
+        "docs/TOOL_CONTRACT.md"
       ],
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112",
-      "next_action": "Select the next unfinished accepted original backlog item; preserve all other open findings and full gates.",
-      "constraints": "One implementation item. No CodeMap/Blast changes, compiler/build-system infrastructure, dependency downloads, runtime-dispatch or full compiler claims. Preserve other unfinished original findings.",
-      "semantic_sources": [
-        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-7.html#jls-7.5",
-        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-6.html",
-        "https://docs.oracle.com/en/java/javase/26/docs/specs/jls/jls-15.html#jls-15.12"
+      "acceptance": [
+        "Installed baseline owned WebForms-shaped fixture demonstrates absent root/topic authored guidance.",
+        "Opening returns matching root/topic guidance and complete intentional exception while excluding unrelated topic; new unindexed planned paths can select guidance.",
+        "Completion resolves actual paths including scope drift and current instruction edits; oversized policy has explicit hash-bound full-file recovery.",
+        "Explicit empty completion does not substitute planned paths or evaluate guidance; existing lifecycle/identity checks pass.",
+        "Candidate and installed public cases verify the same behavior. One OciusX planned session receives existing map guidance and is closed with no edits; preserve source, existing sessions and configuration."
       ],
-      "public_baseline": {
-        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p127-java-modules-20261112\\baseline\\receipt.json",
-        "sha256": "54835aafc55eca1dc48ad8159b20f313df5575bdd12228ddee9c7e18b6e4fc25",
-        "server_sha256": "565d1cdc8eb5800e8957ae64b9561aca7c94887d19b35b8a72bc7bb532525505",
-        "observed": {
-          "RunType": {
-            "expected_file": "left/Api.java",
-            "actual_files": [
-              "::Save"
-            ],
-            "correct_unique_target": false
-          },
-          "RunStatic": {
-            "expected_file": "right/Api.java",
-            "actual_files": [
-              "::Save"
-            ],
-            "correct_unique_target": false
-          },
-          "RunQualified": {
-            "expected_file": "right/Api.java",
-            "actual_files": [
-              "::Save"
-            ],
-            "correct_unique_target": false
-          },
-          "RunReceiver": {
-            "expected_file": "left/Api.java",
-            "actual_files": [
-              "::Read"
-            ],
-            "correct_unique_target": false
-          }
-        }
-      },
-      "progress_receipt": "eval/p127-java-modules-progress-20261112.json",
-      "delivery_receipt": "eval/p127-java-modules-delivery-20261112.json",
-      "parent_acceptance": "eval/p127-todo23-acceptance-20261112.json"
+      "scope": "Existing session responses and shared policy resolver only. No graph/Blast/CodeMap changes, new policy engine, implicit code edits, instruction publication or session approval flow.",
+      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy",
+      "resource_retention": "Own fixture data/processes under this case; close handles before teardown. Retain source/test/build/runtime evidence and rollback package. Actual acceptance closes only its own new session and makes no application edits.",
+      "limits": [
+        "Guidance delivery is not semantic enforcement or proof of edit correctness.",
+        "Existing resolver discovery/source/output caps remain explicit; no full backlog/productivity claim."
+      ],
+      "remaining": [
+        "Advance next unfinished original OciusX requirement; preserve all failed/unproved outcomes."
+      ],
+      "source_commit": "7a603c39fdbf7057b668a26869959d4f007e9e45",
+      "progress": "eval/ociusx-edit-session-policy-progress-20261113.json",
+      "delivery": "eval/ociusx-edit-session-policy-delivery-20261113.json"
     },
     "s05_deletion_delivery_contract_20261111": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
