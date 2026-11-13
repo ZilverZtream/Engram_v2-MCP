@@ -40,31 +40,37 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DOCUMENTED_VALIDATED",
-    "finding": "TODO64 / EG26: document the actual integrity comparison",
-    "original_requirement": "TODO64 explicitly allows removing the unpopulated DOC_BY_ID comparison and documenting actual integrity coverage.",
-    "observed_missing_behavior": "Runtime removed the unused comparison in 009295e2982d8ecec98bb59b81b8d330df20894f. TOOL_CONTRACT and ARCHITECTURE still advertise docstore consistency/orphan detection; DEVELOPER_SPEC reports nine obsolete canaries instead of seven current cases.",
-    "behavior": "Document Tantivy/vector count checks, managed memory-source selection, graph cardinality reporting, repair policy, and absence of document-store/per-row identity validation. Reconcile TODO64 using its original alternative, not a new storage implementation.",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+    "finding": "EG20/EG21 filtered precedent retrieval: embed only eligible history",
+    "original_requirement": "Original tool_roi priority3: usable responsive search_history preserving file/author/date filters and historical cutoffs.",
+    "observed_missing_behavior": "handle_precedents builds and embeds all first-parent change cards before applying request filters. Retained actual OciusX one-file/two-second-window request took40.4903s with zero rerank budget; latency attribution to embedding is not yet measured.",
+    "behavior": "Apply identical request predicates before embedding new change cards. Preserve eligible cardinality, original first-parent order, cache identity, ranking and all exclusions. Empty candidate sets do not embed the query.",
     "implementation_files": [
+      "crates/engram_server/src/services/change_card_service.rs",
+      "crates/engram_server/src/handlers/git_tools.rs",
+      "crates/engram_server/tests/history_filter_embedding_tests.rs",
       "docs/TOOL_CONTRACT.md",
-      "docs/ARCHITECTURE.md",
-      "docs/DEVELOPER_SPEC.md",
-      "TODO.md"
+      "crates/engram_server/src/services/change_card_service/restart_measurement.rs"
     ],
     "acceptance": [
-      "Published documentation agrees with current service, seven canaries and retained installed OciusX evidence.",
-      "Runtime integrity source is unchanged from the previously verified delivery; no new runtime acceptance or productivity claimed.",
-      "Existing uncommitted work remains byte-identical; commit and push documentation only to origin/master."
+      "Public history request with a real authored Git fixture and owned Ollama-compatible endpoint embeds only eligible cards; excluded file/author/date/revision commits never reach provider.",
+      "Changing request filters can retrieve previously excluded cards; cached cards do not bypass filters; empty eligible set makes no provider request.",
+      "Existing history cutoff and response recovery checks pass; candidate/installed public behavior matches native.",
+      "Repeat the retained actual OciusX request once after deployment, compare returned change with independent Git evidence and report observed duration without a controlled speedup claim."
     ],
-    "scope": "Documentation completion of an already implemented original alternative; no runtime, schema, fixture, benchmark or production-data changes.",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-documentation",
-    "resource_retention": "Retain preserved-work pins and delivery verification in this one directory for review; no fixtures or external processes created.",
-    "config_relevance": "Actual OciusX config uses ollama/nomic-embed-text, so Tantivy/vector observations apply; no configuration changes.",
-    "evidence": "eval/ociusx-source-integrity-delivery-20261112.json",
+    "scope": "Move existing predicates ahead of embedding; no new deadlines, ranking tuning, history limits, cache subsystem or benchmark campaign.",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding",
+    "resource_retention": "New test fixtures and mock provider resources owned by this run; close handles before teardown. Retain build/package/acceptance evidence in this directory.",
+    "limits": [
+      "Metadata inventory still traverses the requested first-parent line. Unfiltered history still embeds the entire eligible line.",
+      "The old40.49s observation does not isolate current embedding cost or guarantee a target wall-clock speedup."
+    ],
     "remaining": [
-      "Full original backlog and all failed/unproved usefulness results remain."
+      "Build, verify candidate/installed behavior and deploy; actual OciusX result still pending."
     ],
-    "delivery": "eval/ociusx-integrity-documentation-20261113.json"
+    "progress": "eval/ociusx-history-filter-embedding-progress-20261113.json",
+    "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

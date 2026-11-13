@@ -1,0 +1,38 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+  "finding": "EG20/EG21 filtered precedent retrieval",
+  "installed_binary_sha256": "20fe0ec9704d3c44e3f71bfbd8cf50781fe9cbe93572e6c93307cd9471e8ebb7",
+  "observed": {
+    "eligible_results": 1,
+    "embedded_cards": 6,
+    "embedded_titles": [
+      "search_document: Title: Early policy",
+      "search_document: Title: Selected viewport override",
+      "search_document: Title: Wrong file",
+      "search_document: Title: Other author viewport",
+      "search_document: Title: Excluded companion",
+      "search_document: Title: Exclusive date boundary"
+    ],
+    "result_identity_correct": true
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\baseline2\\first-observation.json",
+  "baseline_sha256": "592af7c5ef0332a0543ee9f810786195ae68e5ce9b6678a018f9f65d7b519c26",
+  "fixture_setup_correction": "baseline1 failed before process creation because the new owned runtime subdirectory was not created. Directory creation corrected; baseline2 reproduces actual unnecessary embedding. Both fixture roots cleaned.",
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding",
+    "baseline_owners_closed": true,
+    "baseline_owned_temp_removed": true,
+    "native_test_session": null,
+    "owned_native_temp_removed": true
+  },
+  "remaining": [
+    "Build release, verify exact candidate and installed public requests, deploy.",
+    "Repeat retained actual OciusX request against installed result and independent Git evidence."
+  ],
+  "limits": [
+    "No runtime fix or speedup claimed yet. No ranking or query-scope changes."
+  ],
+  "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205",
+  "native_passed": 11,
+  "fixture_author_only_rerun_passed": 1
+}
