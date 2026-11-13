@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_RELEASE_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG01 scoped authored guidance in QA test planning",
     "original_requirement": "Make existing agent context workflows instruction-aware, preserving applicable complete guidance, qualifications, scope and evidence identity.",
     "observed_missing_behavior": "Current derive_test_matrix returns inferred business rules/configured axes but no project_policy_sources. Real OciusX diagnosis capture has no source-verified cases and omits the authored guide entirely. This does not establish that adding guidance would change the failed model answer.",
@@ -64,7 +64,9 @@
       "No changes to OciusX source, rules, configured model or sidecar."
     ],
     "progress": "eval/ociusx-matrix-policy-progress-20261113.json",
-    "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8"
+    "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8",
+    "delivery": "eval/ociusx-matrix-policy-delivery-20261113.json",
+    "remaining": "Selected scoped QA guidance delivered. Advance the next unfinished original OciusX requirement; do not repeat matrix checks or reopen the failed model benchmark without a separate justified requirement."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -224,5 +226,6 @@
       "delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
     },
     "latency_blocker_delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
-  }
+  },
+  "matrix_policy_delivery_20261113": "eval/ociusx-matrix-policy-delivery-20261113.json"
 }

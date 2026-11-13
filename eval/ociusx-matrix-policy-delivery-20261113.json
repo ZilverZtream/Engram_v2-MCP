@@ -1,0 +1,112 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T10:48:39.740346+00:00",
+  "finding": "EG01 scoped authored guidance in QA test planning",
+  "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8",
+  "original_requirement": "Supply applicable authored guidance in existing agent context workflows, preserving scope, complete exceptions and explicit evidence gaps.",
+  "before": "derive_test_matrix supplied inferred cases and configured/graph axes, but omitted applicable repository instructions; the actual OciusX KML task had no source-verified cases and no authored guidance.",
+  "after": [
+    "Current test matrices include complete scoped repository guidance and source hashes separately from inferred cases, even when inferred cases are unavailable.",
+    "Existing resolver excludes unrelated topics, reflects instruction edits without reindexing, and explicitly identifies oversized complete sources with recovery instructions.",
+    "knowledge_before requests withhold live repository guidance rather than presenting it as historical policy."
+  ],
+  "validation": {
+    "native_passed": 3,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1.json",
+      "sha256": "46a649e4ecef266fb85c940a97037dfeb6fdd68c9dd12f4a5267c48f9a2e283d"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\release1.json",
+      "sha256": "9911aad5f5b6fb690268eb23d14ec9927d47281c5c2130288ce336b13735e99f"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\candidate1\\acceptance.json",
+      "sha256": "cd67c33b6c41607fa13fa9ec3cb9c25129c8774ecc0f654d1f8590ace96e1a4e"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\installed1\\acceptance.json",
+      "sha256": "f6d0f9c36b53cf87a3dea27fe1ea247e0f3aaea169d4d1d37bce7ce33f5dfd64"
+    },
+    "actual_ociusx_checks": {
+      "complete_applicable_guide": true,
+      "complete_root_guidance": true,
+      "exact_guide_hash": true,
+      "oversized_shared_guidance_recovery": true,
+      "execution_not_claimed": true,
+      "historical_withheld": true
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\baseline.json",
+      "sha256": "83848847189a15f1310ff61c99a7315b153500fc03ad735ebb12ca683b76cc06"
+    },
+    "installed_current_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\installed1\\current.md",
+      "sha256": "193f220423d147ac941c7cb545cb5acad5d7cf6348ddd3fd3ad280d71dd5563f"
+    },
+    "installed_historical_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\installed1\\historical.md",
+      "sha256": "0a91821cfab2cdfc6b02d34089cab8f962fe22e055baed1cdf5ecff528ea9c14"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\deployment2-state.json",
+      "sha256": "e569495416aba3adb78f584f98ab3ebd7ea2779e2ffa01c04d601f38432abe65"
+    }
+  },
+  "runtime": {
+    "server_sha256": "41abefdacad699d244d7c32b88871bbe756e41af8e45a0ba8aaca167fb9f3a91",
+    "manifest_sha256": "ca61487285b3205a0f23911ea88845811362928c93be3029303c6b834716cd36",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "source_generation": 3149,
+    "sidecar_changed": false
+  },
+  "preserved": {
+    "ociusx_source_and_guidance_unchanged": true,
+    "configuration_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy",
+    "native_fixtures_removed": true,
+    "build_job_closed_and_temp_removed": true,
+    "candidate_and_installed_owned_temp_removed": true,
+    "owned_runtime_config_removed": true,
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\matrix-policy1-config-hold.json.released.json",
+      "sha256": "c6e9db0bd68770ca035b8cf4c101288d87f3d7091ddf61466f7b07cf1ad059e8"
+    },
+    "retained_old_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-f111168c31ab47159cbf27a67fb2cd1c",
+    "retention": "Retain release package, read-only response evidence and rollback pair for review. Reused source checkout remains retained to protect WIP9 and support remaining backlog. No preexisting folders deleted."
+  },
+  "retained_interruption": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\deployment1-state.json",
+      "sha256": "f860c5b3857b92de553359eeaef1313d260d28cd591ddbe7a99ebc6ec59201c4"
+    },
+    "reason": "Initial installer driver detected active primary before config hold or installation; package unchanged. Resume driver closed only identified idle proxy after verifying no active jobs, then allowed daemon natural idle shutdown.",
+    "proxy_closure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\proxy-stop.json",
+      "sha256": "dc73aeda855be647bbbdfc7b5f0af14ea73f19a214ac09fd16e0ba4bf2434ee9"
+    }
+  },
+  "review": {
+    "kind": "Parent source review; retained CodeRabbit host authentication unavailable, no external review claimed.",
+    "checked": [
+      "Reuses existing resolver/budgets without altering discovery or scope semantics.",
+      "Entire guidance documents rendered separately from inference; explicit omissions retain hashes and recovery.",
+      "knowledge_before never invokes live-policy resolver.",
+      "Only requested paths select guidance; no broader graph crawl or model call.",
+      "Fixtures drop Engram before explicit TempDir close; unwind declaration order closes server first."
+    ]
+  },
+  "limits": [
+    "Guidance delivery is not semantic policy enforcement, executed application QA or demonstrated productivity.",
+    "Earlier current-producer task evaluation remains failed (assisted19/20, baseline20/20); no model replay or quality-uplift claim.",
+    "Release gates cover applicability to this read-only response delta, not closure of all19 original storage gates.",
+    "CodeRabbit host authentication remained unavailable; parent manual review only. Broader original backlog remains active."
+  ]
+}
