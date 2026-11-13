@@ -96,5 +96,55 @@
     "actual_v3_request_sent": false,
     "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
     "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
+  },
+  "actual_v3": {
+    "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
+    "at_utc": "2026-11-13T01:28:13.289665+00:00",
+    "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+    "installed_server_sha256": "667535db745757517518efb227249720841f501cc2956d54c3a09ad4f3402a3e",
+    "installed_manifest_sha256": "fbcee589553cc09784f2d7e0929777bb1fbbc97f378bbc1e312f053ac2e864b9",
+    "candidate_public": "PASS",
+    "installed_public": "PASS",
+    "actual_request": {
+      "status": "FAIL",
+      "pair_sha256": "8cecaf63f65ffd12e86eed96b0c1e0121ee4083e3dd42c91576622a7a4de11a0",
+      "process_identity": {
+        "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+        "created_ticks": 134390065902005081
+      },
+      "driver_sha256": "cb47cd32937e47c2b90e2d00ff2ef6cc4e9908fd4a5da2e60bb0974401fb7c79",
+      "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+      "seconds": 118.09597530006431,
+      "error": "AssertionError()",
+      "pipe_closed": true
+    },
+    "actual_response_status": "DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW",
+    "intent_requirements": 5,
+    "implementation_steps": 0,
+    "all_requirements_unresolved": true,
+    "semantic_acceptance": false,
+    "observed_gap": "The planner takes the first12 file candidates and omits the registered minimum-photo user control and code-behind at candidate ranks31/32. The selected host explicitly registers that control at line6. Existing page_composition::collect already supports bounded registered-control/code-behind discovery. Current evidence includes capacity settings but omits the existing minimum editor; a generic unresolved dossier is not the requested executable plan.",
+    "source_review": {
+      "all_returned_excerpts_match_current_source": true,
+      "baseline_eight_observations_unchanged": true,
+      "registered_control": {
+        "host": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+        "line": 6,
+        "directive": "<%@ Register TagPrefix=\"uc\" TagName=\"imageGroupLabel\" Src=\"~/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx\" %>",
+        "control": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx",
+        "omitted": true
+      }
+    },
+    "next": "Within one_shot_feature_plan only, retain bounded source evidence for explicitly registered WebForms controls/code-behind of selected hosts using existing composition support. Add one public case where a relevant registered control falls outside the initial candidate prefix. Preserve source admission/freshness, explicit overflow and unchanged get_change_set ranking. Then verify the same actual story; no new pilot or language expansion.",
+    "resources": {
+      "build_job_closed": true,
+      "build_temp_removed": true,
+      "candidate_and_installed_fixtures_removed": true,
+      "config_hold_released": true,
+      "actual_pipe_closed": true,
+      "retained_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+      "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
+      "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
+    }
   }
 }

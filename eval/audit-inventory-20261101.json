@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "INTENT_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+      "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10003,12 +10003,12 @@
       ],
       "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
       "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
-      "prior_turn_classification": "PROGRESS: retained actual v2 result identified a precise previously unknown parser/prompt mismatch. Current turn implemented and native/public validated its correction.",
+      "prior_turn_classification": "PROGRESS: v3 release built/deployed; candidate/installed passed. Single actual request proved intent fix and exposed omitted registered-control evidence, changing the next implementation action.",
       "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
       "progress": "eval/ociusx-feature-plan-progress-20261113.json",
       "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
       "correction": {
-        "status": "CORRECTION_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "status": "SUPERSEDED_BY_DEPLOYED_V3",
         "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
         "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
         "native_checks": 9,
@@ -10019,8 +10019,8 @@
           "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
           "Cited already-present requirement claims do not force invented edits; semantic review remains required."
         ],
-        "deployed": false,
-        "actual_v2_request_sent": false
+        "deployed": true,
+        "actual_v2_request_sent": true
       },
       "actual_v2": {
         "status": "FAIL_INVALID_INTENT_CONTRACT",
@@ -10032,17 +10032,67 @@
         "version2_deployed": true
       },
       "intent_correction": {
-        "status": "INTENT_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "status": "DEPLOYED_INTENT_PASSED_REAL_PLAN_STILL_UNUSABLE",
         "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
         "main_merge_commit": "a9bffca07d6c3876fc5bec78473158b636fc6365",
         "native_checks": 10,
         "public_calls": 9,
         "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native4.json",
         "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public3\\acceptance.json",
-        "deployed": false,
-        "actual_v3_request_sent": false,
+        "deployed": true,
+        "actual_v3_request_sent": true,
         "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
         "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
+      },
+      "actual_v3": {
+        "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
+        "at_utc": "2026-11-13T01:28:13.289665+00:00",
+        "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+        "installed_server_sha256": "667535db745757517518efb227249720841f501cc2956d54c3a09ad4f3402a3e",
+        "installed_manifest_sha256": "fbcee589553cc09784f2d7e0929777bb1fbbc97f378bbc1e312f053ac2e864b9",
+        "candidate_public": "PASS",
+        "installed_public": "PASS",
+        "actual_request": {
+          "status": "FAIL",
+          "pair_sha256": "8cecaf63f65ffd12e86eed96b0c1e0121ee4083e3dd42c91576622a7a4de11a0",
+          "process_identity": {
+            "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+            "created_ticks": 134390065902005081
+          },
+          "driver_sha256": "cb47cd32937e47c2b90e2d00ff2ef6cc4e9908fd4a5da2e60bb0974401fb7c79",
+          "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+          "seconds": 118.09597530006431,
+          "error": "AssertionError()",
+          "pipe_closed": true
+        },
+        "actual_response_status": "DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW",
+        "intent_requirements": 5,
+        "implementation_steps": 0,
+        "all_requirements_unresolved": true,
+        "semantic_acceptance": false,
+        "observed_gap": "The planner takes the first12 file candidates and omits the registered minimum-photo user control and code-behind at candidate ranks31/32. The selected host explicitly registers that control at line6. Existing page_composition::collect already supports bounded registered-control/code-behind discovery. Current evidence includes capacity settings but omits the existing minimum editor; a generic unresolved dossier is not the requested executable plan.",
+        "source_review": {
+          "all_returned_excerpts_match_current_source": true,
+          "baseline_eight_observations_unchanged": true,
+          "registered_control": {
+            "host": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+            "line": 6,
+            "directive": "<%@ Register TagPrefix=\"uc\" TagName=\"imageGroupLabel\" Src=\"~/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx\" %>",
+            "control": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx",
+            "omitted": true
+          }
+        },
+        "next": "Within one_shot_feature_plan only, retain bounded source evidence for explicitly registered WebForms controls/code-behind of selected hosts using existing composition support. Add one public case where a relevant registered control falls outside the initial candidate prefix. Preserve source admission/freshness, explicit overflow and unchanged get_change_set ranking. Then verify the same actual story; no new pilot or language expansion.",
+        "resources": {
+          "build_job_closed": true,
+          "build_temp_removed": true,
+          "candidate_and_installed_fixtures_removed": true,
+          "config_hold_released": true,
+          "actual_pipe_closed": true,
+          "retained_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+          "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
+          "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
+        }
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
