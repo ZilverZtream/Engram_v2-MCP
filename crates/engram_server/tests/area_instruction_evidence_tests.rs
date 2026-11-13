@@ -769,6 +769,70 @@ fn noisy_noncallable_declarations_do_not_hide_complete_external_consumers_or_wid
 }
 
 #[test]
+fn captured_large_vb_source_supplies_instruction_references_in_both_versions() {
+    owned_case(|mut fixture| async move {
+        let path = "src/area/large-spatial.vb";
+        let before = format!(
+            "Namespace Maps\nPublic Class SpatialService\nPublic Function PrepareViewport() As Integer\nReturn 7\nEnd Function\nEnd Class\nEnd Namespace\n' {}\n",
+            "padding".repeat(22_000)
+        );
+        assert!(before.len() > 128 * 1024 && before.len() < 256 * 1024);
+        let after = before.replace("Return 7", "Return 42");
+        let policy = "---\napplyTo: 'src/area/**'\n---\nSpatialService owns the prepared viewport. Preserve `PrepareViewport`.\n";
+        std::fs::write(fixture.root.join(POLICY), policy).unwrap();
+        std::fs::write(fixture.root.join(path), &before).unwrap();
+        fixture.request["instruction_maintenance"]["base_commit"] = json!(commit(&fixture.root));
+        std::fs::write(fixture.root.join(path), &after).unwrap();
+        let repaired = fixture.engram.handle_repair_project(serde_json::from_value(json!({
+            "project_id":PID,"scope":"full","max_commits":0,"index_antipatterns":false
+        })).unwrap()).await.unwrap();
+        assert!(!repaired.is_error.unwrap_or(false));
+        fixture.request["instruction_maintenance"]["area_context"]["scope"] = json!(path);
+        fixture.request["instruction_maintenance"]["instruction_paths"] = json!([POLICY]);
+        fixture.request["instruction_maintenance"]["new_instruction_targets"][0]["area_scope"] = json!([path]);
+        let report = call(&fixture.engram, fixture.request.clone()).await.unwrap();
+        let manifest = &report["packet"]["instruction_manifest"];
+        for (version, body) in [("before", &before), ("after", &after)] {
+            assert_eq!(evidence(&report, path, version)["content"], body.as_str());
+            let inventory = manifest["symbol_inventory"].as_array().unwrap().iter()
+                .find(|row| row["path"] == path && row["version"] == version).unwrap();
+            assert!(inventory["retained_candidates"].as_u64().unwrap() >= 2,
+                "Captured large VB source silently lost its declarations: {inventory}");
+            for name in ["SpatialService", "PrepareViewport"] {
+                let reference = manifest["symbol_references"].as_array().unwrap().iter()
+                    .find(|row| row["source_path"] == POLICY && row["version"] == version && row["literal"] == name)
+                    .expect("Authored class/method reference must survive source capture");
+                let candidate = reference["candidates"].as_array().unwrap().iter()
+                    .find(|row| row["path"] == path).unwrap();
+                assert_eq!(candidate["source_blake3"], blake3::hash(body.as_bytes()).to_hex().to_string());
+                let start = candidate["byte_range"][0].as_u64().unwrap() as usize;
+                let end = candidate["byte_range"][1].as_u64().unwrap() as usize;
+                assert!(body[start..end].contains(name));
+                assert_eq!(candidate["evidence_blake3"], blake3::hash(body[start..end].as_bytes()).to_hex().to_string());
+                assert_eq!(candidate["absence_proof"], false);
+            }
+        }
+        assert_eq!(std::fs::read_to_string(fixture.root.join(POLICY)).unwrap(), policy);
+        assert_eq!(std::fs::read_to_string(fixture.root.join(path)).unwrap(), after);
+        assert_eq!(report["authored_files_written"], 0);
+        assert!(!fixture.root.join(OUTPUT).exists());
+        assert!(!fixture.root.join(PROVENANCE).exists());
+    });
+}
+
+#[test]
+fn vb_snapshot_inventory_accepts_the_capture_boundary_and_refuses_larger_source_explicitly() {
+    use engram_index::vb_extractor::{SNAPSHOT_DECLARATION_MAX_BYTES, snapshot_declaration_candidates};
+    let mut source = "Public Class AtBoundary\nEnd Class\n' ".to_string();
+    source.push_str(&"x".repeat(SNAPSHOT_DECLARATION_MAX_BYTES - source.len()));
+    let declarations = snapshot_declaration_candidates(&source).unwrap();
+    assert!(declarations.iter().any(|item| item.name.ends_with("AtBoundary")));
+    source.push('x');
+    assert!(snapshot_declaration_candidates(&source).is_err(),
+        "An unexamined oversized source must never look like a successful empty inventory");
+}
+
+#[test]
 fn oversized_known_consumers_have_executable_range_recovery_and_real_callee_remaps_preserve_only_current_calls()
  {
     owned_case(|mut fixture| async move {

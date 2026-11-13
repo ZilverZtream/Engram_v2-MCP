@@ -2722,14 +2722,19 @@ fn fallback_method_metadata(source: &str, start_line: usize) -> HashMap<String, 
     meta
 }
 
+/// Matches the maximum already-admitted automatic area-code snapshot. Manual
+/// evidence and authored guidance keep their separate, smaller capture limits.
+pub const SNAPSHOT_DECLARATION_MAX_BYTES: usize = 256 * 1024;
+
 /// Positive declaration candidates from these exact bytes only. Never starts
 /// Roslyn or consults project state. Regex candidates have declaration-line
 /// ranges only; an empty result cannot establish symbol absence or deletion.
-pub fn snapshot_declaration_candidates(source: &str) -> Vec<ExtractedSymbol> {
-    if source.len() > 128 * 1024 {
-        return Vec::new();
+/// A refused source is an explicit error, never a successful empty inventory.
+pub fn snapshot_declaration_candidates(source: &str) -> Result<Vec<ExtractedSymbol>, &'static str> {
+    if source.len() > SNAPSHOT_DECLARATION_MAX_BYTES {
+        return Err("VB snapshot declaration source exceeds 256 KiB");
     }
-    fallback_extract_vb(Path::new("captured-snapshot.vb"), source).0
+    Ok(fallback_extract_vb(Path::new("captured-snapshot.vb"), source).0)
 }
 
 /// Eval/test entry to the degraded-mode extractor: deterministic (no
