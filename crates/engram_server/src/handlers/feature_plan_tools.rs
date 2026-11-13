@@ -19,6 +19,28 @@ use std::{
 const MAX_SOURCE_FILES: usize = 24;
 const MAX_COMPOSITION_HOSTS: usize = 4;
 
+fn is_webforms_markup(path: &str) -> bool {
+    let path = path.to_ascii_lowercase();
+    path.ends_with(".aspx") || path.ends_with(".ascx")
+}
+
+fn initial_source_paths(paths: &[String]) -> Vec<String> {
+    let mut selected: Vec<_> = paths.iter().take(plan::MAX_FILES).cloned().collect();
+    // A ranked prefix can contain only libraries, schemas and translations.
+    // Reserve source slots for WebForms hosts so their editor components can
+    // be discovered without changing the underlying change-set ranking.
+    for path in paths
+        .iter()
+        .filter(|path| is_webforms_markup(path))
+        .take(MAX_COMPOSITION_HOSTS)
+    {
+        if !selected.contains(path) {
+            selected.push(path.clone());
+        }
+    }
+    selected
+}
+
 fn registered_components(
     directory: &Path,
     host: &SourceEvidence,
@@ -45,6 +67,28 @@ fn registered_components(
 #[cfg(test)]
 mod feature_plan_composition_tests {
     use super::*;
+
+    #[test]
+    fn webforms_hosts_survive_a_non_ui_candidate_prefix_without_reordering_it() {
+        let mut paths: Vec<_> = (0..20)
+            .map(|i| format!("Resources/translation{i}.resx"))
+            .collect();
+        paths.extend(
+            [
+                "Admin/Import.aspx",
+                "Admin/Settings.aspx",
+                "Other/Example.aspx",
+                "Other/Fourth.aspx",
+                "Other/Fifth.aspx",
+            ]
+            .map(String::from),
+        );
+        let selected = initial_source_paths(&paths);
+        assert_eq!(&selected[..12], &paths[..12]);
+        assert!(selected.contains(&"Admin/Settings.aspx".to_string()));
+        assert_eq!(selected.len(), 16);
+        assert!(!selected.contains(&"Other/Fifth.aspx".to_string()));
+    }
 
     #[test]
     fn registered_editor_and_codebehind_are_found_but_changed_host_is_withheld() {
@@ -222,7 +266,7 @@ impl Engram {
         let mut output = json!({
             "status": "INCOMPLETE", "project_id": req.project_id,
             "detail_level": req.detail_level, "plan": null,
-            "provenance": {"model": identity, "prompt_version":"feature-plan-v4", "provider_calls":0,
+            "provenance": {"model": identity, "prompt_version":"feature-plan-v5", "provider_calls":0,
                 "provider_calls_semantics":"Generation requests; transport retries follow the configured provider policy"},
             "limits": [
                 "Model-generated requirements, edits, DDL and templates are proposals; source anchors do not verify their meaning.",
@@ -351,11 +395,7 @@ impl Engram {
             }
         };
         let paths = path_candidates(&change_set, &patterns);
-        let source_paths = paths
-            .iter()
-            .take(plan::MAX_FILES)
-            .cloned()
-            .collect::<Vec<_>>();
+        let source_paths = initial_source_paths(&paths);
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let directory = record.directory.clone();
@@ -392,8 +432,7 @@ impl Engram {
                 })();
                 match admitted {
                     Ok(row) => {
-                        let markup = path.to_ascii_lowercase();
-                        if markup.ends_with(".aspx") || markup.ends_with(".ascx") {
+                        if is_webforms_markup(&path) {
                             if composition.len() < MAX_COMPOSITION_HOSTS {
                                 let mut found = registered_components(Path::new(&directory), &row);
                                 let mut omitted = Vec::new();
