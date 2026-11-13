@@ -811,11 +811,18 @@ pub fn companion_evidence(
 pub const DEFINITION_BODY_LINES: usize = 60;
 
 fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<String> {
+    definition_excerpt(&definition_source(dir, rel)?, a, b)
+}
+
+fn definition_source(dir: &std::path::Path, rel: &str) -> Option<String> {
     let full = engram_core::safe_join(dir, rel).ok()?;
     if std::fs::metadata(&full).ok()?.len() > 4 * 1024 * 1024 {
         return None;
     }
-    let text = std::fs::read_to_string(&full).ok()?;
+    std::fs::read_to_string(&full).ok()
+}
+
+fn definition_excerpt(text: &str, a: u32, b: u32) -> Option<String> {
     let start = (a.max(1) as usize) - 1;
     let end = (b as usize)
         .max(start + 1)
@@ -838,6 +845,86 @@ fn definition_body(dir: &std::path::Path, rel: &str, a: u32, b: u32) -> Option<S
         s.truncate(cut);
     }
     Some(s)
+}
+
+/// Keep the types/defaults of same-file members beside the method that uses
+/// their names. These are source context, not a receiver-binding claim. Reuse
+/// the loaded source and the existing 4 KB body allowance; no recursive walk.
+fn add_member_context(
+    graph: &GraphStore,
+    project_id: &str,
+    target: &Node,
+    source: &str,
+    body: &mut String,
+    warnings: &mut Vec<String>,
+) {
+    if !matches!(target.node_type.as_str(), "function" | "method" | "constructor") {
+        return;
+    }
+    let insensitive = target.language == "vbnet";
+    let normalize = |s: &str| if insensitive { s.to_lowercase() } else { s.to_string() };
+    let names: std::collections::HashSet<_> = body
+        .split(|c: char| !c.is_alphanumeric() && c != '_')
+        .filter(|name| !name.is_empty())
+        .map(normalize)
+        .collect();
+    // Reuse bounded file navigation, which never scans the whole project.
+    // Context must share the primary definition's graph revision; this does
+    // not upgrade that definition's source-verification or binding authority.
+    let admit = |node: &Node, _file: Option<&Node>| {
+        Ok(if node.file_path == target.file_path && node.generation == target.generation
+            && node.namespace == target.namespace {
+            engram_graph::store::ImpactAdmission::Selected
+        } else {
+            engram_graph::store::ImpactAdmission::NonSelectedRevision
+        })
+    };
+    let (ids, coverage) = match graph.bounded_file_navigation_seeds(
+        project_id, &[target.file_path.as_str().to_string()], &admit,
+    ) {
+        Ok(found) => found,
+        Err(_) => {
+            warnings.push("Same-file member context unavailable; primary definition retained.".into());
+            return;
+        }
+    };
+    let mut omitted = coverage.truncated;
+    let mut members = Vec::new();
+    for id in ids {
+        match graph.get_node(project_id, &id) {
+            Ok(Some(node)) => members.push(node),
+            _ => omitted = true,
+        }
+    }
+    members.retain(|node| {
+        matches!(node.node_type.as_str(), "property" | "field" | "constant")
+            && node.start_line > 0 && node.generation == target.generation
+            && (node.end_line < target.start_line || node.start_line > target.end_line)
+            && names.contains(&normalize(node.name.rsplit('.').next().unwrap_or(&node.name)))
+    });
+    members.sort_by_key(|node| (node.start_line, node.node_id.clone()));
+    let mut added = 0;
+    for member in members {
+        // One preceding line retains an adjacent type/default explanation.
+        let start = member.start_line.saturating_sub(1).max(1);
+        let Some(excerpt) = definition_excerpt(source, start, member.end_line) else { continue };
+        let context = format!(
+            "\n\nSame-file member context (name match, binding unverified): {} [{}:{}-{}]\n{}",
+            member.name, member.file_path, start, member.end_line, excerpt
+        );
+        if added == 6 || body.len() + context.len() > 4000 {
+            omitted = true;
+            continue;
+        }
+        body.push_str(&context);
+        added += 1;
+    }
+    if added > 0 {
+        warnings.push("Member context excerpts have their own labeled source spans; lines identifies the primary symbol. Name matches do not establish receiver binding or complete dependencies.".into());
+    }
+    if omitted {
+        warnings.push("Same-file member context is partial under the definition source budget; inspect the full file for additional declarations.".into());
+    }
 }
 
 /// Round-4 P0-2: a typed answer member — the ANSWER as identity, not prose.
@@ -1427,14 +1514,19 @@ pub fn definition_evidence(
     // source lines ARE the evidence a question about its body needs (the
     // callee it names, the guard it performs); "is defined in … lines a-b"
     // alone left every named term uncovered and the answer Unsupported.
+    let mut context_warnings = Vec::new();
     let content = match (project_dir, path.as_deref(), lines) {
-        (Some(dir), Some(p), Some((a, b))) => match definition_body(dir, p, a, b) {
-            Some(body) => format!("{content}\n{body}"),
+        (Some(dir), Some(p), Some((a, b))) => match definition_source(dir, p)
+            .and_then(|source| definition_excerpt(&source, a, b).map(|body| (source, body))) {
+            Some((source, mut body)) => {
+                add_member_context(graph, project_id, &n, &source, &mut body, &mut context_warnings);
+                format!("{content}\n{body}")
+            }
             None => content,
         },
         _ => content,
     };
-    let item = graph_relation_item(
+    let mut item = graph_relation_item(
         "definition",
         node_id.to_string(),
         path,
@@ -1447,5 +1539,6 @@ pub fn definition_evidence(
         Authority::CurrentCode,
         id,
     );
+    item.warnings.extend(context_warnings);
     (vec![item], ProviderOutcome::hit())
 }
