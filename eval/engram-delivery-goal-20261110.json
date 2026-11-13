@@ -40,8 +40,8 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
-    "remaining": "Finish release6, optimized candidate and installed CRLF checks, then one actual OciusX request with independent source review. Earlier failed proposals remain invalid and retained.",
+    "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "remaining": "Build release7, verify optimized candidate and installed public cases, then one actual read-only OciusX request and independent source/semantic review.",
     "progress": "eval/ociusx-feature-plan-progress-20261113.json"
   },
   "previous_delivery": {

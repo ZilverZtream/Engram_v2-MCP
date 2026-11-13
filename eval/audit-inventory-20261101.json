@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+      "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10272,6 +10272,36 @@
         "behavior": "Compare page_composition normalized ContentHash with the same normalization of already admitted host bytes. Raw BLAKE3 source-admission/citation/final-freshness hashes remain unchanged. No change to ContentHash or the shared composition reader.",
         "validation": "CRLF native/public sources discover registered editor and code-behind; a changed host is withheld. Public case verifies every source citation against raw bytes, preserves concrete step order from grouped summaries, and refuses changes to component source during generation.",
         "review": "Parent reviewed both hash conventions against ContentHash::compute and page_composition::collect. Four actual unchanged CRLF hosts independently reproduce the old mismatch. Existing CodeRabbit authentication unavailable; no external review claimed."
+      },
+      "v6_outcome": {
+        "status": "REAL_SOURCE_ASSEMBLY_REJECTED",
+        "release6": "PASS_NOT_INSTALLED",
+        "actual_seconds": 500.16692990006413,
+        "validation": {
+          "kind": "structural_or_source_check",
+          "message": "Plan exceeds file cap"
+        },
+        "new_files": 4,
+        "modified_files": 11,
+        "verified_source_files": 22,
+        "composition_warnings": 0,
+        "conclusion": "CRLF source-discovery correction worked: existing required-count editor and save/validation code admitted. Model still proposed duplicate page/store and 15 files. Do not increase cap or accept proposal.",
+        "next": "Reconcile existing behavior before assembling edits. Validate revised assembly on retained unchanged real-source context before paying for another release cycle. Keep two generation calls and existing bounds/reference checks.",
+        "resources": "Actual request terminal; pipe closed. Debug daemon PID76244 last observed live, await natural idle exit; packages and diagnostics retained in this CASE. No installed swap or preexisting cleanup."
+      },
+      "assembly_correction": {
+        "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "source_commit": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
+        "main_merge_commit": "0d92fe9e08c1fc396d4422f198bf44fc796fe8a6",
+        "native_checks": 13,
+        "public_calls": 12,
+        "deployed": false,
+        "actual_installed_request_sent": false,
+        "behavior": "Reconcile requirement dispositions with existing source before edit assembly. After a bounded rejected proposal, make at most one correction request with the same evidence and fixed validation diagnostic. Preserve first rejection; apply unchanged path/citation/file/step checks, new-file collision checks, method safety and final source/generation freshness checks. Two normal generation requests, maximum three including correction; configured transport retries unchanged.",
+        "validation": "Public fixture proves corrected plan recovery, refusal after second invalid proposal without a fourth call, safe correction-provider failure, source-change refusal during correction, existing CRLF composition/source checks, detail levels and disabled provider.",
+        "diagnostic": "Retained actual OciusX context: initial revised assembly failed with undeclared step paths; one configured-provider correction returned zero edits/steps, two source-cited existing-behavior findings and two unresolved requirements. All 22 source excerpts independently matched current raw hashes. This is a diagnostic, not installed acceptance or a semantic/productivity proof.",
+        "review": "Parent manual review: no validator or cap weakened, no unbounded loop, oversized rejection does not enter correction, rejected data remains separate, no raw provider errors, snapshot ownership and final freshness remain after correction. CodeRabbit host authentication unavailable in retained evidence; no external review claimed.",
+        "remaining": "Build release7, verify optimized candidate and installed public cases, then one actual read-only OciusX request and independent source/semantic review."
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
