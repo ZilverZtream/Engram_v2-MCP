@@ -280,7 +280,7 @@ async fn session_bookends_track_scope_drift() {
                 project_id: pid.clone(),
                 session_id: None,
                 session_revision: None,
-                edited_files: vec!["a.aspx".into()],
+                edited_files: Some(vec!["a.aspx".into()]),
                 dossier: None,
             },
         ))
@@ -305,7 +305,7 @@ async fn session_bookends_track_scope_drift() {
                 project_id: pid.clone(),
                 session_id: None,
                 session_revision: None,
-                edited_files: vec!["a.aspx".into()],
+                edited_files: Some(vec!["a.aspx".into()]),
                 dossier: None,
             },
         ))
