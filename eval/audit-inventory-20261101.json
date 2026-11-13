@@ -9986,7 +9986,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_FOCUSED_TESTS_RUNNING_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_RELEASE_BUILD_RUNNING",
       "finding": "EG01 scoped authored guidance in QA test planning",
       "original_requirement": "Make existing agent context workflows instruction-aware, preserving applicable complete guidance, qualifications, scope and evidence identity.",
       "observed_missing_behavior": "Current derive_test_matrix returns inferred business rules/configured axes but no project_policy_sources. Real OciusX diagnosis capture has no source-verified cases and omits the authored guide entirely. This does not establish that adding guidance would change the failed model answer.",
@@ -10009,7 +10009,8 @@
         "Authored guidance delivery is not semantic enforcement, executed QA or proven productivity.",
         "No changes to OciusX source, rules, configured model or sidecar."
       ],
-      "progress": "eval/ociusx-matrix-policy-progress-20261113.json"
+      "progress": "eval/ociusx-matrix-policy-progress-20261113.json",
+      "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",

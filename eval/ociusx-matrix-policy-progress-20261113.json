@@ -1,6 +1,6 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_TESTS_RUNNING_NOT_DEPLOYED",
-  "at_utc": "2026-11-13T10:17:07.820328+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T10:22:04.029883+00:00",
   "finding": "EG01 scoped authored guidance in QA test planning",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "source_files": {
@@ -10,14 +10,14 @@
   },
   "behavior": "derive_test_matrix reuses existing scoped policy resolver and complete-source rendering; historical knowledge_before withholds live guidance. Inferred cases and scope/recovery limits remain distinct.",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\baseline.json",
-  "test_session": 43128,
+  "test_session": null,
   "test_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1.log",
   "test_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1.json",
   "tests": [
     "matrix_policy_tests",
     "matrix_rule_warning_tests"
   ],
-  "next_action": "Poll exact session43128. Do not edit frozen source while native1 runs. If passing, commit source, merge preserving WIP9, build release with existing build.py copied to this case and shared target, verify actual OciusX matrix guidance/cutoff, deploy and record installed identity. No model evaluation replay.",
+  "next_action": "Poll exact release session44069. After terminal PASS, run release.py package, then deploy.py from the recorded case (candidate actual OciusX current/historical matrix, delta gates, ValidateUpgrade/Upgrade, installed same checks, owned config-hold release). Do not rebuild/restart on observation timeout; no model replay. Record installed identity and advance original backlog.",
   "manual_review": {
     "kind": "Parent source review; retained CodeRabbit host authentication unavailable, no external review claimed.",
     "checked": [
@@ -31,11 +31,24 @@
   "resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy",
     "fixture_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1-temp",
-    "cleanup": "Runner owns temp and records leftovers after test completion; source checkout is preexisting and retained. No preexisting deletion."
+    "cleanup": "Runner owns temp and records leftovers after test completion; source checkout is preexisting and retained. No preexisting deletion.",
+    "fixture_temp_removed": true,
+    "release_owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\edit-workload-focused-f8tvnhc3"
   },
   "limits": [
-    "Tests are currently compiling, not yet passing.",
-    "Candidate/installed validation and deployment pending.",
-    "Does not establish quality uplift or close EG24/25."
-  ]
+    "Three focused public behavior checks passed; candidate and installed acceptance/deployment pending.",
+    "No model quality or productivity uplift claimed; EG24/25 remain open."
+  ],
+  "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8",
+  "native_passed": 3,
+  "release_session": 44069,
+  "release_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\release1.json",
+  "runtime_verification_helpers": {
+    "build.py": "c6b8a9304399203cb2d7d2d1a76da5e00667fd835814257bbe84c796ac7a031f",
+    "release.py": "2148d3d2d788a1b460ad7f546bc5ad1f21fc6d24fb79441ca4450160c2bbd035",
+    "verify-runtime.py": "f4f4dc411826b2e613a3cd639e545113ac1d58a2b7ed300eaf2f5382b0d7409e",
+    "deploy.py": "1933fa042d5a46ddcb78285f238eb9f5adce429ea71cf2625a46c5284eab19f6",
+    "hold-config.ps1": "5fc69e7f201e048f54557df0482ab18ce31662ba1e604a9264f573f38b26beb0",
+    "install.ps1": "d77a25b847f2ddd1a842ac62b3602f7432357ff22aee6ba9405e54cbedb04d0b"
+  }
 }
