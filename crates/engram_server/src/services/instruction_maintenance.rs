@@ -10,6 +10,7 @@ use std::{collections::BTreeSet, io::Read, path::Path};
 pub mod area_draft;
 pub mod area_evidence;
 pub mod manifest;
+pub(crate) mod routing;
 
 const FILE_LIMIT: usize = 128 * 1024;
 const AUTOMATIC_CODE_LIMIT: usize = 256 * 1024;

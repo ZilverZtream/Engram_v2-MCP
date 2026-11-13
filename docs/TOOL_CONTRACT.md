@@ -270,3 +270,11 @@ arguments and applicability; a service's internal structures are not MCP schemas
 An oversized report returns its verdict, every selected finding's index/severity/location/title, gate outcomes and coverage limits, plus `response_delivery.next_call`. Follow that exact `pre_commit_review` action (`response_id`, `response_offset`, `max_tokens`) to concatenate and BLAKE3-verify the original report. Recovery does not rerun gates and does not certify the current checkout. Original `max_findings`, severity and compact/full-view limits still apply. Recover authored guidance, decision conditions and detailed evidence before resolving findings; prior decisions do not suppress them. A budget too small for the complete ledger returns an explicit minimum rather than dropping findings.
 
 Review snapshots are separate from change-set snapshots and retain at most 32 reports per project for 24 hours. Missing/expired reports require a fresh review; reports above 8 MiB require narrower scope. `response_offset` without `response_id` is rejected.
+
+### Instruction routing coverage
+
+Successful `project_health` / waited `update_project` calls with `instruction_maintenance` now include `instruction_reference_observation.routing_coverage`. Explicit `applyTo` / `globs` / `paths` scopes use Engram's existing syntax and directory authority. Counts cover existing tracked regular files and nonignored untracked files, including files not indexed yet; at most eight matching paths are shown per instruction.
+
+`no_matching_files` is a routing/coverage warning after a complete supported inventory, not a claim that a rule is wrong. Invalid or absent explicit scopes stay distinct from zero matches. Inventory errors, unsupported paths or the50,000retained-path cap produce incomplete coverage and lower-bound counts. The cap does not bound libgit2's internal status enumeration time or memory. Prose exclusions and semantic applicability are not inferred.
+
+This is a separate current-worktree observation bound to the captured instruction bytes/hash. It writes no authored guidance, does not alter proposal packet identity and does not claim an atomic or historical file inventory.
