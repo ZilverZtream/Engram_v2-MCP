@@ -160,7 +160,7 @@ impl ChangeCard {
 
 /// Existing request predicates, applied to metadata before any embedding work.
 /// File predicates retain the card's existing capped, non-generated file scope.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct CardFilter {
     pub file_prefix: Option<String>,
     pub excluded_prefixes: Vec<String>,
@@ -328,6 +328,18 @@ async fn cards_for_line_measured(
     prefixes: EmbedPrefixes,
 ) -> anyhow::Result<(Vec<Arc<ChangeCard>>, CardBuildStats)> {
     cards_for_line_observed(repo_dir,tip,search,prefixes,None,CardFilter::default()).await
+}
+
+/// Read the same scoped history without contacting the embedding provider.
+pub async fn metadata_for_line_filtered_cached(
+    repo_dir: &Path, tip: Oid, registry: &engram_core::Registry, filter: CardFilter,
+) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
+    let root = repo_dir.to_path_buf();
+    let registry = registry.clone();
+    tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
+        let (_, cards, _) = metadata_cache::read(&root, tip, &Default::default(), Some(&registry))?;
+        Ok(cards.into_iter().filter(|card| filter.admits(card)).map(Arc::new).collect())
+    }).await?
 }
 
 async fn cards_for_line_observed(

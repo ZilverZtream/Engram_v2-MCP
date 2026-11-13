@@ -1841,26 +1841,44 @@ impl Engram {
             .iter()
             .map(|p| p.replace('\\', "/"))
             .collect();
-        let eligible = cards::cards_for_line_filtered_cached(
-            &dir, tip, &ps.search, prefixes, &self.state.registry,
-            cards::CardFilter {
+        let filter = cards::CardFilter {
                 file_prefix: file_filter, excluded_prefixes: excluded,
                 author: req.author_filter.clone(), date_after: req.date_after,
                 date_before: req.date_before,
-            },
-        ).await.map_err(|e| McpError::internal_error(format!("change cards: {e}"), None))?;
+            };
+        let (eligible, semantic_unavailable) = match cards::cards_for_line_filtered_cached(
+            &dir, tip, &ps.search, prefixes, &self.state.registry, filter.clone(),
+        ).await {
+            Ok(cards) => (cards, false),
+            Err(_) => {
+                // Git metadata remains useful when configured embeddings fail.
+                // A metadata failure still propagates; it is never an empty hit set.
+                let metadata = cards::metadata_for_line_filtered_cached(
+                    &dir, tip, &self.state.registry, filter,
+                ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
+                (metadata, true)
+            }
+        };
         let total = eligible.len();
         let quality = ps.search.semantic_quality();
-        let baseline_tier = match quality {
+        let mut baseline_tier = match quality {
             engram_index::hybrid::SemanticQuality::Off => "lexical fallback (vectors disabled)",
             engram_index::hybrid::SemanticQuality::DegradedTrigram => "degraded trigram",
             engram_index::hybrid::SemanticQuality::Semantic => "semantic",
         };
-        let ranked = if quality == engram_index::hybrid::SemanticQuality::Off {
+        let ranked = if semantic_unavailable {
+            baseline_tier = "lexical fallback (semantic retrieval unavailable)";
+            cards::lexical_rank(&req.query, &eligible)
+        } else if quality == engram_index::hybrid::SemanticQuality::Off {
             cards::lexical_rank(&req.query, &eligible)
         } else {
-            cards::semantic_rank(&req.query, &eligible, &ps.search, prefixes).await
-                .map_err(|e| McpError::internal_error(format!("semantic ranking: {e}"), None))?
+            match cards::semantic_rank(&req.query, &eligible, &ps.search, prefixes).await {
+                Ok(ranked) => ranked,
+                Err(_) => {
+                    baseline_tier = "lexical fallback (semantic retrieval unavailable)";
+                    cards::lexical_rank(&req.query, &eligible)
+                }
+            }
         };
 
         let budget = req.validated_rerank_timeout_ms()
