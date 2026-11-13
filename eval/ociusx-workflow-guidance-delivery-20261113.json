@@ -1,0 +1,124 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T11:16:30.953552+00:00",
+  "finding": "EG17/EG26 generated workflow scope and evidence authority",
+  "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
+  "original_requirement": "Preserve scoped authority and accepted exceptions in agent guidance; reconcile generated tool contracts with demonstrated behavior.",
+  "before": [
+    "Generated workflow instructed agents to change all touchpoints and claimed measured implementation-quality gains.",
+    "Distilled findings were described as generic rules applying to any change; reminder hooks pushed reviews without separating existing work from task-owned changes."
+  ],
+  "after": [
+    "Workflow anchors edits to requested behavior and applicable authored guidance; candidate files, patterns and findings require applicability review.",
+    "Removed unsupported quality claims and universal edit/rule mandates; review status alone does not establish approved exceptions.",
+    "Windows and POSIX reminder proposals preserve preexisting work, review task-owned diffs and avoid repeating unchanged passing checks.",
+    "Existing ownership and create-only publication behavior remains unchanged."
+  ],
+  "validation": {
+    "native_publication_checks": 6,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\native1.json",
+      "sha256": "c694d4ca8cde4f79419f01dda7505b2930a1efd9cdb659e5e68a2e57cb1dcf3a"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\release1.json",
+      "sha256": "c195009c644f4de72ee7599ad6983a652d46707bbd7ec5460189d2a9f1605570"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\candidate1\\acceptance.json",
+      "sha256": "cbf8145a59196afbc0e5588fc63dcdf16163c1e30a1efebb26852d8d55628440"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\installed1\\acceptance.json",
+      "sha256": "f4967f37509420228e9daf84c200e0d631896227815cb270adde60451a97ac4d"
+    },
+    "actual_ociusx_checks": {
+      "project_identity": true,
+      "removed_overclaims": true,
+      "scope_and_authority": true,
+      "task_owned_hook_review": true,
+      "tool_schema_calls": true,
+      "preview_only": true,
+      "posix_task_owned_hook_review": true
+    },
+    "advertised_tool_schema_violations": [],
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\baseline.json",
+      "sha256": "be4a986c9cab24f98c19fa67e68012037ecdbeb6cf47ac8d450c26086ca062d7"
+    },
+    "installed_windows_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\installed1\\current.md",
+      "sha256": "4a2ab2080cc581787c23d5846a8387f8c08b97d3ef57b17ba1b7ad297be6ac91"
+    },
+    "installed_posix_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\installed1\\posix.md",
+      "sha256": "32149ff9886a25ed1057ea587f2e9e5d672e8999ad49c27deb963e16e50ec756"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\deployment1-state.json",
+      "sha256": "555b81966e488091b4d16af537cb5ae1c8f0dc437ceeb039af854d86cb5ebfa4"
+    }
+  },
+  "runtime": {
+    "server_sha256": "d223aeadc9fdc9783e6fa42a22e8895b3f78b20c132861900caa2f1aa17c9cc7",
+    "manifest_sha256": "6e30328269f58f0d35e0b160b9555acb5921285be8cc9b99b6a4593f9bf6ffda",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "source_generation": 3149
+  },
+  "ociusx_adoption": {
+    "status": "PROPOSAL_AVAILABLE_EXISTING_FILES_PRESERVED",
+    "reason": "No matching generated_artifacts ownership record in retained installed registry inventory. No ownership relaxation or overwrite of legacy files.",
+    "workflow_proposal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\ociusx-workflow.proposal.md",
+      "sha256": "57ae764048d42e0653aa1f8d5c1bf7291d5d7f8a23ab0461bd76b0779692ef0d"
+    },
+    "windows_hook_proposal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\ociusx-hooks-windows.proposal.json",
+      "sha256": "b5b5e62beb7381ff1daaf3a09921d74aad729929c39d2acc9027e49399e061d8"
+    },
+    "posix_hook_proposal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\ociusx-hooks-posix.proposal.json",
+      "sha256": "af27c8585a10db3f06fa1a3f63a6a9936d88f55c2e52656e37879f7899b12353"
+    },
+    "existing_source_files_unchanged": true
+  },
+  "preserved": {
+    "configuration_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "nine_existing_work_files_unchanged": true,
+    "sidecar_assets_unchanged": true
+  },
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance",
+    "owned_native_and_build_temps_removed": true,
+    "build_job_and_relay_closed": true,
+    "candidate_and_installed_owned_temp_removed": true,
+    "owned_runtime_config_removed": true,
+    "config_hold_released": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\workflow-guidance1-config-hold.json.released.json",
+      "sha256": "480618ee75b6d7c271a5929f5daa6fbf96521c16823015b90d4111efe6586f03"
+    },
+    "retained_old_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-10ad2f3b4cf44d2b83927c49d56fed51",
+    "retention": "Retain package, wire/proposal evidence and rollback pair for review. Existing checkout remains retained for WIP isolation and remaining backlog. No preexisting folders deleted."
+  },
+  "review": {
+    "kind": "Parent source review; retained CodeRabbit host authentication unavailable, no external review claimed.",
+    "checks": [
+      "Generated guidance follows requested scope and authored exceptions; inferred findings and history are not approval.",
+      "Unsupported historical performance claims and universal edit mandates removed.",
+      "Hooks limit review to task-owned changes, preserve preexisting work and avoid repeated unchanged passing checks.",
+      "Existing publication ownership and create-only semantics unchanged.",
+      "Runtime verifier checks tool/parameter names against current advertised schemas, both hook formats, actual project identity and no authored file writes."
+    ]
+  },
+  "limits": [
+    "Generated wording and public preview verified; existing OciusX workflow/hooks were not replaced or adopted.",
+    "Hook JSON was generated and inspected, not executed by Claude/Codex in a live task. No agent-compliance or productivity gain claimed.",
+    "Raw preview evidence contains machine-specific MCP snippets from the owned test configuration; those snippets are not deployment instructions. Standalone workflow/hook proposals exclude them.",
+    "Earlier failed model evaluation remains unchanged. No feature-plan prompt retuning, new benchmark or CodeMap/Blast work.",
+    "Release gates cover applicability to this text-generation delta, not closure of all19 original storage gates. CodeRabbit unavailable; manual review only."
+  ]
+}

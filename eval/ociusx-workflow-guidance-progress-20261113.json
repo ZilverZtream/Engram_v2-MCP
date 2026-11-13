@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_VALIDATED_RELEASE_BUILD_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-13T10:55:22.584548+00:00",
   "finding": "EG17/EG26 generated workflow scope and authority",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
@@ -10,15 +10,18 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\baseline.json",
   "test_session": null,
   "test_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\native1.json",
-  "next_action": "Poll exact release session37905. After terminal PASS, run release.py package and deploy.py from scratch (candidate/installed read-only generation, schema-call checks, Windows/POSIX proposals, delta gates and paired installation). No source changes during build. If active daemon prevents maintenance, inspect exact owners and use already-authorized proxy closure/natural idle shutdown under config hold; do not rebuild. Record legacy OciusX file as preserved, not adopted.",
+  "next_action": "Generated workflow correction delivered. Advance next unfinished original OciusX requirement; retain legacy workflow adoption gap without weakening ownership or repeating this acceptance.",
   "limits": [
-    "No sample-specific feature-plan prompt tuning or model benchmark replay.",
-    "No claimed adoption of legacy OciusX workflow or measured productivity benefit."
+    "Generated wording and public preview verified; existing OciusX workflow/hooks were not replaced or adopted.",
+    "Hook JSON was generated and inspected, not executed by Claude/Codex in a live task. No agent-compliance or productivity gain claimed.",
+    "Raw preview evidence contains machine-specific MCP snippets from the owned test configuration; those snippets are not deployment instructions. Standalone workflow/hook proposals exclude them.",
+    "Earlier failed model evaluation remains unchanged. No feature-plan prompt retuning, new benchmark or CodeMap/Blast work.",
+    "Release gates cover applicability to this text-generation delta, not closure of all19 original storage gates. CodeRabbit unavailable; manual review only."
   ],
   "resource_retention": "All new fixtures under this case; runner checks cleanup after handles close. Retain evidence, package and rollback. Existing source checkout protects WIP9 and remains retained.",
   "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
   "native_passed": 6,
-  "release_session": 37905,
+  "release_session": null,
   "release_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\release1.json",
   "resources": {
     "owned_native_temp_removed": true,
@@ -42,5 +45,6 @@
     "deploy.py": "0ad58934ddbc5e4148c9167fe85e55f57df0d136788efa801cd5452f9267651f",
     "hold-config.ps1": "12772b48534babe6316f8ead665e459a3631a99acc91474de1748fda7cc5816d",
     "install.ps1": "1906c35526126d7477f8252dbf890388d24a72633d4366a0124ea344f206c3f7"
-  }
+  },
+  "delivery": "eval/ociusx-workflow-guidance-delivery-20261113.json"
 }

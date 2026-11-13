@@ -690,7 +690,8 @@
       },
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json"
+      "delivery_receipt": "eval\\eg15-eg17-generator-delivery-20261111.json",
+      "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json"
     },
     {
       "id": "EG-18",
@@ -882,7 +883,8 @@
         ],
         "runtime_change": false,
         "broader_finding_complete": false
-      }
+      },
+      "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json"
     },
     {
       "id": "EG-27",
@@ -9987,7 +9989,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_RELEASE_BUILD_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG17/EG26 generated workflow scope and evidence authority",
       "original_requirement": "EG17 preserve scoped authority and accepted exceptions; EG26 reconcile agent-facing tool contracts with demonstrated behavior.",
       "observed_missing_behavior": [
@@ -10013,7 +10015,9 @@
         "No claim that existing workflow caused earlier failures or that wording changes establish productivity."
       ],
       "progress": "eval/ociusx-workflow-guidance-progress-20261113.json",
-      "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31"
+      "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
+      "delivery": "eval/ociusx-workflow-guidance-delivery-20261113.json",
+      "remaining": "Generated workflow correction delivered. Advance next unfinished original OciusX requirement; retain legacy workflow adoption gap without weakening ownership or repeating this acceptance."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -14252,6 +14256,7 @@
       "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8",
       "delivery": "eval/ociusx-matrix-policy-delivery-20261113.json",
       "remaining": "Selected scoped QA guidance delivered. Advance the next unfinished original OciusX requirement; do not repeat matrix checks or reopen the failed model benchmark without a separate justified requirement."
-    }
+    },
+    "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json"
   }
 }
