@@ -10012,31 +10012,30 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "WINDOWS_FIRST_INSTALL_DELIVERED_FULL_DISTRIBUTION_UNFINISHED",
-      "finding": "TODO53 first-time Windows installation with complete VB sidecar",
-      "original_requirement": "Prebuilt release binaries and one-command installation that also writes the MCP configuration. This delivers the Windows installation portion; published cross-platform distribution remains required.",
-      "observed_missing_behavior": "The existing deployment script requires a preexisting installation and upgrade evidence; quickstart manually assembles paths/config and does not install a full package. No first-time installer exists.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_BUILD_RUNNING",
+      "finding": "TODO28 ordinary answer context for referenced same-file members",
+      "original_requirement": "ask_codebase supplies useful source evidence and a cited answer for ordinary OciusX questions; preserve the existing failed missing-count criterion.",
+      "observed_missing_behavior": "The retained Resolve answer supplies method lines92-106 and EffectiveMinZoom line59, but omits the indexed AutomaticZoom nullable declaration used in the method. Definition retrieval currently includes only the named symbol span. Missing declaration observed; it is not proven to be the sole cause of model withholding.",
       "implementation_files": [
-        "scripts/install_windows.ps1",
-        "scripts/test_install_windows.ps1",
-        "docs/QUICKSTART.md",
-        "README.md",
-        "TODO.md"
+        "crates/engram_server/src/services/ask_engine/providers.rs",
+        "crates/engram_server/tests/ask_definition_arm_tests.rs",
+        "crates/engram_server/src/services/ask_engine/report.rs",
+        "docs/TOOL_CONTRACT.md"
       ],
       "acceptance": [
-        "From an existing complete Windows package, one invocation installs every manifest asset and writes usable Engram configuration and an MCP client entry.",
-        "Existing unrelated MCP servers and client settings survive registration; an existing Engram installation or same-named entry is preserved rather than overwritten.",
-        "A broken package is refused without registering a broken server; owned staging resources are cleaned after failure.",
-        "Launch the exact registered command, index an owned VB.NET/WebForms sample with the bundled Roslyn sidecar and retrieve actual source through MCP."
+        "Definition evidence retains the named method and adds source-cited same-file member declarations whose names appear in that method, including type/default information. JSON and Markdown both retain the bounded source context.",
+        "Unrelated members are excluded; contextual name matches are not described as resolved receiver bindings. Existing source/read limits remain bounded.",
+        "An independent ordinary fixture verifies the public answer evidence contains the needed declaration and preserves source identity.",
+        "One actual OciusX check uses the existing four frozen answer criteria and unchanged model/prompt; do not relax criteria or run a prompt-tuning loop."
       ],
       "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context",
       "scope_limits": [
-        "No runtime rebuild or production configuration change.",
-        "No new tags, public publishing or claim of macOS/Linux delivery.",
-        "No changes to CodeMap, Blast Radius, planner, routing or deferred response-budget work."
+        "No new router, parser, traversal system or target-language expansion.",
+        "No CodeMap/Blast changes.",
+        "Preserve failed planning and prior ask results; full TODO28 remains unfinished until its original requirements are met."
       ],
-      "delivery_receipt": "eval/ociusx-windows-first-install-delivery-20261113.json"
+      "progress_receipt": "eval/ociusx-ask-member-context-progress-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10068,8 +10067,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO53 first-time Windows installation",
-    "next_user_visible_deliverable": "Install a complete Windows server/sidecar package and register a usable MCP connection in one command.",
+    "active_original_item": "TODO28 ordinary answer context for referenced same-file members",
+    "next_user_visible_deliverable": "Source context for members used by an asked-about method, followed by unchanged actual-answer acceptance.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10086,7 +10085,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: Windows first-time installer implemented and verified through its exact registered MCP command; full sidecar copied, 13 sample files indexed and VB source recovered. All processes exited; exact owned fixture retained after automatic cleanup refusal.",
+    "previous_goal_turn_classification": "PROGRESS: referenced-member context implemented and two native checks passed; source committed. Exact release build session70473 running; candidate and actual-answer acceptance still required.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

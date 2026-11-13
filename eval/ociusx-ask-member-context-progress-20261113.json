@@ -1,0 +1,27 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_BUILD_RUNNING",
+  "delivery_complete": false,
+  "finding": "TODO28 referenced member context in ordinary method answers",
+  "source_commit": "7b5487a79b76b87c689f83dde970f1f7cf009cce",
+  "native_checks": 2,
+  "native": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\native4.json",
+    "sha256": "c9f79c9bb180ebe7e08f4f103c77ece1a3edca788e65eab96ef1ff49e527c5a0"
+  },
+  "source": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\implementation1.json",
+    "sha256": "49bc57fa87f58469e16b4cd7caa3d56e92cccca078857bea9c88a6d5da412e54"
+  },
+  "build": {
+    "session_id": 70473,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\release1.json",
+    "live_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\release1-state.json",
+    "instruction": "Poll this exact session/owned build. Do not restart on observation timeout."
+  },
+  "next": "After terminal release success, package once; candidate public MCP + one actual model answer against frozen criteria before installation. No model/prompt changes or repeated tuning.",
+  "preservation": {
+    "wip9_unchanged": true,
+    "prior_failed_planning_and_synthesis_results_retained": true,
+    "closed_tools_unchanged": true
+  }
+}
