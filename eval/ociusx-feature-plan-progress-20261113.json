@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Native7 session34149 running with source frozen. After PASS, capture debug6 candidate and run verify-public-v6.py debug-public6 with CRLF sources/raw citation hashes. Then commit/push validated comparison fix, release6 and installed/actual verification. v6 helpers prepared; implementation6.json awaits validated source commit.",
+  "next": "Finish release6, optimized candidate and installed CRLF checks, then one actual OciusX request with independent source review. Earlier failed proposals remain invalid and retained.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -303,5 +303,18 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
       "retention": "Retain package, failed response and receipts for delivery evidence/rollback. No preexisting directories removed."
     }
+  },
+  "crlf_correction": {
+    "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "26706ee598238c0e488956fbc01773720a05280f",
+    "main_merge_commit": "adb91b8dbc4a8e7b7054815e5e39473ef221d393",
+    "native_checks": 13,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native7.json",
+    "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public6\\acceptance.json",
+    "deployed": false,
+    "actual_v6_request_sent": false,
+    "behavior": "Compare page_composition normalized ContentHash with the same normalization of already admitted host bytes. Raw BLAKE3 source-admission/citation/final-freshness hashes remain unchanged. No change to ContentHash or the shared composition reader.",
+    "validation": "CRLF native/public sources discover registered editor and code-behind; a changed host is withheld. Public case verifies every source citation against raw bytes, preserves concrete step order from grouped summaries, and refuses changes to component source during generation.",
+    "review": "Parent reviewed both hash conventions against ContentHash::compute and page_composition::collect. Four actual unchanged CRLF hosts independently reproduce the old mismatch. Existing CodeRabbit authentication unavailable; no external review claimed."
   }
 }

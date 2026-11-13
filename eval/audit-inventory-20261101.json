@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
+      "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10003,7 +10003,7 @@
       ],
       "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
       "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
-      "prior_turn_classification": "PROGRESS: v5 built/deployed with passing candidate/installed checks. Actual request and independent byte checks prove a raw-versus-normalized hash mismatch. Comparison corrected and native7 running; full planning acceptance remains unfinished.",
+      "prior_turn_classification": "PROGRESS: v5 deployed; actual request exposed raw/normalized hash regression. Fixed only comparison,13 native and CRLF public checks passed, source26706ee pushed. Actual feature-planning delivery remains unfinished.",
       "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
       "progress": "eval/ociusx-feature-plan-progress-20261113.json",
       "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
@@ -10259,6 +10259,19 @@
           "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
           "retention": "Retain package, failed response and receipts for delivery evidence/rollback. No preexisting directories removed."
         }
+      },
+      "crlf_correction": {
+        "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "source_commit": "26706ee598238c0e488956fbc01773720a05280f",
+        "main_merge_commit": "adb91b8dbc4a8e7b7054815e5e39473ef221d393",
+        "native_checks": 13,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native7.json",
+        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public6\\acceptance.json",
+        "deployed": false,
+        "actual_v6_request_sent": false,
+        "behavior": "Compare page_composition normalized ContentHash with the same normalization of already admitted host bytes. Raw BLAKE3 source-admission/citation/final-freshness hashes remain unchanged. No change to ContentHash or the shared composition reader.",
+        "validation": "CRLF native/public sources discover registered editor and code-behind; a changed host is withheld. Public case verifies every source citation against raw bytes, preserves concrete step order from grouped summaries, and refuses changes to component source during generation.",
+        "review": "Parent reviewed both hash conventions against ContentHash::compute and page_composition::collect. Four actual unchanged CRLF hosts independently reproduce the old mismatch. Existing CodeRabbit authentication unavailable; no external review claimed."
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
