@@ -269,14 +269,21 @@ The auto-daemon does **not re-frame**. The proxy streams bytes in both direction
 
 On Unix, bind the socket with mode `0600`. On Windows, create the named pipe with a security descriptor allowing only the current user's SID. This matches how `gh auth`, `docker.sock`, and `/tmp/.X11-unix` handle local IPC. No password / token layer.
 
-### 6.4 Version negotiation
+### 6.4 Version compatibility
 
-A proxy's first action after connecting:
+The primary advertises `protocol_version` in `.engram.primary`, separate from the
+OS election lock. Clients reject an advertised incompatible wire version before
+forwarding any stdio bytes and report the primary PID, both protocol versions,
+and restart guidance. The informational crate version can differ without
+rejecting a compatible wire protocol.
 
-1. Read the primary's `protocol_version` from the lock file (already done at startup).
-2. If mismatch, exit before forwarding any bytes.
+The default detached-daemon client checks compatibility once its advertised
+endpoint connects. A stale metadata file with no listener therefore still follows
+the existing daemon-start/retry path. The explicit in-process proxy checks before
+connecting after losing the election lock. Both paths use the same comparison;
+there is no wire-version downgrade or in-stream negotiation. Unreadable metadata
+in the default startup path retains its existing derived-endpoint fallback.
 
-This means version negotiation happens **out of band** via the lock file, not in the stream. The stream itself is byte-transparent MCP JSON-RPC. When we bump `protocol_version` in a future release, older proxies exit with a clear error telling the user to restart their MCP client.
 
 ---
 
