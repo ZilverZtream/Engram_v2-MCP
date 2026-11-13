@@ -26,7 +26,7 @@ fn topic(text: &str) -> String {
     )
 }
 
-fn fixture() -> (tempfile::TempDir, Engram) {
+async fn fixture() -> (tempfile::TempDir, Engram) {
     let temporary = tempfile::tempdir().unwrap();
     let root = temporary.path().join("project");
     std::fs::create_dir_all(&root).unwrap();
@@ -52,10 +52,6 @@ fn fixture() -> (tempfile::TempDir, Engram) {
             updated_at_ms: 0,
             reindex_required_since_ms: None,
         })
-        .unwrap();
-    state
-        .registry
-        .set_meta(PID, "active_generation", "1")
         .unwrap();
     let node = |node_type: &str, name: &str| Node {
         node_id: format!("{node_type}:{TARGET}:{name}"),
@@ -94,6 +90,19 @@ fn fixture() -> (tempfile::TempDir, Engram) {
         ".github/copilot-instructions.md",
         "Keep the application's accepted permission boundaries.\n",
     );
+    // Publish this fixture's complete flat source generation before attesting
+    // legacy authority. A numeric HEAD alone does not establish readable data.
+    let runtime = engram_server::services::project_service::ensure_project_runtime(&state, PID).await.unwrap();
+    let content = std::fs::read_to_string(root.join(TARGET)).unwrap();
+    runtime.search.index_docs(PID, &[engram_index::IndexDoc {
+        generation:1,chunk_id:1,path:RelPath::new(TARGET),language:"vbnet".into(),
+        content:content.clone(),namespace:"memory".into(),author:None,timestamp:None,
+        start_line:1,end_line:2,doc_id:"policy-fixture-source".into(),
+        content_hash:engram_core::ContentHash::compute(content.as_bytes()).0,
+    }], &tokio_util::sync::CancellationToken::new()).await.unwrap();
+    let legacy = state.registry.capture_source_head(PID).unwrap();
+    assert!(state.registry.attest_legacy_source_head(&legacy).unwrap());
+    drop(runtime);
     (temporary, Engram::new(state))
 }
 
@@ -123,7 +132,7 @@ fn source<'a>(context: &'a Value, path: &str) -> &'a Value {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn change_set_routes_live_topics_and_preserves_policy_in_both_formats() {
-    let (temporary, engram) = fixture();
+    let (temporary, engram) = fixture().await;
     let root = temporary.path().join("project");
     write(&root, TOPIC, &topic(AUTHORITY));
     write(
@@ -176,7 +185,7 @@ async fn change_set_routes_live_topics_and_preserves_policy_in_both_formats() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn new_and_edited_instruction_files_take_effect_without_reindexing() {
-    let (temporary, engram) = fixture();
+    let (temporary, engram) = fixture().await;
     let root = temporary.path().join("project");
     let initial: Value = serde_json::from_str(&dossier(&engram, true, false).await).unwrap();
     assert!(
@@ -220,7 +229,7 @@ async fn new_and_edited_instruction_files_take_effect_without_reindexing() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn historical_change_set_reports_unavailable_policy_without_future_content() {
-    let (temporary, engram) = fixture();
+    let (temporary, engram) = fixture().await;
     let root = temporary.path().join("project");
     write(&root, TOPIC, &topic("FUTURE_POLICY_MUST_NOT_LEAK"));
     let json_text = dossier(&engram, true, true).await;
@@ -236,6 +245,50 @@ async fn historical_change_set_reports_unavailable_policy_without_future_content
         markdown.to_ascii_lowercase().contains("historical"),
         "Markdown must disclose missing historical guidance"
     );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn revision_pinned_change_set_delivers_the_original_policy_after_live_deletion() {
+    let (temporary, engram) = fixture().await;
+    let root = temporary.path().join("project");
+    let original = topic(AUTHORITY);
+    write(&root, TOPIC, &original);
+    let revision = {
+        let repo = git2::Repository::init(&root).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_all(["*"],git2::IndexAddOption::DEFAULT,None).unwrap();index.write().unwrap();
+        let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let signature = git2::Signature::now("Fixture", "fixture@example.invalid").unwrap();
+        let base = repo.commit(Some("HEAD"),&signature,&signature,"Original layer guidance",&tree,&[]).unwrap();
+        write(&root, TOPIC, &topic("FUTURE_COMMITTED_POLICY"));
+        index.add_path(Path::new(TOPIC)).unwrap();index.write().unwrap();
+        let future_tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
+        let parent = repo.find_commit(base).unwrap();
+        repo.commit(Some("HEAD"),&signature,&signature,"Later policy",&future_tree,&[&parent]).unwrap();
+        base.to_string()
+    };
+    std::fs::remove_file(root.join(TOPIC)).unwrap();
+    write(&root,".github/copilot-instructions.md","FUTURE_UNCOMMITTED_POLICY\n");
+    for output_json in [true,false] {
+        let request: GetChangeSetRequest = serde_json::from_value(json!({
+            "project_id":PID,"story":"Change saved file layer zoom","concepts":["FileLayerZoom"],
+            "as_of_rev":revision,"output_json":output_json,
+        })).unwrap();
+        let result = engram.handle_get_change_set(request).await.unwrap();
+        let text = &result.content[0].as_text().unwrap().text;
+        assert!(!text.contains("FUTURE_COMMITTED_POLICY") && !text.contains("FUTURE_UNCOMMITTED_POLICY"));
+        if output_json {
+            let value: Value = serde_json::from_str(text).unwrap();
+            let policy = &value["project_policy_sources"];
+            assert_eq!(policy["source_revision"],revision);
+            assert_eq!(source(policy,TOPIC)["content"],original);
+            assert_eq!(source(policy,TOPIC)["blake3"],blake3::hash(original.as_bytes()).to_hex().to_string());
+        } else {
+            assert!(text.contains(AUTHORITY) && text.contains(&revision));
+        }
+    }
+    drop(engram);
+    temporary.close().unwrap();
 }
 
 #[test]
@@ -261,7 +314,7 @@ fn malformed_topic_scope_is_visible_and_does_not_become_global_authority() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn oversized_dossier_recovers_exact_receipt_and_original_policy_after_checkout_changes() {
-    let (temporary, engram) = fixture();
+    let (temporary, engram) = fixture().await;
     let root = temporary.path().join("project");
     write(&root, TOPIC, &topic("ORIGINAL_POLICY_SNAPSHOT"));
     let request: GetChangeSetRequest = serde_json::from_value(json!({
@@ -384,7 +437,7 @@ fn oversized_and_over_cap_policies_have_explicit_recovery_evidence() {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn topic_guidance_remains_discoverable_in_a_large_legacy_source_directory() {
-    let (temporary, engram) = fixture();
+    let (temporary, engram) = fixture().await;
     let root = temporary.path().join("project");
     let directory = root.join("Site/App_Code");
     for number in 0..2_500 {
@@ -407,7 +460,7 @@ async fn topic_guidance_remains_discoverable_in_a_large_legacy_source_directory(
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pre_commit_review_supplies_scoped_guidance_without_claiming_prose_enforcement() {
-    let (temporary, engram) = fixture();
+    let (temporary, engram) = fixture().await;
     write(&temporary.path().join("project"), TOPIC, &topic(AUTHORITY));
     let diff = format!(
         "diff --git a/{TARGET} b/{TARGET}\n--- a/{TARGET}\n+++ b/{TARGET}\n@@ -1,2 +1,3 @@\n Public Class FileLayerZoomPolicy\n+    ' Preserve accepted behavior\n End Class\n"

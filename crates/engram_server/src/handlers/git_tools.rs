@@ -466,6 +466,7 @@ struct HistoryGroup {
 /// derives from each reachable commit's summary, and for every commit the
 /// commit on the revision's first-parent line that published it.
 pub(crate) struct ReachableHistory {
+    pub(crate) revision: Oid,
     oids: std::collections::HashSet<String>,
     change_ids: std::collections::HashSet<String>,
     /// Reachable commit -> the first-parent-line commit that brought it in
@@ -524,6 +525,7 @@ impl ReachableHistory {
                 return Ok(Some(hit));
             }
             return Ok(Some(std::sync::Arc::new(Self {
+                revision: tip,
                 oids: hit.oids.clone(),
                 change_ids: hit.change_ids.clone(),
                 publisher: hit.publisher.clone(),
@@ -572,6 +574,7 @@ impl ReachableHistory {
             crate::handlers::pr_history_tools::parse_pr_identity(summary, &hex[..10]).0
         };
         let walked = std::sync::Arc::new(Self {
+            revision: tip,
             oids: summary_of.keys().map(Oid::to_string).collect(),
             change_ids: summary_of
                 .iter()

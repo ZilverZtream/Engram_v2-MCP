@@ -9,6 +9,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
+mod historical;
+pub use historical::resolve_at_revision;
+
 const MAX_DISCOVERY_ENTRIES: usize = 2_048;
 const MAX_CANDIDATES: usize = 512;
 const MAX_SOURCE_BYTES: u64 = 512 * 1_024;
@@ -53,6 +56,8 @@ pub struct PolicyOmission {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct PolicyContext {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_revision: Option<String>,
     pub status: String,
     pub coverage: String,
     pub sources: Vec<PolicySource>,
@@ -70,6 +75,7 @@ pub struct PolicyContext {
 impl PolicyContext {
     fn empty(budget: PolicyBudget) -> Self {
         Self {
+            source_revision: None,
             status: "absent".into(),
             coverage: "complete".into(),
             sources: vec![],
@@ -111,6 +117,9 @@ impl PolicyContext {
             self.sources_shown,
             self.instruction
         );
+        if let Some(revision) = &self.source_revision {
+            let _ = writeln!(text, "\nPolicy source revision: `{revision}`.");
+        }
         for source in &self.sources {
             let _ = writeln!(
                 text,
@@ -773,6 +782,17 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
             },
         );
     }
+    select_sources(context, applicable_sources, budget, |source| {
+        read_selected_source(root, &source.path, &source.blake3)
+    })
+}
+
+fn select_sources(
+    mut context: PolicyContext,
+    applicable_sources: BTreeMap<(bool, String), PolicySource>,
+    budget: PolicyBudget,
+    read_selected: impl Fn(&PolicySource) -> anyhow::Result<String>,
+) -> PolicyContext {
     context.sources_applicable = applicable_sources.len();
     let mut remaining = budget.max_characters_total;
     for mut source in applicable_sources.into_values() {
@@ -795,7 +815,7 @@ fn resolve_observing_candidate_reads<F: FnMut(&str, usize)>(
             // Read only selected complete documents, verifying the exact
             // bytes whose applicability/hash were discovered above. A live
             // edit cannot turn stale scope metadata into current policy.
-            match read_selected_source(root, &source.path, &source.blake3) {
+            match read_selected(&source) {
                 Ok(content) => {
                     source.content = content;
                     remaining -= source.characters_total;
