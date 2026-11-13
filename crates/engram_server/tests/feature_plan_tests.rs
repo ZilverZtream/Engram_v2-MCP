@@ -267,3 +267,58 @@ fn feature_plan_rejects_unbounded_or_unrelated_intake() {
     assert!(parse_intent("{\"requirements\":[]}").is_err());
     assert!(parse_plan(&"x".repeat(MAX_MODEL_BYTES + 1), &intent(), &evidence()).is_err());
 }
+
+#[test]
+fn feature_plan_can_represent_cited_existing_behavior_without_inventing_edits() {
+    let mut value = proposal();
+    for field in [
+        "new_files",
+        "modified_files",
+        "schema_changes",
+        "implementation_order",
+        "ready_to_code_steps",
+    ] {
+        value[field] = json!([]);
+    }
+    value["requirement_dispositions"][0]["disposition"] = json!("already_present");
+    value["requirement_dispositions"][0]["evidence_ids"] = json!(["E1"]);
+    value["requirement_dispositions"][1]["disposition"] = json!("already_present");
+    value["requirement_dispositions"][1]["evidence_ids"] = json!(["E2"]);
+    let plan = parse_plan(&value.to_string(), &intent(), &evidence()).unwrap();
+    assert!(plan.modified_files.is_empty() && plan.new_files.is_empty());
+    assert_eq!(plan.requirement_dispositions[2].disposition, "unresolved");
+    value["requirement_dispositions"][0]["evidence_ids"] = json!([]);
+    assert!(parse_plan(&value.to_string(), &intent(), &evidence()).is_err());
+    value["requirement_dispositions"][0]["evidence_ids"] = json!(["invented"]);
+    assert!(parse_plan(&value.to_string(), &intent(), &evidence()).is_err());
+}
+
+#[test]
+fn feature_plan_rejection_identifies_bad_references_and_retains_only_bounded_untrusted_data() {
+    let mut value = proposal();
+    value["modified_files"][0]["evidence_ids"] = json!(["invented"]);
+    let text = value.to_string();
+    let error = parse_plan(&text, &intent(), &evidence()).unwrap_err();
+    let details = rejection_details(&error, &text);
+    assert_eq!(
+        details["validation"]["message"],
+        "Unknown source evidence ID"
+    );
+    assert_eq!(
+        details["status"],
+        "REJECTED_UNTRUSTED_MODEL_DATA_DO_NOT_IMPLEMENT"
+    );
+    assert_eq!(details["rejected_proposal"], value);
+    assert_eq!(
+        details["model_output_blake3"],
+        blake3::hash(text.as_bytes()).to_hex().to_string()
+    );
+    let malformed = "{not-json";
+    let error = parse_plan(malformed, &intent(), &evidence()).unwrap_err();
+    let details = rejection_details(&error, malformed);
+    assert_eq!(details["validation"]["kind"], "json_contract");
+    assert!(details["rejected_proposal"].is_null());
+    let huge = "x".repeat(MAX_MODEL_BYTES + 1);
+    let error = parse_plan(&huge, &intent(), &evidence()).unwrap_err();
+    assert!(rejection_details(&error, &huge)["rejected_proposal"].is_null());
+}

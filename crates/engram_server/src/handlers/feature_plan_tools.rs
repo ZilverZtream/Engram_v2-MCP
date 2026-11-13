@@ -93,7 +93,10 @@ fn excerpt(source: &str, concepts: &[String]) -> (u32, u32, String) {
     if lines.is_empty() {
         return (0, 0, String::new());
     }
-    let terms: Vec<_> = concepts.iter().map(|s| s.to_lowercase()).collect();
+    let terms: BTreeSet<_> = concepts
+        .iter()
+        .flat_map(|s| super::planning_tools::concept_stems(s))
+        .collect();
     let scores: Vec<usize> = lines
         .iter()
         .map(|line| {
@@ -141,7 +144,8 @@ impl Engram {
         let mut output = json!({
             "status": "INCOMPLETE", "project_id": req.project_id,
             "detail_level": req.detail_level, "plan": null,
-            "provenance": {"model": identity, "prompt_version":"feature-plan-v1", "provider_calls":0},
+            "provenance": {"model": identity, "prompt_version":"feature-plan-v2", "provider_calls":0,
+                "provider_calls_semantics":"Generation requests; transport retries follow the configured provider policy"},
             "limits": [
                 "Model-generated requirements, edits, DDL and templates are proposals; source anchors do not verify their meaning.",
                 "No project file edits, database execution, runtime verification or approval is performed.",
@@ -170,8 +174,9 @@ impl Engram {
         };
         let intent = match plan::parse_intent(&intent_text) {
             Ok(intent) => intent,
-            Err(_) => {
+            Err(error) => {
                 output["reason"] = json!("invalid_intent_contract");
+                output["rejection"] = plan::rejection_details(&error, &intent_text);
                 return response(output);
             }
         };
@@ -190,13 +195,20 @@ impl Engram {
             .clone();
         let view = std::sync::Arc::new(view);
         output["active_generation"] = json!(generation);
-        let story = format!(
-            "{}\nArea hint: {}\nModel after: {}",
-            req.feature_description,
-            req.area_hint.as_deref().unwrap_or("unspecified"),
-            req.model_after.as_deref().unwrap_or("unspecified")
+        let mut story = req.feature_description.clone();
+        if let Some(area) = req.area_hint.as_deref().filter(|s| !s.trim().is_empty()) {
+            story.push_str(&format!("\nArea hint: {area}"));
+        }
+        if let Some(model) = req.model_after.as_deref().filter(|s| !s.trim().is_empty()) {
+            story.push_str(&format!("\nModel after: {model}"));
+        }
+        // Reuse the established story-domain extractor. Model-proposed role
+        // names and prose phrases are intent, not a replacement search plan.
+        let retrieval_concepts = super::planning_tools::extract_story_concepts(
+            &super::planning_tools::story_for_concepts(&req.feature_description),
         );
-        let change_req = change_request(&req.project_id, &story, Some(intent.concepts.clone()));
+        output["retrieval_concepts"] = json!(retrieval_concepts);
+        let change_req = change_request(&req.project_id, &story, Some(retrieval_concepts.clone()));
         let mut change_set = body(self.handle_get_change_set(change_req.clone()).await?)?;
         // Reassemble an existing immutable response, never rerun ranking.
         if let Some(id) = change_set["response_delivery"]["response_id"]
@@ -242,9 +254,9 @@ impl Engram {
         }
         let pattern_query = req
             .model_after
-            .as_deref()
-            .unwrap_or(&req.feature_description)
-            .to_owned();
+            .clone()
+            .filter(|s| !s.trim().is_empty())
+            .unwrap_or_else(|| retrieval_concepts.join(" "));
         let patterns = match self
             .handle_find_implementation_pattern(FindImplementationPatternRequest {
                 project_id: req.project_id.clone(),
@@ -274,7 +286,7 @@ impl Engram {
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let directory = record.directory.clone();
-        let concepts = intent.concepts.clone();
+        let concepts = retrieval_concepts.clone();
         let worker_view = view.clone();
         let (evidence, gaps) = tokio::task::spawn_blocking(move || {
             // A cancelled request must not release selected source ownership
@@ -310,7 +322,7 @@ impl Engram {
             (evidence, gaps)
         }).await.map_err(|_| failure("Feature source worker failed"))?;
         output["source_evidence"] = json!(evidence);
-        output["source_coverage"] = json!({"file_cap":plan::MAX_FILES, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps, "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; unshown lines are unexamined", "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":intent.concepts}}});
+        output["source_coverage"] = json!({"file_cap":plan::MAX_FILES, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps, "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; unshown lines are unexamined", "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts}}});
         let mut schema = Vec::new();
         for name in &intent.schema_names {
             let result = self
@@ -355,8 +367,9 @@ impl Engram {
         };
         let mut proposal = match plan::parse_plan(&plan_text, &intent, &evidence) {
             Ok(plan) => plan,
-            Err(_) => {
+            Err(error) => {
                 output["reason"] = json!("invalid_plan_contract_or_source_reference");
+                output["rejection"] = plan::rejection_details(&error, &plan_text);
                 return response(output);
             }
         };
