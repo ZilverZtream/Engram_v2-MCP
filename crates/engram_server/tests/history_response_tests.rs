@@ -50,6 +50,28 @@ async fn run(root: &std::path::Path, mode: &str) -> Result<()> {
     ensure!(full["response_page"]["total_count"]==3 && full["response_page"]["total_count_scope"]=="bounded_ranking_window");
     ensure!(full["retrieval_capability"].as_str().unwrap().contains("lexical"));
     if mode=="precedent" {ensure!(full["rerank"].as_str().unwrap().contains("off"));}
+    // A caller must distinguish a complete ranked window from a deliberately
+    // limited one, without treating bounded text retrieval as corpus-complete.
+    for limit in [1,3] {
+        for structured in [true,false] {
+            let mut args=base.clone();args["limit"]=json!(limit);
+            args["output_json"]=json!(structured);args["max_tokens"]=json!(16_384);
+            let page=text(engram.handle_search_history(serde_json::from_value(args)?).await?);
+            if structured {
+                let value:Value=serde_json::from_str(&page)?;
+                if mode=="precedent" {
+                    ensure!(value["ranked_matches_before_limit"]==3);
+                    ensure!(value["more_ranked_matches"]==json!(limit==1));
+                } else {
+                    ensure!(value["more_ranked_matches"].is_null());
+                }
+            } else if mode=="precedent" {
+                ensure!(page.contains(if limit==1 {"2 additional ranked matches are outside this window"} else {"no additional ranked matches beyond this window"}),"{page}");
+            } else {
+                ensure!(page.contains("matches beyond the retrieved window are unknown"),"{page}");
+            }
+        }
+    }
     let expected:Vec<_>=rows.iter().map(|r|r["commit"].as_str().unwrap().to_string()).collect();
     for row in rows {
         let (oid,message)=oracle.iter().find(|(oid,_)|Some(oid.as_str())==row["commit"].as_str()).context("independent commit")?;
@@ -107,6 +129,21 @@ async fn run(root: &std::path::Path, mode: &str) -> Result<()> {
             if structured {
                 let value:Value=serde_json::from_str(&output)?;ensure!(value["results"].as_array().unwrap().is_empty());
                 ensure!(value["response_page"]["next_offset"].is_null());
+                ensure!(value["next_tools"]==json!([]));
+                ensure!(value["next_tools_status"]=="empty_history_page_no_historical_lead");
+                if empty.get("offset").is_some() {
+                    ensure!(value["empty_page_reason"]=="offset_outside_ranking_window" && value["restart_offset"]==0);
+                } else {
+                    ensure!(value["empty_page_reason"]=="no_results_in_ranking_window");
+                }
+            } else {
+                ensure!(output.contains("next_tools: []") && output.contains("empty_history_page_no_historical_lead"));
+                ensure!(!output.contains("further matches may exist") && !output.contains("increase limit"),"{output}");
+                if empty.get("offset").is_some() {
+                    ensure!(output.contains("outside this 3-result window; restart at offset=0"),"{output}");
+                } else {
+                    ensure!(output.contains("ranking_window_empty:") && output.contains("no next page"),"{output}");
+                }
             }
         }
     }
