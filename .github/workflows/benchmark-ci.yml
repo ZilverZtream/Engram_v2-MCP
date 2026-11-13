@@ -78,7 +78,13 @@ jobs:
         id: mcp_core_contracts
         run: |
           set -o pipefail
-          cargo test -p engram_server --test mcp_core_contract_tests -- --nocapture --test-threads=1 2>&1 | tee benchmark-artifacts/mcp-core-contracts.log
+          cargo test -p engram_server --test mcp_core_contract_tests -- --skip latency --nocapture --test-threads=1 2>&1 | tee benchmark-artifacts/mcp-core-contracts.log
+
+      - name: Gate fixture search and method lookup p95 latency
+        id: read_latency
+        run: |
+          set -o pipefail
+          cargo test -p engram_server --test mcp_core_contract_tests latency -- --nocapture --test-threads=1 2>&1 | tee benchmark-artifacts/read-latency.log
 
       - name: Run authored language corpus tests
         id: language_corpora
@@ -96,6 +102,7 @@ jobs:
           TASK_PROTOCOL_OUTCOME: ${{ steps.task_protocol.outcome }}
           RETRIEVAL_FIXTURE_OUTCOME: ${{ steps.retrieval_fixture.outcome }}
           MCP_CORE_CONTRACTS_OUTCOME: ${{ steps.mcp_core_contracts.outcome }}
+          READ_LATENCY_OUTCOME: ${{ steps.read_latency.outcome }}
           LANGUAGE_CORPORA_OUTCOME: ${{ steps.language_corpora.outcome }}
         run: |
           mkdir -p benchmark-artifacts
@@ -110,6 +117,7 @@ jobs:
             printf '| Reproducibility | %s |\n' "${REPRODUCIBILITY_OUTCOME:-not_run}"
             printf '| Authored WebForms workflow retrieval: precision@5 / MRR (lexical) | %s |\n' "${RETRIEVAL_FIXTURE_OUTCOME:-not_run}"
             printf '| Twenty core tools through production MCP | %s |\n' "${MCP_CORE_CONTRACTS_OUTCOME:-not_run}"
+            printf '| Fixture search / method lookup p95 latency | %s |\n' "${READ_LATENCY_OUTCOME:-not_run}"
             printf '| TS/Python/Rust/Go source corpora | %s |\n' "${LANGUAGE_CORPORA_OUTCOME:-not_run}"
             printf '\n%s\n' 'These checks do not establish held-out task quality or real-project productivity.'
           } > benchmark-artifacts/summary.md
