@@ -1,0 +1,82 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T06:34:16.118207+00:00",
+  "finding": "EG27 captured VB instruction references",
+  "source_commit": "85398e97324c3c2579d311cd3295f67b1e322f66",
+  "original_requirement": "Supply referenced files/symbols from captured instruction evidence, or explicitly disclose incomplete coverage; maintain hash-bound historical/current evidence.",
+  "before": "Installed public packet captured the actual138994-byte FileLayerSpatialService.vb but reported zero declarations and zero omissions in both versions.",
+  "after": "Candidate and installed public packets retain121 declarations per version and recover the authored FileLayerSpatialService reference against independently checked raw source and span hashes.",
+  "runtime": {
+    "server_sha256": "3354c76f775c1146954fc4e7263a1b6a292f990da40ab0e2657b08d4274e8f85",
+    "manifest_sha256": "4fafd071ade2f7033737a117e41127bf6ce172283970b38de4cd83bd8b7ca8d7",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "native_selected_passed": 14,
+    "maintenance_passed": 45,
+    "maintenance_preexisting_failed": 2,
+    "preexisting_failure_evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\preexisting-maintenance2\\acceptance.json",
+      "sha256": "ad9390f8af515f2f072f6cbf8c2f3eab924d97fd852098ec1e712d216dd4110b"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\native3.json",
+      "sha256": "8d47b6a87827d3a071e509e3dd46a83e8ca50e7b670e176fd2aeff0e17fae8c5"
+    },
+    "native_full_maintenance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\native2.json",
+      "sha256": "f2879254d2d5e439fc68d29c3116973110a5af1b25c978c1728dcf3ab261cd76"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\candidate1\\acceptance.json",
+      "sha256": "2299b2932d015af54552439dcadad4ef5281a3548ca4c0188b4cc3b421d77bba"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\installed1\\acceptance.json",
+      "sha256": "dce140fb1cab961d87eb53f4eb6a2d6e6b6f94d00a2cdbd26c5fb3635c94bdb4"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\public-baseline1\\acceptance.json",
+      "sha256": "32e42dd1695c4ca4186a564e758c1348e36719dd2c14347a69ebb11c8f634cc1"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\release1.json",
+      "sha256": "9f5a4c6c114d839a29a8f6b05d0b2c12d5cc8907226f21dcabb770787ef1f6de"
+    }
+  },
+  "preserved": {
+    "manual_and_linked_capture_limit": 131072,
+    "automatic_code_capture_limit": 262144,
+    "packet_budget": 786432,
+    "authored_files_written": 0,
+    "actual_ociusx_files_unchanged": true,
+    "production_registry_and_generation_3148_unchanged": true,
+    "sidecar_assets_unchanged": true,
+    "nine_preserved_work_files_unchanged": true
+  },
+  "bundled_delivery": {
+    "finding": "Original TODO2 non-semantic lexical fallback",
+    "ranking_comparisons": 8,
+    "page_comparisons": 4,
+    "nonexistent_identifier_returns_empty": true,
+    "explicit_vector_lookup_retained": true,
+    "current_ociusx_ollama_ranking_unchanged": true
+  },
+  "limits": [
+    "Candidate declarations are source observations, not Roslyn bindings, exhaustive discovery, symbol absence or semantic policy correctness.",
+    "This verifies current actual OciusX source and guidance in owned copies, not an OciusX application change or end-to-end productivity gain.",
+    "Two preexisting Rust-reference fixture failures remain open and were reproduced on the unchanged pre-upgrade installed server; their tests were preserved.",
+    "Other EG27/31 usefulness requirements and original full19gates remain unfinished."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence",
+    "new_fixture_directories_removed": true,
+    "build_job_closed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fc3aa28bf96a4d09a49cdd066f583577",
+    "retention": "Retain logs, source hashes, packets and paired rollback artifacts for review; preexisting folders were not deleted."
+  }
+}

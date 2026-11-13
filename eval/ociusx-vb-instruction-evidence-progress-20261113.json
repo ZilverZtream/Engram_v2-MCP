@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "finding": "EG27 captured VB reference inventory",
   "original_requirement": "Supply referenced files/symbols from captured instruction evidence, or explicitly disclose incomplete coverage; maintain hash-bound historical/current evidence.",
   "observed_missing_behavior": "The automatic area collector accepts 256 KiB code files, but the VB snapshot extractor silently returns an empty vector above 128 KiB. The retained real OciusX packet captured the 138994-byte spatial service yet reports zero candidates and zero omissions in both versions.",
@@ -63,7 +63,12 @@
     "debug": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\debug1\\acceptance.json",
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\public-baseline1\\acceptance.json"
   },
-  "remaining": "Poll exact release session63784. After terminal PASS: package, acquire existing read-only config hold, candidate1, release gates, ValidateUpgrade/Upgrade, installed1, release hold, record installed identity and push receipt. Do not edit frozen source or restart on observation timeout.",
+  "remaining": [
+    "Candidate declarations are source observations, not Roslyn bindings, exhaustive discovery, symbol absence or semantic policy correctness.",
+    "This verifies current actual OciusX source and guidance in owned copies, not an OciusX application change or end-to-end productivity gain.",
+    "Two preexisting Rust-reference fixture failures remain open and were reproduced on the unchanged pre-upgrade installed server; their tests were preserved.",
+    "Other EG27/31 usefulness requirements and original full19gates remain unfinished."
+  ],
   "review": {
     "kind": "Parent manual source and helper review; no external review claimed",
     "findings": [],
@@ -82,5 +87,6 @@
     "release_owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\edit-workload-focused-hmn324vd",
     "preexisting_folders_deleted": false,
     "retained_first_baseline_diagnosis": "preexisting-maintenance1: Python newline translation changed the fixture, so this attempt is not the matched baseline; exact-byte corrected run2 reproduces both failures. Its raw packet remains; owned fixture is absent."
-  }
+  },
+  "delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json"
 }

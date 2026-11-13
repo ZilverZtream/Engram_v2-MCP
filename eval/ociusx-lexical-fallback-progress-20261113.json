@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_PUBLIC_DEBUG_VALIDATED_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "requirement": "Original TODO2: non-semantic default projection must not dilute lexical results; degrade honestly.",
   "ociusx_benefit": "OciusX identifier and source retrieval must not gain unrelated projection-only matches or projection-based reordering under the default configuration.",
   "observed_gap": "search_ranked_prefix gives projection and lexical results equal RRF weight and uses projection vectors for MMR. The recent disclosure fix changed only the warning; the original ranking requirement remains unmet.",
@@ -67,15 +67,14 @@
     "implication": "This patch does not change the currently configured OciusX ranking. It is an original default-fallback correction, not measured OciusX improvement."
   },
   "runtime": {
-    "deployed": false,
-    "release_built": false,
-    "installed_server_sha256": "6c78a3ba53731be8eabae7172b12b9cfcc27c7a3d7222441871ab7b2781de97b",
-    "installed_manifest_sha256": "06af78bc48b1b51beecbc45e0bd761fe91cbbd5f1e3043946211ff39c40a850b",
-    "disposition": "Retain source for a subsequent relevant runtime release; do not spend a standalone build/deployment on a path unused by current OciusX."
+    "deployed": true,
+    "release_built": true,
+    "installed_server_sha256": "3354c76f775c1146954fc4e7263a1b6a292f990da40ab0e2657b08d4274e8f85",
+    "installed_manifest_sha256": "4fafd071ade2f7033737a117e41127bf6ce172283970b38de4cd83bd8b7ca8d7",
+    "source_commit": "85398e97324c3c2579d311cd3295f67b1e322f66"
   },
   "remaining": [
-    "Candidate and installed release acceptance remain required; do not mark TODO2 runtime delivery complete.",
-    "No semantic ranking/provider, production-scale relevance or OciusX productivity improvement is established.",
-    "Original OciusX shortlist and all other unfinished findings remain; next selection must use current OciusX evidence, not sequential generic TODO membership."
-  ]
+    "No change to current OciusX Ollama ranking or measured productivity claim. Other original findings remain open."
+  ],
+  "delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json"
 }

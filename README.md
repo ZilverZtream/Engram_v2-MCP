@@ -996,9 +996,9 @@ projection matches. Configure a real embedding provider for semantic search.
 The quickstart's `fts_only` backend also disables vector storage/search; it is
 an explicit choice, not the global default.
 
-The lexical-ranking fallback is source-validated but not yet deployed to the
-recorded Windows installation; see
-[`eval/ociusx-lexical-fallback-progress-20261113.json`](eval/ociusx-lexical-fallback-progress-20261113.json).
+Candidate and installed Windows checks verified this fallback alongside the
+VB instruction-evidence correction; see the
+[delivery evidence](eval/ociusx-vb-instruction-evidence-delivery-20261113.json).
 
 Other operational defaults are five seconds of watcher debounce, 50,000,000
 bytes per Tantivy writer, two concurrent jobs, and parse concurrency capped at
