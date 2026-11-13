@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Native6 session4387 is running with source frozen. Then verify public fixture with grouped order summaries and registered-control evidence, commit/push validated source, release/deploy and verify actual OciusX semantics. No ranking change, model replay or language expansion.",
+  "next": "Finish release5; verify optimized candidate and installed fixtures; perform one actual OciusX request and source-semantic review. Preserve all earlier failures and unfinished acceptance.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -221,5 +221,19 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
       "retention": "Retain packages/receipts/rejected proposals for acceptance evidence and rollback. No preexisting directories removed."
     }
+  },
+  "host_order_correction": {
+    "status": "HOST_ORDER_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
+    "main_merge_commit": "119cd0c7eab0692ca3aaa05116a5d038f3d0aa48",
+    "native_checks": 13,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native6.json",
+    "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public5\\acceptance.json",
+    "deployed": false,
+    "actual_v5_request_sent": false,
+    "behavior": "Reserve up to4 candidate WebForms hosts in addition to initial12 ranked leads. Existing24-file/192KiB source limits and registered-control freshness remain. Derive implementation_order from validated concrete step descriptions; no independent model-summary cardinality requirement.",
+    "validation": "Native tests cover a non-UI ranked prefix, registered editor/code-behind discovery and changed host, grouped/absent summary order, and retained strict path/step/reference/requirement checks. Public fixture retains three ordered steps despite one model summary, includes an editor beyond initial12 and refuses changed control source.",
+    "retained_actual_response": "Still rejected: normal4 includes an undeclared test-file step. Canonical order alone does not make that proposal valid. No relaxation of planned-path validation.",
+    "review": "Parent manual review; existing CodeRabbit authentication unavailable. No external review claimed."
   }
 }

@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
+      "status": "HOST_ORDER_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10003,7 +10003,7 @@
       ],
       "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
       "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
-      "prior_turn_classification": "PROGRESS: v4 built/deployed and installed checks passed. Actual response exposed missing host coverage and redundant summary-order rejection; both now corrected in isolated source and native6 running.",
+      "prior_turn_classification": "PROGRESS: v4 deployed with actual failure retained; host coverage and canonical step-order corrections implemented,13 native/public checks passed, source8771ff0 pushed.",
       "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
       "progress": "eval/ociusx-feature-plan-progress-20261113.json",
       "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
@@ -10177,6 +10177,20 @@
           "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
           "retention": "Retain packages/receipts/rejected proposals for acceptance evidence and rollback. No preexisting directories removed."
         }
+      },
+      "host_order_correction": {
+        "status": "HOST_ORDER_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
+        "main_merge_commit": "119cd0c7eab0692ca3aaa05116a5d038f3d0aa48",
+        "native_checks": 13,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native6.json",
+        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public5\\acceptance.json",
+        "deployed": false,
+        "actual_v5_request_sent": false,
+        "behavior": "Reserve up to4 candidate WebForms hosts in addition to initial12 ranked leads. Existing24-file/192KiB source limits and registered-control freshness remain. Derive implementation_order from validated concrete step descriptions; no independent model-summary cardinality requirement.",
+        "validation": "Native tests cover a non-UI ranked prefix, registered editor/code-behind discovery and changed host, grouped/absent summary order, and retained strict path/step/reference/requirement checks. Public fixture retains three ordered steps despite one model summary, includes an editor beyond initial12 and refuses changed control source.",
+        "retained_actual_response": "Still rejected: normal4 includes an undeclared test-file step. Canonical order alone does not make that proposal valid. No relaxation of planned-path validation.",
+        "review": "Parent manual review; existing CodeRabbit authentication unavailable. No external review claimed."
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
