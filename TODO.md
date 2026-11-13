@@ -24,7 +24,13 @@ These degrade or improve *every single interaction*. Nothing below matters until
   hit. Every result should carry: path, line range, symbol name + kind, full chunk text
   (or an explicit `truncated: true` + a handle to fetch the rest).
 
-- [x] **2. Ship real semantic embeddings by default — or degrade honestly** (M) — *done 2026-06-12 (degrade-honestly branch): SemanticQuality labeling in search/vector/project_health + startup warning; also fixed embedding_backend=ollama being rejected at engine construction. Bundling a real local model remains open (see P2).*
+- [~] **2. Ship real semantic embeddings by default — or degrade honestly** (M) — *done 2026-06-12 (degrade-honestly branch): SemanticQuality labeling in search/vector/project_health + startup warning; also fixed embedding_backend=ollama being rejected at engine construction. Bundling a real local model remains open (see P2).*
+  November 13: the original lexical-ranking fallback was still missing despite
+  the disclosure delivery. Source now bypasses projection fusion/MMR; public
+  debug checks pass, including absent identifiers and lexical-equivalent pages.
+  Runtime deployment remains pending. Current OciusX uses Ollama and is
+  unaffected; no OciusX gain is claimed. See
+  `eval/ociusx-lexical-fallback-progress-20261113.json`.
   `engram_core/src/config.rs`, `engram_ml/`. The default `local` backend is a
   non-semantic projection/trigram embedder, so default installs get vector search that
   *looks* like it works but returns noise — worse than no vector search, because hybrid

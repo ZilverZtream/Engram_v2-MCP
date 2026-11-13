@@ -985,11 +985,16 @@ advertise_all_tools: true       # default: full profile, filtered by project cap
 ```
 
 Omitting `embedding_backend` selects `local`; `embedding_model` is unset and is
-ignored by the `local`/`candle` projection implementations. Default hybrid search
-labels this fallback `degraded_trigram`. Projection matches can affect the combined
-ranking; request `semantic: false` for lexical-only retrieval, or configure a real
-embedding provider for semantic search. The lexical-only setup in the quickstart
-is an explicit choice, not the global default.
+ignored by the `local`/`candle` projection implementations. Search labels this
+backend `degraded_trigram` and falls back to lexical ranking, without projection
+fusion or projection-based MMR. Explicit `vector_search` still exposes degraded
+projection matches. Configure a real embedding provider for semantic search.
+The quickstart's `fts_only` backend also disables vector storage/search; it is
+an explicit choice, not the global default.
+
+The lexical-ranking fallback is source-validated but not yet deployed to the
+recorded Windows installation; see
+[`eval/ociusx-lexical-fallback-progress-20261113.json`](eval/ociusx-lexical-fallback-progress-20261113.json).
 
 Other operational defaults are five seconds of watcher debounce, 50,000,000
 bytes per Tantivy writer, two concurrent jobs, and parse concurrency capped at

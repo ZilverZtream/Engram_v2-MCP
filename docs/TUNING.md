@@ -94,7 +94,7 @@ integrity tradeoff matters, not as a speed setting.
 | Backend | Current behavior | When to consider it |
 | --- | --- | --- |
 | `fts_only` | Lexical retrieval; vector search disabled | Offline identifier/source lookup, a clean retrieval baseline, or avoiding provider work. Use `semantic: false` explicitly in baseline searches. |
-| `local` / `candle` | Deterministic 384-dimensional trigram projection, reported as degraded semantic quality | Existing offline projection workflows. Neither name currently selects a learned sentence model; setting `embedding_model` does not turn this implementation into one. |
+| `local` / `candle` | Deterministic 384-dimensional trigram projection, reported as degraded semantic quality. Current source falls back to lexical ranking for combined search; explicit vector lookup remains degraded. | Existing offline projection workflows. Neither name currently selects a learned sentence model; setting `embedding_model` does not turn this implementation into one. The fallback is source-validated, pending runtime deployment; see the [delivery status](../eval/ociusx-lexical-fallback-progress-20261113.json). |
 | `ollama` | Configured embedding model through the Ollama endpoint | Semantic retrieval with an available, correctly configured model/service; measure indexing and query costs. |
 | `openai` / `remote` | Configured compatible remote embedding service | Semantic retrieval where provider access, dimensions, latency and cost fit the application. |
 

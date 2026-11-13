@@ -9976,29 +9976,10 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DOCUMENTATION_RECONCILED_VERIFIED",
-      "finding": "TODO57 documentation drift",
-      "original_requirement": "Reconcile ROADMAP, TOOL_PARITY, TOOL_CONTRACT and README with current tools; mark enhancement phases39-45 as design/roadmap rather than implying nonexistent tools are callable.",
-      "observed_missing_behavior": "Existing matrix checker reports drift in TOOL_PARITY/DEVELOPER_SPEC/ROADMAP. Enhancement spec proposes many unrouted names without status notices. README and TOOL_CONTRACT contain universal offline, complete graph, race-free and fully-implemented claims stronger than current evidence.",
-      "implementation_files": [
-        "README.md",
-        "AGENT_ENHANCEMENT_SPEC.md",
-        "docs/ROADMAP.md",
-        "docs/TOOL_PARITY.md",
-        "docs/TOOL_CONTRACT.md",
-        "docs/DEVELOPER_SPEC.md"
-      ],
-      "finite_acceptance": [
-        "Use the existing capability generator and require its read-only check to pass afterward.",
-        "Preserve the original design requirements; label each phase39-45 section as design targets and list available versus absent named tools using current source.",
-        "Keep existing delivered query/schema/trace/edit-session work visible; explicitly retain partial feature-plan semantic acceptance and trace/extraction limitations.",
-        "Remove unsupported universal product claims and distinguish tool implementation, runtime discovery and verified delivery. Check edited links/status names. No runtime change, release build or benchmark rerun."
-      ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\doc-drift",
-      "scope": "Documentation only, bounded to the named original files and generated companion table. No CodeMap/Blast improvements or new tool behavior.",
-      "at_utc": "2026-11-13T05:39:16.987507+00:00",
-      "delivery": "eval/ociusx-doc-drift-delivery-20261113.json",
-      "remaining": "Selected documentation item delivered. Continue original TODO58 IPC version negotiation after checking existing implementation once."
+      "status": "OCIUSX_EVIDENCE_SELECTION_PENDING",
+      "next_action": "Inspect the retained EG27 instruction-reference gaps against one current OciusX guide and its VB source. In particular, establish whether declaration-only VB coverage is causing unnecessary review on unrelated edits. Use the existing sidecar capability where needed; select only a reproduced gap, preserve completed EG14/31 deliveries, and do not start another generic TODO or planner prompt cycle.",
+      "retained_pending_release": "eval/ociusx-lexical-fallback-progress-20261113.json",
+      "active_implementation": null
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -13281,7 +13262,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Inspect original TODO58 daemon/proxy protocol-version negotiation and current tests once; implement a concrete missing behavior only.",
+    "next_user_visible_delivery": "Inspect the retained EG27 instruction-reference gaps against one current OciusX guide and its VB source. In particular, establish whether declaration-only VB coverage is causing unnecessary review on unrelated edits. Use the existing sidecar capability where needed; select only a reproduced gap, preserve completed EG14/31 deliveries, and do not start another generic TODO or planner prompt cycle.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13948,6 +13929,32 @@
       "remaining": "Selected defaults audit/disclosure delivered. Learned local model and global tuning optimum are not claimed; advance original documentation drift item.",
       "delivery": "eval/ociusx-defaults-delivery-20261113.json"
     },
-    "doc_drift_delivery": "eval/ociusx-doc-drift-delivery-20261113.json"
+    "doc_drift_delivery": "eval/ociusx-doc-drift-delivery-20261113.json",
+    "previous_doc_drift_contract": {
+      "status": "DOCUMENTATION_RECONCILED_VERIFIED",
+      "finding": "TODO57 documentation drift",
+      "original_requirement": "Reconcile ROADMAP, TOOL_PARITY, TOOL_CONTRACT and README with current tools; mark enhancement phases39-45 as design/roadmap rather than implying nonexistent tools are callable.",
+      "observed_missing_behavior": "Existing matrix checker reports drift in TOOL_PARITY/DEVELOPER_SPEC/ROADMAP. Enhancement spec proposes many unrouted names without status notices. README and TOOL_CONTRACT contain universal offline, complete graph, race-free and fully-implemented claims stronger than current evidence.",
+      "implementation_files": [
+        "README.md",
+        "AGENT_ENHANCEMENT_SPEC.md",
+        "docs/ROADMAP.md",
+        "docs/TOOL_PARITY.md",
+        "docs/TOOL_CONTRACT.md",
+        "docs/DEVELOPER_SPEC.md"
+      ],
+      "finite_acceptance": [
+        "Use the existing capability generator and require its read-only check to pass afterward.",
+        "Preserve the original design requirements; label each phase39-45 section as design targets and list available versus absent named tools using current source.",
+        "Keep existing delivered query/schema/trace/edit-session work visible; explicitly retain partial feature-plan semantic acceptance and trace/extraction limitations.",
+        "Remove unsupported universal product claims and distinguish tool implementation, runtime discovery and verified delivery. Check edited links/status names. No runtime change, release build or benchmark rerun."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\doc-drift",
+      "scope": "Documentation only, bounded to the named original files and generated companion table. No CodeMap/Blast improvements or new tool behavior.",
+      "at_utc": "2026-11-13T05:39:16.987507+00:00",
+      "delivery": "eval/ociusx-doc-drift-delivery-20261113.json",
+      "remaining": "Selected documentation item delivered. Continue original TODO58 IPC version negotiation after checking existing implementation once."
+    },
+    "lexical_fallback_progress": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\ociusx-lexical-fallback-progress-20261113.json"
   }
 }

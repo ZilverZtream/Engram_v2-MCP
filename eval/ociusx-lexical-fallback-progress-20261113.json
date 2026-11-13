@@ -1,0 +1,81 @@
+{
+  "status": "IMPLEMENTED_PUBLIC_DEBUG_VALIDATED_NOT_DEPLOYED",
+  "requirement": "Original TODO2: non-semantic default projection must not dilute lexical results; degrade honestly.",
+  "ociusx_benefit": "OciusX identifier and source retrieval must not gain unrelated projection-only matches or projection-based reordering under the default configuration.",
+  "observed_gap": "search_ranked_prefix gives projection and lexical results equal RRF weight and uses projection vectors for MMR. The recent disclosure fix changed only the warning; the original ranking requirement remains unmet.",
+  "implementation_files": [
+    "crates/engram_index/src/hybrid.rs",
+    "crates/engram_server/src/handlers/search_tools.rs",
+    "crates/engram_server/tests/mcp_core_contract_tests.rs"
+  ],
+  "acceptance": [
+    "Default public search returns the same ordered source identities as explicit lexical search for existing authored upload/export/grid cases, including MMR requests and paged prefixes.",
+    "An absent identifier has no results rather than unrelated projection-only hits.",
+    "Explicit vector_search remains available and labelled degraded; learned semantic backends retain the existing fusion path.",
+    "JSON and Markdown disclose lexical fallback and degraded backend; candidate and installed fixtures close owned resources."
+  ],
+  "scope": "One retrieval correction. No language support, planner prompt cycle, CodeMap, Blast, provider configuration, schema migration or OciusX application edits.",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\lexical-fallback",
+  "cleanup": "Retain scripts, raw outputs and receipts for review; new fixture directories are removed after their exact owners close. Existing worktree and prior artifacts remain untouched.",
+  "source_baseline": "2694bf38418de12cad4819c40b541d1c4948f356",
+  "no_progress_check": "Previous goal turn restated status without delivery. Current selection follows a concrete mismatch between original TODO2 and current ranking code; do not repeat planner prompt/release experiments.",
+  "at_utc": "2026-11-13T05:58:16.466348+00:00",
+  "source_commit": "88f2191457a6047defd4db7499b5465a47043ca7",
+  "behavioral_source_commit": "ab45407c888f80f897999b2893f94dbbcafa130b",
+  "source_files": {
+    "crates/engram_index/src/hybrid.rs": "9de7e38e2a282fee41a1187ded39edef9db29cdb36ed40283395014dbf09beea",
+    "crates/engram_server/src/handlers/search_tools.rs": "fbcf8bfe6c9a6a99cb4e10e72090846cea7aa176f09d06a11bbfb63717f3d27a",
+    "crates/engram_server/tests/mcp_core_contract_tests.rs": "99622cd30d4592a5891f41d38132ce4706992ececa88df7c4f5892b797b95406"
+  },
+  "validation": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\lexical-fallback\\baseline1.json",
+      "sha256": "334afcbb025dbfd17fa23dca1b47e7b2c218d67aa5083e890582ecc5cf668335"
+    },
+    "whole_mcp_target": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\lexical-fallback\\native1.json",
+      "sha256": "29dae3c66f21d16ed669d2a5df52bc0697ac52c5a95afa4884a4e578997be929"
+    },
+    "pagination_followup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\lexical-fallback\\native2.json",
+      "sha256": "84131e21d12678a205d3b9a47f015797d38014b9148b4bf9b5a3db76a61c84cd"
+    },
+    "whole_mcp_tests_passed": 5,
+    "ranking_comparisons": 8,
+    "page_comparisons": 4,
+    "absent_identifier_empty": true,
+    "explicit_vectors_retained": true,
+    "fixture_temp_removed": true,
+    "source_frozen_during_each_run": true,
+    "post_test_change": "requests.rs semantic parameter documentation only; no additional executable logic. Runtime schema-description rebuild remains pending."
+  },
+  "review": {
+    "kind": "Parent manual source review",
+    "findings": [],
+    "external_review_performed": false,
+    "observations": [
+      "Fallback is limited to DegradedTrigram; Ollama/OpenAI semantic fusion and fts_only behavior are unchanged.",
+      "Selected source guard remains held during lexical read; output is the requested prefix and cancellation is checked.",
+      "Explicit vector_search and stored vectors remain available; raw public test confirms nonempty projection results.",
+      "Public result counts, order, pages and missing-identifier behavior are tested through the production stdio executable."
+    ]
+  },
+  "actual_ociusx_configuration": {
+    "embedding_backend": "ollama",
+    "embedding_model": "nomic-embed-text",
+    "changed": false,
+    "implication": "This patch does not change the currently configured OciusX ranking. It is an original default-fallback correction, not measured OciusX improvement."
+  },
+  "runtime": {
+    "deployed": false,
+    "release_built": false,
+    "installed_server_sha256": "6c78a3ba53731be8eabae7172b12b9cfcc27c7a3d7222441871ab7b2781de97b",
+    "installed_manifest_sha256": "06af78bc48b1b51beecbc45e0bd761fe91cbbd5f1e3043946211ff39c40a850b",
+    "disposition": "Retain source for a subsequent relevant runtime release; do not spend a standalone build/deployment on a path unused by current OciusX."
+  },
+  "remaining": [
+    "Candidate and installed release acceptance remain required; do not mark TODO2 runtime delivery complete.",
+    "No semantic ranking/provider, production-scale relevance or OciusX productivity improvement is established.",
+    "Original OciusX shortlist and all other unfinished findings remain; next selection must use current OciusX evidence, not sequential generic TODO membership."
+  ]
+}
