@@ -1,5 +1,5 @@
 {
-  "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
+  "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
   "at_utc": "2026-11-13T01:02:16.065872+00:00",
   "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
   "scope": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Finish release5; verify optimized candidate and installed fixtures; perform one actual OciusX request and source-semantic review. Preserve all earlier failures and unfinished acceptance.",
+  "next": "Native7 session34149 running with source frozen. After PASS, capture debug6 candidate and run verify-public-v6.py debug-public6 with CRLF sources/raw citation hashes. Then commit/push validated comparison fix, release6 and installed/actual verification. v6 helpers prepared; implementation6.json awaits validated source commit.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -223,17 +223,85 @@
     }
   },
   "host_order_correction": {
-    "status": "HOST_ORDER_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
     "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
     "main_merge_commit": "119cd0c7eab0692ca3aaa05116a5d038f3d0aa48",
     "native_checks": 13,
     "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native6.json",
     "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public5\\acceptance.json",
-    "deployed": false,
-    "actual_v5_request_sent": false,
+    "deployed": true,
+    "actual_v5_request_sent": true,
     "behavior": "Reserve up to4 candidate WebForms hosts in addition to initial12 ranked leads. Existing24-file/192KiB source limits and registered-control freshness remain. Derive implementation_order from validated concrete step descriptions; no independent model-summary cardinality requirement.",
     "validation": "Native tests cover a non-UI ranked prefix, registered editor/code-behind discovery and changed host, grouped/absent summary order, and retained strict path/step/reference/requirement checks. Public fixture retains three ordered steps despite one model summary, includes an editor beyond initial12 and refuses changed control source.",
     "retained_actual_response": "Still rejected: normal4 includes an undeclared test-file step. Canonical order alone does not make that proposal valid. No relaxation of planned-path validation.",
     "review": "Parent manual review; existing CodeRabbit authentication unavailable. No external review claimed."
+  },
+  "actual_v5": {
+    "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
+    "at_utc": "2026-11-13T02:32:05.931646+00:00",
+    "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
+    "installed_server_sha256": "eb4d33fdb3a4e8323cca7bb26b30e1b0530816879151f505195164b2c65975bd",
+    "actual_request": {
+      "status": "FAIL",
+      "pair_sha256": "d5e241e38cfb7faec067cc542742458eb785c9a147ea7cf2fb93cbe10f163553",
+      "process_identity": {
+        "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+        "created_ticks": 134390101682827699
+      },
+      "driver_sha256": "c17da256e63b86d297f72fe261cc09c972c507f43cd61b5b2e17580c7f04f6b2",
+      "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+      "seconds": 160.4155150000006,
+      "error": "AssertionError('invalid_plan_contract_or_source_reference')",
+      "pipe_closed": true
+    },
+    "rejection": {
+      "kind": "structural_or_source_check",
+      "message": "Plan exceeds file cap"
+    },
+    "proposed_files": 15,
+    "accepted_file_limit": 12,
+    "observed_gap": "Planner compared raw SourceEvidence hash against page_composition ContentHash, which normalizes CRLF/CR. All4 unchanged selected WebForms hosts were falsely rejected, leaving editor controls absent. This is a regression in the new planner comparison, not a stale OciusX source file.",
+    "hash_checks": [
+      {
+        "file_path": "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+        "raw_hash": "dc767a5a2845b337ee994f59870ffa7464b3eab3ff7b0849df53a934e7a40338",
+        "normalized_hash": "e4e27007eac3e05ca115ce84afd20f62e75c6dc8c8442398cbd459bb15747790",
+        "unchanged_raw_source": true,
+        "false_changed_host_warning": true
+      },
+      {
+        "file_path": "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+        "raw_hash": "9d9bb6b1270193d06c638c7c3ba7b9368de78f9dbcdb5964d45400e6dcc67e5b",
+        "normalized_hash": "8f19be272b5dd3eab5679f0fc46880ebb1377d012caf95bf26f01a08673e696d",
+        "unchanged_raw_source": true,
+        "false_changed_host_warning": true
+      },
+      {
+        "file_path": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+        "raw_hash": "05114c5b49958a8265def8a73d38b822413d615dbb46607f8ea8214327467cc1",
+        "normalized_hash": "266aa31246612ff0c360e78a9117a5eed36b56cfdee02143229feb4fb13c4559",
+        "unchanged_raw_source": true,
+        "false_changed_host_warning": true
+      },
+      {
+        "file_path": "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx",
+        "raw_hash": "0da1611a4e339fdae8cc50faa1e7f9d1bc7a902cdfc30bfa9bf0b88982607d05",
+        "normalized_hash": "2ae9300960d7077c2a34393271bb05de20c223c0ef2ac286d9c6c69facfcfedd",
+        "unchanged_raw_source": true,
+        "false_changed_host_warning": true
+      }
+    ],
+    "correction": "Compute normalized ContentHash from the already admitted source bytes for comparison with composition discovery. Keep raw source hash in public evidence, selected-file admission and final freshness verification. CRLF native/public fixtures now cover the actual line-ending convention.",
+    "semantic_status": "NOT_ACCEPTED: rejected proposal invents a global setting and exceeds file cap. File/source validation and bounds remain enforced; no claim that normalizing the hash alone validates this retained proposal.",
+    "next": "Native7 session34149 running with source frozen. After PASS, capture debug6 candidate and run verify-public-v6.py debug-public6 with CRLF sources/raw citation hashes. Then commit/push validated comparison fix, release6 and installed/actual verification. v6 helpers prepared; implementation6.json awaits validated source commit.",
+    "resources": {
+      "actual_pipe_closed": true,
+      "hold_released": true,
+      "candidate_and_installed_fixtures_removed": true,
+      "build_job_closed": true,
+      "build_temp_removed": true,
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+      "retention": "Retain package, failed response and receipts for delivery evidence/rollback. No preexisting directories removed."
+    }
   }
 }
