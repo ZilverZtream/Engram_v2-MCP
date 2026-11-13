@@ -1,0 +1,41 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_TESTS_RUNNING_NOT_DEPLOYED",
+  "at_utc": "2026-11-13T10:17:07.820328+00:00",
+  "finding": "EG01 scoped authored guidance in QA test planning",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "source_files": {
+    "crates/engram_server/src/handlers/settings_tools.rs": "d7ffe70d86ddea18e98e3a3d2c83fc80f296c4c1bc454d7af3179b7dd55cfb52",
+    "crates/engram_server/src/tools.rs": "c6d93524e4a6bf413b2e86549f58ded417b139f5da5cfa1789c2c61d0f2a1cc7",
+    "crates/engram_server/tests/matrix_policy_tests.rs": "3064f29ade62bf5f1431ebd87e97ea155ff90d232f4e02492228668d97bdc3f3"
+  },
+  "behavior": "derive_test_matrix reuses existing scoped policy resolver and complete-source rendering; historical knowledge_before withholds live guidance. Inferred cases and scope/recovery limits remain distinct.",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\baseline.json",
+  "test_session": 43128,
+  "test_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1.log",
+  "test_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1.json",
+  "tests": [
+    "matrix_policy_tests",
+    "matrix_rule_warning_tests"
+  ],
+  "next_action": "Poll exact session43128. Do not edit frozen source while native1 runs. If passing, commit source, merge preserving WIP9, build release with existing build.py copied to this case and shared target, verify actual OciusX matrix guidance/cutoff, deploy and record installed identity. No model evaluation replay.",
+  "manual_review": {
+    "kind": "Parent source review; retained CodeRabbit host authentication unavailable, no external review claimed.",
+    "checked": [
+      "Reuses existing resolver/budgets without altering discovery or scope semantics.",
+      "Entire guidance documents rendered separately from inference; explicit omissions retain hashes and recovery.",
+      "knowledge_before never invokes live-policy resolver.",
+      "Only requested paths select guidance; no broader graph crawl or model call.",
+      "Fixtures drop Engram before explicit TempDir close; unwind declaration order closes server first."
+    ]
+  },
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy",
+    "fixture_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy\\native1-temp",
+    "cleanup": "Runner owns temp and records leftovers after test completion; source checkout is preexisting and retained. No preexisting deletion."
+  },
+  "limits": [
+    "Tests are currently compiling, not yet passing.",
+    "Candidate/installed validation and deployment pending.",
+    "Does not establish quality uplift or close EG24/25."
+  ]
+}
