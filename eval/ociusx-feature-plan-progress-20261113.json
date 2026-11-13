@@ -1,0 +1,52 @@
+{
+  "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+  "at_utc": "2026-11-13T00:07:12.106459+00:00",
+  "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
+  "scope": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\contract.json",
+  "source_baseline": "32c2935bb135ad415b7778180cf7e82627c85469",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "source_files": {
+    "crates/engram_server/src/capabilities.rs": "f67b5ad1ad4023cd92b3ff841d9291401afe0bfe12027473d038905485db81f6",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs": "4ff97a820dddbddb31a25d21b47d4b283ad02ab0de9849a57ab35154aedc1f29",
+    "crates/engram_server/src/handlers/mod.rs": "ebdf4bfe013ec23ac033ae9595daee07e70962e50b68ad759d4059354ef8e756",
+    "crates/engram_server/src/models/requests.rs": "5c9eb16ab04d2026abaf84c1ea7ef532205f7597079be633247743e7150eb32d",
+    "crates/engram_server/src/services/feature_plan.rs": "681a0bb2559e7f0e5151e17a73d4fad6a4b9b5e9a86d8e685d22c62959a17421",
+    "crates/engram_server/src/services/mod.rs": "91f1e1a7ecb03f43d23b23a6144b330ea9c1e31334ca66513d1453f7a393dff3",
+    "crates/engram_server/src/tools.rs": "b6abef6a8fd0566cffad9e369370a55948b7b77f169645917a796ff77f63c99d",
+    "crates/engram_server/tests/feature_plan_tests.rs": "4a0cbb8180146de0a1d2f6eddd83fffd193077b9a0e9018f9a808469e8037d9f"
+  },
+  "native": {
+    "passed": 7,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native2.json",
+    "sha256": "1afe6a2850cc7530723269fc61636c8a8a08e518af86dd1354bac52a67e16783",
+    "source_stable": true,
+    "owned_temp_removed": true
+  },
+  "public": {
+    "status": "PASS_DEBUG_CANDIDATE",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public1\\acceptance.json",
+    "planning_calls": 9,
+    "index_calls": 1,
+    "resources_closed_and_removed": true
+  },
+  "deployed": false,
+  "limitations": [
+    "Optimized candidate, installed runtime and actual OciusX planning acceptance remain pending.",
+    "Plan semantics and productivity improvement are not proved by controlled-provider fixtures.",
+    "Non-WebForms stacks remain unsupported; full TODO32 remains unfinished."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+    "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
+    "preexisting_folders_deleted": false
+  },
+  "next": "Build optimized release from committed isolated source; verify candidate/installed fixture and one actual OciusX plan, then record delivery.",
+  "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
+  "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
+  "core_preset": {
+    "passed": 1,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\core1.json",
+    "core_tools": 32
+  }
+}

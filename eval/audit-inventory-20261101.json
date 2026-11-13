@@ -3158,7 +3158,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
+        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -9976,46 +9976,36 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "REQUEST_DBML_MAPPING_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO31_PARTIAL",
-      "at_utc": "2026-11-12T22:46:06.533862+00:00",
-      "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace OciusX HTTP requests through handlers to database tables, retaining the full unresolved requirement.",
-      "observed_missing_behavior": "Installed retained /dashboard/system/geolayers/42 trace reaches GetGeoLayerBypr_id but its only table edge is unresolved table:vsl_visualiseringslagers. The selected current iFalt.dbml explicitly maps iFaltDataContext.vsl_visualiseringslagers to dbo.vsl_visualiseringslager at line281. The handler ignores .dbml source. Existing VB ORM edge already supplies access=read, orm=true and src_line58.",
-      "selected_behavior": "Resolve reached VB.NET LINQ-to-SQL context members through admitted DBML source mappings and expose the mapped SQL table plus mapping/source citations in trace_user_request. Preserve unresolved cases and source/runtime limits.",
-      "existing_reuse": [
-        "Current request route and reached-member graph traversal, selected generation/fingerprint checks, bounded paths and response budget.",
-        "Existing VB ORM QueriesTable edges and small VB token reader; no sidecar or graph extraction/storage change.",
-        "Existing locked quick-xml dependency for well-formed namespaced DBML; make direct server dependency if needed instead of writing another XML parser."
-      ],
+      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+      "at_utc": "2026-11-12T23:42:07.203485+00:00",
+      "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
+      "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
+      "selected_behavior": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
+      "source_baseline": "32c2935bb135ad415b7778180cf7e82627c85469",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
       "implementation_files": [
-        "crates/engram_server/src/services/request_trace/dbml.rs",
-        "crates/engram_server/src/services/request_trace.rs",
-        "crates/engram_server/src/services/request_trace/execution.rs",
-        "crates/engram_server/src/handlers/request_trace_tools.rs",
-        "crates/engram_server/src/services/request_trace/tests.rs",
-        "crates/engram_server/Cargo.toml",
-        "Cargo.lock",
-        "crates/engram_server/src/services/request_trace/database.rs"
+        "crates/engram_server/src/capabilities.rs",
+        "crates/engram_server/src/handlers/feature_plan_tools.rs",
+        "crates/engram_server/src/handlers/mod.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/services/feature_plan.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/feature_plan_tests.rs"
       ],
       "finite_acceptance": [
-        "Authored WebForms handler reaches a VB helper with a local, explicitly constructed DataContext; an existing ORM table edge maps via the exact context/member DBML declaration, with current mapping path/line/hash and preserved access/call-site evidence. Do not guess physical table names by plural stripping.",
-        "Admit only selected mapping files whose physical graph revision and content fingerprint match current source. Malformed XML, duplicate/ambiguous context mappings, stale mapping, unknown or reassigned/aliased receiver, comments/string decoys, and missing mapping remain unresolved with bounded diagnostics. No external XML resolution.",
-        "include_db=false omits database mappings; existing path/byte limits remain explicit. Existing source mappings are static declarations, not proof of generated provider SQL, deployed database identity, query execution, runtime side effects or trigger execution.",
-        "Focused owned-fixture behavior checks cover mapping, wrong context with same member, ambiguity, stale/malformed/absent mapping, opt-out and unchanged original request trace cases; fixtures close database handles before removal.",
-        "Candidate and installed public MCP checks prove mapping in an authored VB.NET/DBML fixture. One read-only actual OciusX /dashboard/system/geolayers/42 trace verifies dbo.vsl_visualiseringslager against iFalt.dbml:281 and GetGeoLayerBypr_id:58 without source/config changes or reindex. Commit/push/deploy then advance."
+        "One public request returns structured requirements covering UI/database/procedures/state/auth/AJAX, source-grounded patterns, proposed new/modified files, schema/DDL proposals where required, ordered implementation steps, risks, preconditions and acceptance criteria. ReadyToCode includes file/action/description/template/validation. Inference remains a draft, never execution proof.",
+        "Reuse existing candidate, pattern, schema and edit-safety services. Verify source membership, physical revision and hashes before supplying excerpts; evidence references must resolve to supplied lines. Every proposed modified file carries applicable per-method safety or an explicit unavailable/not-applicable result.",
+        "Reject unsafe paths, unknown existing files, invented source citations, inconsistent step/file/requirement references and incomplete model contracts. Bound input, evidence, output and provider requests; preserve omissions and recovery details. Unavailable/malformed provider and stale source yield explicit incomplete results, never fabricated ready plans.",
+        "Owned native and public fixtures prove a VB/WebForms/SQL feature plan, detail levels, schema proposal, cited patterns, safety integration, source staleness, bad model references, provider failure and unchanged project files. Verify candidate and installed public behavior plus one actual read-only OciusX planning case against source.",
+        "Commit and push only origin/master, deploy matched runtime, retain receipts and close all owned fixtures. Preserve broader TODO32 target-stack requirements as unfinished if unsupported; do not claim all backlog or productivity improvement."
       ],
-      "source_baseline": "998277689f1eef2d64181c4250549943d1ca42b1",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping",
-      "scope_guard": "One demonstrated OciusX mapping gap. No new language support, general ORM translation, CodeMap/Blast, graph rewrite, live database access or trigger parser. Full TODO31 remains partial.",
-      "retained_remaining": [
-        "Trigger effects: no CREATE/ALTER TRIGGER declaration found in current OciusX SQL source inspection; retain original requirement without selecting speculative trigger work.",
-        "Dynamic SQL, nested stored procedures, unhandled ORM expressions, runtime execution and remaining request-routing/binding gaps remain unfinished."
-      ],
-      "resources": "Reuse existing isolated checkout/shared target; retain diagnostics here; fixtures own teardown; preserve parked9 and all preexisting directories.",
-      "supporting_edit_note": "database.rs only initializes the new optional table_mapping field on existing procedure/table hops; no SP analysis behavior change. Cargo.lock reuses already-locked quick-xml0.37.5.",
-      "observed_acceptance_failure": "Initial actual OciusX mapping table/hash correct but citation line280 instead281 with UTF-8 BOM. Original finite source-citation requirement is not yet satisfied; corrected slice and BOM/CRLF checks in progress.",
-      "delivery_evidence": "eval/ociusx-request-dbml-mapping-delivery-20261112.json",
-      "build_session": null
+      "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
+      "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
+      "prior_turn_classification": "NO_PROGRESS: scope/status clarification only. This turn resumes the completed installed baseline without replay.",
+      "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
+      "progress": "eval/ociusx-feature-plan-progress-20261113.json"
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10047,8 +10037,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Reconcile remaining original OciusX acceptance after request DBML mapping delivery",
-    "next_user_visible_deliverable": "Reconcile remaining original OciusX workflow/instruction acceptance against retained evidence; select one demonstrated missing behavior. Preserve partial TODO31 database/trigger tracing and other unfinished requirements; no unrelated language expansion.",
+    "active_original_item": "TODO32 OciusX one-shot feature implementation plan",
+    "next_user_visible_deliverable": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -13366,6 +13356,49 @@
     "request_dbml_mapping_delivery_20261112": {
       "receipt": "eval/ociusx-request-dbml-mapping-delivery-20261112.json",
       "status": "REQUEST_DBML_MAPPING_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO31_PARTIAL"
-    }
+    },
+    "previous_request_dbml_mapping_contract": {
+      "status": "REQUEST_DBML_MAPPING_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_TODO31_PARTIAL",
+      "at_utc": "2026-11-12T22:46:06.533862+00:00",
+      "original_requirement": "TODO31 / AGENT_ENHANCEMENT_SPEC.md 43-2: trace OciusX HTTP requests through handlers to database tables, retaining the full unresolved requirement.",
+      "observed_missing_behavior": "Installed retained /dashboard/system/geolayers/42 trace reaches GetGeoLayerBypr_id but its only table edge is unresolved table:vsl_visualiseringslagers. The selected current iFalt.dbml explicitly maps iFaltDataContext.vsl_visualiseringslagers to dbo.vsl_visualiseringslager at line281. The handler ignores .dbml source. Existing VB ORM edge already supplies access=read, orm=true and src_line58.",
+      "selected_behavior": "Resolve reached VB.NET LINQ-to-SQL context members through admitted DBML source mappings and expose the mapped SQL table plus mapping/source citations in trace_user_request. Preserve unresolved cases and source/runtime limits.",
+      "existing_reuse": [
+        "Current request route and reached-member graph traversal, selected generation/fingerprint checks, bounded paths and response budget.",
+        "Existing VB ORM QueriesTable edges and small VB token reader; no sidecar or graph extraction/storage change.",
+        "Existing locked quick-xml dependency for well-formed namespaced DBML; make direct server dependency if needed instead of writing another XML parser."
+      ],
+      "implementation_files": [
+        "crates/engram_server/src/services/request_trace/dbml.rs",
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/execution.rs",
+        "crates/engram_server/src/handlers/request_trace_tools.rs",
+        "crates/engram_server/src/services/request_trace/tests.rs",
+        "crates/engram_server/Cargo.toml",
+        "Cargo.lock",
+        "crates/engram_server/src/services/request_trace/database.rs"
+      ],
+      "finite_acceptance": [
+        "Authored WebForms handler reaches a VB helper with a local, explicitly constructed DataContext; an existing ORM table edge maps via the exact context/member DBML declaration, with current mapping path/line/hash and preserved access/call-site evidence. Do not guess physical table names by plural stripping.",
+        "Admit only selected mapping files whose physical graph revision and content fingerprint match current source. Malformed XML, duplicate/ambiguous context mappings, stale mapping, unknown or reassigned/aliased receiver, comments/string decoys, and missing mapping remain unresolved with bounded diagnostics. No external XML resolution.",
+        "include_db=false omits database mappings; existing path/byte limits remain explicit. Existing source mappings are static declarations, not proof of generated provider SQL, deployed database identity, query execution, runtime side effects or trigger execution.",
+        "Focused owned-fixture behavior checks cover mapping, wrong context with same member, ambiguity, stale/malformed/absent mapping, opt-out and unchanged original request trace cases; fixtures close database handles before removal.",
+        "Candidate and installed public MCP checks prove mapping in an authored VB.NET/DBML fixture. One read-only actual OciusX /dashboard/system/geolayers/42 trace verifies dbo.vsl_visualiseringslager against iFalt.dbml:281 and GetGeoLayerBypr_id:58 without source/config changes or reindex. Commit/push/deploy then advance."
+      ],
+      "source_baseline": "998277689f1eef2d64181c4250549943d1ca42b1",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\request-dbml-mapping",
+      "scope_guard": "One demonstrated OciusX mapping gap. No new language support, general ORM translation, CodeMap/Blast, graph rewrite, live database access or trigger parser. Full TODO31 remains partial.",
+      "retained_remaining": [
+        "Trigger effects: no CREATE/ALTER TRIGGER declaration found in current OciusX SQL source inspection; retain original requirement without selecting speculative trigger work.",
+        "Dynamic SQL, nested stored procedures, unhandled ORM expressions, runtime execution and remaining request-routing/binding gaps remain unfinished."
+      ],
+      "resources": "Reuse existing isolated checkout/shared target; retain diagnostics here; fixtures own teardown; preserve parked9 and all preexisting directories.",
+      "supporting_edit_note": "database.rs only initializes the new optional table_mapping field on existing procedure/table hops; no SP analysis behavior change. Cargo.lock reuses already-locked quick-xml0.37.5.",
+      "observed_acceptance_failure": "Initial actual OciusX mapping table/hash correct but citation line280 instead281 with UTF-8 BOM. Original finite source-citation requirement is not yet satisfied; corrected slice and BOM/CRLF checks in progress.",
+      "delivery_evidence": "eval/ociusx-request-dbml-mapping-delivery-20261112.json",
+      "build_session": null
+    },
+    "feature_plan_progress": "eval/ociusx-feature-plan-progress-20261113.json"
   }
 }
