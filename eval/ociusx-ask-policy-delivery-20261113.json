@@ -1,0 +1,134 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T20:10:27.015229+00:00",
+  "finding": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
+  "source_commit": "50e2c697f4ca8effa992c70d9bc24fb1d44f5233",
+  "runtime_source_commit": "c438b9e1dd57bf5a970a9b0d357340282350b4e2",
+  "before": "ask_codebase returned code evidence without a separate applicable authored-guidance section; synthesis could not cite scoped policy.",
+  "after": "The natural-language entry point includes applicable complete repository guidance with hashes and scope in JSON and Markdown. Optional synthesis receives the same section and accepts exact policy citations without upgrading code status.",
+  "validation": {
+    "workflow_and_lookup_cases": 49,
+    "synthesis_cases": 5,
+    "baseline": "Public MCP gap reproduced",
+    "candidate": {
+      "complete_applicable_guidance": true,
+      "source_hash": true,
+      "unrelated_topic_excluded": true,
+      "default_no_model": true,
+      "markdown_guidance": true,
+      "refresh_without_reindex": true,
+      "historical_policy_withheld": true,
+      "source_unchanged": true
+    },
+    "installed": {
+      "complete_applicable_guidance": true,
+      "source_hash": true,
+      "unrelated_topic_excluded": true,
+      "default_no_model": true,
+      "markdown_guidance": true,
+      "refresh_without_reindex": true,
+      "historical_policy_withheld": true,
+      "source_unchanged": true
+    }
+  },
+  "actual_ociusx": {
+    "topic": ".github/instructions/map-file-layers.instructions.md",
+    "source_blake3": "f8810f6cfc2b06a5dbf914c622971049af75abebce5b6ce88afca863f4209f9d",
+    "policy_delivery": "complete_inline_source",
+    "policy_bytes": 6744,
+    "seconds": 16.52666119998321,
+    "retrieval_status": "partial",
+    "project_records_and_source_unchanged": true
+  },
+  "runtime": {
+    "server_sha256": "0e69c8338e8b46431eaaccf184ee26e1081bcdf0adac3bd35ff216d7aa83bf89",
+    "manifest_sha256": "5c6a28d6b53b822b367ab0c529aab4664f0511482fe484995aece963ca138978",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\Engram-win-x64.zip",
+    "sha256": "93a4d641db93f4d71030929730e1d07ae210eddfa860aab81b823d272b4f3b43",
+    "runtime_assets": 215,
+    "entries": 218,
+    "installer_source_commit": "909b2b4"
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\contract.json",
+      "sha256": "c8419e6018f3bb21077d61dd19e10fb73b79545fd2880f20ab65586166fb6045"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\baseline2\\acceptance.json",
+      "sha256": "ffd89d71a2ebebc66c7d8f774ec73a5156efef2a85b8e4702c2a062c42cec66b"
+    },
+    "initial_baseline_fixture_mismatch": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\baseline1\\acceptance.json",
+      "sha256": "6408b7a0588188cbe5314e72f3ff5f1c6246f42d909c721b62483d12b405777f"
+    },
+    "workflow": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\native2.json",
+      "sha256": "035b6f66be85a4fde2f4a4b743560bd29c1919a9755f17d8ff3a69b4de67ecd3"
+    },
+    "synthesis": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\native3.json",
+      "sha256": "15c041e4214fb85e59dbb45f8950bca0d5095e788a11747777379bafbbdc4b6b"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\implementation1.json",
+      "sha256": "39d742fc36a94ead7fce3b2eb4eceebd3d8caf5d6e050acd9a2d9fc89138f1ff"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\manual-review.json",
+      "sha256": "503af59169afd6d8e239ac3336c56c135c13e51e819c248ad8150480a517c595"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\release1.json",
+      "sha256": "50b0ae3a543d82da15e21b349f43f808cc603349982fc4f06cb8512425530404"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\candidate1\\acceptance.json",
+      "sha256": "d609720f17912415d35e69c1d762422cebbcdae81b252fde54469206545bd8ab"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\installed1\\acceptance.json",
+      "sha256": "212536e3feae7dfaa0e995fd02b53fc10fcea611c95200c9762439b36341caf2"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\actual1\\acceptance.json",
+      "sha256": "99f34fbab9f12c009ec2b0f7bb631f52c84393f19b8f543c88e0d05e4c20b699"
+    },
+    "actual_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\actual1\\oracle.json",
+      "sha256": "d4a8b32fc9cc2ed68381d2f2575b320d1e4a8e666ebb2addb8e0ff5047b0ffd5"
+    },
+    "actual_answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\actual1\\answer.json",
+      "sha256": "53b741fb03c6fc23329e2842c0102b4846dfd3a45bf5cfa49234952df95c69d0"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\deployment1-state.json",
+      "sha256": "838b6c650483248f57137deb0b61671283e5dbab52ee39d7972005417dccde65"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy",
+    "all_new_fixtures_closed_and_removed": true,
+    "build_temp_removed": true,
+    "owned_configuration_removed": true,
+    "config_hold_released": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-6cf6ae02c3f748709e0bbbf0ef3450b1",
+    "retention": "Keep candidate/bundle, delivery evidence and old runtime pair for review/rollback. No preexisting directories deleted."
+  },
+  "limits": [
+    "Guidance scope follows returned current-code paths, including graph definitions; final edits require scope rechecking.",
+    "Commit or advisory branch requests withhold current guidance; historical ask_codebase resolution is not implemented.",
+    "Native synthesis checks prove citation acceptance and exact quotation checks, not model compliance or semantic correctness. Actual OciusX acceptance used default retrieval with no model calls.",
+    "The existing synthesis prompt bound remains; oversized context retains retrieval-only output.",
+    "Initial public fixture assumed a method definition had source_code kind; the observed graph_relation definition corrected that fixture and the implementation path selection. No assertions about policy content were relaxed.",
+    "No general productivity or readiness claim. EG24/25 and the broader accepted backlog remain unfinished. Parent review only; no external CodeRabbit review."
+  ]
+}

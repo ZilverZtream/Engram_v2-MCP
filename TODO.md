@@ -272,6 +272,10 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   including the previously withheld `Nothing` outcome. The model and prompt
   were unchanged; no repeated model tuning was performed. This inspected source
   question does not establish general task usefulness or product readiness.
+  Applicable authored guidance now accompanies returned code in JSON and Markdown;
+  optional synthesis can cite exact policy text. Installed OciusX map-layer guidance
+  matched the independent source exactly. This does not establish model compliance.
+  Evidence: [scoped-guidance delivery](eval/ociusx-ask-policy-delivery-20261113.json).
   Optional model-assisted routing and broader task acceptance remain unfinished.
   Evidence: [member-context delivery](eval/ociusx-ask-member-context-delivery-20261113.json);
   [retained earlier 3/4 result](eval/ociusx-ask-synthesis-delivery-20261113.json).

@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
     "original_requirement": "Original ocius_workflows priority: existing context tools provide applicable authored guidance; TODO28 gives AI callers one natural-language entry point.",
     "observed_missing_behavior": "ask_codebase currently returns selected code evidence without the applicable repository guidance already provided by other context tools. Optional synthesis cannot cite that guidance.",
@@ -68,8 +68,9 @@
     "retention": "Retain wire evidence and package; new fixtures close handles and clean their owned temporary resources.",
     "source_commit": "50e2c697f4ca8effa992c70d9bc24fb1d44f5233",
     "runtime_source_commit": "c438b9e1dd57bf5a970a9b0d357340282350b4e2",
-    "progress_receipt": "eval/ociusx-ask-policy-progress-20261113.json",
-    "bounded_delivery_complete": false
+    "delivery": "eval/ociusx-ask-policy-delivery-20261113.json",
+    "bounded_delivery_complete": true,
+    "outcome": "The natural-language entry point includes applicable complete repository guidance with hashes and scope in JSON and Markdown. Optional synthesis receives the same section and accepts exact policy citations without upgrading code status."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -690,5 +691,6 @@
     "bounded_delivery_complete": true,
     "delivery": "eval/ociusx-historical-policy-delivery-20261113.json",
     "outcome": "Change-set policy sources use the already resolved Git commit, preserving historical text/scope, complete-source budgets and exact revision recovery; JSON and Markdown identify the source revision."
-  }
+  },
+  "ask_policy_delivery": "eval/ociusx-ask-policy-delivery-20261113.json"
 }
