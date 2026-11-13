@@ -9,7 +9,85 @@ use rmcp::{
     model::{CallToolResult, Content},
 };
 use serde_json::{Value, json};
-use std::{collections::BTreeSet, io::Read, path::Path, time::Duration};
+use std::{
+    collections::{BTreeSet, VecDeque},
+    io::Read,
+    path::Path,
+    time::Duration,
+};
+
+const MAX_SOURCE_FILES: usize = 24;
+const MAX_COMPOSITION_HOSTS: usize = 4;
+
+fn registered_components(
+    directory: &Path,
+    host: &SourceEvidence,
+) -> super::page_composition::Composition {
+    let page = directory.join(&host.file_path);
+    let app = super::access_layer_tools::discover_web_application_root(directory, &page);
+    let mut composition = super::page_composition::collect(directory, &app, &page, false, true);
+    // Discovery reads the host again. A changed host cannot supply new leads
+    // under its previously admitted fingerprint. Components are still only
+    // leads until they independently pass selected-revision/hash admission.
+    if !composition
+        .files
+        .iter()
+        .any(|f| f.path == host.file_path && f.source_hash == host.source_hash)
+    {
+        composition.files.clear();
+        composition
+            .warnings
+            .push("Host changed during composition discovery; component leads withheld".into());
+    }
+    composition
+}
+
+#[cfg(test)]
+mod feature_plan_composition_tests {
+    use super::*;
+
+    #[test]
+    fn registered_editor_and_codebehind_are_found_but_changed_host_is_withheld() {
+        let temp = tempfile::tempdir().unwrap();
+        let root = temp.path();
+        std::fs::write(root.join("web.config"), "<configuration />").unwrap();
+        std::fs::create_dir(root.join("widgets")).unwrap();
+        let markup = "<%@ Page Language='VB' %><%@ Register Src='~/widgets/Threshold.ascx' TagName='Threshold' TagPrefix='u' %><u:Threshold runat='server' />";
+        std::fs::write(root.join("Settings.aspx"), markup).unwrap();
+        std::fs::write(root.join("widgets/Threshold.ascx"), "<%@ Control Language='VB' CodeFile='Threshold.ascx.vb' %><asp:TextBox ID='RequiredCount' runat='server' />").unwrap();
+        std::fs::write(
+            root.join("widgets/Threshold.ascx.vb"),
+            "Public Class Threshold\nEnd Class\n",
+        )
+        .unwrap();
+        let host = SourceEvidence {
+            id: "E1".into(),
+            file_path: "Settings.aspx".into(),
+            source_hash: blake3::hash(markup.as_bytes()).to_hex().to_string(),
+            start_line: 1,
+            end_line: 1,
+            excerpt: markup.into(),
+            methods: vec![],
+        };
+        let found = registered_components(root, &host);
+        assert!(
+            found
+                .files
+                .iter()
+                .any(|f| f.path == "widgets/Threshold.ascx" && f.kind == "user_control")
+        );
+        assert!(
+            found
+                .files
+                .iter()
+                .any(|f| f.path == "widgets/Threshold.ascx.vb" && f.kind == "codebehind")
+        );
+        std::fs::write(root.join("Settings.aspx"), format!("{markup}\nchanged")).unwrap();
+        let stale = registered_components(root, &host);
+        assert!(stale.files.is_empty());
+        assert!(!stale.warnings.is_empty());
+    }
+}
 
 fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
@@ -144,7 +222,7 @@ impl Engram {
         let mut output = json!({
             "status": "INCOMPLETE", "project_id": req.project_id,
             "detail_level": req.detail_level, "plan": null,
-            "provenance": {"model": identity, "prompt_version":"feature-plan-v3", "provider_calls":0,
+            "provenance": {"model": identity, "prompt_version":"feature-plan-v4", "provider_calls":0,
                 "provider_calls_semantics":"Generation requests; transport retries follow the configured provider policy"},
             "limits": [
                 "Model-generated requirements, edits, DDL and templates are proposals; source anchors do not verify their meaning.",
@@ -278,24 +356,22 @@ impl Engram {
             .take(plan::MAX_FILES)
             .cloned()
             .collect::<Vec<_>>();
-        let omitted_paths = paths
-            .iter()
-            .skip(plan::MAX_FILES)
-            .cloned()
-            .collect::<Vec<_>>();
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let directory = record.directory.clone();
         let concepts = retrieval_concepts.clone();
         let worker_view = view.clone();
-        let (evidence, gaps) = tokio::task::spawn_blocking(move || {
+        let (evidence, gaps, composition) = tokio::task::spawn_blocking(move || {
             // A cancelled request must not release selected source ownership
             // while this non-cancellable worker is still reading it.
             let _source_hold = worker_view;
             let mut evidence = Vec::new();
             let mut gaps = Vec::new();
+            let mut composition = Vec::new();
+            let mut queued: BTreeSet<_> = source_paths.iter().cloned().collect();
+            let mut queue = VecDeque::from(source_paths);
             let mut bytes = 0;
-            for path in source_paths {
+            while let Some(path) = queue.pop_front() {
                 let admitted = (|| -> anyhow::Result<SourceEvidence> {
                     let revision = selected.get(path.as_str()).ok_or_else(|| anyhow::anyhow!("not_selected"))?;
                     let mut source = String::new();
@@ -315,14 +391,48 @@ impl Engram {
                     Ok(SourceEvidence {id:format!("E{}", evidence.len()+1), file_path:path.clone(), source_hash:hash, start_line:start, end_line:end, excerpt, methods})
                 })();
                 match admitted {
-                    Ok(row) => evidence.push(row),
+                    Ok(row) => {
+                        let markup = path.to_ascii_lowercase();
+                        if markup.ends_with(".aspx") || markup.ends_with(".ascx") {
+                            if composition.len() < MAX_COMPOSITION_HOSTS {
+                                let mut found = registered_components(Path::new(&directory), &row);
+                                let mut omitted = Vec::new();
+                                for component in &found.files {
+                                    if plan::relative_file(&component.path) && !queued.contains(&component.path) {
+                                        if queued.len() < MAX_SOURCE_FILES {
+                                            queued.insert(component.path.clone());
+                                            queue.push_back(component.path.clone());
+                                        } else {
+                                            omitted.push(component.path.clone());
+                                        }
+                                    }
+                                }
+                                if !omitted.is_empty() {
+                                    found.warnings.push("Component evidence file cap reached; omitted paths require separate reads".into());
+                                }
+                                composition.push(json!({"host":path,"discovery":found,"omitted_paths":omitted,
+                                    "interpretation":"Static component leads, not source admission or runtime binding proof"}));
+                            } else {
+                                gaps.push(json!({"file_path":path,"reason":"Composition host cap reached; registered components not inspected"}));
+                            }
+                        }
+                        evidence.push(row);
+                    },
                     Err(_) => gaps.push(json!({"file_path":path, "reason":"Source unavailable, unselected, stale, non-UTF8 or exceeds evidence limits; no source claims admitted", "recovery":{"tool":"read_file","arguments":{"project_id":project_id,"file_path":path}}})),
                 }
             }
-            (evidence, gaps)
+            (evidence, gaps, composition)
         }).await.map_err(|_| failure("Feature source worker failed"))?;
+        let omitted_paths: Vec<_> = paths
+            .iter()
+            .filter(|path| !evidence.iter().any(|row| &row.file_path == *path))
+            .cloned()
+            .collect();
         output["source_evidence"] = json!(evidence);
-        output["source_coverage"] = json!({"file_cap":plan::MAX_FILES, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps, "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; unshown lines are unexamined", "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts}}});
+        output["source_coverage"] = json!({"file_cap":MAX_SOURCE_FILES, "primary_file_cap":plan::MAX_FILES, "composition_host_cap":MAX_COMPOSITION_HOSTS,
+            "composition":composition, "candidate_files":paths.len(), "admitted_files":evidence.len(), "omitted_paths":omitted_paths, "gaps":gaps,
+            "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
+            "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts}}});
         let mut schema = Vec::new();
         for name in &intent.schema_names {
             let result = self
