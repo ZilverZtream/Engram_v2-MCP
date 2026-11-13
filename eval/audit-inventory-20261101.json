@@ -10015,39 +10015,38 @@
   "last_updated_at": "2026-11-13T19:40:03.788472+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "EG01 historical authored guidance in revision-pinned change sets",
-      "original_requirement": "Original ocius_workflows research: historical replay uses guidance valid at its replay revision; preserve scope and complete policy evidence.",
-      "observed_missing_behavior": "get_change_set with as_of_rev currently returns historical_unavailable and no authored guidance, even when that revision contains the required instruction files.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+      "finding": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
+      "original_requirement": "Original ocius_workflows priority: existing context tools provide applicable authored guidance; TODO28 gives AI callers one natural-language entry point.",
+      "observed_missing_behavior": "ask_codebase currently returns selected code evidence without the applicable repository guidance already provided by other context tools. Optional synthesis cannot cite that guidance.",
       "implementation_files": [
-        "crates/engram_server/src/services/project_policy.rs",
-        "crates/engram_server/src/services/project_policy/historical.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/src/handlers/ask_tools.rs",
+        "crates/engram_server/src/services/ask_engine/report.rs",
+        "crates/engram_server/src/services/ask_engine/synthesis.rs",
         "crates/engram_server/tests/project_policy_workflow_tests.rs",
-        "docs/TOOL_CONTRACT.md"
+        "docs/TOOL_CONTRACT.md",
+        "crates/engram_server/src/handlers/business_source.rs",
+        "crates/engram_server/tests/ask_lookup_cap_tests.rs"
       ],
       "acceptance": [
-        "Read instruction content and scope from the exact already-resolved Git commit; later commits and uncommitted guidance must not leak.",
-        "Reuse current applicability and complete-source budget rules; exclusions remain, and omitted guidance points to the pinned revision.",
-        "Public JSON and Markdown change sets include the applicable historical policy and resolved commit identity.",
-        "Run focused checks and candidate/installed MCP acceptance; verify one existing OciusX instruction at an independently inspected revision."
+        "JSON and Markdown include complete applicable guidance with source hashes for returned code paths, excluding unrelated scoped topics.",
+        "Live instruction edits appear without reindexing; historical/advisory branch requests explicitly withhold current policy.",
+        "Optional synthesis receives the same policy and can cite exact policy text without upgrading retrieval status or treating policy as implementation proof.",
+        "Focused native and candidate/installed MCP checks pass; one actual OciusX answer includes the independently checked applicable instruction."
       ],
       "scope_limits": [
-        "No new tool, checkout, historical index or model pipeline. Existing source/index historical-isolation requirements remain.",
-        "Date-only cutoffs without a Git revision remain explicitly unavailable; do not invent a revision from a timestamp.",
-        "No CodeMap/Blast changes or target-language expansion."
+        "Reuse existing resolver and budgets; no new discovery pipeline, router, historical platform or model tuning.",
+        "Scope covers code paths in returned evidence; no claim of complete task scope or improved model correctness.",
+        "No CodeMap/Blast or target-language expansion."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy",
-      "retention": "Retain evidence and candidate package. New fixtures own and clean their resources; preserve preexisting directories.",
-      "source_commit": "d7c7d49d3e1899e9a0c545eff622b4dc99e07c4e",
-      "runtime_source_commit": "7f53dbffd525207399828e93b60b33ca1d954292",
-      "progress_receipt": "eval/ociusx-historical-policy-progress-20261113.json",
-      "bounded_delivery_complete": true,
-      "delivery": "eval/ociusx-historical-policy-delivery-20261113.json",
-      "outcome": "Change-set policy sources use the already resolved Git commit, preserving historical text/scope, complete-source budgets and exact revision recovery; JSON and Markdown identify the source revision."
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy",
+      "retention": "Retain wire evidence and package; new fixtures close handles and clean their owned temporary resources.",
+      "source_commit": "50e2c697f4ca8effa992c70d9bc24fb1d44f5233",
+      "runtime_source_commit": "c438b9e1dd57bf5a970a9b0d357340282350b4e2",
+      "progress_receipt": "eval/ociusx-ask-policy-progress-20261113.json",
+      "bounded_delivery_complete": false
     },
-    "at_utc": "2026-11-13T19:40:03.788472+00:00",
+    "at_utc": "2026-11-13T19:46:16.350385+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10077,8 +10076,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG01 revision-pinned policy delivered; next original workflow item not yet selected",
-    "next_user_visible_deliverable": "Advance another unfinished original OciusX AI workflow requirement; historical-policy acceptance is closed.",
+    "active_original_item": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
+    "next_user_visible_deliverable": "ask_codebase returns applicable repository guidance alongside selected code evidence.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10095,7 +10094,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: built, candidate/installed MCP and actual OciusX source checks passed; deployed and cleaned owned fixtures.",
+    "previous_goal_turn_classification": "PROGRESS: installed guidance gap reproduced; implementation committed; 54 selected checks passed; same release build active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

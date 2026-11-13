@@ -1,0 +1,40 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T19:56:46.555115+00:00",
+  "finding": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
+  "source_commit": "50e2c697f4ca8effa992c70d9bc24fb1d44f5233",
+  "runtime_source_commit": "c438b9e1dd57bf5a970a9b0d357340282350b4e2",
+  "deployed": false,
+  "observed_before": "Installed ask_codebase returns code evidence but no applicable authored policy section.",
+  "implemented": "Reuse scoped repository policy for returned current-code paths, expose JSON/Markdown, and allow exact policy citations in optional synthesis.",
+  "validation": {
+    "workflow_and_lookup_cases": 49,
+    "synthesis_cases": 5,
+    "public_baseline_reproduced": true
+  },
+  "remaining": [
+    "Complete the same release build, package and verify candidate/installed MCP.",
+    "Verify the default installed OciusX answer carries complete independently read map-layer policy.",
+    "Refresh release bundle and account for owned resources."
+  ],
+  "evidence": {
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\contract.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\baseline2\\acceptance.json",
+    "workflow": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\native2.json",
+    "synthesis": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\native3.json",
+    "source": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\implementation1.json",
+    "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\manual-review.json",
+    "build_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy\\release1-owner.json"
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy",
+    "native_and_baseline_fixtures_cleaned": true,
+    "preserved_wip9": true
+  },
+  "limits": [
+    "Scope follows returned code, not the complete future edit set.",
+    "Historical/advisory branch requests withhold current guidance.",
+    "No model correctness, compliance or general productivity claim.",
+    "Parent source review only; external CodeRabbit authentication was previously unavailable."
+  ]
+}
