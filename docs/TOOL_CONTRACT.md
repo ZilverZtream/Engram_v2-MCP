@@ -153,8 +153,8 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `trace_ui_event(project_id, page, control_id)` — traces ASPX page + control to SQL; now emits structured **Trace Provenance** block with `trace_used_fallback`, `trace_candidate_count`, `trace_confidence_penalty`, unresolved candidate list, per-hop evidence (node_type, file, line range), ambiguity warnings, and follow-up probes for disambiguation
 - `trace_ui_action(project_id, page, control_id)`
 - `get_ui_blueprint(project_id, page)`
-- `get_instrumentation_pack(project_id)`
-- `ingest_instrumentation_logs(project_id, log_data)`
+- `get_instrumentation_pack(language)` ? complete VB.NET/C# manual event helper with an explicit sink and existing inline-SQL node ID. It emits ENGRAM_LOG lines; no automatic interception, installation or query hashing.
+- `ingest_instrumentation_logs(project_id, log_content)` ? ingest those caller-supplied page/control-to-inline-SQL observations; not proof of transaction completion or exhaustive runtime coverage.
 - `export_capture_pack(project_id)`
 
 ## Safety & Autonomous Decision
