@@ -94,6 +94,10 @@ pub const CAPABILITY_FLAGS: &[CapabilityFlag] = &[
         status: CapabilityStatus::Implemented,
     },
     CapabilityFlag {
+        key: "one_shot_feature_plan",
+        status: CapabilityStatus::Implemented,
+    },
+    CapabilityFlag {
         key: "get_change_set",
         status: CapabilityStatus::Implemented,
     },

@@ -766,6 +766,29 @@ pub struct PlanUserStoryRequest {
     pub concepts: Option<Vec<String>>,
 }
 
+/// Assemble a source-cited implementation proposal without editing project files.
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct OneShotFeaturePlanRequest {
+    pub project_id: String,
+    pub feature_description: String,
+    pub model_after: Option<String>,
+    pub area_hint: Option<String>,
+    /// Currently supported: webforms_vbnet (including its JS/TS and SQL files).
+    pub target_stack: String,
+    pub detail_level: PlanDetailLevel,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]
+pub enum PlanDetailLevel {
+    #[serde(alias = "sketch")]
+    Sketch,
+    #[serde(alias = "detailed")]
+    Detailed,
+    #[serde(alias = "ready_to_code")]
+    ReadyToCode,
+}
+
 /// Planning: candidate files for a user story, ranked using concepts,
 /// historical co-change and structural graph evidence. Includes related .NET
 /// file families where discovered. Results are investigation leads, not proof
