@@ -10016,38 +10016,43 @@
   "last_updated_at": "2026-11-13T20:59:57.190131+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "TODO31 continue request traces through explicit VB interface implementations",
-      "original_requirement": "Original trace_user_request requirement: navigate URL/route through handler and implementation to data access in OciusX VB/WebForms workflows.",
-      "observed_missing_behavior": "The delivered POST /webhook/vetro/42 trace ends at IWebhookVetroService.HandleIncomingRequest. Actual WebApiConfig.vb registers IWebhookVetroService to VetroService and WebhookVetroService.vb explicitly implements the member before calling SaveEventsToDB. Existing compiler-backed interface mapping reader is not used by request tracing.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_PUSHED_RELEASE_BUILD_RUNNING",
+      "finding": "TODO27 OciusX browser state readers and writers",
+      "original_requirement": "Generalize shared-state tracking to modern equivalents useful to AI callers.",
+      "observed_missing_behavior": "The shipped parser has no localStorage/sessionStorage extraction. Actual OciusX uses literal keys in TypeScript tabbed modals and map UI and JavaScript login/default-project workflows.",
+      "behavior": "trace_state_usage accepts LocalStorage and SessionStorage and returns source-backed readers and writers for literal getItem/setItem/removeItem calls, preserving the two stores as distinct project-local candidate relationships.",
       "implementation_files": [
-        "crates/engram_server/src/services/request_trace/execution.rs",
-        "crates/engram_server/src/services/request_trace/tests.rs",
-        "docs/TOOL_CONTRACT.md",
-        "crates/engram_server/src/services/request_trace/database.rs"
+        "crates/engram_index/src/parsing/modern_state.rs",
+        "crates/engram_index/src/parsing/modern_state/browser_storage.rs",
+        "crates/engram_index/src/parsing/modern_state/tests.rs",
+        "crates/engram_index/src/source_contract.rs",
+        "crates/engram_graph/src/store.rs",
+        "crates/engram_server/src/capabilities/project.rs",
+        "crates/engram_server/src/capabilities/applicability.rs",
+        "crates/engram_server/src/handlers/cognitive_tools/state_trace.rs",
+        "crates/engram_server/src/handlers/cognitive_tools.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/modern_state_test.rs",
+        "docs/TOOL_CONTRACT.md"
       ],
       "acceptance": [
-        "Follow an admitted interface call through the existing exact compiler-backed Implements mapping, retaining separate candidate-dispatch provenance and existing traversal limits.",
-        "Continue normal source/call/database expansion from the implementation; do not treat every similarly named method as a target or infer runtime DI selection.",
-        "Source fingerprint or selected-revision mismatch withholds stale implementation paths; unrelated implementations do not enter the trace.",
-        "Focused native and public candidate/installed checks pass. Actual OciusX POST /webhook/vetro/42 reaches VetroService.HandleIncomingRequest and the source SaveEventsToDB call, matched against independent source."
+        "Source-authored JavaScript/TypeScript storage reads, writes and removals are returned through the public tool with indexed source evidence; identically named session/local keys stay distinct.",
+        "Local variables or parameters named like browser globals do not become browser-storage accesses. Dynamic keys and clear-all are disclosed as unresolved rather than assigned a guessed key.",
+        "Normal source edit/removal preserves unchanged cross-file readers, and prior JS/TS extraction is refreshed by update_project.",
+        "Candidate and installed public MCP checks pass; an actual OciusX TypeScript storage key is independently verified against source."
       ],
       "scope_limits": [
-        "Reuse bounded_interface_implementations without modifying graph algorithms, CodeMap or Blast Radius.",
-        "No general DI parser, new language support, runtime HTTP execution or complete database/trigger claim.",
-        "Method-budget and failed planner experiments stay deferred."
+        "No alias/dataflow tracking, property-style storage access, origin inference or browser runtime execution. Cross-file matches are static candidates, not proof of shared origin or tab.",
+        "Preserve parked language/framework work; no Python/Rust/Go/Java support expansion. No CodeMap/Blast change.",
+        "Reuse existing state edges, index refresh and tool; finite public/source acceptance, no benchmark or new infrastructure."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace",
-      "retention": "Retain source/wire acceptance evidence and release package; close and clean new owned fixtures.",
-      "delivery_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final",
-      "retained_initial_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace",
-      "candidate_failure": "candidate1 followed interface/service/helper correctly but missed the procedure/table: the existing recognizer omitted the VB Using ... As New SqlCommand declaration form. Keep the same public fixture and acceptance; support that form.",
-      "scope_extension_reason": "This ordinary declaration blocks the selected end-to-end source trace acceptance. No broader SQL parser expansion.",
-      "source_commit": "53caf22e06fac8e38cc84b8fd7d562f107ce3735",
-      "runtime_source_commit": "c735f9068f73aa85a09c0b3e71a59b80df2763b0",
-      "delivery": "eval/ociusx-interface-request-trace-delivery-20261113.json",
-      "bounded_delivery_complete": true,
-      "outcome": "Request traces retain the interface call and add separately labeled implementation candidates, with exact call/Implements provenance, before continuing normal bounded source/call/database expansion. Ordinary VB Using SqlCommand declarations now contribute literal procedure evidence."
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage",
+      "retention": "Retain scripts/results/package for delivery review; close handles and remove new owned fixtures. Preserve all preexisting folders.",
+      "previous_goal_turn_classification": "PROGRESS: interface request tracing installed, actual OciusX source acceptance completed and delivery commit 870f851 pushed.",
+      "source_commit": "5873a4fd8e070716a6a7999314a9f74bc597464c",
+      "runtime_source_commit": "0280b3819e1585a52888d14d2acad7189518a67c",
+      "progress_receipt": "eval/ociusx-browser-storage-progress-20261113.json"
     },
     "at_utc": "2026-11-13T20:59:57.190131+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10079,8 +10084,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO31 explicit interface request tracing delivered; next original item not yet selected",
-    "next_user_visible_deliverable": "Advance another unfinished original OciusX AI workflow requirement; accepted interface tracing is closed.",
+    "active_original_item": "TODO27 OciusX browser state readers and writers",
+    "next_user_visible_deliverable": "Complete candidate/installed acceptance and actual OciusX browser preference trace.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10097,7 +10102,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: interface request path implemented, native/public MCP checks passed, installed and verified against actual OciusX source, bundle refreshed and owned resources cleaned.",
+    "previous_goal_turn_classification": "PROGRESS: browser storage extraction and public tracing implemented/pushed; baseline gap reproduced; 17 focused checks passed; release build running.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

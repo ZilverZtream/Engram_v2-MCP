@@ -1,0 +1,83 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_PUSHED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T21:18:30.571272+00:00",
+  "contract": {
+    "status": "IMPLEMENTING",
+    "finding": "TODO27 OciusX browser state readers and writers",
+    "original_requirement": "Generalize shared-state tracking to modern equivalents useful to AI callers.",
+    "observed_missing_behavior": "The shipped parser has no localStorage/sessionStorage extraction. Actual OciusX uses literal keys in TypeScript tabbed modals and map UI and JavaScript login/default-project workflows.",
+    "behavior": "trace_state_usage accepts LocalStorage and SessionStorage and returns source-backed readers and writers for literal getItem/setItem/removeItem calls, preserving the two stores as distinct project-local candidate relationships.",
+    "implementation_files": [
+      "crates/engram_index/src/parsing/modern_state.rs",
+      "crates/engram_index/src/parsing/modern_state/browser_storage.rs",
+      "crates/engram_index/src/parsing/modern_state/tests.rs",
+      "crates/engram_index/src/source_contract.rs",
+      "crates/engram_graph/src/store.rs",
+      "crates/engram_server/src/capabilities/project.rs",
+      "crates/engram_server/src/capabilities/applicability.rs",
+      "crates/engram_server/src/handlers/cognitive_tools/state_trace.rs",
+      "crates/engram_server/src/handlers/cognitive_tools.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/modern_state_test.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "acceptance": [
+      "Source-authored JavaScript/TypeScript storage reads, writes and removals are returned through the public tool with indexed source evidence; identically named session/local keys stay distinct.",
+      "Local variables or parameters named like browser globals do not become browser-storage accesses. Dynamic keys and clear-all are disclosed as unresolved rather than assigned a guessed key.",
+      "Normal source edit/removal preserves unchanged cross-file readers, and prior JS/TS extraction is refreshed by update_project.",
+      "Candidate and installed public MCP checks pass; an actual OciusX TypeScript storage key is independently verified against source."
+    ],
+    "scope_limits": [
+      "No alias/dataflow tracking, property-style storage access, origin inference or browser runtime execution. Cross-file matches are static candidates, not proof of shared origin or tab.",
+      "Preserve parked language/framework work; no Python/Rust/Go/Java support expansion. No CodeMap/Blast change.",
+      "Reuse existing state edges, index refresh and tool; finite public/source acceptance, no benchmark or new infrastructure."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage",
+    "retention": "Retain scripts/results/package for delivery review; close handles and remove new owned fixtures. Preserve all preexisting folders.",
+    "previous_goal_turn_classification": "PROGRESS: interface request tracing installed, actual OciusX source acceptance completed and delivery commit 870f851 pushed."
+  },
+  "source_commit": "5873a4fd8e070716a6a7999314a9f74bc597464c",
+  "runtime_source_commit": "0280b3819e1585a52888d14d2acad7189518a67c",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\baseline-public1\\acceptance.json",
+    "sha256": "08384265f7919d112bb615b694b249b43e8f881ef3f3dfa24c999416b8c03b46"
+  },
+  "native_extractor": {
+    "passed": 11,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\native1.json",
+      "sha256": "ccbcc31552dfcd0ff923547cd8a72187f8b5d95db62ff2e4ba14f4f965b4b553"
+    }
+  },
+  "native_public": {
+    "passed": 6,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\native2.json",
+      "sha256": "1b134279f39921449ebcdf6e68cdbe4c89e30c8bffe0dcc6d99915fec3c3b525"
+    }
+  },
+  "manual_review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\manual-review.json",
+    "sha256": "1b4921b36b634901e34b2a0cd729c155d0af537a9448c292c4f7509a4380d430"
+  },
+  "build": {
+    "session_id": 88566,
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\release1-state.json",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\release1.json"
+  },
+  "preserved_work": {
+    "pins": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\preserved-work-after.json",
+      "sha256": "0fa54217fee08b631cd630ba5331661b1d29e471af25f78a6327baded840331a"
+    },
+    "parked_diff_preserved": true,
+    "notes": "Identical WIP additions/removals; diff relocates one blank line around the appended test. Original uncommitted test source remains an exact text prefix."
+  },
+  "not_yet_delivered": [
+    "Release artifact",
+    "Candidate and installed executable acceptance",
+    "Actual OciusX source extraction refresh and storage trace"
+  ],
+  "installed_runtime_unchanged": "39cffb6d97d3f12b195566dafe2f970022f12c6ba49079a58253e460d4afabb4"
+}
