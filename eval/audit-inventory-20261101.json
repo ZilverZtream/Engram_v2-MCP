@@ -928,7 +928,8 @@
       },
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "captured_vb_reference_delivery_20261113": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json",
-      "js_ts_instruction_scope_delivery_20261113": "eval/ociusx-instruction-scope-delivery-20261113.json"
+      "js_ts_instruction_scope_delivery_20261113": "eval/ociusx-instruction-scope-delivery-20261113.json",
+      "scope_routing_delivery_20261113": "eval/ociusx-instruction-routing-delivery-20261113.json"
     },
     {
       "id": "EG-28",
@@ -10005,7 +10006,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG27 instruction scope routing coverage in health/update",
       "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong. Surface instruction freshness and coverage in existing health/update workflows.",
       "observed_missing_behavior": "Installed project_health for authored applyTo Site/maps/** with actual Site/map/layer.js returns raw_uninterpreted scope with no zero-match routing warning.",
@@ -10035,12 +10036,11 @@
         "Separate current-worktree inventory does not alter historical proposal evidence or certify atomic source/index state."
       ],
       "remaining": [
-        "Build release and verify candidate/installed health/update behavior.",
-        "Run one read-only OciusX guide health check against independent Git file counts.",
-        "Record installed delivery, push origin/master and advance original backlog."
+        "Advance next unfinished original OciusX requirement; this delivery is closed."
       ],
       "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
-      "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853"
+      "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
+      "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10090,7 +10090,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: review response delivery7607c9b deployed. Original scope-routing warning reproduced; existing holdout directory absent and location question pending without blocking implementation.",
+    "previous_goal_turn_classification": "PROGRESS: explicit instruction routing coverage deployed; public candidate/installed and independent OciusX path-count acceptance passed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

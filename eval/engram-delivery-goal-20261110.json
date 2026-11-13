@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG27 instruction scope routing coverage in health/update",
     "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong. Surface instruction freshness and coverage in existing health/update workflows.",
     "observed_missing_behavior": "Installed project_health for authored applyTo Site/maps/** with actual Site/map/layer.js returns raw_uninterpreted scope with no zero-match routing warning.",
@@ -70,12 +70,11 @@
       "Separate current-worktree inventory does not alter historical proposal evidence or certify atomic source/index state."
     ],
     "remaining": [
-      "Build release and verify candidate/installed health/update behavior.",
-      "Run one read-only OciusX guide health check against independent Git file counts.",
-      "Record installed delivery, push origin/master and advance original backlog."
+      "Advance next unfinished original OciusX requirement; this delivery is closed."
     ],
     "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
-    "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853"
+    "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
+    "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

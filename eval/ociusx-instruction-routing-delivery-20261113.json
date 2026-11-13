@@ -1,0 +1,180 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T15:51:24.360384+00:00",
+  "finding": "EG27 explicit instruction scope routing coverage",
+  "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
+  "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong; surface coverage through existing health/update.",
+  "before": "Installed health returned raw scope text without a warning for Site/maps/** when only Site/map/layer.js existed.",
+  "after": "Successful instruction health/waited-update observations include current-worktree scope matching counts/examples. Zero matches warn only with complete supported inventory; invalid/manual scope and incomplete inventories remain explicit. Authored files and proposal packet identities are preserved.",
+  "validation": {
+    "native_cases": 63,
+    "groups": {
+      "native2": 51,
+      "policy1": 11,
+      "identity2": 1
+    },
+    "candidate_checks": {
+      "zero_match_warning_without_policy_judgment": true,
+      "unindexed_vb_counted_ignored_file_excluded": true,
+      "proposal_identity_preserved": true,
+      "waited_update_reports_routing": true,
+      "authored_policy_preserved": true,
+      "shared_scope_list_syntax": true,
+      "invalid_scope_not_zero_matches": true,
+      "manual_scope_not_zero_matches": true
+    },
+    "installed_checks": {
+      "zero_match_warning_without_policy_judgment": true,
+      "unindexed_vb_counted_ignored_file_excluded": true,
+      "proposal_identity_preserved": true,
+      "waited_update_reports_routing": true,
+      "authored_policy_preserved": true,
+      "shared_scope_list_syntax": true,
+      "invalid_scope_not_zero_matches": true,
+      "manual_scope_not_zero_matches": true
+    }
+  },
+  "actual_ociusx": {
+    "instruction_path": ".github/instructions/map-file-layers.instructions.md",
+    "evidence_file": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+    "base_commit": "b629df4fbec82fff317cff34ac57065c082796ab",
+    "health_seconds": 5.767950200010091,
+    "matching_files": 300,
+    "routing": {
+      "basis": "separate_current_worktree_routing_observation",
+      "instructions": [
+        {
+          "detail": "Current files match the declared scope; semantic applicability and prose compliance remain unverified.",
+          "examples": [
+            "Site/App_Code/installationsobjekt/code/ImportOfmarkers/KMZFileProcessing.vb",
+            "Site/App_Code/shared-code/GeoSpatial/GeoSpatialManager.vb",
+            "Site/App_Code/visualisering/api-json/api-visualisering-chart.vb",
+            "Site/App_Code/visualisering/api-json/api-visualisering-geofence.vb",
+            "Site/App_Code/visualisering/api-json/api-visualisering-kml.vb",
+            "Site/App_Code/visualisering/api-json/api-visualisering-lager.vb",
+            "Site/App_Code/visualisering/api-json/api-visualisering-map.vb",
+            "Site/App_Code/visualisering/api-json/api-visualisering-pdmf.vb"
+          ],
+          "examples_omitted": 292,
+          "instruction_path": ".github/instructions/map-file-layers.instructions.md",
+          "interpretation": "Mechanical routing only. Scope matching does not interpret prose exclusions, prove policy correctness, confer authority or permit editing guidance.",
+          "matching_files": 300,
+          "matching_files_is_exact": true,
+          "patterns": [
+            "Site/App_Code/visualisering/**",
+            "Site/App_Code/shared-code/GeoSpatial/GeoSpatialManager.vb",
+            "Site/App_Code/installationsobjekt/code/ImportOfmarkers/KMZFileProcessing.vb",
+            "Site/kmlquery.aspx*",
+            "Site/modules/dashboard/ts/map/**",
+            "Site/modules/dashboard/pages/public/map/**",
+            "Site/modules/map/**"
+          ],
+          "source_blake3": "f8810f6cfc2b06a5dbf914c622971049af75abebce5b6ce88afca863f4209f9d",
+          "status": "matches_observed"
+        }
+      ],
+      "inventory_complete": true,
+      "inventory_error": null,
+      "inventory_scope": "Existing Git-tracked regular files plus nonignored untracked files; deleted paths are excluded. Symbolic links and unsupported/unreadable entries leave coverage incomplete. Matching uses Engram's existing scope dialect and directory authority.",
+      "limits": {
+        "examples_per_instruction": 8,
+        "retained_paths": 50000,
+        "status_collection": "libgit2 enumerates current status before retained-path limiting; no total traversal time/memory bound claimed"
+      },
+      "regular_files_observed": 6050,
+      "retained_path_cap_reached": false,
+      "source_scope": "Instruction bytes and hashes come from the confirmed maintenance capture; path inventory is a separate current-worktree observation, not an atomic snapshot or historical inventory. Proposal packet/hash is unchanged by this observation.",
+      "unreadable_or_unsupported_paths": 0
+    },
+    "checks": {
+      "exact_captured_instruction_hash": true,
+      "matching_count_matches_independent_git_files": true,
+      "examples_are_real_matches": true,
+      "count_precision_disclosed": true,
+      "no_policy_correctness_claim": true,
+      "no_authored_writes": true,
+      "current_inventory_basis": true
+    },
+    "source_generation": 3149,
+    "authored_guidance_and_selected_source_unchanged": true,
+    "selected_registry_inventory_unchanged": true
+  },
+  "runtime": {
+    "server_sha256": "5733156355d09b218a34a2d46ae027dc8139c5d7d832d74c11d9f6f6533831a3",
+    "manifest_sha256": "073e36d0afc844743311281c25d16e3bb867d078dc824183d79fc7257e9cd283",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\baseline2\\observation.json",
+      "sha256": "cf61f1ebf8fd004871fcf066ba20c246d10a3ab69c599d0374230deeba400384"
+    },
+    "retained_setup_and_compile_failures": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\retained-failures.json",
+      "sha256": "e21592f30212c0e4cfc43112543d7b1f09ed8c5d5db6616999b0b3e7812eb915"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\native2.json",
+      "sha256": "7b3ca337c350ff87aecfb167f45033974385595ccbb3b5f4f409f5666f022706"
+    },
+    "scope_parser": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\policy1.json",
+      "sha256": "28d163edbaa5e2c465d16d8a3acc8c4ae315f5827c1dd26faf4f3f9f6eece515"
+    },
+    "observation_identity": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\identity2.json",
+      "sha256": "6cd0fc0d993c77a69460cdd0861eddcc39c8f497f5af547d9230c538243ecd3c"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\implementation1.json",
+      "sha256": "93f43c75a445ac35c811db928204d09adf358790f437336827dd7c6de9644df8"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\release1.json",
+      "sha256": "c50c27d974bc0128ec9bb832c35718feaf02f69eb980845af781009f75116a09"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\candidate1\\acceptance.json",
+      "sha256": "a463cbf3e94bea01e11c413e7e58e3941bab969c43632633e72d21bdc5cdf87c"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\installed1\\acceptance.json",
+      "sha256": "3a0e19c453db7a47b32540c077ec3fd317419e44b99b1ef71bdce6da2e64bfd5"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\actual1\\acceptance.json",
+      "sha256": "322fcfd2372cb4bf62548121b36fae37f2e5ec20b7780a64abc4733048c587f3"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\deployment1-state.json",
+      "sha256": "e788abb8acada7846cfe426fb6dbc9b92c542ca2ce9271a7aab0d81e56bb429b"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\manual-review.json",
+      "sha256": "f6d0deaa41fa132f48ea6556c20fee9b50108878ee7b47b0a7b347a9b0ebbea6"
+    }
+  },
+  "preserved": {
+    "preexisting_changed_files": 9,
+    "configuration_changed": false,
+    "application_edits": false,
+    "source_generation": 3149
+  },
+  "limits": [
+    "Counts cover existing Git-tracked regular files plus nonignored untracked files. Unsupported/unreadable paths and retained-path caps disclose partial coverage.",
+    "The50,000path limit bounds retained/matched paths, not libgit2 status enumeration time or memory.",
+    "Explicit scopes use existing Engram syntax/directory authority. Prose exclusions, semantic applicability, accepted authority and instruction correctness are not inferred.",
+    "Current-worktree inventory is separate from confirmed instruction snapshots and does not alter historical proposal identity or establish atomicity.",
+    "Parent source review only; CodeRabbit authentication unavailable. No model calls, held-out task success or productivity benefit claimed."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage",
+    "owned_build_test_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-eaffaff497784baeb71af00990a0c465",
+    "retention": "Keep evidence, candidate package and rollback pair for review; no preexisting folder deletion."
+  }
+}
