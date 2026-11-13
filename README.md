@@ -975,9 +975,23 @@ allowed_roots:
   - /home/user/projects
 data_dir: /home/user/.engram-data
 
-embedding_backend: local       # "local" | "ollama" | "openai"
+embedding_backend: local       # default: degraded trigram projection, not a learned model
 advertise_all_tools: true       # default: full profile, filtered by project capabilities
 ```
+
+Omitting `embedding_backend` selects `local`; `embedding_model` is unset and is
+ignored by the `local`/`candle` projection implementations. Default hybrid search
+labels this fallback `degraded_trigram`. Projection matches can affect the combined
+ranking; request `semantic: false` for lexical-only retrieval, or configure a real
+embedding provider for semantic search. The lexical-only setup in the quickstart
+is an explicit choice, not the global default.
+
+Other operational defaults are five seconds of watcher debounce, 50,000,000
+bytes per Tantivy writer, two concurrent jobs, and parse concurrency capped at
+16 available workers. `memory_budget_bytes: 0` selects a 2 GiB tracked-allocation
+budget, not a resident-memory cap. The [tuning guide](docs/TUNING.md) explains
+when to test explicit overrides. Existing configuration values take precedence;
+these defaults do not enable watching or supply the required allowed roots.
 
 Set `advertise_all_tools: false` only for clients requiring the limited core
 tool list. Tools omitted from `tools/list` may be unavailable to client agents;
@@ -1462,11 +1476,12 @@ allowed_roots:
 data_dir: /home/user/.engram-data
 
 # Embedding backend
-embedding_backend: local              # "local" | "ollama" | "openai"
-embedding_model: nomic-embed-text
-ollama_url: http://localhost:11434
-openai_api_key: sk-...
-openai_api_base: https://api.openai.com/v1
+embedding_backend: local              # default projection; alternatives include fts_only, ollama, openai
+# Provider-specific options only when selecting the matching backend:
+# embedding_model: nomic-embed-text    # example for Ollama, not the local projection backend
+# ollama_url: http://localhost:11434
+# openai_api_key: sk-...
+# openai_api_base: https://api.openai.com/v1
 
 # LLM backend for cognitive features (optional — everything except
 # `dream`, `analyze_business_logic`, `suggest_migration_boundaries`,

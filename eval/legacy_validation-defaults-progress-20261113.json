@@ -1,0 +1,37 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "finding": "TODO56 defaults behavior and truthful fallback",
+  "original_requirement": "Audit default embedding/model, debounce and memory settings so the default experience matches the recommended behavior; retain the accepted degrade-honestly branch of TODO2.",
+  "observed_missing_behavior": "Default local search says Lexical quality is unaffected, although hybrid search adds equal reciprocal-rank contributions from lexical and projection hits. README full configuration also assigns a learned model name to local, which ignores it.",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/search_tools.rs",
+    "crates/engram_server/tests/mcp_core_contract_tests.rs",
+    "README.md"
+  ],
+  "finite_acceptance": [
+    "Run real server with embedding backend/model omitted; known authored source remains retrievable and JSON reports degraded_trigram.",
+    "Default Markdown and JSON warnings disclose projection ranking effects and direct users to semantic=false for lexical-only retrieval; remove the unsupported unaffected guarantee.",
+    "Explicit lexical search reports not_used and returns authored source. Preserve ranking, schema, configured providers and the existing default backend.",
+    "Check the default 2GiB tracked budget through metrics. Existing 5s debounce, 50MB writer, 2 jobs and capped parse defaults are retained; no measured evidence supports an across-the-board numeric change.",
+    "Run relevant native/public checks; build and verify candidate/installed package because warning text is runtime behavior. Preserve production data/config and parked changes; commit/push only origin/master."
+  ],
+  "default_disposition": {
+    "embedding_backend": "Keep local, labelled degraded trigram; bundled learned model remains separate unfinished work.",
+    "embedding_model": "No model chosen for projection. Document optional model only with a matching provider.",
+    "watch_debounce_secs": 5,
+    "tantivy_writer_memory": 50000000,
+    "memory_budget_bytes": "0 means 2147483648 tracked bytes, not RSS cap",
+    "max_concurrent_jobs": 2,
+    "max_parse_concurrency": "available parallelism capped at16; fallback4"
+  },
+  "source_baseline": "cc8e1df6a7914c9ac39d22e64241e1394b94c65d",
+  "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults",
+  "scope": "Default disclosure and documentation only; no ranking/default-value change, new model, target language or CodeMap/Blast work.",
+  "at_utc": "2026-11-13T05:18:00.019121+00:00",
+  "source_commit": "2694bf38418de12cad4819c40b541d1c4948f356",
+  "main_merge_commit": "51aad298bbe2fecc9340c0190945dd8e7602484c",
+  "native_checks": 5,
+  "baseline": "Expected failure on the old unaffected-ranking guarantee; fixture removed.",
+  "remaining": "Poll exact release build session1612. On terminal PASS, package, candidate1, gates, ValidateUpgrade/Upgrade, installed1, release defaults1 config hold and record delivery. No further runtime edits selected."
+}
