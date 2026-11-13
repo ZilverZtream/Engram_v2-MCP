@@ -979,6 +979,14 @@ This reuses the checkout's shared Cargo target directory and writes
 directory, and a SHA-256 asset manifest. Deploy the executable and companion
 directory together. The companion includes its .NET runtime; users do not need
 an SDK. `-SidecarOnly` builds the companion for extraction verification.
+For first-time Windows setup, run `scripts/install_windows.ps1` with the complete
+package, a new installation directory, your project directory and the client's
+`mcpServers` JSON configuration path. It installs the full sidecar and registers
+the connection while preserving existing client entries. See the
+[installation command](docs/QUICKSTART.md#install-a-windows-package-and-connect-your-project).
+The script consumes an existing package; public prebuilt releases and
+macOS/Linux installation are still unfinished.
+
 `ENGRAM_VB_SIDECAR_PATH` overrides discovery, including legacy adjacent executable
 locations. Trusted VB indexing requires a matching companion that attests
 `vb-ingestion-parser-v6`; discovering an older binary does not establish

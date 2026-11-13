@@ -521,7 +521,14 @@ value is accuracy, this is the biggest meta-gap.
 
 ## P6 — Adoption & packaging
 
-- [ ] **53. Prebuilt release binaries + one-command install** (M)
+- [~] **53. Prebuilt release binaries + one-command install** (M)
+  *Windows first-time installation added 2026-11-13: `scripts/install_windows.ps1`
+  consumes a complete existing package, installs the server and full VB sidecar,
+  creates local configuration and registers an MCP client connection while
+  preserving unrelated entries. Fresh-install acceptance used the exact registered
+  command to index 13 VB/WebForms/JS/TS/SQL sample files and retrieve VB source.
+  Published releases, download/bootstrap distribution and macOS/Linux installation
+  remain unfinished. Evidence: `eval/ociusx-windows-first-install-delivery-20261113.json`.*
   *2026-11-13: no GitHub releases are published. Existing Windows paired build and
   managed-upgrade scripts do not satisfy public cross-platform distribution or
   first-time installation. See `eval/todo53-packaging-state-20261113.json`; retain
