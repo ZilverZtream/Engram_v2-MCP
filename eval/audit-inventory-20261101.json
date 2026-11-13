@@ -9977,37 +9977,53 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
-      "finding": "TODO48 remaining fixture-corpus retrieval CI",
-      "original_requirement": "Per fixture project, queries with expected files/symbols; measure precision@k and MRR in benchmark-ci.yml. Preserve existing live tier.",
-      "observed_missing_behavior": "benchmark-ci tests benchmark arithmetic and repeated search stability, but does not index an authored labeled fixture corpus and gate the returned search answers against its expected files.",
-      "behavior": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
-      "implementation_files": [
-        "crates/engram_server/tests/retrieval_fixture_tests.rs",
-        ".github/workflows/benchmark-ci.yml",
-        "TODO.md"
+      "finding": "TODO50 top20 public MCP contract tests",
+      "original_requirement": "Start the actual MCP server, invoke twenty important tools as a client would, and assert contracts for invalid project identity, empty index and large/bounded source input.",
+      "observed_missing_behavior": "Existing mcp_contract_enforcement_tests and mcp_input_negative_tests call validators directly; top10_audit_tests calls handlers. No checked-in integration client was found in server tests that launches the production binary. Prior delivery-specific wire fixtures exist in recorded diagnostics and can supply protocol/lifetime patterns.",
+      "behavior": "Exercise twenty OciusX-relevant core editing/retrieval tools through the actual MCP wire and production server using owned authored fixtures, with truthful success/error/recovery checks.",
+      "tools": [
+        "index_project",
+        "list_projects",
+        "project_info",
+        "get_index_freshness",
+        "search_memory",
+        "grep_project",
+        "get_chunk",
+        "get_full_method_body",
+        "resolve_id",
+        "get_method_edit_context",
+        "get_page_context",
+        "get_change_set",
+        "pre_commit_review",
+        "get_review_decisions",
+        "read_memory_bank",
+        "begin_edit_session",
+        "complete_edit_session",
+        "check_edit_safety",
+        "find_symbol_references",
+        "prepare_implementation_context"
       ],
+      "tool_selection": "Existing core workflow plus prepare_implementation_context from original research. Covers source retrieval, context, review, edit sessions and lifecycle; CodeMap/Blast remain closed.",
       "finite_acceptance": [
-        "Define authored source corpus and expected query/file answers before running retrieval; include plausible distractors and actual business behavior, not implementation-generated expected output.",
-        "Use real indexing/search with explicit deterministic backend and owned fixture lifetime; measure distinct-file precision@5 and MRR, preserve actual rankings and named per-query failures.",
-        "Freeze useful rank/coverage thresholds before seeing results; a missing relevant result must fail. Do not lower criteria or change labels to match a failed search.",
-        "Wire the focused check and its per-query/aggregate report into existing benchmark-ci reporting. Verify locally, commit/push origin/master; distinguish local execution from hosted CI evidence."
+        "Spawn the production server binary with fresh owned config/data and FTS-only/no-LLM settings; initialize, discover schemas and call tools over MCP rather than direct handlers.",
+        "Pin the twenty-tool inventory above. Every tool gets a wanted public success/empty/applicability contract; project-scoped tools also reject invalid/unknown project identities without fabricating usable source.",
+        "Exercise an empty indexed fixture and source volume beyond configured admission/budget limits using bounded authored data; verify visible omissions/recovery and complete parseable replies. This is not a scale/performance benchmark.",
+        "Retain exact calls/responses on failure, close owned server/client handles before directory teardown on success and unwinding, and demonstrate test failure for a violated public contract.",
+        "Run relevant checks, wire the public-contract test into existing CI, commit/push origin/master. Keep hosted CI verification open while repository Actions are disabled; no production deployment for test-only changes."
       ],
-      "scope_guard": "OciusX-relevant fixtures only; no unrelated language expansion, CodeMap/Blast evaluation, live OciusX mutation, new benchmark platform or claim of measured productivity.",
-      "source_baseline": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+      "implementation_scope": "Reuse the existing authored WebForms fixture and established wire framing. No general evaluation platform, new target-language support, optional live services or closed-tool replays.",
+      "implementation_files": [
+        "crates/engram_server/tests/mcp_core_contract_tests.rs",
+        ".github/workflows/benchmark-ci.yml"
+      ],
+      "source_baseline": "1535fb52b7567a882bfed3926da58635dd490cf2",
       "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci",
-      "cleanup": "Own fixture directories and close database/server handles before teardown. Retain evidence in this one recorded diagnostics directory; no preexisting deletion.",
-      "existing_reusable_components": [
-        "engram_core::benchmark::BenchmarkPack and query/threshold models",
-        "engram_server::services::benchmark_service metric helpers",
-        "Existing AppState/index_project/search fixture patterns"
-      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts",
+      "cleanup": "Own spawned server, clients, logs and temporary directories; close/wait handles before removal. Preserve existing diagnostic folders and parked work.",
       "retained_unfinished": [
-        "TODO32 semantic failures FP-SEM-01/02",
-        "TODO4 broader envelopes/cursors",
-        "TODO36 unmeasured indexing performance",
-        "TODO39 broader namespace consistency",
-        "Other accepted original findings and gates; full goal remains active."
+        "TODO48 hosted CI unverified because repository Actions disabled",
+        "TODO32 semantic failures",
+        "Other partial original findings, performance requirements and release gates"
       ]
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
@@ -12765,47 +12781,54 @@
       "source_commit": "7f9aa101eb14ffc47b549dce2851e884d58fb103"
     },
     "previous_selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "TODO34 remaining next-tool hints",
-      "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
-      "observed_missing_behavior": "query_schema, detect_n_plus_one and find_missing_indexes return source-cited evidence and pagination but no standardized next_tools guidance to the relevant follow-up tools. Source inspection found standardized next_tools only in search handlers; inventory the remaining canonical specialty surface once to complete this original item.",
-      "behavior": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
-      "finite_acceptance": [
-        "Pin the remaining canonical tool inventory from the current source; preserve already-complete hot paths and the explicit CodeMap/Blast closure. Do not claim completion from only three example handlers.",
-        "Nonterminal specialty results expose applicable canonical next_tools, or an explicit no-follow-up/coverage reason when none can be justified; errors and empty/unavailable results retain truthful recovery behavior.",
-        "Hints do not invent source identities, arguments or tool availability, do not execute follow-up actions, and remain inside existing complete-response budgets.",
-        "Verify public OciusX-relevant navigation from SQL schema and repeated-query/index findings to appropriate source/schema/edit checks, including empty, stale, unsupported and small-budget outcomes.",
-        "Preserve existing outputs, source freshness, paging and exact recovery; commit/push origin/master, verify candidate and installed public behavior, record coverage and remaining exceptions."
-      ],
-      "implementation_scope": "Existing response builders and shared response/capability helpers as determined by the pinned inventory; no new routing, graph, approval or evaluation platform.",
-      "scope_guard": "No CodeMap/Blast improvements, unrelated language support, planner tuning, kernel/SSD investigation or preexisting deletion.",
-      "source_baseline": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints",
-      "cleanup": "Owned fixtures close and remove their temporary resources. Retain delivery evidence in the recorded scratch until no longer needed; preexisting folders remain read-only.",
-      "source_commit": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
-      "main_merge_commit": "7e36383bb8cf7dc1cd9b49cb1d3933c839686f98",
+      "status": "IMPLEMENTED_LOCALLY_VALIDATED_PUSHED_HOSTED_CI_UNVERIFIED",
+      "finding": "TODO48 remaining fixture-corpus retrieval CI",
+      "original_requirement": "Per fixture project, queries with expected files/symbols; measure precision@k and MRR in benchmark-ci.yml. Preserve existing live tier.",
+      "observed_missing_behavior": "benchmark-ci tests benchmark arithmetic and repeated search stability, but does not index an authored labeled fixture corpus and gate the returned search answers against its expected files.",
+      "behavior": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
       "implementation_files": [
-        "crates/engram_server/src/lib.rs",
-        "crates/engram_server/src/tool_guidance.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/tool_guidance_tests.rs"
+        "crates/engram_server/tests/retrieval_fixture_tests.rs",
+        "tests/fixtures/webforms_retrieval",
+        ".github/workflows/benchmark-ci.yml"
       ],
-      "validation": {
-        "native_checks": 9,
-        "public_calls": 13,
-        "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\native3.json",
-        "public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\debug-public1\\acceptance.json"
+      "finite_acceptance": [
+        "Define authored source corpus and expected query/file answers before running retrieval; include plausible distractors and actual business behavior, not implementation-generated expected output.",
+        "Use real indexing/search with explicit deterministic backend and owned fixture lifetime; measure distinct-file precision@5 and MRR, preserve actual rankings and named per-query failures.",
+        "Freeze useful rank/coverage thresholds before seeing results; a missing relevant result must fail. Do not lower criteria or change labels to match a failed search.",
+        "Wire the focused check and its per-query/aggregate report into existing benchmark-ci reporting. Verify locally, commit/push origin/master; distinguish local execution from hosted CI evidence."
+      ],
+      "scope_guard": "OciusX-relevant fixtures only; no unrelated language expansion, CodeMap/Blast evaluation, live OciusX mutation, new benchmark platform or claim of measured productivity.",
+      "source_baseline": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci",
+      "cleanup": "Own fixture directories and close database/server handles before teardown. Retain evidence in this one recorded diagnostics directory; no preexisting deletion.",
+      "existing_reusable_components": [
+        "engram_core::benchmark::BenchmarkPack and query/threshold models",
+        "engram_server::services::benchmark_service metric helpers",
+        "Existing AppState/index_project/search fixture patterns"
+      ],
+      "retained_unfinished": [
+        "TODO32 semantic failures FP-SEM-01/02",
+        "TODO4 broader envelopes/cursors",
+        "TODO36 unmeasured indexing performance",
+        "TODO39 broader namespace consistency",
+        "Other accepted original findings and gates; full goal remains active."
+      ],
+      "delivery_receipt": "eval\\ociusx-retrieval-fixture-delivery-20261113.json",
+      "hosted_ci": {
+        "observed_at_utc": "2026-11-13T04:26:53.972121+00:00",
+        "workflow_id": 237069275,
+        "workflow_state": "active",
+        "repository_actions_enabled": false,
+        "matching_push_runs": 0,
+        "head_sha": "0dd65146e520c8ca69ecf0d65a32109818236055",
+        "method": "Read-only GitHub connector and gh API. Workflow definition active, repository Actions disabled; no settings changed.",
+        "hosted_execution": "UNVERIFIED_ACTIONS_DISABLED"
       },
-      "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\source-review1.json",
-      "deployed": true,
-      "remaining": "Selected applicable specialty guidance acceptance delivered; original broader backlog continues.",
-      "exceptions": [
-        "Core tools, closed CodeMap/Blast areas and unfinished planner retain original responses.",
-        "Existing hints, errors, non-object JSON, multipart/media, results above 1MiB and responses without room for advisory status retain original output."
-      ],
-      "resources": "Owned native/debug fixtures closed and removed; source checkout, packages and evidence retained in the recorded diagnostics location.",
-      "delivery_receipt": "eval\\ociusx-next-tool-hints-delivery-20261113.json"
+      "remaining": [
+        "Observe the focused job on hosted CI when repository Actions are enabled; do not claim a hosted pass.",
+        "This authored lexical gate does not establish semantic retrieval quality, held-out model quality or OciusX productivity."
+      ]
     },
     "p122_def_use_20261112": {
       "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
@@ -13284,7 +13307,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
+    "next_user_visible_delivery": "Exercise twenty OciusX-relevant core editing/retrieval tools through the actual MCP wire and production server using owned authored fixtures, with truthful success/error/recovery checks.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13747,6 +13770,7 @@
       "semantic_acceptance": "FAIL",
       "delivery_complete": false
     },
-    "next_tool_hints_delivery": "eval\\ociusx-next-tool-hints-delivery-20261113.json"
+    "next_tool_hints_delivery": "eval\\ociusx-next-tool-hints-delivery-20261113.json",
+    "retrieval_fixture_delivery": "eval/ociusx-retrieval-fixture-delivery-20261113.json"
   }
 }

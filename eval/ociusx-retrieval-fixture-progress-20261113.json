@@ -1,13 +1,13 @@
 {
-  "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+  "status": "IMPLEMENTED_LOCALLY_VALIDATED_PUSHED_HOSTED_CI_UNVERIFIED",
   "finding": "TODO48 remaining fixture-corpus retrieval CI",
   "original_requirement": "Per fixture project, queries with expected files/symbols; measure precision@k and MRR in benchmark-ci.yml. Preserve existing live tier.",
   "observed_missing_behavior": "benchmark-ci tests benchmark arithmetic and repeated search stability, but does not index an authored labeled fixture corpus and gate the returned search answers against its expected files.",
   "behavior": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
   "implementation_files": [
     "crates/engram_server/tests/retrieval_fixture_tests.rs",
-    ".github/workflows/benchmark-ci.yml",
-    "TODO.md"
+    "tests/fixtures/webforms_retrieval",
+    ".github/workflows/benchmark-ci.yml"
   ],
   "finite_acceptance": [
     "Define authored source corpus and expected query/file answers before running retrieval; include plausible distractors and actual business behavior, not implementation-generated expected output.",
@@ -31,5 +31,20 @@
     "TODO36 unmeasured indexing performance",
     "TODO39 broader namespace consistency",
     "Other accepted original findings and gates; full goal remains active."
+  ],
+  "delivery_receipt": "eval\\ociusx-retrieval-fixture-delivery-20261113.json",
+  "hosted_ci": {
+    "observed_at_utc": "2026-11-13T04:26:53.972121+00:00",
+    "workflow_id": 237069275,
+    "workflow_state": "active",
+    "repository_actions_enabled": false,
+    "matching_push_runs": 0,
+    "head_sha": "0dd65146e520c8ca69ecf0d65a32109818236055",
+    "method": "Read-only GitHub connector and gh API. Workflow definition active, repository Actions disabled; no settings changed.",
+    "hosted_execution": "UNVERIFIED_ACTIONS_DISABLED"
+  },
+  "remaining": [
+    "Observe the focused job on hosted CI when repository Actions are enabled; do not claim a hosted pass.",
+    "This authored lexical gate does not establish semantic retrieval quality, held-out model quality or OciusX productivity."
   ]
 }

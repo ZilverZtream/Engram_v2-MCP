@@ -457,10 +457,15 @@ There is currently no ground-truth evaluation that search or the graph return *c
 answers — only behavioral tests that they return *something*. For a tool whose whole
 value is accuracy, this is the biggest meta-gap.
 
-- [~] **48. Retrieval eval harness with golden query sets** (M) - *live tier done 2026-06-13: engram_drive.py eval phase — 10 OciusX golden queries (each grounded in loop-verified facts) scored hit@5 against the deployed index. Baseline: 9/10 (miss: RoQ controller — ranking sensitivity marker). CI fixture-corpus tier remains.*
-  Per fixture project: N queries ("where is login validated?") with expected files/symbols;
-  measure precision@k / MRR in `benchmark-ci.yml`. Without this, every ranking change
-  (#2, P0 items) is flying blind.
+- [~] **48. Retrieval eval harness with golden query sets** (M) ? *live tier retained; fixture CI tier implemented and locally verified 2026-11-13.*
+  `retrieval_fixture_tests` indexes 13 authored WebForms/VB/JS/TS/SQL files and
+  checks eight frozen questions through public handlers. All expected files ranked
+  first locally (MRR 1.0); fixed-denominator precision@5 is 0.2 with one relevant
+  file per question. Missing answers, bad ranks and duplicate-chunk credit fail.
+  `benchmark-ci.yml` runs the gate and uploads actual rankings and metrics.
+  Hosted execution remains unverified: repository GitHub Actions are disabled.
+  Existing live golden coverage and limits are retained; no semantic/productivity claim.
+  Evidence: `eval/ociusx-retrieval-fixture-delivery-20261113.json`.
 
 - [x] **49. Graph-accuracy eval: expected call/state/SQL edges per fixture** (M) - *done 2026-06-13: graph_accuracy_eval.rs — mini legacy-app fixtures (VB+enrich, state extractor, JS bridge) with exact expected inventories: arity, guards, settings, ORM, literal+dynamic SQL, spatial counts+sentinel, DOM/postback/AJAX. Tier boundary documented (bare calls = sidecar tier).*
   Extend fixtures with ground-truth edge lists; report extraction recall/precision per

@@ -1,0 +1,69 @@
+{
+  "status": "IMPLEMENTED_LOCALLY_VALIDATED_PUSHED_HOSTED_CI_UNVERIFIED",
+  "finding": "TODO48 remaining fixture-corpus retrieval CI",
+  "source_commit": "1535fb52b7567a882bfed3926da58635dd490cf2",
+  "main_merge_commit": "0dd65146e520c8ca69ecf0d65a32109818236055",
+  "delivered": [
+    "Authored 13-file WebForms/VB/JS/TS/SQL corpus with eight fixed questions and expected files.",
+    "Real public indexing/search handler execution using FTS-only backend, distinct-file precision@5/MRR and mandatory expected-file coverage.",
+    "Negative gate checks reject missing answers, poor rank and duplicate chunk credit.",
+    "benchmark-ci runs the focused tests, preserves failures through pipefail, reports outcome and uploads per-query/aggregate log."
+  ],
+  "validation": {
+    "native_tests": 2,
+    "queries": 8,
+    "first_rank_answers": 8,
+    "mean_reciprocal_rank": 1.0,
+    "mean_precision_at_5": 0.19999999999999998,
+    "precision_interpretation": "Each query labels exactly one relevant file; fixed-denominator precision@5 has maximum 0.2 in this corpus.",
+    "oracle_source_queries_and_thresholds_unchanged": true,
+    "workflow_yaml_parsed": true
+  },
+  "hosted_ci": {
+    "observed_at_utc": "2026-11-13T04:26:53.972121+00:00",
+    "workflow_id": 237069275,
+    "workflow_state": "active",
+    "repository_actions_enabled": false,
+    "matching_push_runs": 0,
+    "head_sha": "0dd65146e520c8ca69ecf0d65a32109818236055",
+    "method": "Read-only GitHub connector and gh API. Workflow definition active, repository Actions disabled; no settings changed.",
+    "hosted_execution": "UNVERIFIED_ACTIONS_DISABLED"
+  },
+  "runtime_deployment": "Not required: tests, authored fixtures and CI workflow only. Installed guidance release unchanged.",
+  "remaining": [
+    "Observe the focused job on hosted CI when repository Actions are enabled; do not claim a hosted pass.",
+    "This authored lexical gate does not establish semantic retrieval quality, held-out model quality or OciusX productivity."
+  ],
+  "evidence": {
+    "oracle-freeze.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci\\oracle-freeze.json",
+      "sha256": "6c088fc23d625a10c4c90d65ad255b00456bf4dba35f04fd14b3d71801594eb2"
+    },
+    "oracle-public-name.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci\\oracle-public-name.json",
+      "sha256": "7e3b3c9a08c84f3268fd26599c368a4187ac5044d56d180392de936fea531862"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci\\native2.json",
+      "sha256": "4299a465ad8318070b5c5ed31f377016a07fd02375b88b78122b5244a68e12d8"
+    },
+    "native2-metrics.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci\\native2-metrics.json",
+      "sha256": "0e5c3d8890ede800dd4deba1ed216d54f594d6e11940ee0abac4489eeeacb00d"
+    },
+    "review2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci\\review2.json",
+      "sha256": "ee3ebbfb6372f30308ce95af229b82e5df5687c7d198fdca5a56c3e389d1fdae"
+    },
+    "hosted-ci-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci\\hosted-ci-state.json",
+      "sha256": "e04b90336a78d4358bede9a218acb7db086d14bc7f9c412c34cc0be19f6955ef"
+    }
+  },
+  "resources": {
+    "owned_test_temp_removed": true,
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci",
+    "retention": "Retain evidence and existing source checkout for review; no preexisting folders deleted."
+  },
+  "full_goal_complete": false
+}
