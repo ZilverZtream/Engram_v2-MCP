@@ -55,8 +55,32 @@ a project ID.
 
 The sections below group review, planning, context and operational capabilities.
 Their order is not a measured ranking of agent benefit. The
-[recorded OciusX task results](eval/ociusx-current-task-evaluation-20261112.json)
-describe the measured outcomes and limits of the November 12 regression run.
+[latest recorded OciusX task results](eval/ociusx-current-task-check-outcome-20261113.json)
+are from November 13: assisted answers met 19/20 criteria versus the baseline's
+20/20, so the quality check failed. These inspected regression cases do not
+establish a productivity gain or certify binaries shipped after that run.
+
+### Original OciusX improvement shortlist — delivery evidence, November 13
+
+This is the original research shortlist, scoped to OciusX's VB.NET/WebForms,
+JavaScript/TypeScript and SQL workflows. Each link records the tested runtime
+and acceptance scope; it is not a new test of every feature on the latest binary.
+
+| Original improvement | Delivered behavior and evidence | Remaining limitation |
+|---|---|---|
+| Scoped instructions | [Planning, retrieval and review](eval/eg01-installed-policy-delivery-20261111.json) deliver applicable guidance with hashes and complete-source recovery; [edit sessions](eval/ociusx-edit-session-policy-delivery-20261113.json) refresh guidance for actual edited paths. | Delivering prose does not establish compliance with it. |
+| Complete bounded change sets | [Whole-response budgeting and exact recovery](eval/eg02-installed-recovery-delivery-20261111.json) retain mandatory rows and omission counts. | Candidate relevance and completed changes are not established by byte recovery. |
+| Decision-aware reviews | [Declared scope, conditions and revision evidence](eval/ociusx-review-scope-delivery-20261113.json) annotate prior decisions while preserving findings; [bounded replies](eval/ociusx-review-response-budget-delivery-20261113.json) recover the full original report. | Authority and semantic applicability are not inferred. The recorded 131-second OciusX review shows no latency gain. |
+| Usable history | [Capability-aware fallback and ranking budgets](eval/eg20-history-capability-delivery-20261111.json), plus [filtering before embedding](eval/ociusx-history-filter-embedding-delivery-20261113.json). | Reranking budgets are not whole-request deadlines; no ranking-quality gain demonstrated. |
+| Dependency-complete presets | [Installed Core discovery and evidence recovery](eval/eg18-installed-preset-delivery-20261111.json); Full discovery remains available. | This does not establish equivalence for every specialized workflow. |
+| Evidence-backed area drafts | [Existing OX QA handoff](eval/eg14-evidence-pack-reconciliation-20261112.json): scoped claims, source quotations, shared-rule references, exceptions and explicit gaps. | No policy publication, completed application validation or productivity claim. |
+| Instruction ownership, scope and overflow | [Installed generator behavior](eval/eg15-eg17-generator-delivery-20261111.json) preserves authored files and qualified rules, with complete overflow recovery. | [Legacy production rule ownership](eval/eg28-installed-ownership-delivery-20261112.json) remains unresolved; adoption is not inferred. |
+| Freshness and maintenance | [Dependency-specific JS/TS observations](eval/ociusx-instruction-scope-delivery-20261113.json), [scope coverage warnings](eval/ociusx-instruction-routing-delivery-20261113.json), and [source-bound proposals with stale refusal](eval/eg31-installed-maintenance-delivery-20261111.json). | Mechanical drift does not establish policy correctness or authorize rewriting guidance. |
+| Demonstrated task usefulness | [Current-output evaluation command and completed comparison](eval/ociusx-current-task-check-outcome-20261113.json). | **Quality failed: assisted 19/20, baseline 20/20.** Fresh held-out verification and matched implementation/QA benefit remain open. |
+
+The [full backlog](TODO.md) and [original findings](eval/audit-inventory-20261101.json)
+retain unfinished requirements. These deliveries do not establish that the
+accumulated development cost was justified.
 
 ### Pre-commit review (`pre_commit_review`)
 

@@ -264,13 +264,14 @@
         "More than eight sources, exclusions, new files, case/separator forms, oversized recovery and changed source hashes remain correct.",
         "Historical requests never substitute live policy; prose delivery is distinguished from semantic enforcement."
       ],
-      "closure_state": "Local acceptance verified both builds144 executions total; implementation subsequently included in published/deployed lineage. Feature-specific deployed acceptance and original full-audit gates remain unclosed.",
+      "closure_state": "Installed OciusX guidance delivery verified November11: seven independently discovered documents, five inline and two recovered exactly, across direct consumers. November13 QA-matrix and edit-session deliveries extend the same guidance behavior. Historical/edge-case suites remain separate; prose compliance, task usefulness and full original release gates are not established by delivery.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg01_direct_retrieval_delivery_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "current_installed_delivery": "execution_evidence_20261101.eg01_installed_policy_delivery_20261111",
       "qa_matrix_delivery_20261113": "eval/ociusx-matrix-policy-delivery-20261113.json",
-      "edit_session_policy_delivery_20261113": "eval/ociusx-edit-session-policy-delivery-20261113.json"
+      "edit_session_policy_delivery_20261113": "eval/ociusx-edit-session-policy-delivery-20261113.json",
+      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
     },
     {
       "id": "EG-02",
@@ -281,11 +282,12 @@
         "The entire serialized response fits its budget, preserving every mandatory reconciliation identity and omission count.",
         "Recovery reconstructs exact immutable UTF-8 bytes and hashes after subsequent source changes."
       ],
-      "closure_state": "Local acceptance verified both builds144 executions total; implementation subsequently included in published/deployed lineage. Feature-specific deployed acceptance and original full-audit gates remain unclosed.",
+      "closure_state": "Installed OciusX JSON/Markdown captures verified November11: exact recovery of147800/98400bytes, mandatory rows and omission counts retained within the40960byte envelope budget. Nonempty hard-rule pressure, source-mutation and deep-path evidence remain separate retained local checks; this does not prove candidate relevance, completed changes or all original gates.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg02_deferred_omission_delivery_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111"
+      "current_installed_delivery": "execution_evidence_20261101.eg02_installed_recovery_delivery_20261111",
+      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
     },
     {
       "id": "EG-03",
@@ -743,7 +745,7 @@
         "Review supplies bounded relevant prior rulings with scope, decision evidence and revision applicability.",
         "Findings remain visible; changed code cannot inherit blanket suppression; historical cutoffs remain effective."
       ],
-      "closure_state": "Current native and actual no-vector full supplied discussion capture/recovery and Core MCP reader workflow verified. Immutable standalone events, unknown/legacy coverage and findings preservation verified. Scope/revision authority not supplied by source remains explicitly unestablished; implementation included in shipped lineage; feature-specific deployed acceptance and original authority/applicability limits remain open.",
+      "closure_state": "Installed declared-scope/revision acceptance verified November13 in eval/ociusx-review-scope-delivery-20261113.json; scope, conditions, source comparisons and visible findings preserved. Bounded full-report recovery also delivered. Decision authority and semantic applicability remain unestablished where source evidence does not supply them; no automatic suppression or measured task benefit.",
       "dependencies": [],
       "latest_precedent_cutoff_evidence": "peer_refresh_publication_recovery_cutoff_and_delivery_20261103: actual public historical cutoff and current control both pass. Later current aggregates cannot become historical authority; quote attribution remains, no automatic suppression. Full decision provenance/scope/as-of reconstruction and other consumers remain open.",
       "latest_standalone_discovery_source": "execution_evidence_20261101.eg19_standalone_decision_discovery_source_applied_20261103",
@@ -752,7 +754,8 @@
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "current_installed_omission_recovery": "execution_evidence_20261101.eg19_omission_recovery_delivery_20261111",
       "declared_scope_delivery_20261113": "eval/ociusx-review-scope-delivery-20261113.json",
-      "review_response_budget_delivery_20261113": "eval/ociusx-review-response-budget-delivery-20261113.json"
+      "review_response_budget_delivery_20261113": "eval/ociusx-review-response-budget-delivery-20261113.json",
+      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
     },
     {
       "id": "EG-20",
@@ -900,7 +903,8 @@
         "runtime_change": false,
         "broader_finding_complete": false
       },
-      "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json"
+      "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json",
+      "original_shortlist_status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
     },
     {
       "id": "EG-27",
@@ -913,7 +917,7 @@
         "Renames and relevant evidence changes affect dependent instructions; unrelated body edits do not invalidate an entire directory.",
         "Bound cycles/traversal and retain source authority; historical replay uses the requested commit or explicitly reports unavailable evidence."
       ],
-      "closure_state": "Scopedreference-observation behavior locally verified45publiccasesinbothbuilds+2actualOXread-onlypilot/independentrawbyteoracles. Inlinepaths/symbolcandidates/impact/gaps/versionhashes supported. Actualrelevance/noise, semantic intent and broader usefulness remain open. Implementation code is in shipped lineage; feature-specific relevance/noise and deployed acceptance remain open.",
+      "closure_state": "Installed VB evidence capture, JS/TS dependency-specific freshness and explicit scope-routing observations delivered November13. Actual OciusX map-guide routing matched300independently counted files. Retained public and actual observations establish these mechanical behaviors; semantic correctness, broader relevance/noise and task benefit remain open.",
       "dependencies": [],
       "current_instruction_work_evidence": "execution_evidence_20261101.instruction_authority_delivery_and_repair_outcomes; partial only, see remaining limits",
       "current_maintenance_work_evidence": "execution_evidence_20261101.instruction_maintenance_workflow",
@@ -929,7 +933,8 @@
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "captured_vb_reference_delivery_20261113": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json",
       "js_ts_instruction_scope_delivery_20261113": "eval/ociusx-instruction-scope-delivery-20261113.json",
-      "scope_routing_delivery_20261113": "eval/ociusx-instruction-routing-delivery-20261113.json"
+      "scope_routing_delivery_20261113": "eval/ociusx-instruction-routing-delivery-20261113.json",
+      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
     },
     {
       "id": "EG-28",
@@ -994,7 +999,7 @@
         "Reject stale bases; preserve exceptions and shared-rule references; explain no-guidance-change outcomes.",
         "An implementation conflicting with valid policy is a potential code defect, not permission to weaken policy; never silently rewrite authored guidance."
       ],
-      "closure_state": "Partial: real reporting no_change, present KML code/policy Conflict, and genuine PR2077 historical Change replay now validated and independently reviewed. Historical changed guide matches accepted actual guide byte-exact, preserves all other conditions, and stale evidence refuses. Wider usefulness/current deployed validation remain; new owned replay fixture cleanup rejected and preserved explicitly.",
+      "closure_state": "Current-source conflict proposal and stale refusal verified on installed OciusX November11; authored guidance preserved. Genuine historical Change and reporting no_change remain supported by their retained original executions, not repeated on every later binary. Wider usefulness and all original acceptance beyond these cases remain unfinished.",
       "dependencies": [],
       "current_maintenance_work_evidence": "execution_evidence_20261101.instruction_maintenance_workflow",
       "current_real_no_change_evidence": "execution_evidence_20261101.eg31_actual_reporting_no_change_20261103",
@@ -1005,7 +1010,8 @@
         "evidence": "execution_evidence_20261101.ociusx_resource_release_and_matched_query_pair_20261104",
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
       },
-      "current_installed_delivery": "execution_evidence_20261101.eg31_installed_maintenance_delivery_20261111"
+      "current_installed_delivery": "execution_evidence_20261101.eg31_installed_maintenance_delivery_20261111",
+      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
     }
   ],
   "storage_release_gates": [
@@ -10006,41 +10012,27 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "EG27 instruction scope routing coverage in health/update",
-      "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong. Surface instruction freshness and coverage in existing health/update workflows.",
-      "observed_missing_behavior": "Installed project_health for authored applyTo Site/maps/** with actual Site/map/layer.js returns raw_uninterpreted scope with no zero-match routing warning.",
-      "behavior": "Add a separate current-worktree routing observation to successful instruction health/update output, reusing existing scope syntax. Report matching counts/examples for explicit scopes, no_matching_files warning only after complete supported inventory, and unknown/invalid scope separately. Preserve authored files and existing proposal packet identities.",
+      "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+      "finding": "EG26 original shortlist delivery and evaluation status",
+      "original_requirement": "Reconcile roadmap labels and dated evaluation claims; implemented capability is not measured readiness. Goal requires stale next steps to be reconciled with retained delivery evidence.",
+      "observed_missing_behavior": "README points to the November12 passing task run rather than the November13 failed quality run. EG01/02/19/27/31 closure text still says installed acceptance is absent despite attached delivery receipts.",
       "implementation_files": [
-        "crates/engram_server/src/services/project_policy.rs",
-        "crates/engram_server/src/services/instruction_maintenance.rs",
-        "crates/engram_server/src/services/instruction_maintenance/routing.rs",
-        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
-        "crates/engram_server/tests/instruction_routing_tests.rs",
-        "docs/TOOL_CONTRACT.md"
+        "README.md",
+        "eval/README.md",
+        "eval/audit-inventory-20261101.json",
+        "eval/engram-delivery-goal-20261110.json"
       ],
       "acceptance": [
-        "Installed baseline demonstrates missing zero-match warning.",
-        "Public health reports unmatched typo scope; correct JavaScript/VB scope returns actual file count/examples, including new unindexed nonignored files.",
-        "Malformed/absent explicit scope is unknown rather than zero matches; ignored files do not fabricate matches.",
-        "Output labels current worktree mechanical routing only, retains exact instruction hash, and makes no semantic policy correctness claim or authored edit.",
-        "Existing instruction maintenance tests pass; candidate/installed and actual OciusX one-guide health check verify behavior."
+        "Original nine-item shortlist maps to retained delivery receipts and explicit limitations.",
+        "Latest recorded task result says assisted19/20 versus baseline20/20, qualityFAIL; later binary is not certified by that run.",
+        "Referenced receipt hashes and local links verify; historical evidence and unfinished requirements remain intact."
       ],
-      "scope": "Existing health/update optional instruction observation only. No new tools, instruction publication, semantic policy inference, CodeMap/Blast work or model runs.",
-      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage",
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\baseline2\\observation.json",
-      "limits": [
-        "Counts cover Git-tracked existing regular files plus nonignored untracked worktree files; inventory problems make zero unknown.",
-        "Matching scope does not prove prose exclusions, semantics, authority or correctness.",
-        "Separate current-worktree inventory does not alter historical proposal evidence or certify atomic source/index state."
-      ],
+      "scope": "Documentation and status correction only; no runtime implementation, build, model run, workload replay or broadened audit.",
+      "scratch": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/shortlist-status",
+      "delivery": "eval/ociusx-shortlist-status-reconciliation-20261113.json",
       "remaining": [
-        "Advance next unfinished original OciusX requirement; this delivery is closed."
-      ],
-      "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
-      "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
-      "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
+        "Original broader backlog remains active; do not reopen these delivered behaviors merely because their older closure text was stale."
+      ]
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10090,7 +10082,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: explicit instruction routing coverage deployed; public candidate/installed and independent OciusX path-count acceptance passed.",
+    "previous_goal_turn_classification": "PROGRESS: original shortlist documentation and five stale installed-delivery statuses corrected against retained receipts; latest failed quality result surfaced.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -14326,6 +14318,43 @@
       ],
       "delivery": "eval/ociusx-daemon-protocol-delivery-20261113.json"
     },
-    "instrumentation_pack_delivery_20261113": "eval/ociusx-instrumentation-pack-delivery-20261113.json"
+    "instrumentation_pack_delivery_20261113": "eval/ociusx-instrumentation-pack-delivery-20261113.json",
+    "previous_completed_delivery": {
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "finding": "EG27 instruction scope routing coverage in health/update",
+      "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong. Surface instruction freshness and coverage in existing health/update workflows.",
+      "observed_missing_behavior": "Installed project_health for authored applyTo Site/maps/** with actual Site/map/layer.js returns raw_uninterpreted scope with no zero-match routing warning.",
+      "behavior": "Add a separate current-worktree routing observation to successful instruction health/update output, reusing existing scope syntax. Report matching counts/examples for explicit scopes, no_matching_files warning only after complete supported inventory, and unknown/invalid scope separately. Preserve authored files and existing proposal packet identities.",
+      "implementation_files": [
+        "crates/engram_server/src/services/project_policy.rs",
+        "crates/engram_server/src/services/instruction_maintenance.rs",
+        "crates/engram_server/src/services/instruction_maintenance/routing.rs",
+        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
+        "crates/engram_server/tests/instruction_routing_tests.rs",
+        "docs/TOOL_CONTRACT.md"
+      ],
+      "acceptance": [
+        "Installed baseline demonstrates missing zero-match warning.",
+        "Public health reports unmatched typo scope; correct JavaScript/VB scope returns actual file count/examples, including new unindexed nonignored files.",
+        "Malformed/absent explicit scope is unknown rather than zero matches; ignored files do not fabricate matches.",
+        "Output labels current worktree mechanical routing only, retains exact instruction hash, and makes no semantic policy correctness claim or authored edit.",
+        "Existing instruction maintenance tests pass; candidate/installed and actual OciusX one-guide health check verify behavior."
+      ],
+      "scope": "Existing health/update optional instruction observation only. No new tools, instruction publication, semantic policy inference, CodeMap/Blast work or model runs.",
+      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\baseline2\\observation.json",
+      "limits": [
+        "Counts cover Git-tracked existing regular files plus nonignored untracked worktree files; inventory problems make zero unknown.",
+        "Matching scope does not prove prose exclusions, semantics, authority or correctness.",
+        "Separate current-worktree inventory does not alter historical proposal evidence or certify atomic source/index state."
+      ],
+      "remaining": [
+        "Advance next unfinished original OciusX requirement; this delivery is closed."
+      ],
+      "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
+      "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
+      "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
+    }
   }
 }

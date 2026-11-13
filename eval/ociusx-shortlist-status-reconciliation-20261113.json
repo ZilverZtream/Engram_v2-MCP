@@ -1,0 +1,58 @@
+{
+  "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+  "at_utc": "2026-11-13T15:57:11.994094+00:00",
+  "finding": "EG26 original shortlist delivery and evaluation status",
+  "runtime_change": false,
+  "models_started": 0,
+  "workloads_replayed": 0,
+  "changes": [
+    "README maps nine original priorities to delivery receipts and limits.",
+    "README and evaluation overview surface November13 qualityFAIL rather than pointing only to the older passing run.",
+    "Five stale installed-acceptance descriptions reconciled; every previous evidence reference retained."
+  ],
+  "verification": {
+    "shortlist_rows": 9,
+    "linked_receipts": 15,
+    "retained_artifact_hashes_matched": 157,
+    "preserved_work_files": 9,
+    "installed_binary_unchanged": true
+  },
+  "receipt_identities": {
+    "eval/eg01-installed-policy-delivery-20261111.json": "b34fa421365d78c20b333754bfe49985d8e8480d5dfa821ec493a7f5e056fc06",
+    "eval/eg02-installed-recovery-delivery-20261111.json": "58bfcbb6fc4b07a5278cf1c086f3fe6b65e5d0838a3edcc470743c95eaf74a4f",
+    "eval/eg14-evidence-pack-reconciliation-20261112.json": "ab8d2d5dcf6b09b57c04f13fe33340d4676c4e88d669531d17a96307594e23e4",
+    "eval/eg15-eg17-generator-delivery-20261111.json": "7bb77478689d7e781c7627035f1e3657567b343710f9ae524d4e3153fbdb8667",
+    "eval/eg18-installed-preset-delivery-20261111.json": "eac609304990357d07ddf78f1dd4c39720712927275dcdfe7e8582b884c22e6a",
+    "eval/eg20-history-capability-delivery-20261111.json": "5583b7afa885fda299160aa88a3226b60def4f14c80ab408ed6132109e0d2948",
+    "eval/eg28-installed-ownership-delivery-20261112.json": "ac1543c3ff2a0da59799d96d6d83d1d5ecaa30a79385f81d1d79d4d0a10609c8",
+    "eval/eg31-installed-maintenance-delivery-20261111.json": "621c12c5079c89595710ef2adb536d584e8420791a69a4096d84a5db28469971",
+    "eval/ociusx-current-task-check-outcome-20261113.json": "8ffd78990ba5f8a153a324f9108e6c200828e0158056c69bf754bfea4c03f1fd",
+    "eval/ociusx-edit-session-policy-delivery-20261113.json": "c694006c22963fe91b75f1ff32ba35f58e3ff939eafb0ec91655bc2a3082024f",
+    "eval/ociusx-history-filter-embedding-delivery-20261113.json": "c5442877dfc7067b6759c7f342a08cadf9d8954e73b5d09cbd98da95c34f770d",
+    "eval/ociusx-instruction-routing-delivery-20261113.json": "72d1dc8838400ab609ade4c8eaabdae43651ffb7e8aba1e759194e78a4bd0dd9",
+    "eval/ociusx-instruction-scope-delivery-20261113.json": "b2d19dcae71fe3faf69a68212b5e98c6edb826d955d1f57fa9309376de886dbc",
+    "eval/ociusx-review-response-budget-delivery-20261113.json": "2a058cbbe588ce3a70140dc9205a4ea86717134ac528a5fad18710f78f31fe27",
+    "eval/ociusx-review-scope-delivery-20261113.json": "c3fd084aa7e371df8c8dd65c5b908bb91d2a40ee5846674c22366fae5b44cad6"
+  },
+  "artifact_verification": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shortlist-status\\verified-artifacts.json",
+  "limits": [
+    "No new runtime acceptance or feature implementation. Older receipts retain their original runtime identity and scope.",
+    "Relative application source identities are historical observations, not artifact paths in Engram; no current application-source revalidation performed.",
+    "No full documentation/schema/catalog audit, original gate closure, fresh holdout or productivity/cost justification claim."
+  ],
+  "historical_relative_source_identities_not_rechecked": [
+    {
+      "status": "PASS",
+      "path": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+      "sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53",
+      "source_file_hash": "5877f0e6cea9da7168f425308486f086370999c8b7016f85982a902e07149a34",
+      "line_start": 11,
+      "line_end": 130
+    }
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shortlist-status",
+    "purpose": "Retain verification script and hashes for the documentation correction.",
+    "cleanup_condition": "Retain with delivery evidence for review; no new server, test fixture or build resources."
+  }
+}

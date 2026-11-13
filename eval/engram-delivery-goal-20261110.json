@@ -40,41 +40,27 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "EG27 instruction scope routing coverage in health/update",
-    "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong. Surface instruction freshness and coverage in existing health/update workflows.",
-    "observed_missing_behavior": "Installed project_health for authored applyTo Site/maps/** with actual Site/map/layer.js returns raw_uninterpreted scope with no zero-match routing warning.",
-    "behavior": "Add a separate current-worktree routing observation to successful instruction health/update output, reusing existing scope syntax. Report matching counts/examples for explicit scopes, no_matching_files warning only after complete supported inventory, and unknown/invalid scope separately. Preserve authored files and existing proposal packet identities.",
+    "status": "DOCUMENTATION_CORRECTION_VERIFIED",
+    "finding": "EG26 original shortlist delivery and evaluation status",
+    "original_requirement": "Reconcile roadmap labels and dated evaluation claims; implemented capability is not measured readiness. Goal requires stale next steps to be reconciled with retained delivery evidence.",
+    "observed_missing_behavior": "README points to the November12 passing task run rather than the November13 failed quality run. EG01/02/19/27/31 closure text still says installed acceptance is absent despite attached delivery receipts.",
     "implementation_files": [
-      "crates/engram_server/src/services/project_policy.rs",
-      "crates/engram_server/src/services/instruction_maintenance.rs",
-      "crates/engram_server/src/services/instruction_maintenance/routing.rs",
-      "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
-      "crates/engram_server/tests/instruction_routing_tests.rs",
-      "docs/TOOL_CONTRACT.md"
+      "README.md",
+      "eval/README.md",
+      "eval/audit-inventory-20261101.json",
+      "eval/engram-delivery-goal-20261110.json"
     ],
     "acceptance": [
-      "Installed baseline demonstrates missing zero-match warning.",
-      "Public health reports unmatched typo scope; correct JavaScript/VB scope returns actual file count/examples, including new unindexed nonignored files.",
-      "Malformed/absent explicit scope is unknown rather than zero matches; ignored files do not fabricate matches.",
-      "Output labels current worktree mechanical routing only, retains exact instruction hash, and makes no semantic policy correctness claim or authored edit.",
-      "Existing instruction maintenance tests pass; candidate/installed and actual OciusX one-guide health check verify behavior."
+      "Original nine-item shortlist maps to retained delivery receipts and explicit limitations.",
+      "Latest recorded task result says assisted19/20 versus baseline20/20, qualityFAIL; later binary is not certified by that run.",
+      "Referenced receipt hashes and local links verify; historical evidence and unfinished requirements remain intact."
     ],
-    "scope": "Existing health/update optional instruction observation only. No new tools, instruction publication, semantic policy inference, CodeMap/Blast work or model runs.",
-    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\baseline2\\observation.json",
-    "limits": [
-      "Counts cover Git-tracked existing regular files plus nonignored untracked worktree files; inventory problems make zero unknown.",
-      "Matching scope does not prove prose exclusions, semantics, authority or correctness.",
-      "Separate current-worktree inventory does not alter historical proposal evidence or certify atomic source/index state."
-    ],
+    "scope": "Documentation and status correction only; no runtime implementation, build, model run, workload replay or broadened audit.",
+    "scratch": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/shortlist-status",
+    "delivery": "eval/ociusx-shortlist-status-reconciliation-20261113.json",
     "remaining": [
-      "Advance next unfinished original OciusX requirement; this delivery is closed."
-    ],
-    "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
-    "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
-    "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
+      "Original broader backlog remains active; do not reopen these delivered behaviors merely because their older closure text was stale."
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -394,5 +380,42 @@
     "progress": "eval/ociusx-review-response-budget-progress-20261113.json",
     "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580",
     "delivery": "eval/ociusx-review-response-budget-delivery-20261113.json"
+  },
+  "retained_routing_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "EG27 instruction scope routing coverage in health/update",
+    "original_requirement": "Original ocius_workflows priority2: zero matching files produces a routing/coverage warning, not a claim the rule is wrong. Surface instruction freshness and coverage in existing health/update workflows.",
+    "observed_missing_behavior": "Installed project_health for authored applyTo Site/maps/** with actual Site/map/layer.js returns raw_uninterpreted scope with no zero-match routing warning.",
+    "behavior": "Add a separate current-worktree routing observation to successful instruction health/update output, reusing existing scope syntax. Report matching counts/examples for explicit scopes, no_matching_files warning only after complete supported inventory, and unknown/invalid scope separately. Preserve authored files and existing proposal packet identities.",
+    "implementation_files": [
+      "crates/engram_server/src/services/project_policy.rs",
+      "crates/engram_server/src/services/instruction_maintenance.rs",
+      "crates/engram_server/src/services/instruction_maintenance/routing.rs",
+      "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
+      "crates/engram_server/tests/instruction_routing_tests.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "acceptance": [
+      "Installed baseline demonstrates missing zero-match warning.",
+      "Public health reports unmatched typo scope; correct JavaScript/VB scope returns actual file count/examples, including new unindexed nonignored files.",
+      "Malformed/absent explicit scope is unknown rather than zero matches; ignored files do not fabricate matches.",
+      "Output labels current worktree mechanical routing only, retains exact instruction hash, and makes no semantic policy correctness claim or authored edit.",
+      "Existing instruction maintenance tests pass; candidate/installed and actual OciusX one-guide health check verify behavior."
+    ],
+    "scope": "Existing health/update optional instruction observation only. No new tools, instruction publication, semantic policy inference, CodeMap/Blast work or model runs.",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-routing-coverage\\baseline2\\observation.json",
+    "limits": [
+      "Counts cover Git-tracked existing regular files plus nonignored untracked worktree files; inventory problems make zero unknown.",
+      "Matching scope does not prove prose exclusions, semantics, authority or correctness.",
+      "Separate current-worktree inventory does not alter historical proposal evidence or certify atomic source/index state."
+    ],
+    "remaining": [
+      "Advance next unfinished original OciusX requirement; this delivery is closed."
+    ],
+    "progress": "eval/ociusx-instruction-routing-progress-20261113.json",
+    "source_commit": "5f1af0afafee5f59071bc60dc833fc556d685853",
+    "delivery": "eval/ociusx-instruction-routing-delivery-20261113.json"
   }
 }

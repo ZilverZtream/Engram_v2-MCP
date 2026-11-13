@@ -2,6 +2,16 @@
 
 ## Current task-evaluation verification
 
+The latest recorded comparison is the [November 13 current-output run](ociusx-current-task-check-outcome-20261113.json):
+four known OciusX tasks, eight completed candidates, assisted 19/20 criteria and
+baseline 20/20. No false guidance was identified, but the assisted diagnosis
+answer omitted explicit verification of the corrected displayed style. The
+quality check correctly exited 1. This is a failed regression quality gate,
+not evidence of improved task success. The run used source generation 3149
+and the binary identity in its receipt; it does not certify later releases.
+Fresh held-out evaluation and matched implementation/QA benefit remain open.
+The dated runs below retain their original results.
+
 `frozen_task_eval.py` verifies a separately recorded private corpus of scoped
 policy, companion-edit, history and diagnosis tasks. Candidate agents receive
 only their frozen task/source packets, with or without the actual production
