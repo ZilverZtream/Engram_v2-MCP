@@ -1,0 +1,102 @@
+{
+  "status": "DEFAULTS_AUDITED_DISCLOSURE_IMPLEMENTED_VALIDATED_DEPLOYED",
+  "finding": "TODO56 defaults behavior and truthful fallback",
+  "at_utc": "2026-11-13T05:36:30.329214+00:00",
+  "original_requirement": "Audit default embedding/model, debounce and memory settings so the default experience matches the recommended behavior; retain the accepted degrade-honestly branch of TODO2.",
+  "source_commit": "2694bf38418de12cad4819c40b541d1c4948f356",
+  "main_merge_commit": "51aad298bbe2fecc9340c0190945dd8e7602484c",
+  "source_documentation_push": "c059bc4",
+  "delivered": [
+    "Default JSON and Markdown search disclose that non-semantic projection matches can change combined ranking; semantic=false is the explicit lexical recovery path.",
+    "README explains the unset/ignored projection model and the actual debounce, concurrency, writer and tracked-memory defaults. Provider examples no longer assign a learned model name to the local projection backend."
+  ],
+  "default_disposition": {
+    "embedding_backend": "Keep local, labelled degraded trigram; bundled learned model remains separate unfinished work.",
+    "embedding_model": "No model chosen for projection. Document optional model only with a matching provider.",
+    "watch_debounce_secs": 5,
+    "tantivy_writer_memory": 50000000,
+    "memory_budget_bytes": "0 means 2147483648 tracked bytes, not RSS cap",
+    "max_concurrent_jobs": 2,
+    "max_parse_concurrency": "available parallelism capped at16; fallback4"
+  },
+  "installed": {
+    "server_sha256": "6c78a3ba53731be8eabae7172b12b9cfcc27c7a3d7222441871ab7b2781de97b",
+    "manifest_sha256": "06af78bc48b1b51beecbc45e0bd761fe91cbbd5f1e3043946211ff39c40a850b",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "checks": {
+    "native_tests": 5,
+    "old_warning_regression_failed_as_expected": true,
+    "candidate_default_fixture": "PASS",
+    "installed_default_fixture": "PASS",
+    "configuration_unchanged": true,
+    "production_registry_selection_and_other_metadata_unchanged": true,
+    "production_generation": 3148,
+    "test_config": "Embedding backend/model, LLM, memory, watcher and job settings omitted; actual loader supplies defaults."
+  },
+  "limits": [
+    "No default numeric value, ranking calculation, provider behavior or retrieval schema changed. No learned local model bundled.",
+    "Defaults were audited for behavior and truthful disclosure; no benchmark establishes globally optimal tuning, improved retrieval quality or productivity.",
+    "Hosted CI remains unverified while repository Actions are disabled. Other accepted partial findings and full original release gates remain open."
+  ],
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\contract.json",
+      "sha256": "debb122f382eaa72ffb1ab36b3ed7b86ae7e1643af99f360380156dfca197fd4"
+    },
+    "baseline1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\baseline1.json",
+      "sha256": "c6ea123a6316a40eb2e47b82ab03abe4de7ca09e2147a52cc4b9a09d3919c998"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\native1.json",
+      "sha256": "e59f0123f02a9eae600ca728f7d4a76440d092746186d7d09b8970bde7fb78bf"
+    },
+    "review1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\review1.json",
+      "sha256": "216bdd003a3b7f793e70651813ddfa6c8a2cd553c674017ebdfbb974e23e5948"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\release1.json",
+      "sha256": "10e25627688da2271ced03d9e767a1ce8fea9e6a8864dec0b76f74c1368df442"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\pair1.json",
+      "sha256": "4c106224f1e82d9a171c07c1ccd9bc5095c331dd7e26d7174000234e523d57b7"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\candidate1\\acceptance.json",
+      "sha256": "88501fb1138795652b6f41299b3f6449c56f87a7e129b1ef068af6244fb7fbf1"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\installed1\\acceptance.json",
+      "sha256": "4ff79859913f7b873a8b5090dd20d2b83438a12ace9e4f2bbf2339e7bf3336b0"
+    },
+    "release-gates1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\release-gates1.json",
+      "sha256": "a5b01b57c85fbbf4f6dc5134cd77614485f5c4d2d8954a9f5e53891275159aa5"
+    },
+    "defaults1-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\defaults1-install-Upgrade.json",
+      "sha256": "452228c86e4e7145def58eca56976795d4a0fcd3c99f6f68470c08b2fc4b68d0"
+    },
+    "defaults1-config-hold.json.released.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults\\defaults1-config-hold.json.released.json",
+      "sha256": "327a79ae7c74b1f1fa26fb1a10fea300dc1d9b96f35911418fc2409cec13cde5"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults",
+    "test_servers_closed": true,
+    "owned_build_and_test_temps_removed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-946eee0e11ce4ef680b883abaf58bec7",
+    "preserved_work_unchanged": true,
+    "retained": "Logs, package and prior installed pair retained for traceability/recovery; no preexisting-directory deletion.",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "source_checkout_removal": "Reuse while parked work requires isolation; later remove through Git after unique/ignored work and merged source are accounted for."
+  }
+}
