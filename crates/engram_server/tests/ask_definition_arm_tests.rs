@@ -19,6 +19,57 @@ use std::time::Duration;
 
 const NID: &str = "sym:function:Site/App_Code/api-json/api.vb:api.ioUpdateBaseTypeInBulk:10";
 
+#[test]
+fn a_method_answer_keeps_referenced_member_types_and_defaults_in_its_evidence() {
+    // Graph handles drop before the directory, including assertion unwinding.
+    let temp = tempfile::tempdir().unwrap();
+    let graph = engram_graph::GraphStore::open(&temp.path().join("graph.redb")).unwrap();
+    let path = "PageOptions.vb";
+    let source = "Public Class PageOptions\n\
+        ''' Configured limit is Nothing while unavailable.\n\
+        Public Property ConfiguredLimit As Integer?\n\
+        Public Property DefaultLimit As Integer = 25\n\
+        Public Property UnrelatedCaption As String = \"not needed\"\n\
+        Public Function ChooseLimit() As Integer\n\
+            Return If(configuredlimit, DefaultLimit)\n\
+        End Function\nEnd Class\n";
+    std::fs::write(temp.path().join(path), source).unwrap();
+    let node = |name: &str, kind: &str, file: &str, start, end| Node {
+        node_id: format!("sym:{kind}:{file}:{name}:{start}"),
+        node_type: kind.into(), name: format!("PageOptions.{name}"),
+        namespace: "memory".into(), language: "vbnet".into(),
+        file_path: RelPath::new(file), start_line: start, end_line: end,
+        generation: 1, metadata: None,
+    };
+    let target = node("ChooseLimit", "function", path, 6, 8);
+    let mut file = node(path, "file", path, 1, 9);
+    file.node_id = format!("file:{path}");
+    graph.upsert_nodes("members", &[
+        file,
+        target.clone(),
+        node("ConfiguredLimit", "property", path, 3, 3),
+        node("DefaultLimit", "property", path, 4, 4),
+        node("UnrelatedCaption", "property", path, 5, 5),
+        node("ConfiguredLimit", "property", "OtherPageOptions.vb", 30, 30),
+    ]).unwrap();
+    let (items, outcome) = engram_server::services::ask_engine::providers::definition_evidence(
+        &graph, Some(temp.path()), "members", &target.node_id, &mut 0,
+    );
+    assert_eq!(outcome.status, ProviderStatus::Hit);
+    assert_eq!(items.len(), 1, "Context stays with the method through ranking");
+    let item = &items[0];
+    assert_eq!(item.lines, Some((6, 8)));
+    assert_eq!(item.symbol_id.as_deref(), Some(target.node_id.as_str()));
+    assert!(item.content.contains("Return If(configuredlimit, DefaultLimit)"));
+    assert!(item.content.contains("Public Property ConfiguredLimit As Integer?"));
+    assert!(item.content.contains("Configured limit is Nothing while unavailable."));
+    assert!(item.content.contains("Public Property DefaultLimit As Integer = 25"));
+    assert!(item.content.contains("PageOptions.vb:2-3"));
+    assert!(!item.content.contains("UnrelatedCaption"));
+    assert!(!item.content.contains("OtherPageOptions.vb"));
+    assert!(item.warnings.iter().any(|w| w.contains("do not establish receiver binding")));
+}
+
 async fn fixture() -> (tempfile::TempDir, AppState, String) {
     let tmp = tempfile::TempDir::new().unwrap();
     let data_dir = tmp.path().join("data");

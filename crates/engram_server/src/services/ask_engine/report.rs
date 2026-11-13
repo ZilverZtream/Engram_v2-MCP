@@ -342,7 +342,11 @@ pub fn render_markdown(r: &AskReport) -> String {
         // Business excerpts already carry a bounded claim/qualification view.
         // A second 200-character crop can show only its disclaimer and hide
         // every retrieved rule. Retain that view, including its recovery marker.
-        let snippet_limit = if e.document_namespace.as_deref() == Some("business_logic") { 1400 } else { 200 };
+        let snippet_limit = if e.provider == "definition" {
+            // The provider already bounds this source. A second preview crop
+            // would remove the method body and its member type/default context.
+            e.content.chars().count()
+        } else if e.document_namespace.as_deref() == Some("business_logic") { 1400 } else { 200 };
         let mut snippet: String = e.content.chars().take(snippet_limit).collect();
         if e.content.chars().count() > snippet_limit {
             snippet.push_str(" [excerpt shortened]");

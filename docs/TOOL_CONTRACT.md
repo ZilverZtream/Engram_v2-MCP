@@ -281,6 +281,14 @@ This is a separate current-worktree observation bound to the captured instructio
 
 ### Optional ask_codebase synthesis
 
+Named-method evidence also includes bounded same-file property, field and
+constant declarations whose names appear in the method, when indexed
+declarations and source budget permit. These excerpts keep types and defaults
+beside the method through ranking. Each has a labeled source span; the evidence
+item's `lines` still identifies the primary symbol. Name matches are context,
+not verified receiver bindings or a complete dependency inventory. The primary
+method retains priority within the existing 4 KB definition-body allowance.
+
 `ask_codebase` remains a deterministic evidence report by default. Set
 `synthesize: true` to request one configured text-generation call over the
 returned evidence, task context, conflicts, warnings and gaps. Successful
