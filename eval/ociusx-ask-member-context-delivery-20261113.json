@@ -1,0 +1,136 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T17:50:41.284294+00:00",
+  "finding": "TODO28 referenced same-file member context in ordinary method answers",
+  "source_commit": "7b5487a79b76b87c689f83dde970f1f7cf009cce",
+  "bounded_delivery_complete": true,
+  "full_todo28_complete": false,
+  "full_goal_complete": false,
+  "behavior": "ask_codebase method definitions include bounded same-file member declarations used by name, preserving types, defaults, adjacent comments and individual source spans in JSON and Markdown. Primary method stays first. Context uses the existing 4000-byte allowance and at most six members; name matching explicitly does not prove binding.",
+  "validation": {
+    "native_checks": 2,
+    "candidate_public": "PASS",
+    "installed_public": "PASS",
+    "actual_model_execution": "Candidate binary, identical SHA to installed binary; not rerun after installation.",
+    "actual_criteria_passed": 4,
+    "actual_criteria_total": 4,
+    "prior_criteria_passed": 3,
+    "prior_receipt": "eval/ociusx-ask-synthesis-delivery-20261113.json",
+    "recovered_behavior": "Answer now explicitly establishes Nothing when override and prepared counts are unavailable.",
+    "provider": "openrouter",
+    "model": "openai/gpt-5.6-luna",
+    "generation_requests": 1,
+    "elapsed_seconds": 23.09929679997731,
+    "retrieval_status": "partial",
+    "semantic_review": {
+      "status": "PASS",
+      "reviewed_at_utc": "2026-11-13T17:48:49.0365571Z",
+      "method": "Manual comparison of saved generated statements and exact quotations against independently saved VB source and original frozen case requirements",
+      "criteria": [
+        {
+          "status": "PASS",
+          "evidence": "Statement 2 requires both counts and says otherwise AutomaticZoom remains unset; source lines 95-97.",
+          "id": "AS-01"
+        },
+        {
+          "status": "PASS",
+          "evidence": "Statement 3 makes a present override unconditional regardless of automatic classification; statement 2 establishes missing-count behavior. Source override branch is outside count guard, lines 99-100.",
+          "id": "AS-02"
+        },
+        {
+          "status": "PASS",
+          "evidence": "Statement 4 explicitly says no override uses AutomaticZoom and missing counts leave EffectiveMinZoom Nothing; nullable declaration and source lines 101-102 support it.",
+          "id": "AS-03"
+        },
+        {
+          "status": "PASS",
+          "evidence": "No invented validation or caller execution. Answer explicitly withholds classification thresholds and runtime caller coverage.",
+          "id": "AS-04"
+        }
+      ],
+      "passed": 4,
+      "total": 4,
+      "previous_result": "3/4; AS-03 withheld",
+      "limitations": [
+        "Single inspected source question, not held out or a productivity measurement.",
+        "Retrieval remains partial; member name matches do not prove binding or complete dependency coverage.",
+        "One configured-provider generation request on candidate binary; no model or prompt tuning."
+      ],
+      "binary_sha256": "fb81221944b7a420c9246ca908953f0a2caa7677d15cf681b0e04593b6010d73"
+    }
+  },
+  "runtime": {
+    "server_sha256": "fb81221944b7a420c9246ca908953f0a2caa7677d15cf681b0e04593b6010d73",
+    "manifest_sha256": "649caa09732f612bdfa86e2b8151398a30f9d074a5ecdb387ec54703c984c9de",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\native4.json",
+      "sha256": "c9f79c9bb180ebe7e08f4f103c77ece1a3edca788e65eab96ef1ff49e527c5a0"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\implementation1.json",
+      "sha256": "49bc57fa87f58469e16b4cd7caa3d56e92cccca078857bea9c88a6d5da412e54"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\release1.json",
+      "sha256": "e6b3b70212d92a2553740b7a4bb723eba3b47df00cc4c4bf976b1de79039ad29"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\candidate1\\acceptance.json",
+      "sha256": "e56782e2bc19292dbfd2f21303a9cfb0bb210268bfc8ac7828d0fe9bbb64af61"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\installed1\\acceptance.json",
+      "sha256": "87aa5e333b3781aa735dc214665d95c51f909dd46650bbebb2b6eadb1ee48b9c"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\actual1\\acceptance.json",
+      "sha256": "255dec988994e3c5a1812b20d1380b534900c72445f084c98e482a78ddcf13ab"
+    },
+    "answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\actual1\\answer.json",
+      "sha256": "e9f1fd1ce8c73dee667705abac02a1673ae919b3eb118b017b554939f35950eb"
+    },
+    "semantic_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\actual1\\semantic-review.json",
+      "sha256": "e9024488744d2a029380b3e5a93cc1061d3bddf495fee98afd41a10194a3462d"
+    },
+    "frozen_case": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\actual1\\case.json",
+      "sha256": "c1b6a4acb69363855fcb955345a9654e5ac237c4c8c359970c515aea95a55f2a"
+    },
+    "independent_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\actual1\\FileLayerZoomPolicy.vb",
+      "sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\deployment1-state.json",
+      "sha256": "b35d1c4d953258350be699a34857369cca7c2438290ede610956c990cb9fffde"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context\\ask-member-context1-install-Upgrade.json",
+      "sha256": "86ca474869eb971ae2a5dbd5d390b5ea72a76b3ba833ae12518e9a6b060e47ba"
+    }
+  },
+  "limits": [
+    "Single inspected source question, not held out; no general quality, productivity or latency improvement claimed.",
+    "Member-name context is not resolved binding or complete dependency evidence.",
+    "Optional model-assisted routing and broader task acceptance remain unfinished.",
+    "Earlier planning failure and 19/20 versus 20/20 task comparison remain unresolved; this result does not supersede them.",
+    "External CodeRabbit review unavailable due to host authentication; parent source review only."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context",
+    "owned_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "owned_config_removed": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c9e168b635e3483988faad29e371568a",
+    "retention": "Retain package, evidence, scripts and rollback pair for delivery review and rollback; remove only after that need ends and exact-path approval. No preexisting folders removed."
+  }
+}

@@ -265,13 +265,16 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   deterministic evidence report; `synthesize: true` uses the configured model
   and checks evidence IDs and exact quotations without upgrading retrieval status.
   Five focused native checks and candidate/installed MCP acceptance passed.
-  The single OciusX source question met three of four frozen criteria: the answer
-  correctly explained the two-count requirement and override precedence, but
-  withheld the definite `Nothing` outcome when counts and override are absent.
-  Full semantic acceptance failed; no false guidance was identified by the
-  parent source review. No repeated model tuning was performed.
+  Same-file member context is now installed in JSON and Markdown definition
+  evidence, preserving relevant types/defaults and source spans. Two focused
+  native checks and candidate/installed public MCP checks passed. One candidate
+  OciusX answer with the installed binary's SHA met all four unchanged criteria,
+  including the previously withheld `Nothing` outcome. The model and prompt
+  were unchanged; no repeated model tuning was performed. This inspected source
+  question does not establish general task usefulness or product readiness.
   Optional model-assisted routing and broader task acceptance remain unfinished.
-  Evidence: [installed partial result](eval/ociusx-ask-synthesis-delivery-20261113.json).
+  Evidence: [member-context delivery](eval/ociusx-ask-member-context-delivery-20261113.json);
+  [retained earlier 3/4 result](eval/ociusx-ask-synthesis-delivery-20261113.json).
   Routes a question to search + graph + access-layer internally and returns a synthesized,
   cited answer. This is the single highest-leverage *new* tool: it collapses the 114-tool
   selection problem for the 80% case and makes Engram useful to agents that never learn

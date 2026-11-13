@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "TODO28 ordinary answer context for referenced same-file members",
     "original_requirement": "ask_codebase supplies useful source evidence and a cited answer for ordinary OciusX questions; preserve the existing failed missing-count criterion.",
     "observed_missing_behavior": "The retained Resolve answer supplies method lines92-106 and EffectiveMinZoom line59, but omits the indexed AutomaticZoom nullable declaration used in the method. Definition retrieval currently includes only the named symbol span. Missing declaration observed; it is not proven to be the sole cause of model withholding.",
@@ -63,7 +63,12 @@
       "No CodeMap/Blast changes.",
       "Preserve failed planning and prior ask results; full TODO28 remains unfinished until its original requirements are met."
     ],
-    "progress_receipt": "eval/ociusx-ask-member-context-progress-20261113.json"
+    "progress_receipt": "eval/ociusx-ask-member-context-progress-20261113.json",
+    "source_commit": "7b5487a79b76b87c689f83dde970f1f7cf009cce",
+    "delivery": "eval/ociusx-ask-member-context-delivery-20261113.json",
+    "bounded_delivery_complete": true,
+    "full_todo28_complete": false,
+    "outcome": "Installed JSON/Markdown member context passed. One unchanged-model/prompt OciusX answer passed all four frozen criteria; prior three-of-four result retained."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -492,5 +497,6 @@
     "tests_run": 0,
     "reason": "User prioritizes normal AI task completion over further edge-case/response engineering. Retain this incomplete patch; do not count it as delivered."
   },
-  "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
+  "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json",
+  "ask_member_context_delivery": "eval/ociusx-ask-member-context-delivery-20261113.json"
 }

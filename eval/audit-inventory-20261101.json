@@ -10009,10 +10009,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
+  "last_updated_at": "2026-11-13T17:50:41.284294+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_BUILD_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "TODO28 ordinary answer context for referenced same-file members",
       "original_requirement": "ask_codebase supplies useful source evidence and a cited answer for ordinary OciusX questions; preserve the existing failed missing-count criterion.",
       "observed_missing_behavior": "The retained Resolve answer supplies method lines92-106 and EffectiveMinZoom line59, but omits the indexed AutomaticZoom nullable declaration used in the method. Definition retrieval currently includes only the named symbol span. Missing declaration observed; it is not proven to be the sole cause of model withholding.",
@@ -10035,9 +10035,14 @@
         "No CodeMap/Blast changes.",
         "Preserve failed planning and prior ask results; full TODO28 remains unfinished until its original requirements are met."
       ],
-      "progress_receipt": "eval/ociusx-ask-member-context-progress-20261113.json"
+      "progress_receipt": "eval/ociusx-ask-member-context-progress-20261113.json",
+      "source_commit": "7b5487a79b76b87c689f83dde970f1f7cf009cce",
+      "delivery": "eval/ociusx-ask-member-context-delivery-20261113.json",
+      "bounded_delivery_complete": true,
+      "full_todo28_complete": false,
+      "outcome": "Installed JSON/Markdown member context passed. One unchanged-model/prompt OciusX answer passed all four frozen criteria; prior three-of-four result retained."
     },
-    "at_utc": "2026-11-13T04:57:38.763518+00:00",
+    "at_utc": "2026-11-13T17:50:41.284294+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10067,8 +10072,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO28 ordinary answer context for referenced same-file members",
-    "next_user_visible_deliverable": "Source context for members used by an asked-about method, followed by unchanged actual-answer acceptance.",
+    "active_original_item": "TODO28 bounded member-context delivery complete; next original item not yet selected",
+    "next_user_visible_deliverable": "Advance another unfinished original OciusX workflow requirement; do not expand accepted member-context criteria or resume per-sample model tuning.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10085,7 +10090,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: referenced-member context implemented and two native checks passed; source committed. Exact release build session70473 running; candidate and actual-answer acceptance still required.",
+    "previous_goal_turn_classification": "PROGRESS: release built, single actual answer accepted 4/4, installed public checks passed, runtime deployed. Full original goal remains active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
