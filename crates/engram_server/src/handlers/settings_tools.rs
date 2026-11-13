@@ -393,6 +393,19 @@ impl Engram {
         let canonical_files = files.clone();
         let canonical_root = axis_root.clone();
         let canonical_intent = req.change_intent.clone();
+        // Authored requirements remain available even when there are no usable
+        // inferred rules. A historical cutoff must never borrow today's policy.
+        let project_policy_sources = if req.knowledge_before.is_some() {
+            crate::services::project_policy::PolicyContext::historical_unavailable()
+        } else {
+            let policy_root = axis_root.clone();
+            let policy_files = files.clone();
+            tokio::task::spawn_blocking(move || {
+                crate::services::project_policy::resolve(&policy_root, &policy_files, &[])
+            })
+            .await
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?
+        };
         let (configured_risk_pack, configured_risk_notes) =
             super::test_derivation::load_configured_risk_pack_before(
                 &self.state.cfg.data_dir,
@@ -743,6 +756,7 @@ impl Engram {
 
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus configured risk rules matched against source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
+        out.push_str(&project_policy_sources.render_markdown());
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
         }
