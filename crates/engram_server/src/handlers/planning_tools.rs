@@ -39,7 +39,7 @@ struct FootprintEvidence {
 }
 
 #[path = "change_set_delivery.rs"]
-mod change_set_delivery;
+pub(crate) mod change_set_delivery;
 
 #[cfg(test)]
 #[path = "planning_tools/source_reader_tests.rs"]

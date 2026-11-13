@@ -15,9 +15,15 @@ fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
 }
 
+#[cfg(test)]
 fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
+    directory_for(data_dir, project_id, false)
+}
+
+fn directory_for(data_dir: &Path, project_id: &str, review: bool) -> Result<PathBuf, McpError> {
+    let family = if review { "review" } else { "change-set" };
     super::super::validate_project_id(project_id)?;
-    engram_core::safe_join(data_dir, &format!("responses/change-set/{project_id}"))
+    engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
 }
 
@@ -75,16 +81,24 @@ fn prune(directory: &Path, keep: &Path) {
 }
 
 fn save(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
+    save_for(data_dir, project_id, body, false)
+}
+
+pub(crate) fn save_review(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
+    save_for(data_dir, project_id, body, true)
+}
+
+fn save_for(data_dir: &Path, project_id: &str, body: &str, review: bool) -> Result<String, McpError> {
     if body.len() > SNAPSHOT_BYTES {
         return Err(failure(
-            "Change-set evidence exceeds the 8 MiB snapshot limit; narrow the story or concepts. No evidence was silently truncated.",
+            "Response evidence exceeds the 8 MiB snapshot limit; narrow the original request. No evidence was silently truncated.",
         ));
     }
-    let directory = directory(data_dir, project_id)?;
+    let directory = directory_for(data_dir, project_id, review)?;
     std::fs::create_dir_all(&directory)
         .map_err(|_| failure("Cannot create the change-set response cache"))?;
     // Validate again after creation so existing symlink components cannot redirect writes.
-    let directory = self::directory(data_dir, project_id)?;
+    let directory = self::directory_for(data_dir, project_id, review)?;
     // tempfile's Windows persistence calls native APIs with the supplied paths.
     // Canonical paths carry the extended-length prefix needed beyond MAX_PATH.
     // Both the temporary file and final filename must use this same directory.
@@ -200,10 +214,25 @@ pub(super) fn recover(
     id: &str,
     offset: usize,
 ) -> Result<String, McpError> {
-    let directory = directory(data_dir, project_id)?;
+    recover_for(data_dir, project_id, id, offset, RESPONSE_BYTES, false)
+}
+
+pub(crate) fn review_continuation(project_id: &str, id: &str, offset: usize, budget: usize) -> Value {
+    json!({"tool":"pre_commit_review", "arguments":{
+        "project_id":project_id, "response_id":id, "response_offset":offset,
+        "max_tokens":budget / 4, "output_json":true
+    }})
+}
+
+pub(crate) fn recover_review(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize) -> Result<String, McpError> {
+    recover_for(data_dir, project_id, id, offset, budget, true)
+}
+
+fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, review: bool) -> Result<String, McpError> {
+    let directory = directory_for(data_dir, project_id, review)?;
     let path = checked_path(&directory, id)?;
     let metadata = std::fs::symlink_metadata(&path)
-        .map_err(|_| McpError::invalid_params("Response snapshot unavailable; rerun the original planning request and reconcile the new receipt", None))?;
+        .map_err(|_| McpError::invalid_params("Response snapshot unavailable; rerun the original request and reconcile its new result", None))?;
     if !metadata.is_file() || metadata.len() > SNAPSHOT_BYTES as u64 {
         return Err(failure(
             "Response snapshot is not a supported bounded regular file",
@@ -216,7 +245,7 @@ pub(super) fn recover(
         .is_some_and(|age| age > RETENTION)
     {
         return Err(McpError::invalid_params(
-            "Response snapshot expired; rerun planning and reconcile the new receipt",
+            "Response snapshot expired; rerun the original request and reconcile its new result",
             None,
         ));
     }
@@ -241,7 +270,7 @@ pub(super) fn recover(
             None,
         ));
     }
-    let mut end = offset.saturating_add(RESPONSE_BYTES / 2).min(body.len());
+    let mut end = offset.saturating_add(budget / 2).min(body.len());
     while !body.is_char_boundary(end) {
         end -= 1;
     }
@@ -252,12 +281,15 @@ pub(super) fn recover(
             "start_byte": offset, "end_byte": end,
             "complete": complete, "content": &body[offset..end],
             "evidence_scope": "Immutable original response; current checkout freshness is not re-evaluated",
-            "next_call": if complete {Value::Null} else {continuation(project_id, id, end)},
+            "next_call": if complete {Value::Null} else if review {review_continuation(project_id, id, end, budget)} else {continuation(project_id, id, end)},
         });
         let rendered = serde_json::to_string(&page)
             .map_err(|_| failure("Cannot render response recovery page"))?;
-        if rendered.len() <= RESPONSE_BYTES {
+        if rendered.len() <= budget {
             return Ok(rendered);
+        }
+        if end == offset {
+            return Err(McpError::invalid_params(format!("max_tokens is too small for recovery metadata; increase to at least {} estimated tokens", (rendered.len() + 8).div_ceil(4)), None));
         }
         end = offset + (end - offset) / 2;
         while !body.is_char_boundary(end) {
