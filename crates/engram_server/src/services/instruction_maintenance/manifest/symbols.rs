@@ -30,6 +30,9 @@ pub struct Inventory {
     pub status: &'static str,
     pub retained_candidates: usize,
     pub omitted_candidates: usize,
+    /// Refusing this source limit leaves the number of hidden declarations
+    /// unknown; omitted_candidates counts only candidates actually observed.
+    pub source_limit_bytes: Option<usize>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -155,18 +158,22 @@ pub(super) fn capture(
                         engram_index::vb_extractor::snapshot_declaration_candidates(
                             &snapshot.content,
                         )
+                        .ok()
                     } else {
-                        engram_index::parsing::SymbolExtractor::new()
+                        Some(engram_index::parsing::SymbolExtractor::new()
                             .extract(Path::new(path), &snapshot.content)
-                            .0
+                            .0)
                     }
                 }))
                 .ok()
+                .flatten()
             } else {
                 None
             };
             let mut status = if !supported {
                 "unsupported_symbol_extractor"
+            } else if vb && snapshot.content.len() > engram_index::vb_extractor::SNAPSHOT_DECLARATION_MAX_BYTES {
+                "symbol_source_budget_exceeded"
             } else if extracted.is_none() {
                 "symbol_extractor_unavailable"
             } else if vb {
@@ -234,6 +241,7 @@ pub(super) fn capture(
                 status,
                 retained_candidates: retained,
                 omitted_candidates: omitted,
+                source_limit_bytes: vb.then_some(engram_index::vb_extractor::SNAPSHOT_DECLARATION_MAX_BYTES),
             });
         }
     }
@@ -279,7 +287,7 @@ pub(super) fn capture(
                         && (row.omitted_candidates > 0
                             || matches!(
                                 row.status,
-                                "unsupported_symbol_extractor" | "symbol_extractor_unavailable"
+                                "unsupported_symbol_extractor" | "symbol_extractor_unavailable" | "symbol_source_budget_exceeded"
                             ))
                 })
                 .count();
