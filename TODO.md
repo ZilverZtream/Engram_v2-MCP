@@ -583,9 +583,17 @@ value is accuracy, this is the biggest meta-gap.
 - [ ] **60. Remove or document alias tools** (S)
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.
 
-- [ ] **61. Shallow tools: fix or relabel** (S–M)
-  `analyze_error_stack` (just builds a search query), `get_instrumentation_pack` —
-  either deepen them or make descriptions honest so agents don't budget tokens on them.
+- [x] **61. Shallow tools: fix or relabel** (S?M) ? *named gaps reconciled 2026-11-13.*
+  `analyze_error_stack` already parses frames, boosts matching files/functions and
+  labels its result heuristic, not a debugger; no new stack-analysis claim.
+  `get_instrumentation_pack` now supplies complete manual VB.NET/C# event helpers
+  instead of a C# placeholder and VB refusal. Both returned helpers compiled and
+  executed locally; four emitted records ingested with expected graph identities.
+  Candidate and installed MCP checks verify exact source delivery and the matching
+  `ingest_instrumentation_logs(project_id, log_content)` handoff. It does not install
+  instrumentation, infer query hashes or prove runtime completeness. Existing
+  legacy next-tool filtering remains; the ingestion call is explicit in the text.
+  Evidence: `eval/ociusx-instrumentation-pack-delivery-20261113.json`.
 
 - [x] **62. TODO/FIXME sweep through services** (S) - *audited clean 2026-06-13: ZERO
   real stubs in the whole codebase (no todo!()/unimplemented!()/FIXME). integrity_service

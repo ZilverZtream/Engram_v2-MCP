@@ -1,0 +1,106 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T13:01:40.639007+00:00",
+  "finding": "TODO61 usable manual instrumentation pack",
+  "source_commit": "3f09d69d0262899b088f0653b43645385c886682",
+  "original_requirement": "Fix or accurately label shallow tools; support actual OciusX VB.NET/WebForms workflows.",
+  "before": "Installed get_instrumentation_pack rejected VB and returned noncompilable C# LogEngramEvent(...) placeholder with incomplete Global.asax instructions.",
+  "after": [
+    "Complete VB.NET and C# manual event helpers use a caller-provided log sink and exact supplied inline-SQL node ID. No inferred query hashing or automatic instrumentation.",
+    "Emitted ENGRAM_LOG lines match ingest_instrumentation_logs; text and schema documentation name project_id and log_content correctly.",
+    "Delimiter/newline fields and stored-procedure node IDs are rejected before reaching the sink. Sink exceptions propagate.",
+    "Unrelated method-diagnosis followups removed; existing legacy-target hint suppression remains. Explicit text handoff is available."
+  ],
+  "validation": {
+    "installed_baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\baseline-confirmed.json",
+      "sha256": "d63d707367773e1f5c48bf8417b402820896f47cc10660d5279f189d5d7d13a3"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\native2.json",
+      "sha256": "7dfe14872a45d7fc274494ff7f5860c4790a2860a196a8101231fe810ce1a005"
+    },
+    "native_passed": 1,
+    "compiled_and_executed_returned_helpers": [
+      "vb",
+      "csharp"
+    ],
+    "valid_records_ingested": 4,
+    "graph_source_control_and_sql_identities_checked": true,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\release1.json",
+      "sha256": "4aea50f4263f076636a418fec69e65100cd30fa93b207a8022e050cda92ca6d2"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\candidate2\\acceptance.json",
+      "sha256": "0bce754294a1b298f4d86706cc60db27f9faeea81f86f29fd911edea82ad702f"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\installed1\\acceptance.json",
+      "sha256": "19476b51846063f040ebdc17311e75c3eb76fb720898a7636a086f84e0c7c8a8"
+    },
+    "installed_checks": {
+      "vb_exact_compiled_helper": true,
+      "vb_manual_capture_disclosed": true,
+      "vb_matching_ingestion": true,
+      "vb_legacy_hint_filter_preserved": true,
+      "csharp_exact_compiled_helper": true,
+      "csharp_manual_capture_disclosed": true,
+      "csharp_matching_ingestion": true,
+      "csharp_legacy_hint_filter_preserved": true,
+      "descriptor_matches_helper": true,
+      "language_only_schema": true,
+      "documented_ingest_arguments_match_schema": true
+    },
+    "observer_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\observer-correction.json",
+      "sha256": "25679ec2950615968d1d19982d28bc9297cacd704f411add76732a927777dac9"
+    },
+    "retained_initial_candidate_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\candidate1\\acceptance.json",
+      "sha256": "85a0e2ef1db9c9f47f7f16d8023fa1e39e1f59aae74e1b65fffac7dadeb8bfa0"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\deployment2-state.json",
+      "sha256": "fcdab3d3adb6be49b242c150619c0ba537f71635c0503454f283065c45190a57"
+    }
+  },
+  "runtime": {
+    "server_sha256": "20fe0ec9704d3c44e3f71bfbd8cf50781fe9cbe93572e6c93307cd9471e8ebb7",
+    "manifest_sha256": "6626d4b166f630ecfa3333d01297b9f1ac25b0b8bc2236d1c58d32102a1997bd",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "preserved": {
+    "ociusx_source_and_guidance_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "configuration_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\manual-review1.json",
+    "sha256": "482f3519866379ab8db764c69c4a91587c6f6f0f72fc0494fd35b47c03158727"
+  },
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack",
+    "baseline_owned_fixture_removed": true,
+    "native_compiler_and_database_fixtures_removed": true,
+    "build_job_closed_and_temp_removed": true,
+    "failed_candidate_owned_temp_removed": true,
+    "candidate_and_installed_owned_temp_removed": true,
+    "owned_runtime_config_removed": true,
+    "hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-343a545d68394016be4365b08c6d5557",
+    "retention": "Keep helper output evidence, package and rollback for review. Reused source checkout protects WIP9. No preexisting directory deletion."
+  },
+  "limits": [
+    "Manual helper only: caller selects observed event sites, exact project/source/SQL identities and a logging sink. No OciusX instrumentation installed or application behavior executed.",
+    "The existing importer accepts caller-supplied observations; these do not prove transaction commit, complete execution, correct source binding or runtime performance.",
+    "Native Windows checks compiled and ran both returned helper sources; candidate/installed public checks verify byte-exact delivery and handoff schema. No cross-platform compiler execution claimed.",
+    "Existing next_tools filtering suppresses .NET legacy targets; the valid ingest call is in explicit text, not a machine-readable next_tool.",
+    "Initial candidate failure was verifier CRLF normalization and incompatible legacy-hint expectation. Raw responses preserved; no binary rebuild or relaxation of helper/ingestion requirements.",
+    "CodeRabbit host authentication unavailable; parent manual review only. No productivity gain or original full19-gate closure claimed."
+  ]
+}

@@ -9989,7 +9989,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "TODO61 usable VB.NET instrumentation pack",
       "original_requirement": "Fix or accurately label shallow tools, including get_instrumentation_pack; prioritize actual OciusX VB.NET/WebForms workflows.",
       "observed_missing_behavior": "The language request documents VB but the tool rejects it; C# returns a noncompilable protected void LogEngramEvent(...) placeholder. Its advertised ingest_runtime_artifacts handoff differs from the existing ENGRAM_LOG importer.",
@@ -10021,10 +10021,9 @@
       "source_commit": "3f09d69d0262899b088f0653b43645385c886682",
       "progress": "eval/ociusx-instrumentation-pack-progress-20261113.json",
       "remaining": [
-        "Finish existing release build.",
-        "Verify candidate and installed public helper output, descriptors and ingestion hints; deploy after candidate acceptance.",
-        "Record installed identity and TODO61 delivery with manual-capture limits."
-      ]
+        "Advance next unfinished original OciusX item. Preserve all accepted scope, held work and failed/unproved usefulness outcomes."
+      ],
+      "delivery": "eval/ociusx-instrumentation-pack-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -14356,6 +14355,7 @@
         "Advance the next unfinished accepted OciusX item. Preserve all original scope, held work and unfinished acceptance."
       ],
       "delivery": "eval/ociusx-daemon-protocol-delivery-20261113.json"
-    }
+    },
+    "instrumentation_pack_delivery_20261113": "eval/ociusx-instrumentation-pack-delivery-20261113.json"
   }
 }
