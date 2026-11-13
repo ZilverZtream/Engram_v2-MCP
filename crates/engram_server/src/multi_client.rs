@@ -346,6 +346,19 @@ enum ClientOutcome {
     SpawnUnavailable(anyhow::Error),
 }
 
+fn ensure_protocol_compatible(meta: &LockMetadata) -> anyhow::Result<()> {
+    if meta.protocol_version != PROTOCOL_VERSION {
+        anyhow::bail!(
+            "engram_server: proxy refused — primary (pid {pid}) is running protocol v{their}, \
+             this binary speaks v{mine}. Restart the primary with the current binary.",
+            pid = meta.pid,
+            their = meta.protocol_version,
+            mine = PROTOCOL_VERSION
+        );
+    }
+    Ok(())
+}
+
 /// Warn (once) when the daemon we connected to was built from a different
 /// crate version than this client — a stale daemon lingering after a
 /// redeploy keeps serving old behavior until it idle-exits or is killed.
@@ -374,16 +387,17 @@ async fn run_client(cfg: &Config, metadata_path: &Path, socket_path: &Path) -> C
         // Prefer the endpoint advertised by the live primary's metadata —
         // it covers custom socket paths and is written before the slow
         // AppState init, so it appears early in the daemon's startup.
-        let effective = match read_primary_metadata(metadata_path) {
+        let (effective, compatibility) = match read_primary_metadata(metadata_path) {
             Ok(meta) => {
                 warn_on_version_mismatch(&meta);
-                if meta.socket_path.is_empty() {
+                let endpoint = if meta.socket_path.is_empty() {
                     socket_path.to_path_buf()
                 } else {
                     PathBuf::from(&meta.socket_path)
-                }
+                };
+                (endpoint, ensure_protocol_compatible(&meta))
             }
-            Err(_) => socket_path.to_path_buf(),
+            Err(_) => (socket_path.to_path_buf(), Ok(())),
         };
 
         #[cfg(windows)]
@@ -392,6 +406,12 @@ async fn run_client(cfg: &Config, metadata_path: &Path, socket_path: &Path) -> C
             let pipe_name = effective.to_string_lossy().into_owned();
             match ClientOptions::new().open(&pipe_name) {
                 Ok(client) => {
+                    // Reject before forwarding any stdio bytes. Checking only
+                    // a connected endpoint preserves normal startup recovery
+                    // when an old metadata file has no live daemon behind it.
+                    if let Err(error) = compatibility {
+                        return ClientOutcome::Served(Err(error));
+                    }
                     tracing::info!(
                         pipe = %pipe_name,
                         "engram_server: connected to shared daemon"
@@ -418,6 +438,12 @@ async fn run_client(cfg: &Config, metadata_path: &Path, socket_path: &Path) -> C
         {
             match tokio::net::UnixStream::connect(&effective).await {
                 Ok(sock) => {
+                    // Reject before forwarding any stdio bytes. Checking only
+                    // a connected endpoint preserves normal startup recovery
+                    // when an old metadata file has no live daemon behind it.
+                    if let Err(error) = compatibility {
+                        return ClientOutcome::Served(Err(error));
+                    }
                     tracing::info!(
                         socket = %effective.display(),
                         "engram_server: connected to shared daemon"
@@ -1174,15 +1200,7 @@ async fn run_proxy(metadata_path: PathBuf, socket_path: PathBuf) -> anyhow::Resu
             metadata_path.display()
         ),
     };
-    if meta.protocol_version != PROTOCOL_VERSION {
-        anyhow::bail!(
-            "engram_server: proxy refused — primary (pid {pid}) is running protocol v{their}, \
-             this binary speaks v{mine}. Restart the primary with the current binary.",
-            pid = meta.pid,
-            their = meta.protocol_version,
-            mine = PROTOCOL_VERSION
-        );
-    }
+    ensure_protocol_compatible(&meta)?;
 
     // The stored socket path wins over the derived one. Lets tests
     // override the path cleanly.
