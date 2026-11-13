@@ -1,0 +1,63 @@
+{
+  "status": "ADDITIVE_TOOL_INSTALLED_REAL_PLAN_ACCEPTANCE_FAILED",
+  "at_utc": "2026-11-13T00:33:41.273925+00:00",
+  "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
+  "installed_server_sha256": "c6dc80000dd4c2619729f3fc6e4185c959bd389c15059f7144a360d03a6a176c",
+  "installed_manifest_sha256": "264607aeaee7fa8598d52aa0ede5be69778754c03e1969fbdcae7188e8056307",
+  "candidate_and_installed_fixture": "PASS: nine planning calls each plus indexing; all owned resources closed/removed; production selection unchanged",
+  "actual": {
+    "seconds": 153.77075440005865,
+    "reason": "invalid_plan_contract_or_source_reference",
+    "pipe_closed": true,
+    "plan_returned": false,
+    "exact_validation_failure": "UNKNOWN: v1 discarded the rejected model proposal and validation detail",
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal\\acceptance.json",
+      "sha256": "47cf75467b01897009b7dfcd876e78f13c5133720cbbf87bdf40d5d15c9331ba"
+    },
+    "response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal\\plan.json",
+      "sha256": "ce522dd7438ddaaa2c8715bf2ffb78b3d03efc8efcf58c5bcca8e4a6b39d8a4a"
+    }
+  },
+  "separately_observed_gap": {
+    "model_concepts": [
+      "administrator",
+      "minimum photo requirement"
+    ],
+    "candidate_files": 106,
+    "admitted_files": 12,
+    "source_paths": [
+      "Site/App_Code/installationsobjekt/code/CompletionPrerequisiteEvaluator.vb",
+      "Site/ts/qty/qtyManager.ts",
+      "Site/App_GlobalResources/systemsettings.de.resx",
+      "Site/App_Code/iFalt.dbml",
+      "Site/modules/dashboard/~.css/sb-admin-2-custom.css",
+      "docs/openapi/ox-fiber.yaml",
+      "Site/App_Code/installationsobjekt/code/io-installationsobjekt.vb",
+      "Site/App_Code/installationsobjekt/code/io-installationsobjektprojekt.vb",
+      "Site/App_GlobalResources/systemsettings.en.resx",
+      "Site/App_GlobalResources/systemsettings.es.resx",
+      "Site/App_GlobalResources/systemsettings.no.resx",
+      "Site/App_GlobalResources/systemsettings.pt.resx"
+    ],
+    "finding": "Model-generated role/phrase concepts replaced the established photos story concept. Most admitted source windows were unrelated localized settings or first100-line file excerpts. This is a demonstrated source-collection defect, not proof of the unknown exact validation failure."
+  },
+  "correction": {
+    "files": [
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
+      "crates/engram_server/src/services/feature_plan.rs",
+      "crates/engram_server/tests/feature_plan_tests.rs"
+    ],
+    "behavior": [
+      "Reuse existing story-domain concepts and concept stems in this new handler; do not modify existing ranking tools.",
+      "Return bounded explicit validation diagnostics and rejected JSON as untrusted data, with usable plan still withheld.",
+      "Represent already-present requirement claims with source citations and no invented edits; source review remains required."
+    ],
+    "status": "IMPLEMENTED_NATIVE3_RUNNING",
+    "native_session": 19708,
+    "public_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\verify-public-v2.py"
+  },
+  "delivery_complete": false,
+  "remaining": "Corrected native/public/candidate/installed checks and a new actual OciusX acceptance after relevant code changes. Full TODO32 and original full19gates remain unfinished."
+}

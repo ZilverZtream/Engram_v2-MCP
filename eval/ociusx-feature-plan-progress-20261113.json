@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+  "status": "ADDITIVE_TOOL_INSTALLED_REAL_PLAN_ACCEPTANCE_FAILED",
   "at_utc": "2026-11-13T00:07:12.106459+00:00",
   "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
   "scope": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
@@ -30,23 +30,25 @@
     "index_calls": 1,
     "resources_closed_and_removed": true
   },
-  "deployed": false,
+  "deployed": true,
   "limitations": [
-    "Optimized candidate, installed runtime and actual OciusX planning acceptance remain pending.",
-    "Plan semantics and productivity improvement are not proved by controlled-provider fixtures.",
-    "Non-WebForms stacks remain unsupported; full TODO32 remains unfinished."
+    "The additive tool is installed, but actual OciusX planning returned no usable plan.",
+    "Controlled-provider fixture passes do not establish actual planning usefulness.",
+    "Correction is being validated; full TODO32, non-WebForms stacks and original release gates remain unfinished."
   ],
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Build optimized release from committed isolated source; verify candidate/installed fixture and one actual OciusX plan, then record delivery.",
+  "next": "Corrected native/public/candidate/installed checks and a new actual OciusX acceptance after relevant code changes. Full TODO32 and original full19gates remain unfinished.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
     "passed": 1,
     "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\core1.json",
     "core_tools": 32
-  }
+  },
+  "delivery_complete": false,
+  "actual_failure": "eval/ociusx-feature-plan-real-failure-20261113.json"
 }

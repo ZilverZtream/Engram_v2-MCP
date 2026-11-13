@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+      "status": "ADDITIVE_TOOL_INSTALLED_REAL_PLAN_ACCEPTANCE_FAILED",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10005,7 +10005,23 @@
       "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
       "prior_turn_classification": "NO_PROGRESS: scope/status clarification only. This turn resumes the completed installed baseline without replay.",
       "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
-      "progress": "eval/ociusx-feature-plan-progress-20261113.json"
+      "progress": "eval/ociusx-feature-plan-progress-20261113.json",
+      "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
+      "correction": {
+        "files": [
+          "crates/engram_server/src/handlers/feature_plan_tools.rs",
+          "crates/engram_server/src/services/feature_plan.rs",
+          "crates/engram_server/tests/feature_plan_tests.rs"
+        ],
+        "behavior": [
+          "Reuse existing story-domain concepts and concept stems in this new handler; do not modify existing ranking tools.",
+          "Return bounded explicit validation diagnostics and rejected JSON as untrusted data, with usable plan still withheld.",
+          "Represent already-present requirement claims with source citations and no invented edits; source review remains required."
+        ],
+        "status": "IMPLEMENTED_NATIVE3_RUNNING",
+        "native_session": 19708,
+        "public_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\verify-public-v2.py"
+      }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -13399,6 +13415,7 @@
       "delivery_evidence": "eval/ociusx-request-dbml-mapping-delivery-20261112.json",
       "build_session": null
     },
-    "feature_plan_progress": "eval/ociusx-feature-plan-progress-20261113.json"
+    "feature_plan_progress": "eval/ociusx-feature-plan-progress-20261113.json",
+    "feature_plan_real_failure": "eval/ociusx-feature-plan-real-failure-20261113.json"
   }
 }
