@@ -40,33 +40,35 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "TODO58 shared-daemon protocol compatibility",
-    "original_requirement": "IPC protocol mismatch handling for mixed-version daemon/proxy.",
-    "observed_missing_behavior": "run_proxy rejects incompatible advertised protocol; default run_client forwards stdio without checking it. Actual OciusX multi_client=true uses multi_client_daemon default true.",
+    "status": "IMPLEMENTING",
+    "finding": "TODO61 usable VB.NET instrumentation pack",
+    "original_requirement": "Fix or accurately label shallow tools, including get_instrumentation_pack; prioritize actual OciusX VB.NET/WebForms workflows.",
+    "observed_missing_behavior": "The language request documents VB but the tool rejects it; C# returns a noncompilable protected void LogEngramEvent(...) placeholder. Its advertised ingest_runtime_artifacts handoff differs from the existing ENGRAM_LOG importer.",
+    "behavior": "Return complete manual event helpers for VB.NET and C#, with an explicit log sink and existing inline-SQL node ID, plus the matching ingest_instrumentation_logs call and limits. No automatic query hashing, app installation or capture claims.",
     "implementation_files": [
-      "crates/engram_server/src/multi_client.rs",
-      "crates/engram_server/tests/multi_client_protocol_test.rs"
+      "crates/engram_server/src/handlers/migration_tools.rs",
+      "crates/engram_server/src/handlers/instrumentation_pack/EngramInstrumentation.vb",
+      "crates/engram_server/src/handlers/instrumentation_pack/EngramInstrumentation.cs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/instrumentation_test.rs",
+      "docs/TOOL_CONTRACT.md",
+      "crates/engram_server/src/tool_guidance.rs"
     ],
-    "behavior": "Check advertised protocol on a connected default daemon before forwarding any client bytes. Keep compatible wire protocols usable across informational crate versions, and preserve missing/stale-endpoint startup recovery.",
     "acceptance": [
-      "Actual Windows proxy with incompatible metadata and a live owned IPC endpoint forwards zero client bytes and exits with daemon/client protocol versions and restart guidance.",
-      "Compatible protocol forwards the exact supplied MCP message and response, including a different informational crate version.",
-      "Existing in-process proxy mismatch refusal remains; candidate and installed executables pass owned fixtures with all handles/processes closed."
+      "Public tool returns complete VB.NET and C# helpers that compile and run using the local .NET Framework compiler.",
+      "Actual emitted event lines ingest into the owned WebForms graph with exact caller-supplied source/control and SQL identities.",
+      "Record delimiters/newlines and unsupported stored-procedure IDs are refused instead of emitting malformed or incorrectly typed records.",
+      "Candidate and installed public calls return the verified helper source and truthful manual-capture/ingestion contract; OciusX source remains unchanged."
     ],
-    "scope": "Protocol compatibility in existing client transport only; no negotiation framework, daemon lifecycle redesign, storage changes, tool ranking or target-language expansion.",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol",
+    "scope": "Existing language-only pack and its documented handoff. No broader migration generator, automatic profiler, telemetry service, SQL identity redesign or OciusX edits.",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack",
     "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "resource_retention": "Owned protocol endpoints and fixtures close before cleanup. Retain evidence/package/rollback; preserve preexisting folders and WIP9.",
+    "resource_retention": "Own fixtures and compiler outputs under this case; close server/database/compiler handles before teardown. Retain evidence/package/rollback; preserve preexisting work.",
     "limits": [
-      "Version equality is wire compatibility, not identical source commits or tool behavior. Unix source shares the gate; Windows public execution is the available platform."
-    ],
-    "source_commit": "76f025f80e622a96b0aa78d28ad18cd627706d9f",
-    "progress": "eval/ociusx-daemon-protocol-progress-20261113.json",
-    "remaining": [
-      "Advance the next unfinished accepted OciusX item. Preserve all original scope, held work and unfinished acceptance."
-    ],
-    "delivery": "eval/ociusx-daemon-protocol-delivery-20261113.json"
+      "Caller selects observed sites, supplies exact indexed identities and controls the sink. No measured OciusX runtime performance or automatic semantic confirmation.",
+      "Existing generate_instrumentation_code remains separate; its broader module/wrapper behavior is not expanded."
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -319,5 +321,34 @@
     ],
     "delivery": "eval/ociusx-story-policy-delivery-20261113.json"
   },
-  "daemon_protocol_delivery": "eval/ociusx-daemon-protocol-delivery-20261113.json"
+  "daemon_protocol_delivery": "eval/ociusx-daemon-protocol-delivery-20261113.json",
+  "retained_daemon_protocol_delivery_contract": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "TODO58 shared-daemon protocol compatibility",
+    "original_requirement": "IPC protocol mismatch handling for mixed-version daemon/proxy.",
+    "observed_missing_behavior": "run_proxy rejects incompatible advertised protocol; default run_client forwards stdio without checking it. Actual OciusX multi_client=true uses multi_client_daemon default true.",
+    "implementation_files": [
+      "crates/engram_server/src/multi_client.rs",
+      "crates/engram_server/tests/multi_client_protocol_test.rs"
+    ],
+    "behavior": "Check advertised protocol on a connected default daemon before forwarding any client bytes. Keep compatible wire protocols usable across informational crate versions, and preserve missing/stale-endpoint startup recovery.",
+    "acceptance": [
+      "Actual Windows proxy with incompatible metadata and a live owned IPC endpoint forwards zero client bytes and exits with daemon/client protocol versions and restart guidance.",
+      "Compatible protocol forwards the exact supplied MCP message and response, including a different informational crate version.",
+      "Existing in-process proxy mismatch refusal remains; candidate and installed executables pass owned fixtures with all handles/processes closed."
+    ],
+    "scope": "Protocol compatibility in existing client transport only; no negotiation framework, daemon lifecycle redesign, storage changes, tool ranking or target-language expansion.",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "resource_retention": "Owned protocol endpoints and fixtures close before cleanup. Retain evidence/package/rollback; preserve preexisting folders and WIP9.",
+    "limits": [
+      "Version equality is wire compatibility, not identical source commits or tool behavior. Unix source shares the gate; Windows public execution is the available platform."
+    ],
+    "source_commit": "76f025f80e622a96b0aa78d28ad18cd627706d9f",
+    "progress": "eval/ociusx-daemon-protocol-progress-20261113.json",
+    "remaining": [
+      "Advance the next unfinished accepted OciusX item. Preserve all original scope, held work and unfinished acceptance."
+    ],
+    "delivery": "eval/ociusx-daemon-protocol-delivery-20261113.json"
+  }
 }
