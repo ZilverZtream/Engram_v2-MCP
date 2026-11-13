@@ -41,7 +41,7 @@ claim a matching VB sidecar package is published for those platforms.
 
 For a self-contained Windows bundle, extract the ZIP and follow its `README.md`.
 Run the included `install.ps1` with `-InstallRoot`, `-ProjectRoot` and
-`-McpConfigPath`; it finds `runtime/` beside itself. No source checkout or SDK is
+either `-Codex` or `-McpConfigPath`; it finds `runtime/` beside itself. No source checkout or SDK is
 needed. A maintainer can assemble that bundle from an existing complete package:
 
 ```powershell
@@ -51,6 +51,12 @@ needed. A maintainer can assemble that bundle from an existing complete package:
 The bundler verifies every runtime checksum and the archived contents. It includes
 the complete sidecar, first-time installer and first-query instructions. Public
 download hosting remains separate from creating this local archive.
+
+For Codex, use `-Codex` instead of `-McpConfigPath`. This requires an installed
+Codex CLI and registers the connection through `codex mcp add`; existing
+same-named servers are refused. `-CodexExecutable` can select a CLI outside
+`PATH`. The existing Codex profile is preserved, including unrelated MCP entries.
+See [Codex MCP setup](https://developers.openai.com/codex/mcp).
 
 If you have the complete trusted Windows package described above, this command
 copies the server and all sidecar assets, creates a local Engram configuration,

@@ -1,11 +1,13 @@
 # Install a trusted, unpacked Windows release into a NEW directory and register
-# it with an MCP client using the mcpServers JSON format. No downloads or builds.
-[CmdletBinding()]
+# it with Codex or an mcpServers JSON client. No downloads or builds.
+[CmdletBinding(DefaultParameterSetName='Json')]
 param(
     [string]$PackageRoot,
     [Parameter(Mandatory=$true)][string]$InstallRoot,
     [Parameter(Mandatory=$true)][string]$ProjectRoot,
-    [Parameter(Mandatory=$true)][string]$McpConfigPath,
+    [Parameter(Mandatory=$true,ParameterSetName='Json')][string]$McpConfigPath,
+    [Parameter(Mandatory=$true,ParameterSetName='Codex')][switch]$Codex,
+    [Parameter(ParameterSetName='Codex')][string]$CodexExecutable = 'codex',
     [ValidatePattern('^[A-Za-z0-9_-]+$')][string]$ServerName = 'engram'
 )
 Set-StrictMode -Version Latest
@@ -20,6 +22,14 @@ function WriteJson($Value, [string]$Path) {
     [IO.File]::WriteAllText($Path, ($Value | ConvertTo-Json -Depth 100), $utf8)
 }
 function Hash([string]$Path) { return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash }
+function AssertCodexNameAvailable {
+    $output = & $CodexExecutable mcp list --json
+    if ($LASTEXITCODE -ne 0) { throw 'Unable to read Codex MCP configuration; nothing was registered.' }
+    $servers = @(($output -join "`n") | ConvertFrom-Json)
+    if (@($servers | Where-Object { $_.name -eq $ServerName }).Count -gt 0) {
+        throw "Codex MCP server '$ServerName' already exists; its configuration was preserved. Choose a different ServerName."
+    }
+}
 function PackagePath([string]$Root, [string]$Relative) {
     if ($Relative -ne 'engram_server.exe' -and -not $Relative.StartsWith('sidecar/')) { throw "Unexpected package asset: $Relative" }
     foreach ($part in $Relative.Split('/')) {
@@ -32,28 +42,36 @@ function PackagePath([string]$Root, [string]$Relative) {
 $PackageRoot = Absolute $PackageRoot
 $InstallRoot = (Absolute $InstallRoot).TrimEnd('\')
 $ProjectRoot = Absolute $ProjectRoot
-$McpConfigPath = Absolute $McpConfigPath
+if (-not $Codex) { $McpConfigPath = Absolute $McpConfigPath }
 if (Test-Path -LiteralPath $InstallRoot) { throw 'InstallRoot already exists. This installer never upgrades or overwrites an existing installation.' }
 if (-not (Test-Path -LiteralPath $ProjectRoot -PathType Container)) { throw 'ProjectRoot must be an existing project directory.' }
 $installParent = Split-Path $InstallRoot -Parent
-$clientParent = Split-Path $McpConfigPath -Parent
-if (-not (Test-Path -LiteralPath $installParent -PathType Container) -or -not (Test-Path -LiteralPath $clientParent -PathType Container)) {
-    throw 'The parent directories of InstallRoot and McpConfigPath must already exist.'
-}
+if (-not (Test-Path -LiteralPath $installParent -PathType Container)) { throw 'The parent directory of InstallRoot must already exist.' }
 
 # Read and validate client settings before writing any installation files.
-$clientExisted = Test-Path -LiteralPath $McpConfigPath
+$clientExisted = $false
 $clientHash = $null
-if ($clientExisted) {
-    $clientHash = Hash $McpConfigPath
-    $client = Get-Content -LiteralPath $McpConfigPath -Raw | ConvertFrom-Json
-} else { $client = [pscustomobject]@{} }
-if ($client -isnot [pscustomobject]) { throw 'MCP configuration must be a JSON object.' }
-if (-not $client.PSObject.Properties['mcpServers']) {
-    $client | Add-Member -NotePropertyName mcpServers -NotePropertyValue ([pscustomobject]@{})
+$client = $null
+$clientParent = $null
+if ($Codex) {
+    $CodexExecutable = (Get-Command $CodexExecutable -ErrorAction Stop).Source
+    if (-not $CodexExecutable) { throw 'CodexExecutable must resolve to an executable or script.' }
+    AssertCodexNameAvailable
+} else {
+    $clientParent = Split-Path $McpConfigPath -Parent
+    if (-not (Test-Path -LiteralPath $clientParent -PathType Container)) { throw 'The parent directory of McpConfigPath must already exist.' }
+    $clientExisted = Test-Path -LiteralPath $McpConfigPath
+    if ($clientExisted) {
+        $clientHash = Hash $McpConfigPath
+        $client = Get-Content -LiteralPath $McpConfigPath -Raw | ConvertFrom-Json
+    } else { $client = [pscustomobject]@{} }
+    if ($client -isnot [pscustomobject]) { throw 'MCP configuration must be a JSON object.' }
+    if (-not $client.PSObject.Properties['mcpServers']) {
+        $client | Add-Member -NotePropertyName mcpServers -NotePropertyValue ([pscustomobject]@{})
+    }
+    if ($client.mcpServers -isnot [pscustomobject]) { throw 'mcpServers must be a JSON object.' }
+    if ($client.mcpServers.PSObject.Properties[$ServerName]) { throw "MCP server '$ServerName' already exists; its configuration was preserved. Choose a different ServerName." }
 }
-if ($client.mcpServers -isnot [pscustomobject]) { throw 'mcpServers must be a JSON object.' }
-if ($client.mcpServers.PSObject.Properties[$ServerName]) { throw "MCP server '$ServerName' already exists; its configuration was preserved. Choose a different ServerName." }
 
 $manifestPath = Join-Path $PackageRoot 'windows-release-manifest.json'
 if (Test-Path -LiteralPath (Join-Path $PackageRoot 'windows-release-pending.json')) { throw 'Package build is incomplete.' }
@@ -73,7 +91,7 @@ foreach ($required in @('engram_server.exe', 'sidecar/vb_roslyn_sidecar-win-x64.
 }
 
 $stage = Join-Path $installParent ('.engram-install-' + [Guid]::NewGuid().ToString('N'))
-$clientStage = Join-Path $clientParent ('.engram-client-' + [Guid]::NewGuid().ToString('N') + '.json')
+$clientStage = if ($Codex) { $null } else { Join-Path $clientParent ('.engram-client-' + [Guid]::NewGuid().ToString('N') + '.json') }
 $published = $false
 $registered = $false
 try {
@@ -103,32 +121,40 @@ try {
         args = @('--no-daemon')
         env = @{ ENGRAM_CONFIG_PATH = $configPath }
     }
-    $client.mcpServers | Add-Member -NotePropertyName $ServerName -NotePropertyValue $entry
-    WriteJson $client $clientStage
+    if (-not $Codex) {
+        $client.mcpServers | Add-Member -NotePropertyName $ServerName -NotePropertyValue $entry
+        WriteJson $client $clientStage
+    }
     WriteJson ([ordered]@{
         package_manifest_sha256 = $manifestHash
         assets = $assets.Count
         project_root = $ProjectRoot
         mcp_config_path = $McpConfigPath
+        client_kind = $(if ($Codex) { 'codex_cli' } else { 'mcpServers_json' })
         server_name = $ServerName
     }) (Join-Path $stage 'installation.json')
 
     # Publish the complete package before making it discoverable by the client.
     [IO.Directory]::Move($stage, $InstallRoot)
     $published = $true
-    if ($clientExisted) {
+    if ($Codex) {
+        AssertCodexNameAvailable
+        & $CodexExecutable mcp add $ServerName --env "ENGRAM_CONFIG_PATH=$configPath" -- $entry.command @($entry.args)
+        if ($LASTEXITCODE -ne 0) { throw 'Codex registration failed; complete installation retained for recovery.' }
+    } elseif ($clientExisted) {
         if ((Hash $McpConfigPath) -ne $clientHash) { throw 'Client configuration changed during installation; it was preserved.' }
         [IO.File]::Replace($clientStage, $McpConfigPath, (Join-Path $InstallRoot 'mcp-client.before.json'))
     } else { [IO.File]::Move($clientStage, $McpConfigPath) }
     $registered = $true
     Write-Output "Installed Engram and $($assets.Count - 1) sidecar assets in $InstallRoot"
-    Write-Output "Registered '$ServerName' in $McpConfigPath. Restart the MCP client to connect."
+    if ($Codex) { Write-Output "Registered '$ServerName' through the Codex CLI. Restart the Codex client to connect." }
+    else { Write-Output "Registered '$ServerName' in $McpConfigPath. Restart the MCP client to connect." }
     Write-Output "Next: index_project(directory='$ProjectRoot', project_type='dotnet_webforms_vb', wait=true)."
     Write-Output 'Source search is ready without API keys. Configure embedding/LLM providers in engram.json when needed.'
 } finally {
     # Only paths newly owned by this invocation may be removed. Never touch a
     # preexisting install, project, client file, or package during teardown.
-    if (Test-Path -LiteralPath $clientStage) { Remove-Item -LiteralPath $clientStage -Force }
+    if ($clientStage -and (Test-Path -LiteralPath $clientStage)) { Remove-Item -LiteralPath $clientStage -Force }
     if (Test-Path -LiteralPath $stage) {
         $resolved = [IO.Path]::GetFullPath($stage)
         if ((Split-Path $resolved -Parent) -ne $installParent -or (Split-Path $resolved -Leaf) -notmatch '^\.engram-install-[a-f0-9]{32}$') { throw 'Unexpected owned staging path.' }

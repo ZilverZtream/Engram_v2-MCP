@@ -4,7 +4,24 @@ This archive includes the Windows x64 server, its complete self-contained VB.NET
 parser sidecar, and a first-time installer. Rust and .NET SDKs are not required.
 Use a trusted archive; checksums detect damaged files, not an untrusted publisher.
 
-Extract the archive. From its extracted directory, run:
+Extract the trusted archive. For **Codex**, with its CLI installed, run from the
+extracted directory:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\install.ps1 `
+    -Codex `
+    -InstallRoot "$env:LOCALAPPDATA\engram" `
+    -ProjectRoot 'C:\path\to\your-project'
+```
+
+This registers Engram through `codex mcp add` using the CLI's configuration.
+An existing same-named server is refused. `-ServerName` chooses another name;
+`-CodexExecutable` selects a CLI executable or wrapper outside `PATH`.
+The existing Codex settings and other server entries are preserved. Restart the
+client after registration. See [Codex MCP setup](https://developers.openai.com/codex/mcp).
+The execution-policy option applies only to this PowerShell process.
+
+For an **`mcpServers` JSON client**, run:
 
 ```powershell
 .\install.ps1 `
@@ -13,11 +30,11 @@ Extract the archive. From its extracted directory, run:
     -McpConfigPath 'C:\path\to\your-client\mcp.json'
 ```
 
-Replace the paths. The AI client must support the `mcpServers` JSON format.
+Replace the paths. Use `-McpConfigPath` for JSON clients or `-Codex` for Codex.
 The installation directory must be new; its parent and the client configuration's
 parent must exist. An existing installation or `engram` client entry is preserved
 and refused. Use `-ServerName` for a different MCP entry name. This is not an upgrade
-installer. Unrelated client entries are retained, and an existing client file is
+installer. Unrelated client entries are retained, and an existing JSON client file is
 backed up inside the new installation as `mcp-client.before.json`.
 
 The installer copies every manifest-listed runtime asset, creates `engram.json`
