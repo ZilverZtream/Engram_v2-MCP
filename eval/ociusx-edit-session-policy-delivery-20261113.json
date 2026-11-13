@@ -1,0 +1,122 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T14:22:01.997663+00:00",
+  "finding": "EG01 scoped authored guidance in edit-session bookends",
+  "source_commit": "7a603c39fdbf7057b668a26869959d4f007e9e45",
+  "original_requirement": "Original instruction_capabilities and ocius_workflows priority1: task-scoped authored guidance reaches planning, editing and review with full qualifications, current hashes and explicit recovery.",
+  "retained_candidate_fixture_failure": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\candidate1\\acceptance.json",
+      "sha256": "dbcae3e02af61e02fa249b2e0e9880773e50876ae8e41c32a080febdd287c138"
+    },
+    "cause": "Python text-mode writes changed LF to CRLF while expected strings and hashes retained LF. Retained actual response contains complete CRLF sources with matching raw-byte hashes. Corrected fixture to write explicit UTF-8 bytes; binary unchanged."
+  },
+  "before": "Installed begin_edit_session returned coupling checks/learned rules but omitted root and matching topic authored guidance for a newly planned VB file.",
+  "after": "Both edit-session bookends reuse project_policy. Opening resolves declared planned paths; completion refreshes declared edited paths before consuming the exact lifecycle. Full sources/hashes/qualifications and oversized recovery survive; explicit no-edits completion skips applicability.",
+  "validation": {
+    "native_cases": 13,
+    "new_policy_cases": 3,
+    "existing_completeness_and_lifecycle_cases": 10,
+    "candidate_checks": {
+      "planned_unindexed_scope": true,
+      "complete_hash_bound_policy": true,
+      "current_actual_scope": true,
+      "changed_hash": true,
+      "oversized_recovery": true,
+      "explicit_no_edits": true,
+      "authored_sources_preserved": true
+    },
+    "installed_checks": {
+      "planned_unindexed_scope": true,
+      "complete_hash_bound_policy": true,
+      "current_actual_scope": true,
+      "changed_hash": true,
+      "oversized_recovery": true,
+      "explicit_no_edits": true,
+      "authored_sources_preserved": true
+    }
+  },
+  "actual_ociusx": {
+    "planned_file": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+    "open_seconds": 11.000391399953514,
+    "checks": {
+      "complete_topic": true,
+      "complete_root": true,
+      "exact_topic_hash": true,
+      "declared_scope": true,
+      "advisory": true
+    },
+    "own_session_closed_with_no_edits": true,
+    "source_generation": 3149,
+    "authored_guidance_and_selected_source_unchanged": true,
+    "selected_registry_inventory_unchanged": true,
+    "lifecycle_limit": "Public check opened and completed only its unique session. Existing sessions are not enumerated by the selected registry inventory; concurrency/ownership preservation is covered by native lifecycle tests. An empty session envelope may remain as normal lifecycle metadata."
+  },
+  "runtime": {
+    "server_sha256": "de99c697d17bb54e05cea867468a8fc30f8972cc89a7b664f8adeb5c26ff5780",
+    "manifest_sha256": "d8427d86aef8656df9ea7c23916707b31555f9625a2455af3127a20cd91dfaa7",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\baseline1\\acceptance.json",
+      "sha256": "2fde7ba92b8904f5b6d1e141c39c93725c615e92547175b5e74e5615b31b825f"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\native1.json",
+      "sha256": "b67639209731d7a78cd9e1c843482ef2700ab9c95633475404e4d3f3003c46d0"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\implementation1.json",
+      "sha256": "e3f39868a880541751942f03138d0c628dea254539d5707142e03d545fbd26a1"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\release1.json",
+      "sha256": "d45fc250d3ba719ea0d8b219340646a19fe43294d3a7a4079547d7fee7498c56"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\candidate2\\acceptance.json",
+      "sha256": "eb2f66804c3d1dd1df2febfba351ac888a171ee7df6276710c06091f45a4e85b"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\installed1\\acceptance.json",
+      "sha256": "1513e44067565e0a7b0e0dd486c34f9e8f02bd4cdd872b2a871e0c7236da5039"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\actual1\\acceptance.json",
+      "sha256": "08879a71f10324a7a28215ed3ee7ff07b445674f833d60c0d292c69ad19b28f3"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\deployment2-state.json",
+      "sha256": "77b2f7a9d52f3ff9bddc854569b11a729686fb10bc70bad6fb6fb4f7ab365cd9"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy\\manual-review.json",
+      "sha256": "9dab00e699a02e0f12bd87dd01f449ffe4785d2ded5c472cd167f2c15c7cafe7"
+    }
+  },
+  "preserved": {
+    "preexisting_changed_files": 9,
+    "configuration_changed": false,
+    "application_edits": false,
+    "source_generation": 3149
+  },
+  "limits": [
+    "Guidance is source evidence, not semantic enforcement, approval or proof of edit correctness or productivity benefit.",
+    "Existing resolver discovery, source and output caps remain explicit. Current source can change after a response; this does not create a policy transaction or historical replay.",
+    "Production acceptance opened and completed only its own unique session. Existing sessions are not enumerated by the selected registry inventory; native lifecycle tests cover concurrency/ownership preservation.",
+    "Parent manual review only; no external review claimed. Remaining original backlog, full storage gates and failed/unproved usefulness outcomes remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-policy",
+    "owned_build_and_test_temps_removed": true,
+    "owned_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "own_production_session_closed_with_no_edits": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-7f01f7c070d54f70b0896f1908096985",
+    "retention": "Keep evidence, candidate package and rollback pair for review; no preexisting folders deleted."
+  }
+}
