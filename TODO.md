@@ -560,9 +560,15 @@ value is accuracy, this is the biggest meta-gap.
   actual tools; mark AGENT_ENHANCEMENT_SPEC phases 39–45 as roadmap-not-built (an agent
   reading the spec today would believe tools exist that don't).
 
-- [ ] **58. IPC protocol version negotiation** (S)
-  `multi_client.rs` has PROTOCOL_VERSION but no mismatch handling for mixed-version
-  daemon/proxy.
+- [~] **58. IPC protocol version negotiation** (S)
+  Default detached-daemon client compatibility check implemented 2026-11-13;
+  release deployment pending. The installed baseline forwarded 59 bytes to an
+  incompatible owned endpoint, while the existing in-process proxy refused it.
+  Three executable tests now pass: default mismatch refusal before forwarding,
+  exact compatible message/response forwarding across crate versions, and the
+  existing in-process refusal. Missing-endpoint startup recovery is preserved.
+  Evidence: `eval/ociusx-daemon-protocol-progress-20261113.json`.
+
 
 ---
 

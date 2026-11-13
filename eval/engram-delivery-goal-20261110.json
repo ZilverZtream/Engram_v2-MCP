@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTING",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
     "finding": "TODO58 shared-daemon protocol compatibility",
     "original_requirement": "IPC protocol mismatch handling for mixed-version daemon/proxy.",
     "observed_missing_behavior": "run_proxy rejects incompatible advertised protocol; default run_client forwards stdio without checking it. Actual OciusX multi_client=true uses multi_client_daemon default true.",
@@ -60,6 +60,13 @@
     "resource_retention": "Owned protocol endpoints and fixtures close before cleanup. Retain evidence/package/rollback; preserve preexisting folders and WIP9.",
     "limits": [
       "Version equality is wire compatibility, not identical source commits or tool behavior. Unix source shares the gate; Windows public execution is the available platform."
+    ],
+    "source_commit": "76f025f80e622a96b0aa78d28ad18cd627706d9f",
+    "progress": "eval/ociusx-daemon-protocol-progress-20261113.json",
+    "remaining": [
+      "Finish the existing release build.",
+      "Run owned candidate and installed protocol fixtures, deploy after candidate acceptance.",
+      "Record installed identity and finish TODO58 status."
     ]
   },
   "previous_delivery": {
