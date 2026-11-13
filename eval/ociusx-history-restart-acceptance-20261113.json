@@ -1,0 +1,142 @@
+{
+  "status": "CURRENT_INSTALLED_OCIUSX_RESTART_ACCEPTANCE_PASS",
+  "requirement": "EG22/23 current installed acceptance supporting original capability-aware usable history.",
+  "source_commit": "85398e97324c3c2579d311cd3295f67b1e322f66",
+  "server_sha256": "3354c76f775c1146954fc4e7263a1b6a292f990da40ab0e2657b08d4274e8f85",
+  "manifest_sha256": "4fafd071ade2f7033737a117e41127bf6ce172283970b38de4cd83bd8b7ca8d7",
+  "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "backend": "Existing OciusX Ollama/nomic-embed-text configuration; unchanged.",
+  "acceptance": {
+    "status": "PASS",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart\\installed1\\first",
+        "closed": true,
+        "pid": 38284,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      },
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart\\installed1\\restarted",
+        "closed": true,
+        "pid": 69636,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "observations": [
+      {
+        "phase": "first",
+        "case": "included",
+        "seconds": 4.430652000010014,
+        "commits": [
+          "c705453f14565280faed033ba0dca97d93a2755b"
+        ],
+        "response_sha256": "3516b53baac9de9f6d78c6f21ebb46c70d36f0469c8b30c2974f3aa908e3d1b4"
+      },
+      {
+        "phase": "first",
+        "case": "warm",
+        "seconds": 0.04048510000575334,
+        "commits": [
+          "c705453f14565280faed033ba0dca97d93a2755b"
+        ],
+        "response_sha256": "3516b53baac9de9f6d78c6f21ebb46c70d36f0469c8b30c2974f3aa908e3d1b4"
+      },
+      {
+        "phase": "first",
+        "case": "before",
+        "seconds": 0.036966799991205335,
+        "commits": [],
+        "response_sha256": "387b20ed057c024dcb310b47e330672a5021bd62bda36e7e249c9acf78a3584e"
+      },
+      {
+        "phase": "first",
+        "case": "excluded",
+        "seconds": 0.03622469992842525,
+        "commits": [],
+        "response_sha256": "a02d2e3066107a39b11a8a04a2b3a816ed6dace2761d4f2ff715f4cd47cf51e9"
+      },
+      {
+        "phase": "first",
+        "case": "date-before",
+        "seconds": 0.037504800013266504,
+        "commits": [],
+        "response_sha256": "a02d2e3066107a39b11a8a04a2b3a816ed6dace2761d4f2ff715f4cd47cf51e9"
+      },
+      {
+        "phase": "restarted",
+        "case": "included",
+        "seconds": 0.17714040004648268,
+        "commits": [
+          "c705453f14565280faed033ba0dca97d93a2755b"
+        ],
+        "response_sha256": "3516b53baac9de9f6d78c6f21ebb46c70d36f0469c8b30c2974f3aa908e3d1b4"
+      },
+      {
+        "phase": "restarted",
+        "case": "warm",
+        "seconds": 0.04382010002154857,
+        "commits": [
+          "c705453f14565280faed033ba0dca97d93a2755b"
+        ],
+        "response_sha256": "3516b53baac9de9f6d78c6f21ebb46c70d36f0469c8b30c2974f3aa908e3d1b4"
+      },
+      {
+        "phase": "restarted",
+        "case": "before",
+        "seconds": 0.037440999993123114,
+        "commits": [],
+        "response_sha256": "387b20ed057c024dcb310b47e330672a5021bd62bda36e7e249c9acf78a3584e"
+      },
+      {
+        "phase": "restarted",
+        "case": "excluded",
+        "seconds": 0.03736780001781881,
+        "commits": [],
+        "response_sha256": "a02d2e3066107a39b11a8a04a2b3a816ed6dace2761d4f2ff715f4cd47cf51e9"
+      },
+      {
+        "phase": "restarted",
+        "case": "date-before",
+        "seconds": 0.03780030005145818,
+        "commits": [],
+        "response_sha256": "a02d2e3066107a39b11a8a04a2b3a816ed6dace2761d4f2ff715f4cd47cf51e9"
+      }
+    ],
+    "at_utc": "2026-11-13T06:45:21.189782+00:00",
+    "server_sha256": "3354c76f775c1146954fc4e7263a1b6a292f990da40ab0e2657b08d4274e8f85",
+    "manifest_sha256": "4fafd071ade2f7033737a117e41127bf6ce172283970b38de4cd83bd8b7ca8d7",
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "source_sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53",
+    "generation": 3148,
+    "exact_responses_stable_across_restart": true,
+    "config_and_selected_source_unchanged": true,
+    "git_worktree_status_unchanged": true,
+    "limits": [
+      "Whole RPC timings include runtime opening/ranking; no metadata-hit or provider-call attribution.",
+      "One real historical OciusX task and its scope controls; not a general ranking or productivity claim.",
+      "Cross-configuration isolation remains supported by retained native tests, not these same-config calls."
+    ],
+    "owned_temp_removed": true
+  },
+  "implementation_changes": [],
+  "retained_implementation_evidence": "eval/audit-inventory-20261101.json: execution_evidence_20261101.eg22_persistent_metadata_final_20261103",
+  "evidence": {
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart\\verify.py": "db3eaa99d685f3ad10e96b4254f1859a97ebbc3f4a8e6939476a349d5977d66c",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart\\installed1\\acceptance.json": "edc9201c2b572d29b077463b2c3982290add186c274a48d93a01e683b6e4e6d6",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart\\installed1\\git-oracle.json": "d8a373aa223325428fa16c421d85455e24e3baec79962e60cc230e948e047063"
+  },
+  "preserved_work_files": 9,
+  "completion_scope": "Closes current installed same-configuration OciusX result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness.",
+  "recorded_nonblocking_observation": {
+    "behavior": "Empty history (0 of 0) still says further matches may exist and suggests current-source follow-up tools.",
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart\\installed1\\first\\0006-response.json",
+    "disposition": "Recorded without expanding this completed restart acceptance; no automatic priority change."
+  },
+  "resources": "Both maintenance children exited naturally; readers/handles closed; owned temporary directory removed; retained wire/oracle/receipt under the recorded case. No preexisting directories removed."
+}

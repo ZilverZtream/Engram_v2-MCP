@@ -41,7 +41,7 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
-    "next_action": "Select the next unfinished original OciusX shortlist requirement from concrete current evidence. Preserve this delivered VB evidence fix; do not extend it into parser generalization, rerun passed cases, reopen CodeMap/Blast, or select a generic TODO solely by number."
+    "next_action": "Select the next unfinished original OciusX shortlist requirement from concrete evidence. Current installed history restart acceptance is complete; do not rerun it or expand cache benchmarks. Preserve separate cross-configuration/resource gates and the recorded empty-history guidance issue."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -142,5 +142,6 @@
     "receipt": "eval/ociusx-doc-drift-delivery-20261113.json"
   },
   "lexical_fallback_progress": "eval/ociusx-lexical-fallback-progress-20261113.json",
-  "vb_instruction_evidence_delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json"
+  "vb_instruction_evidence_delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json",
+  "latest_history_restart_acceptance": "eval/ociusx-history-restart-acceptance-20261113.json"
 }

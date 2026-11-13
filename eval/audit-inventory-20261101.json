@@ -784,16 +784,18 @@
     {
       "id": "EG-22",
       "finding": "Persistent change-card metadata cache",
-      "ledger_disposition": "Open original performance proposal",
+      "ledger_disposition": "Measured metadata improvement and current installed OciusX restart behavior verified; residual resource/full-audit gates open",
       "existing_evidence_and_next_gate": "Measure cold/restart reconstruction first; implement a material improvement or obtain an explicit disposition from evidence. Do not assume repeated embedding API cost.",
       "required_behavior": [
         "Measure cold/restart card reconstruction and existing durable embedding-cache behavior first.",
         "Implement a material measured metadata-cache improvement or obtain an explicit evidence-based disposition; do not assume repeated embedding charges."
       ],
-      "closure_state": "Original measured-improvement requirement locally verified: baseline/restart measured first; bounded existing-Registry metadata cache; final native28+8public+1realprobe and no-vector26+8public PASS. Implementation included in shipped lineage; full required resource/current deployed acceptance and original full-audit gates remain open.",
+      "closure_state": "Original measured-improvement requirement locally verified with bounded Registry metadata cache; retained native28+8public+1realprobe and no-vector26+8public PASS. Current installed85398e9 OciusX same-config results, author/path/date/ancestor filters and restart stability now verified against Git; ten public calls across two natural process lifetimes. Metadata stage timings/provider counts remain from the retained native probes. Required broader resource/full-audit gates remain open.",
       "dependencies": [],
       "current_evidence": "execution_evidence_20261101.eg22_persistent_metadata_final_20261103",
-      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105"
+      "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
+      "latest_installed_restart_acceptance": "eval/ociusx-history-restart-acceptance-20261113.json",
+      "installed_restart_scope": "Closes current installed same-configuration OciusX result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness."
     },
     {
       "id": "EG-23",
@@ -812,7 +814,9 @@
         "observation": "HybridSearchEngine OpenAI/remote builder still passes hardcoded1536; configured openai_embed_dim is honored by the separate ML factory. Source inspection only, not a reproduced public OpenAI failure.",
         "source": "crates/engram_index/src/hybrid.rs build_embedder_for_backend",
         "disposition": "Retain under embedding configuration correctness; do not displace current S01/Ollama blocking fix or automatically expand its acceptance."
-      }
+      },
+      "latest_installed_restart_acceptance": "eval/ociusx-history-restart-acceptance-20261113.json",
+      "installed_restart_scope": "Closes current installed same-configuration OciusX result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness."
     },
     {
       "id": "EG-24",
@@ -9978,7 +9982,7 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
-      "next_action": "Select the next unfinished original OciusX shortlist requirement from concrete current evidence. Preserve this delivered VB evidence fix; do not extend it into parser generalization, rerun passed cases, reopen CodeMap/Blast, or select a generic TODO solely by number."
+      "next_action": "Select the next unfinished original OciusX shortlist requirement from concrete evidence. Current installed history restart acceptance is complete; do not rerun it or expand cache benchmarks. Preserve separate cross-configuration/resource gates and the recorded empty-history guidance issue."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10010,8 +10014,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO57 delivered; TODO58 not yet selected",
-    "next_user_visible_deliverable": "Next implementation not selected.",
+    "active_original_item": "EG22/23 installed same-config OciusX history restart acceptance complete; next implementation unselected",
+    "next_user_visible_deliverable": "Select the next unfinished original OciusX shortlist requirement from concrete evidence. Current installed history restart acceptance is complete; do not rerun it or expand cache benchmarks. Preserve separate cross-configuration/resource gates and the recorded empty-history guidance issue.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10028,7 +10032,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: installed default-disclosure release; reconciled six named docs, passed141-entry matrix check and verified original design examples/items preserved.",
+    "previous_goal_turn_classification": "PROGRESS: ten current installed OciusX history calls across two natural process lifetimes passed independent Git/result and scope checks; no runtime rewrite.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -14043,6 +14047,22 @@
         "retained_first_baseline_diagnosis": "preexisting-maintenance1: Python newline translation changed the fixture, so this attempt is not the matched baseline; exact-byte corrected run2 reproduces both failures. Its raw packet remains; owned fixture is absent."
       }
     },
-    "vb_instruction_evidence_delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json"
+    "vb_instruction_evidence_delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json",
+    "history_restart_acceptance_20261113": {
+      "status": "INSTALLED_ACCEPTANCE_COMPLETE",
+      "finding": "EG22/23 installed OciusX history restart",
+      "original_requirement": "Usable OciusX history with persistent change cards and embedding identity isolation.",
+      "observed_gap": "Implementation, measured metadata improvement and native identity/restart tests exist; current installed OciusX restart acceptance is missing.",
+      "implementation_files": [],
+      "acceptance": [
+        "Current installed server returns the exact independently verified OciusX commit and source-backed content.",
+        "Same scoped result before/after a clean process restart; parent cutoff, path exclusion and date cutoff exclude that commit.",
+        "Actual config, selected source and published generation unchanged; owned children and temporary files closed/cleaned."
+      ],
+      "limits": "Whole RPC latency is observational, not metadata-stage timing or proof of provider cache hits. No new ranking, throughput or cross-configuration claim.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-restart",
+      "next_action": "Complete; retain evidence and advance to the next original OciusX requirement.",
+      "receipt": "eval/ociusx-history-restart-acceptance-20261113.json"
+    }
   }
 }
