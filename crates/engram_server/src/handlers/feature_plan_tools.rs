@@ -271,7 +271,7 @@ impl Engram {
         let mut output = json!({
             "status": "INCOMPLETE", "project_id": req.project_id,
             "detail_level": req.detail_level, "plan": null,
-            "provenance": {"model": identity, "prompt_version":"feature-plan-v6", "provider_calls":0,
+            "provenance": {"model": identity, "prompt_version":"feature-plan-v7", "provider_calls":0,
                 "provider_calls_semantics":"Generation requests; transport retries follow the configured provider policy"},
             "limits": [
                 "Model-generated requirements, edits, DDL and templates are proposals; source anchors do not verify their meaning.",
@@ -523,9 +523,44 @@ impl Engram {
         let mut proposal = match plan::parse_plan(&plan_text, &intent, &evidence) {
             Ok(plan) => plan,
             Err(error) => {
-                output["reason"] = json!("invalid_plan_contract_or_source_reference");
-                output["rejection"] = plan::rejection_details(&error, &plan_text);
-                return response(output);
+                let rejection = plan::rejection_details(&error, &plan_text);
+                let Some(repair_prompt) =
+                    plan::repair_prompt(&prompt, &plan_text, &rejection["validation"])
+                else {
+                    output["reason"] = json!("invalid_plan_contract_or_source_reference");
+                    output["rejection"] = rejection;
+                    return response(output);
+                };
+                output["repair"] = json!({"status":"ATTEMPTED", "maximum_attempts":1,
+                    "initial_rejection":rejection});
+                output["provenance"]["provider_calls"] = json!(3);
+                let repaired_text = match self
+                    .state
+                    .dreaming
+                    .generate_text(&repair_prompt, 12_288, Duration::from_secs(180))
+                    .await
+                {
+                    Ok(text) => text,
+                    Err(error) => {
+                        output["repair"]["status"] = json!("PROVIDER_FAILED");
+                        output["failure"] = json!(AnalysisDegradation::from_error(&error));
+                        output["reason"] = json!("plan_repair_provider_failed");
+                        return response(output);
+                    }
+                };
+                match plan::parse_plan(&repaired_text, &intent, &evidence) {
+                    Ok(plan) => {
+                        output["repair"]["status"] =
+                            json!("CONTRACT_VALIDATED_SEMANTICS_UNVERIFIED");
+                        plan
+                    }
+                    Err(error) => {
+                        output["repair"]["status"] = json!("REJECTED");
+                        output["reason"] = json!("invalid_plan_contract_or_source_reference");
+                        output["rejection"] = plan::rejection_details(&error, &repaired_text);
+                        return response(output);
+                    }
+                }
             }
         };
         // A proposed new path must not overwrite an unindexed or hidden file.
