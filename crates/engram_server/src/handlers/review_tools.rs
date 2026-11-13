@@ -153,14 +153,15 @@ impl Engram {
 
         // Evidence is collected after gate findings have been produced. It
         // cannot suppress, downgrade or silently reconcile those findings.
-        let prior_input = prior_context::Input::from_diff(&parsed);
+        let prior_input = prior_context::Input::from_diff(&parsed, &source_before);
         let prior_state = self.state.clone();
         let prior_search = source_runtime.search.clone();
         let prior_pid = req.project_id.clone();
         let prior_head = head_before.clone();
+        let prior_root = project_dir.clone();
         let prior_review_context = tokio::task::spawn_blocking(move || {
             prior_context::collect(&prior_state, &prior_search, &prior_pid,
-                prior_head.as_deref(), prior_input)
+                prior_head.as_deref(), &prior_root, prior_input)
         }).await.unwrap_or_else(|error| prior_context::unavailable(&format!("Evidence worker unavailable: {error}")));
 
         let elapsed_ms = start.elapsed().as_millis();
