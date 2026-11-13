@@ -1,0 +1,94 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_LOCAL_DISTRIBUTION_READY",
+  "at_utc": "2026-11-13T18:31:22.051796+00:00",
+  "finding": "TODO53 self-contained Windows installation bundle",
+  "source_commit": "6f8879b",
+  "full_todo53_complete": false,
+  "runtime_code_changed": false,
+  "production_installation_changed": false,
+  "delivered": [
+    "Single archive contains the validated server, full VB sidecar, standalone installer and first-query instructions.",
+    "Installer finds runtime beside itself when PackageRoot is omitted; explicit PackageRoot remains supported.",
+    "Bundler validates manifest-listed inputs and hashes every archived entry before publishing a new archive."
+  ],
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\Engram-win-x64-ready.zip",
+    "sha256": "35584154b76d706218aad468a1d69d34b88e5a770ebaaa0d4fe7fac2c8e0bbb5",
+    "bytes": 114294260,
+    "checksum_file": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\Engram-win-x64-ready.zip.sha256",
+      "sha256": "0231f69e09353d9ed34dd210cf886395befc3af102721539471e35e14f5ddfce"
+    },
+    "entries": 218,
+    "runtime_assets": 215,
+    "sidecar_assets": 214,
+    "runtime_manifest_sha256": "db5b857a465f86f8413be7e1d4bbfb9e2eb51ea547b3161de1f2a9340026266c",
+    "runtime_server_sha256": "bb1c70b00bd395b62465729c84303edc055a9460403df1b3a4b04e93ae5cf2b1",
+    "runtime_source_commit": "f5b8684fd17bac03610899724f52cd0c6786fff9"
+  },
+  "validation": {
+    "checks": {
+      "complete_standalone_archive": true,
+      "existing_client_preserved": true,
+      "exact_registered_command": true,
+      "bundled_sidecar_running": true,
+      "vb_source_recovered": true,
+      "source_unchanged": true,
+      "bundled_sidecar_closed": true
+    },
+    "sample_files_indexed": 13,
+    "source_recovered": "PhotoRules.CanComplete: If group.UploadedPhotos.Count < group.RequiredImageCount Then Return False",
+    "exact_registered_command": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\actual2\\owned-yllr5a1w\\engram\\bin\\engram_server.exe",
+      "--no-daemon"
+    ],
+    "installation_invocation": "Extracted install.ps1 via powershell -NoProfile -ExecutionPolicy Bypass -File, without PackageRoot or source-repository scripts.",
+    "initial_failure": "First extracted installer failed because PSScriptRoot was unavailable in parameter-default evaluation. Fixed by selecting the adjacent runtime inside the script body; original failure retained.",
+    "runtime_provenance": "Same binary and sidecar as installed Web API/OciusX acceptance; no rebuild."
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\contract.json",
+      "sha256": "ed29fda8cc7981d0e10fb99d8bbe826476be8c89f5a6bef2c97c3128fe1c471e"
+    },
+    "bundle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\bundle2.json",
+      "sha256": "139715246d5194c3facb4a862d6f73abee82c0cf2a2ae13b5375caafc6079795"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\actual2\\acceptance.json",
+      "sha256": "d5d28a1986c842f1798d200ce858cc48e4d4f3dd3e07efc88d35f79f31466e47"
+    },
+    "retrieved_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\actual2\\recovered.json",
+      "sha256": "1d675df0a940ab7b8e593d00048b03356e99f430bf58a91125d2312875e10f1e"
+    },
+    "indexing": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\actual2\\index.txt",
+      "sha256": "88e14136f78e461e595ccf5892836718e3d9096b4e4994d7df862d6f0bddc30c"
+    },
+    "installer_output": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\actual2\\installer.log",
+      "sha256": "71da85bd297600a05084309eb10fa6165ebe0738b23011c4f33151ca028cc625"
+    },
+    "initial_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\actual1\\acceptance.json",
+      "sha256": "20c24808368c7453c19ab5a2abed8009a429bbf8baa12f931d0774e6ba5e0364"
+    }
+  },
+  "limits": [
+    "Local installable archive, not a publicly hosted release or download/bootstrap service.",
+    "Windows x64 and mcpServers JSON clients only; no GUI-client or macOS/Linux acceptance.",
+    "Small owned fixture, not OciusX indexing throughput, a five-minute installation claim or matched AI task benefit.",
+    "Default search is lexical and internal model generation is disabled until configured.",
+    "Parent source review and real extracted-bundle acceptance only; no external CodeRabbit review."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle",
+    "owned_test_installation_removed": true,
+    "server_and_sidecar_closed": true,
+    "preserved_wip9": true,
+    "retained_failed_archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-release-bundle\\Engram-win-x64.zip",
+    "retention": "Keep accepted archive/checksum for distribution and evidence for review; initial failed archive retained with failure receipt. No preexisting directory removed."
+  }
+}

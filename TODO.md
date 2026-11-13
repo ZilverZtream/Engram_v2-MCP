@@ -532,6 +532,12 @@ value is accuracy, this is the biggest meta-gap.
 ## P6 — Adoption & packaging
 
 - [~] **53. Prebuilt release binaries + one-command install** (M)
+  *Self-contained Windows ZIP added 2026-11-13: the verified runtime, all 214
+  sidecar assets, installer and first-query guide ship together. An extracted copy
+  installed without repository scripts or `PackageRoot`; the exact MCP entry
+  indexed 13 sample files and retrieved the expected VB source. Public hosting,
+  download/bootstrap and macOS/Linux distribution remain unfinished.
+  Evidence: `eval/ociusx-windows-release-bundle-delivery-20261113.json`.*
   *Windows first-time installation added 2026-11-13: `scripts/install_windows.ps1`
   consumes a complete existing package, installs the server and full VB sidecar,
   creates local configuration and registers an MCP client connection while
