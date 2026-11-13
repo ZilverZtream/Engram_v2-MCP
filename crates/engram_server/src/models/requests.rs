@@ -4429,6 +4429,17 @@ pub struct PreCommitReviewRequest {
     /// snippets for every finding. Ignored when output_json is true.
     #[serde(default = "default_review_detail_level")]
     pub detail_level: String,
+    /// Complete reply-text estimate: ceil(UTF-8 bytes / 4), not provider tokens.
+    /// Defaults to 10,240 (40 KiB). Large reports provide immutable recovery.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover the exact saved report without running review gates again.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset from the returned recovery action.
+    #[serde(default)]
+    pub response_offset: usize,
+
 }
 
 #[cfg(test)]

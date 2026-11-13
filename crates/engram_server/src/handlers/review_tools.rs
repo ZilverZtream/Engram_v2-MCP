@@ -19,6 +19,7 @@ use crate::services::pre_commit_review_service::{
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
 mod prior_context;
+mod response_delivery;
 
 impl Engram {
     pub async fn handle_pre_commit_review(
@@ -26,6 +27,15 @@ impl Engram {
         req: PreCommitReviewRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let budget = response_delivery::budget(req.max_tokens)?;
+        if let Some(id) = req.response_id.as_deref() {
+            let body = super::planning_tools::change_set_delivery::recover_review(
+                &self.state.cfg.data_dir, &req.project_id, id, req.response_offset, budget)?;
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
+        if req.response_offset != 0 {
+            return Err(McpError::invalid_params("response_offset requires response_id from a review recovery action", None));
+        }
         let min_severity = Severity::from_str(&req.min_severity).ok_or_else(|| {
             McpError::invalid_params(
                 "min_severity must be critical, warning, info, or style",
@@ -65,55 +75,27 @@ impl Engram {
         let source_before = source_snapshot(&project_dir, &parsed);
 
         if diff_text.trim().is_empty() {
-            // The requested source (default: staged) held nothing. Work that is
-            // unstaged or untracked was not examined; name it instead of
-            // reporting a clean "no changes".
-            // An explicit patch (including empty inline input) is the whole
-            // submitted scope. Do not replace it with unrelated checkout work.
-            // Git selectors still disclose changes omitted by that selector.
             let unexamined = if matches!(req.diff.trim(), "staged" | "unstaged" | "head") {
-                crate::services::pre_commit_review_service::working_tree_changes(&project_dir)
-                    .unwrap_or_default()
+                crate::services::pre_commit_review_service::working_tree_changes(&project_dir).unwrap_or_default()
+            } else { Vec::new() };
+            let note = if unexamined.is_empty() {
+                "No changes in the requested diff; review gates were not run. This does not certify the working tree as unchanged or reviewed.".to_string()
             } else {
-                Vec::new()
+                format!("The requested diff ({}) is empty, but the working tree has {} changed file(s) that were not examined: {}. Rerun with diff=\"unstaged\" to review them.",
+                    req.diff.trim(), unexamined.len(), unexamined.iter().take(20).cloned().collect::<Vec<_>>().join(", "))
             };
-            if !unexamined.is_empty() {
-                let hint = format!(
-                    "The requested diff ({}) is empty, but the working tree has {} changed file(s) that were not examined: {}. Rerun with diff=\"unstaged\" to review them.",
-                    req.diff.trim(),
-                    unexamined.len(),
-                    unexamined.iter().take(20).cloned().collect::<Vec<_>>().join(", ")
-                );
-                if req.output_json {
-                    return Ok(CallToolResult::success(vec![Content::text(
-                        serde_json::json!({
-                            "verdict": "NOT_REVIEWED", "findings": [], "gate_status": [],
-                            "summary": { "files_analysed": 0, "gates_run": 0, "total_findings": 0 },
-                            "coverage": {"submitted_files": [], "textual_diff_files": [], "unexamined_files": unexamined, "static_analysis": "not_run", "compilation": "not_run", "test_execution": "not_run"},
-                            "note": hint
-                        })
-                        .to_string(),
-                    )]));
-                }
-                return Ok(CallToolResult::success(vec![Content::text(format!(
-                    "Not reviewed. {hint}"
-                ))]));
-            }
-            if req.output_json {
-                return Ok(CallToolResult::success(vec![Content::text(
-                    serde_json::json!({
-                        "verdict": "NO_CHANGES", "findings": [], "gate_status": [],
-                        "summary": { "files_analysed": 0, "gates_run": 0, "total_findings": 0 },
-                        "coverage": {"submitted_files": [], "textual_diff_files": [], "unexamined_files": [], "static_analysis": "not_run", "compilation": "not_run", "test_execution": "not_run"},
-                        "note": "No changes in the requested diff; review gates were not run. This does not certify the working tree as unchanged or reviewed."
-                    })
-                    .to_string(),
-                )]));
-            }
-            let body = "No changes detected in the requested diff. Nothing to review.";
-            return Ok(CallToolResult::success(vec![Content::text(
-                body.to_string(),
-            )]));
+            let payload = serde_json::json!({
+                "verdict":if unexamined.is_empty() {"NO_CHANGES"} else {"NOT_REVIEWED"},
+                "findings":[], "gate_status":[],
+                "summary":{"files_analysed":0,"gates_run":0,"total_findings":0},
+                "coverage":{"submitted_files":[],"textual_diff_files":[],"unexamined_files":unexamined,
+                    "static_analysis":"not_run","compilation":"not_run","test_execution":"not_run"},
+                "note":note
+            });
+            let body = if req.output_json { payload.to_string() }
+                else if unexamined.is_empty() { "No changes detected in the requested diff. Nothing to review.".into() }
+                else { format!("Not reviewed. {note}") };
+            return response_delivery::finish(&req, &self.state.cfg.data_dir, body, &payload);
         }
 
         if crate::services::pre_commit_review_service::parse_unified_diff(&diff_text).is_empty() {
@@ -208,22 +190,17 @@ impl Engram {
             "pre_commit_review complete"
         );
 
+        let mut payload = serde_json::to_value(render_json(
+            findings.clone(), files_analysed, gates_run, elapsed_ms, &outcomes,
+        )).map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        payload["coverage"] = coverage.clone();
+        payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        payload["prior_review_context"] = prior_review_context.clone();
+        if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
+            payload["verdict"] = "yellow".into();
+        }
         let body = if config.output_json {
-            let mut payload = serde_json::to_value(render_json(
-                findings,
-                files_analysed,
-                gates_run,
-                elapsed_ms,
-                &outcomes,
-            ))
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            payload["coverage"] = coverage;
-            payload["project_policy_sources"] = serde_json::to_value(&project_policy_sources)
-                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
-            payload["prior_review_context"] = prior_review_context;
-            if (changed_during_review || snapshot_unavailable) && payload["verdict"] == "green" {
-                payload["verdict"] = "yellow".into();
-            }
             serde_json::to_string_pretty(&payload)
                 .map_err(|e| McpError::internal_error(format!("json render: {e}"), None))?
         } else {
@@ -279,7 +256,7 @@ impl Engram {
             report
         };
 
-        Ok(CallToolResult::success(vec![Content::text(body)]))
+        response_delivery::finish(&req, &self.state.cfg.data_dir, body, &payload)
     }
 }
 

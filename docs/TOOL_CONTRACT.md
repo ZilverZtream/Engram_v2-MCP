@@ -262,3 +262,11 @@ arguments and applicability; a service's internal structures are not MCP schemas
   does not prove every design target, project capability or runtime dependency is
   supported; retain the explicit partial findings and delivery evidence.
 - v2 adds extra tools (e.g. `immune_check`, `ast_dependency_graph`, `dedicated_antipattern_index`) beyond v1 parity.
+
+### Review response delivery
+
+`pre_commit_review` defaults to a 40 KiB complete reply-text budget. Optional `max_tokens` uses `ceil(UTF-8 bytes / 4)`, including JSON escaping and Markdown wrappers; it is not provider-token or MCP transport accounting. Small responses retain their existing format.
+
+An oversized report returns its verdict, every selected finding's index/severity/location/title, gate outcomes and coverage limits, plus `response_delivery.next_call`. Follow that exact `pre_commit_review` action (`response_id`, `response_offset`, `max_tokens`) to concatenate and BLAKE3-verify the original report. Recovery does not rerun gates and does not certify the current checkout. Original `max_findings`, severity and compact/full-view limits still apply. Recover authored guidance, decision conditions and detailed evidence before resolving findings; prior decisions do not suppress them. A budget too small for the complete ledger returns an explicit minimum rather than dropping findings.
+
+Review snapshots are separate from change-set snapshots and retain at most 32 reports per project for 24 hours. Missing/expired reports require a fresh review; reports above 8 MiB require narrower scope. `response_offset` without `response_id` is rejected.
