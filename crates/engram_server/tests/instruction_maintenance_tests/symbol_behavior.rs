@@ -107,6 +107,75 @@ const TWO_FUNCTIONS: &str =
     "pub fn Important() -> i32 {\n    10\n}\n\npub fn Other() -> i32 {\n    20\n}\n";
 
 #[tokio::test]
+async fn javascript_and_typescript_guidance_only_tracks_authored_declarations() {
+    for extension in ["js", "ts"] {
+        for newline in ["", "\n"] {
+            let (temporary, engram, mut request) = fixture();
+            let root = temporary.path().join("repo");
+            let path = format!("Site/logic.{extension}");
+            let before = format!("export function Important() {{\n    return 10;\n}}\n\nexport function Other() {{\n    return 20;\n}}{newline}");
+            for (name, text) in [
+                ("area", "Preserve `Important`.\n"),
+                ("other", "Other must retain its behavior.\n"),
+                ("prose", "Keep this file readable.\n"),
+            ] {
+                std::fs::write(root.join(format!("rules/{name}.md")), text).unwrap();
+            }
+            std::fs::write(root.join(&path), &before).unwrap();
+            request["instruction_maintenance"]["base_commit"] = json!(commit(&root));
+            request["instruction_maintenance"]["evidence_paths"] = json!([path]);
+            request["instruction_maintenance"]["instruction_paths"] =
+                json!(["rules/area.md", "rules/other.md", "rules/prose.md"]);
+            let after = before.replace("return 20", "return 30");
+            std::fs::write(root.join(&path), &after).unwrap();
+            let report = call(&engram, request).await.unwrap();
+            let manifest = &report["packet"]["instruction_manifest"];
+            let area = root_state(manifest, "rules/area.md");
+            assert_eq!(area["status"], "no_collected_dependency_changes", "{extension} {newline:?}: {area}");
+            assert_eq!(area["symbol_changes"][0]["status"], "same_observed_candidate_bytes");
+            assert_eq!(root_state(manifest, "rules/other.md")["status"], "review_changed_dependencies");
+            let prose = root_state(manifest, "rules/prose.md");
+            assert_eq!(prose["status"], "no_collected_dependency_changes");
+            assert!(prose["symbol_reference_indices"].as_array().unwrap().is_empty());
+            let candidate = &area["symbol_changes"][0]["after_candidates"][0];
+            let range = candidate["byte_range"].as_array().unwrap();
+            let raw = &after[range[0].as_u64().unwrap() as usize..range[1].as_u64().unwrap() as usize];
+            assert!(raw.contains("function Important") && !raw.contains("function Other"));
+            assert_eq!(candidate["evidence_blake3"], blake3::hash(raw.as_bytes()).to_hex().to_string());
+            assert_eq!(candidate["absence_proof"], false);
+            assert_eq!(report["authored_files_written"], 0);
+            assert_eq!(std::fs::read_to_string(root.join(&path)).unwrap(), after);
+            drop(engram);
+            temporary.close().unwrap();
+        }
+    }
+}
+
+#[tokio::test]
+async fn actual_function_named_file_remains_instruction_evidence() {
+    let (temporary, engram, mut request) = fixture();
+    let root = temporary.path().join("repo");
+    std::fs::write(root.join("rules/area.md"), "Preserve `file`.\n").unwrap();
+    let before = "export function file() { return 1; }\n";
+    std::fs::write(root.join("Site/logic.ts"), before).unwrap();
+    request["instruction_maintenance"]["base_commit"] = json!(commit(&root));
+    request["instruction_maintenance"]["evidence_paths"] = json!(["Site/logic.ts"]);
+    let after = before.replace("return 1", "return 2");
+    std::fs::write(root.join("Site/logic.ts"), &after).unwrap();
+    let report = call(&engram, request).await.unwrap();
+    let state = root_state(&report["packet"]["instruction_manifest"], "rules/area.md");
+    assert_eq!(state["status"], "review_changed_dependencies");
+    let change = &state["symbol_changes"][0];
+    assert_eq!(change["status"], "changed_observed_candidate_bytes");
+    assert_eq!(change["after_candidates"].as_array().unwrap().len(), 1);
+    assert_eq!(change["after_candidates"][0]["kind"], "function");
+    assert_eq!(change["after_candidates"][0]["name"], "file");
+    assert_eq!(report["authored_files_written"], 0);
+    drop(engram);
+    temporary.close().unwrap();
+}
+
+#[tokio::test]
 async fn prose_case_collisions_do_not_create_vb_dependencies_but_explicit_names_still_do() {
     let (temporary, engram, mut request) = fixture();
     let root = temporary.path().join("repo");
