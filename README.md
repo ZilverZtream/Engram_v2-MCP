@@ -655,8 +655,9 @@ original references remain visible.
 
 Limits are eight instructions, sixteen explicit evidence paths and sixteen
 automatic dependencies, discovery depth three from any selected root with shared
-collected nodes, 256 edges, 128 KiB per snapshot
-and 768 KiB of complete input across both versions. Explicit inputs take
+collected nodes, 256 edges, 128 KiB per guidance/manual/linked snapshot,
+and 256 KiB for explicitly selected automatic area-code snapshots. The aggregate
+remains 768 KiB of complete input across both versions. Explicit inputs take
 precedence. Oversized explicit inputs fail; automatic omissions, unavailable
 files and unresolved explicit reference labels are named without truncating
 guidance or treating unread content as proven absence. HTML, wiki and image
@@ -678,7 +679,10 @@ observed candidate is not a certified global binding. Per-instruction comparison
 distinguish changed excerpts, unchanged observed bytes, ambiguous matches and
 unresolved current references. Excerpt equality does not establish unchanged
 behavior. VB uses source-only regex declaration-line candidates without starting
-Roslyn; body coverage and proof of absence remain unavailable. Candidate location
+Roslyn; body coverage and proof of absence remain unavailable. Its source limit
+matches the existing 256 KiB automatic-code allowance. A refused extractor source
+is reported as incomplete coverage, with the limit in `source_limit_bytes`,
+instead of a successful empty declaration inventory. Candidate location
 changes do not prove a rename. Whole-packet stale checks still cover every
 selected input, separately from the per-instruction impact report.
 

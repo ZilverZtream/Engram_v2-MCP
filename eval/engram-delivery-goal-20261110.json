@@ -40,10 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "OCIUSX_EVIDENCE_SELECTION_PENDING",
-    "next_action": "Inspect the retained EG27 instruction-reference gaps against one current OciusX guide and its VB source. In particular, establish whether declaration-only VB coverage is causing unnecessary review on unrelated edits. Use the existing sidecar capability where needed; select only a reproduced gap, preserve completed EG14/31 deliveries, and do not start another generic TODO or planner prompt cycle.",
-    "retained_pending_release": "eval/ociusx-lexical-fallback-progress-20261113.json",
-    "active_implementation": null
+    "status": "IMPLEMENTED_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
+    "finding": "EG27 captured VB reference inventory",
+    "remaining": "Poll exact release session63784. After terminal PASS: package, acquire existing read-only config hold, candidate1, release gates, ValidateUpgrade/Upgrade, installed1, release hold, record installed identity and push receipt. Do not edit frozen source or restart on observation timeout."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

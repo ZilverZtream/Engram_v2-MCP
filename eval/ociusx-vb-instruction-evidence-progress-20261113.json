@@ -1,0 +1,86 @@
+{
+  "status": "IMPLEMENTED_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
+  "finding": "EG27 captured VB reference inventory",
+  "original_requirement": "Supply referenced files/symbols from captured instruction evidence, or explicitly disclose incomplete coverage; maintain hash-bound historical/current evidence.",
+  "observed_missing_behavior": "The automatic area collector accepts 256 KiB code files, but the VB snapshot extractor silently returns an empty vector above 128 KiB. The retained real OciusX packet captured the 138994-byte spatial service yet reports zero candidates and zero omissions in both versions.",
+  "baseline": {
+    "packet": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\eg14-resume-20261111\\collect\\report.json",
+    "packet_sha256": "289cdebe438521a7cdf6b16d3a6f3ca8f28015972e2331e5ba5ebc4e1daeafc6",
+    "inventory": [
+      {
+        "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+        "version": "before",
+        "source_blake3": "a4beea3062721ae819f887b783a5c4c1fd88366ffd0701f6b63738c3f38f27ec",
+        "status": "regex_declaration_line_candidates_no_absence_proof",
+        "retained_candidates": 0,
+        "omitted_candidates": 0
+      },
+      {
+        "path": "Site/App_Code/visualisering/code/FileLayerSpatialService.vb",
+        "version": "after",
+        "source_blake3": "a4beea3062721ae819f887b783a5c4c1fd88366ffd0701f6b63738c3f38f27ec",
+        "status": "regex_declaration_line_candidates_no_absence_proof",
+        "retained_candidates": 0,
+        "omitted_candidates": 0
+      }
+    ],
+    "current_source_sha256": "94a2f3fbb18f241018c3e93866eb2be1af09d6ea9465e37596cca11064f9a576",
+    "current_source_bytes": 138994
+  },
+  "implementation_files": [
+    "crates/engram_index/src/vb_extractor.rs",
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/tests/area_instruction_evidence_tests.rs"
+  ],
+  "acceptance": [
+    "A captured VB file between 128 and 256 KiB supplies authored class/method reference candidates and exact source/range hashes in both requested-base and current versions.",
+    "The extractor accepts the existing automatic capture bound and explicitly refuses larger inputs; refusal becomes incomplete symbol coverage rather than a successful empty scan.",
+    "Manual evidence/authored-guidance limits, 768 KiB packet budget, candidate limits and no-absence-proof qualifications remain enforced.",
+    "Candidate and installed public area packets recover the current OciusX spatial-service class reference from copied unchanged actual source and guide; no OciusX application or policy edits."
+  ],
+  "scope": "Fix one existing evidence loss. Reuse the source-only extractor; no new sidecar operation, language support, instruction policy semantics, CodeMap/Blast work or larger source capture budget.",
+  "sidecar_assessment": "Existing standalone Roslyn parsing is available, but this loss is an inconsistent pre-extraction byte limit. No compiler/project-binding claim is needed or introduced.",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence",
+  "cleanup": "Owned fixture directories close after server/runtime/database handles; retain only scripts, source hashes, logs and receipts. Preserve existing worktrees and directories.",
+  "source_baseline": "88f2191457a6047defd4db7499b5465a47043ca7",
+  "retained_pending_release": "eval/ociusx-lexical-fallback-progress-20261113.json",
+  "prior_hypothesis_disposition": "The current map-file-layer guide explicitly links whole files; whole-file changes are legitimate dependencies. Do not weaken those warnings or falsely claim a noise regression.",
+  "at_utc": "2026-11-13T06:19:15.167696+00:00",
+  "source_commit": "85398e97324c3c2579d311cd3295f67b1e322f66",
+  "main_merge_commit": "2bc133fb5d419720659c42e7b485f1dadef7272f",
+  "validation": {
+    "selected_native_tests": 14,
+    "maintenance_passed": 45,
+    "maintenance_failed_preexisting": 2,
+    "preexisting_failure_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\preexisting-maintenance2\\acceptance.json",
+    "actual_source_bytes": 138994,
+    "before_candidates": 0,
+    "after_candidates": 121,
+    "actual_class_references_recovered": 2,
+    "authored_files_written": 0,
+    "actual_ociusx_files_unchanged": true,
+    "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\native3.json",
+    "debug": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\debug1\\acceptance.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\public-baseline1\\acceptance.json"
+  },
+  "remaining": "Poll exact release session63784. After terminal PASS: package, acquire existing read-only config hold, candidate1, release gates, ValidateUpgrade/Upgrade, installed1, release hold, record installed identity and push receipt. Do not edit frozen source or restart on observation timeout.",
+  "review": {
+    "kind": "Parent manual source and helper review; no external review claimed",
+    "findings": [],
+    "observations": [
+      "The existing automatic source cap remains256KiB; manual and linked capture limits are unchanged.",
+      "VB refusal is typed at the extractor boundary, inventory names the source budget, and incomplete name-discovery coverage propagates.",
+      "Non-VB extraction and unchanged-candidate classification are unchanged. Two existing Rust-fixture omission failures reproduce on the unchanged installed server.",
+      "Candidate verification binds before/current raw bytes and source spans independently; fixtures close children before temporary teardown.",
+      "Release includes prior lexical fallback with its existing public regression checks; current Ollama configuration is unchanged."
+    ]
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence",
+    "owned_native_and_debug_fixtures_removed": true,
+    "release_session": 63784,
+    "release_owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\vb-instruction-evidence\\edit-workload-focused-hmn324vd",
+    "preexisting_folders_deleted": false,
+    "retained_first_baseline_diagnosis": "preexisting-maintenance1: Python newline translation changed the fixture, so this attempt is not the matched baseline; exact-byte corrected run2 reproduces both failures. Its raw packet remains; owned fixture is absent."
+  }
+}
