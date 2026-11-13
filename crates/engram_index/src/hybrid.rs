@@ -5065,6 +5065,16 @@ impl HybridSearchEngine {
         } else {
             None
         };
+        // The local projection has no semantic meaning. Giving it RRF weight
+        // or using it for MMR can introduce unrelated hits and reorder exact
+        // source matches. Preserve the lexical ranking, including an empty
+        // result, instead. Explicit vector_search remains available separately.
+        if self.semantic_quality() == SemanticQuality::DegradedTrigram {
+            anyhow::ensure!(!cancel.is_cancelled(), "search cancelled");
+            let mut hits = self.lexical_search(q)?;
+            hits.truncate(output_limit);
+            return Ok(hits);
+        }
         #[cfg(feature = "vector")]
         let vector_epoch = if self.is_lexical_only() {
             None
