@@ -11,6 +11,7 @@ pub mod multi_client;
 pub mod services;
 pub mod state;
 pub mod tool_surface;
+pub mod tool_guidance;
 pub mod tools;
 pub mod utils;
 
