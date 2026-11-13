@@ -1,0 +1,113 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_WINDOWS_FIRST_INSTALL",
+  "at_utc": "2026-11-13T17:13:39.583165+00:00",
+  "finding": "TODO53 first-time Windows installation",
+  "source_commit": "b015099dd58f2565f7efcd0e305d2a40903489b8",
+  "original_requirement": "Prebuilt releases and one-command installation including an MCP configuration block. This completes the Windows installation path from an existing full package; the full distribution requirement remains unfinished.",
+  "delivered": [
+    "One PowerShell invocation copies the server and every manifest-listed sidecar asset, creates a scoped local configuration and registers the MCP connection.",
+    "Existing unrelated MCP servers and preferences are preserved with an exact backup; existing installation/name collisions and corrupt packages are refused.",
+    "The installed entry supports shared multi-client connections without a detached daemon and local source search without provider credentials."
+  ],
+  "full_todo53_complete": false,
+  "validation": {
+    "native_checks": [
+      "Preserve unrelated client settings and exact original backup",
+      "Register new client configuration",
+      "Copy every listed package asset",
+      "Refuse existing installation and same-named client entry without changing client settings",
+      "Refuse corrupt package before creating installation or client entry"
+    ],
+    "actual_checks": {
+      "existing_client_preserved": true,
+      "exact_registered_command": true,
+      "bundled_sidecar_running": true,
+      "vb_source_recovered": true,
+      "source_unchanged": true
+    },
+    "copied_assets": 215,
+    "sidecar_assets": 214,
+    "sample_files_indexed": 13,
+    "sample_stack": "VB.NET/WebForms, JavaScript/TypeScript and SQL",
+    "source_recovery": "PhotoRules.CanComplete returned the actual configured required-count comparison through search_memory and get_chunk.",
+    "sample_index_seconds": 1.662,
+    "timing_limit": "One small fixture indexing call; excludes installation and normal 300-second shared-server idle exit. Not OciusX or large-project performance.",
+    "mcp_command_args": [
+      "--no-daemon"
+    ],
+    "server_sha256": "173741107d726cfe768cfd1c06bf7c5b6a04507e88f3779ff5fc9a1487265c80",
+    "resources_closed": true,
+    "fixture_cleanup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\owned-6pjg6a1b",
+      "reason": "Automatic approval review rejected the exact-path PowerShell fixture removal: blocked by policy. No alternate deletion attempted.",
+      "purpose": "Completed first-install sample, installed package and test database; no production data.",
+      "cleanup_condition": "Retain until exact-path cleanup is approved; recheck no active use before deletion."
+    }
+  },
+  "evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\contract.json",
+      "sha256": "0036d81db1ec262a0fa4ab0edf091976597b7c5b0c803fd17b5de348baa54b5c"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\native1.json",
+      "sha256": "2c0bd96d3a8a1b3e708f5948b096a0475f0afa6416a9b6d5943902b14d5ceb99"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\verify-actual.py",
+      "sha256": "cf8905e71b6698a0edfe95715a0eb31211435153194472520e5bc33a61fcc2e6"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\completed-acceptance.json",
+      "sha256": "9ef27507108f8259db2342fbbac939308c868e1e6460fcd7d58b067d996f5915"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\acceptance.json",
+      "sha256": "44158085a18942327eb391d37a7218cb3b61716040138aedce62323c11eac084"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\installer.log",
+      "sha256": "1b938e0021ad09dd0a826d73bf59cbc9ca3980c7c3199091b736e6f777b6ee4f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\index.txt",
+      "sha256": "e78d5db90b4be3c5c921e154fe27a7ad5d4c49c74b57ff2b38af31b7544c883b"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\freshness.txt",
+      "sha256": "378ba8cdd87bafef055dc2f00e92ac4715874c933b8a7f826ab562fb47729477"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\search.txt",
+      "sha256": "dccae600cf82fcf0e7c30859650b6fd1ac6eec6fab62833a578b70cd61032db2"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install\\actual1\\recovered.json",
+      "sha256": "6fa80220045b159a78f68ede845284f95824ec21faade242fdecf4d5ecef97e9"
+    }
+  ],
+  "review": {
+    "method": "Parent source review and behavior checks; no external CodeRabbit review ran.",
+    "scope": [
+      "No overwrite of existing installation or same-named entry",
+      "Package integrity checked before client registration",
+      "Only new invocation-owned staging paths cleaned",
+      "Exact registered command and full companion used by runtime test"
+    ]
+  },
+  "preservation": {
+    "preexisting_wip9_unchanged": true,
+    "normal_installation_not_replaced": true,
+    "production_config_not_modified": true,
+    "ociusx_sources_not_modified": true,
+    "no_new_tags": true,
+    "no_new_build": true
+  },
+  "remaining": [
+    "Public prebuilt release/download distribution",
+    "macOS/Linux packages and installation",
+    "GUI MCP-client verification beyond the actual registered executable/arguments/environment",
+    "Retained test fixture cleanup after automatic approval review refusal",
+    "All other unfinished goal items, including failed planner and ask semantic acceptance; not reopened by this delivery"
+  ]
+}

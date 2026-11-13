@@ -10012,25 +10012,31 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DEFERRED_FAILED_SINGLE_RECONCILIATION_CHECK",
-      "finding": "TODO32 normal OciusX feature planning correctness",
-      "original_requirement": "Produce a usable cited pre-edit dossier for a normal feature request. Latest explicit user steering prioritizes product readiness for actual AI use, not further edge-case work.",
-      "observed_missing_behavior": "Retained installed plan confuses configured photo-slot capacity with required minimum and treats an unspecified scope as a requested global setting.",
-      "acceptance": [
-        "User-requested requirements remain distinguishable from model assumptions; no invented broader setting is treated as requested.",
-        "Source facts distinguish capacity, minimum requirement and where each is configured/persisted.",
-        "The resulting plan identifies existing implementation versus necessary changes, with usable source evidence and explicit decisions still needed.",
-        "Use the existing failed actual OciusX request and ordinary independent fixture behavior; do not loosen criteria or start a repeated per-sample prompt/release cycle."
+      "status": "WINDOWS_FIRST_INSTALL_DELIVERED_FULL_DISTRIBUTION_UNFINISHED",
+      "finding": "TODO53 first-time Windows installation with complete VB sidecar",
+      "original_requirement": "Prebuilt release binaries and one-command installation that also writes the MCP configuration. This delivers the Windows installation portion; published cross-platform distribution remains required.",
+      "observed_missing_behavior": "The existing deployment script requires a preexisting installation and upgrade evidence; quickstart manually assembles paths/config and does not install a full package. No first-time installer exists.",
+      "implementation_files": [
+        "scripts/install_windows.ps1",
+        "scripts/test_install_windows.ps1",
+        "docs/QUICKSTART.md",
+        "README.md",
+        "TODO.md"
       ],
-      "scope": "One implementation item: correct the actual planning workflow. Preserve all failed evidence and completed tool deliveries. No CodeMap/Blast, language expansion or broad audit.",
+      "acceptance": [
+        "From an existing complete Windows package, one invocation installs every manifest asset and writes usable Engram configuration and an MCP client entry.",
+        "Existing unrelated MCP servers and client settings survive registration; an existing Engram installation or same-named entry is preserved rather than overwritten.",
+        "A broken package is refused without registering a broken server; owned staging resources are cleaned after failure.",
+        "Launch the exact registered command, index an owned VB.NET/WebForms sample with the bundled Roslyn sidecar and retrieve actual source through MCP."
+      ],
       "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness",
-      "retained_method_budget": {
-        "stash_commit": "fdf6b2c753f99e525e8c0360f20c0f82915984dd",
-        "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-budget\\retained-work.json"
-      },
-      "implementation_decision": "Use the existing correction budget for one source/request reconciliation even for structurally valid drafts. No new retrieval or provider retry loop; max three generation calls. Review the corrected retained actual failure before building/deploying.",
-      "outcome_receipt": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\ociusx-feature-plan-reconciliation-failed-20261113.json"
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-first-install",
+      "scope_limits": [
+        "No runtime rebuild or production configuration change.",
+        "No new tags, public publishing or claim of macOS/Linux delivery.",
+        "No changes to CodeMap, Blast Radius, planner, routing or deferred response-budget work."
+      ],
+      "delivery_receipt": "eval/ociusx-windows-first-install-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10062,8 +10068,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG01 scoped authored guidance in edit-session bookends",
-    "next_user_visible_deliverable": "Reuse project_policy for declared planned files when opening and declared edited files on completion. Resolve before lifecycle mutation, preserve full source/hash/recovery output, refresh after instruction edits, and label guidance as advisory rather than enforcement. Explicit no-edits completion remains no policy applicability analysis.",
+    "active_original_item": "TODO53 first-time Windows installation",
+    "next_user_visible_deliverable": "Install a complete Windows server/sidecar package and register a usable MCP connection in one command.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10080,7 +10086,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: one bounded behavior experiment rejected by unchanged actual-source acceptance; no build/deployment or tuning loop. Preserve TODO32 unfinished and advance original AI workflow work.",
+    "previous_goal_turn_classification": "PROGRESS: Windows first-time installer implemented and verified through its exact registered MCP command; full sidecar copied, 13 sample files indexed and VB source recovered. All processes exited; exact owned fixture retained after automatic cleanup refusal.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -14365,7 +14371,8 @@
       "tests_run": 0,
       "reason": "User prioritizes normal AI task completion over further edge-case/response engineering. Retain this incomplete patch; do not count it as delivered."
     },
-    "latest_planner_reconciliation_result": "eval/ociusx-feature-plan-reconciliation-failed-20261113.json"
+    "latest_planner_reconciliation_result": "eval/ociusx-feature-plan-reconciliation-failed-20261113.json",
+    "latest_windows_first_install_delivery": "eval/ociusx-windows-first-install-delivery-20261113.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }
