@@ -1,5 +1,5 @@
 {
-  "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
+  "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
   "at_utc": "2026-11-13T01:02:16.065872+00:00",
   "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
   "scope": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Finish release4, optimized candidate/installed verification and one actual OciusX request. Compare with retained source facts before claiming usable planning delivery.",
+  "next": "Native6 session4387 is running with source frozen. Then verify public fixture with grouped order summaries and registered-control evidence, commit/push validated source, release/deploy and verify actual OciusX semantics. No ranking change, model replay or language expansion.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -139,16 +139,87 @@
     }
   },
   "composition_correction": {
-    "status": "COMPONENT_EVIDENCE_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
     "source_commit": "131ca234db606b53e9713f631143624e55805428",
     "main_merge_commit": "7312dfd4f27aaf41c36bdd177820ee001418a7d8",
     "native_checks": 11,
     "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native5.json",
     "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public4\\acceptance.json",
-    "deployed": false,
-    "actual_v4_request_sent": false,
+    "deployed": true,
+    "actual_v4_request_sent": true,
     "behavior": "Retain initial12 ranked source leads, then bounded registered WebForms controls/code-behind discovered from admitted hosts. Max4 hosts/24 evidence files and existing192KiB aggregate cap. Every extra source independently passes selected-revision/hash admission and post-generation freshness; edit-file limit remains12. Existing composition reader reused; change-set ranking unchanged.",
     "public_behavior": "A registered control and code-behind outside the initial12 candidates are present in the model source bundle. Mutating the control code-behind during generation withholds the plan. Existing three detail modes, schema/step/safety checks and failure checks pass.",
     "review": "Parent manual review of source ownership, component discovery, source admission, aggregate bounds, omission reporting and post-generation checks. Retained CodeRabbit authentication unavailable; no external review claimed."
+  },
+  "actual_v4": {
+    "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
+    "at_utc": "2026-11-13T02:04:47.206657+00:00",
+    "source_commit": "131ca234db606b53e9713f631143624e55805428",
+    "installed_server_sha256": "fcd02ae3a067b25c0fae546e47834c698e34c518ca53a22be2066fd9e9067879",
+    "actual_request": {
+      "status": "FAIL",
+      "pair_sha256": "7c78f49d7fb0a932dc5d005ed59c7981cbd54bdd28de475730b589bba1834dd6",
+      "process_identity": {
+        "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+        "created_ticks": 134390086140767221
+      },
+      "driver_sha256": "56cdee7511a68042b7fd78a414c20d29e1ca903ccd1209f5556edb9d8285fbca",
+      "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+      "seconds": 137.6917884000577,
+      "error": "AssertionError('invalid_plan_contract_or_source_reference')",
+      "pipe_closed": true
+    },
+    "rejection": {
+      "kind": "structural_or_source_check",
+      "message": "Implementation order must match steps"
+    },
+    "source_evidence_files": 12,
+    "observed_failures": [
+      "Changed candidate ordering excluded every WebForms host from the initial12 evidence files; registered-control discovery therefore had no host to follow.",
+      "Model supplied7 summary phases for13 concrete steps; redundant presentation cardinality caused the first rejection.",
+      "Independent inspection also found an undeclared test-file step. The retained proposal must remain rejected by existing path/coverage validation; canonical summary order alone does not make it valid."
+    ],
+    "retained_input_checks": [
+      {
+        "receipt": "normal3",
+        "prior_host_in_prefix": true,
+        "reserved_host_present": true,
+        "selected_hosts": [
+          "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+          "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+          "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+          "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx"
+        ],
+        "selected_file_count": 14,
+        "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
+      },
+      {
+        "receipt": "normal4",
+        "prior_host_in_prefix": false,
+        "reserved_host_present": true,
+        "selected_hosts": [
+          "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+          "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+          "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+          "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx"
+        ],
+        "selected_file_count": 16,
+        "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
+      }
+    ],
+    "unplanned_step_paths": [
+      "tests/minimum-photo-requirement.tests.md"
+    ],
+    "correction": "Reserve up to4 WebForms hosts from the existing candidate order in addition to initial12 leads, within the24-source-file/192KiB bounds. Derive implementation_order from validated concrete steps; preserve path, step-number, requirement, reference and validation checks.",
+    "next": "Native6 session4387 is running with source frozen. Then verify public fixture with grouped order summaries and registered-control evidence, commit/push validated source, release/deploy and verify actual OciusX semantics. No ranking change, model replay or language expansion.",
+    "resources": {
+      "actual_pipe_closed": true,
+      "hold_released": true,
+      "candidate_and_installed_fixtures_removed": true,
+      "build_job_closed": true,
+      "build_temp_removed": true,
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+      "retention": "Retain packages/receipts/rejected proposals for acceptance evidence and rollback. No preexisting directories removed."
+    }
   }
 }

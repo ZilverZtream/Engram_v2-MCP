@@ -146,5 +146,76 @@
       "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
       "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
     }
+  },
+  "actual_v4": {
+    "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
+    "at_utc": "2026-11-13T02:04:47.206657+00:00",
+    "source_commit": "131ca234db606b53e9713f631143624e55805428",
+    "installed_server_sha256": "fcd02ae3a067b25c0fae546e47834c698e34c518ca53a22be2066fd9e9067879",
+    "actual_request": {
+      "status": "FAIL",
+      "pair_sha256": "7c78f49d7fb0a932dc5d005ed59c7981cbd54bdd28de475730b589bba1834dd6",
+      "process_identity": {
+        "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+        "created_ticks": 134390086140767221
+      },
+      "driver_sha256": "56cdee7511a68042b7fd78a414c20d29e1ca903ccd1209f5556edb9d8285fbca",
+      "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+      "seconds": 137.6917884000577,
+      "error": "AssertionError('invalid_plan_contract_or_source_reference')",
+      "pipe_closed": true
+    },
+    "rejection": {
+      "kind": "structural_or_source_check",
+      "message": "Implementation order must match steps"
+    },
+    "source_evidence_files": 12,
+    "observed_failures": [
+      "Changed candidate ordering excluded every WebForms host from the initial12 evidence files; registered-control discovery therefore had no host to follow.",
+      "Model supplied7 summary phases for13 concrete steps; redundant presentation cardinality caused the first rejection.",
+      "Independent inspection also found an undeclared test-file step. The retained proposal must remain rejected by existing path/coverage validation; canonical summary order alone does not make it valid."
+    ],
+    "retained_input_checks": [
+      {
+        "receipt": "normal3",
+        "prior_host_in_prefix": true,
+        "reserved_host_present": true,
+        "selected_hosts": [
+          "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+          "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+          "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+          "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx"
+        ],
+        "selected_file_count": 14,
+        "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
+      },
+      {
+        "receipt": "normal4",
+        "prior_host_in_prefix": false,
+        "reserved_host_present": true,
+        "selected_hosts": [
+          "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+          "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+          "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+          "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx"
+        ],
+        "selected_file_count": 16,
+        "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
+      }
+    ],
+    "unplanned_step_paths": [
+      "tests/minimum-photo-requirement.tests.md"
+    ],
+    "correction": "Reserve up to4 WebForms hosts from the existing candidate order in addition to initial12 leads, within the24-source-file/192KiB bounds. Derive implementation_order from validated concrete steps; preserve path, step-number, requirement, reference and validation checks.",
+    "next": "Native6 session4387 is running with source frozen. Then verify public fixture with grouped order summaries and registered-control evidence, commit/push validated source, release/deploy and verify actual OciusX semantics. No ranking change, model replay or language expansion.",
+    "resources": {
+      "actual_pipe_closed": true,
+      "hold_released": true,
+      "candidate_and_installed_fixtures_removed": true,
+      "build_job_closed": true,
+      "build_temp_removed": true,
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+      "retention": "Retain packages/receipts/rejected proposals for acceptance evidence and rollback. No preexisting directories removed."
+    }
   }
 }
