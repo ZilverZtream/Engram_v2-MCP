@@ -1,4 +1,5 @@
 pub(crate) mod index_suggestion_tools;
+pub mod feature_plan_tools;
 pub mod access_layer_tools;
 pub mod ask_tools;
 pub mod batch_read_tools;

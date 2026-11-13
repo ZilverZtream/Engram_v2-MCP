@@ -378,6 +378,16 @@ impl Engram {
     }
 
     #[tool(
+        description = "Assemble a WebForms/VB.NET feature implementation proposal: structured requirements, cited source patterns, proposed file edits and SQL DDL, ordered steps, per-method safety and acceptance checks. Uses the configured LLM; unavailable or invalid inference returns explicit incomplete evidence. ReadyToCode adds proposed code templates. Read-only: never edits application files or executes SQL. Proposals require source and requirement review."
+    )]
+    pub async fn one_shot_feature_plan(
+        &self,
+        params: Parameters<OneShotFeaturePlanRequest>,
+    ) -> Result<CallToolResult, McpError> {
+        self.handle_one_shot_feature_plan(params.0).await
+    }
+
+    #[tool(
         description = "Settings catalog: EVERY setting the app has (web.config appSettings, connection strings, Session/Application/Cache keys, settings-store code accessors like ConfigSettings.*) with reader counts and top usage sites, most-read first. The 'only the PO knows the settings' problem, as a queryable database. Filter with scope=<path substring>. Drill in with get_setting."
     )]
     pub async fn list_settings(
