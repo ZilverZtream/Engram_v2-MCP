@@ -279,6 +279,12 @@ Successful `project_health` / waited `update_project` calls with `instruction_ma
 
 This is a separate current-worktree observation bound to the captured instruction bytes/hash. It writes no authored guidance, does not alter proposal packet identity and does not claim an atomic or historical file inventory.
 
+### Historical planning guidance
+
+`get_change_set(as_of_rev=...)` resolves authored guidance from the same Git commit that bounds its history evidence. `project_policy_sources.source_revision` identifies that commit in JSON; Markdown includes the revision too. Instruction contents and applicability metadata come from Git, including files later edited or deleted. Existing directory authority, scope matching and complete-source budgets apply. Omitted sources identify the exact revision/path for Git recovery and retain their BLAKE3 when available.
+
+This pins policy evidence only: historical planning still requires the appropriate source and index snapshot for other evidence. A date-only `merged_before` cutoff does not identify a Git revision and continues to report `historical_unavailable` for policy. No live instruction is substituted for historical guidance.
+
 ### Optional ask_codebase synthesis
 
 Named-method evidence also includes bounded same-file property, field and

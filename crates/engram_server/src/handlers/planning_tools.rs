@@ -11557,7 +11557,16 @@ impl Engram {
             .filter_map(|row| row["path"].as_str().map(str::to_string))
             .chain(prov.keys().cloned())
             .collect::<Vec<_>>();
-        let project_policy_sources = if req.merged_before.is_some() || req.as_of_rev.is_some() {
+        let project_policy_sources = if let Some(history) = &as_of {
+            let root = project_root.clone();
+            let targets = policy_paths.clone();
+            let indexed = index_paths.clone();
+            let revision = history.revision;
+            tokio::task::spawn_blocking(move || {
+                crate::services::project_policy::resolve_at_revision(&root, revision, &targets, &indexed)
+            }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+                .map_err(|error| McpError::internal_error(format!("historical policy: {error}"), None))?
+        } else if req.merged_before.is_some() || req.as_of_rev.is_some() {
             crate::services::project_policy::PolicyContext::historical_unavailable()
         } else {
             crate::services::project_policy::resolve(&project_root, &policy_paths, &index_paths)
