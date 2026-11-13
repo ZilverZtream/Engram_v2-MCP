@@ -10012,37 +10012,36 @@
   "last_updated_at": "2026-11-13T17:50:41.284294+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "TODO28 ordinary answer context for referenced same-file members",
-      "original_requirement": "ask_codebase supplies useful source evidence and a cited answer for ordinary OciusX questions; preserve the existing failed missing-count criterion.",
-      "observed_missing_behavior": "The retained Resolve answer supplies method lines92-106 and EffectiveMinZoom line59, but omits the indexed AutomaticZoom nullable declaration used in the method. Definition retrieval currently includes only the named symbol span. Missing declaration observed; it is not proven to be the sole cause of model withholding.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_BUILD_RUNNING",
+      "finding": "TODO31 conventional OciusX Web API request entry",
+      "original_requirement": "URL/route to handler and existing call/database evidence, source cited",
+      "observed_missing_behavior": "MapHttpRoute registrations in OciusX WebApiConfig.vb are ignored by routing::resolve; POST /webhook/vetro/42 has no route candidate although VetroController.HandleIncomingRequest is authored.",
       "implementation_files": [
-        "crates/engram_server/src/services/ask_engine/providers.rs",
-        "crates/engram_server/tests/ask_definition_arm_tests.rs",
-        "crates/engram_server/src/services/ask_engine/report.rs",
+        "crates/engram_server/src/handlers/request_trace_tools.rs",
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/api.rs",
+        "crates/engram_server/src/services/request_trace/execution.rs",
+        "crates/engram_server/src/services/request_trace/routing.rs",
+        "crates/engram_server/src/tools.rs",
         "docs/TOOL_CONTRACT.md"
       ],
       "acceptance": [
-        "Definition evidence retains the named method and adds source-cited same-file member declarations whose names appear in that method, including type/default information. JSON and Markdown both retain the bounded source context.",
-        "Unrelated members are excluded; contextual name matches are not described as resolved receiver bindings. Existing source/read limits remain bounded.",
-        "An independent ordinary fixture verifies the public answer evidence contains the needed declaration and preserves source identity.",
-        "One actual OciusX check uses the existing four frozen answer criteria and unchanged model/prompt; do not relax criteria or run a prompt-tuning loop."
+        "A VB conventional MapHttpRoute with literal named or positional name/template resolves controller and supplied URL parameters with source citations.",
+        "POST selects the authored public HttpPost handler in the matching ApiController; GET does not select that POST handler.",
+        "Reuse existing bounded source-verified call expansion; retain ambiguous candidates and unresolved bindings rather than claiming runtime dispatch.",
+        "An independent public fixture and one actual OciusX POST /webhook/vetro/42 check show handler source and citations. Existing page-route acceptance remains passing."
       ],
-      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-member-context",
       "scope_limits": [
-        "No new router, parser, traversal system or target-language expansion.",
-        "No CodeMap/Blast changes.",
-        "Preserve failed planning and prior ask results; full TODO28 remains unfinished until its original requirements are met."
+        "No new SQL analysis, interface-binding engine, target-language support, CodeMap or Blast changes.",
+        "Optional omitted route segments, route constraints, runtime registration and dependency injection remain disclosed limits; this does not complete full TODO31."
       ],
-      "progress_receipt": "eval/ociusx-ask-member-context-progress-20261113.json",
-      "source_commit": "7b5487a79b76b87c689f83dde970f1f7cf009cce",
-      "delivery": "eval/ociusx-ask-member-context-delivery-20261113.json",
-      "bounded_delivery_complete": true,
-      "full_todo28_complete": false,
-      "outcome": "Installed JSON/Markdown member context passed. One unchanged-model/prompt OciusX answer passed all four frozen criteria; prior three-of-four result retained."
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace",
+      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "retention": "Keep evidence and scripts for review; new fixture resources must close and clean. Existing source checkout retained for ongoing goal.",
+      "source_commit": "f5b8684fd17bac03610899724f52cd0c6786fff9",
+      "progress_receipt": "eval/ociusx-webapi-request-trace-progress-20261113.json"
     },
-    "at_utc": "2026-11-13T17:50:41.284294+00:00",
+    "at_utc": "2026-11-13T18:05:22.084791+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10072,8 +10071,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO28 bounded member-context delivery complete; next original item not yet selected",
-    "next_user_visible_deliverable": "Advance another unfinished original OciusX workflow requirement; do not expand accepted member-context criteria or resume per-sample model tuning.",
+    "active_original_item": "TODO31 conventional OciusX Web API request entry",
+    "next_user_visible_deliverable": "Trace an OciusX Web API URL to its authored controller handler and existing source evidence.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10090,7 +10089,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: release built, single actual answer accepted 4/4, installed public checks passed, runtime deployed. Full original goal remains active.",
+    "previous_goal_turn_classification": "PROGRESS: implemented conventional OciusX VB Web API route-to-controller tracing; all22 native request-trace checks pass; committed source; exact release session81193 running. Public and actual acceptance remain required.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
