@@ -40,56 +40,29 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "RESUMING_CURRENT_TASK_CHECK_AFTER_DEPLOYMENT",
-    "finding": "EG24 current-producer quality command",
-    "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
-    "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
+    "status": "SELECTED_IMPLEMENTATION",
+    "finding": "EG01 scoped authored guidance in QA test planning",
+    "original_requirement": "Make existing agent context workflows instruction-aware, preserving applicable complete guidance, qualifications, scope and evidence identity.",
+    "observed_missing_behavior": "Current derive_test_matrix returns inferred business rules/configured axes but no project_policy_sources. Real OciusX diagnosis capture has no source-verified cases and omits the authored guide entirely. This does not establish that adding guidance would change the failed model answer.",
     "implementation_files": [
-      "eval/frozen_task_run.py",
-      "eval/frozen_task_check.py",
-      "eval/test_frozen_task_check.py",
-      "eval/README.md"
+      "crates/engram_server/src/handlers/settings_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/matrix_policy_tests.rs"
     ],
-    "behavior": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
+    "behavior": "Reuse the existing repository policy resolver for requested QA paths; render complete scoped authored guidance separately from inferred cases. Withhold current guidance for knowledge_before requests; preserve explicit oversized/unresolved omissions.",
     "acceptance": [
-      "Fresh output directory required; never reuse old responses or judgments.",
-      "Public command returns nonzero for capture/execution failures or failed assisted quality criteria; no success artifact on interrupted stages.",
-      "Passing current output retains binary/manifest identity, four task metrics and explicit limits; existing saved-run check semantics remain.",
-      "Execute once against the current installed Engram and existing OciusX recipe; retain failures as results, not reasons for another model-tuning loop."
+      "Public test matrix includes exact applicable root/topic guidance and exceptions even without inferred rule cases; unrelated topic excluded.",
+      "Changing the instruction updates returned content/hash; oversized complete guidance is explicitly omitted with recovery instructions, never partially presented as policy.",
+      "Historical request withholds live guidance and discloses historical unavailability.",
+      "Existing selected matrix behavior remains; candidate and installed public call on OciusX returns the current applicable guidance. No model benchmark replay."
     ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "resource_retention": "Reuse existing checkout/build target. New fixtures owned under current-task-check/matrix-policy; close handles before teardown. Retain evidence; no preexisting deletion.",
     "limits": [
-      "Hosted private CI remains unavailable; this does not provision runners or enable GitHub Actions.",
-      "Known inspected regression cases; not a fresh holdout or demonstrated implementation/QA productivity benefit."
-    ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
-    "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
-    "progress": "eval/ociusx-current-task-check-progress-20261113.json",
-    "live_outcome": "eval/ociusx-current-task-check-outcome-20261113.json",
-    "latency_blocker_fix": {
-      "status": "PUSHED_DEPLOYED_INSTALLED_LATENCY_AND_POLICY_VERIFIED_COMPARISON_PARTIAL",
-      "original_requirement": "Complete current installed OciusX task verification without repeated whole-project retrieval work.",
-      "observed_missing_behavior": "One change-set calls up to ten concept footprints, each scanning the same whole graph, then separately obtains its cached graph snapshot. Failed real request concept stage87241ms, cochange47668ms, total RPC264324ms. Diagnostic concept22732ms, total RPC85128ms; variability alone is not a fix.",
-      "implementation_files": [
-        "crates/engram_server/src/handlers/planning_tools.rs"
-      ],
-      "behavior": "Load the existing generation-keyed node snapshot before concept footprints and share it with those footprints and existing downstream stages. Standalone footprint behavior unchanged; failed reads must not be cached as empty evidence.",
-      "acceptance": [
-        "Existing concept footprint and change-set behavior suites preserve independently expected source paths, ranking and coverage.",
-        "A real installed original request preserves source evidence and completes within the unchanged180-second capture deadline. Record actual timing; do not infer guaranteed latency.",
-        "Resume the original four-task current check; preserve all failed outcomes and do not expand tasks or tune judgments."
-      ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
-      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "resource_retention": "Reuse existing checkout/shared target. Owned test temp beneath this case is removed after handles close; retain receipts and failed capture. No preexisting deletion.",
-      "limits": [
-        "Does not fix every slow retrieval stage or establish productivity gain.",
-        "Existing current collector passes returned bounded responses to candidates; recovery behavior must remain explicit rather than being mistaken for full evidence."
-      ],
-      "source_commit": "db351c87a4004e5bbc31fed8ac0a336fa3e570b1",
-      "progress": "eval/ociusx-change-set-shared-read-progress-20261113.json",
-      "delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
-    },
-    "latency_blocker_delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
+      "Authored guidance delivery is not semantic enforcement, executed QA or proven productivity.",
+      "No changes to OciusX source, rules, configured model or sidecar."
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -197,5 +170,57 @@
   "review_scope_progress": "eval/ociusx-review-scope-progress-20261113.json",
   "review_scope_delivery": "eval/ociusx-review-scope-delivery-20261113.json",
   "current_task_check_progress": "eval/ociusx-current-task-check-progress-20261113.json",
-  "current_task_check_outcome": "eval/ociusx-current-task-check-outcome-20261113.json"
+  "current_task_check_outcome": "eval/ociusx-current-task-check-outcome-20261113.json",
+  "retained_current_task_check_delivery": {
+    "status": "COMMAND_DELIVERED_CURRENT_QUALITY_FAILED",
+    "finding": "EG24 current-producer quality command",
+    "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
+    "observed_missing_behavior": "The available check command validates only saved judgments. Current capture, run preparation, model execution and quality gating require separate manual commands, so checking an old green corpus can be mistaken for current-build verification.",
+    "implementation_files": [
+      "eval/frozen_task_run.py",
+      "eval/frozen_task_check.py",
+      "eval/test_frozen_task_check.py",
+      "eval/README.md"
+    ],
+    "behavior": "One check-current command performs fresh capture, existing isolated candidate/judge execution and quality gating, preserving stage failures and pinned build evidence. Reuse the existing four tasks and current collector; no new evaluation platform, benchmark expansion or runner provisioning.",
+    "acceptance": [
+      "Fresh output directory required; never reuse old responses or judgments.",
+      "Public command returns nonzero for capture/execution failures or failed assisted quality criteria; no success artifact on interrupted stages.",
+      "Passing current output retains binary/manifest identity, four task metrics and explicit limits; existing saved-run check semantics remain.",
+      "Execute once against the current installed Engram and existing OciusX recipe; retain failures as results, not reasons for another model-tuning loop."
+    ],
+    "limits": [
+      "Hosted private CI remains unavailable; this does not provision runners or enable GitHub Actions.",
+      "Known inspected regression cases; not a fresh holdout or demonstrated implementation/QA productivity benefit."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "resource_retention": "All new test resources and live run evidence under this directory. Tests own and remove temporary fixtures; retain completed or failed private evaluation artifacts.",
+    "progress": "eval/ociusx-current-task-check-progress-20261113.json",
+    "live_outcome": "eval/ociusx-current-task-check-outcome-20261113.json",
+    "latency_blocker_fix": {
+      "status": "PUSHED_DEPLOYED_INSTALLED_LATENCY_AND_POLICY_VERIFIED_COMPARISON_PARTIAL",
+      "original_requirement": "Complete current installed OciusX task verification without repeated whole-project retrieval work.",
+      "observed_missing_behavior": "One change-set calls up to ten concept footprints, each scanning the same whole graph, then separately obtains its cached graph snapshot. Failed real request concept stage87241ms, cochange47668ms, total RPC264324ms. Diagnostic concept22732ms, total RPC85128ms; variability alone is not a fix.",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/planning_tools.rs"
+      ],
+      "behavior": "Load the existing generation-keyed node snapshot before concept footprints and share it with those footprints and existing downstream stages. Standalone footprint behavior unchanged; failed reads must not be cached as empty evidence.",
+      "acceptance": [
+        "Existing concept footprint and change-set behavior suites preserve independently expected source paths, ranking and coverage.",
+        "A real installed original request preserves source evidence and completes within the unchanged180-second capture deadline. Record actual timing; do not infer guaranteed latency.",
+        "Resume the original four-task current check; preserve all failed outcomes and do not expand tasks or tune judgments."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "resource_retention": "Reuse existing checkout/shared target. Owned test temp beneath this case is removed after handles close; retain receipts and failed capture. No preexisting deletion.",
+      "limits": [
+        "Does not fix every slow retrieval stage or establish productivity gain.",
+        "Existing current collector passes returned bounded responses to candidates; recovery behavior must remain explicit rather than being mistaken for full evidence."
+      ],
+      "source_commit": "db351c87a4004e5bbc31fed8ac0a336fa3e570b1",
+      "progress": "eval/ociusx-change-set-shared-read-progress-20261113.json",
+      "delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
+    },
+    "latency_blocker_delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
+  }
 }

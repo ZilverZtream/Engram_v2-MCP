@@ -1,6 +1,6 @@
 {
-  "status": "COMMAND_IMPLEMENTED_PUSHED_PROTOCOL_VALIDATED_LIVE_CAPTURE_FAILED",
-  "at_utc": "2026-11-13T08:49:43.957523+00:00",
+  "status": "COMMAND_IMPLEMENTED_VALIDATED_CURRENT_RUN_COMPLETED_QUALITY_FAILED",
+  "at_utc": "2026-11-13T10:11:35.872379+00:00",
   "source_commit": "9076e02",
   "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
   "command": "python -B eval/frozen_task_run.py check-current <recipe> <new-check> --pins <pins.json> --codex-executable <native-codex>",
@@ -9,72 +9,140 @@
     "Fresh output directory required; old responses/judgments cannot satisfy this command. Build identity is checked again after evaluation.",
     "Capture/execution/quality stages and failures are retained without automatic retries or answer repair."
   ],
+  "initial_capture_failure": {
+    "status": "COMMAND_IMPLEMENTED_PUSHED_PROTOCOL_VALIDATED_LIVE_CAPTURE_FAILED",
+    "at_utc": "2026-11-13T08:49:43.957523+00:00",
+    "source_commit": "9076e02",
+    "original_requirement": "Run original accepted OciusX tasks in regular verification with fresh producer output and fail on unmet criteria or false guidance.",
+    "command": "python -B eval/frozen_task_run.py check-current <recipe> <new-check> --pins <pins.json> --codex-executable <native-codex>",
+    "implemented": [
+      "One command captures current producer output, prepares fresh candidate inputs, executes the existing model protocol, and propagates the quality-gate exit status.",
+      "Fresh output directory required; old responses/judgments cannot satisfy this command. Build identity is checked again after evaluation.",
+      "Capture/execution/quality stages and failures are retained without automatic retries or answer repair."
+    ],
+    "validation": {
+      "protocol_tests": 42,
+      "protocol_log": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\protocol-tests.log",
+        "sha256": "ae9005c424c8ecc320340f864c9c5c6543585249a9525598cd129a33cbaafc28"
+      },
+      "actual_cli_exit_code": 1,
+      "actual_failed_stage": "capture",
+      "models_started": 0,
+      "actual_run": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1\\current-check.json",
+        "sha256": "6288cf501bf415e281977f7bd32b763625a2eea3d3f9744a66a0c3cad7bc3065"
+      },
+      "process": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live-process.json",
+        "sha256": "60c277d943ac6a7f5329d0dd7fbf8ecf0024f3ade245c72dcd31c311acc46772"
+      },
+      "current_pins": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pins.json",
+        "sha256": "8c85375fc1c688a0ef50ec91ade05ac0a453e63eeddbddf06488ee0e391ddac0"
+      },
+      "tool_request": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1\\capture\\rpc\\004-request.json",
+        "sha256": "fff2e964654bd7662699ea3a9dea7024d8722f72d592d4693dbac26da4e0f732"
+      },
+      "server_trace": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace.log",
+        "sha256": "ceabd3d39762fa18696b08ad8c70de2ef46a45e79da1ca8812b5d9d6bba99449"
+      }
+    },
+    "prerequisite_refresh": {
+      "job_id": "af1c72b0-9a2e-46ac-8bc7-1afbc6f4b02d",
+      "status": "done",
+      "old_generation": 3148,
+      "new_generation": 3149,
+      "files_reextracted": 1016,
+      "source_index_format": "current (version 9)",
+      "generation_complete": "2301 of2301 eligible paths present in every store",
+      "selected_source_hashes_verified": 21,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh\\state.json",
+        "sha256": "40535cf1f8b194637cfa90e7c9260b4226bd7ec2adc682438543fb144c1839dd"
+      }
+    },
+    "demonstrated_failure": {
+      "tool": "get_change_set",
+      "collector_deadline_seconds": 180,
+      "server_reported_ms": 264324,
+      "response_bytes": 8749,
+      "diagnosis": "First real scope-task request exceeded the existing deadline. Server eventually completed after264.324s. Trace contains slow vector scans; their share of total latency and exact retrieval stage are not yet established.",
+      "next_action": "Resolve this concrete current-capture blocker using existing get_change_set coverage/timing and the same original request. Do not increase the deadline, remove required evidence, create another benchmark, or expand into kernel/SSD investigation."
+    },
+    "limits": [
+      "Full current model evaluation did not run; no task-quality or productivity gain established.",
+      "Hosted private CI remains unconfigured; existing CI discovers protocol tests only. EG24/25 remain unfinished.",
+      "Known inspected cases, not a fresh holdout. Source checks cover the21recipe files, not disk-wide freshness.",
+      "CodeRabbit host authentication unavailable; scoped parent review only."
+    ],
+    "resources": {
+      "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+      "protocol_fixtures_removed": true,
+      "refresh_observer_closed": true,
+      "capture_pipe_closed": true,
+      "models_started": 0,
+      "retained_failed_run": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1",
+      "normal_daemon": "Started through normal configured client dispatch; remains under ordinary idle lifecycle. No configuration or OciusX source edits.",
+      "cleanup": "Retain failed capture, requests, trace and refresh evidence. No preexisting directories deleted."
+    }
+  },
+  "current_run": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live2\\current-check.json",
+    "sha256": "ef04f9b9f3682f2a6fd822acb8c52ac4ccf8cbbdfff04f03ddf240bc8e8deeab"
+  },
+  "process": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live2-process.json",
+    "sha256": "3592190f633c050d77e142b442fe1bba719984546e157b0744baed60a72bd90a"
+  },
+  "judgments": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live2\\run\\judgments.json",
+    "sha256": "9de6f4407ea634578e7151883b86aee75b89f52cc94fb69c2deff763cec579fa"
+  },
   "validation": {
     "protocol_tests": 42,
-    "protocol_log": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\protocol-tests.log",
-      "sha256": "ae9005c424c8ecc320340f864c9c5c6543585249a9525598cd129a33cbaafc28"
-    },
+    "capture_cases": 4,
+    "completed_candidates": 8,
     "actual_cli_exit_code": 1,
-    "actual_failed_stage": "capture",
-    "models_started": 0,
-    "actual_run": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1\\current-check.json",
-      "sha256": "6288cf501bf415e281977f7bd32b763625a2eea3d3f9744a66a0c3cad7bc3065"
-    },
-    "process": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live-process.json",
-      "sha256": "60c277d943ac6a7f5329d0dd7fbf8ecf0024f3ade245c72dcd31c311acc46772"
-    },
-    "current_pins": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pins.json",
-      "sha256": "8c85375fc1c688a0ef50ec91ade05ac0a453e63eeddbddf06488ee0e391ddac0"
-    },
-    "tool_request": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1\\capture\\rpc\\004-request.json",
-      "sha256": "fff2e964654bd7662699ea3a9dea7024d8722f72d592d4693dbac26da4e0f732"
-    },
-    "server_trace": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace.log",
-      "sha256": "ceabd3d39762fa18696b08ad8c70de2ef46a45e79da1ca8812b5d9d6bba99449"
+    "assisted_satisfied": 19,
+    "baseline_satisfied": 20,
+    "criteria_per_arm": 20,
+    "false_guidance_both_arms": 0,
+    "failed_case": "diagnosis",
+    "failed_criterion": "bounded_verification",
+    "reason": "Assisted answer omitted explicit verification of corrected displayed style; no false guidance.",
+    "producer_identity": {
+      "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "binary_sha256": "3c4e580961e9664542d4257c1541fa4f1a480a8a175aa5176c8b98d46e7e43f0",
+      "build_manifest": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "build_manifest_sha256": "294c84f2b2c6d685c9f602356cfdffc7532f46e6f796c269354cd33dd0fa09ad",
+      "primary_metadata": "C:\\Users\\Dennis\\AppData\\Local\\engram\\data\\.engram.primary",
+      "primary_pid": 43380,
+      "primary_started_at_ms": 1794563787021,
+      "source_root": "C:\\Users\\Dennis\\source\\repos\\OciusX",
+      "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+      "active_generation": 3149
     }
-  },
-  "prerequisite_refresh": {
-    "job_id": "af1c72b0-9a2e-46ac-8bc7-1afbc6f4b02d",
-    "status": "done",
-    "old_generation": 3148,
-    "new_generation": 3149,
-    "files_reextracted": 1016,
-    "source_index_format": "current (version 9)",
-    "generation_complete": "2301 of2301 eligible paths present in every store",
-    "selected_source_hashes_verified": 21,
-    "receipt": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-refresh\\state.json",
-      "sha256": "40535cf1f8b194637cfa90e7c9260b4226bd7ec2adc682438543fb144c1839dd"
-    }
-  },
-  "demonstrated_failure": {
-    "tool": "get_change_set",
-    "collector_deadline_seconds": 180,
-    "server_reported_ms": 264324,
-    "response_bytes": 8749,
-    "diagnosis": "First real scope-task request exceeded the existing deadline. Server eventually completed after264.324s. Trace contains slow vector scans; their share of total latency and exact retrieval stage are not yet established.",
-    "next_action": "Resolve this concrete current-capture blocker using existing get_change_set coverage/timing and the same original request. Do not increase the deadline, remove required evidence, create another benchmark, or expand into kernel/SSD investigation."
   },
   "limits": [
-    "Full current model evaluation did not run; no task-quality or productivity gain established.",
-    "Hosted private CI remains unconfigured; existing CI discovers protocol tests only. EG24/25 remain unfinished.",
-    "Known inspected cases, not a fresh holdout. Source checks cover the21recipe files, not disk-wide freshness.",
-    "CodeRabbit host authentication unavailable; scoped parent review only."
+    "Known inspected cases, not a fresh holdout or demonstrated productivity advantage.",
+    "Command end-to-end execution and failure reporting verified; assisted quality gate failed. EG24/25 remain open.",
+    "No rerun, model tuning or relaxed criterion. Hosted private CI remains unavailable."
   ],
   "resources": {
     "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
     "protocol_fixtures_removed": true,
     "refresh_observer_closed": true,
     "capture_pipe_closed": true,
-    "models_started": 0,
+    "models_started": 8,
     "retained_failed_run": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live1",
     "normal_daemon": "Started through normal configured client dispatch; remains under ordinary idle lifecycle. No configuration or OciusX source edits.",
-    "cleanup": "Retain failed capture, requests, trace and refresh evidence. No preexisting directories deleted."
+    "cleanup": "Retain failed capture, requests, trace and refresh evidence. No preexisting directories deleted.",
+    "model_execution": "complete",
+    "retained_current_run": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\live2",
+    "retained_empty_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\installed1\\owned-9iof6bck",
+    "cleanup_rejection": "Prior automatic approval review: blocked by policy. No retry."
   }
 }
