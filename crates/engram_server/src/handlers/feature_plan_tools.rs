@@ -44,17 +44,20 @@ fn initial_source_paths(paths: &[String]) -> Vec<String> {
 fn registered_components(
     directory: &Path,
     host: &SourceEvidence,
+    normalized_host_hash: &str,
 ) -> super::page_composition::Composition {
     let page = directory.join(&host.file_path);
     let app = super::access_layer_tools::discover_web_application_root(directory, &page);
     let mut composition = super::page_composition::collect(directory, &app, &page, false, true);
     // Discovery reads the host again. A changed host cannot supply new leads
-    // under its previously admitted fingerprint. Components are still only
-    // leads until they independently pass selected-revision/hash admission.
+    // under its previously admitted content fingerprint. Composition uses
+    // ContentHash's normalized line endings; SourceEvidence uses raw bytes.
+    // Compare the same hash convention here, retaining raw-byte admission and
+    // final freshness checks for every host and component.
     if !composition
         .files
         .iter()
-        .any(|f| f.path == host.file_path && f.source_hash == host.source_hash)
+        .any(|f| f.path == host.file_path && f.source_hash == normalized_host_hash)
     {
         composition.files.clear();
         composition
@@ -96,7 +99,7 @@ mod feature_plan_composition_tests {
         let root = temp.path();
         std::fs::write(root.join("web.config"), "<configuration />").unwrap();
         std::fs::create_dir(root.join("widgets")).unwrap();
-        let markup = "<%@ Page Language='VB' %><%@ Register Src='~/widgets/Threshold.ascx' TagName='Threshold' TagPrefix='u' %><u:Threshold runat='server' />";
+        let markup = "<%@ Page Language='VB' %>\r\n<%@ Register Src='~/widgets/Threshold.ascx' TagName='Threshold' TagPrefix='u' %>\r\n<u:Threshold runat='server' />\r\n";
         std::fs::write(root.join("Settings.aspx"), markup).unwrap();
         std::fs::write(root.join("widgets/Threshold.ascx"), "<%@ Control Language='VB' CodeFile='Threshold.ascx.vb' %><asp:TextBox ID='RequiredCount' runat='server' />").unwrap();
         std::fs::write(
@@ -113,7 +116,9 @@ mod feature_plan_composition_tests {
             excerpt: markup.into(),
             methods: vec![],
         };
-        let found = registered_components(root, &host);
+        let normalized_hash = engram_core::ContentHash::compute(markup.as_bytes()).0;
+        assert_ne!(normalized_hash, host.source_hash);
+        let found = registered_components(root, &host, &normalized_hash);
         assert!(
             found
                 .files
@@ -127,7 +132,7 @@ mod feature_plan_composition_tests {
                 .any(|f| f.path == "widgets/Threshold.ascx.vb" && f.kind == "codebehind")
         );
         std::fs::write(root.join("Settings.aspx"), format!("{markup}\nchanged")).unwrap();
-        let stale = registered_components(root, &host);
+        let stale = registered_components(root, &host, &normalized_hash);
         assert!(stale.files.is_empty());
         assert!(!stale.warnings.is_empty());
     }
@@ -266,7 +271,7 @@ impl Engram {
         let mut output = json!({
             "status": "INCOMPLETE", "project_id": req.project_id,
             "detail_level": req.detail_level, "plan": null,
-            "provenance": {"model": identity, "prompt_version":"feature-plan-v5", "provider_calls":0,
+            "provenance": {"model": identity, "prompt_version":"feature-plan-v6", "provider_calls":0,
                 "provider_calls_semantics":"Generation requests; transport retries follow the configured provider policy"},
             "limits": [
                 "Model-generated requirements, edits, DDL and templates are proposals; source anchors do not verify their meaning.",
@@ -412,7 +417,7 @@ impl Engram {
             let mut queue = VecDeque::from(source_paths);
             let mut bytes = 0;
             while let Some(path) = queue.pop_front() {
-                let admitted = (|| -> anyhow::Result<SourceEvidence> {
+                let admitted = (|| -> anyhow::Result<(SourceEvidence, String)> {
                     let revision = selected.get(path.as_str()).ok_or_else(|| anyhow::anyhow!("not_selected"))?;
                     let mut source = String::new();
                     engram_core::safe_open_read(Path::new(&directory), &path)?.take(plan::MAX_SOURCE_BYTES as u64 + 1).read_to_string(&mut source)?;
@@ -428,13 +433,14 @@ impl Engram {
                         .into_iter().filter(|n| n.file_path.as_str().replace('\\', "/") == path && n.generation == *revision && n.start_line >= start && n.start_line <= end)
                         .map(|n| MethodTarget {method_name:n.name.rsplit('.').next().unwrap_or(&n.name).to_owned(), line:n.start_line}).collect();
                     bytes += excerpt.len();
-                    Ok(SourceEvidence {id:format!("E{}", evidence.len()+1), file_path:path.clone(), source_hash:hash, start_line:start, end_line:end, excerpt, methods})
+                    let normalized_hash = engram_core::ContentHash::compute(source.as_bytes()).0;
+                    Ok((SourceEvidence {id:format!("E{}", evidence.len()+1), file_path:path.clone(), source_hash:hash, start_line:start, end_line:end, excerpt, methods}, normalized_hash))
                 })();
                 match admitted {
-                    Ok(row) => {
+                    Ok((row, normalized_hash)) => {
                         if is_webforms_markup(&path) {
                             if composition.len() < MAX_COMPOSITION_HOSTS {
-                                let mut found = registered_components(Path::new(&directory), &row);
+                                let mut found = registered_components(Path::new(&directory), &row, &normalized_hash);
                                 let mut omitted = Vec::new();
                                 for component in &found.files {
                                     if plan::relative_file(&component.path) && !queued.contains(&component.path) {
