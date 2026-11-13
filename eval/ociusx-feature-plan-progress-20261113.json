@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Within one_shot_feature_plan only, retain bounded source evidence for explicitly registered WebForms controls/code-behind of selected hosts using existing composition support. Add one public case where a relevant registered control falls outside the initial candidate prefix. Preserve source admission/freshness, explicit overflow and unchanged get_change_set ranking. Then verify the same actual story; no new pilot or language expansion.",
+  "next": "Finish release4, optimized candidate/installed verification and one actual OciusX request. Compare with retained source facts before claiming usable planning delivery.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -137,5 +137,18 @@
       "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
       "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
     }
+  },
+  "composition_correction": {
+    "status": "COMPONENT_EVIDENCE_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "131ca234db606b53e9713f631143624e55805428",
+    "main_merge_commit": "7312dfd4f27aaf41c36bdd177820ee001418a7d8",
+    "native_checks": 11,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native5.json",
+    "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public4\\acceptance.json",
+    "deployed": false,
+    "actual_v4_request_sent": false,
+    "behavior": "Retain initial12 ranked source leads, then bounded registered WebForms controls/code-behind discovered from admitted hosts. Max4 hosts/24 evidence files and existing192KiB aggregate cap. Every extra source independently passes selected-revision/hash admission and post-generation freshness; edit-file limit remains12. Existing composition reader reused; change-set ranking unchanged.",
+    "public_behavior": "A registered control and code-behind outside the initial12 candidates are present in the model source bundle. Mutating the control code-behind during generation withholds the plan. Existing three detail modes, schema/step/safety checks and failure checks pass.",
+    "review": "Parent manual review of source ownership, component discovery, source admission, aggregate bounds, omission reporting and post-generation checks. Retained CodeRabbit authentication unavailable; no external review claimed."
   }
 }

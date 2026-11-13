@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
+      "status": "COMPONENT_EVIDENCE_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10003,7 +10003,7 @@
       ],
       "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
       "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
-      "prior_turn_classification": "PROGRESS: v3 release built/deployed; candidate/installed passed. Single actual request proved intent fix and exposed omitted registered-control evidence, changing the next implementation action.",
+      "prior_turn_classification": "PROGRESS: implemented bounded registered-control evidence;11 native and public checks pass; committed/pushed source131ca23. Real acceptance remains unfinished.",
       "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
       "progress": "eval/ociusx-feature-plan-progress-20261113.json",
       "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
@@ -10093,6 +10093,19 @@
           "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
           "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
         }
+      },
+      "composition_correction": {
+        "status": "COMPONENT_EVIDENCE_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "source_commit": "131ca234db606b53e9713f631143624e55805428",
+        "main_merge_commit": "7312dfd4f27aaf41c36bdd177820ee001418a7d8",
+        "native_checks": 11,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native5.json",
+        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public4\\acceptance.json",
+        "deployed": false,
+        "actual_v4_request_sent": false,
+        "behavior": "Retain initial12 ranked source leads, then bounded registered WebForms controls/code-behind discovered from admitted hosts. Max4 hosts/24 evidence files and existing192KiB aggregate cap. Every extra source independently passes selected-revision/hash admission and post-generation freshness; edit-file limit remains12. Existing composition reader reused; change-set ranking unchanged.",
+        "public_behavior": "A registered control and code-behind outside the initial12 candidates are present in the model source bundle. Mutating the control code-behind during generation withholds the plan. Existing three detail modes, schema/step/safety checks and failure checks pass.",
+        "review": "Parent manual review of source ownership, component discovery, source admission, aggregate bounds, omission reporting and post-generation checks. Retained CodeRabbit authentication unavailable; no external review claimed."
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
