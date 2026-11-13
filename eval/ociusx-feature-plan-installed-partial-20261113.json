@@ -1,0 +1,107 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED_SEMANTIC_ACCEPTANCE_FAILED",
+  "finding": "TODO32 / spec42-1",
+  "delivery_complete": false,
+  "source_commit": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
+  "main_source_merge": "0d92fe9e08c1fc396d4422f198bf44fc796fe8a6",
+  "progress_commit": "cd1bbc2",
+  "documentation_commit": "d2f2862",
+  "runtime": {
+    "server_sha256": "17eea25621fd1778b4cb299eefd21b89edc9ca95bb4b6751aba3d1f481210c5d",
+    "manifest_sha256": "1df76c0f62b77a68c56fab3b21c34b72e90de54a4328ce03bd7687864b2763bd",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "native_checks": 13,
+    "debug_public_cases": 12,
+    "candidate_public_cases": 12,
+    "installed_public_cases": 12,
+    "disabled_provider_checked": true,
+    "original_full19gates_closed": false
+  },
+  "actual": {
+    "status": "STRUCTURAL_SOURCE_CHECKS_PASS_SEMANTIC_REVIEW_PENDING",
+    "semantic_status": "FAIL_NOT_ACCEPTED_AS_COMPLETED_FEATURE",
+    "seconds": 120.26710430008825,
+    "generation": 3148,
+    "source_excerpts": 16,
+    "provider_calls": 2,
+    "already_present": 3,
+    "unresolved": 1,
+    "planned_edits": 0,
+    "application_files_changed": false
+  },
+  "semantic_review": {
+    "status": "FAIL_NOT_ACCEPTED_AS_COMPLETED_FEATURE",
+    "reviewer": "Parent source review; not an independent agent or runtime application QA",
+    "positive": "The installed request returned a structurally valid draft in one attempt, cited existing per-group UI/save/validation and completion-related behavior, proposed no files or DDL, and left authorization unresolved.",
+    "findings": [
+      {
+        "id": "FP-SEM-01",
+        "issue": "R1 partially conflates photo-slot capacity with required minimum by presenting ddlNoOfPhotos as required-count configuration.",
+        "evidence": [
+          {
+            "file_path": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx.vb",
+            "line": 170,
+            "text": "            ddlNoOfPhotos.SelectedValue = data.io_no_of_images_per_group",
+            "raw_blake3": "75983244ae9468118de8f4a32ea294fe95783f98da11434330563c5bfc2de075"
+          },
+          {
+            "file_path": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx",
+            "line": 27,
+            "text": "                                                        <asp:TextBox CssClass=\"form-control\" ID=\"imgRequiredCount\" Text='<%# Eval(\"RequiredImageCount\") %>' runat=\"server\" TextMode=\"Number\" min=\"0\" oninput=\"ClampImageRequiredCount(this)\"></asp:TextBox>",
+            "raw_blake3": "0b00ed3c01351e962a792626d6a0942637b6a876636aa4da4f64c19a6785e3a6"
+          },
+          {
+            "file_path": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx.vb",
+            "line": 79,
+            "text": "                Return markerType.io_no_of_images_per_group",
+            "raw_blake3": "229c5687d5f2a0c9bfe264a304aa58745404cace04bda6e4f662a23f04060109"
+          },
+          {
+            "file_path": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx.vb",
+            "line": 102,
+            "text": "                requiredCount = Math.Min(parsedCount, maxPerGroup)",
+            "raw_blake3": "229c5687d5f2a0c9bfe264a304aa58745404cace04bda6e4f662a23f04060109"
+          }
+        ]
+      },
+      {
+        "id": "FP-SEM-02",
+        "issue": "R3 describes a requested broader global setting, although the original request does not specify global scope. Several preconditions and acceptance criteria consequently assume an unrequested extension.",
+        "request": "As an admin I would like to set minimum number of photos required",
+        "proposal_excerpt": "The existing implementation persists photo-group required counts through ImageGroupLabelText.CreateAll and resolves them through PhotoRequirementValidator.ResolveRequirementsByType; marker-level and checklist-item photo file types are then evaluated. This confirms persisted, reusable per-group configuration, but not the requested broader global setting."
+      }
+    ],
+    "decision": "Keep TODO32 unfinished. Preserve the deployed draft-only implementation and all failed evidence. Do not start another per-sample prompt/release cycle; advance the next original ready item. Revisit with these semantic failures as acceptance requirements, not by loosening validation or declaring the current draft complete."
+  },
+  "evidence": {
+    "implementation7.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\implementation7.json",
+    "native9.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native9.json",
+    "release7.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\release7.json",
+    "pair7.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\pair7.json",
+    "candidate7/acceptance.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\candidate7\\acceptance.json",
+    "installed7/acceptance.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\installed7\\acceptance.json",
+    "normal7/acceptance.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal7\\acceptance.json",
+    "normal7/plan.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal7\\plan.json",
+    "normal7/semantic-review.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal7\\semantic-review.json",
+    "assembly-correction-review.json": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\assembly-correction-review.json"
+  },
+  "remaining": [
+    "Correct source/property interpretation and avoid unrequested scope expansion on actual OciusX cases.",
+    "Full original TODO32 target-stack requirements remain unfinished; other-language expansion is parked under the OciusX scope correction.",
+    "No runtime application QA, productivity improvement or full backlog completion is established."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+    "owned_build_and_test_temps_removed": true,
+    "config_hold_released": true,
+    "actual_pipe_closed": true,
+    "installed_daemon": "PID62012 was last observed live on the installed executable; normal runtime, may exit naturally after idle.",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-cfd77a9a161b4482bc252797e389c8ee",
+    "retention": "Packages, receipts and failed proposals retained for delivery review and rollback; no preexisting directories removed."
+  }
+}

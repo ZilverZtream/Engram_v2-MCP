@@ -9976,333 +9976,24 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
-      "at_utc": "2026-11-12T23:42:07.203485+00:00",
-      "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
-      "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
-      "selected_behavior": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
-      "source_baseline": "32c2935bb135ad415b7778180cf7e82627c85469",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
-      "implementation_files": [
-        "crates/engram_server/src/capabilities.rs",
-        "crates/engram_server/src/handlers/feature_plan_tools.rs",
-        "crates/engram_server/src/handlers/mod.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/services/feature_plan.rs",
-        "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/feature_plan_tests.rs"
-      ],
+      "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+      "finding": "TODO34 remaining next-tool hints",
+      "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
+      "observed_missing_behavior": "query_schema, detect_n_plus_one and find_missing_indexes return source-cited evidence and pagination but no standardized next_tools guidance to the relevant follow-up tools. Source inspection found standardized next_tools only in search handlers; inventory the remaining canonical specialty surface once to complete this original item.",
+      "behavior": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
       "finite_acceptance": [
-        "One public request returns structured requirements covering UI/database/procedures/state/auth/AJAX, source-grounded patterns, proposed new/modified files, schema/DDL proposals where required, ordered implementation steps, risks, preconditions and acceptance criteria. ReadyToCode includes file/action/description/template/validation. Inference remains a draft, never execution proof.",
-        "Reuse existing candidate, pattern, schema and edit-safety services. Verify source membership, physical revision and hashes before supplying excerpts; evidence references must resolve to supplied lines. Every proposed modified file carries applicable per-method safety or an explicit unavailable/not-applicable result.",
-        "Reject unsafe paths, unknown existing files, invented source citations, inconsistent step/file/requirement references and incomplete model contracts. Bound input, evidence, output and provider requests; preserve omissions and recovery details. Unavailable/malformed provider and stale source yield explicit incomplete results, never fabricated ready plans.",
-        "Owned native and public fixtures prove a VB/WebForms/SQL feature plan, detail levels, schema proposal, cited patterns, safety integration, source staleness, bad model references, provider failure and unchanged project files. Verify candidate and installed public behavior plus one actual read-only OciusX planning case against source.",
-        "Commit and push only origin/master, deploy matched runtime, retain receipts and close all owned fixtures. Preserve broader TODO32 target-stack requirements as unfinished if unsupported; do not claim all backlog or productivity improvement."
+        "Pin the remaining canonical tool inventory from the current source; preserve already-complete hot paths and the explicit CodeMap/Blast closure. Do not claim completion from only three example handlers.",
+        "Nonterminal specialty results expose applicable canonical next_tools, or an explicit no-follow-up/coverage reason when none can be justified; errors and empty/unavailable results retain truthful recovery behavior.",
+        "Hints do not invent source identities, arguments or tool availability, do not execute follow-up actions, and remain inside existing complete-response budgets.",
+        "Verify public OciusX-relevant navigation from SQL schema and repeated-query/index findings to appropriate source/schema/edit checks, including empty, stale, unsupported and small-budget outcomes.",
+        "Preserve existing outputs, source freshness, paging and exact recovery; commit/push origin/master, verify candidate and installed public behavior, record coverage and remaining exceptions."
       ],
-      "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
-      "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
-      "prior_turn_classification": "PROGRESS: v5 deployed; actual request exposed raw/normalized hash regression. Fixed only comparison,13 native and CRLF public checks passed, source26706ee pushed. Actual feature-planning delivery remains unfinished.",
-      "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
-      "progress": "eval/ociusx-feature-plan-progress-20261113.json",
-      "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
-      "correction": {
-        "status": "SUPERSEDED_BY_DEPLOYED_V3",
-        "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
-        "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
-        "native_checks": 9,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native3.json",
-        "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public2\\acceptance.json",
-        "behavior": [
-          "Existing story-domain extractor and stems select photo evidence even if model intent proposes administrator/phrase concepts.",
-          "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
-          "Cited already-present requirement claims do not force invented edits; semantic review remains required."
-        ],
-        "deployed": true,
-        "actual_v2_request_sent": true
-      },
-      "actual_v2": {
-        "status": "FAIL_INVALID_INTENT_CONTRACT",
-        "acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\acceptance.json",
-        "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\plan.json",
-        "observed_failure": "Provider used authorization and validation; parser accepted auth and behavior, but prompt did not enumerate allowed areas.",
-        "pipe_closed": true,
-        "config_hold_released": true,
-        "version2_deployed": true
-      },
-      "intent_correction": {
-        "status": "DEPLOYED_INTENT_PASSED_REAL_PLAN_STILL_UNUSABLE",
-        "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
-        "main_merge_commit": "a9bffca07d6c3876fc5bec78473158b636fc6365",
-        "native_checks": 10,
-        "public_calls": 9,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native4.json",
-        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public3\\acceptance.json",
-        "deployed": true,
-        "actual_v3_request_sent": true,
-        "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
-        "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
-      },
-      "actual_v3": {
-        "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
-        "at_utc": "2026-11-13T01:28:13.289665+00:00",
-        "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
-        "installed_server_sha256": "667535db745757517518efb227249720841f501cc2956d54c3a09ad4f3402a3e",
-        "installed_manifest_sha256": "fbcee589553cc09784f2d7e0929777bb1fbbc97f378bbc1e312f053ac2e864b9",
-        "candidate_public": "PASS",
-        "installed_public": "PASS",
-        "actual_request": {
-          "status": "FAIL",
-          "pair_sha256": "8cecaf63f65ffd12e86eed96b0c1e0121ee4083e3dd42c91576622a7a4de11a0",
-          "process_identity": {
-            "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
-            "created_ticks": 134390065902005081
-          },
-          "driver_sha256": "cb47cd32937e47c2b90e2d00ff2ef6cc4e9908fd4a5da2e60bb0974401fb7c79",
-          "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
-          "seconds": 118.09597530006431,
-          "error": "AssertionError()",
-          "pipe_closed": true
-        },
-        "actual_response_status": "DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW",
-        "intent_requirements": 5,
-        "implementation_steps": 0,
-        "all_requirements_unresolved": true,
-        "semantic_acceptance": false,
-        "observed_gap": "The planner takes the first12 file candidates and omits the registered minimum-photo user control and code-behind at candidate ranks31/32. The selected host explicitly registers that control at line6. Existing page_composition::collect already supports bounded registered-control/code-behind discovery. Current evidence includes capacity settings but omits the existing minimum editor; a generic unresolved dossier is not the requested executable plan.",
-        "source_review": {
-          "all_returned_excerpts_match_current_source": true,
-          "baseline_eight_observations_unchanged": true,
-          "registered_control": {
-            "host": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
-            "line": 6,
-            "directive": "<%@ Register TagPrefix=\"uc\" TagName=\"imageGroupLabel\" Src=\"~/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx\" %>",
-            "control": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx",
-            "omitted": true
-          }
-        },
-        "next": "Within one_shot_feature_plan only, retain bounded source evidence for explicitly registered WebForms controls/code-behind of selected hosts using existing composition support. Add one public case where a relevant registered control falls outside the initial candidate prefix. Preserve source admission/freshness, explicit overflow and unchanged get_change_set ranking. Then verify the same actual story; no new pilot or language expansion.",
-        "resources": {
-          "build_job_closed": true,
-          "build_temp_removed": true,
-          "candidate_and_installed_fixtures_removed": true,
-          "config_hold_released": true,
-          "actual_pipe_closed": true,
-          "retained_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
-          "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
-          "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
-        }
-      },
-      "composition_correction": {
-        "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
-        "source_commit": "131ca234db606b53e9713f631143624e55805428",
-        "main_merge_commit": "7312dfd4f27aaf41c36bdd177820ee001418a7d8",
-        "native_checks": 11,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native5.json",
-        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public4\\acceptance.json",
-        "deployed": true,
-        "actual_v4_request_sent": true,
-        "behavior": "Retain initial12 ranked source leads, then bounded registered WebForms controls/code-behind discovered from admitted hosts. Max4 hosts/24 evidence files and existing192KiB aggregate cap. Every extra source independently passes selected-revision/hash admission and post-generation freshness; edit-file limit remains12. Existing composition reader reused; change-set ranking unchanged.",
-        "public_behavior": "A registered control and code-behind outside the initial12 candidates are present in the model source bundle. Mutating the control code-behind during generation withholds the plan. Existing three detail modes, schema/step/safety checks and failure checks pass.",
-        "review": "Parent manual review of source ownership, component discovery, source admission, aggregate bounds, omission reporting and post-generation checks. Retained CodeRabbit authentication unavailable; no external review claimed."
-      },
-      "actual_v4": {
-        "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
-        "at_utc": "2026-11-13T02:04:47.206657+00:00",
-        "source_commit": "131ca234db606b53e9713f631143624e55805428",
-        "installed_server_sha256": "fcd02ae3a067b25c0fae546e47834c698e34c518ca53a22be2066fd9e9067879",
-        "actual_request": {
-          "status": "FAIL",
-          "pair_sha256": "7c78f49d7fb0a932dc5d005ed59c7981cbd54bdd28de475730b589bba1834dd6",
-          "process_identity": {
-            "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
-            "created_ticks": 134390086140767221
-          },
-          "driver_sha256": "56cdee7511a68042b7fd78a414c20d29e1ca903ccd1209f5556edb9d8285fbca",
-          "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
-          "seconds": 137.6917884000577,
-          "error": "AssertionError('invalid_plan_contract_or_source_reference')",
-          "pipe_closed": true
-        },
-        "rejection": {
-          "kind": "structural_or_source_check",
-          "message": "Implementation order must match steps"
-        },
-        "source_evidence_files": 12,
-        "observed_failures": [
-          "Changed candidate ordering excluded every WebForms host from the initial12 evidence files; registered-control discovery therefore had no host to follow.",
-          "Model supplied7 summary phases for13 concrete steps; redundant presentation cardinality caused the first rejection.",
-          "Independent inspection also found an undeclared test-file step. The retained proposal must remain rejected by existing path/coverage validation; canonical summary order alone does not make it valid."
-        ],
-        "retained_input_checks": [
-          {
-            "receipt": "normal3",
-            "prior_host_in_prefix": true,
-            "reserved_host_present": true,
-            "selected_hosts": [
-              "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
-              "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
-              "Site/modules/dashboard/pages/admin/system/import/import.aspx",
-              "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx"
-            ],
-            "selected_file_count": 14,
-            "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
-          },
-          {
-            "receipt": "normal4",
-            "prior_host_in_prefix": false,
-            "reserved_host_present": true,
-            "selected_hosts": [
-              "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
-              "Site/modules/dashboard/pages/admin/system/import/import.aspx",
-              "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
-              "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx"
-            ],
-            "selected_file_count": 16,
-            "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
-          }
-        ],
-        "unplanned_step_paths": [
-          "tests/minimum-photo-requirement.tests.md"
-        ],
-        "correction": "Reserve up to4 WebForms hosts from the existing candidate order in addition to initial12 leads, within the24-source-file/192KiB bounds. Derive implementation_order from validated concrete steps; preserve path, step-number, requirement, reference and validation checks.",
-        "next": "Native6 session4387 is running with source frozen. Then verify public fixture with grouped order summaries and registered-control evidence, commit/push validated source, release/deploy and verify actual OciusX semantics. No ranking change, model replay or language expansion.",
-        "resources": {
-          "actual_pipe_closed": true,
-          "hold_released": true,
-          "candidate_and_installed_fixtures_removed": true,
-          "build_job_closed": true,
-          "build_temp_removed": true,
-          "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
-          "retention": "Retain packages/receipts/rejected proposals for acceptance evidence and rollback. No preexisting directories removed."
-        }
-      },
-      "host_order_correction": {
-        "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
-        "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
-        "main_merge_commit": "119cd0c7eab0692ca3aaa05116a5d038f3d0aa48",
-        "native_checks": 13,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native6.json",
-        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public5\\acceptance.json",
-        "deployed": true,
-        "actual_v5_request_sent": true,
-        "behavior": "Reserve up to4 candidate WebForms hosts in addition to initial12 ranked leads. Existing24-file/192KiB source limits and registered-control freshness remain. Derive implementation_order from validated concrete step descriptions; no independent model-summary cardinality requirement.",
-        "validation": "Native tests cover a non-UI ranked prefix, registered editor/code-behind discovery and changed host, grouped/absent summary order, and retained strict path/step/reference/requirement checks. Public fixture retains three ordered steps despite one model summary, includes an editor beyond initial12 and refuses changed control source.",
-        "retained_actual_response": "Still rejected: normal4 includes an undeclared test-file step. Canonical order alone does not make that proposal valid. No relaxation of planned-path validation.",
-        "review": "Parent manual review; existing CodeRabbit authentication unavailable. No external review claimed."
-      },
-      "actual_v5": {
-        "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
-        "at_utc": "2026-11-13T02:32:05.931646+00:00",
-        "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
-        "installed_server_sha256": "eb4d33fdb3a4e8323cca7bb26b30e1b0530816879151f505195164b2c65975bd",
-        "actual_request": {
-          "status": "FAIL",
-          "pair_sha256": "d5e241e38cfb7faec067cc542742458eb785c9a147ea7cf2fb93cbe10f163553",
-          "process_identity": {
-            "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
-            "created_ticks": 134390101682827699
-          },
-          "driver_sha256": "c17da256e63b86d297f72fe261cc09c972c507f43cd61b5b2e17580c7f04f6b2",
-          "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
-          "seconds": 160.4155150000006,
-          "error": "AssertionError('invalid_plan_contract_or_source_reference')",
-          "pipe_closed": true
-        },
-        "rejection": {
-          "kind": "structural_or_source_check",
-          "message": "Plan exceeds file cap"
-        },
-        "proposed_files": 15,
-        "accepted_file_limit": 12,
-        "observed_gap": "Planner compared raw SourceEvidence hash against page_composition ContentHash, which normalizes CRLF/CR. All4 unchanged selected WebForms hosts were falsely rejected, leaving editor controls absent. This is a regression in the new planner comparison, not a stale OciusX source file.",
-        "hash_checks": [
-          {
-            "file_path": "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
-            "raw_hash": "dc767a5a2845b337ee994f59870ffa7464b3eab3ff7b0849df53a934e7a40338",
-            "normalized_hash": "e4e27007eac3e05ca115ce84afd20f62e75c6dc8c8442398cbd459bb15747790",
-            "unchanged_raw_source": true,
-            "false_changed_host_warning": true
-          },
-          {
-            "file_path": "Site/modules/dashboard/pages/admin/system/import/import.aspx",
-            "raw_hash": "9d9bb6b1270193d06c638c7c3ba7b9368de78f9dbcdb5964d45400e6dcc67e5b",
-            "normalized_hash": "8f19be272b5dd3eab5679f0fc46880ebb1377d012caf95bf26f01a08673e696d",
-            "unchanged_raw_source": true,
-            "false_changed_host_warning": true
-          },
-          {
-            "file_path": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
-            "raw_hash": "05114c5b49958a8265def8a73d38b822413d615dbb46607f8ea8214327467cc1",
-            "normalized_hash": "266aa31246612ff0c360e78a9117a5eed36b56cfdee02143229feb4fb13c4559",
-            "unchanged_raw_source": true,
-            "false_changed_host_warning": true
-          },
-          {
-            "file_path": "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx",
-            "raw_hash": "0da1611a4e339fdae8cc50faa1e7f9d1bc7a902cdfc30bfa9bf0b88982607d05",
-            "normalized_hash": "2ae9300960d7077c2a34393271bb05de20c223c0ef2ac286d9c6c69facfcfedd",
-            "unchanged_raw_source": true,
-            "false_changed_host_warning": true
-          }
-        ],
-        "correction": "Compute normalized ContentHash from the already admitted source bytes for comparison with composition discovery. Keep raw source hash in public evidence, selected-file admission and final freshness verification. CRLF native/public fixtures now cover the actual line-ending convention.",
-        "semantic_status": "NOT_ACCEPTED: rejected proposal invents a global setting and exceeds file cap. File/source validation and bounds remain enforced; no claim that normalizing the hash alone validates this retained proposal.",
-        "next": "Native7 session34149 running with source frozen. After PASS, capture debug6 candidate and run verify-public-v6.py debug-public6 with CRLF sources/raw citation hashes. Then commit/push validated comparison fix, release6 and installed/actual verification. v6 helpers prepared; implementation6.json awaits validated source commit.",
-        "resources": {
-          "actual_pipe_closed": true,
-          "hold_released": true,
-          "candidate_and_installed_fixtures_removed": true,
-          "build_job_closed": true,
-          "build_temp_removed": true,
-          "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
-          "retention": "Retain package, failed response and receipts for delivery evidence/rollback. No preexisting directories removed."
-        }
-      },
-      "crlf_correction": {
-        "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
-        "source_commit": "26706ee598238c0e488956fbc01773720a05280f",
-        "main_merge_commit": "adb91b8dbc4a8e7b7054815e5e39473ef221d393",
-        "native_checks": 13,
-        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native7.json",
-        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public6\\acceptance.json",
-        "deployed": false,
-        "actual_v6_request_sent": false,
-        "behavior": "Compare page_composition normalized ContentHash with the same normalization of already admitted host bytes. Raw BLAKE3 source-admission/citation/final-freshness hashes remain unchanged. No change to ContentHash or the shared composition reader.",
-        "validation": "CRLF native/public sources discover registered editor and code-behind; a changed host is withheld. Public case verifies every source citation against raw bytes, preserves concrete step order from grouped summaries, and refuses changes to component source during generation.",
-        "review": "Parent reviewed both hash conventions against ContentHash::compute and page_composition::collect. Four actual unchanged CRLF hosts independently reproduce the old mismatch. Existing CodeRabbit authentication unavailable; no external review claimed."
-      },
-      "v6_outcome": {
-        "status": "REAL_SOURCE_ASSEMBLY_REJECTED",
-        "release6": "PASS_NOT_INSTALLED",
-        "actual_seconds": 500.16692990006413,
-        "validation": {
-          "kind": "structural_or_source_check",
-          "message": "Plan exceeds file cap"
-        },
-        "new_files": 4,
-        "modified_files": 11,
-        "verified_source_files": 22,
-        "composition_warnings": 0,
-        "conclusion": "CRLF source-discovery correction worked: existing required-count editor and save/validation code admitted. Model still proposed duplicate page/store and 15 files. Do not increase cap or accept proposal.",
-        "next": "Reconcile existing behavior before assembling edits. Validate revised assembly on retained unchanged real-source context before paying for another release cycle. Keep two generation calls and existing bounds/reference checks.",
-        "resources": "Actual request terminal; pipe closed. Debug daemon PID76244 last observed live, await natural idle exit; packages and diagnostics retained in this CASE. No installed swap or preexisting cleanup."
-      },
-      "assembly_correction": {
-        "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
-        "source_commit": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
-        "main_merge_commit": "0d92fe9e08c1fc396d4422f198bf44fc796fe8a6",
-        "native_checks": 13,
-        "public_calls": 12,
-        "deployed": false,
-        "actual_installed_request_sent": false,
-        "behavior": "Reconcile requirement dispositions with existing source before edit assembly. After a bounded rejected proposal, make at most one correction request with the same evidence and fixed validation diagnostic. Preserve first rejection; apply unchanged path/citation/file/step checks, new-file collision checks, method safety and final source/generation freshness checks. Two normal generation requests, maximum three including correction; configured transport retries unchanged.",
-        "validation": "Public fixture proves corrected plan recovery, refusal after second invalid proposal without a fourth call, safe correction-provider failure, source-change refusal during correction, existing CRLF composition/source checks, detail levels and disabled provider.",
-        "diagnostic": "Retained actual OciusX context: initial revised assembly failed with undeclared step paths; one configured-provider correction returned zero edits/steps, two source-cited existing-behavior findings and two unresolved requirements. All 22 source excerpts independently matched current raw hashes. This is a diagnostic, not installed acceptance or a semantic/productivity proof.",
-        "review": "Parent manual review: no validator or cap weakened, no unbounded loop, oversized rejection does not enter correction, rejected data remains separate, no raw provider errors, snapshot ownership and final freshness remain after correction. CodeRabbit host authentication unavailable in retained evidence; no external review claimed.",
-        "remaining": "Build release7, verify optimized candidate and installed public cases, then one actual read-only OciusX request and independent source/semantic review."
-      }
+      "implementation_scope": "Existing response builders and shared response/capability helpers as determined by the pinned inventory; no new routing, graph, approval or evaluation platform.",
+      "scope_guard": "No CodeMap/Blast improvements, unrelated language support, planner tuning, kernel/SSD investigation or preexisting deletion.",
+      "source_baseline": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints",
+      "cleanup": "Owned fixtures close and remove their temporary resources. Retain delivery evidence in the recorded scratch until no longer needed; preexisting folders remain read-only."
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10334,8 +10025,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO32 OciusX one-shot feature implementation plan",
-    "next_user_visible_deliverable": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
+    "active_original_item": "TODO34 remaining next-tool hints",
+    "next_user_visible_deliverable": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10352,10 +10043,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": {
-      "classification": "progress",
-      "evidence": "DBML mapping built, candidate/installed public acceptance passed, deployed and actual OciusX mapping verified against source; fixtures closed/removed and parked work preserved."
-    },
+    "previous_goal_turn_classification": "PROGRESS: release7 built, candidate/installed public checks passed, installed actual source checks passed; parent semantic review failed two specific claims. Preserve unfinished TODO32 and advance original TODO34 instead of another planner cycle.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -13569,7 +13257,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Preserve provider failure reasons, avoid the misplaced larger-output retry on outages, and return a bounded source-cited deterministic fallback without treating failed analysis as extracted business rules.",
+    "next_user_visible_delivery": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13697,6 +13385,340 @@
       "build_session": null
     },
     "feature_plan_progress": "eval/ociusx-feature-plan-progress-20261113.json",
-    "feature_plan_real_failure": "eval/ociusx-feature-plan-real-failure-20261113.json"
+    "feature_plan_real_failure": "eval/ociusx-feature-plan-real-failure-20261113.json",
+    "feature_plan_installed_partial_20261113": {
+      "contract": {
+        "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "at_utc": "2026-11-12T23:42:07.203485+00:00",
+        "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
+        "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
+        "selected_behavior": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
+        "source_baseline": "32c2935bb135ad415b7778180cf7e82627c85469",
+        "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+        "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+        "implementation_files": [
+          "crates/engram_server/src/capabilities.rs",
+          "crates/engram_server/src/handlers/feature_plan_tools.rs",
+          "crates/engram_server/src/handlers/mod.rs",
+          "crates/engram_server/src/models/requests.rs",
+          "crates/engram_server/src/services/feature_plan.rs",
+          "crates/engram_server/src/services/mod.rs",
+          "crates/engram_server/src/tools.rs",
+          "crates/engram_server/tests/feature_plan_tests.rs"
+        ],
+        "finite_acceptance": [
+          "One public request returns structured requirements covering UI/database/procedures/state/auth/AJAX, source-grounded patterns, proposed new/modified files, schema/DDL proposals where required, ordered implementation steps, risks, preconditions and acceptance criteria. ReadyToCode includes file/action/description/template/validation. Inference remains a draft, never execution proof.",
+          "Reuse existing candidate, pattern, schema and edit-safety services. Verify source membership, physical revision and hashes before supplying excerpts; evidence references must resolve to supplied lines. Every proposed modified file carries applicable per-method safety or an explicit unavailable/not-applicable result.",
+          "Reject unsafe paths, unknown existing files, invented source citations, inconsistent step/file/requirement references and incomplete model contracts. Bound input, evidence, output and provider requests; preserve omissions and recovery details. Unavailable/malformed provider and stale source yield explicit incomplete results, never fabricated ready plans.",
+          "Owned native and public fixtures prove a VB/WebForms/SQL feature plan, detail levels, schema proposal, cited patterns, safety integration, source staleness, bad model references, provider failure and unchanged project files. Verify candidate and installed public behavior plus one actual read-only OciusX planning case against source.",
+          "Commit and push only origin/master, deploy matched runtime, retain receipts and close all owned fixtures. Preserve broader TODO32 target-stack requirements as unfinished if unsupported; do not claim all backlog or productivity improvement."
+        ],
+        "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
+        "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
+        "prior_turn_classification": "PROGRESS: v5 deployed; actual request exposed raw/normalized hash regression. Fixed only comparison,13 native and CRLF public checks passed, source26706ee pushed. Actual feature-planning delivery remains unfinished.",
+        "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
+        "progress": "eval/ociusx-feature-plan-progress-20261113.json",
+        "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
+        "correction": {
+          "status": "SUPERSEDED_BY_DEPLOYED_V3",
+          "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
+          "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
+          "native_checks": 9,
+          "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native3.json",
+          "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public2\\acceptance.json",
+          "behavior": [
+            "Existing story-domain extractor and stems select photo evidence even if model intent proposes administrator/phrase concepts.",
+            "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
+            "Cited already-present requirement claims do not force invented edits; semantic review remains required."
+          ],
+          "deployed": true,
+          "actual_v2_request_sent": true
+        },
+        "actual_v2": {
+          "status": "FAIL_INVALID_INTENT_CONTRACT",
+          "acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\acceptance.json",
+          "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\plan.json",
+          "observed_failure": "Provider used authorization and validation; parser accepted auth and behavior, but prompt did not enumerate allowed areas.",
+          "pipe_closed": true,
+          "config_hold_released": true,
+          "version2_deployed": true
+        },
+        "intent_correction": {
+          "status": "DEPLOYED_INTENT_PASSED_REAL_PLAN_STILL_UNUSABLE",
+          "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+          "main_merge_commit": "a9bffca07d6c3876fc5bec78473158b636fc6365",
+          "native_checks": 10,
+          "public_calls": 9,
+          "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native4.json",
+          "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public3\\acceptance.json",
+          "deployed": true,
+          "actual_v3_request_sent": true,
+          "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
+          "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
+        },
+        "actual_v3": {
+          "status": "INTENT_CORRECTION_DEPLOYED_FEATURE_PLANNING_ACCEPTANCE_UNFINISHED",
+          "at_utc": "2026-11-13T01:28:13.289665+00:00",
+          "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+          "installed_server_sha256": "667535db745757517518efb227249720841f501cc2956d54c3a09ad4f3402a3e",
+          "installed_manifest_sha256": "fbcee589553cc09784f2d7e0929777bb1fbbc97f378bbc1e312f053ac2e864b9",
+          "candidate_public": "PASS",
+          "installed_public": "PASS",
+          "actual_request": {
+            "status": "FAIL",
+            "pair_sha256": "8cecaf63f65ffd12e86eed96b0c1e0121ee4083e3dd42c91576622a7a4de11a0",
+            "process_identity": {
+              "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+              "created_ticks": 134390065902005081
+            },
+            "driver_sha256": "cb47cd32937e47c2b90e2d00ff2ef6cc4e9908fd4a5da2e60bb0974401fb7c79",
+            "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+            "seconds": 118.09597530006431,
+            "error": "AssertionError()",
+            "pipe_closed": true
+          },
+          "actual_response_status": "DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW",
+          "intent_requirements": 5,
+          "implementation_steps": 0,
+          "all_requirements_unresolved": true,
+          "semantic_acceptance": false,
+          "observed_gap": "The planner takes the first12 file candidates and omits the registered minimum-photo user control and code-behind at candidate ranks31/32. The selected host explicitly registers that control at line6. Existing page_composition::collect already supports bounded registered-control/code-behind discovery. Current evidence includes capacity settings but omits the existing minimum editor; a generic unresolved dossier is not the requested executable plan.",
+          "source_review": {
+            "all_returned_excerpts_match_current_source": true,
+            "baseline_eight_observations_unchanged": true,
+            "registered_control": {
+              "host": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+              "line": 6,
+              "directive": "<%@ Register TagPrefix=\"uc\" TagName=\"imageGroupLabel\" Src=\"~/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx\" %>",
+              "control": "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx",
+              "omitted": true
+            }
+          },
+          "next": "Within one_shot_feature_plan only, retain bounded source evidence for explicitly registered WebForms controls/code-behind of selected hosts using existing composition support. Add one public case where a relevant registered control falls outside the initial candidate prefix. Preserve source admission/freshness, explicit overflow and unchanged get_change_set ranking. Then verify the same actual story; no new pilot or language expansion.",
+          "resources": {
+            "build_job_closed": true,
+            "build_temp_removed": true,
+            "candidate_and_installed_fixtures_removed": true,
+            "config_hold_released": true,
+            "actual_pipe_closed": true,
+            "retained_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+            "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-833b88243acc42b49c487579ab087f54",
+            "retention": "Keep packages, failed real response and receipts as acceptance evidence/rollback until selected delivery is resolved. No preexisting folders deleted."
+          }
+        },
+        "composition_correction": {
+          "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
+          "source_commit": "131ca234db606b53e9713f631143624e55805428",
+          "main_merge_commit": "7312dfd4f27aaf41c36bdd177820ee001418a7d8",
+          "native_checks": 11,
+          "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native5.json",
+          "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public4\\acceptance.json",
+          "deployed": true,
+          "actual_v4_request_sent": true,
+          "behavior": "Retain initial12 ranked source leads, then bounded registered WebForms controls/code-behind discovered from admitted hosts. Max4 hosts/24 evidence files and existing192KiB aggregate cap. Every extra source independently passes selected-revision/hash admission and post-generation freshness; edit-file limit remains12. Existing composition reader reused; change-set ranking unchanged.",
+          "public_behavior": "A registered control and code-behind outside the initial12 candidates are present in the model source bundle. Mutating the control code-behind during generation withholds the plan. Existing three detail modes, schema/step/safety checks and failure checks pass.",
+          "review": "Parent manual review of source ownership, component discovery, source admission, aggregate bounds, omission reporting and post-generation checks. Retained CodeRabbit authentication unavailable; no external review claimed."
+        },
+        "actual_v4": {
+          "status": "COMPONENT_CORRECTION_DEPLOYED_REAL_PLAN_STILL_REJECTED",
+          "at_utc": "2026-11-13T02:04:47.206657+00:00",
+          "source_commit": "131ca234db606b53e9713f631143624e55805428",
+          "installed_server_sha256": "fcd02ae3a067b25c0fae546e47834c698e34c518ca53a22be2066fd9e9067879",
+          "actual_request": {
+            "status": "FAIL",
+            "pair_sha256": "7c78f49d7fb0a932dc5d005ed59c7981cbd54bdd28de475730b589bba1834dd6",
+            "process_identity": {
+              "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+              "created_ticks": 134390086140767221
+            },
+            "driver_sha256": "56cdee7511a68042b7fd78a414c20d29e1ca903ccd1209f5556edb9d8285fbca",
+            "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+            "seconds": 137.6917884000577,
+            "error": "AssertionError('invalid_plan_contract_or_source_reference')",
+            "pipe_closed": true
+          },
+          "rejection": {
+            "kind": "structural_or_source_check",
+            "message": "Implementation order must match steps"
+          },
+          "source_evidence_files": 12,
+          "observed_failures": [
+            "Changed candidate ordering excluded every WebForms host from the initial12 evidence files; registered-control discovery therefore had no host to follow.",
+            "Model supplied7 summary phases for13 concrete steps; redundant presentation cardinality caused the first rejection.",
+            "Independent inspection also found an undeclared test-file step. The retained proposal must remain rejected by existing path/coverage validation; canonical summary order alone does not make it valid."
+          ],
+          "retained_input_checks": [
+            {
+              "receipt": "normal3",
+              "prior_host_in_prefix": true,
+              "reserved_host_present": true,
+              "selected_hosts": [
+                "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+                "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+                "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+                "Site/modules/dashboard/pages/admin/system/markers/imagegrouplabeltext/ctrl_image_group_label_text.ascx"
+              ],
+              "selected_file_count": 14,
+              "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
+            },
+            {
+              "receipt": "normal4",
+              "prior_host_in_prefix": false,
+              "reserved_host_present": true,
+              "selected_hosts": [
+                "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+                "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+                "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+                "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx"
+              ],
+              "selected_file_count": 16,
+              "interpretation": "Independent retained-input selection check; native/public execution still required for the changed implementation."
+            }
+          ],
+          "unplanned_step_paths": [
+            "tests/minimum-photo-requirement.tests.md"
+          ],
+          "correction": "Reserve up to4 WebForms hosts from the existing candidate order in addition to initial12 leads, within the24-source-file/192KiB bounds. Derive implementation_order from validated concrete steps; preserve path, step-number, requirement, reference and validation checks.",
+          "next": "Native6 session4387 is running with source frozen. Then verify public fixture with grouped order summaries and registered-control evidence, commit/push validated source, release/deploy and verify actual OciusX semantics. No ranking change, model replay or language expansion.",
+          "resources": {
+            "actual_pipe_closed": true,
+            "hold_released": true,
+            "candidate_and_installed_fixtures_removed": true,
+            "build_job_closed": true,
+            "build_temp_removed": true,
+            "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+            "retention": "Retain packages/receipts/rejected proposals for acceptance evidence and rollback. No preexisting directories removed."
+          }
+        },
+        "host_order_correction": {
+          "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
+          "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
+          "main_merge_commit": "119cd0c7eab0692ca3aaa05116a5d038f3d0aa48",
+          "native_checks": 13,
+          "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native6.json",
+          "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public5\\acceptance.json",
+          "deployed": true,
+          "actual_v5_request_sent": true,
+          "behavior": "Reserve up to4 candidate WebForms hosts in addition to initial12 ranked leads. Existing24-file/192KiB source limits and registered-control freshness remain. Derive implementation_order from validated concrete step descriptions; no independent model-summary cardinality requirement.",
+          "validation": "Native tests cover a non-UI ranked prefix, registered editor/code-behind discovery and changed host, grouped/absent summary order, and retained strict path/step/reference/requirement checks. Public fixture retains three ordered steps despite one model summary, includes an editor beyond initial12 and refuses changed control source.",
+          "retained_actual_response": "Still rejected: normal4 includes an undeclared test-file step. Canonical order alone does not make that proposal valid. No relaxation of planned-path validation.",
+          "review": "Parent manual review; existing CodeRabbit authentication unavailable. No external review claimed."
+        },
+        "actual_v5": {
+          "status": "HOST_ORDER_CORRECTION_DEPLOYED_COMPOSITION_HASH_REGRESSION_FOUND",
+          "at_utc": "2026-11-13T02:32:05.931646+00:00",
+          "source_commit": "8771ff029559f3e56127f69b595455187a08e35f",
+          "installed_server_sha256": "eb4d33fdb3a4e8323cca7bb26b30e1b0530816879151f505195164b2c65975bd",
+          "actual_request": {
+            "status": "FAIL",
+            "pair_sha256": "d5e241e38cfb7faec067cc542742458eb785c9a147ea7cf2fb93cbe10f163553",
+            "process_identity": {
+              "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+              "created_ticks": 134390101682827699
+            },
+            "driver_sha256": "c17da256e63b86d297f72fe261cc09c972c507f43cd61b5b2e17580c7f04f6b2",
+            "purpose": "Read-only feature-planning acceptance; no OciusX feature implementation authorized or performed by this call.",
+            "seconds": 160.4155150000006,
+            "error": "AssertionError('invalid_plan_contract_or_source_reference')",
+            "pipe_closed": true
+          },
+          "rejection": {
+            "kind": "structural_or_source_check",
+            "message": "Plan exceeds file cap"
+          },
+          "proposed_files": 15,
+          "accepted_file_limit": 12,
+          "observed_gap": "Planner compared raw SourceEvidence hash against page_composition ContentHash, which normalizes CRLF/CR. All4 unchanged selected WebForms hosts were falsely rejected, leaving editor controls absent. This is a regression in the new planner comparison, not a stale OciusX source file.",
+          "hash_checks": [
+            {
+              "file_path": "Site/modules/dashboard/pages/admin/journal/excelfile.aspx",
+              "raw_hash": "dc767a5a2845b337ee994f59870ffa7464b3eab3ff7b0849df53a934e7a40338",
+              "normalized_hash": "e4e27007eac3e05ca115ce84afd20f62e75c6dc8c8442398cbd459bb15747790",
+              "unchanged_raw_source": true,
+              "false_changed_host_warning": true
+            },
+            {
+              "file_path": "Site/modules/dashboard/pages/admin/system/import/import.aspx",
+              "raw_hash": "9d9bb6b1270193d06c638c7c3ba7b9368de78f9dbcdb5964d45400e6dcc67e5b",
+              "normalized_hash": "8f19be272b5dd3eab5679f0fc46880ebb1377d012caf95bf26f01a08673e696d",
+              "unchanged_raw_source": true,
+              "false_changed_host_warning": true
+            },
+            {
+              "file_path": "Site/modules/dashboard/pages/admin/system/markers/marker_edit.aspx",
+              "raw_hash": "05114c5b49958a8265def8a73d38b822413d615dbb46607f8ea8214327467cc1",
+              "normalized_hash": "266aa31246612ff0c360e78a9117a5eed36b56cfdee02143229feb4fb13c4559",
+              "unchanged_raw_source": true,
+              "false_changed_host_warning": true
+            },
+            {
+              "file_path": "Site/modules/dashboard/pages/admin/markerasbuilt/markerasbuilt.aspx",
+              "raw_hash": "0da1611a4e339fdae8cc50faa1e7f9d1bc7a902cdfc30bfa9bf0b88982607d05",
+              "normalized_hash": "2ae9300960d7077c2a34393271bb05de20c223c0ef2ac286d9c6c69facfcfedd",
+              "unchanged_raw_source": true,
+              "false_changed_host_warning": true
+            }
+          ],
+          "correction": "Compute normalized ContentHash from the already admitted source bytes for comparison with composition discovery. Keep raw source hash in public evidence, selected-file admission and final freshness verification. CRLF native/public fixtures now cover the actual line-ending convention.",
+          "semantic_status": "NOT_ACCEPTED: rejected proposal invents a global setting and exceeds file cap. File/source validation and bounds remain enforced; no claim that normalizing the hash alone validates this retained proposal.",
+          "next": "Native7 session34149 running with source frozen. After PASS, capture debug6 candidate and run verify-public-v6.py debug-public6 with CRLF sources/raw citation hashes. Then commit/push validated comparison fix, release6 and installed/actual verification. v6 helpers prepared; implementation6.json awaits validated source commit.",
+          "resources": {
+            "actual_pipe_closed": true,
+            "hold_released": true,
+            "candidate_and_installed_fixtures_removed": true,
+            "build_job_closed": true,
+            "build_temp_removed": true,
+            "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan",
+            "retention": "Retain package, failed response and receipts for delivery evidence/rollback. No preexisting directories removed."
+          }
+        },
+        "crlf_correction": {
+          "status": "CRLF_COMPARISON_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+          "source_commit": "26706ee598238c0e488956fbc01773720a05280f",
+          "main_merge_commit": "adb91b8dbc4a8e7b7054815e5e39473ef221d393",
+          "native_checks": 13,
+          "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native7.json",
+          "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public6\\acceptance.json",
+          "deployed": false,
+          "actual_v6_request_sent": false,
+          "behavior": "Compare page_composition normalized ContentHash with the same normalization of already admitted host bytes. Raw BLAKE3 source-admission/citation/final-freshness hashes remain unchanged. No change to ContentHash or the shared composition reader.",
+          "validation": "CRLF native/public sources discover registered editor and code-behind; a changed host is withheld. Public case verifies every source citation against raw bytes, preserves concrete step order from grouped summaries, and refuses changes to component source during generation.",
+          "review": "Parent reviewed both hash conventions against ContentHash::compute and page_composition::collect. Four actual unchanged CRLF hosts independently reproduce the old mismatch. Existing CodeRabbit authentication unavailable; no external review claimed."
+        },
+        "v6_outcome": {
+          "status": "REAL_SOURCE_ASSEMBLY_REJECTED",
+          "release6": "PASS_NOT_INSTALLED",
+          "actual_seconds": 500.16692990006413,
+          "validation": {
+            "kind": "structural_or_source_check",
+            "message": "Plan exceeds file cap"
+          },
+          "new_files": 4,
+          "modified_files": 11,
+          "verified_source_files": 22,
+          "composition_warnings": 0,
+          "conclusion": "CRLF source-discovery correction worked: existing required-count editor and save/validation code admitted. Model still proposed duplicate page/store and 15 files. Do not increase cap or accept proposal.",
+          "next": "Reconcile existing behavior before assembling edits. Validate revised assembly on retained unchanged real-source context before paying for another release cycle. Keep two generation calls and existing bounds/reference checks.",
+          "resources": "Actual request terminal; pipe closed. Debug daemon PID76244 last observed live, await natural idle exit; packages and diagnostics retained in this CASE. No installed swap or preexisting cleanup."
+        },
+        "assembly_correction": {
+          "status": "ASSEMBLY_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+          "source_commit": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
+          "main_merge_commit": "0d92fe9e08c1fc396d4422f198bf44fc796fe8a6",
+          "native_checks": 13,
+          "public_calls": 12,
+          "deployed": false,
+          "actual_installed_request_sent": false,
+          "behavior": "Reconcile requirement dispositions with existing source before edit assembly. After a bounded rejected proposal, make at most one correction request with the same evidence and fixed validation diagnostic. Preserve first rejection; apply unchanged path/citation/file/step checks, new-file collision checks, method safety and final source/generation freshness checks. Two normal generation requests, maximum three including correction; configured transport retries unchanged.",
+          "validation": "Public fixture proves corrected plan recovery, refusal after second invalid proposal without a fourth call, safe correction-provider failure, source-change refusal during correction, existing CRLF composition/source checks, detail levels and disabled provider.",
+          "diagnostic": "Retained actual OciusX context: initial revised assembly failed with undeclared step paths; one configured-provider correction returned zero edits/steps, two source-cited existing-behavior findings and two unresolved requirements. All 22 source excerpts independently matched current raw hashes. This is a diagnostic, not installed acceptance or a semantic/productivity proof.",
+          "review": "Parent manual review: no validator or cap weakened, no unbounded loop, oversized rejection does not enter correction, rejected data remains separate, no raw provider errors, snapshot ownership and final freshness remain after correction. CodeRabbit host authentication unavailable in retained evidence; no external review claimed.",
+          "remaining": "Build release7, verify optimized candidate and installed public cases, then one actual read-only OciusX request and independent source/semantic review."
+        }
+      },
+      "receipt": "eval/ociusx-feature-plan-installed-partial-20261113.json",
+      "semantic_acceptance": "FAIL",
+      "delivery_complete": false
+    }
   }
 }

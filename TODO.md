@@ -293,9 +293,17 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 
-- [ ] **32. `one_shot_feature_plan` (spec 42-1)** (L)
+- [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.
+  WebForms/VB.NET implementation installed 2026-11-13 with bounded source evidence,
+  proposed edits/DDL, requirement dispositions and at most one contract correction.
+  Native and candidate/installed public checks passed. The actual OciusX request
+  recognized existing behavior and proposed no edits, but source review found
+  capacity/minimum confusion and an unrequested global-setting assumption.
+  Semantic acceptance failed; this item remains unfinished. Preserve those findings
+  and advance the original backlog instead of repeating planner tuning.
+  Evidence: [installed partial result](eval/ociusx-feature-plan-installed-partial-20261113.json).
 
 - [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
   `batch_read` composes 1–16 typed `get_method_info`, `resolve_id` and `get_chunk`

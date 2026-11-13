@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Build release7, verify optimized candidate and installed public cases, then one actual read-only OciusX request and independent source/semantic review.",
+  "next": "TODO32 remains unfinished with FP-SEM-01/02 retained. Advance original TODO34 next-tool hints; no further planner tuning selected.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -346,5 +346,7 @@
     "diagnostic": "Retained actual OciusX context: initial revised assembly failed with undeclared step paths; one configured-provider correction returned zero edits/steps, two source-cited existing-behavior findings and two unresolved requirements. All 22 source excerpts independently matched current raw hashes. This is a diagnostic, not installed acceptance or a semantic/productivity proof.",
     "review": "Parent manual review: no validator or cap weakened, no unbounded loop, oversized rejection does not enter correction, rejected data remains separate, no raw provider errors, snapshot ownership and final freshness remain after correction. CodeRabbit host authentication unavailable in retained evidence; no external review claimed.",
     "remaining": "Build release7, verify optimized candidate and installed public cases, then one actual read-only OciusX request and independent source/semantic review."
-  }
+  },
+  "installed_partial_receipt": "eval/ociusx-feature-plan-installed-partial-20261113.json",
+  "semantic_acceptance": "FAIL"
 }
