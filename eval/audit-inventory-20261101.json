@@ -767,7 +767,14 @@
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json",
-      "history_continuation_delivery_20261113": "eval/ociusx-history-guidance-delivery-20261113.json"
+      "history_continuation_delivery_20261113": "eval/ociusx-history-guidance-delivery-20261113.json",
+      "filtered_embedding_delivery_20261113": {
+        "receipt": "eval/ociusx-history-filter-embedding-delivery-20261113.json",
+        "status": "DEPLOYED_VERIFIED",
+        "behavior": "Request file/author/date filters now precede embedding; warm cache obeys same predicates. Installed fixture6to1cards, identical selected change; empty sets skip query embedding.",
+        "actual_ociusx": "Original matching request returned expected Git-verified change in4.3188s atgeneration3149. Earlier40.49s observation retained; not a controlled speedup.",
+        "limits": "Metadata traversal and unfiltered embedding work remain; rerank budget still not a whole-request deadline. No ranking-quality/productivity or full original gate closure."
+      }
     },
     {
       "id": "EG-21",
@@ -784,7 +791,14 @@
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json",
-      "history_continuation_delivery_20261113": "eval/ociusx-history-guidance-delivery-20261113.json"
+      "history_continuation_delivery_20261113": "eval/ociusx-history-guidance-delivery-20261113.json",
+      "filtered_embedding_delivery_20261113": {
+        "receipt": "eval/ociusx-history-filter-embedding-delivery-20261113.json",
+        "status": "DEPLOYED_VERIFIED",
+        "behavior": "Request file/author/date filters now precede embedding; warm cache obeys same predicates. Installed fixture6to1cards, identical selected change; empty sets skip query embedding.",
+        "actual_ociusx": "Original matching request returned expected Git-verified change in4.3188s atgeneration3149. Earlier40.49s observation retained; not a controlled speedup.",
+        "limits": "Metadata traversal and unfiltered embedding work remain; rerank budget still not a whole-request deadline. No ranking-quality/productivity or full original gate closure."
+      }
     },
     {
       "id": "EG-22",
@@ -9989,7 +10003,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG20/EG21 filtered precedent retrieval: embed only eligible history",
       "original_requirement": "Original tool_roi priority3: usable responsive search_history preserving file/author/date filters and historical cutoffs.",
       "observed_missing_behavior": "handle_precedents builds and embeds all first-parent change cards before applying request filters. Retained actual OciusX one-file/two-second-window request took40.4903s with zero rerank budget; latency attribution to embedding is not yet measured.",
@@ -10016,10 +10030,11 @@
         "The old40.49s observation does not isolate current embedding cost or guarantee a target wall-clock speedup."
       ],
       "remaining": [
-        "Build, verify candidate/installed behavior and deploy; actual OciusX result still pending."
+        "Advance next unfinished original OciusX requirement; preserve all failed/unproved outcomes."
       ],
       "progress": "eval/ociusx-history-filter-embedding-progress-20261113.json",
-      "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205"
+      "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205",
+      "delivery": "eval/ociusx-history-filter-embedding-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10069,7 +10084,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: documentation completion843c8e1 pushed; no runtime improvement claimed.",
+    "previous_goal_turn_classification": "PROGRESS: filtered history embedding deployed; candidate/installed provider traffic and one original OciusX request verified.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

@@ -1,0 +1,115 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T13:52:24.196037+00:00",
+  "finding": "EG20/EG21 filtered precedent retrieval",
+  "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205",
+  "original_requirement": "Original tool_roi priority3: usable responsive search_history preserving scope and historical cutoffs.",
+  "before": "Precedent search embedded the entire first-parent line before file/author/date exclusions. Installed owned Git fixture returned one eligible commit but embedded six cards.",
+  "after": "Same request predicates now select metadata before new card embedding and are reapplied to warm cards. Empty eligible sets skip query embedding. Later changed filters can retrieve previously excluded cards.",
+  "validation": {
+    "native_cases": 11,
+    "author_only_fixture_rerun": 1,
+    "installed_fixture_embedded_cards_before": 6,
+    "installed_fixture_embedded_cards_after": 1,
+    "candidate_checks": {
+      "filtered_result": true,
+      "only_selected_embedded": true,
+      "changed_filter_retrieves_previously_excluded": true,
+      "warm_cache_preserves_filter": true,
+      "empty_and_historical_selections_skip_provider": true
+    },
+    "installed_checks": {
+      "filtered_result": true,
+      "only_selected_embedded": true,
+      "changed_filter_retrieves_previously_excluded": true,
+      "warm_cache_preserves_filter": true,
+      "empty_and_historical_selections_skip_provider": true
+    },
+    "result_identity_preserved": true
+  },
+  "actual_ociusx": {
+    "seconds": 4.31881899992004,
+    "bytes": 3119,
+    "returned_commits": [
+      "c705453f14565280faed033ba0dca97d93a2755b"
+    ],
+    "source_generation": 3149,
+    "independent_git_oracle_verified": true,
+    "project_records_and_source_unchanged": true,
+    "registry_raw_identity_changed": false
+  },
+  "runtime": {
+    "server_sha256": "eabb3891ae052093bd9efb1b8471c5e728655a1e95017847de21d5cfe63fd28e",
+    "manifest_sha256": "bdf548580916551d5ffc0364f05560566988efbf85a9eaa32b926aa6eb5c6ef5",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\baseline2\\first-observation.json",
+      "sha256": "592af7c5ef0332a0543ee9f810786195ae68e5ce9b6678a018f9f65d7b519c26"
+    },
+    "red": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\red1.json",
+      "sha256": "d2cb74393afa1a692b077fe3d6c0408b43311e02119a04e64841a4fb2b00106c"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\native1.json",
+      "sha256": "65779ea109d905d10bb4211924c04aafb2c17de8fdfb9675a42851879cd032ed"
+    },
+    "fixture_rerun": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\native2.json",
+      "sha256": "ef83560a7977f458212990c076366c6e5cd8c0d36331c5c82156f74ccf6a1d60"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\implementation1.json",
+      "sha256": "0090f5513945f5936f1aecbd86370b61d10cc54071a1f4b8b0d38a8d6b349ba3"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\release1.json",
+      "sha256": "42adc3d498d2732a911229736d354cf05fe753c8dfeec35fc94bbbd0f18f5524"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\candidate1\\acceptance.json",
+      "sha256": "f3a2c1cc7aa60eea706b4bcf3faa79e2b39b0171213bd630f27e1d3dd3f722dc"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\installed1\\acceptance.json",
+      "sha256": "c6772668faaddaafa438563b1264cf08fa17d8a6854439c1ab22bf6f42efe85f"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\actual1\\acceptance.json",
+      "sha256": "5d67b7b145aef6291c4eef7a110ddd377e2f50fcdfa93ee6d4505223ab098f5b"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\deployment1-state.json",
+      "sha256": "bfd631fa0195b29420f219636907b39252c74cc6f5bbf46423cdfefd2e68f2af"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding\\manual-review.json",
+      "sha256": "e8f1e3b5f0e388f8e992a357ec290705fba74d1ec504de41b3690f642b107878"
+    }
+  },
+  "preserved": {
+    "preexisting_changed_files": 9,
+    "configuration_changed": false,
+    "source_generation": 3149
+  },
+  "limits": [
+    "Provider work reduction is demonstrated on an owned fixture; one OciusX duration is not a controlled speedup, ranking-quality result or productivity advantage.",
+    "Metadata discovery still traverses first-parent history; unfiltered requests may still embed the full eligible line. Rerank budget is not a total retrieval deadline.",
+    "Existing capped non-generated file lists and case-sensitive filter semantics are retained.",
+    "Existing source-based metadata cache identity changes with the implementation; derived metadata/embedding caches may populate without source indexing.",
+    "Parent manual review only; no external review claimed. Remaining original backlog, full storage gates and failed/unproved usefulness outcomes remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-filter-embedding",
+    "owned_build_and_test_temps_removed": true,
+    "owned_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-2170c9a7a8de47e5bd5b1ce9e6178467",
+    "retention": "Keep evidence, candidate package and rollback pair for review; no preexisting folders deleted."
+  }
+}

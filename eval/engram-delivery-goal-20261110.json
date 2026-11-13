@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG20/EG21 filtered precedent retrieval: embed only eligible history",
     "original_requirement": "Original tool_roi priority3: usable responsive search_history preserving file/author/date filters and historical cutoffs.",
     "observed_missing_behavior": "handle_precedents builds and embeds all first-parent change cards before applying request filters. Retained actual OciusX one-file/two-second-window request took40.4903s with zero rerank budget; latency attribution to embedding is not yet measured.",
@@ -67,10 +67,11 @@
       "The old40.49s observation does not isolate current embedding cost or guarantee a target wall-clock speedup."
     ],
     "remaining": [
-      "Build, verify candidate/installed behavior and deploy; actual OciusX result still pending."
+      "Advance next unfinished original OciusX requirement; preserve all failed/unproved outcomes."
     ],
     "progress": "eval/ociusx-history-filter-embedding-progress-20261113.json",
-    "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205"
+    "source_commit": "f1dd650dad5891d8b2953d4c7176e9e06e15c205",
+    "delivery": "eval/ociusx-history-filter-embedding-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
