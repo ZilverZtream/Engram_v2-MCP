@@ -1,0 +1,43 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T19:25:53.730963+00:00",
+  "finding": "EG01 revision-pinned authored guidance",
+  "source_commit": "d7c7d49d3e1899e9a0c545eff622b4dc99e07c4e",
+  "runtime_source_commit": "7f53dbffd525207399828e93b60b33ca1d954292",
+  "deployed": false,
+  "observed_before": "Installed get_change_set(as_of_rev) returned historical_unavailable despite an applicable instruction at that commit.",
+  "implemented": "Read authored guidance and applicability from the already resolved Git commit, with shared scope/budget rules and exact revision recovery for omissions.",
+  "validation": {
+    "workflow_and_history_cases": 17,
+    "resolver_cases": 12,
+    "public_baseline_reproduced": true
+  },
+  "retained_failure": "native1: older manual fixture lacked source snapshot admission metadata. Updated the fixture to produce and attest its complete flat generation; original policy assertions retained. native2 and native3 pass.",
+  "remaining": [
+    "Finish the same release build, then package and run prepared candidate/installed MCP checks.",
+    "Compare the installed response for one OciusX map-layer guide against prepared committed Git bytes.",
+    "Deploy and record runtime identity and owned-resource cleanup."
+  ],
+  "evidence": {
+    "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\contract.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\baseline1\\acceptance.json",
+    "initial_fixture_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\native1.json",
+    "workflow": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\native2.json",
+    "resolver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\native3.json",
+    "source": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\implementation1.json",
+    "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\manual-review.json",
+    "ociusx_git_oracle": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\prepared-ociusx-oracle.json",
+    "build_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\release1-owner.json"
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy",
+    "native_and_baseline_fixtures_cleaned": true,
+    "preserved_wip9": true
+  },
+  "limits": [
+    "Policy pinning does not create a historical source/index snapshot for other planning evidence.",
+    "Date-only cutoffs remain unavailable; no guessed Git revision.",
+    "No automatic OX Dev replay integration or comparative task benefit claimed.",
+    "Parent source review only; CodeRabbit host authentication was previously unavailable."
+  ]
+}
