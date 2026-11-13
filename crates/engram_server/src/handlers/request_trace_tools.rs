@@ -1,4 +1,4 @@
-use crate::services::request_trace::{execution, routing};
+use crate::services::request_trace::{api, execution, routing};
 use crate::{models::TraceUserRequestRequest, tools::Engram};
 use rmcp::{
     ErrorData as McpError,
@@ -79,10 +79,15 @@ impl Engram {
                 if pages.len() >= 8 { gaps.push("Page expansion truncated at 8 distinct candidates".into()); break; }
                 pages.push(execution::trace_page(&graph, &req.project_id, route, req.action.as_deref(), req.include_db, req.include_triggers, &sources, selected)?);
             }
+            let mut api_traces = Vec::new();
+            for route in routing.api_candidates.iter().take(8) {
+                api_traces.push(api::trace(&graph, &req.project_id, route, routing.method.as_deref(), req.action.as_deref(), req.include_db, req.include_triggers, &sources, selected)?);
+            }
+            if routing.api_candidates.len() > 8 { gaps.push("API route expansion truncated at eight candidates".into()); }
             // The graph is mutable even while search membership is pinned. Each
             // expansion checks physical revision/hash; this is not an atomic graph snapshot.
             Ok(serde_json::to_string(&json!({"status":"static_candidates","project_id":req.project_id,"active_generation":generation,
-                "entry_point":req.entry_point,"action":req.action,"routing":routing,"pages":pages,
+                "entry_point":req.entry_point,"action":req.action,"routing":routing,"pages":pages,"api_traces":api_traces,
                 "coverage":{"source_files_read":sources.len(),"source_bytes_read":bytes,"source_inventory":"selected managed paths; current disk contents","gaps":gaps,
                 "graph_consistency":"Per-expanded-member source hash and selected physical revision checks; no atomic graph/disk snapshot or complete call-binding proof.",
                 "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}}))?)

@@ -319,7 +319,7 @@ impl Engram {
         self.handle_batch_read(params.0).await
     }
 
-    #[tool(description = "Trace a URL/page and optional action to source-cited WebForms route candidates, authored event handlers, indexed calls, SQL/procedures/tables, state and response source. Static navigation, not proof of runtime execution. Ambiguous routing, stale graph/source and missing trigger bindings remain explicit gaps. Requires indexed project; JSON response.")]
+    #[tool(description = "Trace a URL/page and optional action to source-cited WebForms or conventional VB Web API routes, authored handlers, indexed calls, SQL/procedures/tables, state and response source. Prefix API URLs with an HTTP verb, for example POST /webhook/vetro/42; api_traces retains controller and handler candidates. Static navigation, not proof of runtime execution. Ambiguous routing, stale graph/source and missing trigger bindings remain explicit gaps. Requires indexed project; JSON response.")]
     pub async fn trace_user_request(
         &self,
         params: Parameters<TraceUserRequestRequest>,

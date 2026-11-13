@@ -101,7 +101,7 @@ fn relative_target(page: &str, raw: &str, app_root: Option<&str>) -> Option<Stri
     Some(parts.join("/"))
 }
 
-fn member_name(node: &Node) -> &str {
+pub(super) fn member_name(node: &Node) -> &str {
     node.name
         .rsplit(['.', ':'])
         .next()
@@ -113,7 +113,7 @@ fn member_name(node: &Node) -> &str {
 
 /// Every expansion requires a graph file fingerprint and the selected physical
 /// revision. Matching current disk text alone cannot authorize a newer graph view.
-fn verified_node(
+pub(super) fn verified_node(
     graph: &GraphStore,
     project: &str,
     node: &Node,
@@ -243,22 +243,7 @@ pub fn trace_page(
     sources: &[Source<'_>],
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<PageTrace> {
-    let mut result = PageTrace {
-        page: route.page.clone(),
-        codebehind: None,
-        handlers: Vec::new(),
-        paths: Vec::new(),
-        source_members: Vec::new(),
-        gaps: Vec::new(),
-        trigger_coverage: if !include_db {
-            "not_requested_include_db_false"
-        } else if !include_triggers {
-            "not_requested"
-        } else {
-            "unknown_no_trigger_binding_in_existing_graph"
-        },
-        interpretation: "Static possible paths. Source order is not execution, branch reachability, successful completion, HTTP status or proof that a trigger fires. Calls and database targets retain their indexed evidence.",
-    };
+    let mut result = empty_trace(&route.page, include_db, include_triggers);
     let Some(page) = sources.iter().find(|source| source.path == route.page) else {
         result.gaps.push("Page source unavailable".into());
         return Ok(result);
@@ -313,6 +298,39 @@ pub fn trace_page(
     if action.is_some_and(|a| a.eq_ignore_ascii_case("submit form")) {
         result.gaps.push("Submit control unspecified; returned click handlers are alternatives, not an execution sequence".into());
     }
+    trace_selected(
+        graph, project, result, chosen, include_db, sources, selected,
+    )
+}
+
+pub(super) fn empty_trace(path: &str, include_db: bool, include_triggers: bool) -> PageTrace {
+    PageTrace {
+        page: path.into(),
+        codebehind: None,
+        handlers: Vec::new(),
+        paths: Vec::new(),
+        source_members: Vec::new(),
+        gaps: Vec::new(),
+        trigger_coverage: if !include_db {
+            "not_requested_include_db_false"
+        } else if !include_triggers {
+            "not_requested"
+        } else {
+            "unknown_no_trigger_binding_in_existing_graph"
+        },
+        interpretation: "Static possible paths. Source order is not execution, branch reachability, successful completion, HTTP status or proof that a trigger fires. Calls and database targets retain their indexed evidence.",
+    }
+}
+
+pub(super) fn trace_selected(
+    graph: &Arc<GraphStore>,
+    project: &str,
+    mut result: PageTrace,
+    chosen: Vec<(Node, String)>,
+    include_db: bool,
+    sources: &[Source<'_>],
+    selected: &BTreeMap<String, u64>,
+) -> anyhow::Result<PageTrace> {
     let mut queue = VecDeque::new();
     for (node, binding) in chosen {
         if !verified_node(graph, project, &node, sources, selected)? {
@@ -325,7 +343,7 @@ pub fn trace_page(
         result.handlers.push(Handler {
             node_id: node.node_id.clone(),
             name: member_name(&node).into(),
-            file: source.path.into(),
+            file: node.file_path.to_string(),
             line: node.start_line,
             binding,
         });
