@@ -40,37 +40,32 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
-    "original_requirement": "Original ocius_workflows priority: existing context tools provide applicable authored guidance; TODO28 gives AI callers one natural-language entry point.",
-    "observed_missing_behavior": "ask_codebase currently returns selected code evidence without the applicable repository guidance already provided by other context tools. Optional synthesis cannot cite that guidance.",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "finding": "TODO31 continue request traces through explicit VB interface implementations",
+    "original_requirement": "Original trace_user_request requirement: navigate URL/route through handler and implementation to data access in OciusX VB/WebForms workflows.",
+    "observed_missing_behavior": "The delivered POST /webhook/vetro/42 trace ends at IWebhookVetroService.HandleIncomingRequest. Actual WebApiConfig.vb registers IWebhookVetroService to VetroService and WebhookVetroService.vb explicitly implements the member before calling SaveEventsToDB. Existing compiler-backed interface mapping reader is not used by request tracing.",
     "implementation_files": [
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/src/services/ask_engine/report.rs",
-      "crates/engram_server/src/services/ask_engine/synthesis.rs",
-      "crates/engram_server/tests/project_policy_workflow_tests.rs",
-      "docs/TOOL_CONTRACT.md",
-      "crates/engram_server/src/handlers/business_source.rs",
-      "crates/engram_server/tests/ask_lookup_cap_tests.rs"
+      "crates/engram_server/src/services/request_trace/execution.rs",
+      "crates/engram_server/src/services/request_trace/tests.rs",
+      "docs/TOOL_CONTRACT.md"
     ],
     "acceptance": [
-      "JSON and Markdown include complete applicable guidance with source hashes for returned code paths, excluding unrelated scoped topics.",
-      "Live instruction edits appear without reindexing; historical/advisory branch requests explicitly withhold current policy.",
-      "Optional synthesis receives the same policy and can cite exact policy text without upgrading retrieval status or treating policy as implementation proof.",
-      "Focused native and candidate/installed MCP checks pass; one actual OciusX answer includes the independently checked applicable instruction."
+      "Follow an admitted interface call through the existing exact compiler-backed Implements mapping, retaining separate candidate-dispatch provenance and existing traversal limits.",
+      "Continue normal source/call/database expansion from the implementation; do not treat every similarly named method as a target or infer runtime DI selection.",
+      "Source fingerprint or selected-revision mismatch withholds stale implementation paths; unrelated implementations do not enter the trace.",
+      "Focused native and public candidate/installed checks pass. Actual OciusX POST /webhook/vetro/42 reaches VetroService.HandleIncomingRequest and the source SaveEventsToDB call, matched against independent source."
     ],
     "scope_limits": [
-      "Reuse existing resolver and budgets; no new discovery pipeline, router, historical platform or model tuning.",
-      "Scope covers code paths in returned evidence; no claim of complete task scope or improved model correctness.",
-      "No CodeMap/Blast or target-language expansion."
+      "Reuse bounded_interface_implementations without modifying graph algorithms, CodeMap or Blast Radius.",
+      "No general DI parser, new language support, runtime HTTP execution or complete database/trigger claim.",
+      "Method-budget and failed planner experiments stay deferred."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy",
-    "retention": "Retain wire evidence and package; new fixtures close handles and clean their owned temporary resources.",
-    "source_commit": "50e2c697f4ca8effa992c70d9bc24fb1d44f5233",
-    "runtime_source_commit": "c438b9e1dd57bf5a970a9b0d357340282350b4e2",
-    "delivery": "eval/ociusx-ask-policy-delivery-20261113.json",
-    "bounded_delivery_complete": true,
-    "outcome": "The natural-language entry point includes applicable complete repository guidance with hashes and scope in JSON and Markdown. Optional synthesis receives the same section and accepts exact policy citations without upgrading code status."
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace",
+    "retention": "Retain source/wire acceptance evidence and release package; close and clean new owned fixtures.",
+    "source_commit": "5f5f20e046faec54a897bfda3daa9925b49cc4e7",
+    "runtime_source_commit": "c39135c32c17cf81e3895409434e83dc0d6497f5",
+    "progress_receipt": "eval/ociusx-interface-request-trace-progress-20261113.json",
+    "bounded_delivery_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -692,5 +687,38 @@
     "delivery": "eval/ociusx-historical-policy-delivery-20261113.json",
     "outcome": "Change-set policy sources use the already resolved Git commit, preserving historical text/scope, complete-source budgets and exact revision recovery; JSON and Markdown identify the source revision."
   },
-  "ask_policy_delivery": "eval/ociusx-ask-policy-delivery-20261113.json"
+  "ask_policy_delivery": "eval/ociusx-ask-policy-delivery-20261113.json",
+  "retained_ask_policy_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "EG01 / TODO28 scoped guidance at the natural-language AI entry point",
+    "original_requirement": "Original ocius_workflows priority: existing context tools provide applicable authored guidance; TODO28 gives AI callers one natural-language entry point.",
+    "observed_missing_behavior": "ask_codebase currently returns selected code evidence without the applicable repository guidance already provided by other context tools. Optional synthesis cannot cite that guidance.",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/services/ask_engine/synthesis.rs",
+      "crates/engram_server/tests/project_policy_workflow_tests.rs",
+      "docs/TOOL_CONTRACT.md",
+      "crates/engram_server/src/handlers/business_source.rs",
+      "crates/engram_server/tests/ask_lookup_cap_tests.rs"
+    ],
+    "acceptance": [
+      "JSON and Markdown include complete applicable guidance with source hashes for returned code paths, excluding unrelated scoped topics.",
+      "Live instruction edits appear without reindexing; historical/advisory branch requests explicitly withhold current policy.",
+      "Optional synthesis receives the same policy and can cite exact policy text without upgrading retrieval status or treating policy as implementation proof.",
+      "Focused native and candidate/installed MCP checks pass; one actual OciusX answer includes the independently checked applicable instruction."
+    ],
+    "scope_limits": [
+      "Reuse existing resolver and budgets; no new discovery pipeline, router, historical platform or model tuning.",
+      "Scope covers code paths in returned evidence; no claim of complete task scope or improved model correctness.",
+      "No CodeMap/Blast or target-language expansion."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-policy",
+    "retention": "Retain wire evidence and package; new fixtures close handles and clean their owned temporary resources.",
+    "source_commit": "50e2c697f4ca8effa992c70d9bc24fb1d44f5233",
+    "runtime_source_commit": "c438b9e1dd57bf5a970a9b0d357340282350b4e2",
+    "delivery": "eval/ociusx-ask-policy-delivery-20261113.json",
+    "bounded_delivery_complete": true,
+    "outcome": "The natural-language entry point includes applicable complete repository guidance with hashes and scope in JSON and Markdown. Optional synthesis receives the same section and accepts exact policy citations without upgrading code status."
+  }
 }
