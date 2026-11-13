@@ -334,6 +334,48 @@ fn default_search_discloses_projection_ranking() -> Result<()> {
     let args = json!({"project_id":pid,"query":METHOD,"include_content":true,"output_json":true});
     let result: Value = serde_json::from_str(&client.ok("search_memory", args.clone())?)?;
     ensure!(result["semantic_quality"] == "degraded_trigram");
+    // A projection is not semantic evidence. Unknown identifiers must not
+    // acquire arbitrary matches merely because the default enables semantic.
+    let absent = "zzqxNonexistentPhotoRequirement987654";
+    let missing: Value = serde_json::from_str(&client.ok("search_memory", json!({
+        "project_id":pid,"query":absent,"search_scope":"code","output_json":true
+    }))?)?;
+    ensure!(missing["results"].as_array().is_some_and(Vec::is_empty),
+        "Default fallback introduced unrelated projection-only matches: {missing}");
+    for query in [METHOD, "exportRows", "saveColumnVisibility", "return"] {
+        for mmr in [false, true] {
+            let mut query_args = json!({"project_id":pid,"query":query,
+                "search_scope":"code","use_mmr":mmr,"max_results":2,
+                "output_json":true});
+            let default: Value = serde_json::from_str(&client.ok("search_memory", query_args.clone())?)?;
+            query_args["semantic"] = json!(false);
+            let lexical: Value = serde_json::from_str(&client.ok("search_memory", query_args)?)?;
+            let identities = |value: &Value| -> Vec<Value> {
+                value["results"].as_array().unwrap().iter().map(|hit|
+                    json!([hit["path"],hit["doc_id"],hit["chunk_id"]])).collect()
+            };
+            ensure!(!identities(&lexical).is_empty(), "Authored query lost its answer: {query}");
+            ensure!(identities(&default) == identities(&lexical),
+                "Default ranking differs from lexical for {query}, MMR={mmr}");
+        }
+    }
+    for offset in 0..4 {
+        let mut page_args = json!({"project_id":pid,"query":"return",
+            "search_scope":"code","use_mmr":true,"max_results":1,
+            "offset":offset,"output_json":true});
+        let default: Value = serde_json::from_str(&client.ok("search_memory", page_args.clone())?)?;
+        page_args["semantic"] = json!(false);
+        let lexical: Value = serde_json::from_str(&client.ok("search_memory", page_args)?)?;
+        ensure!(default["results"] == lexical["results"],
+            "Default fallback changed a lexical page at offset {offset}");
+    }
+    // Deliberate vector lookup remains available as an explicitly degraded
+    // operation; the fallback must not disable or destroy its stored vectors.
+    let vectors: Value = serde_json::from_str(&client.ok("vector_search", json!({
+        "project_id":pid,"query":METHOD,"output_json":true
+    }))?)?;
+    ensure!(vectors["semantic_quality"] == "degraded_trigram");
+    ensure!(vectors["results"].as_array().is_some_and(|hits| !hits.is_empty()));
     ensure!(
         result["results"]
             .as_array()
@@ -349,13 +391,13 @@ fn default_search_discloses_projection_ranking() -> Result<()> {
         "Default warning must not guarantee unaffected ranking"
     );
     ensure!(
-        warnings.contains("can change ranking") && warnings.contains("semantic=false"),
-        "Default warning must explain projection ranking and lexical recovery: {warnings}"
+        warnings.contains("lexical-only retrieval") && warnings.contains("do not affect ranking"),
+        "Default warning must explain the actual lexical fallback: {warnings}"
     );
     let mut markdown_args = args.clone();
     markdown_args["output_json"] = json!(false);
     let markdown = client.ok("search_memory", markdown_args)?;
-    ensure!(markdown.contains("can change ranking") && markdown.contains("semantic=false"));
+    ensure!(markdown.contains("lexical-only retrieval") && markdown.contains("do not affect ranking"));
     ensure!(!markdown.contains("Lexical quality is unaffected"));
     let mut lexical_args = args;
     lexical_args["semantic"] = json!(false);
@@ -374,7 +416,7 @@ fn default_search_discloses_projection_ranking() -> Result<()> {
     ensure!(!owned.exists());
     println!(
         "MCP_DEFAULTS_REPORT {}",
-        json!({"status":"PASS","semantic_quality":"degraded_trigram","lexical_quality":"not_used","memory_budget_bytes":2147483648u64,"server_closed":true,"fixture_removed":true,"scope":"Default disclosure and lexical recovery; ranking quality not evaluated"})
+        json!({"status":"PASS","semantic_quality":"degraded_trigram","lexical_quality":"not_used","memory_budget_bytes":2147483648u64,"server_closed":true,"fixture_removed":true,"ranking_comparisons":8,"page_comparisons":4,"absent_identifier_empty":true,"explicit_vectors_retained":true,"scope":"Default preserves lexical source ranking with MMR on/off; broader relevance and productivity not evaluated"})
     );
     Ok(())
 }
