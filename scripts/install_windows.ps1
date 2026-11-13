@@ -2,7 +2,7 @@
 # it with an MCP client using the mcpServers JSON format. No downloads or builds.
 [CmdletBinding()]
 param(
-    [Parameter(Mandatory=$true)][string]$PackageRoot,
+    [string]$PackageRoot,
     [Parameter(Mandatory=$true)][string]$InstallRoot,
     [Parameter(Mandatory=$true)][string]$ProjectRoot,
     [Parameter(Mandatory=$true)][string]$McpConfigPath,
@@ -10,6 +10,7 @@ param(
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ([string]::IsNullOrWhiteSpace($PackageRoot)) { $PackageRoot = Join-Path $PSScriptRoot 'runtime' }
 if ([Environment]::OSVersion.Platform -ne [PlatformID]::Win32NT) { throw 'This installer requires Windows.' }
 $utf8 = New-Object Text.UTF8Encoding($false)
 function Absolute([string]$Path) {

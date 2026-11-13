@@ -39,6 +39,19 @@ claim a matching VB sidecar package is published for those platforms.
 
 ## Install a Windows package and connect your project
 
+For a self-contained Windows bundle, extract the ZIP and follow its `README.md`.
+Run the included `install.ps1` with `-InstallRoot`, `-ProjectRoot` and
+`-McpConfigPath`; it finds `runtime/` beside itself. No source checkout or SDK is
+needed. A maintainer can assemble that bundle from an existing complete package:
+
+```powershell
+.\scripts\package_windows_release.ps1 -PackageRoot 'C:\path\to\release' -OutputPath 'C:\path\to\Engram-win-x64.zip'
+```
+
+The bundler verifies every runtime checksum and the archived contents. It includes
+the complete sidecar, first-time installer and first-query instructions. Public
+download hosting remains separate from creating this local archive.
+
 If you have the complete trusted Windows package described above, this command
 copies the server and all sidecar assets, creates a local Engram configuration,
 and adds an `engram` entry to your chosen MCP client configuration:
