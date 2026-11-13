@@ -5870,24 +5870,29 @@ impl Engram {
         let mut out = format!("# Implementation brief\n\nstory: {}\n", req.story.trim());
         out.push_str(&format!("concepts: {}\n", concepts.join(", ")));
 
+        let mut policy_paths = BTreeSet::new();
+        let mut policy_scope_complete = true;
+
         // Per-concept footprint (trimmed to keep the brief readable). One
         // failing concept must not kill the whole brief — degrade per-concept.
         for concept in &concepts {
             let sub = self
-                .handle_get_concept_footprint(crate::models::GetConceptFootprintRequest {
+                .concept_footprint(crate::models::GetConceptFootprintRequest {
                     project_id: req.project_id.clone(),
                     concept: concept.clone(),
                     max_per_group: 5,
                 })
                 .await;
             match sub {
-                Ok(sub) => {
-                    if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {
-                        let trimmed = bounded_planning_excerpt(&text.text, 30, "get_concept_footprint");
-                        out.push_str(&format!("\n{trimmed}\n"));
-                    }
+                Ok(footprint) => {
+                    policy_scope_complete &= footprint.source_paths_complete
+                        && !footprint.source_paths.is_empty();
+                    policy_paths.extend(footprint.source_paths);
+                    let trimmed = bounded_planning_excerpt(&footprint.text, 30, "get_concept_footprint");
+                    out.push_str(&format!("\n{trimmed}\n"));
                 }
                 Err(e) => {
+                    policy_scope_complete = false;
                     out.push_str(&format!(
                         "\n(concept '{concept}': footprint unavailable — {})\n",
                         e.message
@@ -5895,6 +5900,27 @@ impl Engram {
                 }
             }
         }
+
+        // Reuse typed footprint identities, including paths outside the rendered
+        // excerpt. Exemplars and global settings are not proposed edit targets.
+        let project_root = std::path::PathBuf::from(
+            self.ensure_project_record(&req.project_id).await?.directory,
+        );
+        policy_scope_complete &= !policy_paths.is_empty();
+        let policy_paths = policy_paths.into_iter().collect::<Vec<_>>();
+        let mut policy = tokio::task::spawn_blocking(move || {
+            crate::services::project_policy::resolve(&project_root, &policy_paths, &[])
+        })
+        .await
+        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        policy.notes.push("Guidance is selected for observed concept candidate files, not an approved edit scope. Recheck applicability against the actual planned paths; exemplars do not establish required edits.".into());
+        if !policy_scope_complete {
+            policy.coverage = "incomplete".into();
+            policy.notes.push("Concept scope is incomplete or unresolved; applicable guidance for unidentified paths may be missing. Resolve the intended paths before relying on this brief as complete guidance.".into());
+        }
+        // Keep complete authored documents and recovery instructions outside
+        // the line-limited analysis excerpts.
+        out.push_str(&policy.render_markdown());
 
         // Pattern exemplars for the story's action.
         let sub = self

@@ -368,6 +368,18 @@ namespace App {
         .project_id
         .clone();
 
+    // Guidance created after indexing must still reach the current brief.
+    let root_guide = "# Shared guidance\nPreserve the requested task scope.\n";
+    let topic_guide = "---\napplyTo: 'PhotoUpload.aspx.cs'\n---\n# Photo guidance\nKeep minimum-photo requirements separate from available photo slots.\nException: preserve existing drafts below the minimum.\n";
+    std::fs::create_dir_all(root.join(".github/instructions")).unwrap();
+    std::fs::write(root.join("AGENTS.md"), root_guide).unwrap();
+    let topic_path = root.join(".github/instructions/photos.instructions.md");
+    std::fs::write(&topic_path, topic_guide).unwrap();
+    std::fs::write(
+        root.join(".github/instructions/payments.instructions.md"),
+        "---\napplyTo: 'Payments/**'\n---\nUNRELATED_PAYMENT_POLICY\n",
+    ).unwrap();
+
     let res = engram
         .plan_user_story(Parameters(engram_server::models::PlanUserStoryRequest {
             project_id: project_id.clone(),
@@ -394,4 +406,44 @@ namespace App {
         text.contains("detect_incomplete_changes") && text.contains("pre_commit_review"),
         "checklist must chain into the completeness (fast, precomputed) and review tools"
     );
+    assert!(text.contains(root_guide) && text.contains(topic_guide));
+    assert!(text.contains(&blake3::hash(topic_guide.as_bytes()).to_hex().to_string()));
+    assert!(!text.contains("UNRELATED_PAYMENT_POLICY"));
+    assert!(text.contains("not an approved edit scope"));
+
+    let revised = topic_guide.replace("preserve existing drafts", "retain saved drafts");
+    std::fs::write(&topic_path, &revised).unwrap();
+    let request = engram_server::models::PlanUserStoryRequest {
+        project_id: project_id.clone(),
+        story: "Set the minimum photos requirement".into(),
+        concepts: Some(vec!["photos".into()]),
+    };
+    let updated = engram.plan_user_story(Parameters(request.clone())).await.unwrap();
+    let updated = &updated.content[0].as_text().unwrap().text;
+    assert!(updated.contains(&revised) && !updated.contains(topic_guide));
+    assert!(updated.contains(&blake3::hash(revised.as_bytes()).to_hex().to_string()));
+
+    let oversized = format!("{revised}{}\nEND_OF_COMPLETE_POLICY", "preserve qualifications\n".repeat(600));
+    std::fs::write(&topic_path, &oversized).unwrap();
+    let capped = engram.plan_user_story(Parameters(request)).await.unwrap();
+    let capped = &capped.content[0].as_text().unwrap().text;
+    assert!(!capped.contains("# Photo guidance"), "never present a partial authored policy");
+    assert!(capped.contains(".github/instructions/photos.instructions.md"));
+    assert!(capped.contains(&blake3::hash(oversized.as_bytes()).to_hex().to_string()));
+    assert!(capped.contains("Read the complete project-relative file"), "omitted policy must be recoverable");
+
+    let unresolved = engram.plan_user_story(Parameters(engram_server::models::PlanUserStoryRequest {
+        project_id,
+        story: "Add a new area".into(),
+        concepts: Some(vec!["zzzznomatchingconcept".into()]),
+    })).await.unwrap();
+    let unresolved = &unresolved.content[0].as_text().unwrap().text;
+    assert!(unresolved.contains(root_guide));
+    assert!(unresolved.contains("Concept scope is incomplete or unresolved"));
+    assert!(!unresolved.contains("UNRELATED_PAYMENT_POLICY"));
+    assert!(!unresolved.contains("# Photo guidance"));
+    drop(engram);
+    drop(state);
+    drop(_rx);
+    tmp.close().unwrap();
 }
