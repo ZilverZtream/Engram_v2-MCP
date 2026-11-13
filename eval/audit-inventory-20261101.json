@@ -9976,33 +9976,41 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DOCUMENTED_SOURCE_CHECKED_EXAMPLES_VERIFIED",
-      "finding": "TODO55 large-repository tuning guide",
-      "original_requirement": "One documentation page with recommended values by repository size: Tantivy writer memory, embedder choice, git-history depth and watcher debounce.",
-      "observed_missing_behavior": "README gives configuration examples but there is no dedicated tuning guide; important distinctions between tracked memory/RSS, lexical/projection/semantic backends and request/watch history budgets are missing from a single operational path.",
+      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+      "finding": "TODO56 defaults behavior and truthful fallback",
+      "original_requirement": "Audit default embedding/model, debounce and memory settings so the default experience matches the recommended behavior; retain the accepted degrade-honestly branch of TODO2.",
+      "observed_missing_behavior": "Default local search says Lexical quality is unaffected, although hybrid search adds equal reciprocal-rank contributions from lexical and projection hits. README full configuration also assigns a learned model name to local, which ignores it.",
       "implementation_files": [
-        "docs/TUNING.md",
+        "crates/engram_server/src/handlers/search_tools.rs",
+        "crates/engram_server/tests/mcp_core_contract_tests.rs",
         "README.md"
       ],
       "finite_acceptance": [
-        "Document current defaults and actual option names from config.rs, memory.rs, hybrid.rs, embed.rs and watcher/request code.",
-        "Give conservative starting profiles by eligible source-file count, explaining which values are defaults and which are unbenchmarked suggestions; distinguish history work from source completeness.",
-        "Include a valid scoped config fragment and update/freshness/metrics workflow, without changing user configuration or adding provider calls.",
-        "Validate profile fields and installed startup/index/search behavior on an owned tiny fixture; do not extrapolate to real OciusX performance. Close owners and clean new fixture, commit/push docs."
+        "Run real server with embedding backend/model omitted; known authored source remains retrievable and JSON reports degraded_trigram.",
+        "Default Markdown and JSON warnings disclose projection ranking effects and direct users to semantic=false for lexical-only retrieval; remove the unsupported unaffected guarantee.",
+        "Explicit lexical search reports not_used and returns authored source. Preserve ranking, schema, configured providers and the existing default backend.",
+        "Check the default 2GiB tracked budget through metrics. Existing 5s debounce, 50MB writer, 2 jobs and capped parse defaults are retained; no measured evidence supports an across-the-board numeric change.",
+        "Run relevant native/public checks; build and verify candidate/installed package because warning text is runtime behavior. Preserve production data/config and parked changes; commit/push only origin/master."
       ],
-      "source_basis": [
-        "crates/engram_core/src/config.rs",
-        "crates/engram_core/src/memory.rs",
-        "crates/engram_index/src/hybrid.rs",
-        "crates/engram_ml/src/embed.rs",
-        "crates/engram_server/src/actors/watcher.rs",
-        "crates/engram_server/src/models/requests.rs"
-      ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning",
-      "scope": "Documentation only; no production configuration, defaults, parser, language support, CodeMap or Blast changes.",
-      "at_utc": "2026-11-13T05:11:55.850628+00:00",
-      "delivery": "eval/ociusx-tuning-delivery-20261113.json",
-      "remaining": "Selected guide delivered. No demonstrated production speedup; continue original TODO56 defaults item without assuming different settings are better."
+      "default_disposition": {
+        "embedding_backend": "Keep local, labelled degraded trigram; bundled learned model remains separate unfinished work.",
+        "embedding_model": "No model chosen for projection. Document optional model only with a matching provider.",
+        "watch_debounce_secs": 5,
+        "tantivy_writer_memory": 50000000,
+        "memory_budget_bytes": "0 means 2147483648 tracked bytes, not RSS cap",
+        "max_concurrent_jobs": 2,
+        "max_parse_concurrency": "available parallelism capped at16; fallback4"
+      },
+      "source_baseline": "cc8e1df6a7914c9ac39d22e64241e1394b94c65d",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults",
+      "scope": "Default disclosure and documentation only; no ranking/default-value change, new model, target language or CodeMap/Blast work.",
+      "at_utc": "2026-11-13T05:18:00.019121+00:00",
+      "source_commit": "2694bf38418de12cad4819c40b541d1c4948f356",
+      "main_merge_commit": "51aad298bbe2fecc9340c0190945dd8e7602484c",
+      "native_checks": 5,
+      "baseline": "Expected failure on the old unaffected-ranking guarantee; fixture removed.",
+      "remaining": "Poll exact release build session1612. On terminal PASS, package, candidate1, gates, ValidateUpgrade/Upgrade, installed1, release defaults1 config hold and record delivery. No further runtime edits selected."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10034,7 +10042,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO55 delivered; TODO56 not yet selected",
+    "active_original_item": "TODO56 defaults behavior and truthful fallback",
     "next_user_visible_deliverable": "Next implementation not selected.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10052,7 +10060,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: delivered source-grounded tuning guide and verified both literal config fragments through installed indexing/freshness/search/metrics; all owned fixtures closed.",
+    "previous_goal_turn_classification": "PROGRESS: reproduced misleading default warning, corrected it, passed all5 MCP integration tests, merged source and started one release build.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11025,7 +11033,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Continue original defaults requirement; preserve measured/unmeasured distinctions and all other unfinished findings.",
+    "independent_next_action": "Implement the selected default-search disclosure regression and verify native/candidate/installed behavior.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -13285,7 +13293,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Inspect original TODO56 defaults against current behavior and existing acceptance once; choose a concrete remaining gap.",
+    "next_user_visible_delivery": "Truthful default-search warning and usable default-model configuration guidance.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13883,6 +13891,35 @@
       ],
       "receipt": "eval/ociusx-quickstart-delivery-20261113.json"
     },
-    "tuning_delivery": "eval/ociusx-tuning-delivery-20261113.json"
+    "tuning_delivery": "eval/ociusx-tuning-delivery-20261113.json",
+    "previous_tuning_contract": {
+      "status": "DOCUMENTED_SOURCE_CHECKED_EXAMPLES_VERIFIED",
+      "finding": "TODO55 large-repository tuning guide",
+      "original_requirement": "One documentation page with recommended values by repository size: Tantivy writer memory, embedder choice, git-history depth and watcher debounce.",
+      "observed_missing_behavior": "README gives configuration examples but there is no dedicated tuning guide; important distinctions between tracked memory/RSS, lexical/projection/semantic backends and request/watch history budgets are missing from a single operational path.",
+      "implementation_files": [
+        "docs/TUNING.md",
+        "README.md"
+      ],
+      "finite_acceptance": [
+        "Document current defaults and actual option names from config.rs, memory.rs, hybrid.rs, embed.rs and watcher/request code.",
+        "Give conservative starting profiles by eligible source-file count, explaining which values are defaults and which are unbenchmarked suggestions; distinguish history work from source completeness.",
+        "Include a valid scoped config fragment and update/freshness/metrics workflow, without changing user configuration or adding provider calls.",
+        "Validate profile fields and installed startup/index/search behavior on an owned tiny fixture; do not extrapolate to real OciusX performance. Close owners and clean new fixture, commit/push docs."
+      ],
+      "source_basis": [
+        "crates/engram_core/src/config.rs",
+        "crates/engram_core/src/memory.rs",
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_ml/src/embed.rs",
+        "crates/engram_server/src/actors/watcher.rs",
+        "crates/engram_server/src/models/requests.rs"
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning",
+      "scope": "Documentation only; no production configuration, defaults, parser, language support, CodeMap or Blast changes.",
+      "at_utc": "2026-11-13T05:11:55.850628+00:00",
+      "delivery": "eval/ociusx-tuning-delivery-20261113.json",
+      "remaining": "Selected guide delivered. No demonstrated production speedup; continue original TODO56 defaults item without assuming different settings are better."
+    }
   }
 }
