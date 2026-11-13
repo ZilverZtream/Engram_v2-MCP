@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "status": "DEFAULTS_AUDITED_DISCLOSURE_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "TODO56 defaults behavior and truthful fallback",
   "original_requirement": "Audit default embedding/model, debounce and memory settings so the default experience matches the recommended behavior; retain the accepted degrade-honestly branch of TODO2.",
   "observed_missing_behavior": "Default local search says Lexical quality is unaffected, although hybrid search adds equal reciprocal-rank contributions from lexical and projection hits. README full configuration also assigns a learned model name to local, which ignores it.",
@@ -33,5 +33,6 @@
   "main_merge_commit": "51aad298bbe2fecc9340c0190945dd8e7602484c",
   "native_checks": 5,
   "baseline": "Expected failure on the old unaffected-ranking guarantee; fixture removed.",
-  "remaining": "Poll exact release build session1612. On terminal PASS, package, candidate1, gates, ValidateUpgrade/Upgrade, installed1, release defaults1 config hold and record delivery. No further runtime edits selected."
+  "remaining": "Selected defaults audit/disclosure delivered. Learned local model and global tuning optimum are not claimed; advance original documentation drift item.",
+  "delivery": "eval/ociusx-defaults-delivery-20261113.json"
 }

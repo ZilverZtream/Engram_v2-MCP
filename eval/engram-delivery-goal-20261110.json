@@ -40,10 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-    "finding": "TODO56 defaults behavior and truthful fallback",
-    "remaining": "Poll exact release build session1612. On terminal PASS, package, candidate1, gates, ValidateUpgrade/Upgrade, installed1, release defaults1 config hold and record delivery. No further runtime edits selected.",
-    "progress": "eval/ociusx-defaults-progress-20261113.json"
+    "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
+    "finding": "TODO56 delivered",
+    "remaining": "Inspect the original TODO57 documentation claims against current tool availability and retained feature acceptance once."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -134,5 +133,9 @@
   "tuning_delivery": {
     "status": "DOCUMENTED_SOURCE_CHECKED_EXAMPLES_VERIFIED",
     "receipt": "eval/ociusx-tuning-delivery-20261113.json"
+  },
+  "defaults_delivery": {
+    "status": "DEFAULTS_AUDITED_DISCLOSURE_IMPLEMENTED_VALIDATED_DEPLOYED",
+    "receipt": "eval/ociusx-defaults-delivery-20261113.json"
   }
 }

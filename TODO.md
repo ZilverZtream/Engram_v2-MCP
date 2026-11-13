@@ -531,7 +531,14 @@ value is accuracy, this is the biggest meta-gap.
   `tantivy_writer_memory`, embedder choice, git-history depth, watcher debounce — one doc
   page with recommended values by repo size.
 
-- [ ] **56. Defaults audit** (S)
+- [x] **56. Defaults audit** (S) - *audited and default disclosure corrected 2026-11-13.*
+  Retained local projection/degrade-honestly behavior, 5s debounce, 50MB writer
+  and 2GiB tracked memory default; no evidence supported arbitrary numeric changes.
+  Default search now admits projection ranking effects and gives the lexical-only
+  alternative. README no longer implies a learned local model is selected. Five
+  native checks plus optimized candidate/installed default-config cases passed.
+  No global tuning optimum or ranking-quality improvement is claimed.
+  Evidence: `eval/ociusx-defaults-delivery-20261113.json`.
   `config.rs`: default embedder model name (see #2), debounce, memory budgets — make the
   zero-config experience the recommended one.
 
