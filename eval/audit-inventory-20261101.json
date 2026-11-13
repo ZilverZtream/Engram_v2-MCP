@@ -9989,33 +9989,27 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "EG01 scoped authored guidance in plan_user_story",
-      "original_requirement": "Make existing planning context instruction-aware while preserving scope, authored exceptions and explicit omissions.",
-      "observed_missing_behavior": "plan_user_story returns concept footprints and exemplars but omits applicable repository guidance.",
+      "status": "IMPLEMENTING",
+      "finding": "TODO58 shared-daemon protocol compatibility",
+      "original_requirement": "IPC protocol mismatch handling for mixed-version daemon/proxy.",
+      "observed_missing_behavior": "run_proxy rejects incompatible advertised protocol; default run_client forwards stdio without checking it. Actual OciusX multi_client=true uses multi_client_daemon default true.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/tests/planning_tools_test.rs"
+        "crates/engram_server/src/multi_client.rs",
+        "crates/engram_server/tests/multi_client_protocol_test.rs"
       ],
-      "behavior": "Reuse typed source identities already collected by concept footprints to select complete repository guidance. Disclose candidate-only scope and incomplete or absent footprint coverage.",
+      "behavior": "Check advertised protocol on a connected default daemon before forwarding any client bytes. Keep compatible wire protocols usable across informational crate versions, and preserve missing/stale-endpoint startup recovery.",
       "acceptance": [
-        "Public story brief includes complete root and applicable topic guidance with exact hashes, excludes unrelated topic guidance, and reflects live instruction edits without reindexing.",
-        "Oversized guidance has explicit complete-source recovery; missing concept scope does not claim complete guidance or import unrelated scoped policy.",
-        "Existing brief/checklist behavior passes. Candidate and installed OciusX story response contains independently verified applicable guidance."
+        "Actual Windows proxy with incompatible metadata and a live owned IPC endpoint forwards zero client bytes and exits with daemon/client protocol versions and restart guidance.",
+        "Compatible protocol forwards the exact supplied MCP message and response, including a different informational crate version.",
+        "Existing in-process proxy mismatch refusal remains; candidate and installed executables pass owned fixtures with all handles/processes closed."
       ],
-      "scope": "No extra graph retrieval, ranking change, model replay, target-language expansion, or changes to authored guidance.",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy",
+      "scope": "Protocol compatibility in existing client transport only; no negotiation framework, daemon lifecycle redesign, storage changes, tool ranking or target-language expansion.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol",
       "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "resource_retention": "Reuse existing source checkout to protect WIP9. New fixtures under this case close handles before removal. Retain evidence/package/rollback; no preexisting deletion.",
+      "resource_retention": "Owned protocol endpoints and fixtures close before cleanup. Retain evidence/package/rollback; preserve preexisting folders and WIP9.",
       "limits": [
-        "Candidate paths are not an approved edit scope. Guidance delivery does not prove semantic enforcement or productivity."
-      ],
-      "source_commit": "413a167392b421921c3129aab0fc78df04ad8a5d",
-      "progress": "eval/ociusx-story-policy-progress-20261113.json",
-      "remaining": [
-        "Advance the next unfinished original OciusX requirement; preserve broader scope and all recorded acceptance gaps."
-      ],
-      "delivery": "eval/ociusx-story-policy-delivery-20261113.json"
+        "Version equality is wire compatibility, not identical source commits or tool behavior. Unix source shares the gate; Windows public execution is the available platform."
+      ]
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -14287,6 +14281,36 @@
       "delivery": "eval/ociusx-workflow-guidance-delivery-20261113.json",
       "remaining": "Generated workflow correction delivered. Advance next unfinished original OciusX requirement; retain legacy workflow adoption gap without weakening ownership or repeating this acceptance."
     },
-    "story_policy_delivery_20261113": "eval/ociusx-story-policy-delivery-20261113.json"
+    "story_policy_delivery_20261113": "eval/ociusx-story-policy-delivery-20261113.json",
+    "retained_story_policy_delivery_contract": {
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "finding": "EG01 scoped authored guidance in plan_user_story",
+      "original_requirement": "Make existing planning context instruction-aware while preserving scope, authored exceptions and explicit omissions.",
+      "observed_missing_behavior": "plan_user_story returns concept footprints and exemplars but omits applicable repository guidance.",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/tests/planning_tools_test.rs"
+      ],
+      "behavior": "Reuse typed source identities already collected by concept footprints to select complete repository guidance. Disclose candidate-only scope and incomplete or absent footprint coverage.",
+      "acceptance": [
+        "Public story brief includes complete root and applicable topic guidance with exact hashes, excludes unrelated topic guidance, and reflects live instruction edits without reindexing.",
+        "Oversized guidance has explicit complete-source recovery; missing concept scope does not claim complete guidance or import unrelated scoped policy.",
+        "Existing brief/checklist behavior passes. Candidate and installed OciusX story response contains independently verified applicable guidance."
+      ],
+      "scope": "No extra graph retrieval, ranking change, model replay, target-language expansion, or changes to authored guidance.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy",
+      "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "resource_retention": "Reuse existing source checkout to protect WIP9. New fixtures under this case close handles before removal. Retain evidence/package/rollback; no preexisting deletion.",
+      "limits": [
+        "Candidate paths are not an approved edit scope. Guidance delivery does not prove semantic enforcement or productivity."
+      ],
+      "source_commit": "413a167392b421921c3129aab0fc78df04ad8a5d",
+      "progress": "eval/ociusx-story-policy-progress-20261113.json",
+      "remaining": [
+        "Advance the next unfinished original OciusX requirement; preserve broader scope and all recorded acceptance gaps."
+      ],
+      "delivery": "eval/ociusx-story-policy-delivery-20261113.json"
+    },
+    "unselected_todo61_observation": "analyze_error_stack is already labeled heuristic and parses frames. get_instrumentation_pack still emits a C# placeholder; record for original backlog, not active protocol work."
   }
 }
