@@ -917,6 +917,10 @@ indexing path.
 
 ## Install
 
+For an exact small-source index, freshness check and first query, follow the
+[quickstart](docs/QUICKSTART.md). It includes an existing-OciusX connection path
+and isolated Windows/Linux/macOS sample configuration commands.
+
 ### Prerequisites
 
 - Stable Rust toolchain, as exercised in CI (edition 2024)
@@ -944,7 +948,7 @@ directory together. The companion includes its .NET runtime; users do not need
 an SDK. `-SidecarOnly` builds the companion for extraction verification.
 `ENGRAM_VB_SIDECAR_PATH` overrides discovery, including legacy adjacent executable
 locations. Trusted VB indexing requires a matching companion that attests
-`vb-ingestion-parser-v4`; discovering an older binary does not establish
+`vb-ingestion-parser-v6`; discovering an older binary does not establish
 compatibility. A present, unsupported companion makes trusted ingestion refuse
 before publishing source output. With no companion, Engram records the Rust
 fallback explicitly. Installing a companion does not certify earlier fallback
@@ -1052,6 +1056,10 @@ messages; logs go to stderr. Enable debug logs with `RUST_LOG=debug`.
 ```
 
 ### First session
+
+The [verified-query walkthrough](docs/QUICKSTART.md#index-check-search) gives
+literal tool arguments and expected source/freshness results. Source builds and
+full-application indexing are outside its five-minute small-sample target.
 
 ```
 Index /home/user/myapp as project "myapp".

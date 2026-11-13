@@ -1,0 +1,15 @@
+{
+  "status": "UNFINISHED_NO_PUBLISHED_RELEASES",
+  "finding": "TODO53 prebuilt releases and one-command installer",
+  "observed": {
+    "github_releases": [],
+    "source": "https://api.github.com/repos/ZilverZtream/Engram_v2-MCP/releases?per_page=10",
+    "method": "Connected GitHub fetch, successful response on 2026-11-13",
+    "existing_scripts": [
+      "scripts/build_windows_release.ps1",
+      "scripts/deploy_windows_release_pair.ps1"
+    ]
+  },
+  "conclusion": "Existing Windows paired builder and managed upgrade script are not a public cross-platform release/first-time installer. generate_agent_integration can return an MCP snippet after connection; it does not bootstrap an absent server.",
+  "remaining": "Windows/macOS/Linux distribution and first-time installer remain open. Current no-new-tags instruction prevents treating a fresh tagged release as an automatic next step. Do not claim published artifacts or discard the requirement."
+}

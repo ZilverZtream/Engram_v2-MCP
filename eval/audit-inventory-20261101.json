@@ -9976,41 +9976,20 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_LOCALLY_VALIDATED_HOSTED_CI_UNVERIFIED",
-      "finding": "TODO52 search/method lookup latency budgets",
-      "original_requirement": "TODO52: assert p95 latency for hot tools on the fixture corpus in CI.",
-      "observed_missing_behavior": "Existing benchmark-ci has behavioral/retrieval/wire checks, but no search_memory/get_method_info latency failure threshold.",
-      "ociusx_need": "Detect response-time regressions in source discovery and method lookup used during OciusX editing.",
-      "implementation_scope": "Reuse the production MCP client and authored WebForms fixture. Test-only change; no runtime build/deploy, new benchmark platform or closed-tool work.",
+      "status": "DOCUMENTED_WINDOWS_SETUP_AND_MCP_VERIFIED_CROSS_PLATFORM_ACCEPTANCE_PARTIAL",
+      "finding": "TODO54 first verified query quickstart",
+      "original_requirement": "TODO54: copy-paste clone/index/first-query path per OS, expected timings and freshness verification, with a five-minute quickstart target.",
+      "observed_missing_behavior": "README had a generic first-session prompt, no exact freshness/search/source-recovery sequence and an obsolete v4 VB companion contract.",
       "implementation_files": [
-        "crates/engram_server/tests/mcp_core_contract_tests.rs",
-        ".github/workflows/benchmark-ci.yml"
+        "docs/QUICKSTART.md",
+        "README.md"
       ],
       "finite_acceptance": [
-        "Index the existing authored 13-file source fixture through the actual MCP server, FTS-only, no LLM/sidecar.",
-        "For upload, export and grid-preference methods, validate each search/method response identifies the authored file and method before accepting its elapsed measurement.",
-        "Report the first request separately, warm each request twice, then retain all forty sequential samples per request. Gate nearest-rank p95 independently for all six cases: search 250ms; method info 200ms. No retries or timing-discard rules.",
-        "Report actual samples/p95/max and fixed limits; add an intentionally slow sample case proving the gate fails. Close the owned server before deleting the fixture.",
-        "Run local tests, wire the timing test separately into existing CI, commit/push origin/master. Hosted CI remains unverified while Actions are disabled. No claim about production-scale latency."
+        "Execute documented Windows setup with only placeholder paths substituted.",
+        "Run documented index/freshness/search/chunk argument objects against the installed server and match source.",
+        "Close owned server/reader and clean new fixtures; retain receipts. Preserve platform/elapsed-time limitations."
       ],
-      "fixed_budgets_ms": {
-        "search_memory": 250,
-        "get_method_info": 200
-      },
-      "samples_per_case": 40,
-      "fixed_before_first_measurement": true,
-      "source_baseline": "b70832631a6fe137fc304086b2554e1181ce4247",
-      "retained_unfinished": {
-        "TODO51": "Referenced eqs_gate_requirements.md absent from current file search and exact-name Git history; no score/requirements invented.",
-        "TODO52_blast_radius": "Held by explicit closed-for-improvement scope.",
-        "hosted_ci": "Repository Actions disabled; no hosted timing calibration/execution claimed."
-      },
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\read-latency",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "cleanup": "Reuse existing client/fixture ownership; tests remove owned temp roots after child close. Retain logs/receipts here.",
-      "at_utc": "2026-11-13T04:59:58.658301+00:00",
-      "delivery": "eval/ociusx-read-latency-delivery-20261113.json",
-      "remaining": "Hosted CI and held Blast portion remain unverified/unfinished. Search/method fixture gates are implemented and locally passed."
+      "receipt": "eval/ociusx-quickstart-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10042,7 +10021,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO52 search/method checks delivered; next original OciusX item not selected",
+    "active_original_item": "TODO54 Windows walkthrough delivered; platform/client acceptance partial",
     "next_user_visible_deliverable": "Next implementation not selected.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10060,7 +10039,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: installed empty-completion fix and added locally passing fixed read-latency CI gates; source merged, fixtures closed.",
+    "previous_goal_turn_classification": "PROGRESS: documented exact setup/query/freshness path, verified installed runtime responses, corrected stale VB parser contract and preserved unresolved distribution/platform requirements.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11033,7 +11012,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Inspect the next unfinished original OciusX-relevant requirement once; no EQS requirements invented and no closed-tool replay.",
+    "independent_next_action": "Continue the next original OciusX-relevant item; no new tags, language expansion or closed-tool work.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -13293,7 +13272,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Next original OciusX-relevant item not yet selected; retained test-only TODO52 limits do not block other work.",
+    "next_user_visible_delivery": "Inspect original TODO55 tuning guide against current configuration and retained measured evidence.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13835,6 +13814,45 @@
       "release_interruption": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\release1-interruption.json",
       "delivery": "eval/ociusx-mcp-contract-delivery-20261113.json"
     },
-    "read_latency_delivery": "eval/ociusx-read-latency-delivery-20261113.json"
+    "read_latency_delivery": "eval/ociusx-read-latency-delivery-20261113.json",
+    "previous_read_latency_contract": {
+      "status": "IMPLEMENTED_LOCALLY_VALIDATED_HOSTED_CI_UNVERIFIED",
+      "finding": "TODO52 search/method lookup latency budgets",
+      "original_requirement": "TODO52: assert p95 latency for hot tools on the fixture corpus in CI.",
+      "observed_missing_behavior": "Existing benchmark-ci has behavioral/retrieval/wire checks, but no search_memory/get_method_info latency failure threshold.",
+      "ociusx_need": "Detect response-time regressions in source discovery and method lookup used during OciusX editing.",
+      "implementation_scope": "Reuse the production MCP client and authored WebForms fixture. Test-only change; no runtime build/deploy, new benchmark platform or closed-tool work.",
+      "implementation_files": [
+        "crates/engram_server/tests/mcp_core_contract_tests.rs",
+        ".github/workflows/benchmark-ci.yml"
+      ],
+      "finite_acceptance": [
+        "Index the existing authored 13-file source fixture through the actual MCP server, FTS-only, no LLM/sidecar.",
+        "For upload, export and grid-preference methods, validate each search/method response identifies the authored file and method before accepting its elapsed measurement.",
+        "Report the first request separately, warm each request twice, then retain all forty sequential samples per request. Gate nearest-rank p95 independently for all six cases: search 250ms; method info 200ms. No retries or timing-discard rules.",
+        "Report actual samples/p95/max and fixed limits; add an intentionally slow sample case proving the gate fails. Close the owned server before deleting the fixture.",
+        "Run local tests, wire the timing test separately into existing CI, commit/push origin/master. Hosted CI remains unverified while Actions are disabled. No claim about production-scale latency."
+      ],
+      "fixed_budgets_ms": {
+        "search_memory": 250,
+        "get_method_info": 200
+      },
+      "samples_per_case": 40,
+      "fixed_before_first_measurement": true,
+      "source_baseline": "b70832631a6fe137fc304086b2554e1181ce4247",
+      "retained_unfinished": {
+        "TODO51": "Referenced eqs_gate_requirements.md absent from current file search and exact-name Git history; no score/requirements invented.",
+        "TODO52_blast_radius": "Held by explicit closed-for-improvement scope.",
+        "hosted_ci": "Repository Actions disabled; no hosted timing calibration/execution claimed."
+      },
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\read-latency",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "cleanup": "Reuse existing client/fixture ownership; tests remove owned temp roots after child close. Retain logs/receipts here.",
+      "at_utc": "2026-11-13T04:59:58.658301+00:00",
+      "delivery": "eval/ociusx-read-latency-delivery-20261113.json",
+      "remaining": "Hosted CI and held Blast portion remain unverified/unfinished. Search/method fixture gates are implemented and locally passed."
+    },
+    "quickstart_delivery": "eval/ociusx-quickstart-delivery-20261113.json",
+    "packaging_state": "eval/todo53-packaging-state-20261113.json"
   }
 }

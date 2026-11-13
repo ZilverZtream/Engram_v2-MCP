@@ -504,11 +504,21 @@ value is accuracy, this is the biggest meta-gap.
 ## P6 — Adoption & packaging
 
 - [ ] **53. Prebuilt release binaries + one-command install** (M)
+  *2026-11-13: no GitHub releases are published. Existing Windows paired build and
+  managed-upgrade scripts do not satisfy public cross-platform distribution or
+  first-time installation. See `eval/todo53-packaging-state-20261113.json`; retain
+  this requirement and the no-new-tags constraint.*
   Today: `cargo build --release` (30+ min, libgit2 headers, Rust toolchain). Add GitHub
   Releases with win/mac/linux binaries and an `npx`/installer wrapper that also writes
   the MCP config block. Most potential users are lost right here.
 
-- [ ] **54. Quickstart: clone → indexed → first query in 5 minutes** (S)
+- [~] **54. Quickstart: clone → indexed → first query in 5 minutes** (S)
+  *2026-11-13: `docs/QUICKSTART.md` provides per-OS sample setup, exact index /
+  freshness / search / source recovery calls and expected results. Literal Windows
+  setup and all four calls passed against the installed runtime in 1.07s, with
+  the owned sample removed after server exit. Linux/macOS and GUI setup remain
+  unverified; compilation/full-repository indexing are outside the small-sample
+  timing. See `eval/ociusx-quickstart-delivery-20261113.json`.*
   README has MCP config samples; tie it together with a copy-paste path per OS, expected
   timings, and "how do I know it worked" (point at #5 freshness tool).
 

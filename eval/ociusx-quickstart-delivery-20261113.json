@@ -1,0 +1,58 @@
+{
+  "status": "DOCUMENTED_WINDOWS_SETUP_AND_MCP_VERIFIED_CROSS_PLATFORM_ACCEPTANCE_PARTIAL",
+  "finding": "TODO54 first verified query quickstart",
+  "original_requirement": "TODO54: copy-paste clone/index/first-query path per OS, expected timings and freshness verification, with a five-minute quickstart target.",
+  "observed_missing_behavior": "README had a generic first-session prompt, no exact freshness/search/source-recovery sequence and an obsolete v4 VB companion contract.",
+  "delivered": [
+    "docs/QUICKSTART.md: existing OciusX connection path, separate lexical sample setup for Windows and Linux/macOS, literal tool calls, expected results and failure recovery.",
+    "README links the walkthrough and now names the v6 trusted VB companion contract used by current source and installed package."
+  ],
+  "files": [
+    "docs/QUICKSTART.md",
+    "README.md"
+  ],
+  "production_change": false,
+  "deployment_required": false,
+  "verified": {
+    "platform": "Windows PowerShell / installed server; no GUI-client interaction",
+    "server_sha256": "526fd26a60a8d6c6c2fac861380d16969670812c849f2b1e2dc50c6e6c76a927",
+    "setup_and_wire_seconds": 1.0660221999278292,
+    "tool_calls": [
+      "index_project",
+      "get_index_freshness",
+      "search_memory",
+      "get_chunk"
+    ],
+    "exact_document_code_and_argument_objects": true,
+    "source_lines_match": true,
+    "freshness_complete_and_no_changes": true
+  },
+  "limits": [
+    "Five-minute target excludes source compilation, full-application indexing and optional providers.",
+    "Linux/macOS recipes are documented but not executed on those operating systems. GUI/client-specific configuration interaction is not measured.",
+    "Four-file JS/TS sample establishes first-query setup; it does not validate semantic VB sidecar extraction, full OciusX performance or productivity."
+  ],
+  "review": {
+    "kind": "Parent source/document review",
+    "evidence": "Config loader accepts JSON through serde_yaml. Current vb_extractor.rs and sidecar Program.cs both require vb-ingestion-parser-v6. Literal arguments and output fields verified against installed runtime. Client snippet retains existing entries and uses separate source/data/config roots."
+  },
+  "evidence": {
+    "verify.py": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\quickstart\\verify.py",
+      "sha256": "220002f8e7e33c84161572552bce688040c29bedebf8146bd880aabb363a4fc9"
+    },
+    "windows1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\quickstart\\windows1\\acceptance.json",
+      "sha256": "1e3b427a49c38b115c286d5f9f313f34f2a43836b03aecd03c263bdca2cd1dd9"
+    }
+  },
+  "document_sha256": "df2013ec13587b97b83db6dab610b9412dbc23e89cc8a6df8d4baa0927331c62",
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\quickstart",
+    "all_servers_and_readers_closed": true,
+    "owned_fixture_removed": true,
+    "preserved_work_unchanged": true,
+    "retained": "Document setup script with substituted paths, wire responses and logs retained here for traceability; no live fixture or runtime build."
+  },
+  "at_utc": "2026-11-13T05:08:56.069294+00:00"
+}
