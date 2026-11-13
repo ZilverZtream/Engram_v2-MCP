@@ -487,7 +487,15 @@ value is accuracy, this is the biggest meta-gap.
   Target 4.5+, currently ~2.5–3.0 with all EXH findings closed. The remaining gates
   overlap heavily with #48–50 — do them together.
 
-- [ ] **52. Latency budgets in CI** (S)
+- [~] **52. Latency budgets in CI** (S) - *search/method fixture gates implemented and locally verified 2026-11-13.*
+  Three authored queries each exercise `search_memory` and `get_method_info` over
+  production stdio MCP. Every reply must identify the expected source; forty warm
+  samples per case gate p95 at fixed 250ms/200ms limits. Local p95 ranges were
+  9.62-15.25ms for search and 1.29-2.35ms for method lookup. CI is configured to
+  fail on violations, but hosted execution remains unverified while Actions are
+  disabled. Blast Radius remains held by the closed-tool instruction. These small
+  fixture results do not establish production-scale OciusX latency.
+  Evidence: `eval/ociusx-read-latency-delivery-20261113.json`.
   Assert p95 per hot tool (search, get_method_info, blast radius) on the fixture corpus
   so perf regressions surface before users feel them.
 

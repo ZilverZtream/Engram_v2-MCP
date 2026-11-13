@@ -9976,80 +9976,41 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_HOSTED_CI_UNVERIFIED",
-      "finding": "TODO50 top20 public MCP contract tests",
-      "original_requirement": "Start the actual MCP server, invoke twenty important tools as a client would, and assert contracts for invalid project identity, empty index and large/bounded source input.",
-      "observed_missing_behavior": "Existing mcp_contract_enforcement_tests and mcp_input_negative_tests call validators directly; top10_audit_tests calls handlers. No checked-in integration client was found in server tests that launches the production binary. Prior delivery-specific wire fixtures exist in recorded diagnostics and can supply protocol/lifetime patterns.",
-      "behavior": "Exercise twenty OciusX-relevant core editing/retrieval tools through the actual MCP wire and production server using owned authored fixtures, with truthful success/error/recovery checks.",
-      "tools": [
-        "index_project",
-        "list_projects",
-        "project_info",
-        "get_index_freshness",
-        "search_memory",
-        "grep_project",
-        "get_chunk",
-        "get_full_method_body",
-        "resolve_id",
-        "get_method_edit_context",
-        "get_page_context",
-        "get_change_set",
-        "pre_commit_review",
-        "get_review_decisions",
-        "read_memory_bank",
-        "begin_edit_session",
-        "complete_edit_session",
-        "check_edit_safety",
-        "find_symbol_references",
-        "prepare_implementation_context"
-      ],
-      "tool_selection": "Existing core workflow plus prepare_implementation_context from original research. Covers source retrieval, context, review, edit sessions and lifecycle; CodeMap/Blast remain closed.",
-      "finite_acceptance": [
-        "Spawn the production server binary with fresh owned config/data and FTS-only/no-LLM settings; initialize, discover schemas and call tools over MCP rather than direct handlers.",
-        "Pin the twenty-tool inventory above. Every tool gets a wanted public success/empty/applicability contract; project-scoped tools also reject invalid/unknown project identities without fabricating usable source.",
-        "Exercise an empty indexed fixture and source volume beyond configured admission/budget limits using bounded authored data; verify visible omissions/recovery and complete parseable replies. This is not a scale/performance benchmark.",
-        "Retain exact calls/responses on failure, close owned server/client handles before directory teardown on success and unwinding, and demonstrate test failure for a violated public contract.",
-        "Run relevant checks, wire the public-contract test into existing CI, commit/push origin/master. Keep hosted CI verification open while repository Actions are disabled; no production deployment for test-only changes."
-      ],
-      "implementation_scope": "Reuse the existing authored WebForms fixture and established wire framing. No general evaluation platform, new target-language support, optional live services or closed-tool replays.",
+      "status": "IMPLEMENTED_LOCALLY_VALIDATED_HOSTED_CI_UNVERIFIED",
+      "finding": "TODO52 search/method lookup latency budgets",
+      "original_requirement": "TODO52: assert p95 latency for hot tools on the fixture corpus in CI.",
+      "observed_missing_behavior": "Existing benchmark-ci has behavioral/retrieval/wire checks, but no search_memory/get_method_info latency failure threshold.",
+      "ociusx_need": "Detect response-time regressions in source discovery and method lookup used during OciusX editing.",
+      "implementation_scope": "Reuse the production MCP client and authored WebForms fixture. Test-only change; no runtime build/deploy, new benchmark platform or closed-tool work.",
       "implementation_files": [
         "crates/engram_server/tests/mcp_core_contract_tests.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/tests/detect_incomplete_changes_test.rs",
         ".github/workflows/benchmark-ci.yml"
       ],
-      "source_baseline": "1535fb52b7567a882bfed3926da58635dd490cf2",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts",
-      "cleanup": "Own spawned server, clients, logs and temporary directories; close/wait handles before removal. Preserve existing diagnostic folders and parked work.",
-      "retained_unfinished": [
-        "TODO48 hosted CI unverified because repository Actions disabled",
-        "TODO32 semantic failures",
-        "Other partial original findings, performance requirements and release gates"
+      "finite_acceptance": [
+        "Index the existing authored 13-file source fixture through the actual MCP server, FTS-only, no LLM/sidecar.",
+        "For upload, export and grid-preference methods, validate each search/method response identifies the authored file and method before accepting its elapsed measurement.",
+        "Report the first request separately, warm each request twice, then retain all forty sequential samples per request. Gate nearest-rank p95 independently for all six cases: search 250ms; method info 200ms. No retries or timing-discard rules.",
+        "Report actual samples/p95/max and fixed limits; add an intentionally slow sample case proving the gate fails. Close the owned server before deleting the fixture.",
+        "Run local tests, wire the timing test separately into existing CI, commit/push origin/master. Hosted CI remains unverified while Actions are disabled. No claim about production-scale latency."
       ],
-      "runtime_change": {
-        "finding": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\empty-completion-finding.json",
-        "behavior": "Explicit empty edited_files preserves no-edits intent, reports all planned files unedited and does not run completeness analysis; omission keeps planned-set fallback.",
-        "deployment_required": true
+      "fixed_budgets_ms": {
+        "search_memory": 250,
+        "get_method_info": 200
       },
-      "source_commit": "b70832631a6fe137fc304086b2554e1181ce4247",
-      "main_merge_commit": "b30b77648150350d6c3d298a55dd7abdf19c5384",
-      "validation": {
-        "native_related_checks": 12,
-        "tools": 20,
-        "invalid_identity_calls": 36,
-        "empty_index": true,
-        "admission_limit": true,
-        "response_budget_recovery": true,
-        "native_receipts": [
-          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\native5.json",
-          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\native6.json"
-        ]
+      "samples_per_case": 40,
+      "fixed_before_first_measurement": true,
+      "source_baseline": "b70832631a6fe137fc304086b2554e1181ce4247",
+      "retained_unfinished": {
+        "TODO51": "Referenced eqs_gate_requirements.md absent from current file search and exact-name Git history; no score/requirements invented.",
+        "TODO52_blast_radius": "Held by explicit closed-for-improvement scope.",
+        "hosted_ci": "Repository Actions disabled; no hosted timing calibration/execution claimed."
       },
-      "remaining": "Hosted CI execution unverified. Selected runtime fix and candidate/installed acceptance complete; advance another original OciusX-relevant item.",
-      "release_interruption": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\release1-interruption.json",
-      "delivery": "eval/ociusx-mcp-contract-delivery-20261113.json"
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\read-latency",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "cleanup": "Reuse existing client/fixture ownership; tests remove owned temp roots after child close. Retain logs/receipts here.",
+      "at_utc": "2026-11-13T04:59:58.658301+00:00",
+      "delivery": "eval/ociusx-read-latency-delivery-20261113.json",
+      "remaining": "Hosted CI and held Blast portion remain unverified/unfinished. Search/method fixture gates are implemented and locally passed."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10081,7 +10042,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO50 delivered; next original item not yet selected",
+    "active_original_item": "TODO52 search/method checks delivered; next original OciusX item not selected",
     "next_user_visible_deliverable": "Next implementation not selected.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10099,7 +10060,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: release2 passed; candidate and installed twenty-tool contracts passed; runtime fix installed; owned fixtures and config hold closed.",
+    "previous_goal_turn_classification": "PROGRESS: installed empty-completion fix and added locally passing fixed read-latency CI gates; source merged, fixtures closed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11072,7 +11033,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Reconcile the next original requirement with current evidence and OciusX scope; do not resume parked language expansion.",
+    "independent_next_action": "Inspect the next unfinished original OciusX-relevant requirement once; no EQS requirements invented and no closed-tool replay.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -13332,7 +13293,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Inspect next unfinished original requirement once; choose only work with a concrete OciusX need. Preserve hosted-CI and semantic-planner limitations.",
+    "next_user_visible_delivery": "Next original OciusX-relevant item not yet selected; retained test-only TODO52 limits do not block other work.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13797,6 +13758,83 @@
     },
     "next_tool_hints_delivery": "eval\\ociusx-next-tool-hints-delivery-20261113.json",
     "retrieval_fixture_delivery": "eval/ociusx-retrieval-fixture-delivery-20261113.json",
-    "mcp_contract_delivery": "eval/ociusx-mcp-contract-delivery-20261113.json"
+    "mcp_contract_delivery": "eval/ociusx-mcp-contract-delivery-20261113.json",
+    "previous_mcp_contract_delivery_contract": {
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_HOSTED_CI_UNVERIFIED",
+      "finding": "TODO50 top20 public MCP contract tests",
+      "original_requirement": "Start the actual MCP server, invoke twenty important tools as a client would, and assert contracts for invalid project identity, empty index and large/bounded source input.",
+      "observed_missing_behavior": "Existing mcp_contract_enforcement_tests and mcp_input_negative_tests call validators directly; top10_audit_tests calls handlers. No checked-in integration client was found in server tests that launches the production binary. Prior delivery-specific wire fixtures exist in recorded diagnostics and can supply protocol/lifetime patterns.",
+      "behavior": "Exercise twenty OciusX-relevant core editing/retrieval tools through the actual MCP wire and production server using owned authored fixtures, with truthful success/error/recovery checks.",
+      "tools": [
+        "index_project",
+        "list_projects",
+        "project_info",
+        "get_index_freshness",
+        "search_memory",
+        "grep_project",
+        "get_chunk",
+        "get_full_method_body",
+        "resolve_id",
+        "get_method_edit_context",
+        "get_page_context",
+        "get_change_set",
+        "pre_commit_review",
+        "get_review_decisions",
+        "read_memory_bank",
+        "begin_edit_session",
+        "complete_edit_session",
+        "check_edit_safety",
+        "find_symbol_references",
+        "prepare_implementation_context"
+      ],
+      "tool_selection": "Existing core workflow plus prepare_implementation_context from original research. Covers source retrieval, context, review, edit sessions and lifecycle; CodeMap/Blast remain closed.",
+      "finite_acceptance": [
+        "Spawn the production server binary with fresh owned config/data and FTS-only/no-LLM settings; initialize, discover schemas and call tools over MCP rather than direct handlers.",
+        "Pin the twenty-tool inventory above. Every tool gets a wanted public success/empty/applicability contract; project-scoped tools also reject invalid/unknown project identities without fabricating usable source.",
+        "Exercise an empty indexed fixture and source volume beyond configured admission/budget limits using bounded authored data; verify visible omissions/recovery and complete parseable replies. This is not a scale/performance benchmark.",
+        "Retain exact calls/responses on failure, close owned server/client handles before directory teardown on success and unwinding, and demonstrate test failure for a violated public contract.",
+        "Run relevant checks, wire the public-contract test into existing CI, commit/push origin/master. Keep hosted CI verification open while repository Actions are disabled; no production deployment for test-only changes."
+      ],
+      "implementation_scope": "Reuse the existing authored WebForms fixture and established wire framing. No general evaluation platform, new target-language support, optional live services or closed-tool replays.",
+      "implementation_files": [
+        "crates/engram_server/tests/mcp_core_contract_tests.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/tests/detect_incomplete_changes_test.rs",
+        ".github/workflows/benchmark-ci.yml"
+      ],
+      "source_baseline": "1535fb52b7567a882bfed3926da58635dd490cf2",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts",
+      "cleanup": "Own spawned server, clients, logs and temporary directories; close/wait handles before removal. Preserve existing diagnostic folders and parked work.",
+      "retained_unfinished": [
+        "TODO48 hosted CI unverified because repository Actions disabled",
+        "TODO32 semantic failures",
+        "Other partial original findings, performance requirements and release gates"
+      ],
+      "runtime_change": {
+        "finding": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\empty-completion-finding.json",
+        "behavior": "Explicit empty edited_files preserves no-edits intent, reports all planned files unedited and does not run completeness analysis; omission keeps planned-set fallback.",
+        "deployment_required": true
+      },
+      "source_commit": "b70832631a6fe137fc304086b2554e1181ce4247",
+      "main_merge_commit": "b30b77648150350d6c3d298a55dd7abdf19c5384",
+      "validation": {
+        "native_related_checks": 12,
+        "tools": 20,
+        "invalid_identity_calls": 36,
+        "empty_index": true,
+        "admission_limit": true,
+        "response_budget_recovery": true,
+        "native_receipts": [
+          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\native5.json",
+          "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\native6.json"
+        ]
+      },
+      "remaining": "Hosted CI execution unverified. Selected runtime fix and candidate/installed acceptance complete; advance another original OciusX-relevant item.",
+      "release_interruption": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\mcp-core-contracts\\release1-interruption.json",
+      "delivery": "eval/ociusx-mcp-contract-delivery-20261113.json"
+    },
+    "read_latency_delivery": "eval/ociusx-read-latency-delivery-20261113.json"
   }
 }
