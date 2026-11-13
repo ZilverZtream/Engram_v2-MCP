@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTING",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
     "finding": "EG01 scoped authored guidance in plan_user_story",
     "original_requirement": "Make existing planning context instruction-aware while preserving scope, authored exceptions and explicit omissions.",
     "observed_missing_behavior": "plan_user_story returns concept footprints and exemplars but omits applicable repository guidance.",
@@ -60,6 +60,13 @@
     "resource_retention": "Reuse existing source checkout to protect WIP9. New fixtures under this case close handles before removal. Retain evidence/package/rollback; no preexisting deletion.",
     "limits": [
       "Candidate paths are not an approved edit scope. Guidance delivery does not prove semantic enforcement or productivity."
+    ],
+    "source_commit": "413a167392b421921c3129aab0fc78df04ad8a5d",
+    "progress": "eval/ociusx-story-policy-progress-20261113.json",
+    "remaining": [
+      "Finish existing release build.",
+      "Run candidate and installed read-only OciusX story acceptance; deploy only after candidate acceptance.",
+      "Record installed identity and limits."
     ]
   },
   "previous_delivery": {
