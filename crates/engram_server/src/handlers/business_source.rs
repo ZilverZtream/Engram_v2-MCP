@@ -1372,6 +1372,7 @@ mod predicate_preview_tests {
             plan: planner::plan_query("read"),
             status: AnswerStatus::Partial,
             mode: "retrieval_only".into(),
+            synthesis: None,
             evidence: vec![item],
             conflicts: vec![],
             unknowns: vec![],

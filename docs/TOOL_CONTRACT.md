@@ -278,3 +278,27 @@ Successful `project_health` / waited `update_project` calls with `instruction_ma
 `no_matching_files` is a routing/coverage warning after a complete supported inventory, not a claim that a rule is wrong. Invalid or absent explicit scopes stay distinct from zero matches. Inventory errors, unsupported paths or the50,000retained-path cap produce incomplete coverage and lower-bound counts. The cap does not bound libgit2's internal status enumeration time or memory. Prose exclusions and semantic applicability are not inferred.
 
 This is a separate current-worktree observation bound to the captured instruction bytes/hash. It writes no authored guidance, does not alter proposal packet identity and does not claim an atomic or historical file inventory.
+
+### Optional ask_codebase synthesis
+
+`ask_codebase` remains a deterministic evidence report by default. Set
+`synthesize: true` to request one configured text-generation call over the
+returned evidence, task context, conflicts, warnings and gaps. Successful
+output has `mode: "synthesized"` and `synthesis.answer`, whose statements
+include evidence IDs and exact excerpt quotations. The original retrieval
+status is unchanged: a generated answer does not turn partial or stale
+retrieval into verified knowledge. Markdown renders statement citations;
+JSON also retains their checked quotation text.
+
+`synthesis_timeout_ms` controls generation only (default 30,000ms; clamped
+1,000..120,000); `deadline_ms` continues to control retrieval. Prompts above
+64 KiB are declined without generation rather than silently dropping evidence.
+Answers are limited to 16 KiB, eight statements, four citations per statement
+and eight unknowns. The configured provider may perform transport retries;
+Engram does not retry rejected synthesis or run a model-driven search loop.
+
+Unavailable providers, failed/timed-out generation and malformed or unsupported
+citations leave `mode: "retrieval_only"`, preserve evidence and expose a reason
+in `synthesis`. Citation checks verify IDs and exact quotation membership,
+not semantic entailment, complete coverage, policy authority or execution.
+No synthesis result is persisted as policy or used to change project files.

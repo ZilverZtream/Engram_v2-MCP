@@ -1104,6 +1104,14 @@ pub struct AskCodebaseRequest {
     /// Who is asking (role/permissions — carried for future ACL).
     #[serde(default)]
     pub audience: Option<Audience>,
+    /// Opt into one configured model request to synthesize a cited answer from
+    /// the returned evidence. Default false; failures retain retrieval-only output.
+    #[serde(default)]
+    pub synthesize: bool,
+    /// Generation timeout only (default 30000ms, clamped 1000..120000).
+    /// Independent of deadline_ms, which controls retrieval.
+    #[serde(default)]
+    pub synthesis_timeout_ms: Option<u64>,
     /// "quick" | "standard" (default) | "deep" — controls arm breadth + budget.
     #[serde(default = "default_ask_depth")]
     pub depth: String,

@@ -1073,6 +1073,7 @@ fn s4_the_report_json_carries_members_and_proof() {
         plan: engram_server::services::ask_engine::planner::plan_query("q"),
         status: AnswerStatus::Answered,
         mode: "retrieval_only".into(),
+            synthesis: None,
         evidence: vec![],
         conflicts: vec![],
         unknowns: vec![],
