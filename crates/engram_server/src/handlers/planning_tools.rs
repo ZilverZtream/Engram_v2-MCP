@@ -13333,10 +13333,10 @@ impl Engram {
             .unwrap_or_default();
         let planned = normalize_edit_files(&planned)?;
 
-        let edited = if req.edited_files.is_empty() {
-            planned.clone()
-        } else {
-            normalize_edit_files(&req.edited_files)?
+        let edited = match req.edited_files.as_deref() {
+            None => planned.clone(),
+            Some([]) => Vec::new(),
+            Some(files) => normalize_edit_files(files)?,
         };
 
         // Plan drift: planned-but-not-edited is the silent scope shrink that
@@ -13347,19 +13347,23 @@ impl Engram {
             .filter(|f| !edited_lower.contains(&edit_path_key(f)))
             .collect();
 
-        let check = self
+        let check_text = if edited.is_empty() {
+            "No edited files declared; completeness analysis was not run.".to_owned()
+        } else {
+            let check = self
             .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
                 project_id: req.project_id.clone(),
                 edited_files: edited.clone(),
                 max_partners: 5,
             })
             .await?;
-        let check_text = check
+            check
             .content
             .iter()
             .filter_map(|c| c.as_text().map(|t| t.text.clone()))
             .collect::<Vec<_>>()
-            .join("\n");
+            .join("\n")
+        };
 
         // Consume only the exact session checked. Concurrent workers retain
         // their sessions, and any failure above leaves this one retryable.

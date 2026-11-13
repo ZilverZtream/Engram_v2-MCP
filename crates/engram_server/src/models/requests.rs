@@ -1180,9 +1180,9 @@ pub struct CompleteEditSessionRequest {
     #[serde(default)]
     pub session_revision: Option<String>,
     /// Files actually edited. When omitted, the session's planned set is
-    /// checked as-is.
+    /// checked as-is. An explicit empty list declares that no files were edited.
     #[serde(default)]
-    pub edited_files: Vec<String>,
+    pub edited_files: Option<Vec<String>>,
     /// Optional get_change_set dossier used for planning. Reconciles its
     /// referenced files (co-change partners, resource families, history/log
     /// tables, permission gates and siblings) with the edited set. Untouched
