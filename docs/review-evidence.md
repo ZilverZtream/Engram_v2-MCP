@@ -61,7 +61,7 @@ operations occur, succeed, or are prerequisites for returning the value.
 each finding. Use `PR-123` to attach decisions to `find_merged_work` cards.
 
 Each event records `event_id`, `finding_id`, `supersedes`, `kind`, `source_url`,
-`author`, `recorded_at`, `rationale`, and optional `verification`. A transition
+`author`, `recorded_at`, `rationale`, and optional `verification` and `scope`. A transition
 must supersede the latest event for that finding. Replaying an identical event
 is idempotent; editing an existing event is rejected. The whole batch is validated
 before writing. Limits: 500 events and 1 MiB per review. Updates are serialized
@@ -84,6 +84,43 @@ a command. Missing imports, persistence errors, and stale attestations are expli
 Merged-work cards show at most 20 current decisions, with a count and a full-history
 handoff. Point-in-time replay omits these records because imported timestamps are
 not independently verified.
+
+### Declaring a decision's scope
+
+When the original decision supplies its scope and reviewed revision, retain them
+on the event instead of relying on a path mentioned in the rationale:
+
+```json
+"scope": {
+  "reviewed_commit": "<full Git commit ID>",
+  "paths": ["Site/Export.aspx.vb"],
+  "conditions": "Synthetic demonstration data only; production exports still require authentication."
+}
+```
+
+Paths are exact repository-relative names with forward slashes, not globs. An
+event can declare 1–16 paths and up to 8,000 bytes of complete conditions. Do not
+infer an exception's conditions or reviewed commit from a closed thread. Omit
+`scope` when they are unknown; existing events remain valid and unchanged.
+
+`pre_commit_review` discovers explicitly scoped decisions whose paths intersect
+the submitted changes, even when the rationale does not name a file. An explicit
+scope takes precedence over incidental path mentions. Legacy unscoped decisions
+retain the existing prose-based discovery behavior.
+
+Each returned event includes `declared_scope_assessment`. For intersecting files,
+it compares bytes at the declared Git commit with the source snapshots already
+taken for review and returns both hashes. Changed bytes, unchanged bytes and
+unavailable source are distinct outcomes. These are raw byte comparisons,
+including line endings; other scoped files are not compared. A matching HEAD or
+matching disk content does not validate a supplied patch: the status remains
+`submitted_scope_requires_reassessment`. The original conditions remain in
+`evidence.scope.conditions`, and current findings remain visible.
+
+Scope is a declaration, not authentication of the author or a semantic judgment
+that an exception applies. Re-evaluate the submitted changes against its complete
+conditions before relying on it. Changing a stored scope requires a new event
+that supersedes the old one.
 
 ## Import existing provider exports
 
