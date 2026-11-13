@@ -74,5 +74,27 @@
     ],
     "deployed": false,
     "actual_v2_request_sent": false
+  },
+  "actual_v2": {
+    "status": "FAIL_INVALID_INTENT_CONTRACT",
+    "acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\acceptance.json",
+    "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\plan.json",
+    "observed_failure": "Provider used authorization and validation; parser accepted auth and behavior, but prompt did not enumerate allowed areas.",
+    "pipe_closed": true,
+    "config_hold_released": true,
+    "version2_deployed": true
+  },
+  "intent_correction": {
+    "status": "INTENT_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+    "main_merge_commit": "a9bffca07d6c3876fc5bec78473158b636fc6365",
+    "native_checks": 10,
+    "public_calls": 9,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native4.json",
+    "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public3\\acceptance.json",
+    "deployed": false,
+    "actual_v3_request_sent": false,
+    "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
+    "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
   }
 }

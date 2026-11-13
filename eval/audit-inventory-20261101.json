@@ -9976,7 +9976,7 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "ADDITIVE_TOOL_INSTALLED_REAL_PLAN_ACCEPTANCE_FAILED",
+      "status": "INTENT_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
       "at_utc": "2026-11-12T23:42:07.203485+00:00",
       "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
       "observed_missing_behavior": "Actual installed OciusX photo-count story returned an 8079-byte brief in 34.31s, separate ranked-file recovery instruction, partial patterns/guards and a static checklist. Existing get_change_set supplies ranked files, policy, evidence and contract scaffold but no feature-specific ordered implementation or schema/code proposals.",
@@ -10003,7 +10003,7 @@
       ],
       "scope_guard": "No new language support, CodeMap/Blast changes, new routing/approval framework, benchmark expansion or OciusX feature edits.",
       "resources": "Reuse retained isolated checkout/shared target. All new scratch under feature-plan; fixtures own teardown. No preexisting folder removal.",
-      "prior_turn_classification": "NO_PROGRESS: scope/status clarification only. This turn resumes the completed installed baseline without replay.",
+      "prior_turn_classification": "PROGRESS: retained actual v2 result identified a precise previously unknown parser/prompt mismatch. Current turn implemented and native/public validated its correction.",
       "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
       "progress": "eval/ociusx-feature-plan-progress-20261113.json",
       "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
@@ -10021,6 +10021,28 @@
         ],
         "deployed": false,
         "actual_v2_request_sent": false
+      },
+      "actual_v2": {
+        "status": "FAIL_INVALID_INTENT_CONTRACT",
+        "acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\acceptance.json",
+        "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\plan.json",
+        "observed_failure": "Provider used authorization and validation; parser accepted auth and behavior, but prompt did not enumerate allowed areas.",
+        "pipe_closed": true,
+        "config_hold_released": true,
+        "version2_deployed": true
+      },
+      "intent_correction": {
+        "status": "INTENT_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+        "main_merge_commit": "a9bffca07d6c3876fc5bec78473158b636fc6365",
+        "native_checks": 10,
+        "public_calls": 9,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native4.json",
+        "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public3\\acceptance.json",
+        "deployed": false,
+        "actual_v3_request_sent": false,
+        "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
+        "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",

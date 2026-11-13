@@ -1,6 +1,6 @@
 {
   "status": "ADDITIVE_TOOL_INSTALLED_REAL_PLAN_ACCEPTANCE_FAILED",
-  "at_utc": "2026-11-13T00:07:12.106459+00:00",
+  "at_utc": "2026-11-13T01:02:16.065872+00:00",
   "original_requirement": "TODO32 / AGENT_ENHANCEMENT_SPEC.md42-1: one-shot feature implementation plan, including structured intent, patterns, per-file safety, schema proposals, ordered edits, risks, preconditions, acceptance and ReadyToCode steps.",
   "scope": "Implement one_shot_feature_plan for the OciusX WebForms/VB.NET, JS/TS and SQL workflow, using the configured provider for typed intent and plan assembly, existing change-set/pattern/schema/safety services, source citations and explicit unresolved requirements. No application edits or database execution.",
   "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\contract.json",
@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Build corrected release, verify optimized candidate and installed fixture, then perform one new actual OciusX request and review source semantics. Original failed request remains retained.",
+  "next": "Build v3 release, run optimized candidate/installed checks, then one real OciusX request and source-semantic review. No completed planning delivery claim.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -52,7 +52,7 @@
   "delivery_complete": false,
   "actual_failure": "eval/ociusx-feature-plan-real-failure-20261113.json",
   "correction": {
-    "status": "CORRECTION_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "status": "DEPLOYED_ACTUAL_INTENT_CONTRACT_FAILED",
     "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
     "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
     "native_checks": 9,
@@ -63,7 +63,29 @@
       "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
       "Cited already-present requirement claims do not force invented edits; semantic review remains required."
     ],
+    "deployed": true,
+    "actual_v2_request_sent": true
+  },
+  "actual_v2": {
+    "status": "FAIL_INVALID_INTENT_CONTRACT",
+    "acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\acceptance.json",
+    "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal2\\plan.json",
+    "observed_failure": "Provider used authorization and validation; parser accepted auth and behavior, but prompt did not enumerate allowed areas.",
+    "pipe_closed": true,
+    "config_hold_released": true,
+    "version2_deployed": true
+  },
+  "intent_correction": {
+    "status": "INTENT_CORRECTION_NATIVE_AND_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "9dad9a0826cec6ee8c59897ebbab4da4b780e566",
+    "main_merge_commit": "a9bffca07d6c3876fc5bec78473158b636fc6365",
+    "native_checks": 10,
+    "public_calls": 9,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native4.json",
+    "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public3\\acceptance.json",
     "deployed": false,
-    "actual_v2_request_sent": false
+    "actual_v3_request_sent": false,
+    "behavior": "Prompt enumerates accepted areas from the parser vocabulary. authorization and validation labels normalize to auth and behavior while preserving requirement IDs/descriptions and unresolved decisions.",
+    "review": "Parent reviewed the bounded alias mapping, shared vocabulary and prompt; existing CodeRabbit authentication unavailable. No external review claimed."
   }
 }
