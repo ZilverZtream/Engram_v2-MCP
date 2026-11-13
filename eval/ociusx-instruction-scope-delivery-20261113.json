@@ -1,0 +1,86 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T07:13:36.319548+00:00",
+  "finding": "EG27 JS/TS instruction evidence omits internal file records",
+  "source_commit": "a7273d51099998343a6858c4f5c328f9490fd72e",
+  "original_requirement": "Original OciusX instruction freshness: a body-only edit outside a guide referenced evidence must not force review of unchanged guidance.",
+  "before": "Installed TypeScript: an unrelated function edit preserved Important source bytes but marked its guide needs_reference_evidence because one synthetic file record was counted as an omitted declaration.",
+  "after": "Unchanged Important guide reports no_collected_dependency_changes; changed Other guide still requires review. Ordinary prose file is not an internal-record dependency, with/without final newline. Genuine function named file is retained and its edit requires review.",
+  "runtime": {
+    "server_sha256": "dc6e95afbf7167de5f2e556f65119624c3c9d76b6be182fda110095bc89c3ac8",
+    "manifest_sha256": "29ea0e91f8287476be70e973be20afe6be2f18bb6561d0f0bc4dcfb6ff49c6c0",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "maintenance_passed": 49,
+    "area_evidence_passed": 9,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\native1.json",
+      "sha256": "289ad8e09c0d37b7a87017a16c48682ba1efc0e6df168cc57c28dacc216a172d"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\baseline1\\observation.json",
+      "sha256": "9a071243d5d7bd5e94d961976dc2be8f46fbe9868383eecb878673a123bb5cc1"
+    },
+    "baseline_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\baseline-driver.py",
+      "sha256": "b3a10b186817c15a8501181e63fe9803d9edc5562a167a604881d327f1152f35"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\candidate1\\acceptance.json",
+      "sha256": "dc5991554984fbc7c78d5b56bf19f85c6360a0cfd3d635dbb086e765e8a39b00"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\installed1\\acceptance.json",
+      "sha256": "21cf3c549912538c965a1827ee5120696dde9e27bf3b66be58eb1e700a2872d0"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\release1.json",
+      "sha256": "4de5c250e3be2e76f0880770b0168f3618415441566ba4edebfe0bdd47c3a6b9"
+    },
+    "public_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\verify.py",
+      "sha256": "6c5c7dd54f15b4d07155cc5e26fc3c49ad0501600006fb0542af933fb1bd3b8a"
+    },
+    "release_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\verify-runtime.py",
+      "sha256": "1746f7b644fa042be122ee4826b448d2fb5f2a135736501dbba02014bb52666e"
+    },
+    "manual_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope\\manual-review1.json",
+      "sha256": "127ac2d95a58bcfba8a05fd4b54e78d85707f4973285b9154cbe46b6c0b8235e"
+    }
+  },
+  "also_resolved": {
+    "previous_receipt": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json",
+    "tests": [
+      "exact_prose_candidate_does_not_pull_in_a_differently_cased_vb_declaration",
+      "symbol_body_evidence_distinguishes_a_referenced_change_from_an_unrelated_body_edit"
+    ],
+    "reason": "Same internal file record caused these preexisting failures. Both original tests now pass unchanged; no target-language expansion."
+  },
+  "preserved": {
+    "authored_files_written": 0,
+    "production_registry_and_generation_3148_unchanged": true,
+    "configuration_unchanged": true,
+    "sidecar_assets_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "limits": [
+    "Controlled JS/TS evidence behavior verified; no measured OciusX productivity gain or semantic policy correctness claim.",
+    "Real candidate omissions and budgets remain explicit; declarations are positive source observations, not exhaustive discovery or proof of absence.",
+    "CodeRabbit host authentication remained unavailable; parent manual review only.",
+    "Broader EG27/31 usefulness and original full19gates remain unfinished."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\instruction-scope",
+    "fixture_directories_removed": true,
+    "build_job_closed": true,
+    "configuration_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0f9003cf0416434dbfbf7a534e2b6037",
+    "retention": "Keep source pins, logs, public packets and paired rollback evidence. No preexisting directory deletion."
+  }
+}
