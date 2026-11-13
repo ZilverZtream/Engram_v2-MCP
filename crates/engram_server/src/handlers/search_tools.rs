@@ -412,7 +412,8 @@ impl Engram {
             match ps.search.semantic_quality() {
                 engram_index::SemanticQuality::DegradedTrigram => out.push_str(
                     "NOTE: vector half of this search uses a non-semantic trigram-projection \
-                     embedder (default install). Lexical quality is unaffected. For true \
+                     embedder (default install). Combining these matches with lexical results \
+                     can change ranking. Use semantic=false for lexical-only retrieval. For true \
                      semantic search set embedding_backend=ollama|openai in engram_mcp.yaml.\n",
                 ),
                 engram_index::SemanticQuality::Off => out.push_str(

@@ -46,16 +46,21 @@ struct Server {
 }
 impl Server {
     fn start(owned: &Path, roots: &[PathBuf]) -> Result<Self> {
+        Self::start_with_backend(owned, roots, Some("fts_only"))
+    }
+    fn start_with_backend(owned: &Path, roots: &[PathBuf], backend: Option<&str>) -> Result<Self> {
         let config = owned.join("config.json");
-        std::fs::write(
-            &config,
-            serde_json::to_vec(&json!({
-                "data_dir":owned.join("data"), "allowed_roots":roots,
-                "embedding_backend":"fts_only", "llm_backend":"none", "multi_client":false,
-                "advertise_all_tools":true, "max_concurrent_jobs":1,
-                "max_project_files":32, "max_project_bytes":262144
-            }))?,
-        )?;
+        let mut settings = json!({
+            "data_dir":owned.join("data"), "allowed_roots":roots,
+            "multi_client":false, "advertise_all_tools":true,
+            "max_project_files":32, "max_project_bytes":262144
+        });
+        if let Some(backend) = backend {
+            settings["embedding_backend"] = json!(backend);
+            settings["llm_backend"] = json!("none");
+            settings["max_concurrent_jobs"] = json!(1);
+        }
+        std::fs::write(&config, serde_json::to_vec(&settings)?)?;
         let stderr = owned.join("server.stderr");
         let executable = if let Some(path) = std::env::var_os("ENGRAM_CONTRACT_SERVER") {
             let expected = std::env::var("ENGRAM_CONTRACT_SERVER_SHA256")
@@ -291,6 +296,86 @@ fn copy_tree(source: &Path, target: &Path) -> Result<()> {
             std::fs::copy(entry.path(), target.join(entry.file_name()))?;
         }
     }
+    Ok(())
+}
+
+#[cfg(feature = "vector")]
+#[test]
+fn default_search_discloses_projection_ranking() -> Result<()> {
+    let mut fixture = Fixture {
+        server: None,
+        temporary: Some(tempfile::tempdir()?),
+    };
+    let owned = fixture
+        .temporary
+        .as_ref()
+        .context("Fixture owner missing")?
+        .path()
+        .to_owned();
+    let root = owned.join("project");
+    copy_tree(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/webforms_retrieval/source/client"),
+        &root,
+    )?;
+    commit(&root)?;
+    // Omit embedding/model, LLM, memory, job and watcher settings so the real
+    // configuration loader supplies the defaults users actually receive.
+    fixture.server = Some(Server::start_with_backend(
+        &owned,
+        std::slice::from_ref(&root),
+        None,
+    )?);
+    let client = fixture.server.as_mut().context("Server owner missing")?;
+    let initialized = client.rpc("initialize", json!({"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"owned-defaults-test","version":"1"}}))?;
+    ensure!(initialized["result"]["capabilities"]["tools"].is_object());
+    client.send(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}))?;
+    let pid = identity(&client.ok("index_project", json!({"directory":root,"project_name":"Default source lookup","project_type":"general","wait":true}))?)?;
+    let args = json!({"project_id":pid,"query":METHOD,"include_content":true,"output_json":true});
+    let result: Value = serde_json::from_str(&client.ok("search_memory", args.clone())?)?;
+    ensure!(result["semantic_quality"] == "degraded_trigram");
+    ensure!(
+        result["results"]
+            .as_array()
+            .is_some_and(|hits| hits.iter().any(|hit| hit["path"] == "upload.ts"
+                && hit["content"]
+                    .as_str()
+                    .is_some_and(|body| body.contains("file.size > maxBytes")))),
+        "Default search must still retrieve the authored answer: {result}"
+    );
+    let warnings = result["warnings"].to_string();
+    ensure!(
+        !warnings.contains("Lexical quality is unaffected"),
+        "Default warning must not guarantee unaffected ranking"
+    );
+    ensure!(
+        warnings.contains("can change ranking") && warnings.contains("semantic=false"),
+        "Default warning must explain projection ranking and lexical recovery: {warnings}"
+    );
+    let mut markdown_args = args.clone();
+    markdown_args["output_json"] = json!(false);
+    let markdown = client.ok("search_memory", markdown_args)?;
+    ensure!(markdown.contains("can change ranking") && markdown.contains("semantic=false"));
+    ensure!(!markdown.contains("Lexical quality is unaffected"));
+    let mut lexical_args = args;
+    lexical_args["semantic"] = json!(false);
+    let lexical: Value = serde_json::from_str(&client.ok("search_memory", lexical_args)?)?;
+    ensure!(lexical["semantic_quality"] == "not_used");
+    ensure!(
+        lexical["results"]
+            .as_array()
+            .is_some_and(|hits| hits.iter().any(|hit| hit["path"] == "upload.ts"))
+    );
+    let metrics: Value =
+        serde_json::from_str(&client.ok("get_metrics", json!({"output_json":true}))?)?;
+    ensure!(metrics["memory"]["budget_bytes"] == 2147483648u64);
+    client.close()?;
+    drop(fixture);
+    ensure!(!owned.exists());
+    println!(
+        "MCP_DEFAULTS_REPORT {}",
+        json!({"status":"PASS","semantic_quality":"degraded_trigram","lexical_quality":"not_used","memory_budget_bytes":2147483648u64,"server_closed":true,"fixture_removed":true,"scope":"Default disclosure and lexical recovery; ranking quality not evaluated"})
+    );
     Ok(())
 }
 
