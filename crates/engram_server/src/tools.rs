@@ -1820,10 +1820,22 @@ impl ServerHandler for Engram {
         // — logging it here is what turns "the review 400s somewhere" into
         // "grep_project on <x> returned N bytes". One line per call, cheap.
         let tool_name = request.name.to_string();
+        let guidance_input = if matches!(crate::tool_guidance::policy(&tool_name), crate::tool_guidance::Policy::Preserve) {
+            None
+        } else {
+            Some(crate::tool_guidance::context(request.arguments.as_ref()))
+        };
         let peer = context.peer.clone();
         let started = std::time::Instant::now();
         let tcc = rmcp::handler::server::tool::ToolCallContext::new(self, request, context);
-        let result = self.tool_router.call(tcc).await;
+        let mut result = self.tool_router.call(tcc).await;
+        if let (Some(guidance_input), Ok(response)) = (&guidance_input, &mut result) {
+            let guidance = crate::tool_guidance::annotate(
+                &tool_name, guidance_input, response, &self.tool_router.list_all(),
+                self.state.cfg.advertise_all_tools,
+            );
+            tracing::debug!(tool = %tool_name, guidance, "specialty tool navigation");
+        }
         if matches!(tool_name.as_str(), "index_project" | "update_project" | "delete_project" | "repair_project" | "get_job_status") && result.is_ok() {
             // Async writers can finish later; clients can always re-list after
             // polling their job. This notification covers foreground changes.
