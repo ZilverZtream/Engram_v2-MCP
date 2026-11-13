@@ -751,7 +751,8 @@
       "latest_full_discussion_source": "execution_evidence_20261101.eg19_full_discussion_v3_source_applied_20261104",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "current_installed_omission_recovery": "execution_evidence_20261101.eg19_omission_recovery_delivery_20261111",
-      "declared_scope_delivery_20261113": "eval/ociusx-review-scope-delivery-20261113.json"
+      "declared_scope_delivery_20261113": "eval/ociusx-review-scope-delivery-20261113.json",
+      "review_response_budget_delivery_20261113": "eval/ociusx-review-response-budget-delivery-20261113.json"
     },
     {
       "id": "EG-20",
@@ -10004,7 +10005,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG19 usable decision-aware reviews / TODO4 complete response budgets",
       "original_requirement": "Original tool_roi priority2 requires bounded decision-aware reviews without suppressing findings; accepted TODO4 requires whole-response budgets and explicit recovery across tools. Apply to OciusX JavaScript/VB review output.",
       "observed_missing_behavior": "Installed pre_commit_review on 40 JavaScript files returns 64423 UTF-8 bytes, 40 retained critical findings, no whole-response budget or recovery. max_findings and prior-context caps do not bound the complete report.",
@@ -10034,12 +10035,11 @@
         "Existing max_findings/severity/compact-view limits persist and are disclosed; no new completeness or productivity claim."
       ],
       "remaining": [
-        "Build release and verify candidate/installed public workflow.",
-        "Verify one read-only OciusX review and exact evidence recovery.",
-        "Record installed delivery, push origin/master and advance original backlog."
+        "Advance next unfinished original OciusX requirement; this delivery is closed."
       ],
       "progress": "eval/ociusx-review-response-budget-progress-20261113.json",
-      "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580"
+      "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580",
+      "delivery": "eval/ociusx-review-response-budget-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10089,7 +10089,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: edit-session guidance deployed and pushed a2f20c9; review full-response gap now reproduced.",
+    "previous_goal_turn_classification": "PROGRESS: whole review response budgets deployed; candidate/installed and read-only OciusX acceptance passed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG19 usable decision-aware reviews / TODO4 complete response budgets",
     "original_requirement": "Original tool_roi priority2 requires bounded decision-aware reviews without suppressing findings; accepted TODO4 requires whole-response budgets and explicit recovery across tools. Apply to OciusX JavaScript/VB review output.",
     "observed_missing_behavior": "Installed pre_commit_review on 40 JavaScript files returns 64423 UTF-8 bytes, 40 retained critical findings, no whole-response budget or recovery. max_findings and prior-context caps do not bound the complete report.",
@@ -70,12 +70,11 @@
       "Existing max_findings/severity/compact-view limits persist and are disclosed; no new completeness or productivity claim."
     ],
     "remaining": [
-      "Build release and verify candidate/installed public workflow.",
-      "Verify one read-only OciusX review and exact evidence recovery.",
-      "Record installed delivery, push origin/master and advance original backlog."
+      "Advance next unfinished original OciusX requirement; this delivery is closed."
     ],
     "progress": "eval/ociusx-review-response-budget-progress-20261113.json",
-    "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580"
+    "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580",
+    "delivery": "eval/ociusx-review-response-budget-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

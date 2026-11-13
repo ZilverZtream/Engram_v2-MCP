@@ -1,0 +1,160 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T15:09:34.848030+00:00",
+  "finding": "EG19 usable decision-aware reviews / TODO4 whole-response budgets",
+  "source_commit": "a3aef791583534b85e1664c8aead96ee23a80580",
+  "original_requirement": "Bound review evidence while preserving findings, prior-decision qualifications and usable recovery; accepted whole-response budget requirement for existing tools.",
+  "before": {
+    "response_bytes": 64423,
+    "findings": 40,
+    "recovery_available": false
+  },
+  "after": "pre_commit_review defaults to a 40KiB complete reply-text budget and accepts max_tokens. Oversized reports retain verdict, selected finding ledger, gate outcomes and coverage limits, with hash-bound original report recovery. Recovery does not rerun gates. Review snapshots use a separate retention namespace.",
+  "validation": {
+    "native_cases": 17,
+    "new_review_cases": 2,
+    "existing_prior_context_cases": 7,
+    "existing_planning_snapshot_cases": 8,
+    "candidate_checks": {
+      "json_whole_response_and_ledger": true,
+      "json_exact_recovery_after_source_change": true,
+      "json_policy_and_decisions_preserved": true,
+      "markdown_whole_response_and_ledger": true,
+      "markdown_exact_recovery_after_source_change": true,
+      "markdown_policy_and_decisions_preserved": true,
+      "empty_review_preserved": true,
+      "insufficient_budget_explicit": true
+    },
+    "installed_checks": {
+      "json_whole_response_and_ledger": true,
+      "json_exact_recovery_after_source_change": true,
+      "json_policy_and_decisions_preserved": true,
+      "markdown_whole_response_and_ledger": true,
+      "markdown_exact_recovery_after_source_change": true,
+      "markdown_policy_and_decisions_preserved": true,
+      "empty_review_preserved": true,
+      "insufficient_budget_explicit": true
+    },
+    "candidate_metrics": {
+      "json": {
+        "first_bytes": 14443,
+        "original_bytes": 66858,
+        "recovery_pages": 5,
+        "findings": 40
+      },
+      "markdown": {
+        "first_bytes": 14554,
+        "original_bytes": 53967,
+        "recovery_pages": 4,
+        "findings": 40
+      }
+    },
+    "installed_metrics": {
+      "json": {
+        "first_bytes": 14443,
+        "original_bytes": 66858,
+        "recovery_pages": 5,
+        "findings": 40
+      },
+      "markdown": {
+        "first_bytes": 14554,
+        "original_bytes": 53967,
+        "recovery_pages": 4,
+        "findings": 40
+      }
+    }
+  },
+  "actual_ociusx": {
+    "reviewed_file": "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb",
+    "historical_diff_commit": "c705453f14565280faed033ba0dca97d93a2755b",
+    "review_seconds": 131.31364529998973,
+    "first_bytes": 6526,
+    "original_bytes": 47369,
+    "recovery_pages": 6,
+    "findings": 1,
+    "checks": {
+      "whole_reply_bounded": true,
+      "exact_recovery": true,
+      "findings_preserved": true,
+      "complete_topic": true,
+      "exact_topic_hash": true,
+      "compilation_not_claimed": true,
+      "tests_not_claimed": true,
+      "supplied_diff_limit": true
+    },
+    "source_generation": 3149,
+    "authored_guidance_and_selected_source_unchanged": true,
+    "selected_registry_inventory_unchanged": true,
+    "limit": "Historical diff reviewed against current source; this acceptance does not certify the supplied diff as the current checkout or an actual application defect."
+  },
+  "runtime": {
+    "server_sha256": "be01f0ea9c854c5380f9b1b300e9eb516b3f99b7084ee3f798e42b0e793458fd",
+    "manifest_sha256": "588adae147846e28e245b789b1c11712b3791d957189b63ce777d3b8b119a303",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\baseline1\\observation.json",
+      "sha256": "fc61db4232e3fcf3e306d10ecde710f3faf25254ef23a2f20a041cc3ffbc3d83"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\native1.json",
+      "sha256": "2d98d6a6e0c1d6fd9e601f90a6a7028325e1a47ee334d02d40537dbc4dd8a48d"
+    },
+    "snapshots": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\snapshots1.json",
+      "sha256": "58c77d980e175b48c54ded8161ecab069a0eb767aa6286d115ca46b979923e0b"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\implementation1.json",
+      "sha256": "37a0149673219819be3392851ae7c0c2fbd79437a0bca3508e2361c4b68d6ed8"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\release1.json",
+      "sha256": "ad429bd20947645d715e3de79ff199452d4f3ebf63bd784347d1a3bb537b0d7c"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\candidate1\\acceptance.json",
+      "sha256": "e8a5eabd6fd5410b068fac06464cd5bfceafbf226900542217b2783c1026e458"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\installed1\\acceptance.json",
+      "sha256": "560f90a3b151db791d537213a2adbe066008211c555b28c3c6748c76be688093"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\actual1\\acceptance.json",
+      "sha256": "2da9b813f606ab592ce4a1a242feada1b3608eba7ba186f0930ac7ef0dde132f"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\deployment1-state.json",
+      "sha256": "a883523d2a0ae595a7f462811d5a53c607e2e1438389520ad79e027712ee259f"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget\\manual-review.json",
+      "sha256": "09cc7fe6d6cdea7d815a895eb714daebcecd833d7b1eab121143240cda6e87da"
+    }
+  },
+  "preserved": {
+    "preexisting_changed_files": 9,
+    "configuration_changed": false,
+    "application_edits": false,
+    "source_generation": 3149
+  },
+  "limits": [
+    "Budget is UTF-8 complete reply-text bytes divided by four, not actual provider tokens or transport envelope bytes.",
+    "Existing finding count/severity and compact/full view limits remain. Prior evidence does not establish authenticated authority or suppress findings.",
+    "Snapshots retain original reports; recovery is not fresh-source clearance. Storage is capped at8MiB per snapshot,32recent reports per project,24hours.",
+    "Actual OciusX acceptance uses a historical one-file diff against current source; no application edits, actual-defect finding or productivity benefit claimed.",
+    "Parent source review only; CodeRabbit authentication unavailable. Broader original goal and usefulness outcomes remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-response-budget",
+    "owned_build_test_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-6064c0a744b6481e80a8cea255eddfd3",
+    "retention": "Keep evidence, candidate package and rollback pair for review. Production review snapshot follows normal bounded retention; no preexisting folder deletion."
+  }
+}
