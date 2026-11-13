@@ -278,6 +278,93 @@ fn assert_current_secret_preserved(response: &Value, baseline: &Value) -> anyhow
 }
 
 #[test]
+fn explicitly_scoped_webforms_decisions_report_changed_source_and_preserve_findings() -> anyhow::Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;
+    let result: anyhow::Result<()> = runtime.block_on(async {
+        let (engram, pid, root) = fixture(temporary.path()).await?;
+        let path = "Site/Export.aspx.vb";
+        let before = "Public Class ExportPage\nEnd Class\n";
+        let after = "Public Class ExportPage\nPrivate password As String = \"fixture_dummy_value_only\"\nEnd Class\n";
+        let diff = format!("diff --git a/{path} b/{path}\n--- a/{path}\n+++ b/{path}\n@@ -1,2 +1,3 @@\n Public Class ExportPage\n+Private password As String = \"fixture_dummy_value_only\"\n End Class\n");
+        std::fs::create_dir(root.join("Site"))?;
+        std::fs::write(root.join(path), before)?;
+        let commit = {
+            let repo = git2::Repository::open(&root)?;
+            let mut index = repo.index()?;
+            index.add_path(Path::new(path))?;
+            let tree = repo.find_tree(index.write_tree()?)?;
+            let parent = repo.head()?.peel_to_commit()?;
+            let signature = git2::Signature::now("Fixture", "fixture@example.invalid")?;
+            repo.commit(Some("HEAD"), &signature, &signature, "reviewed WebForms source", &tree, &[&parent])?.to_string()
+        };
+        std::fs::write(root.join(path), after)?;
+        let request = |output_json| serde_json::from_value(json!({
+            "project_id":pid,"diff":diff,"output_json":output_json,"max_findings":100
+        }));
+        let baseline: Value = serde_json::from_str(text(&engram.pre_commit_review(
+            rmcp::handler::server::tool::Parameters(request(true)?)).await?))?;
+        let mut event = standalone_event("explicit-scope", "export-demo", "Demonstration exception only; retain production safeguards.");
+        event["scope"] = json!({"reviewed_commit":commit,"paths":[path],
+            "conditions":"Only synthetic demonstration data. Production exports still require authentication and secret storage."});
+        public_record(&engram, &pid, "scoped-webforms", &[event.clone()]).await?;
+        let recovered = public_recover(&engram, &pid, "scoped-webforms").await?;
+        anyhow::ensure!(recovered["events"] == json!([event]));
+        let mut unrelated = standalone_event("unrelated", "other-export", "Site/Export.aspx.vb is discussed but outside this exception.");
+        unrelated["scope"] = json!({"reviewed_commit":commit,"paths":["Other/Export.aspx.vb"],"conditions":"Other area only."});
+        public_record(&engram, &pid, "unrelated", &[unrelated]).await?;
+        let response: Value = serde_json::from_str(text(&engram.pre_commit_review(
+            rmcp::handler::server::tool::Parameters(request(true)?)).await?))?;
+        assert_current_secret_preserved(&response, &baseline)?;
+        let items = response["prior_review_context"]["items"].as_array().unwrap();
+        anyhow::ensure!(items.len()==1, "Explicit scope must take precedence over incidental prose: {items:?}");
+        anyhow::ensure!(items[0]["retrieval_relation"]=="declared_scope_intersection");
+        let evidence = &items[0]["provider_neutral_events"][0];
+        anyhow::ensure!(evidence["evidence"]==event && evidence["provider_identity_authenticated"]==false);
+        let assessment = &evidence["declared_scope_assessment"];
+        anyhow::ensure!(assessment["status"]=="submitted_scope_requires_reassessment");
+        anyhow::ensure!(assessment["reviewed_commit_matches_observed_head"]==true);
+        let file = &assessment["affected_files"][0];
+        anyhow::ensure!(file["source_comparison"]=="changed_bytes");
+        anyhow::ensure!(file["reviewed_source_hash"]==format!("blake3:{}",blake3::hash(before.as_bytes()).to_hex()));
+        anyhow::ensure!(file["observed_source_hash"]==format!("blake3:{}",blake3::hash(after.as_bytes()).to_hex()));
+        let markdown = engram.pre_commit_review(rmcp::handler::server::tool::Parameters(request(false)?)).await?;
+        anyhow::ensure!(text(&markdown).contains("changed_bytes") && text(&markdown).contains("Production exports still require authentication"));
+        anyhow::ensure!(text(&markdown).contains("Hardcoded secret detected"));
+        // The same inline patch can be reviewed before it is applied. Matching
+        // disk bytes must not turn that submitted change into an accepted exception.
+        std::fs::write(root.join(path), before)?;
+        let unapplied: Value = serde_json::from_str(text(&engram.pre_commit_review(
+            rmcp::handler::server::tool::Parameters(request(true)?)).await?))?;
+        assert_current_secret_preserved(&unapplied, &baseline)?;
+        let assessment = &unapplied["prior_review_context"]["items"][0]["provider_neutral_events"][0]["declared_scope_assessment"];
+        anyhow::ensure!(assessment["affected_files"][0]["source_comparison"]=="unchanged_bytes");
+        anyhow::ensure!(assessment["status"]=="submitted_scope_requires_reassessment");
+        let mut rewritten = event.clone();
+        rewritten["scope"]["conditions"] = json!("Changed original exception");
+        anyhow::ensure!(public_record(&engram, &pid, "scoped-webforms", &[rewritten]).await.is_err());
+        let mut unknown = event.clone();
+        unknown["event_id"] = json!("unavailable-revision");
+        unknown["supersedes"] = json!("explicit-scope");
+        unknown["scope"]["reviewed_commit"] = json!("a".repeat(40));
+        public_record(&engram, &pid, "scoped-webforms", &[unknown]).await?;
+        let missing: Value = serde_json::from_str(text(&engram.pre_commit_review(
+            rmcp::handler::server::tool::Parameters(request(true)?)).await?))?;
+        let file = &missing["prior_review_context"]["items"][0]["provider_neutral_events"][0]["declared_scope_assessment"]["affected_files"][0];
+        anyhow::ensure!(file["source_comparison"]=="baseline_unavailable");
+        anyhow::ensure!(file["reviewed_source_unavailable_reason"]=="reviewed_commit_unavailable");
+        let mut invalid = event.clone();
+        invalid["scope"]["paths"] = json!(["Site/../Export.aspx.vb"]);
+        anyhow::ensure!(public_record(&engram, &pid, "invalid", &[invalid]).await.is_err());
+        anyhow::ensure!(public_recover(&engram, &pid, "invalid").await?["events"]==json!([]));
+        Ok(())
+    });
+    drop(runtime);
+    temporary.close()?;
+    result
+}
+
+#[test]
 fn omitted_indexed_review_summaries_are_exactly_recoverable_without_suppressing_findings() -> anyhow::Result<()> {
     let temporary = tempfile::tempdir()?;
     let runtime = tokio::runtime::Builder::new_multi_thread().worker_threads(2).enable_all().build()?;

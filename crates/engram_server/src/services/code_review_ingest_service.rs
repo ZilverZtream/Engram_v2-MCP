@@ -502,6 +502,7 @@ pub async fn ingest_code_review_history(
                     rule.file_path, rule.rule_text
                 ),
                 verification: None,
+                scope: None,
             });
     }
     for (pr_id, mut decisions) in decisions_by_pr {
