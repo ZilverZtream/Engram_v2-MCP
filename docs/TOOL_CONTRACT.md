@@ -310,3 +310,19 @@ citations leave `mode: "retrieval_only"`, preserve evidence and expose a reason
 in `synthesis`. Citation checks verify IDs and exact quotation membership,
 not semantic entailment, complete coverage, policy authority or execution.
 No synthesis result is persisted as policy or used to change project files.
+
+
+## Conventional VB Web API request tracing
+
+`trace_user_request` accepts an HTTP verb before the URL, such as
+`POST /webhook/vetro/42`. In addition to existing WebForms `pages`,
+`routing.api_candidates` records matching literal VB `MapHttpRoute` registrations
+and URL parameters. `api_traces` returns matching source-verified `ApiController`
+classes, public action candidates and their existing bounded call/source evidence.
+An exact `action` can narrow the selected method. Explicit HTTP verb attributes
+are respected; GET does not select a POST-only method.
+
+These are source candidates. Runtime registration, route precedence, constraints,
+omitted optional segments, action overload selection and dependency injection
+remain unproven. Unsupported or missing controller/handler evidence is disclosed;
+multiple candidates are retained. This does not execute HTTP or database calls.

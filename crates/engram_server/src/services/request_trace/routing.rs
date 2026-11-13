@@ -27,6 +27,7 @@ pub struct Routing {
     pub request_path: String,
     pub method: Option<String>,
     pub candidates: Vec<RouteCandidate>,
+    pub api_candidates: Vec<super::api::Route>,
     pub gaps: Vec<String>,
     pub candidates_truncated: bool,
     pub interpretation: &'static str,
@@ -212,7 +213,7 @@ fn request(raw: &str) -> anyhow::Result<(Option<String>, String)> {
     Ok((method, clean_path(target)?))
 }
 
-fn parameters(pattern: &str, request: &str) -> Option<BTreeMap<String, String>> {
+pub(super) fn parameters(pattern: &str, request: &str) -> Option<BTreeMap<String, String>> {
     let pattern: Vec<_> = pattern.trim_matches('/').split('/').collect();
     let parts: Vec<_> = request.trim_matches('/').split('/').collect();
     let mut values = BTreeMap::new();
@@ -258,6 +259,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
         request_path: path.clone(),
         method,
         candidates: Vec::new(),
+        api_candidates: Vec::new(),
         gaps: Vec::new(),
         candidates_truncated: false,
         interpretation: "Static source candidates, not a runtime dispatch trace. Registration execution, route ordering, constraints, rewrites, authentication and HTTP-method applicability are not established.",
@@ -301,6 +303,14 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
         if !lower.ends_with(".vb") && !lower.ends_with(".cs") {
             continue;
         }
+        let available = MAX_CANDIDATES.saturating_sub(result.api_candidates.len());
+        let api = super::api::routes(source, &path);
+        if api.len() > available {
+            result.candidates_truncated = true;
+        }
+        result
+            .api_candidates
+            .extend(api.into_iter().take(available));
         let tokens = tokens(source.content, lower.ends_with(".vb"));
         for window in tokens.windows(8) {
             if result.capped() {
@@ -391,7 +401,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
     if result.capped() {
         return Ok(result);
     }
-    if result.candidates.is_empty() {
+    if result.candidates.is_empty() && result.api_candidates.is_empty() {
         result.gaps.push("No route/page candidate in selected sources. Dynamic routes, optional defaults, composite segments and URL rewrites are not resolved.".into());
     }
     if result.candidates.len() > 1 {
