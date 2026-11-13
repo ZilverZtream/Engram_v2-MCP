@@ -1,0 +1,83 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T07:48:54.204678+00:00",
+  "finding": "Usable history: truthful empty/complete/limited continuation",
+  "source_commit": "9bbca20f66cff113a6240f69557e2d4c6359e7a9",
+  "original_requirement": "Capability-aware usable history with bounded complete responses and actionable recovery; do not imply absent historical evidence exists.",
+  "before": "Actual OciusX excluded result0of0 said more matches may exist and suggested tools for inspecting a historical lead that was not returned.",
+  "after": [
+    "Empty Markdown/JSON pages have no continuation or invented historical-lead followups.",
+    "Precedent results expose the known ranked count before limit; complete and capped window guidance differ. Text retrieval coverage remains unknown beyond its pool.",
+    "Offsets outside a nonempty window expose restart at0; exact recovery, filtering and response budgets remain."
+  ],
+  "runtime": {
+    "server_sha256": "8e68301ea3430cd16b807b948474877fcaf7f76838c45df502190b168d686b74",
+    "manifest_sha256": "98870634083125ae80e30cea06cd9436e5b56e358be05383c0abdca7eafa48f6",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "native_history_modes_passed": 2,
+    "candidate_cases": 16,
+    "installed_cases": 16,
+    "actual_ociusx_cases": 4,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\native1.json",
+      "sha256": "b9a2ffd077b15e9c973c6883f531f8d5cb6c62fbfd0f411e81f76fd798f13abc"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\candidate1\\acceptance.json",
+      "sha256": "4eb16d590a661fce03d3f3d5cc69aacb1f1b3e7f975e10a0737a1c2432ccc185"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\installed1\\acceptance.json",
+      "sha256": "44597aa59d25d3dfe0c81db00407bd2b3c1cb3356bdbd2a6848676122f619759"
+    },
+    "actual_ociusx": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\ociusx1\\acceptance.json",
+      "sha256": "ef303c2e50c98219a8c83a03c7d80e310bca122b82abd3e2639341a2a9497d5b"
+    },
+    "git_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\ociusx1\\git-oracle.json",
+      "sha256": "c104514b57579a3ecaad1f2b9b9ff502f7e789867800261d091e8576f581d231"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\release1.json",
+      "sha256": "3c3ec695a2dfd9235b263048611a8579d0d9d4c18f232c6ed6075d776ed976e1"
+    },
+    "public_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\verify.py",
+      "sha256": "b1d161926620e4d7f0a7f31362e42b2bceb3a355ae3e1bc33882da50e63f5c45"
+    },
+    "actual_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\verify-ociusx.py",
+      "sha256": "aa27a78890a9dbda00ac330922493b78eb723be21ab039f7bb123e69e447d365"
+    },
+    "manual_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance\\manual-review1.json",
+      "sha256": "7fe1c81d2bcca6b9257b489e72255c16e60c154dab58c212478048ec02cf777c"
+    }
+  },
+  "preserved": {
+    "owned_checks_preserved_production_metadata": true,
+    "actual_ociusx_generation": 3148,
+    "actual_config_selected_source_and_worktree_status_unchanged": true,
+    "sidecar_assets_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "limits": [
+    "Presentation and already-known counts only; no retrieval/ranking/cache speed or productivity gain measured.",
+    "A complete ranked scope is not all Git history or proof of absence; bulk exclusions and bounded text retrieval remain disclosed.",
+    "CodeRabbit host authentication remained unavailable; parent manual review only. Original broader gates remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance",
+    "fixtures_removed": true,
+    "build_job_closed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-272cd0eb702647d4b02d0a19f52b0be9",
+    "retention": "Retain source pins, wire/oracle/receipt and rollback pair. No preexisting directory deletion."
+  }
+}

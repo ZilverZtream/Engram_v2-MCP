@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "source_commit": "9bbca20f66cff113a6240f69557e2d4c6359e7a9",
   "contract": {
     "status": "IMPLEMENTING",
@@ -26,6 +26,11 @@
     "sha256": "b9a2ffd077b15e9c973c6883f531f8d5cb6c62fbfd0f411e81f76fd798f13abc"
   },
   "native_passed": 2,
-  "build_session": 28465,
-  "remaining": "Candidate/installed public checks and exact OciusX excluded-query verification after deployment; no deployed claim yet."
+  "build_session": null,
+  "remaining": [
+    "Presentation and already-known counts only; no retrieval/ranking/cache speed or productivity gain measured.",
+    "A complete ranked scope is not all Git history or proof of absence; bulk exclusions and bounded text retrieval remain disclosed.",
+    "CodeRabbit host authentication remained unavailable; parent manual review only. Original broader gates remain open."
+  ],
+  "delivery": "eval/ociusx-history-guidance-delivery-20261113.json"
 }

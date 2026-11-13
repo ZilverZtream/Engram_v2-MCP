@@ -763,7 +763,8 @@
       "implementation_state": "Deployed source1440722, installed2c4d170f/c2aaeb81 pair; public OciusX matching/exclusion history acceptance and corrected text capability label verified.",
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json"
+      "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json",
+      "history_continuation_delivery_20261113": "eval/ociusx-history-guidance-delivery-20261113.json"
     },
     {
       "id": "EG-21",
@@ -779,7 +780,8 @@
       "implementation_state": "Deployed source1440722, installed2c4d170f/c2aaeb81 pair; public OciusX matching/exclusion history acceptance and corrected text capability label verified.",
       "current_feature_batch_evidence": "execution_evidence_20261101.breadth_reset_and_instruction_update_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json"
+      "latest_installed_delivery": "eval/eg20-history-capability-delivery-20261111.json",
+      "history_continuation_delivery_20261113": "eval/ociusx-history-guidance-delivery-20261113.json"
     },
     {
       "id": "EG-22",
@@ -9982,26 +9984,8 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-      "finding": "Original usable history / TODO4 truthful history continuation",
-      "original_requirement": "Capability-aware usable history with bounded complete responses and actionable recovery; do not imply absent historical evidence exists.",
-      "observed_missing_behavior": "Retained installed actual OciusX parent/date/path exclusion replies say0of0 but ranking_window_end instructs raising limit for possible further matches and generic hints imply a returned historical lead.",
-      "baseline": "eval/ociusx-history-restart-acceptance-20261113.json; recorded_nonblocking_observation",
-      "implementation_files": [
-        "crates/engram_server/src/handlers/history_response.rs",
-        "crates/engram_server/src/handlers/git_tools.rs",
-        "crates/engram_server/tests/history_response_tests.rs"
-      ],
-      "acceptance": [
-        "Empty text/precedent pages have no continuation or invented historical-lead followups in Markdown/JSON.",
-        "Complete precedent window discloses no remaining ranked matches; capped window discloses known omitted matches and valid limit recovery.",
-        "Offset beyond window gives a restart hint; bounded paging/recovery/cutoffs retain exact identities and budgets.",
-        "Native history suites and candidate/installed public cases pass; verify actual OciusX excluded result once after deployment."
-      ],
-      "scope": "Presentation and already-known ranking counts only. No retrieval/cache/ranking redesign, CodeMap/Blast or language expansion.",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance",
-      "source_commit": "9bbca20f66cff113a6240f69557e2d4c6359e7a9",
-      "progress": "eval/ociusx-history-guidance-progress-20261113.json"
+      "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
+      "next_action": "Advance the next unfinished original OciusX requirement. History restart and continuation acceptance are complete; do not expand them into ranking/cache experiments or repeat passed cases. Preserve all broader unfinished findings and CodeMap/Blast holds."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10033,8 +10017,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original usable history / TODO4 truthful history continuation",
-    "next_user_visible_deliverable": "Truthful empty/complete/limited history pagination guidance.",
+    "active_original_item": "History continuation correction delivered; next implementation unselected",
+    "next_user_visible_deliverable": "Advance the next unfinished original OciusX requirement. History restart and continuation acceptance are complete; do not expand them into ranking/cache experiments or repeat passed cases. Preserve all broader unfinished findings and CodeMap/Blast holds.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10051,7 +10035,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: JS/TS instruction evidence fix deployed and pushed b7f06a5; passed58native and candidate/installed public checks.",
+    "previous_goal_turn_classification": "PROGRESS: corrected recorded history empty-result contradiction; native suites,16candidate/16installed and4actual OciusX calls passed; release deployed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -14103,6 +14087,29 @@
       "source_commit": "a7273d51099998343a6858c4f5c328f9490fd72e",
       "progress": "eval/ociusx-instruction-scope-progress-20261113.json",
       "receipt": "eval/ociusx-instruction-scope-delivery-20261113.json"
+    },
+    "history_guidance_delivery_20261113": {
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+      "finding": "Original usable history / TODO4 truthful history continuation",
+      "original_requirement": "Capability-aware usable history with bounded complete responses and actionable recovery; do not imply absent historical evidence exists.",
+      "observed_missing_behavior": "Retained installed actual OciusX parent/date/path exclusion replies say0of0 but ranking_window_end instructs raising limit for possible further matches and generic hints imply a returned historical lead.",
+      "baseline": "eval/ociusx-history-restart-acceptance-20261113.json; recorded_nonblocking_observation",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/history_response.rs",
+        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/tests/history_response_tests.rs"
+      ],
+      "acceptance": [
+        "Empty text/precedent pages have no continuation or invented historical-lead followups in Markdown/JSON.",
+        "Complete precedent window discloses no remaining ranked matches; capped window discloses known omitted matches and valid limit recovery.",
+        "Offset beyond window gives a restart hint; bounded paging/recovery/cutoffs retain exact identities and budgets.",
+        "Native history suites and candidate/installed public cases pass; verify actual OciusX excluded result once after deployment."
+      ],
+      "scope": "Presentation and already-known ranking counts only. No retrieval/cache/ranking redesign, CodeMap/Blast or language expansion.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\history-guidance",
+      "source_commit": "9bbca20f66cff113a6240f69557e2d4c6359e7a9",
+      "progress": "eval/ociusx-history-guidance-progress-20261113.json",
+      "receipt": "eval/ociusx-history-guidance-delivery-20261113.json"
     }
   }
 }
