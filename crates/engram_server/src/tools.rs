@@ -1049,7 +1049,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Instrumentation guidance pack for capturing runtime evidence before migration (pairs with ingest_runtime_artifacts)."
+        description = "[.NET legacy] Complete manual event helper for VB.NET or C#, compatible with ingest_instrumentation_logs. Requires an explicit log sink and existing inline-SQL node IDs; no automatic interception, installation, or query hashing."
     )]
     pub async fn get_instrumentation_pack(
         &self,

@@ -220,8 +220,11 @@ pub fn policy(tool: &str) -> Policy {
                 "Trace a concrete authored event to its handler; inventory alone does not establish runtime binding.",
             ),
         ]),
+        "get_instrumentation_pack" => Suggest(&[(
+            "ingest_instrumentation_logs",
+            "After explicitly capturing events with your log sink, supply the indexed project_id and captured log_content; generating this helper collects no runtime evidence.",
+        )]),
         "analyze_error_stack"
-        | "get_instrumentation_pack"
         | "generate_instrumentation_code"
         | "reconcile_runtime_evidence"
         | "analyze_sync_hazards" => Suggest(&[
