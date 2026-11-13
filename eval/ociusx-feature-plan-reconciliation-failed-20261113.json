@@ -1,0 +1,61 @@
+{
+  "status": "FAILED_EXPERIMENT_RETAINED_NOT_DEPLOYED",
+  "at_utc": "2026-11-13T16:59:40.389060+00:00",
+  "finding": "TODO32 normal OciusX planning correctness",
+  "runtime_change": false,
+  "delivery_complete": false,
+  "source_stash": "a53797db123d35c0b66ded197da741f6c5f4bf53",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "files": [
+    "README.md",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs",
+    "crates/engram_server/src/services/feature_plan.rs"
+  ],
+  "change_attempted": "Run one source/request reconciliation for structurally valid as well as invalid drafts, reusing the existing three-call maximum.",
+  "validation": {
+    "configured_provider_requests": 1,
+    "provider_retries": 0,
+    "seconds": 16.822744200006127,
+    "purpose": "Retained real failed draft and unchanged source evidence; not public MCP acceptance",
+    "semantic_review": {
+      "status": "FAIL_NOT_DELIVERED",
+      "reviewer": "Parent source review, not independent agent or application runtime QA",
+      "finding": "FP-SEM-01 still fails: R1 and pre_conditions call ddlNoOfPhotos a required/minimum count; E14/E15 distinguish imgRequiredCount from capacity. R3 also conflates marker create/update capacity persistence with required-count persistence.",
+      "positive": "The revised R3 no longer describes a broader global setting as requested. This does not repair the source-value confusion.",
+      "decision": "Do not deploy, build, or repeat prompt tuning. Preserve the exact experiment and failed criteria; TODO32 remains unfinished."
+    },
+    "native_tests_run": 0,
+    "builds_run": 0,
+    "reason_no_build": "Behavioral diagnostic still failed the original source-semantics criterion."
+  },
+  "evidence": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness\\retained-reconciliation1\\prompt.txt",
+      "sha256": "9bd2dcf50cd377a070158c949fbeb5c4e8c11fb5e2d7db9aebea054756121c67"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness\\retained-reconciliation1\\proposal.json",
+      "sha256": "0dd0303d097c69c92ff8dbd2ab193e32b9d10e09975bc317a64a510b68d0e561"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness\\retained-reconciliation1\\result.json",
+      "sha256": "99bbcc4d08286d0fd581a587011eeb7cf405e23cf93c161034725ae1378968cb"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness\\retained-reconciliation1\\semantic-review.json",
+      "sha256": "9f22cdcb9988833ef75b9fa8acf0d86a904ab24a3d52554767096887aa891f88"
+    }
+  ],
+  "preservation": {
+    "wip9_hashes_unchanged": true,
+    "installed_runtime_unchanged": true,
+    "production_config_unchanged": true,
+    "original_method_budget_stash_preserved": "fdf6b2c753f99e525e8c0360f20c0f82915984dd"
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness",
+    "purpose": "Retain rejected experiment, model response, source review and unused verification scripts",
+    "cleanup_condition": "Retain until failed-work review and explicit scratch cleanup approval; no owned server or database fixture was started; HTTP session closed and process exited."
+  },
+  "next_action": "Advance a ready original AI workflow item; do not resume this planner experiment or deferred response-budget work."
+}

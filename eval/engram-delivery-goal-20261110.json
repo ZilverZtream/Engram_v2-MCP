@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SELECTED_USER_AI_READINESS_PRIORITY",
+    "status": "DEFERRED_FAILED_SINGLE_RECONCILIATION_CHECK",
     "finding": "TODO32 normal OciusX feature planning correctness",
     "original_requirement": "Produce a usable cited pre-edit dossier for a normal feature request. Latest explicit user steering prioritizes product readiness for actual AI use, not further edge-case work.",
     "observed_missing_behavior": "Retained installed plan confuses configured photo-slot capacity with required minimum and treats an unspecified scope as a requested global setting.",
@@ -56,7 +56,9 @@
     "retained_method_budget": {
       "stash_commit": "fdf6b2c753f99e525e8c0360f20c0f82915984dd",
       "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-budget\\retained-work.json"
-    }
+    },
+    "implementation_decision": "Use the existing correction budget for one source/request reconciliation even for structurally valid drafts. No new retrieval or provider retry loop; max three generation calls. Review the corrected retained actual failure before building/deploying.",
+    "outcome_receipt": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\ociusx-feature-plan-reconciliation-failed-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
