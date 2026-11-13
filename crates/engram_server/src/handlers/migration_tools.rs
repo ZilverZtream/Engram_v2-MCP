@@ -537,22 +537,32 @@ impl Engram {
         &self,
         req: GetInstrumentationPackRequest,
     ) -> Result<CallToolResult, McpError> {
-        let lang = req.language.to_lowercase();
-
-        let (snippet, instructions) = match lang.as_str() {
-            "csharp" | "cs" => {
-                let s = r#"protected void LogEngramEvent(...) { ... }"#;
-                let i = "1. Add to Global.asax.cs...";
-                (s, i)
-            }
-            _ => {
-                return Err(McpError::invalid_params("Unsupported language", None));
-            }
+        let (language, filename, snippet, example) = match req.language.trim().to_lowercase().as_str() {
+            "csharp" | "cs" | "c#" => (
+                "csharp", "EngramInstrumentation.cs",
+                include_str!("instrumentation_pack/EngramInstrumentation.cs"),
+                "EngramInstrumentation.LogEngramEvent(Console.WriteLine, \"Site/Default.aspx\", \"SaveCompleted\", \"btnSave\", \"sql:inline:YOUR_EXISTING_NODE_ID\");",
+            ),
+            "vb" | "vbnet" | "vb.net" => (
+                "vbnet", "EngramInstrumentation.vb",
+                include_str!("instrumentation_pack/EngramInstrumentation.vb"),
+                "EngramInstrumentation.LogEngramEvent(AddressOf Console.WriteLine, \"Site/Default.aspx\", \"SaveCompleted\", \"btnSave\", \"sql:inline:YOUR_EXISTING_NODE_ID\")",
+            ),
+            _ => return Err(McpError::invalid_params("Supported languages: csharp (cs, c#), vb (vbnet, vb.net)", None)),
         };
-
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Snippet:\n{snippet}\n\nInstructions:\n{instructions}"
-        ))]))
+        let out = format!(
+            "# Manual instrumentation event helper\n\n\
+             Language: {language}. Proposed file: `{filename}`. Files written: 0.\n\n\
+             ```{language}\n{snippet}```\n\n\
+             ## Example call\n```{language}\n{example}\n```\n\n\
+             ## Use and ingestion\n\
+             - Review the helper and call it explicitly at the event you observed. Replace Console.WriteLine with your existing log sink; the helper does not install a listener, write files, or automatically intercept HTTP, SQL or state access. Sink exceptions propagate.\n\
+             - Supply the exact project-relative indexed page path (including a repository prefix such as Site/), the observed event name and control ID. Use an empty control ID for a page-level observation.\n\
+             - Replace YOUR_EXISTING_NODE_ID with an existing inline-SQL node suffix from Engram. The helper does not derive hashes from SQL text. Stored-procedure IDs are unsupported by this importer. Do not log query text, parameters or request payloads in these fields.\n\
+             - Capture the emitted ENGRAM_LOG lines using your chosen sink, then call ingest_instrumentation_logs(project_id=<indexed project>, log_content=<captured lines>). This is the matching importer, not ingest_runtime_artifacts.\n\
+             - The importer adds caller-supplied page/control-to-inline-SQL observations. These records do not establish transaction commit, request timing, complete execution coverage or absence of other calls. Source paths and node IDs must match the indexed project.\n"
+        );
+        Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 
     pub async fn handle_ingest_instrumentation_logs(

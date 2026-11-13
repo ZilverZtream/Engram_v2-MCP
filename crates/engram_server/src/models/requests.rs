@@ -2493,7 +2493,8 @@ pub struct CancelJobRequest {
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetInstrumentationPackRequest {
-    pub language: String, // "csharp" or "vb"
+    /// csharp (cs, c#) or vb (vbnet, vb.net). Returns a manual helper; writes no files.
+    pub language: String,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
