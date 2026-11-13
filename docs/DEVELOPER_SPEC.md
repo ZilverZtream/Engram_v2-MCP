@@ -198,7 +198,7 @@ engram-v2/
 | Test file | Crate | Tests | Purpose |
 |-----------|-------|-------|---------|
 | `tests/webforms_mutation_test.rs` | `engram_index` | 12 | Mutation tests for WebForms extraction robustness (renamed handlers, duplicate IDs, malformed directives, empty control IDs, etc.) |
-| `tests/integrity_canary_test.rs` | `engram_server` | 9 | Canary tests with synthetic drift injection (Tantivy/docstore orphans, vector bloat, namespace skew, repair policy override) |
+| `tests/integrity_canary_test.rs` | `engram_server` | 7 | Production count-comparison cases: agreement, vector surplus/tolerance, shortfall, disabled embeddings, empty stores and repair-policy overrides. No document-store orphan checks. |
 
 ### Modified service: `autonomous_decision_service.rs`
 
