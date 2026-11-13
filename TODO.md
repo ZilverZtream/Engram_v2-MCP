@@ -311,6 +311,13 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   effects, deployed database identity and runtime execution remain unresolved.
   Evidence: [original trace](eval/ociusx-request-trace-delivery-20261112.json),
   [DBML mapping delivery](eval/ociusx-request-dbml-mapping-delivery-20261112.json).*
+  Conventional VB Web API entry tracing installed 2026-11-13. Literal
+  `MapHttpRoute` registrations now lead to source-verified controller/HTTP-method
+  candidates and existing call evidence. All 22 native request-trace checks and
+  candidate/installed public checks passed. Actual `POST /webhook/vetro/42`
+  resolved its registration, `VetroController.HandleIncomingRequest` and the
+  source interface call. Concrete DI binding and runtime execution remain unproven.
+  Evidence: [Web API entry delivery](eval/ociusx-webapi-request-trace-delivery-20261113.json).
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 

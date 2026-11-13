@@ -1,0 +1,123 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T18:19:15.408200+00:00",
+  "finding": "TODO31 conventional OciusX Web API route-to-handler tracing",
+  "source_commit": "f5b8684fd17bac03610899724f52cd0c6786fff9",
+  "bounded_delivery_complete": true,
+  "full_todo31_complete": false,
+  "full_goal_complete": false,
+  "before": "Source inspection established routing::resolve ignored OciusX MapHttpRoute registrations; only physical pages and MapPageRoute were supported. No prior runtime timing comparison was run.",
+  "behavior": "trace_user_request accepts conventional literal VB MapHttpRoute registrations, reports URL parameters, identifies source-verified ApiController candidates and selects public handlers by authored HTTP verb or method-name convention. api_traces reuses existing bounded source/call/database expansion; existing WebForms pages remain supported.",
+  "validation": {
+    "native_checks": 22,
+    "candidate_public": "PASS",
+    "installed_public": "PASS",
+    "actual_execution": "Candidate binary with the same SHA as installed; not rerun after installation.",
+    "actual_entry_point": "POST /webhook/vetro/42",
+    "actual_registration": "Site/App_Code/api-v2/WebApiConfig.vb:55",
+    "actual_handler": "Site/App_Code/api-v2/Controllers/webhook/VetroController.vb:15-18, HandleIncomingRequest",
+    "actual_reached_interface": "Site/App_Code/api-v2/Services/webhook/interfaces/IWebhookVetroService.vb:3",
+    "actual_parameters": {
+      "controller": "vetro",
+      "projectId": "42"
+    },
+    "actual_seconds": 0.8840062000090256,
+    "model_requests": 0,
+    "source_generation": 3149,
+    "source_unchanged": true,
+    "selected_registry_unchanged": true,
+    "source_review": {
+      "status": "PASS",
+      "method": "Parent comparison of captured tool output against independently saved registration and controller source",
+      "verified": [
+        "WebApiConfig.vb:55-58 registers webhook/{controller}/{projectId}; returned values vetro and 42 match the request.",
+        "VetroController.vb:15-18 has HttpPost and HandleIncomingRequest calling the injected IWebhookVetroService. Returned excerpt matches those lines.",
+        "Existing graph expansion reaches the source interface declaration; no concrete implementation or runtime execution is claimed."
+      ],
+      "limits": [
+        "One actual source navigation case; not an HTTP execution or productivity comparison.",
+        "Route precedence, optional omitted segments, constraints, DI implementation and downstream database effects remain unproven."
+      ],
+      "binary_sha256": "bb1c70b00bd395b62465729c84303edc055a9460403df1b3a4b04e93ae5cf2b1"
+    }
+  },
+  "runtime": {
+    "server_sha256": "bb1c70b00bd395b62465729c84303edc055a9460403df1b3a4b04e93ae5cf2b1",
+    "manifest_sha256": "db5b857a465f86f8413be7e1d4bbfb9e2eb51ea547b3161de1f2a9340026266c",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\contract.json",
+      "sha256": "ae7d7104abc4579b32403860c045f98ffc93078d4f36fdcf83aa0e0fc385aefd"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\implementation1.json",
+      "sha256": "656b21a4a0d1d2d8a98f3598f418068d30bbfc179593cc585f4f969a84f623c0"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\native3.json",
+      "sha256": "d4c8b30a44a648a5ed0e54d42529642d44a0846e06f63a6ce817393d7a86d2df"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\release1.json",
+      "sha256": "5decdb9ab657e05f6eb0210fe899d635645a48c00b2647d60e12dd8f42563efb"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\candidate1\\acceptance.json",
+      "sha256": "62193de958b119d48c305f8cb09094d8f1cfdf5493234d672830b16c884e5cc2"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\installed1\\acceptance.json",
+      "sha256": "73e9c17d421e886426f42a80025411de4d3e626e7b64fc19c778894f4dcb2b02"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\actual1\\acceptance.json",
+      "sha256": "25451022c8a87d55bbe16c44c16c99cbae36f56bb33b4944376a19e52dd2e6e9"
+    },
+    "trace": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\actual1\\trace.json",
+      "sha256": "bb095d086e7c027a8ab2f882bc3ceff800c576a7b49c8b9e998f02858bcbd277"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\actual1\\source-review.json",
+      "sha256": "c31de597579f6bda55c9586052309c008404369162d339c663cd9b0aed2b3933"
+    },
+    "registration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\actual1\\WebApiConfig.vb",
+      "sha256": "29775d7b46fefcf49a515b3d2e1949dd706b14c1bfac8e47abd0427cce86fa3e"
+    },
+    "controller": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\actual1\\VetroController.vb",
+      "sha256": "4f0e6bc2e3ba31bd068b769c1239572753988a47109f002cf64288f6f85399ad"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\deployment1-state.json",
+      "sha256": "3d83f6121b7f499df93dfa8b3b13d37055f56a3c8ebb10124e402b6a1d16b8d7"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace\\webapi-request-trace1-install-Upgrade.json",
+      "sha256": "568121b15ff12b70f45a40251f17f96fabe4668aebe3d9fb200950c80c4ebfb0"
+    }
+  },
+  "limits": [
+    "Static source navigation, not HTTP dispatch, successful execution or deployment identity.",
+    "Route precedence, constraints, omitted optional segments, overload selection and dependency injection remain unproven.",
+    "Actual call expansion reaches the interface declaration, not proof of the injected concrete implementation or its database work.",
+    "Single inspected OciusX request; no general usefulness, speedup or productivity claim.",
+    "Existing TODO31 database/trigger and other original requirements remain unfinished.",
+    "Parent source review only; external CodeRabbit review unavailable due to retained host authentication state."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webapi-request-trace",
+    "owned_native_build_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "owned_config_removed": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-52cfd830c5ab4dc2b91eef53811cbd4d",
+    "retention": "Retain scripts, evidence, package and rollback pair for delivery review and rollback; remove only after that need ends and exact-path approval. No preexisting folder deletion."
+  }
+}
