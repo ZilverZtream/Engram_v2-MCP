@@ -1,0 +1,181 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T20:59:57.190131+00:00",
+  "finding": "TODO31 continue request traces through explicit VB interface implementations",
+  "source_commit": "53caf22e06fac8e38cc84b8fd7d562f107ce3735",
+  "runtime_source_commit": "c735f9068f73aa85a09c0b3e71a59b80df2763b0",
+  "bounded_delivery_complete": true,
+  "full_todo31_complete": false,
+  "before": "An admitted source interface call ended the request trace even when its explicit compiler-backed implementation existed.",
+  "after": "Request traces retain the interface call and add separately labeled implementation candidates, with exact call/Implements provenance, before continuing normal bounded source/call/database expansion. Ordinary VB Using SqlCommand declarations now contribute literal procedure evidence.",
+  "validation": {
+    "request_trace_cases": 24,
+    "baseline": "Public MCP gap reproduced with .NET Framework/Web API compiler profile",
+    "candidate": {
+      "explicit_implementation": true,
+      "binding_provenance": true,
+      "source_matches": true,
+      "downstream_helper": true,
+      "procedure_and_table": true,
+      "unrelated_excluded": true,
+      "runtime_not_claimed": true,
+      "source_unchanged": true
+    },
+    "installed": {
+      "explicit_implementation": true,
+      "binding_provenance": true,
+      "source_matches": true,
+      "downstream_helper": true,
+      "procedure_and_table": true,
+      "unrelated_excluded": true,
+      "runtime_not_claimed": true,
+      "source_unchanged": true
+    }
+  },
+  "actual_ociusx": {
+    "entry_point": "POST /webhook/vetro/42",
+    "dispatch": {
+      "evidence": {
+        "call_generation": 3149,
+        "call_lines": [
+          17
+        ],
+        "call_lines_truncated": false,
+        "caller": "sym:function:Site/App_Code/api-v2/Controllers/webhook/VetroController.vb:_api2.Controllers.VetroController.HandleIncomingRequest:15",
+        "contract_type": "Global._api2.svc.IWebhookVetroService",
+        "contract_type_key": "ecf98114d25934399df24e371def86762be6e5d9e5e76756eed6e224927b224a",
+        "implements_clause_line": 11,
+        "interpretation": "Compiler-backed explicit Implements candidate for the same called contract. Runtime receiver, DI registration selection and execution are not proven; downstream paths are conditional on this candidate.",
+        "mapping_generation": 3149
+      },
+      "from": "sym:function:Site/App_Code/api-v2/Services/webhook/interfaces/IWebhookVetroService.vb:_api2.svc.IWebhookVetroService.HandleIncomingRequest:3",
+      "kind": "interface_implementation_candidate",
+      "target_file": "Site/App_Code/api-v2/Services/webhook/WebhookVetroService.vb",
+      "target_line": 11,
+      "target_name": "_api2.svc.VetroService.HandleIncomingRequest",
+      "target_source_verified": true,
+      "to": "sym:function:Site/App_Code/api-v2/Services/webhook/WebhookVetroService.vb:_api2.svc.VetroService.HandleIncomingRequest:11"
+    },
+    "downstream_call": {
+      "target_name": "_integration.gis.vetrofibermap.Feature.WebhookEvent.SaveEventsToDB",
+      "target_file": "Site/App_Code/integration/code/gis/vetrofibermap/Feature/WebhookEvent.vb",
+      "target_line": 12,
+      "call_lines": [
+        70
+      ]
+    },
+    "seconds": 0.8523009000346065,
+    "response_bytes": 130509,
+    "default_budget_refusal": "max_tokens is too small: minimum 32628 estimated tokens (130509 UTF-8 text bytes) for one complete hit plus required context, or for the complete no-hit reply. Increase max_tokens or reduce the per-result content or result limit. Warnings and repository guidance are not omitted to fit.",
+    "budget_recovery_tokens": 32628,
+    "checks": {
+      "explicit_implementation": true,
+      "downstream_source": true,
+      "exact_source": true,
+      "source_binding_lines": true,
+      "static_limit": true
+    },
+    "source_generation": 3149,
+    "source_and_registry_unchanged": true
+  },
+  "runtime": {
+    "server_sha256": "39cffb6d97d3f12b195566dafe2f970022f12c6ba49079a58253e460d4afabb4",
+    "manifest_sha256": "d2cfdde5ab03f7371db0ab057b125bea4a88e7c175b3837e35e9afa418ce0d51",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\Engram-win-x64.zip",
+    "sha256": "4cccb3bf7678ff5f3fcad7ee3e83d8d9008496d066c07e234c5b3fa9b8c3da84",
+    "runtime_assets": 215,
+    "entries": 218,
+    "installer_source_commit": "909b2b4"
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\contract.json",
+      "sha256": "995651641d5eed30a3a90b62ec191b54bee85ae5cd9ad6686543c1b12937df96"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\..\\baseline3\\acceptance.json",
+      "sha256": "2d09e626856878d7fff775d57ef29c3e4d06514eea0fa7efcc8be0b57355ebf6"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\..\\native5.json",
+      "sha256": "95e07d21995288d935384eb1c4644f93400d9d000b991c75ef9203f3680dc034"
+    },
+    "failed_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\..\\candidate1\\acceptance.json",
+      "sha256": "ac64221d72a27c67a18c88a67915750c9535924196f3475adef1a3f11f27e2f8"
+    },
+    "fixture_oracle_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\fixture-correction.json",
+      "sha256": "5f569e5d6a3d8a02f3a1c85d26bd8042621919c932fbd4553c3c7ce6cf0b6a19"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\implementation1.json",
+      "sha256": "3572c25912ca6455a3145f4f42850ee579e8b9f79abee457d87dc4f97fa4301e"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\manual-review.json",
+      "sha256": "4cd8e99002951860cc15ebeba08684896c2a14cc33b71f63cefb8b2599cb2596"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\release1.json",
+      "sha256": "dfcd4790cddb1c14f5f115e60073f5a03c8de330bab6859a66690932394975b6"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\candidate1\\acceptance.json",
+      "sha256": "e9506634c8b0c6dea309b687716106c413e5728740f4d69a8b48e2e1824f4802"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\installed1\\acceptance.json",
+      "sha256": "0e96d462e5603a9270f76ac2696cdefca18eb4491f3e612ed25ac14932c9070c"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\actual2\\acceptance.json",
+      "sha256": "3af8cf7700ee743c4df7425ba0aa77be3f4110407d7c0fb5030b32677641f45e"
+    },
+    "actual_case": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\actual2\\case.json",
+      "sha256": "bd99bc0511765291bfeb2f9bb85d79f5b8773d78736cb660ba4771ee84a6709d"
+    },
+    "actual_trace": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\actual2\\trace.json",
+      "sha256": "aedf9bc96c58723ab14c03aa10c62ae5dd299b95eb2806cf5c19813fb99d2fa1"
+    },
+    "default_budget_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\actual1\\wire\\0003-response.json",
+      "sha256": "1dfe8c2bb4843f3aecdd16988b7b5d3d8310a55ad3aa9fed4ffd9e6b47ac87ee"
+    },
+    "actual_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\recovery1-state.json",
+      "sha256": "39e8dd1e59079f77cf4aef5667f341af53edd51565747d564101e04095274b17"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\deployment1-state.json",
+      "sha256": "d00e35e9f6a77110acf8ff58a25f7ec08ceaa015cdc45cd6ef4624c82e55ab0c"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final",
+    "all_new_fixtures_closed_and_removed": true,
+    "build_temp_removed": true,
+    "owned_configuration_removed": true,
+    "config_hold_released": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-4ed3522774da4ec389cc8c5e6d908f48",
+    "retention": "Keep candidate/bundle, delivery evidence and old runtime pair for review/rollback. No preexisting directories deleted."
+  },
+  "limits": [
+    "The initial candidate failed at a normal Using SqlCommand declaration. That recognizer gap was fixed with the source fixture unchanged; the table oracle was corrected to the existing lexical-reference contract. Earlier failure evidence is retained.",
+    "The actual OciusX request exceeded the default reply budget. One explicit max_tokens=32628 recovery returned 130509 UTF-8 bytes. Default-budget usability and reduced output size are not demonstrated by this delivery.",
+    "Static implementation candidates do not prove DI receiver selection, registration execution, branch reachability or completed database effects.",
+    "Existing source/node/depth/edge/response limits still apply. Other TODO31 dynamic dispatch, database and trigger requirements remain unfinished.",
+    "No graph algorithms, CodeMap/Blast, parser, sidecar or production configuration changes.",
+    "Initial native fixture construction errors and unresolved public fixture bindings are retained; successful public fixture uses explicit .NET Framework/Web API metadata. Actual OciusX independently covers cross-file bindings.",
+    "No general productivity or readiness claim. EG24/25 and broader accepted backlog remain unfinished. Parent review only; no external CodeRabbit review."
+  ]
+}

@@ -322,6 +322,15 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   resolved its registration, `VetroController.HandleIncomingRequest` and the
   source interface call. Concrete DI binding and runtime execution remain unproven.
   Evidence: [Web API entry delivery](eval/ociusx-webapi-request-trace-delivery-20261113.json).
+  Explicit VB interface implementation tracing installed 2026-11-13. Existing
+  compiler-backed call/Implements mappings now lead to implementation candidates
+  and their downstream call/database evidence. Twenty-four native checks and candidate/
+  installed public MCP checks passed. Actual OciusX POST /webhook/vetro/42 reaches
+  VetroService.HandleIncomingRequest and the source SaveEventsToDB call. These are
+  possible source paths; runtime DI selection and execution remain unproven.
+  Actual OciusX required max_tokens=32628 (130509-byte response); its default
+  output budget was insufficient.
+  Evidence: [interface trace delivery](eval/ociusx-interface-request-trace-delivery-20261113.json).
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 
