@@ -1,0 +1,34 @@
+{
+  "status": "CANDIDATE_FAILURE_CORRECTED_NATIVE_PASS_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T20:42:11.600140+00:00",
+  "source_commit": "53caf22e06fac8e38cc84b8fd7d562f107ce3735",
+  "runtime_source_commit": "c735f9068f73aa85a09c0b3e71a59b80df2763b0",
+  "deployed": false,
+  "candidate_failure": "The first candidate followed controller/interface/service/helper, but ordinary Using ... As New SqlCommand declarations were omitted by the existing SQL recognizer. Candidate acceptance failed before installation.",
+  "correction": "Accept the ordinary VB Using declaration form while retaining existing receiver/literal/type/execution checks. Public source fixture unchanged; table oracle follows the existing qualified-procedure and lexical-table-reference contract.",
+  "validation": {
+    "request_trace_cases": 24,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\native5.json"
+  },
+  "evidence": {
+    "retained_initial_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace",
+    "candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\candidate1\\acceptance.json",
+    "fixture_oracle_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\fixture-correction.json",
+    "source": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\implementation1.json",
+    "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\manual-review.json",
+    "build_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final\\release1-owner.json"
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace",
+    "corrected_delivery_subdirectory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\interface-request-trace\\final",
+    "first_candidate_fixture_cleaned": true,
+    "first_config_hold_released": true,
+    "production_runtime_unchanged": true,
+    "preserved_wip9": true
+  },
+  "remaining": [
+    "Finish the same corrected release build.",
+    "Run candidate/installed controller-to-table acceptance and actual OciusX interface-to-SaveEventsToDB source verification.",
+    "Refresh bundle and record final identities/cleanup."
+  ]
+}
