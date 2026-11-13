@@ -125,10 +125,11 @@ The replay subsystem enables reproducible ADP testing:
 
 ### Integrity canaries
 
-9 canary tests in `integrity_canary_test.rs` inject synthetic drift:
-- Tantivy orphans, docstore orphans, vector bloat, count divergence
-- Namespace skew, empty stores, tolerance boundaries
-- Repair policy override verification
+Seven canary tests in `integrity_canary_test.rs` exercise the production count-comparison and repair-policy functions: aligned counts, vector surplus, surplus tolerance, vector shortfall, disabled embeddings, empty stores and request/config repair overrides. These checks do not establish that production indexing populated a store.
+
+`check_integrity` compares project-wide Tantivy/vector counts with tolerances and separately compares the same published `memory` source selection, including inherited revisions. `integrity_service_tests.rs` covers that selection with real stores, including shortage/surplus masked by project-wide totals and scoped recovery. The result reports unavailable managed-source evidence explicitly and reports graph node/edge cardinalities without claiming graph-reference validation.
+
+The unused `DOC_BY_ID` comparison and its synthetic orphan tests were removed: production indexing does not populate that table. No document-store cross-validation is claimed. Matching counts cannot detect equal-count wrong rows or establish vector quality or complete historical content. See the [tool contract](TOOL_CONTRACT.md#observability--operations) for request defaults and repair semantics, and the [retained installed verification](../eval/ociusx-source-integrity-delivery-20261112.json) for the bounded OciusX observation.
 
 ## End-to-End Migration Engine (Phase 30 + 30a Hardening)
 

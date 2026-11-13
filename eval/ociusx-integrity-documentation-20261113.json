@@ -1,0 +1,54 @@
+{
+  "status": "DOCUMENTED_ORIGINAL_REMOVAL_ALTERNATIVE_COMPLETE",
+  "at_utc": "2026-11-13T13:12:15.038522+00:00",
+  "finding": "TODO64 / bounded EG26 documentation correction",
+  "original_requirement": "Populate DOC_BY_ID for meaningful validation OR remove the unused comparison and document actual integrity coverage. The already shipped removal alternative is retained.",
+  "runtime_removal_commit": "009295e2982d8ecec98bb59b81b8d330df20894f",
+  "prior_runtime_delivery_commit": "84dd480b4b06b171265b3fb7e52757937c89fa8c",
+  "changes": [
+    "Correct check_integrity project_id requirement and config-inherited auto_repair default; explicit false disables repair.",
+    "Replace index/graph/docstore consistency claims with actual Tantivy/vector count checks, managed source selection, graph cardinalities and coverage limits.",
+    "Replace obsolete nine-canary/docstore-orphan claims with seven existing count/policy cases.",
+    "Close original TODO64 removal/documentation alternative; do not claim DOC_BY_ID population or new runtime improvement."
+  ],
+  "validation": {
+    "integrity_runtime_git_blob_unchanged_since_verified_delivery": true,
+    "canary_declarations": 7,
+    "prior_installed_evidence_hash_verified": {
+      "installed": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\installed\\acceptance.json",
+        "sha256": "cfa9b538d6500bdb8e16d07d5bb1bb1b338386af7c7c1a32c356857e2ba86c17"
+      },
+      "actual_ociusx": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\generation-integrity\\normal\\acceptance.json",
+        "sha256": "bd2bde9e1cc26ce3d232cc21329f2d01c80fa34723a6398c8f7ec34376c712e1"
+      }
+    },
+    "retained_ociusx_observation": {
+      "generation": 3148,
+      "source_counts": {
+        "generation": 3148,
+        "namespace": "memory",
+        "coverage": "managed_source_snapshot_counts_only",
+        "tantivy_doc_count": 31914,
+        "vector_doc_count": 31914,
+        "counts_match": true
+      },
+      "new_run": false
+    },
+    "preexisting_modified_files_preserved": 9,
+    "manual_review": "Documentation checked against request model, handler, integrity service and actual test declarations. No external review claimed.",
+    "tests_run": false,
+    "reason_no_tests": "Documentation-only change; runtime source unchanged and retained installed evidence verified."
+  },
+  "limits": [
+    "No new runtime deployment, performance change or productivity improvement.",
+    "Managed source counts and project-wide tolerances do not prove per-row identity, complete historical namespace content, vector quality or graph-reference integrity.",
+    "Remaining original backlog and EG24/25 failed/unproved usefulness outcomes stay open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-documentation",
+    "retention": "Preserved-work pins, contract and verification retained for review; no new fixtures or runtime processes created; no preexisting directories deleted."
+  },
+  "next": "Continue unfinished original OciusX requirements without reopening CodeMap/Blast or starting a storage redesign."
+}

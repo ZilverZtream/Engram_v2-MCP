@@ -40,41 +40,31 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "TODO61 usable VB.NET instrumentation pack",
-    "original_requirement": "Fix or accurately label shallow tools, including get_instrumentation_pack; prioritize actual OciusX VB.NET/WebForms workflows.",
-    "observed_missing_behavior": "The language request documents VB but the tool rejects it; C# returns a noncompilable protected void LogEngramEvent(...) placeholder. Its advertised ingest_runtime_artifacts handoff differs from the existing ENGRAM_LOG importer.",
-    "behavior": "Return complete manual event helpers for VB.NET and C#, with an explicit log sink and existing inline-SQL node ID, plus the matching ingest_instrumentation_logs call and limits. No automatic query hashing, app installation or capture claims.",
+    "status": "DOCUMENTED_VALIDATED",
+    "finding": "TODO64 / EG26: document the actual integrity comparison",
+    "original_requirement": "TODO64 explicitly allows removing the unpopulated DOC_BY_ID comparison and documenting actual integrity coverage.",
+    "observed_missing_behavior": "Runtime removed the unused comparison in 009295e2982d8ecec98bb59b81b8d330df20894f. TOOL_CONTRACT and ARCHITECTURE still advertise docstore consistency/orphan detection; DEVELOPER_SPEC reports nine obsolete canaries instead of seven current cases.",
+    "behavior": "Document Tantivy/vector count checks, managed memory-source selection, graph cardinality reporting, repair policy, and absence of document-store/per-row identity validation. Reconcile TODO64 using its original alternative, not a new storage implementation.",
     "implementation_files": [
-      "crates/engram_server/src/handlers/migration_tools.rs",
-      "crates/engram_server/src/handlers/instrumentation_pack/EngramInstrumentation.vb",
-      "crates/engram_server/src/handlers/instrumentation_pack/EngramInstrumentation.cs",
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/instrumentation_test.rs",
       "docs/TOOL_CONTRACT.md",
-      "crates/engram_server/src/tool_guidance.rs"
+      "docs/ARCHITECTURE.md",
+      "docs/DEVELOPER_SPEC.md",
+      "TODO.md"
     ],
     "acceptance": [
-      "Public tool returns complete VB.NET and C# helpers that compile and run using the local .NET Framework compiler.",
-      "Actual emitted event lines ingest into the owned WebForms graph with exact caller-supplied source/control and SQL identities.",
-      "Record delimiters/newlines and unsupported stored-procedure IDs are refused instead of emitting malformed or incorrectly typed records.",
-      "Candidate and installed public calls return the verified helper source and truthful manual-capture/ingestion contract; OciusX source remains unchanged."
+      "Published documentation agrees with current service, seven canaries and retained installed OciusX evidence.",
+      "Runtime integrity source is unchanged from the previously verified delivery; no new runtime acceptance or productivity claimed.",
+      "Existing uncommitted work remains byte-identical; commit and push documentation only to origin/master."
     ],
-    "scope": "Existing language-only pack and its documented handoff. No broader migration generator, automatic profiler, telemetry service, SQL identity redesign or OciusX edits.",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack",
-    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "resource_retention": "Own fixtures and compiler outputs under this case; close server/database/compiler handles before teardown. Retain evidence/package/rollback; preserve preexisting work.",
-    "limits": [
-      "Caller selects observed sites, supplies exact indexed identities and controls the sink. No measured OciusX runtime performance or automatic semantic confirmation.",
-      "Existing generate_instrumentation_code remains separate; its broader module/wrapper behavior is not expanded."
-    ],
-    "source_commit": "3f09d69d0262899b088f0653b43645385c886682",
-    "progress": "eval/ociusx-instrumentation-pack-progress-20261113.json",
+    "scope": "Documentation completion of an already implemented original alternative; no runtime, schema, fixture, benchmark or production-data changes.",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\integrity-documentation",
+    "resource_retention": "Retain preserved-work pins and delivery verification in this one directory for review; no fixtures or external processes created.",
+    "config_relevance": "Actual OciusX config uses ollama/nomic-embed-text, so Tantivy/vector observations apply; no configuration changes.",
+    "evidence": "eval/ociusx-source-integrity-delivery-20261112.json",
     "remaining": [
-      "Advance next unfinished original OciusX item. Preserve all accepted scope, held work and failed/unproved usefulness outcomes."
+      "Full original backlog and all failed/unproved usefulness results remain."
     ],
-    "delivery": "eval/ociusx-instrumentation-pack-delivery-20261113.json"
+    "delivery": "eval/ociusx-integrity-documentation-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

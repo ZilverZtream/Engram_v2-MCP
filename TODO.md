@@ -665,13 +665,18 @@ interaction is materially better and the graph is trustworthy.
 **Month 3+:** remaining P1 deep accuracy (L items), P3 workflow tools, P5 eval harness
 (start earlier if ranking changes land — don't tune retrieval blind).
 
-- [ ] **64. Populate DOC_BY_ID for real docstore cross-validation** (M)
-  Found 2026-06-13 via live OciusX integrity check: production indexing never writes the
-  per-doc DOC_BY_ID table (only fingerprints + file mappings), so the integrity check's
-  docstore axis is inert — count_docs_for_project is always 0 and the tantivy/docstore
-  orphan checks are now gated off (see #45/#39 commit). To get TRUE per-doc
-  cross-validation, write DocRecords during index_docs (cost: ~N records/index) OR drop
-  the docstore axis entirely and document that integrity is tantivy↔vector↔graph only.
+- [x] **64. Resolve the unused DOC_BY_ID integrity comparison** (M)
+  Original finding, 2026-06-13 live OciusX check: production indexing did not write
+  per-doc DOC_BY_ID records, leaving the document-store comparison gated off by
+  its zero count. The original alternatives were to populate those records during
+  index_docs or remove the unused comparison and document actual coverage.
+  Completed using the latter: runtime removal already shipped in `009295e`;
+  documentation reconciled 2026-11-13. Integrity compares Tantivy/vector counts
+  and reports graph cardinalities; it does not validate graph references or
+  document-store rows. Managed source counts use the published source selection;
+  matching counts do not prove row identity, vector quality or history completeness.
+  See [installed source integrity](eval/ociusx-source-integrity-delivery-20261112.json)
+  and [documentation completion](eval/ociusx-integrity-documentation-20261113.json).
 
 ---
 
