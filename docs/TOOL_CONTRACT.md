@@ -285,6 +285,17 @@ This is a separate current-worktree observation bound to the captured instructio
 
 This pins policy evidence only: historical planning still requires the appropriate source and index snapshot for other evidence. A date-only `merged_before` cutoff does not identify a Git revision and continues to report `historical_unavailable` for policy. No live instruction is substituted for historical guidance.
 
+### Request traces through interface implementations
+
+`trace_user_request` follows compiler-backed VB interface calls through explicit
+`Implements` mappings. These hops are labeled `interface_implementation_candidate`,
+with caller lines, implementation clause and exact contract identity. Normal
+bounded call/database expansion continues from each admitted implementation.
+Both source fingerprints and selected revisions must match. The trace preserves
+the interface call separately; candidates do not prove which receiver a DI
+container selects, that registration executes, or that downstream effects occur.
+This reuses the existing interface mapping reader and traversal limits.
+
 ### Optional ask_codebase synthesis
 
 `ask_codebase` includes `project_policy_sources` in JSON and a repository policy
