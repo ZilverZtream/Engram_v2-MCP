@@ -40,35 +40,27 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "EG17/EG26 generated workflow scope and evidence authority",
-    "original_requirement": "EG17 preserve scoped authority and accepted exceptions; EG26 reconcile agent-facing tool contracts with demonstrated behavior.",
-    "observed_missing_behavior": [
-      "Existing OciusX workflow says change ALL touchpoints and fix every retrieved rule.",
-      "Current Engram generator still claims measured quality lift, requires all touchpoints, and treats distilled findings as applicable to ANY change."
-    ],
+    "status": "IMPLEMENTING",
+    "finding": "EG01 scoped authored guidance in plan_user_story",
+    "original_requirement": "Make existing planning context instruction-aware while preserving scope, authored exceptions and explicit omissions.",
+    "observed_missing_behavior": "plan_user_story returns concept footprints and exemplars but omits applicable repository guidance.",
     "implementation_files": [
-      "crates/engram_server/src/handlers/planning_tools.rs"
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/tests/planning_tools_test.rs"
     ],
-    "behavior": "Generated workflow and reminders respect requested scope and authored policy, treat candidates/findings as evidence requiring applicability review, remove unsupported gain claims and avoid repeat checks on unchanged passing inputs.",
+    "behavior": "Reuse typed source identities already collected by concept footprints to select complete repository guidance. Disclose candidate-only scope and incomplete or absent footprint coverage.",
     "acceptance": [
-      "Generated workflow and AGENTS proposal retain real tool/schema calls and dynamic gate count while removing all-touchpoint editing and universal distilled-rule mandates.",
-      "Hooks direct reviews to task-owned changes and do not demand repeated checks for unchanged passing inputs.",
-      "Existing generation, refusal and human-amendment preservation behavior tests pass unchanged.",
-      "Installed public generate_agent_integration(write_files=false) returns the corrected OciusX pack and leaves existing guidance/configuration unchanged."
+      "Public story brief includes complete root and applicable topic guidance with exact hashes, excludes unrelated topic guidance, and reflects live instruction edits without reindexing.",
+      "Oversized guidance has explicit complete-source recovery; missing concept scope does not claim complete guidance or import unrelated scoped policy.",
+      "Existing brief/checklist behavior passes. Candidate and installed OciusX story response contains independently verified applicable guidance."
     ],
-    "scope": "Text emitted by existing integration tool only; no change-set ranking, CodeMap/Blast, language expansion, model prompt retries or publication-ownership relaxation.",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance",
+    "scope": "No extra graph retrieval, ranking change, model replay, target-language expansion, or changes to authored guidance.",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy",
     "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "resource_retention": "Owned fixtures under this case close handles before cleanup; retain proposal evidence/package/rollback. Preserve preexisting folders.",
+    "resource_retention": "Reuse existing source checkout to protect WIP9. New fixtures under this case close handles before removal. Retain evidence/package/rollback; no preexisting deletion.",
     "limits": [
-      "Legacy OciusX workflow lacks proven ownership and remains unchanged; updated pack is a proposal, not adopted policy.",
-      "No claim that existing workflow caused earlier failures or that wording changes establish productivity."
-    ],
-    "progress": "eval/ociusx-workflow-guidance-progress-20261113.json",
-    "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
-    "delivery": "eval/ociusx-workflow-guidance-delivery-20261113.json",
-    "remaining": "Generated workflow correction delivered. Advance next unfinished original OciusX requirement; retain legacy workflow adoption gap without weakening ownership or repeating this acceptance."
+      "Candidate paths are not an approved edit scope. Guidance delivery does not prove semantic enforcement or productivity."
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -259,5 +251,36 @@
     "delivery": "eval/ociusx-matrix-policy-delivery-20261113.json",
     "remaining": "Selected scoped QA guidance delivered. Advance the next unfinished original OciusX requirement; do not repeat matrix checks or reopen the failed model benchmark without a separate justified requirement."
   },
-  "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json"
+  "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json",
+  "retained_workflow_guidance_delivery_contract": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "EG17/EG26 generated workflow scope and evidence authority",
+    "original_requirement": "EG17 preserve scoped authority and accepted exceptions; EG26 reconcile agent-facing tool contracts with demonstrated behavior.",
+    "observed_missing_behavior": [
+      "Existing OciusX workflow says change ALL touchpoints and fix every retrieved rule.",
+      "Current Engram generator still claims measured quality lift, requires all touchpoints, and treats distilled findings as applicable to ANY change."
+    ],
+    "implementation_files": [
+      "crates/engram_server/src/handlers/planning_tools.rs"
+    ],
+    "behavior": "Generated workflow and reminders respect requested scope and authored policy, treat candidates/findings as evidence requiring applicability review, remove unsupported gain claims and avoid repeat checks on unchanged passing inputs.",
+    "acceptance": [
+      "Generated workflow and AGENTS proposal retain real tool/schema calls and dynamic gate count while removing all-touchpoint editing and universal distilled-rule mandates.",
+      "Hooks direct reviews to task-owned changes and do not demand repeated checks for unchanged passing inputs.",
+      "Existing generation, refusal and human-amendment preservation behavior tests pass unchanged.",
+      "Installed public generate_agent_integration(write_files=false) returns the corrected OciusX pack and leaves existing guidance/configuration unchanged."
+    ],
+    "scope": "Text emitted by existing integration tool only; no change-set ranking, CodeMap/Blast, language expansion, model prompt retries or publication-ownership relaxation.",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "resource_retention": "Owned fixtures under this case close handles before cleanup; retain proposal evidence/package/rollback. Preserve preexisting folders.",
+    "limits": [
+      "Legacy OciusX workflow lacks proven ownership and remains unchanged; updated pack is a proposal, not adopted policy.",
+      "No claim that existing workflow caused earlier failures or that wording changes establish productivity."
+    ],
+    "progress": "eval/ociusx-workflow-guidance-progress-20261113.json",
+    "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
+    "delivery": "eval/ociusx-workflow-guidance-delivery-20261113.json",
+    "remaining": "Generated workflow correction delivered. Advance next unfinished original OciusX requirement; retain legacy workflow adoption gap without weakening ownership or repeating this acceptance."
+  }
 }
