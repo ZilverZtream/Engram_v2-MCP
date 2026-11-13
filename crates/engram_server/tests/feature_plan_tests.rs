@@ -235,6 +235,32 @@ fn feature_plan_rejects_dropped_requirements_and_unexecutable_order() {
 }
 
 #[test]
+fn feature_plan_execution_order_follows_validated_steps_not_model_summary_phases() {
+    for summary in [Some(json!(["Implement storage and UI"])), None] {
+        let mut value = proposal();
+        if let Some(summary) = summary {
+            value["implementation_order"] = summary;
+        } else {
+            value
+                .as_object_mut()
+                .unwrap()
+                .remove("implementation_order");
+        }
+        let plan = parse_plan(&value.to_string(), &intent(), &evidence()).unwrap();
+        assert_eq!(
+            plan.implementation_order,
+            plan.ready_to_code_steps
+                .iter()
+                .map(|step| step.description.clone())
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(plan.ready_to_code_steps.len(), 2);
+        value["ready_to_code_steps"][1]["step_number"] = json!(1);
+        assert!(parse_plan(&value.to_string(), &intent(), &evidence()).is_err());
+    }
+}
+
+#[test]
 fn feature_plan_rejects_new_file_overwrite_claims_and_path_escapes() {
     for path in [
         "../outside.sql",
