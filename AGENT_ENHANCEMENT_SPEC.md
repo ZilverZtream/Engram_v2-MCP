@@ -3,10 +3,25 @@
 
 **Version:** 1.0
 **Date:** 2026-02-23
+**Status checkpoint:** 2026-11-13 — design specification with partial implementation.
 **Purpose:** Equip Claude Code (and future AI agents) to implement features in a legacy
 VB.NET / ASP.NET WebForms / ADO.NET / jQuery / GIS codebase with near-zero risk of
 regressions. Every tool in this spec is designed to answer one question:
 **"Is it safe to touch this? And if so, exactly how?"**
+
+The purpose above is a design aspiration, not a measured safety guarantee. The
+schemas, output examples and acceptance criteria below describe targets; they
+must not be treated as currently callable APIs. Each Phase 39–45 section now
+identifies named tools present in source and names that remain planned. Presence
+does not establish that the full phase or every proposed argument is implemented.
+
+Use MCP `tools/list` for the current connection's exact tools and schemas. The
+[capability matrix](docs/TOOL_PARITY.md) mirrors code status, while
+[delivery evidence](eval/engram-delivery-goal-20261110.json) distinguishes local
+validation, installed behavior and unfinished acceptance. In particular,
+`one_shot_feature_plan` exists but its retained OciusX semantic acceptance failed;
+request tracing and SQL analysis retain explicit source/coverage limits. Original
+requirements below remain intact rather than being marked complete by tool presence.
 
 ---
 
@@ -25,7 +40,9 @@ regressions. Every tool in this spec is designed to answer one question:
 
 ---
 
-## Phase 37 Wiring — Expose Existing Services {#phase-37-wiring}
+<a id="phase-37-wiring"></a>
+
+## Phase 37 Wiring — Expose Existing Services
 
 > **Status:** Services exist, zero tool handlers, zero capability registrations.
 > **Effort:** Low (1–2 days). Wire existing code to MCP surface.
@@ -192,7 +209,9 @@ CapabilityFlag { key: "get_jquery_inventory",          status: CapabilityStatus:
 
 ---
 
-## Phase 38 — Agent Pre-Edit Safety Kit {#phase-38}
+<a id="phase-38"></a>
+
+## Phase 38 — Agent Pre-Edit Safety Kit
 
 > **Theme:** Before touching a single line, give me everything I need to know in one call.
 > **Effort:** Medium (3–5 days per tool). All deterministic; no LLM required.
@@ -561,7 +580,13 @@ pub struct SqlValidationWarning {
 
 ---
 
-## Phase 39 — Database Oracle {#phase-39}
+<a id="phase-39"></a>
+
+## Phase 39 — Database Oracle
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: `index_project`, `query_schema`, `detect_n_plus_one`, `find_missing_indexes`.
+> Planned/unregistered names: `index_database_schema`, `generate_typed_model`. Existing source-based schema/query suggestions do not implement the entire database-oracle design or execute suggested DDL.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** The `database.sql` file the user drops in the root becomes a first-class
 > citizen. The schema is the ground truth for all DB-touching code.
@@ -749,7 +774,13 @@ pub enum ModelSource {
 
 ---
 
-## Phase 40 — VB.NET Deep Intelligence {#phase-40}
+<a id="phase-40"></a>
+
+## Phase 40 — VB.NET Deep Intelligence
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: none of the named tools in this phase.
+> Planned/unregistered names: `list_vbnet_quirks`, `translate_vbnet_snippet`, `analyze_error_handling_coverage`, `find_implicit_contracts`. Related VB analysis can exist inside other tools; these proposed standalone APIs are not registered.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** VB.NET is not C#. Semantic differences are silent, not compile errors.
 > This phase makes every VB.NET trap visible before I write a single line.
@@ -907,7 +938,13 @@ pub struct ImplicitContract {
 
 ---
 
-## Phase 41 — WebForms Control Brain {#phase-41}
+<a id="phase-41"></a>
+
+## Phase 41 — WebForms Control Brain
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: none of the named tools in this phase.
+> Planned/unregistered names: `render_control_tree`, `resolve_webforms_clientid`, `detect_viewstate_bloat`, `trace_postback_chain`, `find_updatepanel_boundaries`. Existing page/context tools do not establish these proposed standalone APIs or full runtime control behavior.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** WebForms has a complex control lifecycle, mangled client IDs, and UpdatePanel
 > magic that makes DOM-level jQuery work completely opaque. This phase makes it transparent.
@@ -1048,7 +1085,13 @@ what happens when partial rendering fires.
 
 ---
 
-## Phase 42 — Agentic Supercharger {#phase-42}
+<a id="phase-42"></a>
+
+## Phase 42 — Agentic Supercharger
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: `one_shot_feature_plan`, `find_implementation_pattern`.
+> Planned/unregistered names: `generate_pre_edit_tests`, `verify_semantic_equivalence`, `generate_rollback_plan`, `consistency_check`, `backlog_resolver`. The feature planner remains partial: retained OciusX semantic acceptance failed. Do not treat a generated draft as a verified implementation plan.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** Stop being a code-editing assistant. Become a co-developer that plans,
 > generates, verifies, and iterates. These are the "crazy" features.
@@ -1409,7 +1452,13 @@ pub struct BacklogResolution {
 
 ---
 
-## Phase 43 — Codebase Oracle {#phase-43}
+<a id="phase-43"></a>
+
+## Phase 43 — Codebase Oracle
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: `ask_codebase`, `trace_user_request`.
+> Planned/unregistered names: `find_error_swallowing`, `find_permission_checks`. Synthesis and request tracing retain evidence and coverage limits; neither proves an exhaustive runtime path.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** Natural language queries about the codebase. No more "what file does X?" hunting.
 
@@ -1570,7 +1619,13 @@ pub struct PermissionCheckMap {
 
 ---
 
-## Phase 44 — Automated Quality Gates {#phase-44}
+<a id="phase-44"></a>
+
+## Phase 44 — Automated Quality Gates
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: none of the named tools in this phase.
+> Planned/unregistered names: `check_nuget_compatibility`, `detect_security_vulnerabilities`, `find_hardcoded_secrets`, `calculate_change_risk_score`, `suggest_safe_refactors`. Existing review gates may cover parts of these concerns; the proposed standalone tools are not registered.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** Before I ship code, run automated quality checks that would catch the most
 > common categories of bugs in a legacy VB.NET app.
@@ -1695,7 +1750,13 @@ behavior. I can apply these alongside feature work without introducing risk.
 
 ---
 
-## Phase 45 — Edit Session Protocol {#phase-45}
+<a id="phase-45"></a>
+
+## Phase 45 — Edit Session Protocol
+
+> **Design targets — implementation checkpoint (2026-11-13).** Present in source: `begin_edit_session`, `complete_edit_session`, `detect_incomplete_changes`.
+> Planned/unregistered names: none of the named tools; full design acceptance is still separate. Existing session tools track declared scope and completion; they do not prove edit correctness or implement every proposed field below.
+> Use runtime discovery for current arguments; the examples below remain design material.
 
 > **Theme:** Turn ad-hoc editing into a structured, verifiable process with pre/post
 > snapshots, consistency verification, and automated regression detection.
@@ -1806,7 +1867,9 @@ the old name, with file:line and the exact text that needs updating.
 
 ---
 
-## Cross-Cutting Notes {#cross-cutting}
+<a id="cross-cutting"></a>
+
+## Cross-Cutting Notes
 
 ### Shared Data Structures
 

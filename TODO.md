@@ -542,7 +542,13 @@ value is accuracy, this is the biggest meta-gap.
   `config.rs`: default embedder model name (see #2), debounce, memory budgets — make the
   zero-config experience the recommended one.
 
-- [ ] **57. Doc drift pass** (S–M)
+- [x] **57. Doc drift pass** (S–M) - *reconciled 2026-11-13.*
+  Existing generator now passes for all three capability matrices. README,
+  TOOL_CONTRACT and ROADMAP distinguish code presence, discovery and acceptance
+  and no longer claim universal completeness/offline/safety. Enhancement phases
+  39-45 identify available versus unregistered names while preserving design
+  requirements, examples and partial semantic/trace limits.
+  Evidence: `eval/ociusx-doc-drift-delivery-20261113.json`.
   `docs/ROADMAP.md`, `TOOL_PARITY.md`, `TOOL_CONTRACT.md`, README claims vs. the 114
   actual tools; mark AGENT_ENHANCEMENT_SPEC phases 39–45 as roadmap-not-built (an agent
   reading the spec today would believe tools exist that don't).

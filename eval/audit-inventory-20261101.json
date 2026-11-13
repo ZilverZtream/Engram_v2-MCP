@@ -9976,42 +9976,29 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DEFAULTS_AUDITED_DISCLOSURE_IMPLEMENTED_VALIDATED_DEPLOYED",
-      "finding": "TODO56 defaults behavior and truthful fallback",
-      "original_requirement": "Audit default embedding/model, debounce and memory settings so the default experience matches the recommended behavior; retain the accepted degrade-honestly branch of TODO2.",
-      "observed_missing_behavior": "Default local search says Lexical quality is unaffected, although hybrid search adds equal reciprocal-rank contributions from lexical and projection hits. README full configuration also assigns a learned model name to local, which ignores it.",
+      "status": "DOCUMENTATION_RECONCILED_VERIFIED",
+      "finding": "TODO57 documentation drift",
+      "original_requirement": "Reconcile ROADMAP, TOOL_PARITY, TOOL_CONTRACT and README with current tools; mark enhancement phases39-45 as design/roadmap rather than implying nonexistent tools are callable.",
+      "observed_missing_behavior": "Existing matrix checker reports drift in TOOL_PARITY/DEVELOPER_SPEC/ROADMAP. Enhancement spec proposes many unrouted names without status notices. README and TOOL_CONTRACT contain universal offline, complete graph, race-free and fully-implemented claims stronger than current evidence.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/tests/mcp_core_contract_tests.rs",
-        "README.md"
+        "README.md",
+        "AGENT_ENHANCEMENT_SPEC.md",
+        "docs/ROADMAP.md",
+        "docs/TOOL_PARITY.md",
+        "docs/TOOL_CONTRACT.md",
+        "docs/DEVELOPER_SPEC.md"
       ],
       "finite_acceptance": [
-        "Run real server with embedding backend/model omitted; known authored source remains retrievable and JSON reports degraded_trigram.",
-        "Default Markdown and JSON warnings disclose projection ranking effects and direct users to semantic=false for lexical-only retrieval; remove the unsupported unaffected guarantee.",
-        "Explicit lexical search reports not_used and returns authored source. Preserve ranking, schema, configured providers and the existing default backend.",
-        "Check the default 2GiB tracked budget through metrics. Existing 5s debounce, 50MB writer, 2 jobs and capped parse defaults are retained; no measured evidence supports an across-the-board numeric change.",
-        "Run relevant native/public checks; build and verify candidate/installed package because warning text is runtime behavior. Preserve production data/config and parked changes; commit/push only origin/master."
+        "Use the existing capability generator and require its read-only check to pass afterward.",
+        "Preserve the original design requirements; label each phase39-45 section as design targets and list available versus absent named tools using current source.",
+        "Keep existing delivered query/schema/trace/edit-session work visible; explicitly retain partial feature-plan semantic acceptance and trace/extraction limitations.",
+        "Remove unsupported universal product claims and distinguish tool implementation, runtime discovery and verified delivery. Check edited links/status names. No runtime change, release build or benchmark rerun."
       ],
-      "default_disposition": {
-        "embedding_backend": "Keep local, labelled degraded trigram; bundled learned model remains separate unfinished work.",
-        "embedding_model": "No model chosen for projection. Document optional model only with a matching provider.",
-        "watch_debounce_secs": 5,
-        "tantivy_writer_memory": 50000000,
-        "memory_budget_bytes": "0 means 2147483648 tracked bytes, not RSS cap",
-        "max_concurrent_jobs": 2,
-        "max_parse_concurrency": "available parallelism capped at16; fallback4"
-      },
-      "source_baseline": "cc8e1df6a7914c9ac39d22e64241e1394b94c65d",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults",
-      "scope": "Default disclosure and documentation only; no ranking/default-value change, new model, target language or CodeMap/Blast work.",
-      "at_utc": "2026-11-13T05:18:00.019121+00:00",
-      "source_commit": "2694bf38418de12cad4819c40b541d1c4948f356",
-      "main_merge_commit": "51aad298bbe2fecc9340c0190945dd8e7602484c",
-      "native_checks": 5,
-      "baseline": "Expected failure on the old unaffected-ranking guarantee; fixture removed.",
-      "remaining": "Selected defaults audit/disclosure delivered. Learned local model and global tuning optimum are not claimed; advance original documentation drift item.",
-      "delivery": "eval/ociusx-defaults-delivery-20261113.json"
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\doc-drift",
+      "scope": "Documentation only, bounded to the named original files and generated companion table. No CodeMap/Blast improvements or new tool behavior.",
+      "at_utc": "2026-11-13T05:39:16.987507+00:00",
+      "delivery": "eval/ociusx-doc-drift-delivery-20261113.json",
+      "remaining": "Selected documentation item delivered. Continue original TODO58 IPC version negotiation after checking existing implementation once."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10043,7 +10030,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO56 delivered; TODO57 not yet selected",
+    "active_original_item": "TODO57 delivered; TODO58 not yet selected",
     "next_user_visible_deliverable": "Next implementation not selected.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10061,7 +10048,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: release built, candidate/installed default-search behavior passed, configuration and source selection preserved, owned tests/hold closed.",
+    "previous_goal_turn_classification": "PROGRESS: installed default-disclosure release; reconciled six named docs, passed141-entry matrix check and verified original design examples/items preserved.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11034,7 +11021,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Advance original documentation drift item; preserve partial/planned capabilities and closed CodeMap/Blast scope.",
+    "independent_next_action": "Continue TODO58 with existing source and retained acceptance; no additional documentation sweep selected.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -13294,7 +13281,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Inspect the original TODO57 documentation claims against current tool availability and retained feature acceptance once.",
+    "next_user_visible_delivery": "Inspect original TODO58 daemon/proxy protocol-version negotiation and current tests once; implement a concrete missing behavior only.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13922,6 +13909,45 @@
       "delivery": "eval/ociusx-tuning-delivery-20261113.json",
       "remaining": "Selected guide delivered. No demonstrated production speedup; continue original TODO56 defaults item without assuming different settings are better."
     },
-    "defaults_delivery": "eval/ociusx-defaults-delivery-20261113.json"
+    "defaults_delivery": "eval/ociusx-defaults-delivery-20261113.json",
+    "previous_defaults_contract": {
+      "status": "DEFAULTS_AUDITED_DISCLOSURE_IMPLEMENTED_VALIDATED_DEPLOYED",
+      "finding": "TODO56 defaults behavior and truthful fallback",
+      "original_requirement": "Audit default embedding/model, debounce and memory settings so the default experience matches the recommended behavior; retain the accepted degrade-honestly branch of TODO2.",
+      "observed_missing_behavior": "Default local search says Lexical quality is unaffected, although hybrid search adds equal reciprocal-rank contributions from lexical and projection hits. README full configuration also assigns a learned model name to local, which ignores it.",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/search_tools.rs",
+        "crates/engram_server/tests/mcp_core_contract_tests.rs",
+        "README.md"
+      ],
+      "finite_acceptance": [
+        "Run real server with embedding backend/model omitted; known authored source remains retrievable and JSON reports degraded_trigram.",
+        "Default Markdown and JSON warnings disclose projection ranking effects and direct users to semantic=false for lexical-only retrieval; remove the unsupported unaffected guarantee.",
+        "Explicit lexical search reports not_used and returns authored source. Preserve ranking, schema, configured providers and the existing default backend.",
+        "Check the default 2GiB tracked budget through metrics. Existing 5s debounce, 50MB writer, 2 jobs and capped parse defaults are retained; no measured evidence supports an across-the-board numeric change.",
+        "Run relevant native/public checks; build and verify candidate/installed package because warning text is runtime behavior. Preserve production data/config and parked changes; commit/push only origin/master."
+      ],
+      "default_disposition": {
+        "embedding_backend": "Keep local, labelled degraded trigram; bundled learned model remains separate unfinished work.",
+        "embedding_model": "No model chosen for projection. Document optional model only with a matching provider.",
+        "watch_debounce_secs": 5,
+        "tantivy_writer_memory": 50000000,
+        "memory_budget_bytes": "0 means 2147483648 tracked bytes, not RSS cap",
+        "max_concurrent_jobs": 2,
+        "max_parse_concurrency": "available parallelism capped at16; fallback4"
+      },
+      "source_baseline": "cc8e1df6a7914c9ac39d22e64241e1394b94c65d",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\defaults",
+      "scope": "Default disclosure and documentation only; no ranking/default-value change, new model, target language or CodeMap/Blast work.",
+      "at_utc": "2026-11-13T05:18:00.019121+00:00",
+      "source_commit": "2694bf38418de12cad4819c40b541d1c4948f356",
+      "main_merge_commit": "51aad298bbe2fecc9340c0190945dd8e7602484c",
+      "native_checks": 5,
+      "baseline": "Expected failure on the old unaffected-ranking guarantee; fixture removed.",
+      "remaining": "Selected defaults audit/disclosure delivered. Learned local model and global tuning optimum are not claimed; advance original documentation drift item.",
+      "delivery": "eval/ociusx-defaults-delivery-20261113.json"
+    },
+    "doc_drift_delivery": "eval/ociusx-doc-drift-delivery-20261113.json"
   }
 }

@@ -1,5 +1,13 @@
 # Tool Contract
 
+Use MCP `tools/list` for the exact names and request schemas available to the
+current client profile and registered projects. This document records workflows
+and selected signatures; it is not an exhaustive generated schema. The
+[enhancement specification](../AGENT_ENHANCEMENT_SPEC.md) retains design targets,
+including unimplemented tool names and proposed parameter shapes. Code presence,
+semantic acceptance and installed delivery are separate states; see the
+[delivery goal](../eval/engram-delivery-goal-20261110.json) for retained limits.
+
 ## Area instruction evidence and drafting
 
 Instruction reference manifests use exact declaration spelling for unformatted prose. They do not case-fold an ordinary phrase such as "resolved style" into a VB `Resolved` dependency. Explicit inline-code VB references retain case-insensitive candidate lookup, including ambiguous matches and unverified qualified suffixes. Exact-spelling prose matches remain navigation candidates; neither their presence nor their absence establishes semantic intent or exhaustive reference coverage.
@@ -161,7 +169,7 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `get_memory_budget(output_json=false)` — per-subsystem memory breakdown (tantivy, lancedb, graph, docstore, parse_buffer) with pressure detection
 - `get_checkpoint_status(project_id=null, job_id=null)` — crash-safe job resume via Redb-backed checkpoint store
 - `check_integrity(project_id=null, auto_repair=false)` — background integrity checker for index/graph/docstore consistency
-- `benchmark_retrieval(project_id, custom_queries=null, output_json=false)` — NDCG@10 + recall@10 + MRR with configurable ground-truth queries; returns production-ready gate decision
+- `benchmark_retrieval(project_id, custom_queries=null, output_json=false)` — NDCG@10 + recall@10 + MRR against configured ground-truth queries; its gate result applies to that evaluation, not general production readiness
 - `generate_migration_plan(project_id, output_json=false)` — builds PlanInput from graph nodes and outputs wave-based migration plan with rollback playbook
 
 ## Jobs
@@ -230,18 +238,24 @@ Config fields: `adp_rollout_phase` (default: `"shadow"`), `adp_kill_switch` (def
 - `ReconciliationResult` — per-path reconciliation with `Confirmed`/`Contradicted`/`Unmatched` statuses
 
 ## LLM-Powered Business Logic (Phase 36)
-- `analyze_business_logic(project_id, file_path=null, method_name=null, max_concurrent=2, output_json=false)` — LLM-powered method-level business logic analysis via local Ollama (Qwen 2.5 Coder 14B). Produces structured summaries per method: PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS. Deterministic fallback when no LLM is configured. Content-hash caching prevents re-analysis of unchanged methods. Operates at method, file, or full-project scope
+- `analyze_business_logic(project_id, file_path=null, method_name=null, max_concurrent=2, output_json=false)` — method-level business logic analysis using the configured LLM provider when available. Produces structured summaries per method: PURPOSE, STEPS, RULES, DATA, ERRORS, EFFECTS. Deterministic fallback when no LLM is configured; inspect the returned status and coverage. Content-hash caching avoids re-analysis of unchanged methods. Operates at method, file, or full-project scope
 - `query_business_logic(project_id, query, top_k=5)` — semantic search over previously analyzed business logic summaries stored in the DocStore `business_logic` namespace. Returns matching method summaries ranked by relevance
 
 ## Intelligence Amplification (Phase 37)
 - `analyze_full_project_migration` — enhanced with `use_llm=false` parameter. When `use_llm=true` and an LLM backend is configured, deterministic business logic summaries are upgraded with LLM-powered step-by-step explanations as an async post-processing pass, validated against static analysis for confidence scoring (High/Medium/Low)
 
-### Phase 37 internal services (not directly exposed as tools)
+### Phase 37 service implementations
+
+Some services now have public wrappers, including `analyze_database_intelligence`,
+`get_sp_details` and `list_triggers`. Use runtime discovery for their actual
+arguments and applicability; a service's internal structures are not MCP schemas.
 - **Database Intelligence** (`database_intelligence_service.rs`): deterministic SP business logic summaries, SP→SP call chain detection with cycle detection, trigger detection (AFTER/INSTEAD OF/FOR with event types), CREATE TABLE/VIEW parsing with balanced parentheses, column extraction (type, nullable, default, computed), PK/FK/CHECK constraints, schema cross-referencing against code tables
 - **Session Workflow Reconstruction** (`session_workflow_service.rs`): synthesizes WritesState/ReadsState graph edges into per-key workflow narratives with scope detection, flow pattern classification (Linear/Branching/Accumulation/MissingWriter/MissingReader/ComplexWorkflow/SinglePage), cross-page chain counting
 - **LLM Validation Gate** (`business_logic_service.rs`): cross-validates LLM output against deterministic static analysis effects across 9 categories (SQL, Session, Redirect, ViewState, Cache, Application, Cookie, Email, File I/O), detects hallucinated table references, assigns confidence scores
 - **Confidence Dashboard** (in `full_project_migration_service.rs`): migration intelligence matrix covering 6 dimensions (Code Structure, Business Logic, Database, Session Workflows, Data Access, External Integrations) with per-dimension coverage metrics and confidence badges
 
 ### Notes
-- All tools are fully implemented and compile. See `capabilities.rs` for the status matrix.
+- `capabilities.rs` supplies the generated status matrix. An `implemented` label
+  does not prove every design target, project capability or runtime dependency is
+  supported; retain the explicit partial findings and delivery evidence.
 - v2 adds extra tools (e.g. `immune_check`, `ast_dependency_graph`, `dedicated_antipattern_index`) beyond v1 parity.

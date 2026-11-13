@@ -4,10 +4,15 @@ This repo is a Rust workspace for Engram MCP v2: a developer tool that combines 
 
 Canonical capability status labels are tracked in code (`crates/engram_server/src/capabilities.rs`) and mirrored in docs through the generated matrix below.
 
-- `implemented`: production-ready behavior in-tree
+- `implemented`: implementation status recorded in code; not proof of full design acceptance or deployment
 - `partial`: available but missing notable parity/quality pieces
 - `experimental`: usable but intentionally iterative/tunable
 - `planned`: design target only
+
+This registry does not enumerate every runtime tool. MCP `tools/list` is the
+authority for the current connection's names and schemas. The enhancement
+specification contains proposed APIs; its per-phase status notes distinguish
+existing entry points from names that remain planned.
 
 ## Workspace layout
 
@@ -36,6 +41,10 @@ engram-v2/
 <!-- CAPABILITIES_MATRIX:START -->
 | Tool / Feature | Status |
 | :--- | :--- |
+| `find_missing_indexes` | implemented |
+| `detect_n_plus_one` | implemented |
+| `query_schema` | implemented |
+| `batch_read` | implemented |
 | `index_project` | implemented |
 | `update_project` | implemented |
 | `list_projects` | implemented |
@@ -52,6 +61,7 @@ engram-v2/
 | `find_implementation_pattern` | implemented |
 | `map_guards_and_settings` | implemented |
 | `plan_user_story` | implemented |
+| `one_shot_feature_plan` | implemented |
 | `get_change_set` | implemented |
 | `validate_feature_contract` | implemented |
 | `ingest_quality_gates` | implemented |
@@ -63,6 +73,7 @@ engram-v2/
 | `find_dependency_cycles` | implemented |
 | `detect_incomplete_changes` | implemented |
 | `ask_codebase` | implemented |
+| `trace_user_request` | implemented |
 | `begin_edit_session` | implemented |
 | `complete_edit_session` | implemented |
 | `generate_agent_integration` | implemented |

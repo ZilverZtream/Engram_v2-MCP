@@ -2,7 +2,27 @@
 
 Status labels: `implemented`, `partial`, `experimental`, `planned`.
 
-## Near-term priorities (2026-11-04)
+## Current execution checkpoint (2026-11-13)
+
+The original OciusX improvement backlog remains active. Use
+[the delivery goal](../eval/engram-delivery-goal-20261110.json), its current
+execution focus and [TODO](../TODO.md) for active priorities and retained gaps.
+CodeMap and Blast Radius are closed for improvement except an explicitly requested
+change or a concrete regression caused by current work. Kernel/SSD investigation
+and deletion of preexisting folders remain held.
+
+Recent delivery records distinguish installed behavior from partial acceptance:
+[default search disclosure](../eval/ociusx-defaults-delivery-20261113.json),
+[public MCP contracts](../eval/ociusx-mcp-contract-delivery-20261113.json),
+[source/schema request mapping](../eval/ociusx-request-dbml-mapping-delivery-20261112.json)
+and [unfinished feature-plan semantic acceptance](../eval/ociusx-feature-plan-installed-partial-20261113.json).
+Hosted CI remains unverified while repository Actions are disabled. These records
+do not establish complete backlog delivery or an overall productivity improvement.
+
+Dated observations and next-step proposals below are historical evidence. They
+preserve unfinished findings but do not override the current selection or holds.
+
+## Historical checkpoint (2026-11-04)
 
 Audit status (2026-11-04): **OPEN**. The earlier goal was marked complete
 prematurely. Deployed fixes and the seven synthetic scenario runs are completed work;
@@ -275,6 +295,10 @@ The matrix below is generated from capability flags and records advertised imple
 <!-- CAPABILITIES_MATRIX:START -->
 | Tool / Feature | Status |
 | :--- | :--- |
+| `find_missing_indexes` | implemented |
+| `detect_n_plus_one` | implemented |
+| `query_schema` | implemented |
+| `batch_read` | implemented |
 | `index_project` | implemented |
 | `update_project` | implemented |
 | `list_projects` | implemented |
@@ -291,6 +315,7 @@ The matrix below is generated from capability flags and records advertised imple
 | `find_implementation_pattern` | implemented |
 | `map_guards_and_settings` | implemented |
 | `plan_user_story` | implemented |
+| `one_shot_feature_plan` | implemented |
 | `get_change_set` | implemented |
 | `validate_feature_contract` | implemented |
 | `ingest_quality_gates` | implemented |
@@ -302,6 +327,7 @@ The matrix below is generated from capability flags and records advertised imple
 | `find_dependency_cycles` | implemented |
 | `detect_incomplete_changes` | implemented |
 | `ask_codebase` | implemented |
+| `trace_user_request` | implemented |
 | `begin_edit_session` | implemented |
 | `complete_edit_session` | implemented |
 | `generate_agent_integration` | implemented |
@@ -414,7 +440,9 @@ The matrix below is generated from capability flags and records advertised imple
 
 ## Focus areas
 
-- **All tools at `implemented` status** — no `experimental`, `partial`, or `planned` entries remain. The final two tools were promoted in Phase 28:
+- **Historical Phase 28 capability promotions.** Registry labels record code
+  status; they do not close later quality, workflow or delivery requirements.
+  The following implementation notes are retained:
   - `analyze_file_coding_style`: multi-language AST support (C#, TypeScript, Java, Go + existing Rust, Python), improved confidence calibration, edge-case hardening (parse error detection), line length + async pattern detection.
   - `graph_centrality_rerank`: multi-algorithm centrality (PageRank + degree + betweenness approximation), 3 modes (search+rerank, node scoring, top-N), configurable algorithm weights, Brandes k-pivot betweenness.
 

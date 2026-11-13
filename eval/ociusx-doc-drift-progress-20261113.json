@@ -1,0 +1,25 @@
+{
+  "status": "DOCUMENTATION_RECONCILED_VERIFIED",
+  "finding": "TODO57 documentation drift",
+  "original_requirement": "Reconcile ROADMAP, TOOL_PARITY, TOOL_CONTRACT and README with current tools; mark enhancement phases39-45 as design/roadmap rather than implying nonexistent tools are callable.",
+  "observed_missing_behavior": "Existing matrix checker reports drift in TOOL_PARITY/DEVELOPER_SPEC/ROADMAP. Enhancement spec proposes many unrouted names without status notices. README and TOOL_CONTRACT contain universal offline, complete graph, race-free and fully-implemented claims stronger than current evidence.",
+  "implementation_files": [
+    "README.md",
+    "AGENT_ENHANCEMENT_SPEC.md",
+    "docs/ROADMAP.md",
+    "docs/TOOL_PARITY.md",
+    "docs/TOOL_CONTRACT.md",
+    "docs/DEVELOPER_SPEC.md"
+  ],
+  "finite_acceptance": [
+    "Use the existing capability generator and require its read-only check to pass afterward.",
+    "Preserve the original design requirements; label each phase39-45 section as design targets and list available versus absent named tools using current source.",
+    "Keep existing delivered query/schema/trace/edit-session work visible; explicitly retain partial feature-plan semantic acceptance and trace/extraction limitations.",
+    "Remove unsupported universal product claims and distinguish tool implementation, runtime discovery and verified delivery. Check edited links/status names. No runtime change, release build or benchmark rerun."
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\doc-drift",
+  "scope": "Documentation only, bounded to the named original files and generated companion table. No CodeMap/Blast improvements or new tool behavior.",
+  "at_utc": "2026-11-13T05:39:16.987507+00:00",
+  "delivery": "eval/ociusx-doc-drift-delivery-20261113.json",
+  "remaining": "Selected documentation item delivered. Continue original TODO58 IPC version negotiation after checking existing implementation once."
+}

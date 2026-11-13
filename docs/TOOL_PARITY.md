@@ -4,9 +4,20 @@ Status legend: `implemented`, `partial`, `experimental`, `planned`.
 
 This matrix is generated from `crates/engram_server/src/capabilities.rs` and must be kept in sync by `scripts/check_capabilities_matrix.py`.
 
+It mirrors the entries in that registry, not an exhaustive runtime tool list or
+proof that every design requirement has passed acceptance. `implemented` is the
+recorded code status. Discovery still depends on profile and project capabilities;
+use MCP `tools/list` for currently callable tools and their schemas. Consult
+[delivery evidence and remaining work](../eval/engram-delivery-goal-20261110.json)
+before claiming a feature is fully validated or deployed.
+
 <!-- CAPABILITIES_MATRIX:START -->
 | Tool / Feature | Status |
 | :--- | :--- |
+| `find_missing_indexes` | implemented |
+| `detect_n_plus_one` | implemented |
+| `query_schema` | implemented |
+| `batch_read` | implemented |
 | `index_project` | implemented |
 | `update_project` | implemented |
 | `list_projects` | implemented |
@@ -23,6 +34,7 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `find_implementation_pattern` | implemented |
 | `map_guards_and_settings` | implemented |
 | `plan_user_story` | implemented |
+| `one_shot_feature_plan` | implemented |
 | `get_change_set` | implemented |
 | `validate_feature_contract` | implemented |
 | `ingest_quality_gates` | implemented |
@@ -34,6 +46,7 @@ This matrix is generated from `crates/engram_server/src/capabilities.rs` and mus
 | `find_dependency_cycles` | implemented |
 | `detect_incomplete_changes` | implemented |
 | `ask_codebase` | implemented |
+| `trace_user_request` | implemented |
 | `begin_edit_session` | implemented |
 | `complete_edit_session` | implemented |
 | `generate_agent_integration` | implemented |
