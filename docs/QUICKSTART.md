@@ -37,6 +37,46 @@ On Linux/macOS, `cargo build --release -p engram_server` produces
 client-side sample below does not require VB extraction. This guide does not
 claim a matching VB sidecar package is published for those platforms.
 
+## Install a Windows package and connect your project
+
+If you have the complete trusted Windows package described above, this command
+copies the server and all sidecar assets, creates a local Engram configuration,
+and adds an `engram` entry to your chosen MCP client configuration:
+
+```powershell
+.\scripts\install_windows.ps1 `
+    -PackageRoot 'C:\path\to\release' `
+    -InstallRoot "$env:LOCALAPPDATA\engram" `
+    -ProjectRoot 'C:\path\to\your-project' `
+    -McpConfigPath 'C:\path\to\your-client\mcp.json'
+```
+
+Replace the paths. `InstallRoot` must be new; its parent and the client-config
+parent must already exist. The client must support the **`mcpServers` JSON
+format**. Existing unrelated servers and preferences are retained, with the
+original client file backed up as `mcp-client.before.json` inside the install.
+An existing installation or same-named MCP entry is refused; `-ServerName`
+selects another entry name. This is a first-time installer, not an upgrade tool.
+
+The installer verifies every manifest-listed asset before registration. Checksums
+detect damaged or mismatched files; they do not authenticate an untrusted package.
+It does not download a release, index your application or start a server. Public
+prebuilt releases and macOS/Linux installation remain unfinished.
+
+Restart the MCP client, then call:
+
+```json
+{"directory":"C:\\path\\to\\your-project","project_type":"dotnet_webforms_vb","wait":true}
+```
+
+Use `index_project` for that call. Keep its `project_id`, then follow the
+freshness and query steps below. The installed configuration uses lexical
+search without API keys. Set embedding and LLM providers in
+`<InstallRoot>/engram.json` when those optional capabilities are needed.
+The generated command uses shared multi-client mode without a detached daemon;
+after the last client disconnects, the primary exits after its normal idle grace
+period (300 seconds by default).
+
 ## Create a separate sample configuration
 
 Choose a **new** directory for the sample. The commands refuse to overwrite it.
