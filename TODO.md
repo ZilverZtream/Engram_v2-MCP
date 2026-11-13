@@ -272,6 +272,10 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   including the previously withheld `Nothing` outcome. The model and prompt
   were unchanged; no repeated model tuning was performed. This inspected source
   question does not establish general task usefulness or product readiness.
+  Applicable authored guidance now accompanies returned code in JSON and Markdown;
+  optional synthesis can cite exact policy text. Installed LegacyValidation map-layer guidance
+  matched the independent source exactly. This does not establish model compliance.
+  Evidence: [scoped-guidance delivery](eval/legacy_validation-ask-policy-delivery-20261113.json).
   Optional model-assisted routing and broader task acceptance remain unfinished.
   Evidence: [member-context delivery](eval/legacy_validation-ask-member-context-delivery-20261113.json);
   [retained earlier 3/4 result](eval/legacy_validation-ask-synthesis-delivery-20261113.json).
