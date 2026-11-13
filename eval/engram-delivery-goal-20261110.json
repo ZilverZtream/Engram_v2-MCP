@@ -40,33 +40,32 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "EG01 scoped authored guidance in QA test planning",
-    "original_requirement": "Make existing agent context workflows instruction-aware, preserving applicable complete guidance, qualifications, scope and evidence identity.",
-    "observed_missing_behavior": "Current derive_test_matrix returns inferred business rules/configured axes but no project_policy_sources. Real OciusX diagnosis capture has no source-verified cases and omits the authored guide entirely. This does not establish that adding guidance would change the failed model answer.",
+    "status": "IMPLEMENTED_FOCUSED_PUBLIC_TESTS_RUNNING_NOT_DEPLOYED",
+    "finding": "EG17/EG26 generated workflow scope and evidence authority",
+    "original_requirement": "EG17 preserve scoped authority and accepted exceptions; EG26 reconcile agent-facing tool contracts with demonstrated behavior.",
+    "observed_missing_behavior": [
+      "Existing OciusX workflow says change ALL touchpoints and fix every retrieved rule.",
+      "Current Engram generator still claims measured quality lift, requires all touchpoints, and treats distilled findings as applicable to ANY change."
+    ],
     "implementation_files": [
-      "crates/engram_server/src/handlers/settings_tools.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/matrix_policy_tests.rs"
+      "crates/engram_server/src/handlers/planning_tools.rs"
     ],
-    "behavior": "Reuse the existing repository policy resolver for requested QA paths; render complete scoped authored guidance separately from inferred cases. Withhold current guidance for knowledge_before requests; preserve explicit oversized/unresolved omissions.",
+    "behavior": "Generated workflow and reminders respect requested scope and authored policy, treat candidates/findings as evidence requiring applicability review, remove unsupported gain claims and avoid repeat checks on unchanged passing inputs.",
     "acceptance": [
-      "Public test matrix includes exact applicable root/topic guidance and exceptions even without inferred rule cases; unrelated topic excluded.",
-      "Changing the instruction updates returned content/hash; oversized complete guidance is explicitly omitted with recovery instructions, never partially presented as policy.",
-      "Historical request withholds live guidance and discloses historical unavailability.",
-      "Existing selected matrix behavior remains; candidate and installed public call on OciusX returns the current applicable guidance. No model benchmark replay."
+      "Generated workflow and AGENTS proposal retain real tool/schema calls and dynamic gate count while removing all-touchpoint editing and universal distilled-rule mandates.",
+      "Hooks direct reviews to task-owned changes and do not demand repeated checks for unchanged passing inputs.",
+      "Existing generation, refusal and human-amendment preservation behavior tests pass unchanged.",
+      "Installed public generate_agent_integration(write_files=false) returns the corrected OciusX pack and leaves existing guidance/configuration unchanged."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy",
+    "scope": "Text emitted by existing integration tool only; no change-set ranking, CodeMap/Blast, language expansion, model prompt retries or publication-ownership relaxation.",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance",
     "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "resource_retention": "Reuse existing checkout/build target. New fixtures owned under current-task-check/matrix-policy; close handles before teardown. Retain evidence; no preexisting deletion.",
+    "resource_retention": "Owned fixtures under this case close handles before cleanup; retain proposal evidence/package/rollback. Preserve preexisting folders.",
     "limits": [
-      "Authored guidance delivery is not semantic enforcement, executed QA or proven productivity.",
-      "No changes to OciusX source, rules, configured model or sidecar."
+      "Legacy OciusX workflow lacks proven ownership and remains unchanged; updated pack is a proposal, not adopted policy.",
+      "No claim that existing workflow caused earlier failures or that wording changes establish productivity."
     ],
-    "progress": "eval/ociusx-matrix-policy-progress-20261113.json",
-    "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8",
-    "delivery": "eval/ociusx-matrix-policy-delivery-20261113.json",
-    "remaining": "Selected scoped QA guidance delivered. Advance the next unfinished original OciusX requirement; do not repeat matrix checks or reopen the failed model benchmark without a separate justified requirement."
+    "progress": "eval/ociusx-workflow-guidance-progress-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -227,5 +226,34 @@
     },
     "latency_blocker_delivery": "eval/ociusx-change-set-shared-read-delivery-20261113.json"
   },
-  "matrix_policy_delivery_20261113": "eval/ociusx-matrix-policy-delivery-20261113.json"
+  "matrix_policy_delivery_20261113": "eval/ociusx-matrix-policy-delivery-20261113.json",
+  "retained_matrix_policy_delivery_contract": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "EG01 scoped authored guidance in QA test planning",
+    "original_requirement": "Make existing agent context workflows instruction-aware, preserving applicable complete guidance, qualifications, scope and evidence identity.",
+    "observed_missing_behavior": "Current derive_test_matrix returns inferred business rules/configured axes but no project_policy_sources. Real OciusX diagnosis capture has no source-verified cases and omits the authored guide entirely. This does not establish that adding guidance would change the failed model answer.",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/settings_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/matrix_policy_tests.rs"
+    ],
+    "behavior": "Reuse the existing repository policy resolver for requested QA paths; render complete scoped authored guidance separately from inferred cases. Withhold current guidance for knowledge_before requests; preserve explicit oversized/unresolved omissions.",
+    "acceptance": [
+      "Public test matrix includes exact applicable root/topic guidance and exceptions even without inferred rule cases; unrelated topic excluded.",
+      "Changing the instruction updates returned content/hash; oversized complete guidance is explicitly omitted with recovery instructions, never partially presented as policy.",
+      "Historical request withholds live guidance and discloses historical unavailability.",
+      "Existing selected matrix behavior remains; candidate and installed public call on OciusX returns the current applicable guidance. No model benchmark replay."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\matrix-policy",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "resource_retention": "Reuse existing checkout/build target. New fixtures owned under current-task-check/matrix-policy; close handles before teardown. Retain evidence; no preexisting deletion.",
+    "limits": [
+      "Authored guidance delivery is not semantic enforcement, executed QA or proven productivity.",
+      "No changes to OciusX source, rules, configured model or sidecar."
+    ],
+    "progress": "eval/ociusx-matrix-policy-progress-20261113.json",
+    "source_commit": "f576ea5c2c84a6f67a102368868bacd256f5c9f8",
+    "delivery": "eval/ociusx-matrix-policy-delivery-20261113.json",
+    "remaining": "Selected scoped QA guidance delivered. Advance the next unfinished original OciusX requirement; do not repeat matrix checks or reopen the failed model benchmark without a separate justified requirement."
+  }
 }

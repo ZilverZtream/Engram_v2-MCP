@@ -1,0 +1,19 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_PUBLIC_TESTS_RUNNING_NOT_DEPLOYED",
+  "at_utc": "2026-11-13T10:55:22.584548+00:00",
+  "finding": "EG17/EG26 generated workflow scope and authority",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "source_files": {
+    "crates/engram_server/src/handlers/planning_tools.rs": "2ab3236946d6729a9c2d764a126f1af42acb9626a05268dad344a39275852473"
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\baseline.json",
+  "test_session": 9697,
+  "test_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\native1.json",
+  "next_action": "Poll exact native test session9697. Source frozen until terminal. If passing, commit and merge this text-only generator correction, build release using copied existing build.py with shared target, complete candidate/installed read-only generate_agent_integration preview acceptance, deploy, record limits and advance. Preserve legacy OciusX workflow without matching ownership receipt.",
+  "limits": [
+    "No sample-specific feature-plan prompt tuning or model benchmark replay.",
+    "No claimed adoption of legacy OciusX workflow or measured productivity benefit."
+  ],
+  "resource_retention": "All new fixtures under this case; runner checks cleanup after handles close. Retain evidence, package and rollback. Existing source checkout protects WIP9 and remains retained."
+}
