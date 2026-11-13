@@ -1074,6 +1074,7 @@ fn s4_the_report_json_carries_members_and_proof() {
         status: AnswerStatus::Answered,
         mode: "retrieval_only".into(),
             synthesis: None,
+        project_policy_sources: None,
         evidence: vec![],
         conflicts: vec![],
         unknowns: vec![],

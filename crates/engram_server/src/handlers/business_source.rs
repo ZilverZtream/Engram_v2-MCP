@@ -1373,6 +1373,7 @@ mod predicate_preview_tests {
             status: AnswerStatus::Partial,
             mode: "retrieval_only".into(),
             synthesis: None,
+            project_policy_sources: None,
             evidence: vec![item],
             conflicts: vec![],
             unknowns: vec![],

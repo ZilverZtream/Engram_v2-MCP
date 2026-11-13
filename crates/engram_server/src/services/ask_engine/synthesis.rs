@@ -55,6 +55,10 @@ unknowns must each be at most 1600 UTF-8 bytes; quotations at most 1200 bytes.
 Every statement requires supporting citations. Do not invent files, citations,
 requirements, policy authority, runtime outcomes or behavior of unshown helpers.
 Preserve conditions, exceptions, conflicts, stale/partial status and source warnings.
+The project_policy_sources section contains authored repository guidance for returned
+code paths. Cite it using evidence_id "policy:<exact source path>" and an exact quote
+from that source's content. Policy describes intended behavior, not proof that code
+complies. Preserve its applicability, exclusions, omissions and coverage notes.
 Distinguish historical evidence, current code, policy and inference. A source quote
 is not proof of complete reachability or execution. Keep an incomplete answer partial;
 if the evidence cannot answer, return no statements and explain the unknowns.
@@ -78,8 +82,15 @@ fn parse_answer(text: &str, report: &AskReport) -> Result<Answer, &'static str> 
     }
     let mut sources = BTreeMap::new();
     for item in &report.evidence {
-        if sources.insert(item.evidence_id.as_str(), item.content.as_str()).is_some() {
+        if sources.insert(item.evidence_id.clone(), item.content.as_str()).is_some() {
             return Err("ambiguous_evidence_identity");
+        }
+    }
+    if let Some(policy) = &report.project_policy_sources {
+        for source in &policy.sources {
+            if sources.insert(format!("policy:{}", source.path), source.content.as_str()).is_some() {
+                return Err("ambiguous_evidence_identity");
+            }
         }
     }
     for statement in &answer.statements {
@@ -157,6 +168,7 @@ mod tests {
         AskReport {
             question: "How does MinimumZoom work?".into(), plan: planner::plan_query("MinimumZoom"),
             status: AnswerStatus::Partial, mode: "retrieval_only".into(), synthesis: None,
+            project_policy_sources: None,
             evidence: vec![EvidenceItem {
                 evidence_id: "vb_zoom".into(), document_id: None, document_namespace: None,
                 source_verification: None, kind: EvidenceKind::SourceCode, authority: Authority::CurrentCode,
@@ -175,6 +187,23 @@ mod tests {
         serde_json::json!({"statements":[{"text":"The shown MinimumZoom function returns 6.",
             "citations":[{"evidence_id":"vb_zoom","quote":"Return 6"}]}],
             "unknowns":["Callers were not retrieved."]}).to_string()
+    }
+
+    #[test]
+    fn synthesis_can_cite_complete_scoped_policy_without_changing_code_status() {
+        let temporary = tempfile::tempdir().unwrap();
+        std::fs::write(temporary.path().join("AGENTS.md"), "Preserve the manual limit override.\n").unwrap();
+        let mut report = report();
+        report.project_policy_sources = Some(crate::services::project_policy::resolve(
+            temporary.path(), &["Site/Zoom.vb".into()], &[]));
+        let input = prompt(&report, None).unwrap();
+        assert!(input.contains("Preserve the manual limit override."));
+        let text = serde_json::json!({"statements":[{"text":"Repository guidance requires preserving the manual override.",
+            "citations":[{"evidence_id":"policy:AGENTS.md","quote":"Preserve the manual limit override."}]}],"unknowns":[]}).to_string();
+        assert!(parse_answer(&text, &report).is_ok());
+        assert_eq!(report.status, AnswerStatus::Partial);
+        assert!(parse_answer(&text.replace("manual limit override", "automatic default"), &report).is_err());
+        temporary.close().unwrap();
     }
 
     #[tokio::test]

@@ -18,6 +18,9 @@ pub struct AskReport {
     pub mode: String,                // retrieval_only | synthesized
     #[serde(skip_serializing_if = "Option::is_none")]
     pub synthesis: Option<super::synthesis::Synthesis>,
+    /// Authored guidance for the code paths in this report, separate from code facts.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_policy_sources: Option<crate::services::project_policy::PolicyContext>,
     pub evidence: Vec<EvidenceItem>, // ranked, deduped, bounded (high-signal)
     pub conflicts: Vec<Conflict>,
     pub unknowns: Vec<String>,  // coverage gaps
@@ -233,6 +236,10 @@ pub fn render_markdown(r: &AskReport) -> String {
         snap.push_str(" · SNAPSHOT-MISMATCH");
     }
     let _ = writeln!(s, "**snapshot:** {snap}");
+
+    if let Some(policy) = &r.project_policy_sources {
+        s.push_str(&policy.render_markdown());
+    }
 
     if let Some(synthesis) = &r.synthesis {
         let _ = writeln!(s, "\n## Answer synthesis: {}", synthesis.status);
