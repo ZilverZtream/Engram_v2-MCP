@@ -313,9 +313,16 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   or latency/productivity improvement is claimed.
   Evidence: `eval/ociusx-batch-read-delivery-20261112.json`.
 
-- [~] **34. Next-tool hints in every response** (S–M) - *hot-path tier done 2026-06-13: success-path next: footers on search_memory (-> get_chunk/resolve_id/concept_footprint), find_symbol_references (-> detect_incomplete_changes/check_edit_safety), blast radius report (-> edit_safety/references/begin_edit_session); planning tools already had them; error paths covered by P0 #7. Long tail (~60 specialty tools) remains.*
-  Some tools have `Next:` recommendations; most don't. Standardize a `next_tools` field —
-  this is how agents discover the long tail of the surface organically.
+- [x] **34. Next-tool hints in every response** (S?M) ? *remaining applicable specialty tier delivered 2026-11-13.*
+  Bounded `next_tools` with reasons and complete arguments where source identity
+  permits; OciusX repeated-query findings lead to their actual VB method context.
+  Profile filtering and empty/ambiguous/stale-source guidance are verified.
+  Existing hot-path/core/closed-area replies remain intact. Errors, multipart/media,
+  non-object JSON, oversized results and replies without advisory budget preserve
+  original data; hints never replace evidence or execute follow-ups automatically.
+  Nine native checks, 13 candidate and 13 installed public calls passed; an actual
+  OciusX finding at GisImageLayer.vb:148 led to UpdateLayers with source/state unchanged.
+  Evidence: `eval/ociusx-next-tool-hints-delivery-20261113.json`.
 
 - [x] **35. Database Oracle remainder (spec 39: query_schema, detect_n_plus_one, find_missing_indexes)** (M–L)
   For data-heavy projects. `query_schema` first — agents constantly need "what columns

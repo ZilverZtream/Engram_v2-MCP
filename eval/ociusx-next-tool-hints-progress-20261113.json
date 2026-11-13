@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "finding": "TODO34 remaining next-tool hints",
   "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
   "observed_missing_behavior": "query_schema, detect_n_plus_one and find_missing_indexes return source-cited evidence and pagination but no standardized next_tools guidance to the relevant follow-up tools. Source inspection found standardized next_tools only in search handlers; inventory the remaining canonical specialty surface once to complete this original item.",
@@ -32,11 +32,12 @@
     "public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\debug-public1\\acceptance.json"
   },
   "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\source-review1.json",
-  "deployed": false,
-  "remaining": "Build optimized release, verify candidate and installed public cases, then follow one actual OciusX repeated-query finding to its source context.",
+  "deployed": true,
+  "remaining": "Selected applicable specialty guidance acceptance delivered; original broader backlog continues.",
   "exceptions": [
     "Core tools, closed CodeMap/Blast areas and unfinished planner retain original responses.",
     "Existing hints, errors, non-object JSON, multipart/media, results above 1MiB and responses without room for advisory status retain original output."
   ],
-  "resources": "Owned native/debug fixtures closed and removed; source checkout, packages and evidence retained in the recorded diagnostics location."
+  "resources": "Owned native/debug fixtures closed and removed; source checkout, packages and evidence retained in the recorded diagnostics location.",
+  "delivery_receipt": "eval\\ociusx-next-tool-hints-delivery-20261113.json"
 }

@@ -40,10 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
-    "finding": "TODO34 remaining next-tool hints",
-    "remaining": "Build optimized release, verify candidate and installed public cases, then follow one actual OciusX repeated-query finding to its source context.",
-    "progress": "eval/ociusx-next-tool-hints-progress-20261113.json"
+    "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+    "finding": "TODO48 remaining fixture-corpus retrieval CI",
+    "remaining": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
+    "progress": "eval\\ociusx-retrieval-fixture-progress-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -109,5 +109,9 @@
     "receipt": "eval/ociusx-feature-plan-installed-partial-20261113.json",
     "delivery_complete": false,
     "semantic_acceptance": "FAIL"
+  },
+  "next_tool_hints_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "receipt": "eval\\ociusx-next-tool-hints-delivery-20261113.json"
   }
 }

@@ -9976,46 +9976,39 @@
   "last_updated_at": "2026-11-12T23:30:08.684304+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
-      "finding": "TODO34 remaining next-tool hints",
-      "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
-      "observed_missing_behavior": "query_schema, detect_n_plus_one and find_missing_indexes return source-cited evidence and pagination but no standardized next_tools guidance to the relevant follow-up tools. Source inspection found standardized next_tools only in search handlers; inventory the remaining canonical specialty surface once to complete this original item.",
-      "behavior": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
-      "finite_acceptance": [
-        "Pin the remaining canonical tool inventory from the current source; preserve already-complete hot paths and the explicit CodeMap/Blast closure. Do not claim completion from only three example handlers.",
-        "Nonterminal specialty results expose applicable canonical next_tools, or an explicit no-follow-up/coverage reason when none can be justified; errors and empty/unavailable results retain truthful recovery behavior.",
-        "Hints do not invent source identities, arguments or tool availability, do not execute follow-up actions, and remain inside existing complete-response budgets.",
-        "Verify public OciusX-relevant navigation from SQL schema and repeated-query/index findings to appropriate source/schema/edit checks, including empty, stale, unsupported and small-budget outcomes.",
-        "Preserve existing outputs, source freshness, paging and exact recovery; commit/push origin/master, verify candidate and installed public behavior, record coverage and remaining exceptions."
-      ],
-      "implementation_scope": "Existing response builders and shared response/capability helpers as determined by the pinned inventory; no new routing, graph, approval or evaluation platform.",
-      "scope_guard": "No CodeMap/Blast improvements, unrelated language support, planner tuning, kernel/SSD investigation or preexisting deletion.",
-      "source_baseline": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
-      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints",
-      "cleanup": "Owned fixtures close and remove their temporary resources. Retain delivery evidence in the recorded scratch until no longer needed; preexisting folders remain read-only.",
-      "source_commit": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
-      "main_merge_commit": "7e36383bb8cf7dc1cd9b49cb1d3933c839686f98",
+      "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+      "finding": "TODO48 remaining fixture-corpus retrieval CI",
+      "original_requirement": "Per fixture project, queries with expected files/symbols; measure precision@k and MRR in benchmark-ci.yml. Preserve existing live tier.",
+      "observed_missing_behavior": "benchmark-ci tests benchmark arithmetic and repeated search stability, but does not index an authored labeled fixture corpus and gate the returned search answers against its expected files.",
+      "behavior": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
       "implementation_files": [
-        "crates/engram_server/src/lib.rs",
-        "crates/engram_server/src/tool_guidance.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/tool_guidance_tests.rs"
+        "crates/engram_server/tests/retrieval_fixture_tests.rs",
+        ".github/workflows/benchmark-ci.yml",
+        "TODO.md"
       ],
-      "validation": {
-        "native_checks": 9,
-        "public_calls": 13,
-        "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\native3.json",
-        "public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\debug-public1\\acceptance.json"
-      },
-      "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\source-review1.json",
-      "deployed": false,
-      "remaining": "Build optimized release, verify candidate and installed public cases, then follow one actual OciusX repeated-query finding to its source context.",
-      "exceptions": [
-        "Core tools, closed CodeMap/Blast areas and unfinished planner retain original responses.",
-        "Existing hints, errors, non-object JSON, multipart/media, results above 1MiB and responses without room for advisory status retain original output."
+      "finite_acceptance": [
+        "Define authored source corpus and expected query/file answers before running retrieval; include plausible distractors and actual business behavior, not implementation-generated expected output.",
+        "Use real indexing/search with explicit deterministic backend and owned fixture lifetime; measure distinct-file precision@5 and MRR, preserve actual rankings and named per-query failures.",
+        "Freeze useful rank/coverage thresholds before seeing results; a missing relevant result must fail. Do not lower criteria or change labels to match a failed search.",
+        "Wire the focused check and its per-query/aggregate report into existing benchmark-ci reporting. Verify locally, commit/push origin/master; distinguish local execution from hosted CI evidence."
       ],
-      "resources": "Owned native/debug fixtures closed and removed; source checkout, packages and evidence retained in the recorded diagnostics location."
+      "scope_guard": "OciusX-relevant fixtures only; no unrelated language expansion, CodeMap/Blast evaluation, live OciusX mutation, new benchmark platform or claim of measured productivity.",
+      "source_baseline": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci",
+      "cleanup": "Own fixture directories and close database/server handles before teardown. Retain evidence in this one recorded diagnostics directory; no preexisting deletion.",
+      "existing_reusable_components": [
+        "engram_core::benchmark::BenchmarkPack and query/threshold models",
+        "engram_server::services::benchmark_service metric helpers",
+        "Existing AppState/index_project/search fixture patterns"
+      ],
+      "retained_unfinished": [
+        "TODO32 semantic failures FP-SEM-01/02",
+        "TODO4 broader envelopes/cursors",
+        "TODO36 unmeasured indexing performance",
+        "TODO39 broader namespace consistency",
+        "Other accepted original findings and gates; full goal remains active."
+      ]
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -12773,34 +12766,46 @@
     },
     "previous_selected_delivery_contract": {
       "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "original_requirement": "TODO35 / spec39-4 detect_n_plus_one: find database calls repeated by loops or authored WebForms row-binding handlers, show loop/handler and inner SQL call locations, estimated severity and JOIN/batch guidance.",
-      "missing_behavior": "No N+1 detector exists. Existing Roslyn invocation report verifies source spans but omits enclosing repetition contexts; existing database/call graph can supply source relationships.",
-      "implementation_files": [
-        "README.md",
-        "tools/vb_roslyn_sidecar/InvocationAnalyzer.cs",
-        "crates/engram_index/src/vb_extractor.rs",
-        "crates/engram_server/src/handlers/test_derivation.rs",
-        "crates/engram_server/src/handlers/mod.rs",
-        "crates/engram_server/src/handlers/n_plus_one_tools.rs",
-        "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/services/n_plus_one.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/src/capabilities.rs"
-      ],
+      "finding": "TODO34 remaining next-tool hints",
+      "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
+      "observed_missing_behavior": "query_schema, detect_n_plus_one and find_missing_indexes return source-cited evidence and pagination but no standardized next_tools guidance to the relevant follow-up tools. Source inspection found standardized next_tools only in search handlers; inventory the remaining canonical specialty surface once to complete this original item.",
+      "behavior": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
       "finite_acceptance": [
-        "Use source-checked Roslyn invocation/loop ownership and authored RowDataBound/ItemDataBound binding, with helper-call paths to database evidence. Never infer SQL from a helper name alone.",
-        "Report exact repeated call and inner database evidence with source paths/lines/hashes, contexts, heuristic severity, unknown cardinality when no measurements exist, and JOIN/batch guidance appropriate to read/write evidence.",
-        "Exclude comments/string examples, loop collection/bound expressions evaluated once, calls after the loop, unrelated helpers and deferred lambdas. Preserve uncertainty for unresolved dispatch, caching, branches and runtime execution.",
-        "Use selected source membership/revisions/hashes, bound file pages and graph expansion and complete JSON response, disclose all unavailable/stale/truncated coverage. Read-only; no OciusX edits or live database execution.",
-        "Verify focused positive/negative Roslyn and service cases, candidate/installed public MCP, and one actual OciusX source case. Commit/push origin/master; deploy matched server/sidecar and preserve all parked work."
+        "Pin the remaining canonical tool inventory from the current source; preserve already-complete hot paths and the explicit CodeMap/Blast closure. Do not claim completion from only three example handlers.",
+        "Nonterminal specialty results expose applicable canonical next_tools, or an explicit no-follow-up/coverage reason when none can be justified; errors and empty/unavailable results retain truthful recovery behavior.",
+        "Hints do not invent source identities, arguments or tool availability, do not execute follow-up actions, and remain inside existing complete-response budgets.",
+        "Verify public OciusX-relevant navigation from SQL schema and repeated-query/index findings to appropriate source/schema/edit checks, including empty, stale, unsupported and small-budget outcomes.",
+        "Preserve existing outputs, source freshness, paging and exact recovery; commit/push origin/master, verify candidate and installed public behavior, record coverage and remaining exceptions."
       ],
-      "source_baseline": "4a9217c5907fc0486bb5a1d0b6c369b63e2f290b",
-      "isolated_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\n-plus-one",
-      "scope_guard": "OciusX VB.NET/WebForms and SQL only. Extend existing sidecar query/report, not indexing formats or a new parser platform. No CodeMap/Blast, foreign-language work, broad audits or unrelated cleanup. find_missing_indexes and other original items stay unfinished.",
-      "removal_condition": "Reuse the one existing delivery checkout while parked work must remain excluded; remove through Git only after clean/ignored checks and source commits are preserved on origin/master.",
-      "delivery_receipt": "eval/ociusx-n-plus-one-delivery-20261112.json"
+      "implementation_scope": "Existing response builders and shared response/capability helpers as determined by the pinned inventory; no new routing, graph, approval or evaluation platform.",
+      "scope_guard": "No CodeMap/Blast improvements, unrelated language support, planner tuning, kernel/SSD investigation or preexisting deletion.",
+      "source_baseline": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
+      "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints",
+      "cleanup": "Owned fixtures close and remove their temporary resources. Retain delivery evidence in the recorded scratch until no longer needed; preexisting folders remain read-only.",
+      "source_commit": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+      "main_merge_commit": "7e36383bb8cf7dc1cd9b49cb1d3933c839686f98",
+      "implementation_files": [
+        "crates/engram_server/src/lib.rs",
+        "crates/engram_server/src/tool_guidance.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/tool_guidance_tests.rs"
+      ],
+      "validation": {
+        "native_checks": 9,
+        "public_calls": 13,
+        "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\native3.json",
+        "public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\debug-public1\\acceptance.json"
+      },
+      "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\source-review1.json",
+      "deployed": true,
+      "remaining": "Selected applicable specialty guidance acceptance delivered; original broader backlog continues.",
+      "exceptions": [
+        "Core tools, closed CodeMap/Blast areas and unfinished planner retain original responses.",
+        "Existing hints, errors, non-object JSON, multipart/media, results above 1MiB and responses without room for advisory status retain original output."
+      ],
+      "resources": "Owned native/debug fixtures closed and removed; source checkout, packages and evidence retained in the recorded diagnostics location.",
+      "delivery_receipt": "eval\\ociusx-next-tool-hints-delivery-20261113.json"
     },
     "p122_def_use_20261112": {
       "status": "EXTRACTION_IMPLEMENTED_CHECKED_NOT_GRAPH_LINKED",
@@ -13279,7 +13284,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
+    "next_user_visible_delivery": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13741,6 +13746,7 @@
       "receipt": "eval/ociusx-feature-plan-installed-partial-20261113.json",
       "semantic_acceptance": "FAIL",
       "delivery_complete": false
-    }
+    },
+    "next_tool_hints_delivery": "eval\\ociusx-next-tool-hints-delivery-20261113.json"
   }
 }

@@ -1,0 +1,35 @@
+{
+  "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+  "finding": "TODO48 remaining fixture-corpus retrieval CI",
+  "original_requirement": "Per fixture project, queries with expected files/symbols; measure precision@k and MRR in benchmark-ci.yml. Preserve existing live tier.",
+  "observed_missing_behavior": "benchmark-ci tests benchmark arithmetic and repeated search stability, but does not index an authored labeled fixture corpus and gate the returned search answers against its expected files.",
+  "behavior": "Make CI detect lost or badly ranked OciusX-relevant source answers using a fixed authored WebForms/VB, JS/TS and SQL fixture and existing retrieval/metric APIs.",
+  "implementation_files": [
+    "crates/engram_server/tests/retrieval_fixture_tests.rs",
+    ".github/workflows/benchmark-ci.yml",
+    "TODO.md"
+  ],
+  "finite_acceptance": [
+    "Define authored source corpus and expected query/file answers before running retrieval; include plausible distractors and actual business behavior, not implementation-generated expected output.",
+    "Use real indexing/search with explicit deterministic backend and owned fixture lifetime; measure distinct-file precision@5 and MRR, preserve actual rankings and named per-query failures.",
+    "Freeze useful rank/coverage thresholds before seeing results; a missing relevant result must fail. Do not lower criteria or change labels to match a failed search.",
+    "Wire the focused check and its per-query/aggregate report into existing benchmark-ci reporting. Verify locally, commit/push origin/master; distinguish local execution from hosted CI evidence."
+  ],
+  "scope_guard": "OciusX-relevant fixtures only; no unrelated language expansion, CodeMap/Blast evaluation, live OciusX mutation, new benchmark platform or claim of measured productivity.",
+  "source_baseline": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+  "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\retrieval-fixture-ci",
+  "cleanup": "Own fixture directories and close database/server handles before teardown. Retain evidence in this one recorded diagnostics directory; no preexisting deletion.",
+  "existing_reusable_components": [
+    "engram_core::benchmark::BenchmarkPack and query/threshold models",
+    "engram_server::services::benchmark_service metric helpers",
+    "Existing AppState/index_project/search fixture patterns"
+  ],
+  "retained_unfinished": [
+    "TODO32 semantic failures FP-SEM-01/02",
+    "TODO4 broader envelopes/cursors",
+    "TODO36 unmeasured indexing performance",
+    "TODO39 broader namespace consistency",
+    "Other accepted original findings and gates; full goal remains active."
+  ]
+}

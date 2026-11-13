@@ -1,0 +1,127 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T04:17:07.605060+00:00",
+  "finding": "TODO34 remaining next-tool hints",
+  "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
+  "source_commit": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+  "main_merge_commit": "7e36383bb8cf7dc1cd9b49cb1d3933c839686f98",
+  "implementation_and_documentation_push": "4e03982",
+  "installed": {
+    "server_sha256": "fe63dcb14e705c55565a1ee8291614e98df88f8a4ccee5ea8253300f98b9350f",
+    "manifest_sha256": "79cdbdacacc2160dcaefbc33fe90550fabb3d1db81276a2a1a1360dd80ec9ea7",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "delivered": [
+    "Bounded specialty next_tools suggestions with purpose and complete arguments when actual source identity and target schema support them.",
+    "Source-grounded repeated-query and schema navigation, ambiguity/empty/source-gap recovery, active-profile filtering and explicit capability prerequisites.",
+    "No model call or automatic follow-up execution; evidence and recovery take precedence over hints within the existing response budget."
+  ],
+  "checks": {
+    "native": 9,
+    "candidate_public_calls": 13,
+    "installed_public_calls": 13,
+    "source_wrappers_accounted": 156,
+    "core_profile_tools": 32,
+    "source_stable_during_build": true
+  },
+  "actual_ociusx": {
+    "status": "PASS",
+    "pair_sha256": "e14f8a2b5981d921abc5e5f6486a87e9a158430efea15f7aa46c548efac6c99b",
+    "process_identity": {
+      "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "created_ticks": 134390169274264024
+    },
+    "driver_sha256": "ba217bb0ff3dfee5e7debac00c6cb7110a9c9f1d3a0c7a218dc02c0e1d00b1ab",
+    "purpose": "Read-only actual OciusX guidance acceptance. No source edits, database execution or LLM generation.",
+    "seconds": 13.563013600069098,
+    "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb",
+    "active_generation": 3148,
+    "source_path": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+    "source_hash": "32e24576a5f730ab268a3188bd049221b3e81bdaef372940a7ff3cd3ab606624",
+    "repeated_call": {
+      "callee": "db.gil_gisImageLayers.Where(Function(d) d.gil_id = layer.gil_id).FirstOrDefault",
+      "end_line": 148,
+      "file": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+      "method": "UpdateLayers",
+      "source_hash": "32e24576a5f730ab268a3188bd049221b3e81bdaef372940a7ff3cd3ab606624",
+      "start_line": 148
+    },
+    "hint": {
+      "arguments": {
+        "file_path": "Site/App_Code/grunddata/code/GisImageLayer.vb",
+        "method_name": "UpdateLayers",
+        "project_id": "5a35e8e0-d37a-41b3-a250-a26957e7aedb"
+      },
+      "reason": "Inspect the cited loop or row-binding method before choosing a batching change.",
+      "tool": "get_method_edit_context"
+    },
+    "follow_up_context_sha256": "0a6d66f721e687b22c268b0bb15ca5787093a44414f8a9a462d08431f6a41c0e",
+    "source_unchanged": true,
+    "working_tree_status_unchanged": true,
+    "configuration_unchanged": true,
+    "cited_source_matches": true,
+    "interpretation": "Actual returned hint resolves to the cited existing OciusX method and query. This proves this navigation behavior, not runtime query cost, edit correctness or productivity improvement.",
+    "pipe_closed": true
+  },
+  "exceptions": [
+    "Core tools, closed CodeMap/Blast areas and unfinished planner retain original responses.",
+    "Existing hints, errors, non-object JSON, multipart/media, results above 1MiB and responses without room for advisory status retain original output."
+  ],
+  "limits": [
+    "Registry policy coverage does not prove every backend or project capability is available.",
+    "Actual acceptance establishes the cited OciusX navigation, not runtime SQL cost, edit correctness or productivity.",
+    "TODO32 semantic acceptance remains failed and unfinished; other partial backlog items and full19gates remain unfinished."
+  ],
+  "evidence": {
+    "source-review1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\source-review1.json",
+      "sha256": "16a065c3bb2aed0009a3c5943ef8204010c728d60b95eda7698dc33c6ab8ec3f"
+    },
+    "native3.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\native3.json",
+      "sha256": "e8bd2aeb81cc654b7087363468674b0e3216397e1d7b1dcfaccd6fd0a875c92b"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\release1.json",
+      "sha256": "ff194053e08445b5c034a87762ec028177fc3740b5756324826356a3b825578d"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\pair1.json",
+      "sha256": "e14f8a2b5981d921abc5e5f6486a87e9a158430efea15f7aa46c548efac6c99b"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\candidate1\\acceptance.json",
+      "sha256": "1e2d54e0694d2c10e1b5b921fc5d8d166213ca485eab22601d6c50d92e614d60"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\installed1\\acceptance.json",
+      "sha256": "a5edac8e35fe78f6ba7e68e282c4a51fa7c41fcac16e0e61d4af31ea101d5b97"
+    },
+    "normal1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\normal1\\acceptance.json",
+      "sha256": "6952d33b17cbd3a17e203ce58aee4702404a4030af095b6ccf2484fc6a1cccbb"
+    },
+    "release-gates1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\release-gates1.json",
+      "sha256": "2b5da3248bfa2809f9c31d8b182291655ac35835e907e31d2c6fc6e18d3c392f"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints",
+    "owned_build_and_test_temps_removed": true,
+    "config_hold_released": true,
+    "actual_pipe_closed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9a789688d51d4abcaddb955d17ef0636",
+    "installed_daemon": {
+      "pid": 69800,
+      "start_time_utc": "2026-11-13T04:15:27.4264024Z",
+      "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+      "purpose": "Installed guidance read-only OciusX acceptance",
+      "cleanup": "Close acceptance pipe; normal installed daemon may exit naturally after idle."
+    },
+    "retention": "Retain packages, receipts, source checkout and old installed pair for review/rollback. No preexisting folders deleted."
+  }
+}
