@@ -40,10 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
-    "finding": "TODO50 top20 public MCP contract tests",
-    "remaining": "Complete release2, run pinned public contract test against optimized candidate and installed package, record deployment. Hosted CI remains unverified because repository Actions are disabled.",
-    "progress": "eval\\ociusx-mcp-contract-progress-20261113.json"
+    "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
+    "finding": "TODO50 installed; hosted CI remains unverified",
+    "remaining": "Inspect next unfinished original requirement once; choose only work with a concrete OciusX need. Preserve hosted-CI and semantic-planner limitations.",
+    "receipt": "eval/ociusx-mcp-contract-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -117,5 +117,9 @@
   "retrieval_fixture_delivery": {
     "status": "IMPLEMENTED_LOCALLY_VALIDATED_PUSHED_HOSTED_CI_UNVERIFIED",
     "receipt": "eval/ociusx-retrieval-fixture-delivery-20261113.json"
+  },
+  "mcp_contract_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_HOSTED_CI_UNVERIFIED",
+    "receipt": "eval/ociusx-mcp-contract-delivery-20261113.json"
   }
 }

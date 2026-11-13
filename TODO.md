@@ -471,7 +471,14 @@ value is accuracy, this is the biggest meta-gap.
   Extend fixtures with ground-truth edge lists; report extraction recall/precision per
   language per extractor. Gate CI on regressions.
 
-- [ ] **50. End-to-end MCP-layer tests for the top 20 tools** (M)
+- [x] **50. End-to-end MCP-layer tests for the top 20 tools** (M) - *implemented and locally/candidate/installed verified 2026-11-13; hosted CI remains unverified.*
+  `mcp_core_contract_tests` launches the production binary and calls twenty tools over
+  stdio MCP, including 36 invalid/unknown project identities, empty index, admission
+  limits, source recovery and response budgets. It exposed and retains a regression
+  check for explicit empty edit completion; that runtime fix is installed. Existing
+  CI is configured to run the test, but repository Actions are disabled. Owned fixtures and server
+  processes close on completion. This is not full-scale performance or sidecar proof.
+  Evidence: `eval/ociusx-mcp-contract-delivery-20261113.json`.
   ~50 integration test files exist but mostly call services directly. Spin the actual MCP
   server, call tools as a client would (bad project_id, huge repo, empty index) and
   assert response envelope contracts (#4).
