@@ -41,7 +41,7 @@
     "debug_package": "Planned owned paired candidate under feature-plan/debug-package; retain until selected delivery complete and evidence no longer needed",
     "preexisting_folders_deleted": false
   },
-  "next": "Corrected native/public/candidate/installed checks and a new actual OciusX acceptance after relevant code changes. Full TODO32 and original full19gates remain unfinished.",
+  "next": "Build corrected release, verify optimized candidate and installed fixture, then perform one new actual OciusX request and review source semantics. Original failed request remains retained.",
   "source_commit": "abfb83984a4bb3e1ddc37b06f48a07955f73d35f",
   "main_merge_commit": "a112845485f8ea3db7a0a85994abbc65c59d3af7",
   "core_preset": {
@@ -50,5 +50,20 @@
     "core_tools": 32
   },
   "delivery_complete": false,
-  "actual_failure": "eval/ociusx-feature-plan-real-failure-20261113.json"
+  "actual_failure": "eval/ociusx-feature-plan-real-failure-20261113.json",
+  "correction": {
+    "status": "CORRECTION_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
+    "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
+    "native_checks": 9,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native3.json",
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public2\\acceptance.json",
+    "behavior": [
+      "Existing story-domain extractor and stems select photo evidence even if model intent proposes administrator/phrase concepts.",
+      "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
+      "Cited already-present requirement claims do not force invented edits; semantic review remains required."
+    ],
+    "deployed": false,
+    "actual_v2_request_sent": false
+  }
 }

@@ -59,5 +59,20 @@
     "public_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\verify-public-v2.py"
   },
   "delivery_complete": false,
-  "remaining": "Corrected native/public/candidate/installed checks and a new actual OciusX acceptance after relevant code changes. Full TODO32 and original full19gates remain unfinished."
+  "remaining": "Corrected native/public/candidate/installed checks and a new actual OciusX acceptance after relevant code changes. Full TODO32 and original full19gates remain unfinished.",
+  "correction_validation": {
+    "status": "CORRECTION_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+    "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
+    "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
+    "native_checks": 9,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native3.json",
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public2\\acceptance.json",
+    "behavior": [
+      "Existing story-domain extractor and stems select photo evidence even if model intent proposes administrator/phrase concepts.",
+      "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
+      "Cited already-present requirement claims do not force invented edits; semantic review remains required."
+    ],
+    "deployed": false,
+    "actual_v2_request_sent": false
+  }
 }

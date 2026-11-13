@@ -10008,19 +10008,19 @@
       "progress": "eval/ociusx-feature-plan-progress-20261113.json",
       "observed_acceptance_failure": "Actual OciusX plan rejected after153.77s; exact validation detail unavailable in v1. Source collection separately displaced photos with generic model concepts.",
       "correction": {
-        "files": [
-          "crates/engram_server/src/handlers/feature_plan_tools.rs",
-          "crates/engram_server/src/services/feature_plan.rs",
-          "crates/engram_server/tests/feature_plan_tests.rs"
-        ],
+        "status": "CORRECTION_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+        "source_commit": "3c652363092b741ef39033f68eac95f90e134783",
+        "main_merge_commit": "7d8718d4d27028aebfbfdc11a4183cb5e739af9d",
+        "native_checks": 9,
+        "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\native3.json",
+        "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\debug-public2\\acceptance.json",
         "behavior": [
-          "Reuse existing story-domain concepts and concept stems in this new handler; do not modify existing ranking tools.",
-          "Return bounded explicit validation diagnostics and rejected JSON as untrusted data, with usable plan still withheld.",
-          "Represent already-present requirement claims with source citations and no invented edits; source review remains required."
+          "Existing story-domain extractor and stems select photo evidence even if model intent proposes administrator/phrase concepts.",
+          "Specific validation failure and bounded rejected JSON are returned as untrusted data while usable plan remains withheld.",
+          "Cited already-present requirement claims do not force invented edits; semantic review remains required."
         ],
-        "status": "IMPLEMENTED_NATIVE3_RUNNING",
-        "native_session": 19708,
-        "public_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\verify-public-v2.py"
+        "deployed": false,
+        "actual_v2_request_sent": false
       }
     },
     "at_utc": "2026-11-12T12:50:15.174172+00:00",
