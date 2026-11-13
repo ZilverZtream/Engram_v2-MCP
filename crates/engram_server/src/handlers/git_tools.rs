@@ -1833,9 +1833,6 @@ impl Engram {
         .map_err(|e| McpError::invalid_params(e, None))?;
 
         let prefixes = cards::EmbedPrefixes::for_model(self.state.cfg.embedding_model.as_deref());
-        let all = cards::cards_for_line_cached(&dir, tip, &ps.search, prefixes, &self.state.registry)
-            .await
-            .map_err(|e| McpError::internal_error(format!("change cards: {e}"), None))?;
         let file_filter = req.file_filter.as_deref().map(|f| f.replace('\\', "/"));
         let excluded: Vec<String> = req
             .exclude_paths
@@ -1844,21 +1841,14 @@ impl Engram {
             .iter()
             .map(|p| p.replace('\\', "/"))
             .collect();
-        let eligible: Vec<_> = all
-            .into_iter()
-            .filter(|c| {
-                req.date_after.is_none_or(|after| c.timestamp >= after)
-                    && req.date_before.is_none_or(|before| c.timestamp < before)
-                    && req.author_filter.as_deref().is_none_or(|a| c.author == a)
-                    && file_filter
-                        .as_deref()
-                        .is_none_or(|f| c.files.iter().any(|p| p.starts_with(f)))
-                    && !c
-                        .files
-                        .iter()
-                        .any(|p| excluded.iter().any(|x| p.starts_with(x.as_str())))
-            })
-            .collect();
+        let eligible = cards::cards_for_line_filtered_cached(
+            &dir, tip, &ps.search, prefixes, &self.state.registry,
+            cards::CardFilter {
+                file_prefix: file_filter, excluded_prefixes: excluded,
+                author: req.author_filter.clone(), date_after: req.date_after,
+                date_before: req.date_before,
+            },
+        ).await.map_err(|e| McpError::internal_error(format!("change cards: {e}"), None))?;
         let total = eligible.len();
         let quality = ps.search.semantic_quality();
         let baseline_tier = match quality {
