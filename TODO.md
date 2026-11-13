@@ -260,7 +260,18 @@ The unbuilt AGENT_ENHANCEMENT_SPEC phases 39–45 (33 tools, zero implemented). 
 worth building — these are, in this order. (Skip ones that duplicate existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.)
 
-- [~] **28. `ask_codebase` — one natural-language entry point (spec 43-1)** (L) - *v1 done 2026-06-13: heuristic 5-intent router (impact/usage/history/feature/explain) with subject extraction, composing impact_analysis, find_symbol_references, search_history, plan_user_story, search+footprint; provenance line names consulted tools. LLM-assisted routing/synthesis remains as v2.*
+- [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Optional cited synthesis installed 2026-11-13. Default requests retain the
+  deterministic evidence report; `synthesize: true` uses the configured model
+  and checks evidence IDs and exact quotations without upgrading retrieval status.
+  Five focused native checks and candidate/installed MCP acceptance passed.
+  The single OciusX source question met three of four frozen criteria: the answer
+  correctly explained the two-count requirement and override precedence, but
+  withheld the definite `Nothing` outcome when counts and override are absent.
+  Full semantic acceptance failed; no false guidance was identified by the
+  parent source review. No repeated model tuning was performed.
+  Optional model-assisted routing and broader task acceptance remain unfinished.
+  Evidence: [installed partial result](eval/ociusx-ask-synthesis-delivery-20261113.json).
   Routes a question to search + graph + access-layer internally and returns a synthesized,
   cited answer. This is the single highest-leverage *new* tool: it collapses the 114-tool
   selection problem for the 80% case and makes Engram useful to agents that never learn

@@ -1,0 +1,207 @@
+{
+  "status": "DEPLOYED_ACTUAL_ANSWER_NOT_ACCEPTED",
+  "delivery_complete": false,
+  "at_utc": "2026-11-13T16:36:11.606330+00:00",
+  "finding": "TODO28 optional cited ask_codebase synthesis",
+  "source_commit": "a3c9641aa30613d5c1187e41ee68276c02a120c9",
+  "before": "ask_codebase returned retrieval_only; installed schema exposed no synthesis option.",
+  "after": "synthesize=true adds a configured-model answer with evidence IDs and checked exact quotations. Default requests remain deterministic. Status, evidence and gaps remain intact through model failure; generation has a separate caller-selected timeout.",
+  "validation": {
+    "native_checks": 5,
+    "candidate": {
+      "default_no_generation": true,
+      "one_configured_generation_per_opt_in": true,
+      "json_answer_citations_match_source": true,
+      "markdown_answer_and_citations_present": true,
+      "status_gaps_evidence_unchanged": true,
+      "fabricated_citation_withheld": true,
+      "source_unchanged": true
+    },
+    "installed": {
+      "default_no_generation": true,
+      "one_configured_generation_per_opt_in": true,
+      "json_answer_citations_match_source": true,
+      "markdown_answer_and_citations_present": true,
+      "status_gaps_evidence_unchanged": true,
+      "fabricated_citation_withheld": true,
+      "source_unchanged": true
+    }
+  },
+  "actual_ociusx": {
+    "status": "STRUCTURAL_PASS_SEMANTIC_REVIEW_PENDING",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\actual1\\wire",
+        "closed": true,
+        "pid": 63312,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "semantic_status": "NOT_REVIEWED",
+    "model_requests_requested": 1,
+    "seconds": 22.35970350005664,
+    "synthesis_status": "generated",
+    "synthesis_reason": null,
+    "retrieval_status": "partial",
+    "provider_requests": 1,
+    "provider": "openrouter",
+    "requested_model": "openai/gpt-5.6-luna",
+    "checks": {
+      "generated": true,
+      "configured_provider_reported": true,
+      "target_quotes_match_independent_source": true,
+      "retrieval_evidence_preserved": true,
+      "single_generation_request": true
+    },
+    "target_citations": [
+      {
+        "evidence_id": "ev_123",
+        "quote": "Dim result As New Resolved With {.OverrideZoom = overrideZoom}\n\n            If featureCount.HasValue AndAlso coordinateCount.HasValue Then\n                result.AutomaticZoom = ClassifyAutomatic(featureCount.Value, coordinateCount.Value)"
+      },
+      {
+        "evidence_id": "ev_123",
+        "quote": "If overrideZoom.HasValue Then\n                result.EffectiveMinZoom = overrideZoom.Value\n            Else\n                result.EffectiveMinZoom = result.AutomaticZoom"
+      },
+      {
+        "evidence_id": "ev_124",
+        "quote": "Public Property EffectiveMinZoom As Integer?"
+      },
+      {
+        "evidence_id": "ev_123",
+        "quote": "If featureCount.HasValue AndAlso coordinateCount.HasValue Then\n                result.AutomaticZoom = ClassifyAutomatic(featureCount.Value, coordinateCount.Value)\n            End If"
+      }
+    ],
+    "source_generation": 3149,
+    "source_pins": {
+      "Site/App_Code/visualisering/code/FileLayerZoomPolicy.vb": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53",
+      "AGENTS.md": "f4bde819c6b0749141757a4fccc687913ee65a86133c98498b202ed430d05db4",
+      ".github/copilot-instructions.md": "f4762a8b7accf0ce9ec9f6add6d970215acd25d75ca11367d8fb13b2c3b2ddc5",
+      ".github/instructions/map-file-layers.instructions.md": "e2fc2f167135d715bae0fc43055dce56690472779afc184ab4d98f49bfea00ad"
+    },
+    "selected_registry_unchanged": true,
+    "application_edits": false,
+    "owned_temp_removed": true
+  },
+  "semantic_review": {
+    "status": "FAIL",
+    "assessment": "PARTIAL_CORRECT_ANSWER_FULL_FROZEN_ACCEPTANCE_NOT_MET",
+    "reviewer": "Parent source review; no independent agent or runtime application QA",
+    "at_utc": "2026-11-13T16:36:11.213822+00:00",
+    "answer_sha256": "9c8c94ffba211e4894bc06a8f56d407d3e5d4a68cd8afb2d4e6b0b791d0fb204",
+    "source_sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53",
+    "criteria": [
+      {
+        "id": "AS-01",
+        "status": "PASS",
+        "requirement": "AutomaticZoom computed only when both nullable counts have values.",
+        "evidence": "Statement1 preserves the two-count conjunction and cites exact Resolve lines95-96."
+      },
+      {
+        "id": "AS-02",
+        "status": "PASS",
+        "requirement": "Override takes precedence, including when counts are unavailable.",
+        "evidence": "Statement2 describes the unconditional override.HasValue branch, separately from the count-dependent automatic assignment; exact branch quotation retained."
+      },
+      {
+        "id": "AS-03",
+        "status": "FAIL_WITHHELD",
+        "requirement": "Without an override, EffectiveMinZoom uses AutomaticZoom and remains unset when counts are unavailable.",
+        "evidence": "Statements2/3 identify the automatic fallback and absent assignment but stop at saying no numeric EffectiveMinZoom is established. They do not explicitly establish the required Nothing result. Independent source declares AutomaticZoom as an uninitialized nullable auto-property; that declaration is absent from the supplied retrieval evidence.",
+        "limit": "Missing retrieved declaration is observed, not a proven causal explanation of the model response."
+      },
+      {
+        "id": "AS-04",
+        "status": "PASS",
+        "requirement": "Do not invent validation inside Resolve, caller execution or enforcement.",
+        "evidence": "No validation, caller execution or enforcement claim added. ClassifyAutomatic numeric behavior is correctly left unknown because its body was not supplied."
+      }
+    ],
+    "findings": [
+      {
+        "id": "ASK-SEM-01",
+        "kind": "incomplete_answer",
+        "detail": "Honest withholding is not completion of the frozen missing-count outcome criterion."
+      }
+    ],
+    "false_guidance_identified": false,
+    "decision": "Keep full TODO28 acceptance unfinished. Preserve deployed opt-in synthesis and failed semantic acceptance. No per-sample prompt tuning or repeated model request; retain the missing outcome/evidence requirement in the backlog.",
+    "limits": [
+      "Single inspected OciusX source question, not a held-out comparison or productivity measurement.",
+      "Default deterministic retrieval and model fallback passed their separate native/public checks."
+    ]
+  },
+  "runtime": {
+    "server_sha256": "173741107d726cfe768cfd1c06bf7c5b6a04507e88f3779ff5fc9a1487265c80",
+    "manifest_sha256": "3c53713ae775d87fb4e1fe74c5f8e663ed96cc68008b28603dac294e21bb8561",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "evidence": {
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\baseline1\\observation.json",
+      "sha256": "666d6d4de5472d74e3afc01b909868293ac7bb1de0fb17d694ed872d0354f9f1"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\native1.json",
+      "sha256": "e7b779a4adfc929047d84aac298315eff909cdd6609a667d63dc5daaaf899443"
+    },
+    "public_handler": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\public1.json",
+      "sha256": "63965489b8d172bc7e06bc113a08798508e99a1313f93ee7ee5b9a5b0d7263f5"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\implementation1.json",
+      "sha256": "807d28f610a80934d871c929a20377c1344f120d840028ad569bfe9ffba7c2f7"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\release1.json",
+      "sha256": "811ee180c5c214b91bf64103d08982bb0052a245ca303b5ec2ad28f87a892991"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\candidate1\\acceptance.json",
+      "sha256": "93a65bb75142fb64bfae1b260f542d5eaa4c76b80f93daa5c7494caa9d390b8b"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\installed1\\acceptance.json",
+      "sha256": "2be359944e242425461b336b15c4138edcd77bc7c8cbad9e455b5149519c4c9c"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\actual1\\acceptance.json",
+      "sha256": "5b3bcfbcffde21fa601d62466256ade5d213b3fe12e275359205e10918c0d0ea"
+    },
+    "answer": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\actual1\\answer.json",
+      "sha256": "9c8c94ffba211e4894bc06a8f56d407d3e5d4a68cd8afb2d4e6b0b791d0fb204"
+    },
+    "source_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\actual1\\semantic-review.json",
+      "sha256": "77337506e0936cbd487b6c7489232971aa9e59d35bc94588a69ee838a5aaa58b"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\deployment1-state.json",
+      "sha256": "7b4036f159d788d27c0bf6a5cb45a7d8a5b265ec10a5beaae6399d8e19e46afd"
+    },
+    "manual_code_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis\\manual-review.json",
+      "sha256": "48b25ccea11c48eb1c6e3b685c57d5aec475b2c72e08531614a0ae769c752132"
+    }
+  },
+  "limits": [
+    "Citation ID and exact quotation validation does not establish semantic correctness, complete coverage or runtime behavior.",
+    "Only one inspected OciusX source question is semantically reviewed; no held-out or matched productivity claim.",
+    "Optional model-assisted routing remains unimplemented; existing deterministic retrieval is unchanged.",
+    "External CodeRabbit review unavailable because host authentication was false; parent source review only."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis",
+    "owned_build_test_runtime_temps_removed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-66e15c58dae84911b6731dc731c3f2c6",
+    "retention": "Retain packages, evidence and rollback pair for review; no preexisting folder deletion."
+  }
+}

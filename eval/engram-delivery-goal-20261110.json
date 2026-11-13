@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_RUNNING",
+    "status": "DEPLOYED_ACTUAL_ANSWER_NOT_ACCEPTED",
     "finding": "TODO28 optional cited ask_codebase synthesis",
     "original_requirement": "TODO28/spec43-1: natural-language entry point returns a synthesized cited answer; deterministic router first, optional LLM synthesis later. OciusX config has llm_backend=openai and a configured text model.",
     "observed_missing_behavior": "Current AskReport always sets mode=retrieval_only; request schema exposes no synthesis opt-in and handler never calls configured generation.",
@@ -68,10 +68,9 @@
     "source_commit": "a3c9641aa30613d5c1187e41ee68276c02a120c9",
     "progress": "eval/ociusx-ask-synthesis-progress-20261113.json",
     "remaining": [
-      "Complete existing release build.",
-      "Verify candidate and installed public MCP against local fixture provider.",
-      "Run one actual OciusX configured-model answer and review against saved source criteria."
-    ]
+      "Actual answer acceptance failed; preserve exact findings, no repeated per-sample tuning."
+    ],
+    "delivery": "eval/ociusx-ask-synthesis-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

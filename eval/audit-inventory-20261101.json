@@ -10012,7 +10012,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_RUNNING",
+      "status": "DEPLOYED_ACTUAL_ANSWER_NOT_ACCEPTED",
       "finding": "TODO28 optional cited ask_codebase synthesis",
       "original_requirement": "TODO28/spec43-1: natural-language entry point returns a synthesized cited answer; deterministic router first, optional LLM synthesis later. OciusX config has llm_backend=openai and a configured text model.",
       "observed_missing_behavior": "Current AskReport always sets mode=retrieval_only; request schema exposes no synthesis opt-in and handler never calls configured generation.",
@@ -10040,10 +10040,9 @@
       "source_commit": "a3c9641aa30613d5c1187e41ee68276c02a120c9",
       "progress": "eval/ociusx-ask-synthesis-progress-20261113.json",
       "remaining": [
-        "Complete existing release build.",
-        "Verify candidate and installed public MCP against local fixture provider.",
-        "Run one actual OciusX configured-model answer and review against saved source criteria."
-      ]
+        "Actual answer acceptance failed; preserve exact findings, no repeated per-sample tuning."
+      ],
+      "delivery": "eval/ociusx-ask-synthesis-delivery-20261113.json"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10093,7 +10092,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: original shortlist documentation and five stale installed-delivery statuses corrected against retained receipts; latest failed quality result surfaced.",
+    "previous_goal_turn_classification": "PROGRESS: optional ask synthesis deployed; candidate/installed MCP passed. Actual source answer3of4criteria; full semantic acceptance failed and retained, no repeat tuning.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
