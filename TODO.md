@@ -532,6 +532,11 @@ value is accuracy, this is the biggest meta-gap.
 ## P6 — Adoption & packaging
 
 - [~] **53. Prebuilt release binaries + one-command install** (M)
+  *Codex installation added 2026-11-13: `-Codex` registers through the native
+  CLI while retaining existing settings and refusing duplicate server names.
+  Isolated CLI registration, unchanged JSON-client checks and VB retrieval through
+  the exact registered command passed. The current live Codex profile was preserved.
+  Evidence: `eval/ociusx-codex-first-install-delivery-20261113.json`.*
   *Self-contained Windows ZIP added 2026-11-13: the verified runtime, all 214
   sidecar assets, installer and first-query guide ship together. An extracted copy
   installed without repository scripts or `PackageRoot`; the exact MCP entry

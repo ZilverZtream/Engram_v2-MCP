@@ -1,0 +1,108 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_CODEX_INSTALL_BUNDLE_READY",
+  "at_utc": "2026-11-13T18:42:19.392715+00:00",
+  "finding": "TODO53 explicit Codex first-time installation",
+  "source_commit": "909b2b4",
+  "full_todo53_complete": false,
+  "runtime_code_changed": false,
+  "production_installation_changed": false,
+  "delivered": [
+    "Windows installer accepts -Codex as an explicit alternative to -McpConfigPath.",
+    "Uses the installed Codex CLI to inspect and register the MCP server, preserving other settings without hand-editing TOML.",
+    "Existing same-named servers refuse before installation; registration failures retain the complete installation for recovery.",
+    "Standalone archive includes the updated installer and Codex startup instructions with the already validated full runtime."
+  ],
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\Engram-win-x64.zip",
+    "sha256": "0127eb7f9476ef786aaf0fbea210c2e6fc6933dc8219645bae0007e931840c93",
+    "bytes": 114294983,
+    "checksum_file": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\Engram-win-x64.zip.sha256",
+      "sha256": "96bd3f01ed6778e7f3ead16a9bbcb075d8d770dce42a24112ebe681ad440547a"
+    },
+    "entries": 218,
+    "runtime_assets": 215,
+    "sidecar_assets": 214,
+    "runtime_manifest_sha256": "db5b857a465f86f8413be7e1d4bbfb9e2eb51ea547b3161de1f2a9340026266c",
+    "runtime_server_sha256": "bb1c70b00bd395b62465729c84303edc055a9460403df1b3a4b04e93ae5cf2b1",
+    "runtime_source_commit": "f5b8684fd17bac03610899724f52cd0c6786fff9"
+  },
+  "validation": {
+    "checks": {
+      "complete_standalone_archive": true,
+      "existing_client_preserved": true,
+      "native_codex_registration": true,
+      "existing_codex_name_refused": true,
+      "exact_registered_command": true,
+      "bundled_sidecar_running": true,
+      "vb_source_recovered": true,
+      "source_unchanged": true,
+      "bundled_sidecar_closed": true,
+      "live_codex_config_unchanged": true
+    },
+    "sample_files_indexed": 13,
+    "json_client_regression": "PASS: existing/new client, complete assets, existing-install/name preservation and corrupt-package refusal.",
+    "codex_profile": "New owned CODEX_HOME with preexisting sample settings and server; actual user config hash unchanged.",
+    "native_codex": "mcp add wrote configuration; mcp get --json returned the exact command, args and environment.",
+    "codex_cli_version": "codex-cli 0.167.0",
+    "source_recovered": "PhotoRules.CanComplete: If group.UploadedPhotos.Count < group.RequiredImageCount Then Return False",
+    "exact_registered_command": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\owned-mb33_6et\\engram\\bin\\engram_server.exe",
+      "--no-daemon"
+    ],
+    "model_requests": 0
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\contract.json",
+      "sha256": "ed9e78f666053eae191de78cd77f4837caf012c10d6637ed1c0658cb9b71277f"
+    },
+    "bundle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\bundle1.json",
+      "sha256": "0797ab514a2c0527f5ffc6694dfc385a9bd1e3017ec48e25217cd1ba8a7a90aa"
+    },
+    "json_regression": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\json-regression1.log",
+      "sha256": "5cb88d1589bca0a755c38ede7b696718cff170b9d8e6a7d8ca9bbf28f4576fd9"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\acceptance.json",
+      "sha256": "6d1e5c691905ed3aef4a40c8dc27208a97069fb80a6cd2e2412affa1264e3175"
+    },
+    "codex_get": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\codex-get.json",
+      "sha256": "e5d6d8ace5ec7ec145e9a4b58acaf3a95f0eabc65ffa942dfd04c48b571f8141"
+    },
+    "registered_profile": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\registered-config.toml",
+      "sha256": "b41af2801743a40994ccd69994f67cf131ba88fd46223ac36b1511ed4e2828b4"
+    },
+    "duplicate_refusal": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\duplicate-refusal.log",
+      "sha256": "1171c57b8b5b4b246b9ba7e8fe6e98c1161acee36387d7b9c6d5c37335b341de"
+    },
+    "retrieved_source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\recovered.json",
+      "sha256": "421e0bcd9197aa597e6758e7893baf3604e39c5b17e0f8834d968555bbd89c41"
+    },
+    "installer_output": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install\\actual1\\installer.log",
+      "sha256": "7ee8a3461234f1818d6c4d53694ded9d61ee26d9b6f0860cb84a3bd4af37946e"
+    }
+  },
+  "documentation_source": "https://developers.openai.com/codex/mcp",
+  "limits": [
+    "Native Codex CLI registration and exact registered stdio command verified; no live GUI or Codex model-task execution claimed.",
+    "Local archive only; public download hosting and macOS/Linux distribution remain unfinished.",
+    "Small owned VB/WebForms fixture, not OciusX indexing throughput or comparative AI productivity.",
+    "Existing live Codex connection preserved; this is an explicit first-time installation option.",
+    "Parent source review and native CLI/public MCP acceptance only; no external CodeRabbit review."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install",
+    "owned_profile_installation_and_sample_removed": true,
+    "server_and_sidecar_closed": true,
+    "preserved_wip9": true,
+    "retention": "Keep archive/checksum and delivery evidence for distribution/review. No preexisting directory removed."
+  }
+}
