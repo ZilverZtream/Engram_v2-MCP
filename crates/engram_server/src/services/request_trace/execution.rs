@@ -451,6 +451,7 @@ pub(super) fn trace_selected(
                 EdgeKind::StoredProcWritesTable,
             ]);
         }
+        let mut contract_ids = Vec::new();
         for kind in kinds {
             let (edges, truncated) =
                 graph.outgoing_edges_of_kind(project, kind.clone(), &node.node_id, MAX_EDGES)?;
@@ -481,6 +482,17 @@ pub(super) fn trace_selected(
                     Some(target) => verified_node(graph, project, target, sources, selected)?,
                     None => false,
                 };
+                if kind == EdgeKind::Calls && target_verified
+                    && target.as_ref().and_then(|n| n.metadata.as_ref())
+                        .and_then(|m| m.get("interface_member_declaration"))
+                        .is_some_and(|v| v == "true" || v == true)
+                {
+                    if contract_ids.len() < 16 {
+                        contract_ids.push(edge.target_id.clone());
+                    } else {
+                        result.gaps.push("Interface implementation expansion limited to 16 called contracts per member".into());
+                    }
+                }
                 let mut table_mapping = None;
                 if kind == EdgeKind::QueriesTable
                     && matches!(node.language.as_str(), "vb" | "vbnet")
@@ -538,6 +550,56 @@ pub(super) fn trace_selected(
                             .push(format!("{}: unresolved target", edge.target_id));
                     }
                 }
+            }
+        }
+        if !contract_ids.is_empty() {
+            // Reuse the compiler-backed call/Implements join. The callback uses
+            // the file already read by that transaction; no nested graph reads.
+            let admit = |candidate: &Node, file: Option<&Node>| {
+                use engram_graph::store::ImpactAdmission;
+                if selected.get(candidate.file_path.as_str()) != Some(&candidate.generation) {
+                    return Ok(ImpactAdmission::NonSelectedRevision);
+                }
+                let current = file.and_then(|file| file.metadata.as_ref())
+                    .and_then(|meta| meta.get("file_hash")).and_then(|hash| hash.as_str())
+                    .zip(sources.iter().find(|source| source.path == candidate.file_path.as_str()))
+                    .is_some_and(|(hash, source)| hash == blake3::hash(source.content.as_bytes()).to_hex().as_str());
+                Ok(if current { ImpactAdmission::Selected } else { ImpactAdmission::Unknown })
+            };
+            let dispatch = graph.bounded_interface_implementations(
+                project, &node.node_id, &contract_ids, &admit, &|_| false)?;
+            for reason in dispatch.coverage.reasons {
+                result.gaps.push(format!("{}: interface implementation coverage: {reason}", node.node_id));
+            }
+            for route in dispatch.routes {
+                if result.paths.len() >= MAX_EDGES {
+                    result.gaps.push(format!("Complete path response truncated at {MAX_EDGES} edges"));
+                    break;
+                }
+                let implementation = route.implementation;
+                if !verified_node(graph, project, &implementation, sources, selected)? {
+                    result.gaps.push(format!("{}: implementation source changed; candidate withheld", implementation.node_id));
+                    continue;
+                }
+                result.paths.push(Hop {
+                    from: route.contract.node_id,
+                    to: implementation.node_id.clone(),
+                    kind: "interface_implementation_candidate".into(),
+                    target_name: implementation.name.clone(),
+                    target_file: Some(implementation.file_path.to_string()),
+                    target_line: Some(implementation.start_line),
+                    target_source_verified: true,
+                    evidence: Some(serde_json::json!({
+                        "caller":route.caller.node_id,"call_lines":route.reference_lines,
+                        "call_lines_truncated":route.reference_lines_truncated,
+                        "implements_clause_line":route.clause_line,"contract_type":route.contract_type,
+                        "contract_type_key":route.contract_type_key,
+                        "call_generation":route.call_generation,"mapping_generation":route.mapping_generation,
+                        "interpretation":"Compiler-backed explicit Implements candidate for the same called contract. Runtime receiver, DI registration selection and execution are not proven; downstream paths are conditional on this candidate."
+                    })),
+                    table_mapping: None,
+                });
+                queue.push_back((implementation, depth + 2));
             }
         }
     }

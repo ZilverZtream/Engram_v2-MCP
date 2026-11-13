@@ -15,6 +15,88 @@ const HELPER: &str = "Public Class Orders\nPublic Shared Sub Save()\nCallProcedu
 const SQL: &str =
     "CREATE PROCEDURE dbo.CreateOrder AS\nINSERT INTO dbo.Orders (Name) VALUES ('test');\n";
 
+#[test]
+fn request_follows_explicit_interface_implementation_to_database_evidence() {
+    interface_trace(false);
+}
+
+#[test]
+fn request_withholds_changed_interface_implementation() {
+    interface_trace(true);
+}
+
+fn interface_trace(stale_implementation: bool) {
+    use engram_graph::store::{InterfaceBinding, InterfaceBindings, InterfaceMemberLocator, INTERFACE_BINDINGS};
+    let temporary = tempfile::tempdir().unwrap();
+    let graph = Arc::new(GraphStore::open(&temporary.path().join("graph.redb")).unwrap());
+    let caller_source = "Public Class Consumer\nPublic Sub Run()\n_service.Save()\nEnd Sub\nEnd Class\n";
+    let contract_source = "Public Interface IStore\nSub Save()\nEnd Interface\n";
+    let implementation_source = "Public Class Store\nImplements IStore\nPublic Sub Persist() Implements IStore.Save\nOrders.Save()\nEnd Sub\nEnd Class\n";
+    let decoy_source = "Public Class OtherStore\nPublic Sub Persist()\nEnd Sub\nEnd Class\n";
+    let mut source_set = vec![
+        Source { path:"Consumer.vb",content:caller_source },
+        Source { path:"IStore.vb",content:contract_source },
+        Source { path:"Store.vb",content:implementation_source },
+        Source { path:"OtherStore.vb",content:decoy_source },
+        Source { path:"Orders.vb",content:HELPER },
+        Source { path:"orders.sql",content:SQL },
+    ];
+    let make = |path: &str, name: &str, start, end, contract| {
+        let id = engram_core::ids::NodeId::symbol("function", None, path, name, start).0;
+        let mut n = node(&id, "function", name, path, start, end);
+        n.metadata = Some(json!({"semantic_member_id":format!("M:{name}"),
+            "semantic_span_start":start.to_string(),"semantic_span_length":"5",
+            "interface_member_declaration":if contract {"true"} else {"false"}}));
+        n
+    };
+    let caller = make("Consumer.vb","Consumer.Run",2,4,false);
+    let contract = make("IStore.vb","IStore.Save",2,2,true);
+    let implementation = make("Store.vb","Store.Persist",3,5,false);
+    let decoy = make("OtherStore.vb","OtherStore.Persist",2,3,false);
+    let save = make("Orders.vb","Orders.Save",2,4,false);
+    let procedure = node("proc","stored_procedure","dbo.CreateOrder","orders.sql",1,2);
+    let table = node("table","db_table","dbo.Orders","orders.sql",2,2);
+    let mut nodes = vec![caller.clone(),contract.clone(),implementation.clone(),decoy.clone(),save.clone(),procedure.clone(),table.clone()];
+    let mut selected = BTreeMap::new();
+    let mut hashes = BTreeMap::new();
+    for source in &source_set {
+        let hash = blake3::hash(source.content.as_bytes()).to_hex().to_string();
+        hashes.insert(source.path,hash.clone());
+        let mut file = node(&format!("file:{}",source.path),"file",source.path,source.path,1,source.content.lines().count() as u32);
+        file.metadata = Some(json!({"file_hash":hash,"vb_syntax_source_sha256":"c".repeat(64),"vb_parser_provenance":{"backend":"roslyn","parser":"fixture"}}));
+        nodes.push(file);selected.insert(source.path.to_string(),1);
+    }
+    let edge = |source: &Node,target: &Node,kind| Edge {
+        source_id:source.node_id.clone(),target_id:target.node_id.clone(),edge_kind:kind,weight:1,updated_at_ms:0,namespace:"memory".into(),language:"vbnet".into(),generation:1,metadata:None,
+    };
+    let mapping = |source: &Node,kind| {
+        let mut e = edge(source,&contract,kind);
+        let binding = InterfaceBinding {
+            target:InterfaceMemberLocator {version:1,name:contract.name.clone(),semantic_id:"M:IStore.Save".into(),file_path:"IStore.vb".into(),start_line:2,span_start:2,span_length:5,syntax_source_sha256:"c".repeat(64),contract_type_key:"a".repeat(64),contract_type:"Global.IStore".into()},
+            source_semantic_id:format!("M:{}",source.name),source_generation:1,source_file_hash:hashes[source.file_path.as_str()].clone(),target_generation:1,target_file_hash:hashes["IStore.vb"].clone(),parser:json!({"backend":"roslyn","parser":"fixture"}),reference_lines:vec![source.start_line],reference_lines_truncated:false,
+        };
+        e.metadata = Some(json!({INTERFACE_BINDINGS:InterfaceBindings {version:1,complete:true,bindings:vec![binding]}}));e
+    };
+    let edges = vec![mapping(&caller,EdgeKind::Calls),mapping(&implementation,EdgeKind::Implements),
+        edge(&implementation,&save,EdgeKind::Calls),edge(&save,&procedure,EdgeKind::CallsStoredProcedure),edge(&procedure,&table,EdgeKind::StoredProcWritesTable)];
+    graph.upsert_nodes_and_edges("trace",&nodes,&edges).unwrap();
+    if stale_implementation {source_set[2].content = "Public Class Store\nEnd Class\n";}
+    let result = execution::trace_selected(&graph,"trace",execution::empty_trace("Consumer.vb",true,false),vec![(caller,"explicit source entry".into())],true,&source_set,&selected).unwrap();
+    assert!(!result.paths.iter().any(|hop| hop.to==decoy.node_id));
+    if stale_implementation {
+        assert!(!result.paths.iter().any(|hop| hop.to==implementation.node_id || hop.to=="table"));
+        assert!(!result.gaps.is_empty());
+    } else {
+        let dispatch = result.paths.iter().find(|hop| hop.kind=="interface_implementation_candidate").expect("explicit implementation must be navigable");
+        assert_eq!(dispatch.from,contract.node_id);assert_eq!(dispatch.to,implementation.node_id);
+        assert!(dispatch.target_source_verified);
+        assert!(dispatch.evidence.as_ref().unwrap()["interpretation"].as_str().unwrap().contains("not proven"));
+        assert!(result.source_members.iter().any(|m|m["file"]=="Store.vb" && m["excerpt"].as_str().unwrap().contains("Orders.Save()")));
+        assert!(result.paths.iter().any(|hop|hop.to=="table"));
+    }
+    drop(graph);temporary.close().unwrap();
+}
+
 fn sources<'a>(vb: &'a str) -> Vec<Source<'a>> {
     vec![
         Source {
