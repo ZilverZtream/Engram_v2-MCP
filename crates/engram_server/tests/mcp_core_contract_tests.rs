@@ -294,6 +294,148 @@ fn copy_tree(source: &Path, target: &Path) -> Result<()> {
     Ok(())
 }
 
+// Fixed before measurement; each query has its own gate so fast queries cannot
+// hide a slower path. This small-fixture gate is not a production latency SLA.
+const LATENCY_SAMPLES: usize = 40;
+fn latency_gate(samples: &[Duration], budget: Duration) -> Result<Duration> {
+    ensure!(
+        samples.len() == LATENCY_SAMPLES,
+        "Incomplete timing sample set"
+    );
+    let mut ordered = samples.to_vec();
+    ordered.sort_unstable();
+    let p95 = ordered[(95 * ordered.len()).div_ceil(100) - 1];
+    ensure!(
+        p95 <= budget,
+        "Fixture p95 {p95:?} exceeds fixed {budget:?} budget"
+    );
+    Ok(p95)
+}
+
+#[test]
+fn latency_gate_rejects_slow_tail_and_missing_measurements() {
+    let fast = Duration::from_millis(10);
+    let slow = Duration::from_millis(300);
+    let budget = Duration::from_millis(200);
+    let mut samples = vec![fast; LATENCY_SAMPLES];
+    samples[0] = slow;
+    samples[20] = slow;
+    assert_eq!(latency_gate(&samples, budget).unwrap(), fast);
+    samples[39] = slow;
+    assert!(latency_gate(&samples, budget).is_err());
+    assert!(latency_gate(&samples[..39], budget).is_err());
+}
+
+#[test]
+fn hot_read_latency_through_production_mcp() -> Result<()> {
+    let mut fixture = Fixture {
+        server: None,
+        temporary: Some(tempfile::tempdir()?),
+    };
+    let owned = fixture
+        .temporary
+        .as_ref()
+        .context("Fixture owner missing")?
+        .path()
+        .to_owned();
+    let root = owned.join("project");
+    copy_tree(
+        &PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../tests/fixtures/webforms_retrieval/source"),
+        &root,
+    )?;
+    commit(&root)?;
+    fixture.server = Some(Server::start(&owned, std::slice::from_ref(&root))?);
+    let client = fixture.server.as_mut().context("Server owner missing")?;
+    let initialized = client.rpc("initialize", json!({"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"owned-latency-test","version":"1"}}))?;
+    ensure!(initialized["result"]["capabilities"]["tools"].is_object());
+    client.send(&json!({"jsonrpc":"2.0","method":"notifications/initialized"}))?;
+    let pid = identity(&client.ok("index_project", json!({"directory":root,"project_name":"Read latency fixture","project_type":"general","wait":true}))?)?;
+    let mut reports = Vec::new();
+    for (file, method) in [
+        (FILE, METHOD),
+        ("client/export.ts", "exportRows"),
+        ("client/grid-preferences.ts", "saveColumnVisibility"),
+    ] {
+        let authored = std::fs::read_to_string(root.join(file))?;
+        ensure!(authored.contains(&format!("export function {method}(")));
+        for (tool, budget_ms, args) in [
+            (
+                "search_memory",
+                250,
+                json!({"project_id":pid,"query":method,"semantic":false,"fts_mode":"loose","use_mmr":false,"output_json":true,"include_content":true}),
+            ),
+            (
+                "get_method_info",
+                200,
+                json!({"project_id":pid,"fqn_or_name":method,"file_path":file,"output_json":true}),
+            ),
+        ] {
+            let mut samples = Vec::new();
+            let mut first_ms = 0.0;
+            // First request + two warm-ups are reported separately from the
+            // forty retained samples. Never retry or discard a timed response.
+            let mut warmup_ms = Vec::new();
+            for attempt in 0..LATENCY_SAMPLES + 3 {
+                let start = Instant::now();
+                let text = client.ok(tool, args.clone())?;
+                let elapsed = start.elapsed();
+                let value: Value = serde_json::from_str(&text)?;
+                if tool == "search_memory" {
+                    ensure!(
+                        value["results"]
+                            .as_array()
+                            .is_some_and(|hits| hits.iter().any(|hit| hit["path"] == file
+                                && hit["content"]
+                                    .as_str()
+                                    .is_some_and(|body| body.contains(method)))),
+                        "Fast search must still recover the authored answer: {value}"
+                    );
+                } else {
+                    let methods = value.as_array().context("Expected method result array")?;
+                    ensure!(
+                        methods.len() == 1
+                            && methods[0]["file_path"] == file
+                            && methods[0]["fqn"]
+                                .as_str()
+                                .is_some_and(|name| name.ends_with(method))
+                            && methods[0]["line_start"]
+                                .as_u64()
+                                .is_some_and(|line| line > 0),
+                        "Fast lookup must still identify the authored method: {value}"
+                    );
+                }
+                match attempt {
+                    0 => first_ms = elapsed.as_secs_f64() * 1000.0,
+                    1 | 2 => warmup_ms.push(elapsed.as_secs_f64() * 1000.0),
+                    _ => samples.push(elapsed),
+                }
+            }
+            // Print all measurements before enforcing the gate, retaining the
+            // complete evidence even when a timing regression fails the test.
+            let mut sorted = samples.clone();
+            sorted.sort_unstable();
+            let report = json!({"tool":tool,"file":file,"method":method,"samples":samples.len(),
+                "samples_ms":samples.iter().map(|d|d.as_secs_f64()*1000.0).collect::<Vec<_>>(),
+                "first_request_ms":first_ms,"warmup_ms":warmup_ms,"budget_ms":budget_ms,
+                "p95_ms":sorted[37].as_secs_f64()*1000.0,"max_ms":sorted[39].as_secs_f64()*1000.0});
+            println!("MCP_LATENCY_CASE {report}");
+            latency_gate(&samples, Duration::from_millis(budget_ms))?;
+            reports.push(report);
+        }
+    }
+    client.close()?;
+    drop(fixture);
+    ensure!(!owned.exists(), "Latency fixture leaked");
+    println!(
+        "MCP_LATENCY_REPORT {}",
+        json!({"status":"PASS","cases":reports,
+        "server_closed":true,"fixture_removed":true,"provider":"none","optional_sidecar":"absent",
+        "scope":"13-file authored fixture, sequential warm stdio requests; not production-scale latency"})
+    );
+    Ok(())
+}
+
 #[test]
 fn twenty_tools_through_production_mcp() -> Result<()> {
     let mut fixture = Fixture {
