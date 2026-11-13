@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "name": "webforms-workflow-retrieval",
+  "description": "Authored lexical-search regression corpus for WebForms workflows; synthetic source, not private application or semantic/model-quality evidence.",
+  "k": 5,
+  "candidate_chunks": 25,
+  "min_mean_reciprocal_rank": 0.75,
+  "min_mean_precision_at_k": 0.2,
+  "require_all_relevant_paths": true,
+  "source_files": [
+    "Site/App_Code/LoginAudit.vb",
+    "Site/App_Code/MapLayers.vb",
+    "Site/App_Code/PhotoRules.vb",
+    "Site/Login.aspx",
+    "Site/Login.aspx.vb",
+    "Site/MapLayers.aspx",
+    "Site/MapLayers.aspx.vb",
+    "client/export.ts",
+    "client/grid-preferences.ts",
+    "client/photo-badge.js",
+    "client/upload.ts",
+    "database/export-history.sql",
+    "database/photo-requirements.sql"
+  ],
+  "queries": [
+    {
+      "query_id": "credentials",
+      "query": "where are login credentials validated against a password hash",
+      "query_class": "credentials",
+      "relevant_paths": [
+        "Site/Login.aspx.vb"
+      ],
+      "rationale": "ValidateCredentials rejects empty input and verifies the account password hash.",
+      "language": "vbnet"
+    },
+    {
+      "query_id": "completion",
+      "query": "minimum required photos before completion",
+      "query_class": "completion",
+      "relevant_paths": [
+        "Site/App_Code/PhotoRules.vb"
+      ],
+      "rationale": "CanComplete compares each group uploaded count with RequiredImageCount.",
+      "language": "vbnet"
+    },
+    {
+      "query_id": "layer-visibility",
+      "query": "map layer visibility owning project shared",
+      "query_class": "layer-visibility",
+      "relevant_paths": [
+        "Site/App_Code/MapLayers.vb"
+      ],
+      "rationale": "IsVisible checks owning project or an explicitly shared layer.",
+      "language": "vbnet"
+    },
+    {
+      "query_id": "csv",
+      "query": "CSV export semicolon separator empty fields",
+      "query_class": "csv",
+      "relevant_paths": [
+        "client/export.ts"
+      ],
+      "rationale": "exportRows quotes fields, preserves empty cells and joins with a semicolon.",
+      "language": "typescript"
+    },
+    {
+      "query_id": "photo-badge",
+      "query": "display remaining required photos beside upload button",
+      "query_class": "photo-badge",
+      "relevant_paths": [
+        "client/photo-badge.js"
+      ],
+      "rationale": "renderPhotoBadge computes and displays the remaining count.",
+      "language": "javascript"
+    },
+    {
+      "query_id": "photo-schema",
+      "query": "table required image count photo group marker type",
+      "query_class": "photo-schema",
+      "relevant_paths": [
+        "database/photo-requirements.sql"
+      ],
+      "rationale": "PhotoRequirement stores RequiredImageCount by marker type and photo group.",
+      "language": "sql"
+    },
+    {
+      "query_id": "grid-binding",
+      "query": "bind project visible layers grid DataSource DataBind",
+      "query_class": "grid-binding",
+      "relevant_paths": [
+        "Site/MapLayers.aspx.vb"
+      ],
+      "rationale": "LoadLayers assigns the filtered records and binds the WebForms grid.",
+      "language": "vbnet"
+    },
+    {
+      "query_id": "upload-size",
+      "query": "image upload size limit validation",
+      "query_class": "upload-size",
+      "relevant_paths": [
+        "client/upload.ts"
+      ],
+      "rationale": "validateImageUpload rejects non-images and files above maxBytes.",
+      "language": "typescript"
+    }
+  ]
+}
