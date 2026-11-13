@@ -1,0 +1,42 @@
+{
+  "status": "ACTIVE_USER_PRIORITY_CORRECTION",
+  "at_utc": "2026-11-13T16:50:38.149551+00:00",
+  "user_instruction": "Focus on getting the product ready for actual AI use; stop edge-case work.",
+  "active_item": "TODO32 normal OciusX feature planning correctness",
+  "runtime_change": false,
+  "new_model_calls": 0,
+  "retained_method_budget_work": {
+    "status": "DEFERRED_BY_USER_AI_READINESS_PRIORITY",
+    "at_utc": "2026-11-13T16:47:15.876898+00:00",
+    "stash_commit": "fdf6b2c753f99e525e8c0360f20c0f82915984dd",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "files_sha256": {
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "bc7b65a45d3c15874584c4f21c18233fb91f0127f90cef3b9beeab1677506e4f",
+      "crates/engram_server/src/models/requests.rs": "c208f76fe78e59563ca9ac91acc673a4e859cfd7866299d2b75433b71774d49c",
+      "crates/engram_server/src/handlers/access_layer_tools/method_response.rs": "b7632aefa1b4c695a43d2386d30d8ead30143c0f2ffeecb785a7b6938cd9a1e1"
+    },
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-budget\\baseline1\\observation.json",
+    "implementation_complete": false,
+    "tests_run": 0,
+    "reason": "User prioritizes normal AI task completion over further edge-case/response engineering. Retain this incomplete patch; do not count it as delivered."
+  },
+  "diagnosis": {
+    "prior_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\feature-plan\\normal7\\plan.json",
+    "prior_plan_sha256": "b4bd921be95ef8d9c728a9fc84db618da4bcc8f728f36ec520d405b4390d6197",
+    "code_changed_since_failed_run": false,
+    "evidence_present": [
+      "E14 supplies the required-count control binding.",
+      "E15 supplies the separate capacity and required-count clamp.",
+      "Intent unknowns explicitly retain the unresolved global/per-entity/per-workflow scope."
+    ],
+    "failure": "Assembly conflates supplied source concepts and upgrades an unresolved product-scope question into a requested global extension.",
+    "implication": "Address the proposal workflow; do not add source scans, language support or generic boundary tests as a substitute."
+  },
+  "acceptance": [
+    "Distinguish actual requested behavior from unresolved scope and model assumptions.",
+    "Keep capacity and required-minimum controls, values and persistence distinct.",
+    "Produce a useful existing-behavior/missing-work plan for the ordinary request, with concrete source evidence.",
+    "Retain original failed acceptance and verify the resulting actual plan; no relaxed criteria or repeated per-sample prompt grind."
+  ],
+  "goal_scope": "Full original backlog remains active; this changes immediate priority, not the definition of completion."
+}

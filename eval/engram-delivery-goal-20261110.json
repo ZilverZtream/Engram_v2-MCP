@@ -40,37 +40,23 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DEPLOYED_ACTUAL_ANSWER_NOT_ACCEPTED",
-    "finding": "TODO28 optional cited ask_codebase synthesis",
-    "original_requirement": "TODO28/spec43-1: natural-language entry point returns a synthesized cited answer; deterministic router first, optional LLM synthesis later. OciusX config has llm_backend=openai and a configured text model.",
-    "observed_missing_behavior": "Current AskReport always sets mode=retrieval_only; request schema exposes no synthesis opt-in and handler never calls configured generation.",
-    "behavior": "Opt-in bounded cited synthesis from the existing evidence report using configured generation. Preserve retrieval status, gaps, conflicts and evidence. Default remains deterministic. Invalid citations, unavailable provider and timeout disclose fallback without discarding evidence.",
-    "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/src/services/ask_engine/synthesis.rs",
-      "crates/engram_server/src/services/ask_engine/report.rs",
-      "crates/engram_server/src/tools.rs"
-    ],
+    "status": "SELECTED_USER_AI_READINESS_PRIORITY",
+    "finding": "TODO32 normal OciusX feature planning correctness",
+    "original_requirement": "Produce a usable cited pre-edit dossier for a normal feature request. Latest explicit user steering prioritizes product readiness for actual AI use, not further edge-case work.",
+    "observed_missing_behavior": "Retained installed plan confuses configured photo-slot capacity with required minimum and treats an unspecified scope as a requested global setting.",
     "acceptance": [
-      "Default request makes no synthesis call; explicit opt-in yields typed statements linked to actual report evidence.",
-      "Fabricated or missing citations and provider failure retain retrieval-only report with an explicit reason.",
-      "JSON/Markdown retain original status, gaps and evidence; generation cannot upgrade retrieval confidence.",
-      "One actual OciusX source question produces a cited answer reviewed against independent source, or is recorded honestly as semantic acceptance failure without repeated tuning."
+      "User-requested requirements remain distinguishable from model assumptions; no invented broader setting is treated as requested.",
+      "Source facts distinguish capacity, minimum requirement and where each is configured/persisted.",
+      "The resulting plan identifies existing implementation versus necessary changes, with usable source evidence and explicit decisions still needed.",
+      "Use the existing failed actual OciusX request and ordinary independent fixture behavior; do not loosen criteria or start a repeated per-sample prompt/release cycle."
     ],
-    "limits": [
-      "Reference validation does not establish semantic correctness.",
-      "No change to retrieval ranking, graph expansion, CodeMap, Blast Radius or other language support.",
-      "No claim of matched task benefit or full original backlog completion."
-    ],
+    "scope": "One implementation item: correct the actual planning workflow. Preserve all failed evidence and completed tool deliveries. No CodeMap/Blast, language expansion or broad audit.",
     "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis",
-    "source_commit": "a3c9641aa30613d5c1187e41ee68276c02a120c9",
-    "progress": "eval/ociusx-ask-synthesis-progress-20261113.json",
-    "remaining": [
-      "Actual answer acceptance failed; preserve exact findings, no repeated per-sample tuning."
-    ],
-    "delivery": "eval/ociusx-ask-synthesis-delivery-20261113.json"
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-plan-readiness",
+    "retained_method_budget": {
+      "stash_commit": "fdf6b2c753f99e525e8c0360f20c0f82915984dd",
+      "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-budget\\retained-work.json"
+    }
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -450,5 +436,54 @@
     "remaining": [
       "Original broader backlog remains active; do not reopen these delivered behaviors merely because their older closure text was stale."
     ]
-  }
+  },
+  "retained_ask_synthesis_delivery": {
+    "status": "DEPLOYED_ACTUAL_ANSWER_NOT_ACCEPTED",
+    "finding": "TODO28 optional cited ask_codebase synthesis",
+    "original_requirement": "TODO28/spec43-1: natural-language entry point returns a synthesized cited answer; deterministic router first, optional LLM synthesis later. OciusX config has llm_backend=openai and a configured text model.",
+    "observed_missing_behavior": "Current AskReport always sets mode=retrieval_only; request schema exposes no synthesis opt-in and handler never calls configured generation.",
+    "behavior": "Opt-in bounded cited synthesis from the existing evidence report using configured generation. Preserve retrieval status, gaps, conflicts and evidence. Default remains deterministic. Invalid citations, unavailable provider and timeout disclose fallback without discarding evidence.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/services/ask_engine/synthesis.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/tools.rs"
+    ],
+    "acceptance": [
+      "Default request makes no synthesis call; explicit opt-in yields typed statements linked to actual report evidence.",
+      "Fabricated or missing citations and provider failure retain retrieval-only report with an explicit reason.",
+      "JSON/Markdown retain original status, gaps and evidence; generation cannot upgrade retrieval confidence.",
+      "One actual OciusX source question produces a cited answer reviewed against independent source, or is recorded honestly as semantic acceptance failure without repeated tuning."
+    ],
+    "limits": [
+      "Reference validation does not establish semantic correctness.",
+      "No change to retrieval ranking, graph expansion, CodeMap, Blast Radius or other language support.",
+      "No claim of matched task benefit or full original backlog completion."
+    ],
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-synthesis",
+    "source_commit": "a3c9641aa30613d5c1187e41ee68276c02a120c9",
+    "progress": "eval/ociusx-ask-synthesis-progress-20261113.json",
+    "remaining": [
+      "Actual answer acceptance failed; preserve exact findings, no repeated per-sample tuning."
+    ],
+    "delivery": "eval/ociusx-ask-synthesis-delivery-20261113.json"
+  },
+  "retained_method_budget_work": {
+    "status": "DEFERRED_BY_USER_AI_READINESS_PRIORITY",
+    "at_utc": "2026-11-13T16:47:15.876898+00:00",
+    "stash_commit": "fdf6b2c753f99e525e8c0360f20c0f82915984dd",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "files_sha256": {
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "bc7b65a45d3c15874584c4f21c18233fb91f0127f90cef3b9beeab1677506e4f",
+      "crates/engram_server/src/models/requests.rs": "c208f76fe78e59563ca9ac91acc673a4e859cfd7866299d2b75433b71774d49c",
+      "crates/engram_server/src/handlers/access_layer_tools/method_response.rs": "b7632aefa1b4c695a43d2386d30d8ead30143c0f2ffeecb785a7b6938cd9a1e1"
+    },
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-budget\\baseline1\\observation.json",
+    "implementation_complete": false,
+    "tests_run": 0,
+    "reason": "User prioritizes normal AI task completion over further edge-case/response engineering. Retain this incomplete patch; do not count it as delivered."
+  },
+  "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }
