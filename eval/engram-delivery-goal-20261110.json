@@ -40,8 +40,34 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
-    "next_action": "Advance the next unfinished original OciusX requirement. History restart and continuation acceptance are complete; do not expand them into ranking/cache experiments or repeat passed cases. Preserve all broader unfinished findings and CodeMap/Blast holds."
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "finding": "EG-19 scoped review-decision applicability",
+    "original_requirement": "Supply relevant prior rulings with explicit scope, evidence and revision applicability; retain findings when code changes.",
+    "observed_missing_behavior": "Decision records cannot represent declared file scope or the reviewed revision. Standalone discovery relies only on prose path mentions; review always reports applicability unestablished even when source evidence can distinguish changed files.",
+    "behavior": "Optional immutable scope with exact repository-relative paths, reviewed commit and complete conditions. Review discovers explicitly scoped decisions, reports submitted scope intersections and Git/worktree source comparisons, and requires reassessment of affected decisions without suppressing findings. Legacy records retain unknown applicability.",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/review_decisions.rs",
+      "crates/engram_server/src/handlers/review_tools.rs",
+      "crates/engram_server/src/handlers/review_tools/prior_context.rs",
+      "crates/engram_server/src/services/code_review_ingest_service.rs",
+      "crates/engram_server/tests/review_prior_context_tests.rs",
+      "docs/review-evidence.md"
+    ],
+    "acceptance": [
+      "Public record/recovery retains explicit scope and conditions; legacy event serialization/hashes remain unchanged.",
+      "VB/WebForms-shaped review discovers scoped decisions without prose path mentions and excludes unrelated explicit scopes even when prose mentions a changed file.",
+      "Review identifies changed scoped source, unchanged source and unavailable baseline separately, and never equates matching HEAD with applicability of a submitted patch.",
+      "JSON/Markdown retain decision evidence and current findings; existing bounded response/recovery and historical cutoff checks remain passing.",
+      "Validate candidate and installed public MCP behavior before marking deployed."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope",
+    "review": "Code-review skill retained; CodeRabbit host authentication unavailable; scoped manual review required.",
+    "limits": [
+      "Declared authorship/conditions are evidence, not authenticated policy authority. No automatic exception suppression or semantic validation of conditions."
+    ],
+    "resource_retention": "Reuse existing batch-read-source checkout and shared target. Retain receipts here; remove owned fixture temp after handles close. No preexisting directory deletion.",
+    "source_commit": "7ed6b907fbfe67d6a1a79b63d670faaa83e86fe5",
+    "progress": "eval/ociusx-review-scope-progress-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -145,5 +171,6 @@
   "vb_instruction_evidence_delivery": "eval/ociusx-vb-instruction-evidence-delivery-20261113.json",
   "latest_history_restart_acceptance": "eval/ociusx-history-restart-acceptance-20261113.json",
   "instruction_scope_delivery": "eval/ociusx-instruction-scope-delivery-20261113.json",
-  "history_guidance_delivery": "eval/ociusx-history-guidance-delivery-20261113.json"
+  "history_guidance_delivery": "eval/ociusx-history-guidance-delivery-20261113.json",
+  "review_scope_progress": "eval/ociusx-review-scope-progress-20261113.json"
 }
