@@ -1,0 +1,44 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T18:52:30.553871+00:00",
+  "finding": "EG20/EG21 usable history with unavailable configured embeddings",
+  "source_commit": "d286e20",
+  "runtime_source_commit": "f109f54ac697a3065df6963f27eabd2dbb1b9e8e",
+  "observed_before": "Installed stdio MCP precedent search returned an RPC error for a provider HTTP503 despite one matching Git commit.",
+  "implemented": "Document/query embedding failure falls back to filtered Git metadata and labels lexical retrieval; later provider recovery restores semantic ranking.",
+  "validation": {
+    "native_cases": 13,
+    "document_and_query_failure": true,
+    "filter_and_cutoff_preservation": true,
+    "json_and_markdown_disclosure": true,
+    "provider_recovery": true
+  },
+  "current_configuration": {
+    "embedding_backend": "ollama",
+    "embedding_model": "nomic-embed-text",
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+  },
+  "deployed": false,
+  "remaining": [
+    "Finish the same release build; package without changing source.",
+    "Run prepared candidate/installed MCP outage checks and deploy only after candidate acceptance.",
+    "Record final runtime identity and cleanup evidence."
+  ],
+  "evidence": {
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\baseline1\\acceptance.json",
+    "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\native1.json",
+    "source": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\implementation1.json",
+    "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\manual-review.json",
+    "build_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\release1-owner.json"
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback",
+    "native_and_baseline_fixtures_cleaned": true,
+    "preserved_wip9": true
+  },
+  "limits": [
+    "No semantic ranking equivalence or timeout reduction claimed.",
+    "No external CodeRabbit review.",
+    "CodeMap/Blast and production configuration unchanged."
+  ]
+}
