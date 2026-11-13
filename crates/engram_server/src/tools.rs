@@ -418,7 +418,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, source-verified business-rule cases, and (for VB members named in change_intent or added by the diff) a residual string-literal call-site sweep. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. For historical replay, knowledge_before excludes undated rules and rules introduced on/after the exclusive YYYY-MM-DD cutoff. Returns proposed cases with evidence limits; it does not execute tests."
+        description = "QA/test-plan generator: given requested changed/planned files, derives WHAT TO TEST: settings that fork behaviour, roles/permissions, shared Session/Application keys, source-verified business-rule cases, and (for VB members named in change_intent or added by the diff) a residual string-literal call-site sweep. Supplies scoped repository guidance with hashes, complete exceptions and explicit omissions, separately from inferred cases. Hot-loads bounded organization rules from data_dir/rules/test-risk-rules.yaml and repository rules from .engram/test-risk-rules.yaml; repository rule IDs override organization IDs without a rebuild. For historical replay, knowledge_before withholds live repository guidance and excludes undated rules and rules introduced on/after the exclusive YYYY-MM-DD cutoff. Returns proposed cases with evidence limits; it does not execute tests."
     )]
     pub async fn derive_test_matrix(
         &self,
