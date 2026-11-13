@@ -77,6 +77,37 @@ fn intent() -> FeatureIntent {
     }).to_string()).unwrap()
 }
 
+#[test]
+fn feature_plan_preserves_authorization_and_validation_requirements_from_model() {
+    // The real minimum-photos request was rejected before evidence retrieval
+    // solely because the provider used these ordinary requirement labels.
+    let mut raw = json!({
+        "requirements":[
+            {"id":"R1","area":"behavior","description":"Provide an administrator-facing capability to set the minimum number of photos required."},
+            {"id":"R2","area":"authorization","description":"Restrict the ability to set the minimum required photo count to authorized administrators."},
+            {"id":"R3","area":"validation","description":"Use the configured minimum photo count when determining whether the relevant photo requirement has been satisfied."}
+        ],
+        "concepts":["minimum required photos","administrator configuration","photo requirement validation"],
+        "schema_names":[],
+        "unknowns":["The scope of the setting is unspecified.","The valid range and default value are unspecified."]
+    });
+    let parsed = parse_intent(&raw.to_string()).unwrap();
+    assert_eq!(parsed.requirements.len(), 3);
+    assert_eq!(parsed.requirements[1].area, "auth");
+    assert_eq!(parsed.requirements[2].area, "behavior");
+    for (requirement, original) in parsed
+        .requirements
+        .iter()
+        .zip(raw["requirements"].as_array().unwrap())
+    {
+        assert_eq!(requirement.id, original["id"]);
+        assert_eq!(requirement.description, original["description"]);
+    }
+    assert_eq!(json!(parsed.unknowns), raw["unknowns"]);
+    raw["requirements"][1]["area"] = json!("execute_arbitrary_command");
+    assert!(parse_intent(&raw.to_string()).is_err());
+}
+
 fn evidence() -> Vec<SourceEvidence> {
     vec![
         SourceEvidence {

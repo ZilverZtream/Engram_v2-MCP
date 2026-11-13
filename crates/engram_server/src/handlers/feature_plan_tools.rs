@@ -144,7 +144,7 @@ impl Engram {
         let mut output = json!({
             "status": "INCOMPLETE", "project_id": req.project_id,
             "detail_level": req.detail_level, "plan": null,
-            "provenance": {"model": identity, "prompt_version":"feature-plan-v2", "provider_calls":0,
+            "provenance": {"model": identity, "prompt_version":"feature-plan-v3", "provider_calls":0,
                 "provider_calls_semantics":"Generation requests; transport retries follow the configured provider policy"},
             "limits": [
                 "Model-generated requirements, edits, DDL and templates are proposals; source anchors do not verify their meaning.",
