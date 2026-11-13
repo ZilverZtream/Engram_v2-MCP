@@ -2691,13 +2691,14 @@ impl GraphStore {
                     _ => false,
                 };
                 if stale {
-                    // Environment identities are project-wide. Their stored file
+                    // Environment and browser-storage identities are project-wide. Their stored file
                     // is an observation owner, not a declaration whose removal
                     // invalidates other files' reads/writes. Transfer ownership
                     // to an unchanged source before retiring this file's edges.
                     // Local module/framework state keeps declaration ownership.
                     if n.node_type == "global_state"
-                        && n.node_id.starts_with("state:Environment:")
+                        && ["state:Environment:", "state:LocalStorage:", "state:SessionStorage:"]
+                            .iter().any(|prefix| n.node_id.starts_with(prefix))
                     {
                         let mut survivor = None;
                         'access: for kind in [EdgeKind::ReadsState, EdgeKind::WritesState] {

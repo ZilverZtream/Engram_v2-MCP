@@ -2,6 +2,23 @@
 use crate::parsing::{ExtractedEdge, SymbolExtractor};
 use std::{collections::BTreeSet, path::Path};
 
+#[test]
+fn browser_storage_tracks_literal_preferences_and_separates_session_state() {
+    let source = "function readPreference() { return localStorage.getItem('theme'); }\nfunction savePreference() { window.localStorage.setItem('theme', 'dark'); }\nfunction resetPreference() { localStorage.removeItem('theme'); }\nfunction readSession() { return sessionStorage.getItem('theme'); }\nfunction saveSession() { globalThis.sessionStorage.setItem('theme', 'light'); }\n";
+    for path in ["preferences.js", "preferences.ts"] {
+        let result = edges(path, source);
+        assert_eq!(observed(&result, "state:LocalStorage:"), expected(&[
+            ("state:LocalStorage:theme", 1, "reads_state"),
+            ("state:LocalStorage:theme", 2, "writes_state"),
+            ("state:LocalStorage:theme", 3, "writes_state"),
+        ]));
+        assert_eq!(observed(&result, "state:SessionStorage:"), expected(&[
+            ("state:SessionStorage:theme", 4, "reads_state"),
+            ("state:SessionStorage:theme", 5, "writes_state"),
+        ]));
+    }
+}
+
 fn edges(path: &str, source: &str) -> Vec<ExtractedEdge> {
     SymbolExtractor::new().extract(Path::new(path), source).1
 }
@@ -325,4 +342,27 @@ fn redux_rebound_or_nested_shadowed_state_does_not_claim_a_store_write() {
         .as_ref()
         .unwrap()[crate::source_contract::MODERN_STATE_KEY];
     assert!(coverage.contains("redux_state_parameter_rebound"));
+}
+
+
+#[test]
+fn browser_storage_keeps_unknown_keys_and_shadowed_globals_out_of_named_state() {
+    let source = r#"
+function readPreference() { return localStorage.getItem('theme'); }
+function dynamicPreference(key) { localStorage.setItem(key, 'dark'); }
+function resetAll() { sessionStorage.clear(); }
+function local(localStorage) { localStorage.setItem('decoy', 'x'); }
+function localWindow(window) { return window.localStorage.getItem('decoy'); }
+function nested() { const sessionStorage = other; return sessionStorage.getItem('decoy'); }
+// localStorage.setItem('comment', 'x');
+const example = "localStorage.setItem('string', 'x')";
+"#;
+    let (symbols, result) = SymbolExtractor::new().extract(Path::new("preferences.ts"), source);
+    assert_eq!(observed(&result, "state:LocalStorage:"), expected(&[
+        ("state:LocalStorage:theme", 2, "reads_state"),
+    ]));
+    assert!(observed(&result, "state:SessionStorage:").is_empty());
+    let coverage = &symbols.iter().find(|symbol| symbol.kind == "file").unwrap().metadata.as_ref().unwrap()[engram_core::modern_state::KEY];
+    assert!(coverage.contains("browser_storage_dynamic_key_unresolved:LocalStorage:3"));
+    assert!(coverage.contains("browser_storage_clear_all_unresolved:SessionStorage:4"));
 }

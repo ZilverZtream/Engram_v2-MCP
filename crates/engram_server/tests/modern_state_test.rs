@@ -510,3 +510,39 @@ fn modern_state_javascript_imports_keep_project_relative_state_identity() -> Res
         Ok(())
     })
 }
+
+
+#[test]
+fn browser_storage_public_trace_preserves_store_identity_and_unchanged_readers() -> Result<()> {
+    let fixture = Fixture::new()?;
+    fixture.runtime.as_ref().context("runtime")?.block_on(async {
+        let server = fixture.server.as_ref().context("server")?;
+        let writer = "export function expand(){localStorage.setItem('panelExpanded','true');}\nexport function reset(){window.localStorage.removeItem('panelExpanded');}\n";
+        let reader = "export function isExpanded(){return localStorage.getItem('panelExpanded');}\n";
+        let session = "export function sessionReader(){return sessionStorage.getItem('panelExpanded');}\nexport function sessionWriter(){sessionStorage.setItem('panelExpanded','session');}\n";
+        let project = fixture.index("storage", &[
+            ("package.json", "{}"), ("writer.ts", &writer), ("reader.js", &reader), ("session.js", &session),
+            ("decoy.ts", "export function decoy(localStorage: any){localStorage.setItem('panelExpanded','decoy');}\n"),
+        ]).await?;
+        let before = trace(server, &project, "LocalStorage", "panelExpanded").await?;
+        ensure!(before.contains("expand") && before.contains("reset") && before.contains("isExpanded"), "Missing browser state relationships: {before}");
+        ensure!(!before.contains("sessionReader") && !before.contains("sessionWriter") && !before.contains("decoy"), "Different store or local object leaked: {before}");
+        ensure!(before.contains("Indexed access:") && before.contains(blake3::hash(reader.as_bytes()).to_hex().as_str()) && before.contains(blake3::hash(writer.as_bytes()).to_hex().as_str()), "Missing independently authored source hashes: {before}");
+        ensure!(before.contains("Shared origin") && before.contains("not proven"), "Runtime limit missing: {before}");
+        let session_before = trace(server, &project, "SessionStorage", "panelExpanded").await?;
+        ensure!(session_before.contains("sessionReader") && session_before.contains("sessionWriter") && !session_before.contains("isExpanded"), "Stores merged: {session_before}");
+        let root = fixture.temporary.as_ref().context("owner")?.path().join("storage");
+        std::fs::write(root.join("writer.ts"), writer.replace("panelExpanded", "newPreference"))?;
+        refresh(server, &project).await?;
+        let retained = trace(server, &project, "LocalStorage", "panelExpanded").await?;
+        ensure!(retained.contains("isExpanded") && !retained.contains("writer.ts:"), "Edit lost unchanged reader or kept old writer: {retained}");
+        ensure!(trace(server, &project, "LocalStorage", "newPreference").await?.contains("expand"), "Changed key missing");
+        std::fs::remove_file(root.join("writer.ts"))?;
+        refresh(server, &project).await?;
+        ensure!(trace(server, &project, "LocalStorage", "panelExpanded").await?.contains("isExpanded"), "Deletion lost unrelated reader");
+        let removed = trace(server, &project, "LocalStorage", "newPreference").await?;
+        ensure!(!removed.contains("writer.ts:"), "Removed writer retained: {removed}");
+        ensure!(trace(server, &project, "SessionStorage", "panelExpanded").await?.contains("sessionReader"), "Local-store changes lost session state");
+        Ok(())
+    })
+}
