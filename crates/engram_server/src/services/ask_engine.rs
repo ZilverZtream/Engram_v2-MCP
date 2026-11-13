@@ -14,3 +14,4 @@ pub mod report;
 pub mod resolver;
 pub mod retrieval;
 pub mod status;
+pub mod synthesis;

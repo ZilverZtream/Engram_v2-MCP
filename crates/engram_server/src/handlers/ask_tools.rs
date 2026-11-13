@@ -2,7 +2,8 @@
 //! Plans the question (multi-intent), resolves entities, runs parallel typed
 //! retrieval, ranks by authority/directness, detects conflicts, calibrates an
 //! honest status, and renders a `retrieval_only` report (Markdown and/or JSON).
-//! No LLM in M1 — the calling agent synthesizes, or opts into depth=deep later.
+//! Optional synthesis preserves the evidence report and its retrieval status.
+//! Original M1 behavior: no LLM — the calling agent synthesizes, or opts into depth=deep later.
 
 use std::{sync::Arc, time::Duration};
 
@@ -441,11 +442,12 @@ impl Engram {
         }
         let next_best = report::next_best(&plan, &evidence, st);
 
-        let out = AskReport {
+        let mut out = AskReport {
             question: req.question.clone(),
             plan,
             status: st,
             mode: "retrieval_only".into(),
+            synthesis: None,
             evidence,
             conflicts,
             unknowns,
@@ -454,6 +456,17 @@ impl Engram {
             providers,
             answer_members,
         };
+
+        if req.synthesize {
+            let max_wait = Duration::from_millis(req.synthesis_timeout_ms.unwrap_or(30_000).clamp(1_000, 120_000));
+            let result = crate::services::ask_engine::synthesis::synthesize(
+                &self.state.dreaming, &out, req.task_context.as_deref(), max_wait,
+            ).await;
+            if result.answer.is_some() {
+                out.mode = "synthesized".into();
+            }
+            out.synthesis = Some(result);
+        }
 
         let body = match req.output_format.to_lowercase().as_str() {
             "json" => {

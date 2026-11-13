@@ -15,7 +15,9 @@ pub struct AskReport {
     pub question: String,
     pub plan: QueryPlan,
     pub status: AnswerStatus,
-    pub mode: String,                // "retrieval_only" (M1) | "synthesized" (M2)
+    pub mode: String,                // retrieval_only | synthesized
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub synthesis: Option<super::synthesis::Synthesis>,
     pub evidence: Vec<EvidenceItem>, // ranked, deduped, bounded (high-signal)
     pub conflicts: Vec<Conflict>,
     pub unknowns: Vec<String>,  // coverage gaps
@@ -231,6 +233,23 @@ pub fn render_markdown(r: &AskReport) -> String {
         snap.push_str(" · SNAPSHOT-MISMATCH");
     }
     let _ = writeln!(s, "**snapshot:** {snap}");
+
+    if let Some(synthesis) = &r.synthesis {
+        let _ = writeln!(s, "\n## Answer synthesis: {}", synthesis.status);
+        let _ = writeln!(s, "{}", synthesis.limitation);
+        if let Some(reason) = synthesis.reason {
+            let _ = writeln!(s, "Generation unavailable: {reason}. Use the evidence report below.");
+        }
+        if let Some(answer) = &synthesis.answer {
+            for statement in &answer.statements {
+                let ids = statement.citations.iter().map(|c| c.evidence_id.as_str()).collect::<Vec<_>>().join(", ");
+                let _ = writeln!(s, "- {} [{}]", statement.text, ids);
+            }
+            for unknown in &answer.unknowns {
+                let _ = writeln!(s, "- Model-reported unknown: {unknown}");
+            }
+        }
+    }
 
     if !r.answer_members.is_empty() {
         let complete = r
