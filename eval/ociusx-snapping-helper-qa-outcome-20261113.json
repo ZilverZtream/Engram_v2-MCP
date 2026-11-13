@@ -1,0 +1,209 @@
+{
+  "status": "MATCHED_HELPER_QA_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+  "at_utc": "2026-11-13T21:55:12.132342+00:00",
+  "requirement": "EG25 matched real OciusX implementation/QA benefit",
+  "task": "Current OciusX story1112 snapping-helper regression tests, using current source and story requirements.",
+  "scope": "One source-and-guidance baseline and one same-input candidate with the actual installed derive_test_matrix result; no model retries or repairs.",
+  "tool_capture": {
+    "binary_sha256": "b8bc90d3dd24ef15a9a36b8761b751cfbdfd86c9a87b11bc05a25a8cad7782b0",
+    "generation": 3150,
+    "seconds": 1.43219780002255,
+    "response_bytes": 24017,
+    "observation": "No source-linked proposed cases; response was predominantly repository guidance, with applicable policy coverage explicitly incomplete."
+  },
+  "model_configuration": {
+    "model": "gpt-6-astra",
+    "model_reasoning_effort": "high"
+  },
+  "arms": {
+    "source_only": {
+      "correct_current_cases": 48,
+      "failed_current_cases": [],
+      "predefined_regressions_detected": 6,
+      "predefined_regressions_total": 6,
+      "detecting_cases": {
+        "no_segment_match": [
+          "segment: horizontal interior",
+          "segment: vertical interior",
+          "segment: oblique interior",
+          "segment: reversed oblique interior",
+          "segment: projection exactly at start",
+          "segment: projection exactly at end",
+          "segment: exact interior returns zero at segment level",
+          "segment: exact start returns zero at segment level",
+          "segment: exact end returns zero at segment level",
+          "circle: segment just inside radius",
+          "circle: segment exactly at radius",
+          "circle: duplicate segment does not prevent subsequent valid segment",
+          "circle: later closer segment wins",
+          "circle: equal segment distances retain first candidate",
+          "selection: reversing path can expose previously skipped interior",
+          "multiple lines: exact interior self candidate is null while nearby line matches"
+        ],
+        "accept_extended_line": [
+          "segment: projection before start",
+          "segment: projection after end",
+          "circle: outside projection and both vertices outside radius",
+          "circle: last endpoint fallback outside projection interval",
+          "circle: later closer segment wins",
+          "circle: later closer vertex replaces segment match"
+        ],
+        "exclude_radius_boundary": [
+          "circle: single vertex exactly at radius",
+          "circle: segment exactly at radius",
+          "circle: duplicate vertices inside radius retain endpoint match",
+          "selection: endpoint exactly at radius also skips closer interior"
+        ],
+        "accept_zero_distance": [
+          "circle: exact on-line zero remains filtered",
+          "circle: exact on-line with zero radius remains filtered",
+          "circle: exact single vertex remains filtered",
+          "circle: exact vertex with zero radius remains filtered",
+          "circle: duplicate vertices exactly at center remain filtered",
+          "circle: zero vertex suppresses later positive match",
+          "circle: later zero vertex suppresses earlier positive match",
+          "circle: later zero segment suppresses earlier positive segment",
+          "circle: zero segment suppresses later positive segment",
+          "multiple lines: exact interior self candidate is null while nearby line matches",
+          "multiple lines: exact self endpoint remains filtered alongside nearby endpoint"
+        ],
+        "divide_duplicate_segment": [
+          "segment: duplicate coordinates away from center",
+          "segment: duplicate coordinates at center",
+          "circle: duplicate vertices outside radius have no match",
+          "circle: duplicate segment does not prevent subsequent valid segment"
+        ],
+        "change_endpoint_precedence": [
+          "circle: zero vertex suppresses later positive match",
+          "circle: later zero vertex suppresses earlier positive match",
+          "circle: in-radius non-improving vertex still skips outgoing segment",
+          "selection: first endpoint skips a closer interior projection",
+          "selection: endpoint exactly at radius also skips closer interior",
+          "selection: equal vertices retain first original endpoint",
+          "selection: equal later segment does not replace an earlier vertex"
+        ]
+      },
+      "input_bytes": 66836,
+      "usage": {
+        "input_tokens": 24845,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5035,
+        "reasoning_output_tokens": 1034
+      },
+      "observed_model_seconds": 106.47880460007582,
+      "response_bytes": 12731,
+      "response_sha256": "7f88990c3c101b6a67450dcd309d07094af8c1ffeafd0203deb053052a50550f",
+      "results_sha256": "28dafd373e32bdf61b504de94f76d3f31b419f33a0a606e8e95ba55e765c3084",
+      "candidate_limitations": "Tests are supplied, not executed here. Geometry uses identity projection and Euclidean fixture units. Independent line evaluations do not verify caller-level candidate selection, self-exclusion or no-match position fallback. UI workflows, persistence, real Maps versions/global geometry, deployed bundles and broader story completion remain unverified."
+    },
+    "engram_assisted": {
+      "correct_current_cases": 42,
+      "failed_current_cases": [],
+      "predefined_regressions_detected": 6,
+      "predefined_regressions_total": 6,
+      "detecting_cases": {
+        "no_segment_match": [
+          "segment: horizontal interior projection",
+          "segment: vertical interior projection",
+          "segment: diagonal interior projection",
+          "segment: reversed diagonal projection",
+          "segment: projection exactly at start",
+          "segment: projection exactly at end",
+          "segment: exact on-line interior returns zero at segment level",
+          "segment: exact start vertex returns zero at segment level",
+          "segment: exact end vertex returns zero at segment level",
+          "circle segment: just inside radius",
+          "circle segment: exactly at radius",
+          "circle: duplicate segment does not block a later valid segment",
+          "selection: reversed path can expose the previously skipped projection",
+          "selection: later closer segment replaces an earlier positive match",
+          "selection: equal segment distances retain the first candidate",
+          "selection: eligible but non-improving vertex still skips its outgoing segment",
+          "selection: self-like line is filtered while another line remains independently eligible"
+        ],
+        "accept_extended_line": [
+          "segment: projection before start is rejected",
+          "segment: projection after end is rejected",
+          "segment: projection just before start is rejected",
+          "segment: projection just after end is rejected",
+          "segment: reversed segment rejects extended-line projection",
+          "circle: far candidate with projection outside segment has no match",
+          "circle: last endpoint fallback survives rejected projection",
+          "selection: later closer endpoint replaces an interior match",
+          "selection: eligible but non-improving vertex still skips its outgoing segment"
+        ],
+        "exclude_radius_boundary": [
+          "circle segment: exactly at radius",
+          "circle vertex: exactly at radius",
+          "circle: start endpoint fallback remains available outside projection interval",
+          "circle: last endpoint fallback survives rejected projection",
+          "circle: exact vertex remains filtered out at zero radius",
+          "circle: duplicate vertices preserve endpoint matching",
+          "selection: eligible first endpoint skips a closer interior projection",
+          "selection: equal endpoint distances retain the first vertex"
+        ],
+        "accept_zero_distance": [
+          "circle: exact on-line interior remains filtered out",
+          "circle: exact vertex remains filtered out at zero radius",
+          "selection: later zero-distance candidate suppresses an earlier positive match",
+          "selection: earlier zero-distance vertex is not replaced by a positive candidate",
+          "selection: self-like line is filtered while another line remains independently eligible"
+        ],
+        "divide_duplicate_segment": [
+          "segment: distinct duplicate vertices reject without conversion",
+          "segment: repeated identical point object rejects even at its center",
+          "circle: duplicate-only path outside radius has no match or conversion",
+          "circle: duplicate segment does not block a later valid segment"
+        ],
+        "change_endpoint_precedence": [
+          "circle: exact vertex remains filtered out at zero radius",
+          "selection: eligible first endpoint skips a closer interior projection",
+          "selection: equal endpoint distances retain the first vertex",
+          "selection: eligible but non-improving vertex still skips its outgoing segment"
+        ]
+      },
+      "input_bytes": 91326,
+      "usage": {
+        "input_tokens": 30598,
+        "cached_input_tokens": 0,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 5242,
+        "reasoning_output_tokens": 895
+      },
+      "observed_model_seconds": 110.58838830003515,
+      "response_bytes": 14950,
+      "response_sha256": "4c36fc9fe9dcfeca1ab3eb9d2194e38ddb1a69ce65e1933cf1a46a7d503c4443",
+      "results_sha256": "b8f977fe2cf606abf9d37e12fce3fb66f4d9071e64539122166ce2471c747a36",
+      "candidate_limitations": "Tests are supplied, not executed here. Identity projection and Euclidean fixture distances establish no real-meter or global-geometry guarantees. Multiple lines are evaluated independently; caller-level selection, self-exclusion and unchanged-position fallback are unavailable. UI workflows, persistence, permissions, Maps versions, deployed bundles and repository-wide API audits remain unverified. This does not establish story completion."
+    }
+  },
+  "conclusion": "Both candidate artifacts pass on the unchanged helper and detect all six predetermined story regressions. No additional defect-detection benefit from Engram was observed; different case counts do not establish higher quality.",
+  "extra_assisted_input_tokens": 5753,
+  "eg25_closed": false,
+  "runtime_change": false,
+  "limits": [
+    "One inspected current task, not a fresh holdout or statistical productivity experiment.",
+    "Identity-projection and Euclidean test doubles; no browser, real Maps, caller-level selection, persistence or deployed-bundle sign-off.",
+    "Six fixed regressions are a limited oracle, not comprehensive mutation coverage.",
+    "Reported duration is a single observed run per arm; usage tokens are not a monetary invoice.",
+    "Broader EG24 holdout/regular verification and EG25 positive-benefit requirements remain open. Do not repeat this pair or tune it to obtain a win."
+  ],
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\snapping-qa",
+    "retention": "Retain frozen task inputs, generated artifacts, scripts, raw events and receipts for review; Codex sessions retained by the existing executor.",
+    "owned_execution_work_removed": true,
+    "owned_capture_temp_removed": true,
+    "mcp_process_closed": true,
+    "configuration_hold_released": true,
+    "capture1": "Setup failed before starting MCP because the helper metadata root was redirected. Preserved failure receipt; temporary resource and hold were closed. Corrected capture2 succeeded."
+  },
+  "source_unchanged": true,
+  "parked_wip_unchanged": true,
+  "evidence_files": {
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\snapping-qa\\pair1\\frozen.json": "efdd787d1c396a28124fba1f23b3c308167fb1c15ce3d96006d58cf7568ceb94",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\snapping-qa\\pair1\\state.json": "4c3dfbc31772ca5afd6f5da6f6f40dd4996980ae37a4a1b08c0154153bdb995a",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\snapping-qa\\oracle-results.json": "50d80b7a0d810c9c9652633e1bac5482ac84a0fd6a252f659a59ee6101f8a482",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\snapping-qa\\capture2\\capture.json": "c39c906bf062afdb71d2fdbe71d9f4f19c9411b6114b806c7bcc532ca17384fa"
+  }
+}

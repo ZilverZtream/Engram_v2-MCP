@@ -868,8 +868,9 @@
         "Obtain matched real OX implementation/QA evidence of useful decisions, defects prevented or reduced effort.",
         "Keep historical intake and sealed-QA limits and separate synthetic acceptance from comparative productivity."
       ],
-      "closure_state": "Not reverified by this inventory reconciliation",
-      "dependencies": []
+      "closure_state": "One matched real OciusX helper QA task completed: source-only48/48 and assisted42/42 current checks pass; both detect6/6 fixed regressions. No incremental benefit demonstrated; original benefit requirement remains open. Do not replay/tune this inspected task.",
+      "dependencies": [],
+      "current_helper_qa_outcome_20261113": "eval/ociusx-snapping-helper-qa-outcome-20261113.json"
     },
     {
       "id": "EG-26",
@@ -10013,50 +10014,32 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-13T21:35:27.172780+00:00",
+  "last_updated_at": "2026-11-13T21:55:12.132342+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "TODO27 OciusX browser state readers and writers",
-      "original_requirement": "Generalize shared-state tracking to modern equivalents useful to AI callers.",
-      "observed_missing_behavior": "The shipped parser has no localStorage/sessionStorage extraction. Actual OciusX uses literal keys in TypeScript tabbed modals and map UI and JavaScript login/default-project workflows.",
-      "behavior": "trace_state_usage accepts LocalStorage and SessionStorage and returns source-backed readers and writers for literal getItem/setItem/removeItem calls, preserving the two stores as distinct project-local candidate relationships.",
+      "status": "SELECTED_OBSERVED_USER_FACING_FAILURE",
+      "finding": "TODO31 usable default request traces for AI",
+      "original_requirement": "Trace URL/route to handler, source call path and database evidence in a usable AI workflow; preserve bounded complete evidence recovery.",
+      "observed_failure": "Installed trace_user_request for POST /webhook/vetro/42 rejects the default 16384-token budget. The successful manual recovery required max_tokens=32628 and 130509 bytes.",
+      "baseline_evidence": "eval/ociusx-interface-request-trace-delivery-20261113.json",
       "implementation_files": [
-        "crates/engram_index/src/parsing/modern_state.rs",
-        "crates/engram_index/src/parsing/modern_state/browser_storage.rs",
-        "crates/engram_index/src/parsing/modern_state/tests.rs",
-        "crates/engram_index/src/source_contract.rs",
-        "crates/engram_graph/src/store.rs",
-        "crates/engram_server/src/capabilities/project.rs",
-        "crates/engram_server/src/capabilities/applicability.rs",
-        "crates/engram_server/src/handlers/cognitive_tools/state_trace.rs",
-        "crates/engram_server/src/handlers/cognitive_tools.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/modern_state_test.rs",
-        "docs/TOOL_CONTRACT.md"
+        "crates/engram_server/src/handlers/request_trace_tools.rs",
+        "crates/engram_server/src/services/request_trace.rs"
       ],
       "acceptance": [
-        "Source-authored JavaScript/TypeScript storage reads, writes and removals are returned through the public tool with indexed source evidence; identically named session/local keys stay distinct.",
-        "Local variables or parameters named like browser globals do not become browser-storage accesses. Dynamic keys and clear-all are disclosed as unresolved rather than assigned a guessed key.",
-        "Normal source edit/removal preserves unchanged cross-file readers, and prior JS/TS extraction is refreshed by update_project.",
-        "Candidate and installed public MCP checks pass; an actual OciusX TypeScript storage key is independently verified against source."
+        "The same ordinary OciusX request works at the default response budget and includes route, controller, explicit implementation candidate, downstream SaveEventsToDB source evidence and static-execution caveats.",
+        "If details exceed the budget, expose explicit omitted detail counts and recoverable source/evidence using existing delivery mechanisms; preserve identities and citations.",
+        "Verify ordinary small trace behavior and exact deferred recovery where used, then build, install, verify the actual OciusX default call, publish and stop this item."
       ],
       "scope_limits": [
-        "No alias/dataflow tracking, property-style storage access, origin inference or browser runtime execution. Cross-file matches are static candidates, not proof of shared origin or tab.",
-        "Preserve parked language/framework work; no Python/Rust/Go/Java support expansion. No CodeMap/Blast change.",
-        "Reuse existing state edges, index refresh and tool; finite public/source acceptance, no benchmark or new infrastructure."
+        "No new routing, DI, ORM or database execution inference.",
+        "No CodeMap/Blast changes, general response infrastructure rewrite, language expansion or extra QA comparison.",
+        "Reuse existing checkout, clean runtime-source checkout and build target; preserve parked WIP."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage",
-      "retention": "Retain scripts/results/package for delivery review; close handles and remove new owned fixtures. Preserve all preexisting folders.",
-      "previous_goal_turn_classification": "PROGRESS: interface request tracing installed, actual OciusX source acceptance completed and delivery commit 870f851 pushed.",
-      "source_commit": "5873a4fd8e070716a6a7999314a9f74bc597464c",
-      "runtime_source_commit": "0280b3819e1585a52888d14d2acad7189518a67c",
-      "delivery": "eval/ociusx-browser-storage-delivery-20261113.json",
-      "bounded_delivery_complete": true,
-      "outcome": "AI callers can trace literal browser-storage keys to indexed readers and writers, including removals, with source positions/hashes. LocalStorage and SessionStorage stay distinct and unchanged readers survive source edits/deletion."
+      "previous_acceptance": "eval/ociusx-snapping-helper-qa-outcome-20261113.json",
+      "previous_goal_turn_classification": "PROGRESS: completed the single matched real-helper QA acceptance step; both arms detect 6/6 fixed regressions, no incremental benefit demonstrated. Alias documentation requirement reconciled from existing implementation."
     },
-    "at_utc": "2026-11-13T21:35:27.172780+00:00",
+    "at_utc": "2026-11-13T21:55:12.132342+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10086,8 +10069,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO27 browser storage tracing delivered; next original item not yet selected",
-    "next_user_visible_deliverable": "Advance another unfinished original OciusX AI workflow requirement; accepted browser-storage tracing is closed.",
+    "active_original_item": "TODO31 usable default request traces for AI",
+    "next_user_visible_deliverable": "The same ordinary OciusX request works at the default response budget and includes route, controller, explicit implementation candidate, downstream SaveEventsToDB source evidence and static-execution caveats.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14390,7 +14373,8 @@
       "reason": "User prioritizes normal AI task completion over further edge-case/response engineering. Retain this incomplete patch; do not count it as delivered."
     },
     "latest_planner_reconciliation_result": "eval/ociusx-feature-plan-reconciliation-failed-20261113.json",
-    "latest_windows_first_install_delivery": "eval/ociusx-windows-first-install-delivery-20261113.json"
+    "latest_windows_first_install_delivery": "eval/ociusx-windows-first-install-delivery-20261113.json",
+    "current_helper_qa_outcome_20261113": "eval/ociusx-snapping-helper-qa-outcome-20261113.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }

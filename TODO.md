@@ -643,7 +643,7 @@ value is accuracy, this is the biggest meta-gap.
   `database_intelligence_service`, `db_strategy_service`, parts of
   `full_project_migration_service` re-implement SQL parsing/table extraction.
 
-- [ ] **60. Remove or document alias tools** (S)
+- [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/ociusx-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.
 
 - [x] **61. Shallow tools: fix or relabel** (S?M) ? *named gaps reconciled 2026-11-13.*
