@@ -40,33 +40,32 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_CODEX_INSTALL_BUNDLE_READY",
-    "finding": "TODO53 explicit Codex first-time installation",
-    "original_requirement": "One-command installation and an MCP configuration block for actual AI use.",
-    "observed_missing_behavior": "Current Codex connection already exists, but the distributable installer supports only mcpServers JSON and cannot create a new Codex TOML registration.",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "finding": "EG20/EG21 usable history when configured embeddings fail",
+    "original_requirement": "Capability-aware usable precedent history for OciusX AI workflows.",
+    "observed_missing_behavior": "Configured Ollama document or query embedding errors propagate as MCP errors even when filtered Git metadata is available; only disabled vectors currently use lexical fallback.",
     "implementation_files": [
-      "scripts/install_windows.ps1",
-      "docs/WINDOWS_BUNDLE.md",
-      "docs/QUICKSTART.md"
+      "crates/engram_server/src/services/change_card_service.rs",
+      "crates/engram_server/src/handlers/git_tools.rs",
+      "crates/engram_server/tests/history_filter_embedding_tests.rs",
+      "docs/TOOL_CONTRACT.md"
     ],
     "acceptance": [
-      "Explicit -Codex installs a complete trusted package and registers it through codex mcp add, without hand-editing TOML.",
-      "A real isolated Codex CLI profile lists the expected command, args and ENGRAM_CONFIG_PATH; unrelated profile values and existing entries remain intact.",
-      "Existing same-name server refuses before installation; JSON client behavior remains supported.",
-      "Exact Codex-registered command indexes and retrieves independently authored VB source with full bundled sidecar; clean owned fixture after closure."
+      "A document embedding outage returns matching Git changes with an explicit lexical fallback label.",
+      "A query embedding outage after successful card construction also returns labeled lexical results.",
+      "File/author/date/exclusion and historical revision constraints survive fallback; provider recovery restores semantic ranking.",
+      "Verify public MCP behavior on the candidate and installed runtime; no claim of equal semantic ranking quality or reduced provider timeout."
     ],
     "scope_limits": [
-      "Preserve the existing live Codex connection and production Engram install. No agent model invocation or assertion of live UI availability.",
-      "Same already-validated runtime binary; no rebuild, public hosting or additional platforms."
+      "No new cache, router, provider retry system, CodeMap/Blast change or target-language expansion.",
+      "Existing historical 40-second observation is not a current benchmark; filtered embedding optimization already shipped."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install",
-    "documentation_source": "https://developers.openai.com/codex/mcp",
-    "retention": "Retain package/checksum and acceptance evidence; owned test Codex profile, installation and sample close and clean.",
-    "source_commit": "909b2b4",
-    "delivery": "eval/ociusx-codex-first-install-delivery-20261113.json",
-    "bounded_delivery_complete": true,
-    "full_todo53_complete": false,
-    "outcome": "Isolated native Codex registration and duplicate preservation passed; exact registered MCP command indexed13samplefiles and recovered VB source. Owned profile/runtime fixture closed and removed; live Codex config unchanged."
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback",
+    "retention": "Keep scripts and delivery evidence. Close and remove newly owned runtime/test fixtures; preserve preexisting directories.",
+    "source_commit": "d286e20",
+    "runtime_source_commit": "f109f54ac697a3065df6963f27eabd2dbb1b9e8e",
+    "progress_receipt": "eval/ociusx-history-provider-fallback-progress-20261113.json",
+    "bounded_delivery_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -593,5 +592,34 @@
     "full_todo53_complete": false,
     "outcome": "Extracted standalone bundle installed without PackageRoot or repository scripts; exact registered MCP command indexed13samplefiles and recovered expected VB source. Fixture closed and removed."
   },
-  "codex_first_install_delivery": "eval/ociusx-codex-first-install-delivery-20261113.json"
+  "codex_first_install_delivery": "eval/ociusx-codex-first-install-delivery-20261113.json",
+  "retained_codex_first_install_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_CODEX_INSTALL_BUNDLE_READY",
+    "finding": "TODO53 explicit Codex first-time installation",
+    "original_requirement": "One-command installation and an MCP configuration block for actual AI use.",
+    "observed_missing_behavior": "Current Codex connection already exists, but the distributable installer supports only mcpServers JSON and cannot create a new Codex TOML registration.",
+    "implementation_files": [
+      "scripts/install_windows.ps1",
+      "docs/WINDOWS_BUNDLE.md",
+      "docs/QUICKSTART.md"
+    ],
+    "acceptance": [
+      "Explicit -Codex installs a complete trusted package and registers it through codex mcp add, without hand-editing TOML.",
+      "A real isolated Codex CLI profile lists the expected command, args and ENGRAM_CONFIG_PATH; unrelated profile values and existing entries remain intact.",
+      "Existing same-name server refuses before installation; JSON client behavior remains supported.",
+      "Exact Codex-registered command indexes and retrieves independently authored VB source with full bundled sidecar; clean owned fixture after closure."
+    ],
+    "scope_limits": [
+      "Preserve the existing live Codex connection and production Engram install. No agent model invocation or assertion of live UI availability.",
+      "Same already-validated runtime binary; no rebuild, public hosting or additional platforms."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\codex-first-install",
+    "documentation_source": "https://developers.openai.com/codex/mcp",
+    "retention": "Retain package/checksum and acceptance evidence; owned test Codex profile, installation and sample close and clean.",
+    "source_commit": "909b2b4",
+    "delivery": "eval/ociusx-codex-first-install-delivery-20261113.json",
+    "bounded_delivery_complete": true,
+    "full_todo53_complete": false,
+    "outcome": "Isolated native Codex registration and duplicate preservation passed; exact registered MCP command indexed13samplefiles and recovered VB source. Owned profile/runtime fixture closed and removed; live Codex config unchanged."
+  }
 }
