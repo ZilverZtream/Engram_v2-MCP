@@ -246,6 +246,16 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   nonsense.
 
 - [ ] **27. Generalize state tracking to modern equivalents** (L)
+  Browser-storage tracing installed 2026-11-13. `trace_state_usage` accepts
+  `LocalStorage` and `SessionStorage` with literal JS/TS getItem/setItem/removeItem
+  keys and returns indexed readers/writers with source positions and hashes.
+  Seventeen native checks and candidate/installed public MCP acceptance passed.
+  After one normal index refresh, actual OciusX `tabbedModalExtended` returned
+  the source save/reset/read methods. Shared browser origin/session and execution
+  remain unproven; dynamic keys and clear-all effects are unresolved.
+  Evidence: [browser storage delivery](eval/ociusx-browser-storage-delivery-20261113.json).
+  Broader retained language/framework work remains unfinished and parked.
+
   Active: `eval/p131-modern-state-baseline-20261112.json`.
   Partial implementation and verification: `eval/p131-modern-state-progress-20261112.json` (modern public state tracing, JS/TS import bindings and incremental persistence; remaining language/framework coverage and candidate/installed deployment are still open).
   `state_extractor.rs` knows Session/ViewState/Application. Equivalent value for modern

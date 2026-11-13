@@ -1,0 +1,197 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T21:35:27.172780+00:00",
+  "finding": "TODO27 OciusX browser state readers and writers",
+  "source_commit": "5873a4fd8e070716a6a7999314a9f74bc597464c",
+  "runtime_source_commit": "0280b3819e1585a52888d14d2acad7189518a67c",
+  "bounded_delivery_complete": true,
+  "full_todo27_complete": false,
+  "before": "Literal localStorage/sessionStorage accesses in JS/TS produced no browser-state readers or writers through trace_state_usage.",
+  "after": "AI callers can trace literal browser-storage keys to indexed readers and writers, including removals, with source positions/hashes. LocalStorage and SessionStorage stay distinct and unchanged readers survive source edits/deletion.",
+  "validation": {
+    "native_extractor_cases": 11,
+    "native_public_cases": 6,
+    "baseline": "Installed public MCP gap reproduced",
+    "candidate": {
+      "local_read_write_remove": true,
+      "store_and_shadow_separation": true,
+      "source_evidence": true,
+      "limits": true,
+      "edit_preserves_reader": true,
+      "delete_preserves_other_state": true
+    },
+    "installed": {
+      "local_read_write_remove": true,
+      "store_and_shadow_separation": true,
+      "source_evidence": true,
+      "limits": true,
+      "edit_preserves_reader": true,
+      "delete_preserves_other_state": true
+    }
+  },
+  "actual_ociusx": {
+    "state_type": "LocalStorage",
+    "state_key": "tabbedModalExtended",
+    "methods": [
+      "_storeExpandedState",
+      "_clearExpandedState",
+      "_isExpandedStateEnabled"
+    ],
+    "source_evidence": [
+      {
+        "access_byte": "12911",
+        "access_column": "9",
+        "access_end_byte": "12957",
+        "access_line": "304",
+        "additional_import_bindings": 0,
+        "additional_issues": 0,
+        "coverage": "partial_static_coverage",
+        "evidence": "static_syntax_v1",
+        "file": "Site/ts/common/tabbedModalWindow/tabbedModalManager.ts",
+        "import_bindings": null,
+        "indexed_source_hash": "55dbdbe2dc112ac77e150e2e28d9c0d2e76f41d704dd82fa8b344fc27377fd10",
+        "issues": []
+      },
+      {
+        "access_byte": "12783",
+        "access_column": "9",
+        "access_end_byte": "12848",
+        "access_line": "300",
+        "additional_import_bindings": 0,
+        "additional_issues": 0,
+        "coverage": "partial_static_coverage",
+        "evidence": "static_syntax_v1",
+        "file": "Site/ts/common/tabbedModalWindow/tabbedModalManager.ts",
+        "import_bindings": null,
+        "indexed_source_hash": "55dbdbe2dc112ac77e150e2e28d9c0d2e76f41d704dd82fa8b344fc27377fd10",
+        "issues": []
+      },
+      {
+        "access_byte": "13042",
+        "access_column": "24",
+        "access_end_byte": "13085",
+        "access_line": "308",
+        "additional_import_bindings": 0,
+        "additional_issues": 0,
+        "coverage": "partial_static_coverage",
+        "evidence": "static_syntax_v1",
+        "file": "Site/ts/common/tabbedModalWindow/tabbedModalManager.ts",
+        "import_bindings": null,
+        "indexed_source_hash": "55dbdbe2dc112ac77e150e2e28d9c0d2e76f41d704dd82fa8b344fc27377fd10",
+        "issues": []
+      }
+    ],
+    "checks": {
+      "actual_read_write_remove": true,
+      "exact_source": true,
+      "static_limit": true,
+      "extraction_refreshed": true
+    },
+    "seconds": 0.002206500037573278,
+    "response_bytes": 3033,
+    "old_generation": 3149,
+    "source_generation": 3150,
+    "refresh_job": "63783a45-46d6-4239-b780-914c96a44419",
+    "refresh_status": {
+      "job_id": "63783a45-46d6-4239-b780-914c96a44419",
+      "status": "done",
+      "message": "completed",
+      "progress": "{\"completed\":null,\"coverage\":\"persisted_phase_observation\",\"estimate_scope\":\"Current phase at observation time only; not whole-job ETA. Later flush, graph, publication and enrichment work may have unknown duration. A phase at100% does not mean the job is complete.\",\"estimated_time_remaining_ms\":null,\"job_complete\":true,\"job_updated_at_ms\":1794605676428,\"observed_at_ms\":1794605605308,\"phase\":\"graph_enrichment\",\"phase_progress_pct\":null,\"phase_started_at_ms\":1794605605308,\"phase_state\":\"last_observation\",\"total\":null,\"unit\":null}"
+    },
+    "source_unchanged": true,
+    "other_projects_unchanged": true
+  },
+  "runtime": {
+    "server_sha256": "b8bc90d3dd24ef15a9a36b8761b751cfbdfd86c9a87b11bc05a25a8cad7782b0",
+    "manifest_sha256": "b9bfd29ca5a504d25cb950cfb59b48a5dd0a05582c94296bcd352e17f715ada1",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\Engram-win-x64.zip",
+    "sha256": "9167e6282e15c6ce96f9b4151ecdc6e24e7ac7da738ed68d1a44af678516acb4",
+    "runtime_assets": 215,
+    "entries": 218
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\contract.json",
+      "sha256": "7fbb30f46b0c9ac7ca592e0184c47e7471973c5adb91b3cbac1734263dca0c86"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\baseline-public1\\acceptance.json",
+      "sha256": "08384265f7919d112bb615b694b249b43e8f881ef3f3dfa24c999416b8c03b46"
+    },
+    "native_extractor": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\native1.json",
+      "sha256": "ccbcc31552dfcd0ff923547cd8a72187f8b5d95db62ff2e4ba14f4f965b4b553"
+    },
+    "native_public": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\native2.json",
+      "sha256": "1b134279f39921449ebcdf6e68cdbe4c89e30c8bffe0dcc6d99915fec3c3b525"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\implementation1.json",
+      "sha256": "ee8a8738ce7bf960f04ab67e2f31f2def4081ea6f0522c2558c2d383f85499d9"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\manual-review.json",
+      "sha256": "1b4921b36b634901e34b2a0cd729c155d0af537a9448c292c4f7509a4380d430"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\release1.json",
+      "sha256": "370e5d4d5084b066683b66ba644b5d01b66d2627e7a1747ca072a19bccdee8ff"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\candidate1\\acceptance.json",
+      "sha256": "4136b47112ea2651c72e4f62f3a14b31618b2aee8f4dbf4ec3863aadb4b350c5"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\installed1\\acceptance.json",
+      "sha256": "8a8b0736392ad0433e98d8320bf7a178780e656df2a6dbfa1ef4a856f9f2239d"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\actual1\\acceptance.json",
+      "sha256": "63570b97773247e6a4260f94851aff2f62a7d407f0c8227e2cbdb5a0aa21ffd3"
+    },
+    "actual_case": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\actual1\\case.json",
+      "sha256": "ec3d36acafffd01fb54d6c0961a09e92469795c6a3f43672d3204c7fcf583d94"
+    },
+    "actual_trace": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\actual1\\trace.txt",
+      "sha256": "a0d1b2f71d7143e621d5372878a39fdac7f41aa0d31f7fe2210228d2296f04f0"
+    },
+    "refresh": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\actual1\\job-final.txt",
+      "sha256": "020b6d3d6b40f639d6a1853f91314dfdb83fc5bf27d12dd58e42ad506a35fc09"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\deployment1-state.json",
+      "sha256": "e4b34741dcec0409cce1357422c694400f8f1f061116537cae02b52c53c0fae9"
+    },
+    "preserved_work": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage\\preserved-work-after.json",
+      "sha256": "0fa54217fee08b631cd630ba5331661b1d29e471af25f78a6327baded840331a"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-storage",
+    "all_new_fixtures_closed_and_removed": true,
+    "build_temp_removed": true,
+    "owned_configuration_removed": true,
+    "config_hold_released": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-60873b08efa04fcdb374605b35818433",
+    "retention": "Keep candidate/bundle, delivery evidence and old runtime pair for review/rollback. No preexisting directories deleted."
+  },
+  "limits": [
+    "Project-local source matches do not prove common origin, browser tab/session, runtime execution or actual stored values.",
+    "Dynamic keys, aliases, property-style access and clear-all effects remain unresolved. Missing keys do not establish absence of runtime access.",
+    "Existing JS/TS extraction requires update_project after upgrade. This delivery records one actual OciusX refresh; it does not change configuration or application source.",
+    "Existing unrelated language/framework WIP remains parked and uncommitted. No CodeMap/Blast or target-language expansion.",
+    "Parent review only; no external CodeRabbit review. No general productivity/readiness claim, full TODO27 closure or full storage-gate closure."
+  ]
+}
