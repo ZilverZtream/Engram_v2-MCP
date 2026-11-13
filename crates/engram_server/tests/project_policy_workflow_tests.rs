@@ -130,6 +130,57 @@ fn source<'a>(context: &'a Value, path: &str) -> &'a Value {
         .unwrap_or_else(|| panic!("missing policy {path}: {context}"))
 }
 
+async fn ask(engram: &Engram, output: &str, as_of: Value) -> String {
+    let request = serde_json::from_value(json!({
+        "project_id": PID, "question": "Explain FileLayerZoomPolicy",
+        "output_format": output, "as_of": as_of,
+    })).unwrap();
+    let result = engram.handle_ask_codebase(request).await.unwrap();
+    result.content[0].as_text().unwrap().text.clone()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ask_returns_scoped_complete_policy_and_refreshes_without_reindexing() {
+    let (temporary, engram) = fixture().await;
+    let root = temporary.path().join("project");
+    let content = topic(&format!("{AUTHORITY}\n{EXCLUSIONS}"));
+    write(&root, TOPIC, &content);
+    write(&root, ".github/instructions/billing.instructions.md",
+        "---\napplyTo: 'Billing/**'\n---\nUNRELATED_BILLING_POLICY\n");
+    let value: Value = serde_json::from_str(&ask(&engram, "json", Value::Null).await).unwrap();
+    assert!(value["evidence"].as_array().unwrap().iter().any(|e| e["path"] == TARGET && e["kind"] == "source_code"), "{value}");
+    let policy = &value["project_policy_sources"];
+    assert_eq!(source(policy, TOPIC)["content"], content);
+    assert_eq!(source(policy, TOPIC)["blake3"], blake3::hash(content.as_bytes()).to_hex().to_string());
+    source(policy, "AGENTS.md");
+    source(policy, ".github/copilot-instructions.md");
+    assert!(!policy.to_string().contains("UNRELATED_BILLING_POLICY"));
+    assert_eq!(value["mode"], "retrieval_only");
+    let markdown = ask(&engram, "markdown", Value::Null).await;
+    assert!(markdown.contains(&content));
+    assert!(!markdown.contains("UNRELATED_BILLING_POLICY"));
+    let updated = topic("Updated authored guidance; preserve manual zoom overrides.");
+    write(&root, TOPIC, &updated);
+    let next: Value = serde_json::from_str(&ask(&engram, "json", Value::Null).await).unwrap();
+    assert_eq!(source(&next["project_policy_sources"], TOPIC)["content"], updated);
+    assert_ne!(source(&next["project_policy_sources"], TOPIC)["blake3"], source(policy, TOPIC)["blake3"]);
+    drop(engram);
+    temporary.close().unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn ask_withholds_current_guidance_for_revision_or_advisory_branch() {
+    let (temporary, engram) = fixture().await;
+    write(&temporary.path().join("project"), TOPIC, &topic("LIVE_POLICY_ONLY"));
+    for as_of in [json!({"commit":"previous"}), json!({"branch":"release"})] {
+        let value: Value = serde_json::from_str(&ask(&engram, "json", as_of).await).unwrap();
+        assert_eq!(value["project_policy_sources"]["status"], "historical_unavailable");
+        assert!(value["project_policy_sources"]["sources"].as_array().unwrap().is_empty());
+    }
+    drop(engram);
+    temporary.close().unwrap();
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn change_set_routes_live_topics_and_preserves_policy_in_both_formats() {
     let (temporary, engram) = fixture().await;

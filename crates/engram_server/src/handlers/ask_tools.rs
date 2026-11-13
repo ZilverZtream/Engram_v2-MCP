@@ -442,12 +442,33 @@ impl Engram {
         }
         let next_best = report::next_best(&plan, &evidence, st);
 
+        // Use only the code paths actually returned, not historical/doc matches
+        // or guessed task scope. Keep policy outside code ranking and status.
+        let policy_paths: Vec<String> = evidence.iter()
+            .filter(|item| item.authority == crate::services::ask_engine::evidence::Authority::CurrentCode)
+            .filter_map(|item| item.path.clone())
+            .collect::<std::collections::BTreeSet<_>>().into_iter().collect();
+        let historical = req.as_of.as_ref().is_some_and(|a|
+            a.commit.as_deref().is_some_and(|v| !v.trim().is_empty())
+            || a.branch.as_deref().is_some_and(|v| !v.trim().is_empty()));
+        let project_policy_sources = if historical {
+            crate::services::project_policy::PolicyContext::historical_unavailable()
+        } else {
+            let root = std::path::PathBuf::from(&rec.directory);
+            tokio::task::spawn_blocking(move || {
+                let mut policy = crate::services::project_policy::resolve(&root, &policy_paths, &[]);
+                policy.notes.push("Policy scope covers the code paths returned in this report, not all files a future edit may touch. Recheck guidance for the final edit scope.".into());
+                policy
+            }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+        };
+
         let mut out = AskReport {
             question: req.question.clone(),
             plan,
             status: st,
             mode: "retrieval_only".into(),
             synthesis: None,
+            project_policy_sources: Some(project_policy_sources),
             evidence,
             conflicts,
             unknowns,

@@ -287,6 +287,20 @@ This pins policy evidence only: historical planning still requires the appropria
 
 ### Optional ask_codebase synthesis
 
+`ask_codebase` includes `project_policy_sources` in JSON and a repository policy
+section in Markdown. The existing resolver selects authored guidance for the code
+paths in the returned evidence, preserving complete text, hashes, applicability
+and explicit omissions. Instruction edits take effect without reindexing. This
+scope is not the final edit scope; recheck guidance when additional files are chosen.
+Requests with `as_of.commit` or `as_of.branch` withhold live guidance and report
+`historical_unavailable`; this tool does not resolve historical policy.
+
+Optional synthesis receives the same policy section and may cite a source with
+`evidence_id: "policy:<exact source path>"` and an exact quotation from its content.
+Policy describes intended behavior, not proof that the code complies. Source
+ranking and retrieval status remain unchanged; quotation checks do not establish
+semantic correctness. Existing synthesis prompt limits still apply.
+
 Named-method evidence also includes bounded same-file property, field and
 constant declarations whose names appear in the method, when indexed
 declarations and source budget permit. These excerpts keep types and defaults
