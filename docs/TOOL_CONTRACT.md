@@ -121,6 +121,7 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `index_git_history(project_id, max_commits=200, index_antipatterns=false, wait=true)`
 - `ingest_zip_history(project_id, directory, wait=true)`
 - `search_history(project_id, query, limit=5, file_filter=null, exclude_paths=null, author_filter=null, date_after=null, date_before=null, fts_mode="strict", use_mmr=false, max_content_chars=800)` — structured commit metadata extraction, configurable FTS modes, MMR, path exclusions, and content preview
+  In precedent mode, file/author/date predicates are applied to change-card metadata before embedding new cards, including when the vector cache is warm. An empty eligible set skips query embedding too. The requested first-parent history still determines revision reachability and metadata discovery; unfiltered requests can still embed the whole eligible line. Existing file-list caps and generated-file exclusions remain, and `rerank_timeout_ms` bounds optional reranking only, not metadata retrieval or embedding.
 - `analyze_temporal_couplings(project_id, file_path, top_k=10)`
 - `analyze_reverts(project_id, max_commits=200)` — LLM-powered descriptive anti-pattern rule generation
 

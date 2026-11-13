@@ -158,6 +158,31 @@ impl ChangeCard {
     }
 }
 
+/// Existing request predicates, applied to metadata before any embedding work.
+/// File predicates retain the card's existing capped, non-generated file scope.
+#[derive(Default)]
+pub struct CardFilter {
+    pub file_prefix: Option<String>,
+    pub excluded_prefixes: Vec<String>,
+    pub author: Option<String>,
+    pub date_after: Option<u64>,
+    pub date_before: Option<u64>,
+}
+
+impl CardFilter {
+    fn admits(&self, card: &ChangeCard) -> bool {
+        self.date_after.is_none_or(|after| card.timestamp >= after)
+            && self.date_before.is_none_or(|before| card.timestamp < before)
+            && self.author.as_deref().is_none_or(|author| card.author == author)
+            && self.file_prefix.as_deref().is_none_or(|prefix| {
+                card.files.iter().any(|path| path.starts_with(prefix))
+            })
+            && !card.files.iter().any(|path| {
+                self.excluded_prefixes.iter().any(|prefix| path.starts_with(prefix.as_str()))
+            })
+    }
+}
+
 /// Build output and dependency files that say nothing about a change's intent.
 fn is_generated(path: &str) -> bool {
     static GENERATED: LazyLock<Regex> = LazyLock::new(|| {
@@ -286,7 +311,14 @@ pub async fn cards_for_line_cached(
     repo_dir: &Path, tip: Oid, search: &engram_index::HybridSearchEngine,
     prefixes: EmbedPrefixes, registry: &engram_core::Registry,
 ) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
-    Ok(cards_for_line_observed(repo_dir,tip,search,prefixes,Some(registry.clone())).await?.0)
+    cards_for_line_filtered_cached(repo_dir, tip, search, prefixes, registry, CardFilter::default()).await
+}
+
+pub async fn cards_for_line_filtered_cached(
+    repo_dir: &Path, tip: Oid, search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes, registry: &engram_core::Registry, filter: CardFilter,
+) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
+    Ok(cards_for_line_observed(repo_dir,tip,search,prefixes,Some(registry.clone()),filter).await?.0)
 }
 
 async fn cards_for_line_measured(
@@ -295,12 +327,13 @@ async fn cards_for_line_measured(
     search: &engram_index::HybridSearchEngine,
     prefixes: EmbedPrefixes,
 ) -> anyhow::Result<(Vec<Arc<ChangeCard>>, CardBuildStats)> {
-    cards_for_line_observed(repo_dir,tip,search,prefixes,None).await
+    cards_for_line_observed(repo_dir,tip,search,prefixes,None,CardFilter::default()).await
 }
 
 async fn cards_for_line_observed(
     repo_dir: &Path, tip: Oid, search: &engram_index::HybridSearchEngine,
     prefixes: EmbedPrefixes, registry: Option<engram_core::Registry>,
+    filter: CardFilter,
 ) -> anyhow::Result<(Vec<Arc<ChangeCard>>, CardBuildStats)> {
     // Capability, not cached data, decides whether vectors may participate.
     // A no-vector build or fts_only project never constructs placeholder cards.
@@ -308,7 +341,7 @@ async fn cards_for_line_observed(
         let root = repo_dir.to_path_buf();
         return tokio::task::spawn_blocking(move || -> anyhow::Result<_> {
             let (_, cards, stats) = metadata_cache::read(&root, tip, &Default::default(),registry.as_ref().map(|r|r as &dyn metadata_cache::Store))?;
-            Ok((cards.into_iter().map(Arc::new).collect(), stats))
+            Ok((cards.into_iter().filter(|card| filter.admits(card)).map(Arc::new).collect(), stats))
         })
         .await?;
     }
@@ -337,6 +370,13 @@ async fn cards_for_line_observed(
         metadata_cache::read(&dir_for_git, tip, &known,registry.as_ref().map(|r|r as &dyn metadata_cache::Store))
     })
     .await??;
+    // Excluded cards remain available as metadata for later requests, but do
+    // not incur provider work for this request. Reapply predicates to warm
+    // cards too; the shared vector cache is not a request-scoped result set.
+    let fresh: Vec<_> = fresh.into_iter().filter(|card| filter.admits(card)).collect();
+    let selected: std::collections::HashSet<_> = fresh.iter().map(|card| card.oid.clone())
+        .chain(cards.values().filter(|card| filter.admits(card)).map(|card| card.oid.clone()))
+        .collect();
     if !fresh.is_empty() {
         let texts: Vec<String> = fresh
             .iter()
@@ -361,6 +401,7 @@ async fn cards_for_line_observed(
     }
     let result =
         line.iter()
+            .filter(|oid| selected.contains(&oid.to_string()))
             .map(|oid| {
                 cards.get(&oid.to_string()).cloned().ok_or_else(|| {
                     anyhow::anyhow!("change card missing for requested commit {oid}")
@@ -426,6 +467,9 @@ pub async fn semantic_rank(
     search: &engram_index::HybridSearchEngine,
     prefixes: EmbedPrefixes,
 ) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
+    if cards.is_empty() {
+        return Ok(Vec::new());
+    }
     let query = search
         .embed_texts(&[format!("{}{story}", prefixes.query)])
         .await?
