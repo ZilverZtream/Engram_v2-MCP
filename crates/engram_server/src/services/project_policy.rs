@@ -453,7 +453,7 @@ fn in_directory(target: &str, parent: &str) -> bool {
     }
 }
 
-fn has_directory_authority(path: &str, targets: &[String]) -> bool {
+pub(crate) fn has_directory_authority(path: &str, targets: &[String]) -> bool {
     let lower = path.to_ascii_lowercase();
     let name = lower.rsplit('/').next().unwrap_or(&lower);
     let parent = path
@@ -472,13 +472,15 @@ fn has_directory_authority(path: &str, targets: &[String]) -> bool {
         && !targets.iter().any(|target| in_directory(target, parent)))
 }
 
-fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
-    if !has_directory_authority(path, targets) {
-        return Ok(Vec::new());
-    }
+pub(crate) fn explicit_scope_patterns(content: &str) -> Result<Option<Vec<String>>, String> {
     let metadata = frontmatter(content)?;
+    let patterns = declared_scope_patterns(metadata.as_ref())?;
+    Ok((!patterns.is_empty()).then_some(patterns))
+}
+
+fn declared_scope_patterns(metadata: Option<&serde_yaml::Mapping>) -> Result<Vec<String>, String> {
     let mut patterns = Vec::new();
-    if let Some(metadata) = metadata.as_ref() {
+    if let Some(metadata) = metadata {
         for field in ["applyTo", "globs", "paths"] {
             let Some(value) = metadata.get(&serde_yaml::Value::String(field.into())) else {
                 continue;
@@ -506,6 +508,15 @@ fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<St
             }
         }
     }
+    Ok(patterns)
+}
+
+fn applicability(path: &str, content: &str, targets: &[String]) -> Result<Vec<String>, String> {
+    if !has_directory_authority(path, targets) {
+        return Ok(Vec::new());
+    }
+    let metadata = frontmatter(content)?;
+    let patterns = declared_scope_patterns(metadata.as_ref())?;
     if !patterns.is_empty() {
         let compiled = patterns
             .iter()

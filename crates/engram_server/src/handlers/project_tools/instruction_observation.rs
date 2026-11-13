@@ -89,8 +89,13 @@ impl Engram {
         };
         let root = expected.directory.clone();
         let pid = project_id.to_owned();
-        let reviewed =
-            tokio::task::spawn_blocking(move || execute(root.into(), pid, request)).await;
+        let reviewed = tokio::task::spawn_blocking(move || {
+            let root = PathBuf::from(root);
+            execute(root.clone(), pid, request).map(|(confirmed, report)| {
+                let routing = confirmed.then(|| instruction_maintenance::routing::observe(&root, &report.packet.instructions));
+                (confirmed, report, routing)
+            })
+        }).await;
         observation["collection_completed_at_ms"] = json!(now_ms());
         observation["project_directory"] = json!(expected.directory);
         observation["project_type"] = json!(expected.project_type);
@@ -120,14 +125,15 @@ impl Engram {
             }
         }
         match reviewed {
-            Ok(Ok((true, report))) => {
+            Ok(Ok((true, report, routing))) => {
                 observation["status"] = json!("observed");
                 observation["packet_blake3"] = json!(report.packet_blake3);
                 observation["manifest"] = json!(report.packet.instruction_manifest);
+                observation["routing_coverage"] = json!(routing);
                 observation["coverage"] = json!(report.coverage);
                 observation["proposal_tool"] = json!("pre_push_audit");
             }
-            Ok(Ok((false, _))) => {
+            Ok(Ok((false, _, _))) => {
                 observation["status"] = json!("stale");
                 observation["reason"] =
                     json!("Instruction evidence changed during collection; recollect");
