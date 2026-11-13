@@ -522,7 +522,12 @@ value is accuracy, this is the biggest meta-gap.
   README has MCP config samples; tie it together with a copy-paste path per OS, expected
   timings, and "how do I know it worked" (point at #5 freshness tool).
 
-- [ ] **55. Large-repo tuning guide** (S)
+- [x] **55. Large-repo tuning guide** (S) - *delivered 2026-11-13.*
+  `docs/TUNING.md` gives source-grounded defaults and conservative starting profiles,
+  embedding/history/debounce tradeoffs and memory-accounting limits. Both literal
+  config fragments passed installed indexing/freshness/search/metrics checks on an
+  owned tiny fixture; no large-repository speedup or optimum is claimed.
+  Evidence: `eval/ociusx-tuning-delivery-20261113.json`.
   `tantivy_writer_memory`, embedder choice, git-history depth, watcher debounce — one doc
   page with recommended values by repo size.
 

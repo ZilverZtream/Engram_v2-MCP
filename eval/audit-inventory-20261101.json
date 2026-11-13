@@ -9976,20 +9976,33 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DOCUMENTED_WINDOWS_SETUP_AND_MCP_VERIFIED_CROSS_PLATFORM_ACCEPTANCE_PARTIAL",
-      "finding": "TODO54 first verified query quickstart",
-      "original_requirement": "TODO54: copy-paste clone/index/first-query path per OS, expected timings and freshness verification, with a five-minute quickstart target.",
-      "observed_missing_behavior": "README had a generic first-session prompt, no exact freshness/search/source-recovery sequence and an obsolete v4 VB companion contract.",
+      "status": "DOCUMENTED_SOURCE_CHECKED_EXAMPLES_VERIFIED",
+      "finding": "TODO55 large-repository tuning guide",
+      "original_requirement": "One documentation page with recommended values by repository size: Tantivy writer memory, embedder choice, git-history depth and watcher debounce.",
+      "observed_missing_behavior": "README gives configuration examples but there is no dedicated tuning guide; important distinctions between tracked memory/RSS, lexical/projection/semantic backends and request/watch history budgets are missing from a single operational path.",
       "implementation_files": [
-        "docs/QUICKSTART.md",
+        "docs/TUNING.md",
         "README.md"
       ],
       "finite_acceptance": [
-        "Execute documented Windows setup with only placeholder paths substituted.",
-        "Run documented index/freshness/search/chunk argument objects against the installed server and match source.",
-        "Close owned server/reader and clean new fixtures; retain receipts. Preserve platform/elapsed-time limitations."
+        "Document current defaults and actual option names from config.rs, memory.rs, hybrid.rs, embed.rs and watcher/request code.",
+        "Give conservative starting profiles by eligible source-file count, explaining which values are defaults and which are unbenchmarked suggestions; distinguish history work from source completeness.",
+        "Include a valid scoped config fragment and update/freshness/metrics workflow, without changing user configuration or adding provider calls.",
+        "Validate profile fields and installed startup/index/search behavior on an owned tiny fixture; do not extrapolate to real OciusX performance. Close owners and clean new fixture, commit/push docs."
       ],
-      "receipt": "eval/ociusx-quickstart-delivery-20261113.json"
+      "source_basis": [
+        "crates/engram_core/src/config.rs",
+        "crates/engram_core/src/memory.rs",
+        "crates/engram_index/src/hybrid.rs",
+        "crates/engram_ml/src/embed.rs",
+        "crates/engram_server/src/actors/watcher.rs",
+        "crates/engram_server/src/models/requests.rs"
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning",
+      "scope": "Documentation only; no production configuration, defaults, parser, language support, CodeMap or Blast changes.",
+      "at_utc": "2026-11-13T05:11:55.850628+00:00",
+      "delivery": "eval/ociusx-tuning-delivery-20261113.json",
+      "remaining": "Selected guide delivered. No demonstrated production speedup; continue original TODO56 defaults item without assuming different settings are better."
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10021,7 +10034,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO54 Windows walkthrough delivered; platform/client acceptance partial",
+    "active_original_item": "TODO55 delivered; TODO56 not yet selected",
     "next_user_visible_deliverable": "Next implementation not selected.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10039,7 +10052,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: documented exact setup/query/freshness path, verified installed runtime responses, corrected stale VB parser contract and preserved unresolved distribution/platform requirements.",
+    "previous_goal_turn_classification": "PROGRESS: delivered source-grounded tuning guide and verified both literal config fragments through installed indexing/freshness/search/metrics; all owned fixtures closed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -11012,7 +11025,7 @@
       "sha256": "ad4e82ec7725f6c2c5e3a9077bd3dd123c39d52b2fe42f6e648e7db9a7c775ad"
     },
     "pending_fresh_agent_question": "RESOLVED: user explicitly answered yes to launch two candidate agents and independent judge, then reactivated goal. No further authorization question required for this evaluation.",
-    "independent_next_action": "Continue the next original OciusX-relevant item; no new tags, language expansion or closed-tool work.",
+    "independent_next_action": "Continue original defaults requirement; preserve measured/unmeasured distinctions and all other unfinished findings.",
     "selected_class_impact_recovery": {
       "baseline": {
         "path": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/class-impact-recovery-baseline-20261108.json",
@@ -13272,7 +13285,7 @@
       "build_session": null,
       "delivery_evidence": "eval/ociusx-indexing-progress-delivery-20261112.json"
     },
-    "next_user_visible_delivery": "Inspect original TODO55 tuning guide against current configuration and retained measured evidence.",
+    "next_user_visible_delivery": "Inspect original TODO56 defaults against current behavior and existing acceptance once; choose a concrete remaining gap.",
     "source_integrity_delivery_20261112": {
       "receipt": "eval/ociusx-source-integrity-delivery-20261112.json",
       "status": "PUBLISHED_SOURCE_CONSISTENCY_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED"
@@ -13853,6 +13866,23 @@
       "remaining": "Hosted CI and held Blast portion remain unverified/unfinished. Search/method fixture gates are implemented and locally passed."
     },
     "quickstart_delivery": "eval/ociusx-quickstart-delivery-20261113.json",
-    "packaging_state": "eval/todo53-packaging-state-20261113.json"
+    "packaging_state": "eval/todo53-packaging-state-20261113.json",
+    "previous_quickstart_contract": {
+      "status": "DOCUMENTED_WINDOWS_SETUP_AND_MCP_VERIFIED_CROSS_PLATFORM_ACCEPTANCE_PARTIAL",
+      "finding": "TODO54 first verified query quickstart",
+      "original_requirement": "TODO54: copy-paste clone/index/first-query path per OS, expected timings and freshness verification, with a five-minute quickstart target.",
+      "observed_missing_behavior": "README had a generic first-session prompt, no exact freshness/search/source-recovery sequence and an obsolete v4 VB companion contract.",
+      "implementation_files": [
+        "docs/QUICKSTART.md",
+        "README.md"
+      ],
+      "finite_acceptance": [
+        "Execute documented Windows setup with only placeholder paths substituted.",
+        "Run documented index/freshness/search/chunk argument objects against the installed server and match source.",
+        "Close owned server/reader and clean new fixtures; retain receipts. Preserve platform/elapsed-time limitations."
+      ],
+      "receipt": "eval/ociusx-quickstart-delivery-20261113.json"
+    },
+    "tuning_delivery": "eval/ociusx-tuning-delivery-20261113.json"
   }
 }

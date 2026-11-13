@@ -1450,6 +1450,9 @@ Indexing a project produces five persistent stores:
 
 ## Configuration
 
+See the [large-repository tuning guide](docs/TUNING.md) for starting profiles,
+writer memory, embedding choices, history work and watcher-delay tradeoffs.
+
 Full YAML:
 
 ```yaml

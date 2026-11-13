@@ -41,8 +41,8 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "PREVIOUS_ITEM_DELIVERED_NEXT_SELECTION_PENDING",
-    "finding": "TODO54 Windows walkthrough delivered; original platform/client acceptance partial",
-    "remaining": "Inspect original TODO55 tuning guide against current configuration and retained measured evidence."
+    "finding": "TODO55 delivered",
+    "remaining": "Inspect original TODO56 defaults against current behavior and existing acceptance once; choose a concrete remaining gap."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -129,5 +129,9 @@
     "status": "DOCUMENTED_WINDOWS_SETUP_AND_MCP_VERIFIED_CROSS_PLATFORM_ACCEPTANCE_PARTIAL",
     "receipt": "eval/ociusx-quickstart-delivery-20261113.json"
   },
-  "packaging_state": "eval/todo53-packaging-state-20261113.json"
+  "packaging_state": "eval/todo53-packaging-state-20261113.json",
+  "tuning_delivery": {
+    "status": "DOCUMENTED_SOURCE_CHECKED_EXAMPLES_VERIFIED",
+    "receipt": "eval/ociusx-tuning-delivery-20261113.json"
+  }
 }

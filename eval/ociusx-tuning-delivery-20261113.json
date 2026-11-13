@@ -1,0 +1,91 @@
+{
+  "status": "DOCUMENTED_SOURCE_CHECKED_EXAMPLES_VERIFIED",
+  "finding": "TODO55 large-repository tuning guide",
+  "original_requirement": "One documentation page with recommended values by repository size: Tantivy writer memory, embedder choice, git-history depth and watcher debounce.",
+  "at_utc": "2026-11-13T05:14:38.595305+00:00",
+  "delivered": [
+    "One tuning guide with starting values by eligible source-file count for writer memory, jobs, parsing, watcher debounce and watcher history work.",
+    "Actual lexical/projection/semantic backend distinctions, tracked-memory versus RSS limits, admission/chunk/hash semantics, separate manual history limits and an observation/reversal workflow."
+  ],
+  "production_change": false,
+  "deployment_required": false,
+  "examples": {
+    "medium": {
+      "profile": {
+        "tantivy_writer_memory": 50000000,
+        "max_concurrent_jobs": 1,
+        "max_parse_concurrency": 4,
+        "watch_debounce_secs": 10,
+        "max_commits_per_watch": 50,
+        "memory_budget_bytes": 0
+      },
+      "public_calls": [
+        "index_project",
+        "get_index_freshness",
+        "search_memory",
+        "get_metrics"
+      ],
+      "seconds": 0.823591300053522,
+      "server_sha256": "526fd26a60a8d6c6c2fac861380d16969670812c849f2b1e2dc50c6e6c76a927",
+      "tracked_budget_bytes": 2147483648
+    },
+    "large": {
+      "profile": {
+        "tantivy_writer_memory": 150000000,
+        "max_concurrent_jobs": 1,
+        "max_parse_concurrency": 2,
+        "watch_debounce_secs": 10,
+        "max_commits_per_watch": 50,
+        "memory_budget_bytes": 0
+      },
+      "public_calls": [
+        "index_project",
+        "get_index_freshness",
+        "search_memory",
+        "get_metrics"
+      ],
+      "seconds": 0.9166048000333831,
+      "server_sha256": "526fd26a60a8d6c6c2fac861380d16969670812c849f2b1e2dc50c6e6c76a927",
+      "tracked_budget_bytes": 2147483648
+    }
+  },
+  "source_basis": {
+    "crates/engram_core/src/config.rs": "7c3592fcef4e2bf50e2875c1152b22e04489e2edf802243659fd486946388761",
+    "crates/engram_core/src/memory.rs": "00f293cb4a03455f6982fef9233aac2f5ebac1192721abe471b31ed4a7d1eb7f",
+    "crates/engram_index/src/hybrid.rs": "f71c7f199d462f346123cc3ace8d36889d0fce584779710fd94936a3be8a824e",
+    "crates/engram_ml/src/embed.rs": "5ddf9454b402a6ca34999877f54a4451493e69e9b7da80c5c7129ce008ca9c15",
+    "crates/engram_server/src/actors/watcher.rs": "457893d6beb2235009f6cdc0cbf5e787009caf4d5a2f2047cf9cf054d277b3e8",
+    "crates/engram_server/src/models/requests.rs": "569d4254f3afaba87e1c3fec4a281918cde248c974f489d7098f01adc94fefb9"
+  },
+  "document_sha256": "0cd1e44e0ad7af2371f5bb1f3fd71535b753e51d6d4be312163c0f9e96312ecf",
+  "limits": [
+    "Starting profiles are explicitly unbenchmarked suggestions, not optimal sizes or a claim of large-repository speedup.",
+    "Runtime checks used an owned four-file client-source sample and no model provider; real OciusX configuration and data were not changed.",
+    "No global defaults changed, source build, release swap, scale test or productivity claim."
+  ],
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning\\contract.json",
+      "sha256": "7eb7990eb7d444c7c555b519e36be32b883c82b402c250344441f2f482505ae7"
+    },
+    "verify.py": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning\\verify.py",
+      "sha256": "4ced29eb32914c68b6ac1b581f2b0a9a8a9bc6036426a2e98a904b3f16e20dba"
+    },
+    "medium/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning\\medium\\acceptance.json",
+      "sha256": "0ac62da0efe727304208b7aca88030abbf16aba6c0dcecad9345dc73b8d37bc3"
+    },
+    "large/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning\\large\\acceptance.json",
+      "sha256": "662e9634a23f70da1e4aca57ca44fc2e4724cff2737a660d1d86610af071cce1"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\tuning",
+    "servers_and_readers_closed": true,
+    "owned_fixture_roots_removed": true,
+    "preserved_work_unchanged": true,
+    "retained": "Only verification logs, exact MCP requests/replies and receipts remain in this recorded location."
+  }
+}
