@@ -40,6 +40,19 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
     let offset=req.offset.min(window);
     let rows=&rows[offset..];
     let blocks=&blocks[offset..];
+    // Precedent ranking retains the complete ranked candidate list before the
+    // caller's limit. Text retrieval only establishes a bounded document pool.
+    let ranked_total=metadata["ranked_matches_before_limit"].as_u64();
+    let more_ranked=ranked_total.map(|total|total>window as u64);
+    metadata["more_ranked_matches"]=json!(more_ranked);
+    if rows.is_empty() {
+        // Own the empty-page guidance in both formats so middleware cannot
+        // suggest inspecting a historical lead that this page did not supply.
+        metadata["next_tools"]=json!([]);
+        metadata["next_tools_status"]=json!("empty_history_page_no_historical_lead");
+        metadata["empty_page_reason"]=json!(if window==0 {"no_results_in_ranking_window"} else {"offset_outside_ranking_window"});
+        if window>0 {metadata["restart_offset"]=json!(0);}
+    }
     let output=if req.output_json {
         metadata["schema_version"]=json!(1);
         metadata["tool"]=json!("search_history");
@@ -54,11 +67,15 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
         let pagination=|returned| {
             let next=offset+returned;
             let action=if next<window {format!("next_page: offset={next}; keep query, filters, limit and ranking options fixed.\n")}
-                else {"ranking_window_end: further matches may exist; increase limit (max 200) or narrow the query and restart at offset=0.\n".to_string()};
+                else if window==0 {"ranking_window_empty: no results returned for this query and filters; no next page in this window. This does not prove absence from all history.\n".to_string()}
+                else if req.offset>=window {format!("ranking_window_end: requested offset={} is outside this {window}-result window; restart at offset=0 to read its results.\n",req.offset)}
+                else if more_ranked==Some(false) {"ranking_window_end: no additional ranked matches beyond this window in the selected history scope.\n".to_string()}
+                else if more_ranked==Some(true) {format!("ranking_window_end: {} additional ranked matches are outside this window; adjust query/filters or increase limit if below 200, then restart at offset=0.\n",ranked_total.unwrap()-window as u64)}
+                else {"ranking_window_end: matches beyond the retrieved window are unknown; adjust query/filters or increase limit if below 200, then restart at offset=0.\n".to_string()};
             format!("{action}ranking_window: {window}; offset={}; limit={}; returned={returned}; pagination is not a snapshot; LLM reranking and mutable inputs can reorder results.\n",req.offset,req.sanitized_limit())
         };
         if blocks.is_empty() {
-            response_budget::bounded_message(format!("{header}{}",pagination(0)),req.max_tokens)?
+            response_budget::bounded_message(format!("{header}{}\nnext_tools: []\nnext_tools_status: empty_history_page_no_historical_lead\n",pagination(0)),req.max_tokens)?
         } else if req.max_tokens.is_some() || req.offset>0 {
             response_budget::finish_with(header,blocks,"","",false,req.max_tokens,pagination)?.0
         } else {
