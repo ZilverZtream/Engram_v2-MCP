@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_PUBLIC_TESTS_RUNNING_NOT_DEPLOYED",
+  "status": "IMPLEMENTED_VALIDATED_RELEASE_BUILD_RUNNING",
   "at_utc": "2026-11-13T10:55:22.584548+00:00",
   "finding": "EG17/EG26 generated workflow scope and authority",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
@@ -8,12 +8,39 @@
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\baseline.json",
-  "test_session": 9697,
+  "test_session": null,
   "test_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\native1.json",
-  "next_action": "Poll exact native test session9697. Source frozen until terminal. If passing, commit and merge this text-only generator correction, build release using copied existing build.py with shared target, complete candidate/installed read-only generate_agent_integration preview acceptance, deploy, record limits and advance. Preserve legacy OciusX workflow without matching ownership receipt.",
+  "next_action": "Poll exact release session37905. After terminal PASS, run release.py package and deploy.py from scratch (candidate/installed read-only generation, schema-call checks, Windows/POSIX proposals, delta gates and paired installation). No source changes during build. If active daemon prevents maintenance, inspect exact owners and use already-authorized proxy closure/natural idle shutdown under config hold; do not rebuild. Record legacy OciusX file as preserved, not adopted.",
   "limits": [
     "No sample-specific feature-plan prompt tuning or model benchmark replay.",
     "No claimed adoption of legacy OciusX workflow or measured productivity benefit."
   ],
-  "resource_retention": "All new fixtures under this case; runner checks cleanup after handles close. Retain evidence, package and rollback. Existing source checkout protects WIP9 and remains retained."
+  "resource_retention": "All new fixtures under this case; runner checks cleanup after handles close. Retain evidence, package and rollback. Existing source checkout protects WIP9 and remains retained.",
+  "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
+  "native_passed": 6,
+  "release_session": 37905,
+  "release_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\release1.json",
+  "resources": {
+    "owned_native_temp_removed": true,
+    "release_owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-guidance\\edit-workload-focused-t9f_dwb3",
+    "source_checkout_retained": "Existing batch-read-source checkout protects WIP9 and supports remaining original backlog; do not delete."
+  },
+  "manual_review": {
+    "kind": "Parent source review; retained CodeRabbit host authentication unavailable, no external review claimed.",
+    "checks": [
+      "Generated guidance follows requested scope and authored exceptions; inferred findings and history are not approval.",
+      "Unsupported historical performance claims and universal edit mandates removed.",
+      "Hooks limit review to task-owned changes, preserve preexisting work and avoid repeated unchanged passing checks.",
+      "Existing publication ownership and create-only semantics unchanged.",
+      "Runtime verifier checks tool/parameter names against current advertised schemas, both hook formats, actual project identity and no authored file writes."
+    ]
+  },
+  "runtime_verification_helpers": {
+    "build.py": "c6b8a9304399203cb2d7d2d1a76da5e00667fd835814257bbe84c796ac7a031f",
+    "release.py": "2310d7a1ddb77f16c3ccffd9c5a375d8a534bf6d4bb02d21a00d3f23f59c1157",
+    "verify-runtime.py": "587b9c14e9d313cb34ab5f4e74b62e18e167616dde9f168cf6d95a4b079349b8",
+    "deploy.py": "0ad58934ddbc5e4148c9167fe85e55f57df0d136788efa801cd5452f9267651f",
+    "hold-config.ps1": "12772b48534babe6316f8ead665e459a3631a99acc91474de1748fda7cc5816d",
+    "install.ps1": "1906c35526126d7477f8252dbf890388d24a72633d4366a0124ea344f206c3f7"
+  }
 }

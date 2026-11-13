@@ -9987,7 +9987,7 @@
   "last_updated_at": "2026-11-13T04:57:38.763518+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_FOCUSED_PUBLIC_TESTS_RUNNING_NOT_DEPLOYED",
+      "status": "IMPLEMENTED_VALIDATED_RELEASE_BUILD_RUNNING",
       "finding": "EG17/EG26 generated workflow scope and evidence authority",
       "original_requirement": "EG17 preserve scoped authority and accepted exceptions; EG26 reconcile agent-facing tool contracts with demonstrated behavior.",
       "observed_missing_behavior": [
@@ -10012,7 +10012,8 @@
         "Legacy OciusX workflow lacks proven ownership and remains unchanged; updated pack is a proposal, not adopted policy.",
         "No claim that existing workflow caused earlier failures or that wording changes establish productivity."
       ],
-      "progress": "eval/ociusx-workflow-guidance-progress-20261113.json"
+      "progress": "eval/ociusx-workflow-guidance-progress-20261113.json",
+      "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31"
     },
     "at_utc": "2026-11-13T04:57:38.763518+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
