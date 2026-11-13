@@ -309,6 +309,11 @@ unchanged. Core replies, existing guidance, errors, non-object JSON, multipart o
 media results, and text above 1 MiB retain their existing formats. Absence of a
 hint does not establish that a task is complete or an edit is safe.
 
+`complete_edit_session` distinguishes an omitted `edited_files` field from an
+explicit empty list. Omitting it checks the session's planned files. Passing `[]`
+declares no edits: every planned file is reported as unedited, and completeness
+analysis is explicitly skipped. Completing a session never certifies the diff.
+
 `trace_user_request` accepts an `entry_point` such as `POST /buy/42` and an
 optional `action` such as `click btnBuy` or `load page`. It resolves literal
 `MapPageRoute` registrations and physical pages from selected project sources,

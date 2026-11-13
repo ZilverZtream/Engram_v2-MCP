@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
     "finding": "TODO50 top20 public MCP contract tests",
-    "remaining": "Exercise twenty OciusX-relevant core editing/retrieval tools through the actual MCP wire and production server using owned authored fixtures, with truthful success/error/recovery checks.",
+    "remaining": "Complete release2, run pinned public contract test against optimized candidate and installed package, record deployment. Hosted CI remains unverified because repository Actions are disabled.",
     "progress": "eval\\ociusx-mcp-contract-progress-20261113.json"
   },
   "previous_delivery": {
