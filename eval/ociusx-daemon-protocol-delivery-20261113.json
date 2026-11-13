@@ -1,0 +1,89 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T12:16:42.831117+00:00",
+  "finding": "TODO58 shared-daemon protocol compatibility",
+  "source_commit": "76f025f80e622a96b0aa78d28ad18cd627706d9f",
+  "original_requirement": "IPC protocol mismatch handling for mixed-version daemon/proxy.",
+  "before": "Installed default detached-daemon client forwarded all59initialization bytes to an incompatible advertised protocol999 endpoint. Explicit in-process proxy already refused it.",
+  "after": [
+    "Default Windows named-pipe and Unix-socket branches check advertised protocol on connection before forwarding stdio.",
+    "Mismatch reports primary PID, both protocol versions and restart guidance through the shared existing validator.",
+    "Compatible wire versions retain byte-transparent forwarding across informational crate versions. Missing/stale-endpoint spawn/retry path is unchanged."
+  ],
+  "validation": {
+    "installed_baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\baseline.json",
+      "sha256": "a064a1f23f786abbde6ca5864a4de01ecbea26715476fd89c39c64282dd6f0d7"
+    },
+    "baseline_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\baseline1.json",
+      "sha256": "6d04c215594fed338dc3ecd11ae7915581646ce00300a8793218b6a00f0242cc"
+    },
+    "native_passed": 3,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\native1.json",
+      "sha256": "3e72d0269288ab0db36ad7f03b810f6218ebd98b4d6a2a0480d78d4705c0d111"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\release1.json",
+      "sha256": "3072dbab2980c2e6919aa9189a1513ac5f41afce658211435deeee2838c40be5"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\candidate1\\acceptance.json",
+      "sha256": "27aef0706fa74a5e24e970fbcd6416afb99bf70ba01671044d2795cb7ed59768"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\installed1\\acceptance.json",
+      "sha256": "0e51f31bc3fae208dfedd2202ec8ad1a9f6f20d4d6f93a4f3e85e483864e626d"
+    },
+    "installed_checks": {
+      "shared_daemon_refuses_incompatible_protocol_before_forwarding": true,
+      "shared_daemon_accepts_compatible_protocol_across_crate_versions": true,
+      "in_process_proxy_still_refuses_incompatible_protocol": true
+    },
+    "installed_mismatch_forwarded_bytes": 0,
+    "actual_executable_transport_fixture": true,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\deployment1-state.json",
+      "sha256": "dc9a42c9cc2e947008eed60522b21c2e4ad274525112238ddc1ba079a45745d7"
+    }
+  },
+  "runtime": {
+    "server_sha256": "acbb66f85b0372fcb3f67f631516e7bdbeb1c245846b730802a690ba7737849c",
+    "manifest_sha256": "3bfe0286df755b72f152d5e243a529be9f21bc82c7aa741992992de9f0a299ad",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "actual_ociusx_configuration": {
+      "multi_client": true,
+      "multi_client_daemon": "default true"
+    }
+  },
+  "preserved": {
+    "registry_selection_and_other_metadata_unchanged": true,
+    "configuration_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\manual-review1.json",
+    "sha256": "ba3b572e831946552a019bb11d22565ed6955fe725592b662bbb70dc454260bc"
+  },
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol",
+    "baseline_and_native_fixtures_removed": true,
+    "build_job_closed_and_temp_removed": true,
+    "candidate_and_installed_owned_temp_removed": true,
+    "owned_runtime_config_removed": true,
+    "hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-cd580fc90d80480fb1b0ab9a8fb9b984",
+    "retention": "Keep evidence, paired package and rollback for review. Reused source checkout protects WIP9. No preexisting directory deletion."
+  },
+  "limits": [
+    "Windows executable transport behavior verified. Unix branch shares the check but was not executed on this host.",
+    "Matching protocol versions do not prove identical source commits or tool implementations; no in-stream negotiation/downgrade added.",
+    "Unreadable metadata retains the existing derived-endpoint fallback. Missing-endpoint startup recovery is preserved by source flow, not separately rerun with an actual detached daemon.",
+    "Owned fixture verifies proxy transport, not application tool semantics or measured OciusX productivity.",
+    "CodeRabbit host authentication unavailable; parent manual review only. Original broader gates and goal remain open."
+  ]
+}

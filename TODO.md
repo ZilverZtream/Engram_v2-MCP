@@ -560,14 +560,16 @@ value is accuracy, this is the biggest meta-gap.
   actual tools; mark AGENT_ENHANCEMENT_SPEC phases 39–45 as roadmap-not-built (an agent
   reading the spec today would believe tools exist that don't).
 
-- [~] **58. IPC protocol version negotiation** (S)
-  Default detached-daemon client compatibility check implemented 2026-11-13;
-  release deployment pending. The installed baseline forwarded 59 bytes to an
-  incompatible owned endpoint, while the existing in-process proxy refused it.
-  Three executable tests now pass: default mismatch refusal before forwarding,
-  exact compatible message/response forwarding across crate versions, and the
-  existing in-process refusal. Missing-endpoint startup recovery is preserved.
-  Evidence: `eval/ociusx-daemon-protocol-progress-20261113.json`.
+- [x] **58. IPC protocol version negotiation** (S) ? *delivered 2026-11-13.*
+  Default detached-daemon clients now reject an advertised incompatible wire
+  protocol before forwarding data. The installed baseline forwarded 59 bytes
+  to the incompatible owned endpoint; the fixed installed binary forwards zero
+  and reports both versions with restart guidance. Candidate and installed
+  executable fixtures also verify compatible message/response forwarding across
+  crate versions and the existing in-process refusal. All fixtures cleaned up.
+  Windows execution verified; Unix uses the shared gate but was not executed.
+  Wire compatibility is not source/tool identity or automatic version downgrade.
+  Evidence: `eval/ociusx-daemon-protocol-delivery-20261113.json`.
 
 
 ---
