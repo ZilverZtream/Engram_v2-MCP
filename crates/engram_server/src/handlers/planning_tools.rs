@@ -13262,6 +13262,14 @@ fn update_edit_sessions(
     Err(McpError::invalid_params("edit session contention; retry with the same session_id", None))
 }
 
+async fn edit_session_policy(root: PathBuf, paths: Vec<String>) -> Result<String, McpError> {
+    let mut policy = tokio::task::spawn_blocking(move || {
+        crate::services::project_policy::resolve(&root, &paths, &[])
+    }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+    policy.notes.push("Guidance is selected for the paths declared in this call. It does not certify the edit set, enforce policy prose, or establish that the implementation complies. Completion resolves current guidance again for the declared edited paths.".into());
+    Ok(policy.render_markdown())
+}
+
 impl Engram {
     /// TODO-29: open the edit-session bookend. Persists intent and returns
     /// the expectation brief (partners + state couplings of the planned
@@ -13278,6 +13286,7 @@ impl Engram {
             return Err(McpError::invalid_params("session_id must contain 1 to 128 bytes", None));
         }
         let record = self.ensure_project_record(&req.project_id).await?;
+        let policy = edit_session_policy(PathBuf::from(&record.directory), planned_files.clone()).await?;
         let generation = self.get_active_generation(&req.project_id).await?;
         let head = git2::Repository::discover(&record.directory).ok().and_then(|r| r.head().ok().and_then(|h| h.target())).map(|id| id.to_string());
         let revision = uuid::Uuid::new_v4().to_string();
@@ -13324,7 +13333,7 @@ impl Engram {
         })).await.map_err(|e| McpError::internal_error(e.to_string(), None))??;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "# Edit session OPEN\nsession_id: {session_id}\nsession_revision: {revision}\nsnapshot: {}\nSnapshot metadata records context only; it is not approval or source certification.\nplanned files: {}\n\n## Expectation brief \
+            "# Edit session OPEN\nsession_id: {session_id}\nsession_revision: {revision}\nsnapshot: {}\nSnapshot metadata records context only; it is not approval or source certification.\nplanned files: {}\n{policy}\n## Expectation brief \
              (couplings of your planned set — plan for these now)\n{}\n\
              next: edit; then complete_edit_session(session_id=\"{session_id}\", session_revision=\"{revision}\", edited_files=[...]) before committing.\n",
             session["snapshot"],
@@ -13409,6 +13418,13 @@ impl Engram {
             .join("\n")
         };
 
+        let policy = if edited.is_empty() {
+            String::new()
+        } else {
+            let record = self.ensure_project_record(&req.project_id).await?;
+            edit_session_policy(PathBuf::from(record.directory), edited.clone()).await?
+        };
+
         // Consume only the exact session checked. Concurrent workers retain
         // their sessions, and any failure above leaves this one retryable.
         let reg2 = self.state.registry.clone();
@@ -13470,6 +13486,7 @@ impl Engram {
             }
         }
         out.push_str("\n");
+        out.push_str(&policy);
         out.push_str(&check_text);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
