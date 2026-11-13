@@ -288,6 +288,7 @@ without re-reading an entire file:
 | `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
 | `batch_read` | Up to 16 method, identity and stored-chunk reads under one response budget |
 | `query_schema` | Qualified, source-cited SQL table, column, key, index, view, trigger and procedure queries |
+| `one_shot_feature_plan` | Source-cited WebForms/VB.NET feature proposal with existing-behavior findings, proposed edits and unresolved requirements |
 | `detect_n_plus_one` | Source-cited candidates for database calls repeated by VB loops or WebForms row binding |
 | `find_missing_indexes` | Review-only SQL index candidates from cited queries and source-declared index coverage |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
@@ -310,6 +311,29 @@ database-trigger bindings remain explicit coverage limits. `include_db: false`
 omits database relationships; `include_triggers: false` skips trigger coverage.
 The complete JSON response defaults to a 16,384-token byte-estimate budget;
 smaller budgets that cannot contain it fail with the required size.
+
+`one_shot_feature_plan` accepts `project_id`, `feature_description`,
+`target_stack: "webforms_vbnet"`, and `detail_level` (`Sketch`, `Detailed`, or
+`ReadyToCode`). Optional `area_hint` and `model_after` help locate the relevant
+area and existing pattern. It covers the WebForms/VB.NET application's JS/TS
+and SQL files; other target stacks are not implemented. The tool is available
+in the full catalog and is not added to the default core preset.
+
+The configured model proposes requirements, reconciles them with admitted source,
+and returns proposed files, DDL, ordered steps, validation checks and explicit
+`planned`, `already_present`, or `unresolved` dispositions. Existing behavior can
+justify a plan with no edits. `ReadyToCode` adds proposed code templates; it does
+not authorize edits or establish runtime correctness. The tool never writes
+application files or executes SQL.
+
+A usable response is labeled `DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW`.
+Plans are limited to 12 new/modified files and 48 steps. Invalid model contracts
+may receive one correction attempt using the same evidence and validation rules:
+two normal generation requests, at most three with correction, plus the configured
+provider's transport retries. The rejected proposal remains separately labeled
+untrusted data. Provider failures, unresolved contract errors and source changes
+return `INCOMPLETE` with no usable plan. Review citations, coverage, requirement
+dispositions and semantic claims before implementing any proposal.
 
 `batch_read` accepts `requests` containing a unique `request_id` and a `request`
 with `tool` (`get_method_info`, `resolve_id` or `get_chunk`) and its ordinary
