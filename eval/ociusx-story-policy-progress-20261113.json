@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-13T11:28:03.887893+00:00",
   "source_commit": "413a167392b421921c3129aab0fc78df04ad8a5d",
   "behavior": "plan_user_story now returns complete scoped repository guidance selected from typed concept footprint paths, with candidate-scope and incomplete-coverage notes.",
@@ -15,9 +15,7 @@
     "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\release1.json"
   },
   "remaining": [
-    "Finish existing release build.",
-    "Run candidate and installed read-only OciusX story acceptance; deploy only after candidate acceptance.",
-    "Record installed identity and limits."
+    "Advance the next unfinished original OciusX requirement; preserve broader scope and all recorded acceptance gaps."
   ],
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy",
@@ -26,5 +24,6 @@
   },
   "limits": [
     "Not deployed yet. No measured task-quality gain. CodeRabbit host authentication unavailable; manual source review only."
-  ]
+  ],
+  "delivery": "eval/ociusx-story-policy-delivery-20261113.json"
 }

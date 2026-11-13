@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG01 scoped authored guidance in plan_user_story",
     "original_requirement": "Make existing planning context instruction-aware while preserving scope, authored exceptions and explicit omissions.",
     "observed_missing_behavior": "plan_user_story returns concept footprints and exemplars but omits applicable repository guidance.",
@@ -64,10 +64,9 @@
     "source_commit": "413a167392b421921c3129aab0fc78df04ad8a5d",
     "progress": "eval/ociusx-story-policy-progress-20261113.json",
     "remaining": [
-      "Finish existing release build.",
-      "Run candidate and installed read-only OciusX story acceptance; deploy only after candidate acceptance.",
-      "Record installed identity and limits."
-    ]
+      "Advance the next unfinished original OciusX requirement; preserve broader scope and all recorded acceptance gaps."
+    ],
+    "delivery": "eval/ociusx-story-policy-delivery-20261113.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -289,5 +288,6 @@
     "source_commit": "a564da79a520b159df82f3774a5002b8c958ac31",
     "delivery": "eval/ociusx-workflow-guidance-delivery-20261113.json",
     "remaining": "Generated workflow correction delivered. Advance next unfinished original OciusX requirement; retain legacy workflow adoption gap without weakening ownership or repeating this acceptance."
-  }
+  },
+  "story_policy_delivery": "eval/ociusx-story-policy-delivery-20261113.json"
 }

@@ -1,0 +1,96 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T11:49:10.982715+00:00",
+  "finding": "EG01 scoped repository guidance in plan_user_story",
+  "source_commit": "413a167392b421921c3129aab0fc78df04ad8a5d",
+  "original_requirement": "Make existing planning workflows instruction-aware, preserving applicable complete guidance, qualifications, scope and evidence identity.",
+  "before": "Story briefs returned concept footprints, exemplars and guard/settings excerpts but no applicable repository guidance.",
+  "after": [
+    "Story briefs select authored guidance from typed paths already collected by concept footprints, without another graph retrieval.",
+    "Complete policy bodies and hash-bound recovery are separate from abbreviated analysis. Live instruction edits are reflected without reindexing.",
+    "Observed candidate paths are not approved edit scope; missing or incomplete footprint coverage is disclosed."
+  ],
+  "validation": {
+    "native_passed": 5,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\native2.json",
+      "sha256": "6d440685d3243a47e9afc1e566903806b04ae74c0c952764cd2b0fda75a1bf14"
+    },
+    "initial_test_failure": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\native1.json",
+        "sha256": "cbfb4de8e1ab3e3e54c73e1e63c5c021596991e7202bb0607d5826014d390629"
+      },
+      "reason": "Test incorrectly expected a read_file hint; corrected to the existing complete-file recovery instruction. Production source unchanged between runs."
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\release1.json",
+      "sha256": "60e052b86e750fe76be18878b681c3499c10b031202269528a096080dce8e797"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\candidate1\\acceptance.json",
+      "sha256": "4fc7f728093f87a8d3d8eb4e5840bc9fe8dd6bf28d8be1cfd8f74517ef74ea76"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\installed1\\acceptance.json",
+      "sha256": "1129647910891cf7c4c9f1ceaa02632937fd91dab04949b4d6ec3f659fccfadc"
+    },
+    "actual_ociusx_response": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\installed1\\current.md",
+      "sha256": "e3caac2cdbaefb20675e7977310692b4273b35c5755caecb3cd9c2a9bd1bf9bd"
+    },
+    "actual_checks": {
+      "complete_applicable_guide": true,
+      "complete_root_guidance": true,
+      "exact_guide_hash": true,
+      "oversized_shared_guidance_recovery": true,
+      "candidate_scope_disclosed": true
+    },
+    "actual_policy_coverage": {
+      "applicable": 9,
+      "shown": 6,
+      "status": "incomplete",
+      "concept_scope": "incomplete"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\deployment1-state.json",
+      "sha256": "4256c16b6b35b8c8ed29df18de14e01d7762955df26b05428f507854988721b2"
+    }
+  },
+  "runtime": {
+    "server_sha256": "0232b659f8671b1dd11a2de0944512645a435bdfbe2a94ce3af6c69bdead1638",
+    "manifest_sha256": "f7d2cdaa12079f107d413c094326a0307df939fc62a966d739f5c44b326c0fd5",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "source_generation": 3149
+  },
+  "preserved": {
+    "ociusx_sources_and_guidance_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "configuration_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy\\manual-review1.json",
+    "sha256": "a77a3aa4d717548c1fabb6070a9a56aba2c2174b4709eef3fa5c98e1dd394a90"
+  },
+  "resources": {
+    "root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\story-policy",
+    "native_fixtures_removed": true,
+    "build_job_closed_and_temp_removed": true,
+    "candidate_and_installed_owned_temp_removed": true,
+    "owned_runtime_config_removed": true,
+    "hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fe09275775ef4279a866410f9fbd5393",
+    "retention": "Retain release package, evidence and rollback for review. Reused source checkout protects WIP9 and supports remaining backlog. No preexisting directory deletion."
+  },
+  "limits": [
+    "Candidate selection and policy matching are not approved edit scope or semantic policy enforcement. Actual footprint scope and three applicable document omissions remain explicit.",
+    "Legacy OciusX generated workflow remains unchanged under its recorded ownership/adoption limitation.",
+    "No model replay or productivity claim. Earlier assisted19/20 versus baseline20/20 failure remains unchanged; EG24/25 remain open.",
+    "Release gates apply to this read-only response change, not closure of all original19 gates.",
+    "CodeRabbit host authentication unavailable; parent manual source review only."
+  ]
+}
