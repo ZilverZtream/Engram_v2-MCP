@@ -1,0 +1,21 @@
+{
+  "status": "REQUIREMENT_SATISFIED_BY_EXISTING_IMPLEMENTATION",
+  "at_utc": "2026-11-13T21:44:12.715210+00:00",
+  "requirement": "TODO60 remove or document alias tools",
+  "observed_alias": {
+    "alias": "trigger_rem_cycle",
+    "canonical": "dream_project",
+    "request": "DreamProjectRequest",
+    "handler": "handle_dream_project",
+    "discovery_description": "Deprecated alias of dream_project ? call dream_project instead."
+  },
+  "evidence": {
+    "crates/engram_server/src/tools.rs": "ff61c9f522b9fa12235087c3d21c8bcb9fbb9686ef7f9f3df29d385a491d1e90",
+    "docs/TOOL_CONTRACT.md": "9af1895a54293ae8a0860a0be5dee064fc6b3d979f9c07d820b3210c7fb69d4a",
+    "README.md": "a026f027a8ee55d15c3cc37704f51e3d8f4ed66201ab23ccdeb1f1f2b3b30e97"
+  },
+  "verification": "Registered direct params.0 wrapper scan found this single identical-handler duplicate. Its tool description, TOOL_CONTRACT and README already identify the alias.",
+  "runtime_changes": false,
+  "new_tests": 0,
+  "limit": "This closes the document-alias alternative. It does not reduce advertised tool count or measure model tool-selection quality."
+}
