@@ -1,0 +1,137 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T19:40:03.788472+00:00",
+  "finding": "EG01 historical authored guidance in revision-pinned change sets",
+  "source_commit": "d7c7d49d3e1899e9a0c545eff622b4dc99e07c4e",
+  "runtime_source_commit": "7f53dbffd525207399828e93b60b33ca1d954292",
+  "before": "Installed get_change_set(as_of_rev) returned historical_unavailable even when the requested commit contained an applicable authored instruction.",
+  "after": "Change-set policy sources use the already resolved Git commit, preserving historical text/scope, complete-source budgets and exact revision recovery; JSON and Markdown identify the source revision.",
+  "validation": {
+    "workflow_and_history_cases": 17,
+    "resolver_cases": 12,
+    "candidate": {
+      "pinned_revision": true,
+      "deleted_policy_recovered": true,
+      "exact_source_hash": true,
+      "scope_preserved": true,
+      "future_policy_withheld": true,
+      "markdown_revision_and_policy": true,
+      "date_only_does_not_guess_revision": true,
+      "authored_files_unchanged": true
+    },
+    "installed": {
+      "pinned_revision": true,
+      "deleted_policy_recovered": true,
+      "exact_source_hash": true,
+      "scope_preserved": true,
+      "future_policy_withheld": true,
+      "markdown_revision_and_policy": true,
+      "date_only_does_not_guess_revision": true,
+      "authored_files_unchanged": true
+    },
+    "baseline": {
+      "historical_policy_missing_on_installed": true,
+      "authored_files_unchanged": true
+    }
+  },
+  "actual_ociusx": {
+    "revision": "b5cb94fa1308b0955f3570cce930ce1bef3ed7c3",
+    "topic": ".github/instructions/map-file-layers.instructions.md",
+    "committed_source_blake3": "bd7bdc5e557201c90701b153477a40444d9354f2804a3613e67598766ae254a2",
+    "policy_delivery": "complete_inline_source",
+    "seconds": 56.978001500014216,
+    "project_records_and_source_unchanged": true,
+    "registry_raw_identity_changed": false
+  },
+  "runtime": {
+    "server_sha256": "80bc983f9175b16fab2fb68ee9b7be3688715892b3936eaeb07ca08598a92302",
+    "manifest_sha256": "8657860763a52249f481843991256e095a0441d86663e8948d15171b0730bfa7",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\Engram-win-x64.zip",
+    "sha256": "203829aa656c089713232e539bbb6550ce53352e1e1b5ef01fb8f77002715854",
+    "runtime_assets": 215,
+    "entries": 218,
+    "installer_source_commit": "909b2b4",
+    "scope": "Existing accepted Codex/JSON installer and complete sidecar with the updated runtime; archive entry hashes verified by the existing packager."
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\contract.json",
+      "sha256": "412ca1f59268196b19d051033f20bd4960a63f4490909a0152b6c549b5b74948"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\baseline1\\acceptance.json",
+      "sha256": "5d6748a59da4a50620c6775188cf901bcb9ad787af9f2fd7da5a0efa300dde96"
+    },
+    "initial_fixture_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\native1.json",
+      "sha256": "69a277fd50884355a1c72e48c11498b0df00d8ee0ed6b224a4671c5419422b68"
+    },
+    "workflow": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\native2.json",
+      "sha256": "cb337e7ea3e15042a3e97a4820566491c1dc9ecedfd1e8a21259c3aa01f912b3"
+    },
+    "resolver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\native3.json",
+      "sha256": "e7b1cf72679cd6bf6d19fdecc4bb09da9317774e4b0dfb630a08bd0ac92691b7"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\implementation1.json",
+      "sha256": "6310fbfdbb02944d5d760bd34ab9fb469fb70649943fbc568fe58f1da025f1e5"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\manual-review.json",
+      "sha256": "49318e505867abd21b7ddf32b88ed5958e0093c62cffc362972db9996a159341"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\release1.json",
+      "sha256": "a2f37ecce8360a20bf51cb98f24aec324c26cdceb52401f62464addda7a36983"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\candidate1\\acceptance.json",
+      "sha256": "067303a1b5ee5098874c84e9201a4bec9b8f87a532cbe43af35fa96a4a1f15a1"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\installed1\\acceptance.json",
+      "sha256": "2c2a113229b0a0176275a8f25989dc26521254b0c46868fe4b3953c0c053b417"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\actual1\\acceptance.json",
+      "sha256": "24c01a2d3acec27d1f63609accde7de63032b45835a711b78051e903e80f896a"
+    },
+    "actual_oracle": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\actual1\\oracle.json",
+      "sha256": "5361c9773ceec6aa9c64588fc49eb4884889a55888fdb1d18eb4d6f59220d0f6"
+    },
+    "actual_policy": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\actual1\\policy.json",
+      "sha256": "9528ace74766f4ffbd43cff1fcd46cd9b8a0160f866860cd19a4b5aa6e06f9d9"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy\\deployment1-state.json",
+      "sha256": "8b1cc0fa59abdd6eb8e74c0687cbe8905bf905abf631e66af18ddbe70a2fc22b"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-policy",
+    "all_new_fixtures_closed_and_removed": true,
+    "build_temp_removed": true,
+    "owned_configuration_removed": true,
+    "config_hold_released": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-d19c271fea8c4ef1832c8018e9ee7e47",
+    "retention": "Keep candidate/bundle, delivery evidence and old runtime pair for review/rollback. No preexisting directories deleted."
+  },
+  "limits": [
+    "Only repository policy evidence is revision-pinned here; other planning evidence still requires an appropriate historical source/index snapshot.",
+    "Date-only cutoffs without a Git revision remain historical_unavailable; no revision is guessed.",
+    "No automatic OX Dev replay integration, prose-compliance or comparative task-benefit claim.",
+    "Initial native1 failures were outdated fixture admission metadata; fixture setup was corrected without weakening policy assertions. Retained failure remains available.",
+    "Parent source review only; no external CodeRabbit review. Full original backlog and release gates remain unfinished."
+  ]
+}

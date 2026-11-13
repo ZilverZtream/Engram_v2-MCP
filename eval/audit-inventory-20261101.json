@@ -271,7 +271,8 @@
       "current_installed_delivery": "execution_evidence_20261101.eg01_installed_policy_delivery_20261111",
       "qa_matrix_delivery_20261113": "eval/ociusx-matrix-policy-delivery-20261113.json",
       "edit_session_policy_delivery_20261113": "eval/ociusx-edit-session-policy-delivery-20261113.json",
-      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
+      "status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json",
+      "historical_policy_delivery_20261113": "eval/ociusx-historical-policy-delivery-20261113.json"
     },
     {
       "id": "EG-02",
@@ -10011,10 +10012,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-13T19:06:04.549437+00:00",
+  "last_updated_at": "2026-11-13T19:40:03.788472+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG01 historical authored guidance in revision-pinned change sets",
       "original_requirement": "Original ocius_workflows research: historical replay uses guidance valid at its replay revision; preserve scope and complete policy evidence.",
       "observed_missing_behavior": "get_change_set with as_of_rev currently returns historical_unavailable and no authored guidance, even when that revision contains the required instruction files.",
@@ -10042,9 +10043,11 @@
       "source_commit": "d7c7d49d3e1899e9a0c545eff622b4dc99e07c4e",
       "runtime_source_commit": "7f53dbffd525207399828e93b60b33ca1d954292",
       "progress_receipt": "eval/ociusx-historical-policy-progress-20261113.json",
-      "bounded_delivery_complete": false
+      "bounded_delivery_complete": true,
+      "delivery": "eval/ociusx-historical-policy-delivery-20261113.json",
+      "outcome": "Change-set policy sources use the already resolved Git commit, preserving historical text/scope, complete-source budgets and exact revision recovery; JSON and Markdown identify the source revision."
     },
-    "at_utc": "2026-11-13T19:09:51.592467+00:00",
+    "at_utc": "2026-11-13T19:40:03.788472+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10074,8 +10077,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG01 historical authored guidance in revision-pinned change sets",
-    "next_user_visible_deliverable": "Historical planning receives applicable instructions from its exact Git revision.",
+    "active_original_item": "EG01 revision-pinned policy delivered; next original workflow item not yet selected",
+    "next_user_visible_deliverable": "Advance another unfinished original OciusX AI workflow requirement; historical-policy acceptance is closed.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10092,7 +10095,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: installed historical-policy gap reproduced; implementation committed; 29 focused checks passed; release build active.",
+    "previous_goal_turn_classification": "PROGRESS: built, candidate/installed MCP and actual OciusX source checks passed; deployed and cleaned owned fixtures.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

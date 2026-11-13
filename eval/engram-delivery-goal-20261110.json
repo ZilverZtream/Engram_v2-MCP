@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG01 historical authored guidance in revision-pinned change sets",
     "original_requirement": "Original ocius_workflows research: historical replay uses guidance valid at its replay revision; preserve scope and complete policy evidence.",
     "observed_missing_behavior": "get_change_set with as_of_rev currently returns historical_unavailable and no authored guidance, even when that revision contains the required instruction files.",
@@ -68,7 +68,9 @@
     "source_commit": "d7c7d49d3e1899e9a0c545eff622b4dc99e07c4e",
     "runtime_source_commit": "7f53dbffd525207399828e93b60b33ca1d954292",
     "progress_receipt": "eval/ociusx-historical-policy-progress-20261113.json",
-    "bounded_delivery_complete": false
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-historical-policy-delivery-20261113.json",
+    "outcome": "Change-set policy sources use the already resolved Git commit, preserving historical text/scope, complete-source budgets and exact revision recovery; JSON and Markdown identify the source revision."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -655,5 +657,6 @@
     "bounded_delivery_complete": true,
     "delivery": "eval/ociusx-history-provider-fallback-delivery-20261113.json",
     "outcome": "Document and query embedding failures return matching lexical history with an explicit fallback label. File/author/date/exclusion and revision filters remain; subsequent healthy requests use semantic ranking."
-  }
+  },
+  "historical_policy_delivery": "eval/ociusx-historical-policy-delivery-20261113.json"
 }
