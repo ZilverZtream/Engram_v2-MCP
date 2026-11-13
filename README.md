@@ -10,19 +10,21 @@ conventions, a deterministic pre-commit review, a CLAUDE.md generator, a diff
 narrator, and an Autonomous Decision Protocol for agents that want to edit
 without asking every time.
 
-- **Deterministic by default.** Core tools — graph traversal, search,
-  temporal coupling, pre-commit review, immune checks, secret scanning,
-  CLAUDE.md generation — never call an LLM. The server runs fully offline.
+- **Offline operation is available.** Core retrieval and review can run without
+  LLM generation. Configured embedding providers can make network requests, and
+  optional generation/ranking features can use an LLM. The quickstart uses
+  `fts_only` and `llm_backend: none` for an offline source-query baseline.
 - **Language-aware.** Tree-sitter parsers for Rust, Python, Go, Java, C,
   C++, C#, VB.NET, TypeScript, and JavaScript; custom extractors for
   ASP.NET WebForms (ASPX / ASCX / Master), Classic ASP, T-SQL, SSRS,
   Crystal Reports, Google Maps, and Esri ArcGIS JS.
-- **Per-project, per-agent.** Each project has its own index; every query
-  is scoped by `project_id`. No cross-project leakage.
-- **Append-only and crash-safe.** Generation-based indexing, Blake3
+- **Project-scoped workflows.** Project tools select an index with `project_id`.
+  Runtime discovery has no project ID, and knowledge recall can include explicitly
+  shared user memory; inspect the returned namespace and provenance.
+- **Generation-based recovery.** Generation-based indexing, Blake3
   fingerprints, Redb-backed durable checkpoints, integrity sentinels with
   auto-repair, and a multi-client dispatcher that lets several agents
-  share one daemon without races.
+  share one daemon. Inspect reported recovery requirements and operation status.
 
 ---
 
@@ -30,7 +32,7 @@ without asking every time.
 
 | Agent failure mode | Engram response |
 |---|---|
-| Invents method signatures | Typed graph of every function, class, and call edge, queryable by name or FQN |
+| Invents method signatures | Indexed declarations and relationships, queryable by name or FQN with extraction and freshness limits |
 | Touches a high-impact file blindly | `compute_blast_radius` returns a 1–10 score with incoming / outgoing / downstream counts |
 | Re-introduces a reverted pattern | Detected reverted changes supply anti-pattern evidence; `immune_check` scores new code against the indexed evidence |
 | Changes a file but not its coupled partner | Temporal coupling surfaces files that change together in git history |
@@ -163,10 +165,10 @@ as evidence.
 | `anti_pattern_guard` | Pattern matching with remediation guidance and the originating commit |
 | `dedicated_antipattern_index` | Maintenance — keeps the anti-pattern index fresh |
 
-This is how an agent stops re-introducing the `DeleteAllOnSubmit` that
-was reverted three months ago: `immune_check` flags the proposed code
-with the revert hash, and `pre_commit_review`'s `immune` gate blocks the
-commit automatically.
+For example, `immune_check` can flag proposed code resembling a reverted
+`DeleteAllOnSubmit` change and cite the indexed revert. `pre_commit_review` can
+report that evidence as a finding. Commit blocking requires the client or CI
+workflow to enforce the result; the tool does not intercept Git commits on its own.
 
 ### Autonomous Decision Protocol
 
@@ -186,6 +188,9 @@ Three verdicts: `allow` / `deny` / `abstain`. Progressive rollout —
 kill-switch that forces every verdict to `deny`. Every decision is
 written to an immutable JSON audit trail with inputs, gate outputs, and
 final verdict for offline replay.
+
+The default `shadow` rollout records decisions without enforcing them. A tool's
+presence or an advisory result does not itself authorize or prove an edit safe.
 
 This is the surface an agent framework drives when it wants to edit code
 without a human in every loop.
@@ -1108,10 +1113,12 @@ Run pre_commit_review on the staged diff for project "myapp".
 
 ## Tool reference
 
-Engram exposes **roughly 110 MCP tools**, all scoped by `project_id`. The
-groups below match the capability hierarchy above — revolutionary tools
-first, operational surface last. Full parameter reference in
-[`docs/TOOL_CONTRACT.md`](docs/TOOL_CONTRACT.md).
+The available tool list depends on the configured profile and registered project
+capabilities. Use MCP `tools/list` for exact names and argument schemas in the
+current connection; runtime discovery tools do not require `project_id`.
+The groups below are a navigation aid. See [`docs/TOOL_CONTRACT.md`](docs/TOOL_CONTRACT.md)
+for workflow contracts and limitations; design examples in the enhancement
+specification are not a substitute for the runtime schema.
 
 <details>
 <summary><b>Project lifecycle</b> — index, update, list, info, health, repair, delete, watch</summary>
