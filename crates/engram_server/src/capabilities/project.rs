@@ -168,7 +168,7 @@ impl ProjectCapabilities {
     pub fn allows_state_type(&self, category: &str) -> bool {
         match category {
             "Environment" | "Module" | "Singleton" => self.modern_state,
-            "ReactContext" | "Redux" => self.react_redux_state,
+            "ReactContext" | "Redux" | "LocalStorage" | "SessionStorage" => self.react_redux_state,
             _ => self.dotnet || self.classic_asp,
         }
     }

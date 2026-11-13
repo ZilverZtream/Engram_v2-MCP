@@ -817,7 +817,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Static extraction has explicit coverage limits; absence does not prove no runtime access."
+        description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), LocalStorage, SessionStorage, ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment and browser storage keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Static extraction has explicit coverage limits; absence does not prove no runtime access."
     )]
     pub async fn trace_state_usage(
         &self,

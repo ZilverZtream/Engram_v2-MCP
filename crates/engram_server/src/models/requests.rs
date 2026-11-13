@@ -1938,7 +1938,7 @@ pub struct GetTableSchemaRequest {
 #[serde(deny_unknown_fields)]
 pub struct TraceStateUsageRequest {
     pub project_id: String,
-    /// Environment, Module, Singleton, ReactContext, Redux, or a legacy state type such as Session.
+    /// LocalStorage, SessionStorage, Environment, Module, Singleton, ReactContext, Redux, or a legacy state type such as Session.
     pub state_type: String,
     /// Literal environment name; otherwise modern state uses project-relative path::declaration plus property suffix. Legacy keys retain their original spelling.
     pub state_key: String,

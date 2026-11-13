@@ -4,7 +4,7 @@ use engram_graph::{EdgeKind, GraphStore, Node};
 pub(super) fn is_modern(category: &str) -> bool {
     matches!(
         category,
-        "Environment" | "Module" | "Singleton" | "ReactContext" | "Redux"
+        "Environment" | "Module" | "Singleton" | "ReactContext" | "Redux" | "LocalStorage" | "SessionStorage"
     )
 }
 

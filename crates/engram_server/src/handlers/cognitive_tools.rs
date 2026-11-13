@@ -1549,7 +1549,7 @@ impl Engram {
                 if candidates.is_empty() {
                     if modern {
                         return Ok(format!(
-                            "State key '{}:{}' has no indexed state node. This is not proof of no access. Run update_project to acquire current extraction facts on an older index. Environment uses a literal variable name; Module/Singleton/ReactContext/Redux use project-relative path::declaration plus property suffix. Static extraction covers explicit supported accesses; dynamic keys, unsupported bindings and runtime behavior remain unknown.",
+                            "State key '{}:{}' has no indexed state node. This is not proof of no access. Run update_project to acquire current extraction facts on an older index. Environment uses a literal variable name; LocalStorage/SessionStorage use the literal getItem/setItem/removeItem key; Module/Singleton/ReactContext/Redux use project-relative path::declaration plus property suffix. Static extraction covers explicit supported accesses; dynamic keys, unsupported bindings and runtime behavior remain unknown.",
                             req.state_type, req.state_key
                         ));
                     }
@@ -1575,6 +1575,9 @@ impl Engram {
             out.push_str("Coverage: locations are indexed containing-symbol declarations, not verified access-site positions. Current source and runtime behavior are unverified.\n\n");
             if modern {
                 out.push_str("Modern state evidence: access positions below refer to the indexed source hash, not current disk contents. Each reader/writer relationship may retain only one access observation; repeated accesses are not exhaustively listed. JS/TS state imports use indexed ES module/export evidence; cross-file state in other languages and imported Redux dispatch effects remain unresolved. Dynamic access and runtime behavior remain unknown.\n\n");
+            }
+            if matches!(req.state_type.as_str(), "LocalStorage" | "SessionStorage") {
+                out.push_str("Browser storage: these are static key matches within this project. Shared origin, browser session/tab, executed writes and stored values are not proven. Literal getItem/setItem/removeItem calls are covered; dynamic keys, aliases, property access and clear-all effects remain unresolved.\n\n");
             }
             // MCP1: use sanitized limit to prevent resource amplification.
             let limit = req.sanitized_limit();

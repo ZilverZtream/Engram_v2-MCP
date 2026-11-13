@@ -11,9 +11,10 @@ pub fn requires_modern_state(path: &std::path::Path) -> bool {
         matches!(extension.to_ascii_lowercase().as_str(), "ts" | "tsx" | "js" | "jsx" | "py" | "rs" | "go"))
 }
 
-fn current_modern_state(raw: &str) -> bool {
+fn current_modern_state(raw: &str, path: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(raw).is_ok_and(|value|
-        value["version"] == engram_core::modern_state::VERSION && value["status"] == "partial_static_coverage")
+        value["version"] == engram_core::modern_state::VERSION && value["status"] == "partial_static_coverage"
+            && (!requires_script_call_contract(std::path::Path::new(path)) || value["browser_storage_contract"] == 1))
 }
 
 pub fn requires_script_call_contract(path: &std::path::Path) -> bool {
@@ -118,7 +119,7 @@ impl SourceExtractionExpectation {
             }
         }
         if requires_modern_state(std::path::Path::new(path))
-            && !metadata.get(MODERN_STATE_KEY).and_then(|v|v.as_str()).is_some_and(current_modern_state) { return false; }
+            && !metadata.get(MODERN_STATE_KEY).and_then(|v|v.as_str()).is_some_and(|raw|current_modern_state(raw, path)) { return false; }
         if !crate::vb_extractor::requires_parser_provenance(path) { return true; }
         self.vb_parser.as_ref().is_some_and(|expected| metadata.get("vb_parser_provenance")
             .is_some_and(|actual| expected.matches_metadata(actual)))
@@ -172,7 +173,7 @@ impl SourceExtractionExpectation {
             if engram_core::is_vendor_path(path.as_str()) { continue; }
             if requires_modern_state(std::path::Path::new(path.as_str())) {
                 anyhow::ensure!(module_receipts.get(path.as_str()).and_then(|m|m.get(MODERN_STATE_KEY))
-                    .is_some_and(|raw|current_modern_state(raw)),
+                    .is_some_and(|raw|current_modern_state(raw, path.as_str())),
                     "Produced source {} has no current modern state coverage",path.as_str());
             }
             if let Some(key) = module_fact_key(path.as_str()) {

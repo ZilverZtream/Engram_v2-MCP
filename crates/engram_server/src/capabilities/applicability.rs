@@ -81,7 +81,7 @@ impl Engram {
             if view.selected_file_revisions().is_none() {
                 Some(("applicability_unknown", "Source capability coverage is unavailable. Update the project before requesting specialized analysis.".to_owned()))
             } else if let Some(category) = state_type {
-                Some(("not_applicable", format!("Not applicable: the selected project source has no supported extraction for state type {category}. Modern types are Environment, Module and Singleton (JS/TS, Python, Rust, Go), and ReactContext and Redux (JS/TS). Legacy state types require .NET or Classic ASP source.")))
+                Some(("not_applicable", format!("Not applicable: the selected project source has no supported extraction for state type {category}. Modern types are Environment, Module and Singleton (JS/TS, Python, Rust, Go), and LocalStorage, SessionStorage, ReactContext and Redux (JS/TS). Legacy state types require .NET or Classic ASP source.")))
             } else if tool == "benchmark_retrieval_defaults" {
                 Some(("not_applicable", "Not applicable to this project type: built-in benchmark queries target WebForms. Supply nonempty custom_queries with authored relevant_paths for this project's retrieval benchmark.".to_owned()))
             } else {

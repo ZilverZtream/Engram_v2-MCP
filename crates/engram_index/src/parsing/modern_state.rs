@@ -8,6 +8,7 @@ use std::{
     path::Path,
 };
 use tree_sitter::Node;
+mod browser_storage;
 mod frameworks;
 mod references;
 
@@ -638,10 +639,12 @@ pub(super) fn extract(
             let access = direction(node);
             out.emit(node, category, &key, access.0, access.1);
         }
+        browser_storage::extract(&bindings, &nodes, root, &mut out);
         frameworks::extract(&bindings, &nodes, root, &mut out);
         references::extract(&bindings, &nodes, root, &mut out);
     }
     let coverage=serde_json::json!({"version":engram_core::modern_state::VERSION,"status":"partial_static_coverage","source_language":language,
+        "browser_storage_contract":1,"browser_storage":"literal_getItem_setItem_removeItem; dynamic_keys_aliases_property_access_and_clear_all_unresolved",
         "environment_access":"literal_keys_with_source_import_or_unshadowed_process_evidence",
         "module_state":"file_local_declarations_and_explicit_accesses","cross_file_state_binding":"js_ts_static_es_imports; other_languages_not_implemented",
         "references":out.references,"script_module":bindings.script.map(|script| &script.facts),
