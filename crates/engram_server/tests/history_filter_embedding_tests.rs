@@ -5,12 +5,14 @@ use engram_core::{Config, ProjectRecord};
 use engram_server::{Engram, state::AppState};
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio_util::sync::CancellationToken;
 
 struct Provider {
     url: String,
     inputs: Arc<Mutex<Vec<String>>>,
+    fail: Arc<AtomicUsize>,
     stop: CancellationToken,
     worker: Option<tokio::task::JoinHandle<Result<()>>>,
 }
@@ -20,6 +22,8 @@ impl Provider {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await?;
         let url = format!("http://{}", listener.local_addr()?);
         let inputs = Arc::new(Mutex::new(Vec::new()));
+        let fail = Arc::new(AtomicUsize::new(0));
+        let failure_mode = fail.clone();
         let stop = CancellationToken::new();
         let (captured, shutdown) = (inputs.clone(), stop.clone());
         let worker = tokio::spawn(async move {
@@ -53,11 +57,16 @@ impl Provider {
                     _ => anyhow::bail!("unexpected embedding input"),
                 };
                 captured.lock().unwrap().extend(texts.iter().cloned());
+                let mode = failure_mode.load(Ordering::SeqCst);
+                if mode == 1 || (mode == 2 && texts.iter().any(|s| s.starts_with("search_query: "))) {
+                    socket.write_all(b"HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").await?;
+                    continue;
+                }
                 let body = json!({"embeddings":vec![vec![1.0,0.0];texts.len()]}).to_string();
                 socket.write_all(format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\nContent-Length: {}\r\n\r\n{body}",body.len()).as_bytes()).await?;
             }
         });
-        Ok(Self {url, inputs, stop, worker:Some(worker)})
+        Ok(Self {url, inputs, fail, stop, worker:Some(worker)})
     }
 
     async fn close(&mut self) -> Result<()> {
@@ -65,6 +74,72 @@ impl Provider {
         if let Some(worker) = self.worker.take() { worker.await??; }
         Ok(())
     }
+}
+
+async fn provider_failure_preserves_usable_history(mode: usize) -> Result<()> {
+    let temporary = tempfile::tempdir()?;
+    let mut provider = Provider::new().await?;
+    provider.fail.store(mode, Ordering::SeqCst);
+    let result = async {
+        let root = temporary.path().join("repo");
+        let repo = git2::Repository::init(&root)?;
+        let path = "Site/App_Code/PhotoRules.vb";
+        let base = commit(&repo, &[path], "Initial photo rules", "Fixture Author", 100)?;
+        let selected = commit(&repo, &[path], "Require minimum uploaded photos", "Fixture Author", 200)?;
+        commit(&repo, &["Site/other.vb"], "Require minimum photos elsewhere", "Fixture Author", 200)?;
+        commit(&repo, &[path], "Require minimum photos by other author", "Other", 200)?;
+        commit(&repo, &[path, "Site/Q/generated.js"], "Require minimum photos excluded", "Fixture Author", 200)?;
+        let cutoff = commit(&repo, &[path], "Require minimum photos later date", "Fixture Author", 201)?;
+        commit(&repo, &[path], "Require minimum photos after revision", "Fixture Author", 200)?;
+        let (state, _) = AppState::new(Config {
+            data_dir:temporary.path().join("data"), allowed_roots:vec![root.clone()],
+            embedding_backend:"ollama".into(), embedding_model:Some("nomic-fixture".into()),
+            ollama_url:Some(provider.url.clone()), ollama_embed_dim:Some(2), llm_backend:"none".into(),
+            ..Default::default()
+        })?;
+        state.registry.put_project(&ProjectRecord {
+            project_id:"outage-history".into(), project_name:"WebForms history fixture".into(),
+            project_type:"dotnet_webforms_vb".into(), directory:root.to_string_lossy().into(),
+            created_at_ms:1, updated_at_ms:1, reindex_required_since_ms:None,
+        })?;
+        state.registry.set_meta("outage-history","active_generation","1")?;
+        let engram = Engram::new(state);
+        let request = json!({"project_id":"outage-history","query":"minimum uploaded photos",
+            "mode":"precedent","file_filter":path,"exclude_paths":["Site/Q/"],
+            "author_filter":"Fixture Author","date_after":200,"date_before":201,"as_of_rev":cutoff,
+            "rerank":false,"limit":10,"output_json":true});
+        let degraded = search(&engram, request.clone()).await?;
+        ensure!(degraded["results"].as_array().unwrap().len()==1 && degraded["results"][0]["commit"]==selected,"{degraded}");
+        ensure!(degraded.to_string().contains("lexical fallback (semantic retrieval unavailable)"),"{degraded}");
+        let inputs = provider.inputs.lock().unwrap().clone();
+        ensure!(inputs.iter().any(|s|s.starts_with("search_document: ")));
+        if mode == 2 { ensure!(inputs.iter().any(|s|s.starts_with("search_query: "))); }
+        let mut historical = request.clone(); historical["as_of_rev"]=json!(base);
+        ensure!(search(&engram,historical).await?["results"].as_array().unwrap().is_empty());
+        let mut text_request = request.clone(); text_request["output_json"]=json!(false);
+        let text = engram.handle_search_history(serde_json::from_value(text_request)?).await?;
+        let text = &text.content[0].as_text().unwrap().text;
+        ensure!(text.contains(&selected) && text.contains("lexical fallback (semantic retrieval unavailable)"),"{text}");
+        provider.fail.store(0, Ordering::SeqCst);
+        let recovered = search(&engram, request).await?;
+        ensure!(recovered["results"][0]["commit"]==selected,"{recovered}");
+        ensure!(!recovered.to_string().contains("lexical fallback"),"{recovered}");
+        Ok(())
+    }.await;
+    let closed = provider.close().await;
+    temporary.close()?;
+    closed?;
+    result
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn public_history_survives_document_embedding_outage() -> Result<()> {
+    provider_failure_preserves_usable_history(1).await
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn public_history_survives_query_embedding_outage() -> Result<()> {
+    provider_failure_preserves_usable_history(2).await
 }
 
 impl Drop for Provider {
