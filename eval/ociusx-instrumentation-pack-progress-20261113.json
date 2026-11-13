@@ -1,0 +1,36 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T12:31:26.814069+00:00",
+  "finding": "TODO61 usable manual VB.NET/CSharp instrumentation pack",
+  "source_commit": "3f09d69d0262899b088f0653b43645385c886682",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\baseline-confirmed.json",
+  "native": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\native2.json",
+    "passed": 1,
+    "returned_helpers_compiled_and_executed": [
+      "vb",
+      "csharp"
+    ],
+    "valid_records_ingested": 4,
+    "delimiter_newline_and_stored_procedure_rejections": true,
+    "owned_temp_removed": true
+  },
+  "build": {
+    "session_id": 52092,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack\\release1.json"
+  },
+  "remaining": [
+    "Finish existing release build.",
+    "Verify candidate and installed public helper output, descriptors and ingestion hints; deploy after candidate acceptance.",
+    "Record installed identity and TODO61 delivery with manual-capture limits."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instrumentation-pack",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "retention": "Preserve evidence/package/rollback and preexisting work. New fixtures close handles before cleanup."
+  },
+  "limits": [
+    "Not deployed yet. No OciusX source/configuration edits or automatic instrumentation.",
+    "Caller supplies observed event sites, exact existing SQL identifiers and log sink. No runtime performance or productivity claim."
+  ]
+}

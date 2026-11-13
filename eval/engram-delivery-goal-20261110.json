@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTING",
+    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
     "finding": "TODO61 usable VB.NET instrumentation pack",
     "original_requirement": "Fix or accurately label shallow tools, including get_instrumentation_pack; prioritize actual OciusX VB.NET/WebForms workflows.",
     "observed_missing_behavior": "The language request documents VB but the tool rejects it; C# returns a noncompilable protected void LogEngramEvent(...) placeholder. Its advertised ingest_runtime_artifacts handoff differs from the existing ENGRAM_LOG importer.",
@@ -68,6 +68,13 @@
     "limits": [
       "Caller selects observed sites, supplies exact indexed identities and controls the sink. No measured OciusX runtime performance or automatic semantic confirmation.",
       "Existing generate_instrumentation_code remains separate; its broader module/wrapper behavior is not expanded."
+    ],
+    "source_commit": "3f09d69d0262899b088f0653b43645385c886682",
+    "progress": "eval/ociusx-instrumentation-pack-progress-20261113.json",
+    "remaining": [
+      "Finish existing release build.",
+      "Verify candidate and installed public helper output, descriptors and ingestion hints; deploy after candidate acceptance.",
+      "Record installed identity and TODO61 delivery with manual-capture limits."
     ]
   },
   "previous_delivery": {
