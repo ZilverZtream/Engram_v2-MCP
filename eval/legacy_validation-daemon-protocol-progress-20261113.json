@@ -1,0 +1,35 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "at_utc": "2026-11-13T12:00:59.427116+00:00",
+  "finding": "TODO58 shared-daemon protocol mismatch handling",
+  "source_commit": "76f025f80e622a96b0aa78d28ad18cd627706d9f",
+  "baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\baseline1.json",
+    "installed_mismatch_forwarded_bytes": 59,
+    "other_two_cases_passed": true
+  },
+  "native": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\native1.json",
+    "passed": 3,
+    "incompatible_forwarded_bytes": 0,
+    "fixtures_removed": true
+  },
+  "build": {
+    "session_id": 88264,
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol\\release1.json"
+  },
+  "remaining": [
+    "Finish the existing release build.",
+    "Run owned candidate and installed protocol fixtures, deploy after candidate acceptance.",
+    "Record installed identity and finish TODO58 status."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\daemon-protocol",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "retention": "Retain evidence/package/rollback; new fixtures clean up after owned handles close. Preserve all preexisting folders and WIP9."
+  },
+  "limits": [
+    "Not deployed yet. Wire version compatibility does not prove source/tool identity. Windows exercised; Unix path uses shared check but is not executed here.",
+    "Unselected TODO61 instrumentation placeholder is recorded separately; no expansion into instrumentation implementation."
+  ]
+}
