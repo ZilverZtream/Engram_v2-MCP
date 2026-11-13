@@ -126,6 +126,8 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `analyze_reverts(project_id, max_commits=200)` — LLM-powered descriptive anti-pattern rule generation
 
 ## Cognitive / agent
+- `begin_edit_session(project_id, planned_files, story=null, session_id=null)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
+- `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
 - `dream_project(project_id)`
 - `trigger_rem_cycle(project_id)` (alias)
 - `analyze_file_coding_style(project_id, file_path, max_commits=200)`
