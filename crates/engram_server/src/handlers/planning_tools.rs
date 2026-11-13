@@ -1035,6 +1035,14 @@ impl Engram {
         &self,
         req: GetConceptFootprintRequest,
     ) -> Result<FootprintEvidence, McpError> {
+        self.concept_footprint_with_nodes(req, None).await
+    }
+
+    async fn concept_footprint_with_nodes(
+        &self,
+        req: GetConceptFootprintRequest,
+        snapshot: Option<NodeSnapshot>,
+    ) -> Result<FootprintEvidence, McpError> {
         validate_project_id(&req.project_id)?;
         if req.concept.trim().len() < 2 {
             return Err(McpError::invalid_params(
@@ -1061,18 +1069,23 @@ impl Engram {
                 literal_cap: LITERAL_CAP,
                 ..Default::default()
             };
-            let nodes =
-                match graph.query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT) {
-                    Ok(n) => {
+            let nodes = match snapshot {
+                Some(nodes) => {
+                    cov.node_scan = "complete".into();
+                    nodes
+                }
+                None => match graph.query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT) {
+                    Ok(nodes) => {
                         cov.node_scan = "complete".into();
-                        n
+                        std::sync::Arc::new(nodes)
                     }
                     Err(e) => {
                         cov.node_scan = "failed".into();
                         cov.failures.push(format!("node scan failed: {e}"));
-                        Vec::new()
+                        std::sync::Arc::new(Vec::new())
                     }
-                };
+                },
+            };
             let scan_truncated = nodes.len() >= crate::handlers::NODE_SCAN_LIMIT;
             if scan_truncated {
                 cov.node_scan = "truncated".into();
@@ -1080,7 +1093,7 @@ impl Engram {
 
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
             let mut anchors: Vec<(String, String)> = Vec::new(); // (node_id, name)
-            for n in &nodes {
+            for n in nodes.iter() {
                 if !matches_concept(&n.name, &stems_b) {
                     continue;
                 }
@@ -1222,7 +1235,7 @@ impl Engram {
             let mut unresolved = selected_ids.len();
             let mut consumer_paths = BTreeSet::new();
             let mut consumer_paths_complete = true;
-            for node in &nodes {
+            for node in nodes.iter() {
                 if selected_ids.contains(node.node_id.as_str()) {
                     unresolved = unresolved.saturating_sub(1);
                     if node.file_path.as_str().is_empty() {
@@ -10032,6 +10045,42 @@ impl Engram {
             arm
         };
 
+        // Share one generation-keyed node snapshot across concept footprints
+        // and the remaining planning stages. Previously each concept repeated
+        // this whole-project scan before the downstream snapshot was loaded.
+        let gen_now = snapshot_generation;
+        let cached: Option<NodeSnapshot> = self
+            .state
+            .node_snapshot_cache
+            .get(&req.project_id)
+            .filter(|e| e.value().0 == gen_now)
+            .map(|e| e.value().1.clone());
+        let snapshot: NodeSnapshot = match cached {
+            Some(s) => {
+                cov.node_scans = 0;
+                s
+            }
+            None => {
+                let graph = self.state.graph.clone();
+                let pid = req.project_id.clone();
+                let s: NodeSnapshot = tokio::task::spawn_blocking(move || {
+                    graph
+                        .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
+                        .map(std::sync::Arc::new)
+                })
+                .await
+                .map_err(|error| McpError::internal_error(format!("planning node scan task failed: {error}"), None))?
+                .map_err(|error| McpError::internal_error(format!("planning node scan failed: {error}"), None))?;
+                self.state
+                    .node_snapshot_cache
+                    .insert(req.project_id.clone(), (gen_now, s.clone()));
+                cov.node_scans = 1;
+                s
+            }
+        };
+        cov.stages
+            .insert("node_scan".into(), t_all.elapsed().as_millis());
+
         // Concept arm — typed footprint of each domain concept.
         let t_concept = std::time::Instant::now();
         let mut concept_hits = 0usize;
@@ -10040,11 +10089,11 @@ impl Engram {
         // External audit 2026-08-29 P0-3 (≤ 5 s): the per-concept footprints are
         // independent — run them concurrently (live: 3–4 × ~350 ms sequential).
         let footprints = futures::future::join_all(concepts.iter().map(|c| {
-            self.concept_footprint(crate::models::GetConceptFootprintRequest {
+            self.concept_footprint_with_nodes(crate::models::GetConceptFootprintRequest {
                 project_id: req.project_id.clone(),
                 concept: c.clone(),
                 max_per_group: 12,
-            })
+            }, Some(snapshot.clone()))
         }))
         .await;
         let mut broad_terms: Vec<String> = Vec::new();
@@ -10210,42 +10259,6 @@ impl Engram {
                 ranked.push(p.clone());
             }
         }
-        // ONE full node scan for every pass of this call (audit D7) — cached per
-        // project generation (external audit 2026-08-29 P0-3, ≤ 5 s): a repeat
-        // call on an unchanged index performs no scan.
-        let gen_now = snapshot_generation;
-        let cached: Option<NodeSnapshot> = self
-            .state
-            .node_snapshot_cache
-            .get(&req.project_id)
-            .filter(|e| e.value().0 == gen_now)
-            .map(|e| e.value().1.clone());
-        let snapshot: NodeSnapshot = match cached {
-            Some(s) => {
-                cov.node_scans = 0;
-                s
-            }
-            None => {
-                let graph = self.state.graph.clone();
-                let pid = req.project_id.clone();
-                let s: NodeSnapshot = tokio::task::spawn_blocking(move || {
-                    std::sync::Arc::new(
-                        graph
-                            .query_nodes(&pid, None, None, None, crate::handlers::NODE_SCAN_LIMIT)
-                            .unwrap_or_default(),
-                    )
-                })
-                .await
-                .unwrap_or_default();
-                self.state
-                    .node_snapshot_cache
-                    .insert(req.project_id.clone(), (gen_now, s.clone()));
-                cov.node_scans = 1;
-                s
-            }
-        };
-        cov.stages
-            .insert("node_scan".into(), t_all.elapsed().as_millis());
         if ranked.is_empty() {
             cov.cochange = ArmCoverage::not_run("no concept/history seeds to anchor on");
         }
