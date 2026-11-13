@@ -1519,7 +1519,8 @@ pub struct SearchMemoryRequest {
     /// search, RRF fusion, and MMR reranking, returning pure FTS
     /// results ranked by BM25. Use this when you want to find where
     /// a literal identifier appears and don't need semantic matching.
-    /// Default: `true` (full hybrid search).
+    /// Default: `true` (hybrid search with a semantic embedding backend;
+    /// non-semantic projection backends fall back to lexical ranking).
     #[serde(default = "default_true")]
     pub semantic: bool,
     /// Also fold in USER-LEVEL memory (the reserved `__user__` project) when
