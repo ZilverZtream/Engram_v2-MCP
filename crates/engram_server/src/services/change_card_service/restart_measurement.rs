@@ -388,7 +388,7 @@ fn card_process_child() -> Result<()> {
             let before = search.embedding_cache_stats();
             let cpu_before = cpu_ns();
             let started = Instant::now();
-            let (cards, stats) = cards_for_line_observed(&root.join("repo"), tip, &search, prefixes,Some(registry.clone())).await?;
+            let (cards, stats) = cards_for_line_observed(&root.join("repo"), tip, &search, prefixes,Some(registry.clone()),CardFilter::default()).await?;
             let wall_ns = started.elapsed().as_nanos();
             let cpu = cpu_before.zip(cpu_ns()).map(|(a,b)|b-a);
             ensure!(cards.len() == manifest.expected.len());
