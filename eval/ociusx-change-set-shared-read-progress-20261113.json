@@ -1,0 +1,55 @@
+{
+  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_PENDING",
+  "at_utc": "2026-11-13T09:16:54.121043+00:00",
+  "original_requirement": "EG24 current-producer verification; resolve demonstrated get_change_set deadline failure.",
+  "implementation": "Reuse the existing generation-keyed node snapshot across all concept footprints and downstream planning. Failed node scans are not cached as empty.",
+  "source_file": "crates/engram_server/src/handlers/planning_tools.rs",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "candidate_source_backup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-shared-candidate.rs",
+  "previous_goal_turn": "NO_PROGRESS: status and delivery audit only.",
+  "evidence": {
+    "failed_rpc_ms": 264324,
+    "failed_concept_ms": 87241,
+    "diagnostic_rpc_ms": 85128,
+    "diagnostic_concept_ms": 22732,
+    "candidate_native_passed": 9,
+    "invalid_snapshot_fixture_failures": 10,
+    "coverage_note_failure": 1,
+    "baseline_runner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\baseline-owner.json"
+  },
+  "limits": [
+    "Nine behavior checks pass; eleven existing failures reproduced on unchanged source and remain open.",
+    "Not yet deployed and no installed speedup measured.",
+    "Original four-task current evaluation remains unfinished."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "candidate_test_fixture_directories_removed": true,
+    "retained_failed_and_diagnostic_responses": true,
+    "preserved_work_files": 9,
+    "preexisting_folders_deleted": false
+  },
+  "next_action": "Run prepared release build once, then package and verify the actual original OciusX request with policy/path preservation and unchanged180second deadline before deployment.",
+  "source_commit": "db351c87a4004e5bbc31fed8ac0a336fa3e570b1",
+  "baseline_comparison": {
+    "status": "SAME_ELEVEN_FAILURES_ON_UNCHANGED_SOURCE",
+    "baseline_commit": "7ed6b907fbfe67d6a1a79b63d670faaa83e86fe5",
+    "failures": [
+      "a_generic_translated_term_alone_never_reaches_the_primary_set",
+      "candidate_paths_are_the_indexed_canonical_forms",
+      "concept_expansion_is_reported_but_off_by_default",
+      "json_flag_is_rejected_nowhere_and_markdown_stays_default",
+      "json_output_carries_per_file_evidence_and_arm_coverage",
+      "markdown_reports_every_arm_status_including_a_dead_vector_arm",
+      "one_call_performs_one_full_node_scan",
+      "structured_output_has_compact_reconciled_and_forensic_views",
+      "structured_output_includes_hash_bound_repository_policy_without_prior_ingestion",
+      "typed_history_keeps_root_and_non_dotnet_paths_without_prose_inference",
+      "unknown_structured_detail_is_rejected"
+    ],
+    "native_passed": 9,
+    "candidate_restored": true,
+    "owned_fixture_directories_removed": true,
+    "limits": "Ten fixtures declare unavailable source snapshots; one expects a broad-term note absent on both builds. Neither failure is corrected or claimed passing here."
+  }
+}
