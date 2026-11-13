@@ -1949,6 +1949,7 @@ impl Engram {
         history_response::finish(&req,header,&blocks,&rows,json!({"mode":"precedent",
             "scope":label,"resolved_revision":tip.to_string(),"retrieval_capability":baseline_tier,
             "rerank":how,"eligible_changes_before_bulk_exclusion":total,
+            "ranked_matches_before_limit":order.len(),
             "bulk_changes_excluded_over_files":cards::BULK_FILES,
             "active_generation":null}))
     }
