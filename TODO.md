@@ -245,7 +245,7 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   language-neutral). Today an agent on a Node repo can call tools that quietly return
   nonsense.
 
-- [ ] **27. Generalize state tracking to modern equivalents** (L)
+- [~] **27. Generalize state tracking to modern equivalents** (L)
   Browser-storage tracing installed 2026-11-13. `trace_state_usage` accepts
   `LocalStorage` and `SessionStorage` with literal JS/TS getItem/setItem/removeItem
   keys and returns indexed readers/writers with source positions and hashes.
@@ -256,8 +256,9 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   Evidence: [browser storage delivery](eval/ociusx-browser-storage-delivery-20261113.json).
   Broader retained language/framework work remains unfinished and parked.
 
-  Active: `eval/p131-modern-state-baseline-20261112.json`.
-  Partial implementation and verification: `eval/p131-modern-state-progress-20261112.json` (modern public state tracing, JS/TS import bindings and incremental persistence; remaining language/framework coverage and candidate/installed deployment are still open).
+  Retained baseline: `eval/p131-modern-state-baseline-20261112.json`.
+  Earlier language/framework work and its unfinished acceptance remain recorded in
+  `eval/p131-modern-state-progress-20261112.json`; this delivery does not close them.
   `state_extractor.rs` knows Session/ViewState/Application. Equivalent value for modern
   stacks: env vars, global singletons, React context/Redux stores, module-level mutable
   state. Same edge kinds, new extractors.
