@@ -1,0 +1,71 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T08:24:37.233484+00:00",
+  "finding": "EG-19 declared decision scope and revision evidence",
+  "source_commit": "7ed6b907fbfe67d6a1a79b63d670faaa83e86fe5",
+  "original_requirement": "Supply relevant prior rulings with explicit scope, evidence and revision applicability; retain findings when code changes.",
+  "before": "Standalone decisions rely on prose mentions. Events cannot retain explicit file scope, reviewed commit and conditions, and review cannot compare source against the declared decision revision.",
+  "after": [
+    "Decision records retain optional exact file scope, reviewed commit and complete conditions without changing legacy event serialization.",
+    "Review discovers explicitly scoped decisions even without prose path mentions, and excludes unrelated explicit scopes.",
+    "Review reports baseline/current source hashes, changed/unchanged/unavailable bytes and submitted-change reassessment; matching HEAD or unapplied disk state never suppresses current findings."
+  ],
+  "runtime": {
+    "server_sha256": "c3822aa0a8bd5882b20e7fc6550169a9f3c5f0f78ac6385931a28e8e97d7c312",
+    "manifest_sha256": "3ac5e3f871c31424c1cee6a883584a98ec8b91a0b5d3d60ce895b1bce6240271",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "native_review_tests": 7,
+    "historical_cutoff_tests": 1,
+    "candidate_cases": 4,
+    "installed_cases": 4,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\native1.json",
+      "sha256": "bc41417486d7e94cc56c2c88710fab65173844a879573855a7abb54606ca2e1b"
+    },
+    "cutoff": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\cutoff1.json",
+      "sha256": "3f49575268d60a42aa3a5f1c56e62169982513f4455f245ef2836ac8ab6c713c"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\candidate1\\acceptance.json",
+      "sha256": "7fe23edf12e9ed21c6ae5362b7bfba9e39e5880c7c27a8c6938a23db583fc1d3"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\installed1\\acceptance.json",
+      "sha256": "5e598b3c7ed4f246c4f8283449e403a216a06da1ad0b871624d5de41dd148b95"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\release1.json",
+      "sha256": "db6ec7cc570669eba0681017bfc4cc32ba8b8143927483b93115934bdd43ccae"
+    },
+    "manual_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\manual-review1.json",
+      "sha256": "fb3c1423cae6f301c17c1dd41d380e23f3b652b559e76c6bc3da5a396556b46c"
+    }
+  },
+  "preserved": {
+    "production_metadata_unchanged": true,
+    "sidecar_assets_unchanged": true,
+    "nine_existing_work_files_unchanged": true
+  },
+  "limits": [
+    "Declared scope and provenance do not authenticate decision authority or semantically establish that conditions hold. No automatic exception suppression.",
+    "Source comparisons use raw bytes including line endings and only submitted intersecting paths. Legacy records remain unscoped; no inferred backfill.",
+    "Old binaries reject decision records containing the new optional scope field. Production records are unchanged by verification; rollback after recording scoped decisions is not established.",
+    "Acceptance uses owned WebForms-shaped source and independent Git/content oracles, not a measured OciusX implementation or productivity benefit.",
+    "CodeRabbit host authentication unavailable; parent manual review only. Wider EG19 authority/applicability and original broader gates remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope",
+    "fixtures_removed": true,
+    "build_job_closed": true,
+    "config_hold_released": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-03c2909c1b4245c08c282b652a11e459",
+    "retention": "Retain receipts, wire/oracles and rollback pair; no preexisting directory deletion."
+  }
+}

@@ -1,7 +1,7 @@
 {
-  "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "contract": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG-19 scoped review-decision applicability",
     "original_requirement": "Supply relevant prior rulings with explicit scope, evidence and revision applicability; retain findings when code changes.",
     "observed_missing_behavior": "Decision records cannot represent declared file scope or the reviewed revision. Standalone discovery relies only on prose path mentions; review always reports applicability unestablished even when source evidence can distinguish changed files.",
@@ -28,7 +28,8 @@
     ],
     "resource_retention": "Reuse existing batch-read-source checkout and shared target. Retain receipts here; remove owned fixture temp after handles close. No preexisting directory deletion.",
     "source_commit": "7ed6b907fbfe67d6a1a79b63d670faaa83e86fe5",
-    "progress": "eval/ociusx-review-scope-progress-20261113.json"
+    "progress": "eval/ociusx-review-scope-progress-20261113.json",
+    "receipt": "eval/ociusx-review-scope-delivery-20261113.json"
   },
   "checks": {
     "native1": {
@@ -41,10 +42,16 @@
     }
   },
   "source_commit": "7ed6b907fbfe67d6a1a79b63d670faaa83e86fe5",
-  "remaining": "Build release, verify candidate and installed public scoped-decision workflow, deploy, and record exact runtime identity. No deployed claim yet.",
-  "build_session": 7158,
+  "remaining": [
+    "Declared scope and provenance do not authenticate decision authority or semantically establish that conditions hold. No automatic exception suppression.",
+    "Source comparisons use raw bytes including line endings and only submitted intersecting paths. Legacy records remain unscoped; no inferred backfill.",
+    "Old binaries reject decision records containing the new optional scope field. Production records are unchanged by verification; rollback after recording scoped decisions is not established.",
+    "Acceptance uses owned WebForms-shaped source and independent Git/content oracles, not a measured OciusX implementation or productivity benefit.",
+    "CodeRabbit host authentication unavailable; parent manual review only. Wider EG19 authority/applicability and original broader gates remain open."
+  ],
+  "build_session": null,
   "build_owner": {
-    "status": "JOB_ASSIGNED_BEFORE_GO",
+    "status": "COMPLETED_JOB_CLOSED",
     "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\review-scope\\edit-workload-focused-8lce6jnl",
     "driver_pid": 67228,
     "relay_pid": 65464,
@@ -61,5 +68,6 @@
       "engram_server"
     ],
     "cleanup_condition": "Only after exact owned Job empty and relay/handles closed; retain on interruption"
-  }
+  },
+  "delivery": "eval/ociusx-review-scope-delivery-20261113.json"
 }
