@@ -184,6 +184,13 @@ pub(super) fn capture(
             let mut retained = 0;
             let mut omitted = 0;
             for symbol in extracted.unwrap_or_default() {
+                // The shared extractor also carries module/index metadata on
+                // synthetic file records. They are not authored declarations:
+                // do not match prose "file" or count their EOF span as omitted
+                // instruction evidence. A real function named file still counts.
+                if symbol.kind == "file" {
+                    continue;
+                }
                 let qualified = symbol
                     .metadata
                     .as_ref()
