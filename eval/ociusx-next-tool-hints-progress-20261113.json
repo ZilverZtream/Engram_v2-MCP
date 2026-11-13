@@ -1,5 +1,5 @@
 {
-  "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+  "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
   "finding": "TODO34 remaining next-tool hints",
   "original_requirement": "TODO.md item34: standardized next_tools guidance so agents can discover and follow the remaining specialty-tool surface. Preserve completed hot-path hints.",
   "observed_missing_behavior": "query_schema, detect_n_plus_one and find_missing_indexes return source-cited evidence and pagination but no standardized next_tools guidance to the relevant follow-up tools. Source inspection found standardized next_tools only in search handlers; inventory the remaining canonical specialty surface once to complete this original item.",
@@ -16,5 +16,27 @@
   "source_baseline": "2086a8755a6cf68e0790c5eb5a47b716ea126d12",
   "source_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints",
-  "cleanup": "Owned fixtures close and remove their temporary resources. Retain delivery evidence in the recorded scratch until no longer needed; preexisting folders remain read-only."
+  "cleanup": "Owned fixtures close and remove their temporary resources. Retain delivery evidence in the recorded scratch until no longer needed; preexisting folders remain read-only.",
+  "source_commit": "63ceff4e3d9481a926a21add3baeb04a8ebe8bd7",
+  "main_merge_commit": "7e36383bb8cf7dc1cd9b49cb1d3933c839686f98",
+  "implementation_files": [
+    "crates/engram_server/src/lib.rs",
+    "crates/engram_server/src/tool_guidance.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/tool_guidance_tests.rs"
+  ],
+  "validation": {
+    "native_checks": 9,
+    "public_calls": 13,
+    "native": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\native3.json",
+    "public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\debug-public1\\acceptance.json"
+  },
+  "review": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\next-tool-hints\\source-review1.json",
+  "deployed": false,
+  "remaining": "Build optimized release, verify candidate and installed public cases, then follow one actual OciusX repeated-query finding to its source context.",
+  "exceptions": [
+    "Core tools, closed CodeMap/Blast areas and unfinished planner retain original responses.",
+    "Existing hints, errors, non-object JSON, multipart/media, results above 1MiB and responses without room for advisory status retain original output."
+  ],
+  "resources": "Owned native/debug fixtures closed and removed; source checkout, packages and evidence retained in the recorded diagnostics location."
 }

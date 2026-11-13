@@ -40,9 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SELECTED_ORIGINAL_IMPLEMENTATION",
+    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
     "finding": "TODO34 remaining next-tool hints",
-    "remaining": "Provide bounded, contextual next-tool guidance across the remaining applicable specialty surface, including actionable OciusX VB/WebForms/SQL follow-ups, without requiring extra model generation.",
+    "remaining": "Build optimized release, verify candidate and installed public cases, then follow one actual OciusX repeated-query finding to its source context.",
     "progress": "eval/ociusx-next-tool-hints-progress-20261113.json"
   },
   "previous_delivery": {

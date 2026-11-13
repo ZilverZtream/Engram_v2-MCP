@@ -294,6 +294,21 @@ without re-reading an entire file:
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
 
+Specialty-tool replies can include `next_tools` entries with a tool name, a reason,
+and optional complete `arguments` copied from the request or cited result. For
+example, a repeated-query finding can lead directly to its enclosing method's
+edit context. Missing method identities lead to a source excerpt instead.
+`next_tools_status` explains empty, unavailable, ambiguous or partial-source
+outcomes. Suggestions are filtered to the active tool profile; backend and
+project-data requirements still apply. Follow-ups are advisory and are not run
+automatically.
+
+Guidance yields to complete evidence and recovery data when a response budget is
+tight. If even a guidance status cannot fit, the original result is returned
+unchanged. Core replies, existing guidance, errors, non-object JSON, multipart or
+media results, and text above 1 MiB retain their existing formats. Absence of a
+hint does not establish that a task is complete or an edit is safe.
+
 `trace_user_request` accepts an `entry_point` such as `POST /buy/42` and an
 optional `action` such as `click btnBuy` or `load page`. It resolves literal
 `MapPageRoute` registrations and physical pages from selected project sources,
