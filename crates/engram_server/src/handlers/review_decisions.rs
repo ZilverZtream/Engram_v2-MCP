@@ -42,6 +42,19 @@ pub struct Verification {
     pub verifier: String,
 }
 
+/// Explicitly declared applicability, retained as evidence rather than inferred
+/// from a discussion's prose or provider workflow status.
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub struct DecisionScope {
+    /// Full Git commit ID whose source was considered when making this decision.
+    pub reviewed_commit: String,
+    /// Exact repository-relative paths, using forward slashes; no glob patterns.
+    pub paths: Vec<String>,
+    /// Complete limitations and exceptions. Engram does not execute these as policy.
+    pub conditions: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct ReviewDecision {
@@ -58,6 +71,9 @@ pub struct ReviewDecision {
     pub recorded_at: String,
     pub rationale: String,
     pub verification: Option<Verification>,
+    /// Optional declared scope. Legacy records without this remain unscoped.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub scope: Option<DecisionScope>,
 }
 
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
@@ -130,6 +146,17 @@ fn valid_iso_date(value: &str) -> bool {
 }
 
 fn validate(event: &ReviewDecision) -> Result<(), String> {
+    if let Some(scope) = &event.scope {
+        if !valid_hex(&scope.reviewed_commit, &[40, 64])
+            || scope.paths.is_empty() || scope.paths.len() > 16
+            || scope.conditions.trim().is_empty() || scope.conditions.len() > 8000
+            || scope.paths.iter().any(|path| path.len() > 512
+                || path.chars().any(|c| c.is_control() || "\\:*?[]".contains(c))
+                || path.split('/').any(|part| part.is_empty() || matches!(part, "." | "..")))
+        {
+            return Err("scope requires a full reviewed_commit, 1..16 exact repository-relative paths, and complete nonblank conditions (at most 8000 bytes)".into());
+        }
+    }
     for value in [
         &event.event_id,
         &event.finding_id,
@@ -266,7 +293,7 @@ pub(crate) fn discover(
         "serialized_record_bytes_read":record_bytes_read,
         "per_record_byte_cap":DISCOVERY_RECORD_BYTES,"total_record_byte_cap":DISCOVERY_TOTAL_BYTES,
         "legacy_identity_coverage":"Unknown: older hashed rows without identity companions cannot be discovered. Read by the original review_id, or record the unchanged original events with that exact ID to add a companion. No IDs are inferred and no old arrays are migrated by discovery.",
-        "relevance":"A complete changed relative path must be mentioned in the current event's rationale or finding ID. This is text relevance only, not authenticated authority, accepted scope, runtime applicability, or complete semantic discovery.",
+        "relevance":"Explicit scope must intersect a changed path; legacy events require a complete changed relative path in the rationale or finding ID. Declared scope and text relevance do not authenticate authority or establish semantic applicability.",
         "observation_scope":"Independent current metadata observations, not an atomic corpus snapshot or historical replay. Missing, malformed, oversized and uninspected records establish no absence of decisions."
     }) })
 }
@@ -533,6 +560,7 @@ mod tests {
             recorded_at: date.into(),
             rationale: "imported finding".into(),
             verification: None,
+            scope: None,
         };
         let mut legacy = event("review-history:legacy", "2026-01-01T00:00:00Z");
         legacy.kind = DecisionKind::AcceptedException;
