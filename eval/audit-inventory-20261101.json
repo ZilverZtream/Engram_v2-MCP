@@ -779,7 +779,8 @@
         "behavior": "Request file/author/date filters now precede embedding; warm cache obeys same predicates. Installed fixture6to1cards, identical selected change; empty sets skip query embedding.",
         "actual_ociusx": "Original matching request returned expected Git-verified change in4.3188s atgeneration3149. Earlier40.49s observation retained; not a controlled speedup.",
         "limits": "Metadata traversal and unfiltered embedding work remain; rerank budget still not a whole-request deadline. No ranking-quality/productivity or full original gate closure."
-      }
+      },
+      "provider_outage_delivery_20261113": "eval/ociusx-history-provider-fallback-delivery-20261113.json"
     },
     {
       "id": "EG-21",
@@ -803,7 +804,8 @@
         "behavior": "Request file/author/date filters now precede embedding; warm cache obeys same predicates. Installed fixture6to1cards, identical selected change; empty sets skip query embedding.",
         "actual_ociusx": "Original matching request returned expected Git-verified change in4.3188s atgeneration3149. Earlier40.49s observation retained; not a controlled speedup.",
         "limits": "Metadata traversal and unfiltered embedding work remain; rerank budget still not a whole-request deadline. No ranking-quality/productivity or full original gate closure."
-      }
+      },
+      "provider_outage_delivery_20261113": "eval/ociusx-history-provider-fallback-delivery-20261113.json"
     },
     {
       "id": "EG-22",
@@ -10009,10 +10011,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-13T18:42:19.392715+00:00",
+  "last_updated_at": "2026-11-13T19:06:04.549437+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_VALIDATED_RELEASE_BUILD_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG20/EG21 usable history when configured embeddings fail",
       "original_requirement": "Capability-aware usable precedent history for OciusX AI workflows.",
       "observed_missing_behavior": "Configured Ollama document or query embedding errors propagate as MCP errors even when filtered Git metadata is available; only disabled vectors currently use lexical fallback.",
@@ -10037,9 +10039,11 @@
       "source_commit": "d286e20",
       "runtime_source_commit": "f109f54ac697a3065df6963f27eabd2dbb1b9e8e",
       "progress_receipt": "eval/ociusx-history-provider-fallback-progress-20261113.json",
-      "bounded_delivery_complete": false
+      "bounded_delivery_complete": true,
+      "delivery": "eval/ociusx-history-provider-fallback-delivery-20261113.json",
+      "outcome": "Document and query embedding failures return matching lexical history with an explicit fallback label. File/author/date/exclusion and revision filters remain; subsequent healthy requests use semantic ranking."
     },
-    "at_utc": "2026-11-13T18:44:57.872358+00:00",
+    "at_utc": "2026-11-13T19:06:04.549437+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10069,8 +10073,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG20/EG21 usable history when configured embeddings fail",
-    "next_user_visible_deliverable": "Precedent history remains usable with explicit lexical degradation when its configured embedding provider fails.",
+    "active_original_item": "EG20/EG21 provider-outage fallback delivered; next original workflow item not yet selected",
+    "next_user_visible_deliverable": "Advance another unfinished original OciusX AI workflow requirement; history fallback acceptance is closed.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10087,7 +10091,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: installed outage reproduced; fallback implemented; 13 native checks passed; source committed; release build active.",
+    "previous_goal_turn_classification": "PROGRESS: built, candidate/installed public MCP acceptance passed, deployed and cleaned owned fixtures.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

@@ -1,0 +1,108 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-13T19:06:04.549437+00:00",
+  "finding": "EG20/EG21 usable precedent history during configured embedding outages",
+  "source_commit": "d286e20",
+  "runtime_source_commit": "f109f54ac697a3065df6963f27eabd2dbb1b9e8e",
+  "before": "Installed MCP returned an RPC error after HTTP503 from the embedding provider despite a matching filtered Git change.",
+  "after": "Document and query embedding failures return matching lexical history with an explicit fallback label. File/author/date/exclusion and revision filters remain; subsequent healthy requests use semantic ranking.",
+  "validation": {
+    "native_cases": 13,
+    "candidate": {
+      "document_outage_returns_scoped_history": true,
+      "document_outage_labeled": true,
+      "document_recovery_semantic": true,
+      "query_outage_returns_scoped_history": true,
+      "historical_cutoff_preserved": true,
+      "markdown_discloses_fallback": true,
+      "query_recovery_semantic": true
+    },
+    "installed": {
+      "document_outage_returns_scoped_history": true,
+      "document_outage_labeled": true,
+      "document_recovery_semantic": true,
+      "query_outage_returns_scoped_history": true,
+      "historical_cutoff_preserved": true,
+      "markdown_discloses_fallback": true,
+      "query_recovery_semantic": true
+    },
+    "baseline": {
+      "configured_provider_failure_is_mcp_error": true
+    },
+    "configuration_relevance": "Current OciusX runtime config uses Ollama/nomic-embed-text; outage acceptance used an owned local provider and Git fixture."
+  },
+  "runtime": {
+    "server_sha256": "8e5ad2258b8dafdb4f0174d0e22bb5ba39904cdf66d7ae5c20694d458f2d04f9",
+    "manifest_sha256": "3c76525a3a4e45740dc3eb8f17d38d39ebed4211ca39eadcac1025189876147d",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\Engram-win-x64.zip",
+    "sha256": "cfa617e12eb7d2c7b3c6883c2017f29fd41c35a5669909e42b1934a3b6354bb3",
+    "runtime_assets": 215,
+    "entries": 218,
+    "installer_source_commit": "909b2b4",
+    "scope": "Same accepted Codex/JSON installer with the updated runtime; archive entry hashes verified by the existing packager."
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\contract.json",
+      "sha256": "4ad9e769d0f1dd59b455407b970e9bea41b2df347277cde4f5bea4bf6c97a71e"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\baseline1\\acceptance.json",
+      "sha256": "f0c8cd340aa6aef93b824c87dc05689b4aa63fc4ac82bfdfc885b87f3bba698a"
+    },
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\native1.json",
+      "sha256": "6993a2b6b8291bec386da271fbb52acbd2d0215cfa902f314b119a87047a3e08"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\implementation1.json",
+      "sha256": "970f69401885ef5ac0b937b2d19e8be08d3c98e25ffe3d0fcb6e19614a181c75"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\manual-review.json",
+      "sha256": "6f88844b846a3013ef9362e563ce48235f744955b2eab20c5568d4e69b2f7bfb"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\release1.json",
+      "sha256": "19460c37e9c85db82fa107e956d4cbb7b893b919ff2045e206b718421f47036f"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\candidate1\\acceptance.json",
+      "sha256": "d77a924b2e8aeeeef68da8722972f6a56ce91f9f5fd9254453654566d015bcc9"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\installed1\\acceptance.json",
+      "sha256": "0c9efe381e510f92e530a854bdc00b25fbf24c61c59ac4e361033a7b3c34aad2"
+    },
+    "observations": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\installed1\\observations.json",
+      "sha256": "dd309de341242b7dca15793244ccf7af1c4c1a98733d3649ccb4cf7905b6468c"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback\\deployment1-state.json",
+      "sha256": "3d6cc6bbde951fa8861952d2a5fe7cbc251cf9c83262bbc2e05f743b449cd70c"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-provider-fallback",
+    "all_new_test_fixtures_closed_and_removed": true,
+    "build_temp_removed": true,
+    "owned_configuration_removed": true,
+    "config_hold_released": true,
+    "preserved_wip9": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-3726f96393db4d579ccd9847ed7447bb",
+    "retention": "Keep candidate package, delivery evidence and old runtime pair for review/rollback. No preexisting directories deleted."
+  },
+  "limits": [
+    "Lexical fallback is not equivalent semantic ranking quality; provider timeouts/retries remain unchanged.",
+    "No production provider outage or comparative OciusX speed/task-benefit claim; acceptance uses owned Git history and provider.",
+    "Parent review only; no external CodeRabbit review.",
+    "Full original backlog and release gates remain unfinished."
+  ]
+}
