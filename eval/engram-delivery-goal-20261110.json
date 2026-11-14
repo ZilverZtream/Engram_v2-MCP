@@ -41,33 +41,33 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "Original TODO59 canonical procedure source selection",
-    "original_requirement": "Consolidate overlapping SQL parsing and procedure/table analysis used by existing reports.",
-    "observed_missing_behavior": "Installed public baseline: get_sp_details finds an ALTER PROCEDURE, but analyze_database_intelligence omits it because its separate source lookup recognizes CREATE only. Existing actual aspnet_Applications_CreateApplication fields and body hash already agree and must remain compatible.",
+    "finding": "Original TODO59 focused standalone procedure inspection",
+    "original_requirement": "Usable SQL analysis without unnecessary application-code scans; consolidate overlapping SQL input/analysis work.",
+    "observed_missing_behavior": "Installed get_sp_details has no explicit SQL-file selector or way to omit application callers: it always discovers project SQL and up to5000 VB/C# files. OciusX targeted SQL inspection needs an explicit source-only mode; baseline confirms both controls are absent and default code/reverse-SP callers are currently returned.",
     "implementation_files": [
-      "crates/engram_server/src/services/database_intelligence_service.rs"
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/migration_tools.rs",
+      "crates/engram_server/src/handlers/migration_sql_sources.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/phase37_wiring_test.rs"
     ],
     "acceptance": [
-      "Use the shared declaration parser and existing source/batch slicing for report summaries; remove the duplicate SP_BODY_RE/find_sp_body lookup. CREATE, ALTER and CREATE OR ALTER procedures stay available.",
-      "Select wanted catalog procedures in one pass per SQL file, retaining catalog ordering and first matching basename behavior. Do not replace the old light lookup with repeated full parsing for each procedure; no qualified-procedure selection work.",
-      "Procedure summaries exclude deployment text after GO and preserve exact selected declaration bytes/CRLF. Actual OciusX procedure fields/body hash remain compatible; the ALTER fixture becomes visible in JSON/Markdown with the same body hash as get_sp_details.",
-      "Focused native ordinary multi-procedure/body/order behavior and combined candidate/installed checks. No per-component compilation; preserve actual inputs/configuration/WIP9."
+      "Optional sql_file_path reads only that explicit SQL input via safe_join; otherwise preserve bounded SQL discovery. Share the existing SQL input loader with analyze_database_intelligence rather than duplicating its file-scope logic.",
+      "Optional include_code_callers defaults true. False skips application-code discovery/reads and graph caller lookup, while returning complete selected procedure details. Explicitly label code callers NOT_REQUESTED; do not present absent caller evidence as verified no callers.",
+      "Disclose explicit-file versus project SQL scope and that reverse-procedure callers/triggers outside that file were not checked. Keep default code/reverse-SP callers, real OciusX source/body hash, parameters/read/write facts and existing force_refresh compatibility.",
+      "Focused native file-scope behavior and combined candidate/installed public checks on unchanged actual OciusX SQL copies plus owned code/reverse-SP callers. No per-component compile; preserve actual inputs/config/WIP9."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline2\\acceptance.json",
-    "retained_baseline_correction": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline1\\acceptance.json",
-      "reason": "Initial hypothesis that the actual CREATE body hashes disagreed was false. Existing equality is preserved as compatibility evidence; reproduced missing ALTER summary remains the selected gap."
-    },
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\verify-public.py",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\baseline1\\acceptance.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\verify-public.py",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
     "limits": [
-      "Existing basename matching, heuristic parsing and report formats remain; source declarations do not bind the deployed database or establish execution.",
-      "No elapsed-time speedup claim or broad indexing/storage change."
+      "A focused read deliberately supplies less caller/trigger coverage and reports that scope. It is not runtime/deployed database proof.",
+      "No claimed measured latency improvement, general source-permission framework or target-language expansion."
     ],
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json"
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\source-check1.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -870,6 +870,11 @@
         "item": "Canonical procedure source catalog",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
         "progress": "eval/ociusx-procedure-source-catalog-progress-20261114.json"
+      },
+      {
+        "item": "Focused standalone procedure inspection",
+        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+        "progress": "eval/ociusx-sp-details-scope-progress-20261114.json"
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -956,7 +961,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Complete canonical procedure source selection, then the third original OciusX component before one combined verification/release batch.",
+  "next_user_visible_deliverable": "Finish focused standalone procedure inspection, then verify/deploy the three queued SQL components with one combined focused native/release batch.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1506,5 +1511,42 @@
     ],
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\source-check1.json",
     "source_implementation": "Removed seven duplicate procedure-reference regexes and three extractor functions. Shared references retain procedure-specific UPDATE/EXEC and first-seen ordering; generic body reports gain the existing MERGE-without-INTO target recognition."
+  },
+  "retained_queued_procedure_source_contract": {
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "Original TODO59 canonical procedure source selection",
+    "original_requirement": "Consolidate overlapping SQL parsing and procedure/table analysis used by existing reports.",
+    "observed_missing_behavior": "Installed public baseline: get_sp_details finds an ALTER PROCEDURE, but analyze_database_intelligence omits it because its separate source lookup recognizes CREATE only. Existing actual aspnet_Applications_CreateApplication fields and body hash already agree and must remain compatible.",
+    "implementation_files": [
+      "crates/engram_server/src/services/database_intelligence_service.rs"
+    ],
+    "acceptance": [
+      "Use the shared declaration parser and existing source/batch slicing for report summaries; remove the duplicate SP_BODY_RE/find_sp_body lookup. CREATE, ALTER and CREATE OR ALTER procedures stay available.",
+      "Select wanted catalog procedures in one pass per SQL file, retaining catalog ordering and first matching basename behavior. Do not replace the old light lookup with repeated full parsing for each procedure; no qualified-procedure selection work.",
+      "Procedure summaries exclude deployment text after GO and preserve exact selected declaration bytes/CRLF. Actual OciusX procedure fields/body hash remain compatible; the ALTER fixture becomes visible in JSON/Markdown with the same body hash as get_sp_details.",
+      "Focused native ordinary multi-procedure/body/order behavior and combined candidate/installed checks. No per-component compilation; preserve actual inputs/configuration/WIP9."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline2\\acceptance.json",
+    "retained_baseline_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline1\\acceptance.json",
+      "reason": "Initial hypothesis that the actual CREATE body hashes disagreed was false. Existing equality is preserved as compatibility evidence; reproduced missing ALTER summary remains the selected gap."
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\verify-public.py",
+    "implementation_complete": true,
+    "validated": false,
+    "deployed": false,
+    "limits": [
+      "Existing basename matching, heuristic parsing and report formats remain; source declarations do not bind the deployed database or establish execution.",
+      "No elapsed-time speedup claim or broad indexing/storage change."
+    ],
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json"
+  },
+  "benchmark_corpus_observation_20261114": {
+    "status": "EXISTING_CORPUS_STILL_ABSENT",
+    "path": "C:/Users/Dennis/source/repos/OciusX/.pr-review/qa/bench",
+    "prior_evidence": "eval/ociusx-holdout-prerequisite-20261113.json",
+    "model_calls_started": 0,
+    "scope": "Original EG24 remains open; no optional-question stall or replay of the inspected failed task."
   }
 }

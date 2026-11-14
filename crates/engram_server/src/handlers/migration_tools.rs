@@ -25,6 +25,9 @@ use std::path::Path;
 #[path = "database_report_delivery.rs"]
 mod database_report_delivery;
 
+#[path = "migration_sql_sources.rs"]
+mod migration_sql_sources;
+
 fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node]) -> String {
     let details = candidates
         .iter()
@@ -2039,31 +2042,7 @@ impl Engram {
         let sql_file_path = req.sql_file_path.clone();
 
         // ── Discover SQL files ──────────────────────────────────────────────
-        let sql_files: Vec<(String, String)> = if let Some(ref specific_path) = sql_file_path {
-            let full = safe_join(Path::new(&project_dir), specific_path)
-                .map_err(|e| McpError::invalid_params(format!("Path validation: {e}"), None))?;
-            match tokio::fs::read_to_string(&full).await {
-                Ok(content) => vec![(specific_path.clone(), content)],
-                Err(e) => {
-                    return Err(McpError::invalid_params(
-                        format!("Cannot read SQL file '{}': {}", specific_path, e),
-                        None,
-                    ));
-                }
-            }
-        } else {
-            let discovered =
-                discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 2000).await;
-            let mut files = Vec::with_capacity(discovered.len());
-            for rel in discovered {
-                if let Ok(full) = safe_join(Path::new(&project_dir), &rel)
-                    && let Ok(content) = std::fs::read_to_string(&full)
-                {
-                    files.push((rel, content));
-                }
-            }
-            files
-        };
+        let sql_files = migration_sql_sources::load(&project_dir,sql_file_path.as_deref()).await?;
 
         if sql_files.is_empty() {
             let body = database_report_delivery::finish(&self.state.cfg.data_dir, &req,
@@ -2201,28 +2180,9 @@ impl Engram {
         let pid = req.project_id.clone();
         let sp_name = req.sp_name.clone();
 
-        // Discover SQL files
-        let sql_paths =
-            discover_files_recursive(std::path::Path::new(&project_dir), &[".sql"], 2000).await;
-
-        let sql_files: Vec<(String, String)> = sql_paths
-            .into_iter()
-            .filter_map(|rel| {
-                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                match std::fs::read_to_string(&full) {
-                    Ok(c) => Some((rel, c)),
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-                    Err(e) => {
-                        tracing::warn!(
-                            "ENG-AUD-2026-S10-0003: failed to read SQL file {:?}: {}",
-                            full,
-                            e
-                        );
-                        None
-                    }
-                }
-            })
-            .collect();
+        let sql_file_path = req.sql_file_path.clone();
+        let include_code_callers = req.include_code_callers;
+        let sql_files = migration_sql_sources::load(&project_dir,sql_file_path.as_deref()).await?;
 
         if sql_files.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
@@ -2231,10 +2191,11 @@ impl Engram {
         }
 
         // Discover code files for caller detection
+        let code_files = if include_code_callers {
         let code_disc =
             discover_files_recursive(std::path::Path::new(&project_dir), &[".vb", ".cs"], 5_000)
                 .await;
-        let code_files: Vec<(String, String)> = code_disc
+        let files: Vec<(String, String)> = code_disc
             .into_iter()
             .filter_map(|rel| {
                 let full = safe_join(Path::new(&project_dir), &rel).ok()?;
@@ -2252,6 +2213,9 @@ impl Engram {
                 }
             })
             .collect();
+
+            files
+        } else { Vec::new() };
 
         let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
             use crate::services::database_intelligence_service as dbi;
@@ -2312,7 +2276,7 @@ impl Engram {
             called_by_sps.dedup();
 
             // Also check graph for callers via incoming SqlCalls edges
-            if let Ok(incoming) = graph.find_incoming_edges(
+            if include_code_callers && let Ok(incoming) = graph.find_incoming_edges(
                 &pid,
                 Some(engram_graph::EdgeKind::SqlCalls),
                 &sp_name,
@@ -2349,6 +2313,17 @@ impl Engram {
             out.push_str(&format!("**Source file**: {}\n", sp_source_file));
             out.push_str(&format!("**Complexity**: {}\n", complexity));
             out.push_str(&format!("**Content hash**: {}\n\n", logic.content_hash));
+
+            if let Some(path) = &sql_file_path {
+                out.push_str(&format!("SQL source scope: explicit file `{path}`; reverse-procedure callers outside this file were not checked. Triggers outside this file were not checked.\n"));
+            } else {
+                out.push_str("SQL source scope: up to2000 discovered SQL files; exhaustive or deployed-schema coverage is not established.\n");
+            }
+            if include_code_callers {
+                out.push_str("Code caller coverage: bounded project scan (up to5000 VB/C# files) and stored graph leads; not exhaustive or runtime execution proof.\n\n");
+            } else {
+                out.push_str("Code caller coverage: NOT_REQUESTED; application-code discovery, reads and graph caller lookup skipped. Re-run with include_code_callers=true to inspect those callers.\n\n");
+            }
 
             out.push_str("## Purpose\n\n");
             out.push_str(&logic.purpose);

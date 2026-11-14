@@ -385,6 +385,8 @@ async fn w2_get_sp_details_basic() {
 
     let result = engram
         .get_sp_details(Parameters(engram_server::GetSpDetailsRequest {
+            sql_file_path: None,
+            include_code_callers: true,
             project_id: pid.clone(),
             sp_name: "sp_GetCustomerOrders".into(),
             force_refresh: false,
@@ -421,6 +423,8 @@ async fn w2_get_sp_details_with_call_chain() {
 
     let result = engram
         .get_sp_details(Parameters(engram_server::GetSpDetailsRequest {
+            sql_file_path: None,
+            include_code_callers: true,
             project_id: pid.clone(),
             sp_name: "sp_CreateOrder".into(),
             force_refresh: false,
@@ -456,6 +460,8 @@ async fn w2_get_sp_details_not_found() {
 
     let result = engram
         .get_sp_details(Parameters(engram_server::GetSpDetailsRequest {
+            sql_file_path: None,
+            include_code_callers: true,
             project_id: pid.clone(),
             sp_name: "sp_NonExistent".into(),
             force_refresh: false,
@@ -478,6 +484,8 @@ async fn w2_get_sp_details_trigger_detection() {
 
     let result = engram
         .get_sp_details(Parameters(engram_server::GetSpDetailsRequest {
+            sql_file_path: None,
+            include_code_callers: true,
             project_id: pid.clone(),
             sp_name: "sp_CreateOrder".into(),
             force_refresh: false,
@@ -505,6 +513,8 @@ async fn w2_get_sp_details_called_by_sps() {
     // sp_LogAction is EXEC'd by sp_CreateOrder — should show reverse caller
     let result = engram
         .get_sp_details(Parameters(engram_server::GetSpDetailsRequest {
+            sql_file_path: None,
+            include_code_callers: true,
             project_id: pid.clone(),
             sp_name: "sp_LogAction".into(),
             force_refresh: false,

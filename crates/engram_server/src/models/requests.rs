@@ -3539,6 +3539,14 @@ pub struct AnalyzeDatabaseIntelligenceRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetSpDetailsRequest {
     pub project_id: String,
+    /// Inspect only this project-relative SQL file instead of discovering SQL.
+    /// Reverse procedure/trigger coverage is then limited to that file.
+    #[serde(default)]
+    pub sql_file_path: Option<String>,
+    /// Include application-code discovery/reads and graph caller leads.
+    /// Default true; false explicitly leaves application callers unrequested.
+    #[serde(default = "default_true")]
+    pub include_code_callers: bool,
     /// Name of the stored procedure.
     #[serde(alias = "name", alias = "sp")]
     pub sp_name: String,
