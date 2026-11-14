@@ -40,44 +40,40 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "TODO4 complete implementation-pattern response budgets and exact recovery",
-    "original_requirement": "Bound complete actionable AI context with explicit coverage and exact recovery while preserving scoped authored guidance and existing planning composition.",
-    "observed_missing_behavior": "find_implementation_pattern accepts only per-example limits and output_json. Its shapes, snippets, coverage and complete guidance can exceed a caller reply budget, and there is no immutable recovery. Adding guidance without whole-reply delivery would leave this central retrieval workflow unbounded.",
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+    "finding": "EG01 complete authored guidance with direct method/source reads",
+    "original_requirement": "Applicable complete authored guidance must accompany direct retrieval and editing evidence, preserving scope, exceptions and source qualifications.",
+    "observed_missing_behavior": "get_full_method_body returns method bodies, caller bodies, file excerpts and source ranges without project_policy_sources. Its pre-edit context counterpart already supplies policy, so the direct read path misses authored conditions and exceptions.",
     "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/planning_tools.rs",
-      "crates/engram_server/src/handlers/pattern_delivery.rs",
-      "crates/engram_server/src/handlers/change_set_delivery.rs",
-      "crates/engram_server/src/handlers/feature_plan_tools.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/src/tool_guidance.rs",
-      "crates/engram_server/tests/planning_tools_test.rs"
+      "crates/engram_server/src/handlers/access_layer_tools.rs",
+      "crates/engram_server/src/handlers/method_body_policy.rs",
+      "crates/engram_server/src/tools.rs"
     ],
     "acceptance": [
-      "Public max_tokens bounds the entire JSON/Markdown reply at four UTF-8 bytes per estimated token, default40KiB. Small reports preserve their selected evidence and policy.",
-      "Oversized reports retain original query/kind, exemplar/common-shape counts, full coverage/failures and policy qualifications with exact immutable original-report recovery. Continuations preserve the budget and bypass project/runtime/source/graph retrieval.",
-      "Invalid controls and minimum metadata refusal create no snapshot. Snapshot namespaces remain isolated, and current policy edits cannot rewrite already captured reports.",
-      "Internal source-dossier and implementation-brief callers use a dedicated unbudgeted evidence path, preserving their original full pattern intake and35-line exemplar prefix instead of parsing a deferred public envelope.",
-      "Focused native original-byte recovery and internal bypass checks, followed by candidate/installed public JSON/Markdown recovery on owned current OciusX VB helper/root-guide copies. Run one combined focused native/release batch for all three queued components; no CodeMap/Blast or ranking changes."
+      "Attach shared complete policy context for the returned main file and actually returned nonempty caller bodies; exclude unrelated discovery leads. Cover indexed/explicit bodies, current file excerpts and source_ranges in JSON and Markdown.",
+      "Preserve source bytes, ranges, hashes, caller expansion, freshness and all existing method/source qualification fields. Add JSON policy beside the existing result/freshness fields; keep the existing Markdown source first.",
+      "Live instruction changes refresh without source reindexing. Existing32KiB excerpt/source-range complete-reply limits include added policy and refuse instead of silently trimming evidence.",
+      "Focused native preservation/scope/freshness/limit checks and candidate/installed public calls on unchanged OciusX VB/root-guide copies in a later combined batch. Preserve config/source/WIP9 and all current deliveries."
     ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-policy-20261114",
     "configuration_observed": {
       "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
     },
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
     "limits": [
-      "Coverage describes the selected bounded pattern report, not exhaustive repository patterns or proof that examples match behavior.",
-      "No retrieval/ranking, parser, graph/index/storage format or model change. Internal evidence bypass is private to existing composed planning calls."
+      "This source work is outside the frozen planning-delivery runtime checkout currently compiling; do not include it in that package or mark it deployed with that batch.",
+      "No source parsing/resolution, retrieval/ranking, caller graph, model, CodeMap/Blast or index/storage changes. Guidance is intended policy, not execution/compliance proof."
     ],
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\source-check1.json",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\baseline1\\acceptance.json",
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\verify-public.py",
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-policy-20261114\\source-check1.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-policy-20261114\\baseline2\\acceptance.json",
+    "retained_verifier_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-policy-20261114\\baseline1\\acceptance.json",
+    "verifier_correction": "FreshAccessResponse flattens source fields at the root. Compare source fields there; freshness time descriptions can change between live calls.",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-policy-20261114\\verify-public.py",
     "queued_native_cases": [
-      "Exact original JSON/Markdown report recovery preserving complete coverage after policy edits",
-      "Private composed-planner evidence bypass and invalid/minimum metadata controls without snapshot writes"
+      "Direct-source JSON preservation and returned-file policy scope with live exceptions",
+      "Complete source and guidance retain the existing source-window reply limit"
     ]
   },
   "previous_delivery": {
@@ -886,6 +882,11 @@
         "item": "Complete pattern-report budgets and exact recovery",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
         "progress": "eval/ociusx-pattern-delivery-progress-20261114.json"
+      },
+      {
+        "item": "Authored guidance on direct method/source reads",
+        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+        "progress": "eval/ociusx-method-body-policy-progress-20261114.json"
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -970,7 +971,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented planning components.",
+  "next_user_visible_deliverable": "Finish the frozen planning-delivery batch deployment; method-body guidance is queued separately for a later combined batch, not included in the current binary.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1287,5 +1288,46 @@
     ],
     "resources": "Owned baseline fixture/MCP process closed and removed. Scripts/logs/receipts retained in this case for review; no build or native run started."
   },
-  "planning_delivery_batch_progress": "eval/ociusx-planning-delivery-batch-progress-20261114.json"
+  "planning_delivery_batch_progress": "eval/ociusx-planning-delivery-batch-progress-20261114.json",
+  "retained_compiling_planning_delivery_contract": {
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "TODO4 complete implementation-pattern response budgets and exact recovery",
+    "original_requirement": "Bound complete actionable AI context with explicit coverage and exact recovery while preserving scoped authored guidance and existing planning composition.",
+    "observed_missing_behavior": "find_implementation_pattern accepts only per-example limits and output_json. Its shapes, snippets, coverage and complete guidance can exceed a caller reply budget, and there is no immutable recovery. Adding guidance without whole-reply delivery would leave this central retrieval workflow unbounded.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/pattern_delivery.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/tool_guidance.rs",
+      "crates/engram_server/tests/planning_tools_test.rs"
+    ],
+    "acceptance": [
+      "Public max_tokens bounds the entire JSON/Markdown reply at four UTF-8 bytes per estimated token, default40KiB. Small reports preserve their selected evidence and policy.",
+      "Oversized reports retain original query/kind, exemplar/common-shape counts, full coverage/failures and policy qualifications with exact immutable original-report recovery. Continuations preserve the budget and bypass project/runtime/source/graph retrieval.",
+      "Invalid controls and minimum metadata refusal create no snapshot. Snapshot namespaces remain isolated, and current policy edits cannot rewrite already captured reports.",
+      "Internal source-dossier and implementation-brief callers use a dedicated unbudgeted evidence path, preserving their original full pattern intake and35-line exemplar prefix instead of parsing a deferred public envelope.",
+      "Focused native original-byte recovery and internal bypass checks, followed by candidate/installed public JSON/Markdown recovery on owned current OciusX VB helper/root-guide copies. Run one combined focused native/release batch for all three queued components; no CodeMap/Blast or ranking changes."
+    ],
+    "configuration_observed": {
+      "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+    },
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114",
+    "implementation_complete": true,
+    "validated": false,
+    "deployed": false,
+    "limits": [
+      "Coverage describes the selected bounded pattern report, not exhaustive repository patterns or proof that examples match behavior.",
+      "No retrieval/ranking, parser, graph/index/storage format or model change. Internal evidence bypass is private to existing composed planning calls."
+    ],
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\source-check1.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\baseline1\\acceptance.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\verify-public.py",
+    "queued_native_cases": [
+      "Exact original JSON/Markdown report recovery preserving complete coverage after policy edits",
+      "Private composed-planner evidence bypass and invalid/minimum metadata controls without snapshot writes"
+    ]
+  }
 }
