@@ -142,7 +142,7 @@ fn re_from_table() -> &'static Regex {
 
 fn re_insert_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bINSERT\s+INTO\s+{QUALIFIED_OBJECT_NAME}")).expect("re_insert"))
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bINSERT\s+(?:INTO\s+)?{QUALIFIED_OBJECT_NAME}")).expect("re_insert"))
 }
 
 fn re_update_table() -> &'static Regex {
@@ -189,6 +189,30 @@ fn re_update_set() -> &'static Regex {
 }
 
 // ─── Public API ────────────────────────────────────────────────────────────────
+
+/// Heuristic references across a SQL body, using the statement analyzer's
+/// existing recognizers and basename convention. No alias/schema binding or
+/// execution is inferred; this can also analyze a body without a declaration.
+#[derive(Debug, Clone)]
+pub struct SqlBodyReferences {
+    pub tables_read: Vec<String>,
+    pub tables_written: Vec<String>,
+    pub called_procedures: Vec<String>,
+}
+
+pub fn analyze_body_references(sql: &str) -> SqlBodyReferences {
+    let names = |patterns: &[&Regex]| -> Vec<String> {
+        patterns.iter().flat_map(|pattern| pattern.captures_iter(sql))
+            .filter_map(|capture| capture.get(1))
+            .map(|name| strip_brackets(name.as_str()).to_owned())
+            .collect::<std::collections::BTreeSet<_>>().into_iter().collect()
+    };
+    SqlBodyReferences {
+        tables_read: names(&[re_from_table(), re_join()]),
+        tables_written: names(&[re_insert_table(), re_update_table(), re_delete_table()]),
+        called_procedures: names(&[re_exec()]),
+    }
+}
 
 /// Analyze a SQL string and return a structured `SqlAnalysis`.
 pub fn analyze_sql(sql: &str) -> SqlAnalysis {
@@ -1047,6 +1071,23 @@ fn to_camel(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shared_sql_body_optional_into_and_qualified_targets_agree_with_statements() {
+        for sql in [
+            "INSERT dbo.aspnet_Applications (ApplicationId) VALUES (@id)",
+            "INSERT INTO [dbo].[aspnet_Applications] (ApplicationId) VALUES (@id)",
+            "INSERT [Warehouse].[dbo].[aspnet_Applications] (ApplicationId) VALUES (@id)",
+        ] {
+            let statement = analyze_sql(sql);
+            assert_eq!(statement.operation, SqlOp::Insert);
+            assert_eq!(statement.primary_table.as_deref().map(strip_brackets), Some("aspnet_Applications"));
+            assert_eq!(analyze_body_references(sql).tables_written, vec!["aspnet_Applications"]);
+        }
+        let references = analyze_body_references("SELECT * FROM dbo.Users u JOIN dbo.Roles r ON r.Id=u.RoleId; EXEC dbo.ValidateUser @id;");
+        assert_eq!(references.tables_read, vec!["Roles", "Users"]);
+        assert_eq!(references.called_procedures, vec!["ValidateUser"]);
+    }
+
     #[test]
     fn qualified_update_uses_table_not_schema() {
         for name in ["dbo.aspnet_Membership", "[dbo].[aspnet_Membership]"] {
