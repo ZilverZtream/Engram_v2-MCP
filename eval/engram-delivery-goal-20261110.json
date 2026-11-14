@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_COMPONENTS_NATIVE_VERIFIED_PENDING_RELEASE",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
     "original_requirement": "Usable source-backed database analysis for OciusX AI workflows; avoid redundant analysis while preserving report evidence.",
     "observed_missing_behavior": "analyze_database_intelligence always queries up to50000file nodes and reads project VB/CS source, including a disk fallback, even for one explicit SQL file with one procedure. Code callers only rank/truncate procedure candidates; DatabaseIntelligence does not return caller metadata. OciusX selected SQL project uses individual procedure files, including the current application-creation example.",
@@ -61,7 +61,8 @@
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\single-sql-report",
     "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json",
     "implementation_complete": true,
-    "bounded_delivery_complete": false
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -854,44 +855,31 @@
     "compiled_tests_seconds": 453,
     "actual_test_execution_seconds": 9.5,
     "last_release_compile_seconds": 1059,
-    "pending": [
-      {
-        "item": "TODO59 shared SQL body references and optional-INTO write reporting",
-        "status": "THREE_SOURCE_COMPONENTS_NATIVE_VERIFIED_PENDING_RELEASE",
-        "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json"
-      },
-      {
-        "item": "TODO59 shared procedure parameter metadata",
-        "status": "THREE_SOURCE_COMPONENTS_NATIVE_VERIFIED_PENDING_RELEASE",
-        "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json"
-      },
-      {
-        "item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-        "status": "THREE_SOURCE_COMPONENTS_NATIVE_VERIFIED_PENDING_RELEASE",
-        "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json"
-      }
-    ],
+    "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114",
     "completed_last_batch": [
       {
-        "item": "TODO28 optional model-assisted ask routing",
+        "item": "TODO59 shared SQL body references and optional-INTO write reporting",
         "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-        "progress": "eval/ociusx-ask-routing-progress-20261114.json",
-        "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+        "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json",
+        "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
       },
       {
-        "item": "TODO31 literal nested stored-procedure source tracing",
+        "item": "TODO59 shared procedure parameter metadata",
         "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-        "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+        "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json",
+        "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
       },
       {
-        "item": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
+        "item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
         "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-        "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+        "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json",
+        "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
       }
     ],
-    "last_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+    "last_batch_delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json",
+    "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks."
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -956,7 +944,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance the next ready original OciusX requirement; keep batched delivery and all unfinished scope explicit.",
+  "next_user_visible_deliverable": "Advance the next unfinished original OciusX requirement without replaying delivered cases.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -982,7 +970,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "retained_shared_sql_body_contract": {
-    "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared SQL body references and optional-INTO write reporting",
     "original_requirement": "Consolidate overlapping database analysis so AI callers receive consistent read/write/procedure relationships.",
     "observed_missing_behavior": "The on-demand sql_parser statement analyzer and database-intelligence summary both require INSERT INTO, while indexed SP extraction already accepts INSERT dbo.Table. Actual selected OciusX aspnet_Applications_CreateApplication.sql:29 uses INSERT dbo.aspnet_Applications; its summary can omit the write effect.",
@@ -1009,10 +997,11 @@
     },
     "progress": "eval/ociusx-shared-sql-body-progress-20261114.json",
     "implementation_complete": true,
-    "bounded_delivery_complete": false
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
   },
   "retained_shared_sql_parameter_contract": {
-    "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parameter metadata",
     "original_requirement": "Consolidate overlapping SQL analysis and retain useful procedure contracts for AI callers.",
     "observed_missing_behavior": "The saved installed report for actual selected OciusX aspnet_Applications_CreateApplication omits OUTPUT from @ApplicationId, although the existing indexed declaration parser already exposes OUT/INOUT. The report maintains a separate narrower parameter regex.",
@@ -1034,6 +1023,8 @@
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-parameters",
     "progress": "eval/ociusx-shared-sql-parameters-progress-20261114.json",
     "implementation_complete": true,
-    "bounded_delivery_complete": false
-  }
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
+  },
+  "sql_analysis_batch_delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
 }

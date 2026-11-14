@@ -692,6 +692,11 @@ value is accuracy, this is the biggest meta-gap.
   Call-chain reports now share the indexed procedure parser (2026-11-14),
   correctly recognizing ordinary `[dbo].Procedure` declarations. Full consolidation
   remains unfinished. [Batch delivery](eval/ociusx-ai-readiness-batch-delivery-20261114.json).
+  Further SQL consolidation installed 2026-11-14: shared statement/body references
+  recognize INSERT without INTO, shared parameter parsing retains OUTPUT, and an
+  explicit SQL file with at most one procedure avoids unused application-code scans.
+  Candidate/installed checks passed on unchanged OciusX SQL in owned fixtures;
+  broader consolidation remains unfinished. [Delivery](eval/ociusx-sql-analysis-batch-delivery-20261114.json).
 
 - [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/ociusx-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.
