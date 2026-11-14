@@ -1,0 +1,37 @@
+{
+  "status": "SOURCE_IMPLEMENTED_THREE_COMPONENT_BATCH_READY",
+  "component": "complete SQL body references in VB request traces",
+  "finding": "Original TODO31/59 source-cited request navigation and shared SQL parsing",
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/inline_sql.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "source_files": {
+    "crates/engram_server/src/services/request_trace/inline_sql.rs": "00dfabe02e117e3ab108a2c0a8353332a89f25fd7d0a484ae4e0fc4c8e094206",
+    "crates/engram_server/src/tools.rs": "c1b0676ec3709fa52155dc5644d845ab83dd5d53018e97b46d299788a5a4c4e5"
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "missing_actual_tables_before": [
+    "aspnet_Users",
+    "us_useraccess"
+  ],
+  "expected_actual_tables": [
+    "aspnet_Users",
+    "aspnet_Membership",
+    "aspnet_UsersInRoles",
+    "aspnet_Roles",
+    "tea_tenantAccess",
+    "us_useraccess"
+  ],
+  "implementation": "Use the shared analyze_body_references on already masked literal SQL instead of selecting one primary FROM plus JOINs. Keep existing operation/batch exclusions and literal/current-source/path limits.",
+  "limits": [
+    "Source queued, not yet native/public validated or deployed.",
+    "Existing JSON trace interface retained; no additional output format introduced.",
+    "No schema/alias/deployed-database/runtime binding or dynamic SQL execution is inferred."
+  ]
+}

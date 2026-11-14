@@ -10023,18 +10023,19 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "Original TODO31 same-method literal SQL constants",
-      "original_requirement": "Follow ordinary existing VB request paths through known SQL text rather than silently losing the database dependency.",
-      "observed_missing_behavior": "Actual AccountSecurityStateRepository.GetMasterState declares a multiline Const sql As String and passes sql to typed ExecuteQuery. The installed public Local fixture returns no table path even though its exact SQL is source-available.",
+      "status": "SOURCE_IMPLEMENTED_THREE_COMPONENT_BATCH_READY",
+      "finding": "Original TODO31/59 complete literal SQL body references in request traces",
+      "original_requirement": "Source-cited request-to-database navigation and consolidation of overlapping SQL reference analysis.",
+      "observed_missing_behavior": "Installed public trace on the unchanged LegacyValidation security SQL returns four tables, omitting outer aspnet_Users and second nested us_useraccess. The inline reader uses one primary FROM plus joins, unlike the shared SQL body reference engine already used by reports.",
       "implementation_files": [
-        "crates/engram_server/src/services/request_trace/inline_sql.rs"
+        "crates/engram_server/src/services/request_trace/inline_sql.rs",
+        "crates/engram_server/src/tools.rs"
       ],
       "acceptance": [
-        "Resolve a single, method-level VB Const name with an all-literal string initializer before its SQL call. Support optional As String and existing literal concatenation; keep parameter values separate.",
-        "Admit only an unqualified first-argument identifier with a supported enclosing-method declaration. Preserve direct literal calls; dynamic expressions, fields, other constants and ambiguous/nested declarations remain unresolved. Do not build general VB constant propagation.",
-        "Return initializer name/kind/line separately from the invocation line, exact captured SQL and method source hash; retain source-only interpretation and current-source admission.",
-        "Use the exact LegacyValidation security query unchanged in the final public fixture; verify native ordinary constant/scope behavior in the three-component combined batch. No compilation for this component."
+        "Reuse analyze_body_references on the already comment/string-masked literal SQL, retaining all ordinary FROM/JOIN reads and declared write references. Remove the inline primary-plus-joins reference selection.",
+        "Retain the existing literal size, batch/procedure exclusion, current-source admission and complete-path limits. SQL identifiers remain lexical candidates; do not add schema/alias/database binding or execution claims.",
+        "Independent wanted behavior: the unchanged actual security SELECT yields all six named source tables in public JSON traces. SELECT/DML, literal examples/comments and existing ExecuteCommand behavior remain supported.",
+        "Freeze the three queued components together; run one focused request-trace native batch, one release and candidate/installed checks, preserve unrelated work/configuration and account for all owned resources. No per-component compile."
       ],
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
@@ -10042,11 +10043,7 @@
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
-      "limits": [
-        "Literal same-method Const support, not mutable/dynamic SQL evaluation.",
-        "No application request, database identity, permission semantics or execution claim."
-      ],
-      "progress": "eval/legacy_validation-constant-sql-trace-progress-20261115.json"
+      "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10078,7 +10075,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO31 literal local SQL constants; second component of the combined batch",
+    "active_original_item": "TODO31/59 all literal SQL body references; third component before one combined build",
     "next_user_visible_deliverable": "Source-cited table paths for ordinary LegacyValidation ExecuteQuery calls, followed by combined validation/deployment after three components.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -14424,6 +14421,16 @@
           "progress": "eval/legacy_validation-constant-sql-trace-progress-20261115.json",
           "validated": false,
           "deployed": false
+        },
+        {
+          "component": "sql-body-trace-20261115",
+          "source_files": [
+            "crates/engram_server/src/services/request_trace/inline_sql.rs",
+            "crates/engram_server/src/tools.rs"
+          ],
+          "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json",
+          "validated": false,
+          "deployed": false
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -14447,8 +14454,8 @@
       "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 06s",
       "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
-      "current_step_builds_required": 0,
-      "current_step_reason": "First source component is queued; no per-component compilation."
+      "current_step_builds_required": 1,
+      "current_step_reason": "Three substantive source components now queued; run one combined focused native/release and candidate/installed acceptance."
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15129,6 +15136,32 @@
       "validated": false,
       "deployed": false,
       "progress": "eval/legacy_validation-typed-query-trace-progress-20261115.json"
+    },
+    "queued_constant_sql_contract": {
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "Original TODO31 same-method literal SQL constants",
+      "original_requirement": "Follow ordinary existing VB request paths through known SQL text rather than silently losing the database dependency.",
+      "observed_missing_behavior": "Actual AccountSecurityStateRepository.GetMasterState declares a multiline Const sql As String and passes sql to typed ExecuteQuery. The installed public Local fixture returns no table path even though its exact SQL is source-available.",
+      "implementation_files": [
+        "crates/engram_server/src/services/request_trace/inline_sql.rs"
+      ],
+      "acceptance": [
+        "Resolve a single, method-level VB Const name with an all-literal string initializer before its SQL call. Support optional As String and existing literal concatenation; keep parameter values separate.",
+        "Admit only an unqualified first-argument identifier with a supported enclosing-method declaration. Preserve direct literal calls; dynamic expressions, fields, other constants and ambiguous/nested declarations remain unresolved. Do not build general VB constant propagation.",
+        "Return initializer name/kind/line separately from the invocation line, exact captured SQL and method source hash; retain source-only interpretation and current-source admission.",
+        "Use the exact LegacyValidation security query unchanged in the final public fixture; verify native ordinary constant/scope behavior in the three-component combined batch. No compilation for this component."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
+      "implementation_complete": true,
+      "validated": false,
+      "deployed": false,
+      "limits": [
+        "Literal same-method Const support, not mutable/dynamic SQL evaluation.",
+        "No application request, database identity, permission semantics or execution claim."
+      ],
+      "progress": "eval/legacy_validation-constant-sql-trace-progress-20261115.json"
     }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",

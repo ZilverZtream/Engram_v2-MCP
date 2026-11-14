@@ -7,7 +7,7 @@ use super::{
 use engram_graph::Node;
 use engram_index::{
     sql_names::object_basename,
-    sql_parser::{SqlOp, analyze_sql},
+    sql_parser::{SqlOp, analyze_body_references, analyze_sql},
 };
 use serde_json::json;
 use sqlparser::{
@@ -22,9 +22,14 @@ fn literal_expression(tokens: &[routing::Token], start: usize) -> Option<(String
     loop {
         let literal = tokens.get(cursor).filter(|token| token.string)?;
         sql.push_str(&literal.text);
-        if sql.len() > 16384 { return None; }
+        if sql.len() > 16384 {
+            return None;
+        }
         cursor += 1;
-        if tokens.get(cursor).is_some_and(|token| matches!(token.text.as_str(), "&" | "+")) {
+        if tokens
+            .get(cursor)
+            .is_some_and(|token| matches!(token.text.as_str(), "&" | "+"))
+        {
             cursor += 1;
         } else {
             return (!sql.is_empty()).then_some((sql, cursor));
@@ -32,36 +37,73 @@ fn literal_expression(tokens: &[routing::Token], start: usize) -> Option<(String
     }
 }
 
-fn local_constant(tokens: &[routing::Token], call: usize, argument: usize) -> Option<(String, serde_json::Value)> {
-    let name = tokens.get(argument).filter(|token| !token.string)?.text.as_str();
-    if !tokens.get(argument + 1).is_some_and(|token| matches!(token.text.as_str(), "," | ")")) {
+fn local_constant(
+    tokens: &[routing::Token],
+    call: usize,
+    argument: usize,
+) -> Option<(String, serde_json::Value)> {
+    let name = tokens
+        .get(argument)
+        .filter(|token| !token.string)?
+        .text
+        .as_str();
+    if !tokens
+        .get(argument + 1)
+        .is_some_and(|token| matches!(token.text.as_str(), "," | ")"))
+    {
         return None;
     }
-    let declarations: Vec<_> = tokens[..call].iter().enumerate().filter(|(index, token)|
-        !token.string && token.text.eq_ignore_ascii_case("Const")
-            && tokens.get(index + 1).is_some_and(|value| !value.string && value.text.eq_ignore_ascii_case(name)))
-        .map(|(index, _)| index).collect();
-    if declarations.len() != 1 { return None; }
+    let declarations: Vec<_> = tokens[..call]
+        .iter()
+        .enumerate()
+        .filter(|(index, token)| {
+            !token.string
+                && token.text.eq_ignore_ascii_case("Const")
+                && tokens
+                    .get(index + 1)
+                    .is_some_and(|value| !value.string && value.text.eq_ignore_ascii_case(name))
+        })
+        .map(|(index, _)| index)
+        .collect();
+    if declarations.len() != 1 {
+        return None;
+    }
     let declaration = declarations[0];
     let mut expression = declaration + 2;
     if tokens.get(expression)?.text.eq_ignore_ascii_case("As") {
-        if !tokens.get(expression + 1)?.text.eq_ignore_ascii_case("String") { return None; }
+        if !tokens
+            .get(expression + 1)?
+            .text
+            .eq_ignore_ascii_case("String")
+        {
+            return None;
+        }
         expression += 2;
     }
-    if tokens.get(expression)?.text != "=" { return None; }
+    if tokens.get(expression)?.text != "=" {
+        return None;
+    }
     let (sql, end) = literal_expression(tokens, expression + 1)?;
     if end > call || (tokens[end].line == tokens[end - 1].line && tokens[end].text != ":") {
         return None;
     }
     // Do not borrow an initializer from a scope/branch that ended before this
     // call. General name binding and propagation remain outside this reader.
-    if tokens[end..call].iter().any(|token| !token.string &&
-        ["End", "Else", "ElseIf", "Next", "Loop", "Case", "Catch", "Finally"].iter()
-            .any(|keyword| token.text.eq_ignore_ascii_case(keyword))) {
+    if tokens[end..call].iter().any(|token| {
+        !token.string
+            && [
+                "End", "Else", "ElseIf", "Next", "Loop", "Case", "Catch", "Finally",
+            ]
+            .iter()
+            .any(|keyword| token.text.eq_ignore_ascii_case(keyword))
+    }) {
         return None;
     }
-    Some((sql, json!({"kind":"local_const_initializer","name":name,"declaration_kind":"Const",
-        "relative_line":tokens[declaration].line})))
+    Some((
+        sql,
+        json!({"kind":"local_const_initializer","name":name,"declaration_kind":"Const",
+        "relative_line":tokens[declaration].line}),
+    ))
 }
 
 fn argument_start(tokens: &[routing::Token], member: usize) -> Option<usize> {
@@ -102,12 +144,15 @@ pub(super) fn append(
         if tokens[i].string
             || tokens[i + 1].text != "."
             || tokens[i + 2].string
-            || !["ExecuteCommand", "ExecuteQuery"].iter()
+            || !["ExecuteCommand", "ExecuteQuery"]
+                .iter()
                 .any(|name| tokens[i + 2].text.eq_ignore_ascii_case(name))
         {
             continue;
         }
-        let Some(cursor) = argument_start(&tokens, i + 2) else { continue; };
+        let Some(cursor) = argument_start(&tokens, i + 2) else {
+            continue;
+        };
         let invocation = if tokens[i + 2].text.eq_ignore_ascii_case("ExecuteQuery") {
             "ExecuteQuery"
         } else {
@@ -119,7 +164,11 @@ pub(super) fn append(
         }
         let line = method.start_line + tokens[i].line as u32 - 1;
         let captured = literal_expression(&tokens, cursor)
-            .filter(|(_, end)| tokens.get(*end).is_some_and(|token| matches!(token.text.as_str(), "," | ")")))
+            .filter(|(_, end)| {
+                tokens
+                    .get(*end)
+                    .is_some_and(|token| matches!(token.text.as_str(), "," | ")"))
+            })
             .map(|(sql, _)| (sql, json!({"kind":"literal_argument"})))
             .or_else(|| local_constant(&tokens, i, cursor));
         let Some((sql, mut sql_source)) = captured else {
@@ -128,7 +177,9 @@ pub(super) fn append(
             }
             continue;
         };
-        let local = sql_source.get("relative_line").and_then(|value| value.as_u64());
+        let local = sql_source
+            .get("relative_line")
+            .and_then(|value| value.as_u64());
         if let Some(relative_line) = local {
             sql_source.as_object_mut().unwrap().remove("relative_line");
             sql_source["line"] = json!(u64::from(method.start_line) + relative_line - 1);
@@ -163,20 +214,13 @@ pub(super) fn append(
             }
             continue;
         }
-        let primary_kind = if matches!(
-            analysis.operation,
-            SqlOp::Insert | SqlOp::Update | SqlOp::Delete
-        ) {
-            "inline_sql_writes_table"
-        } else {
-            "inline_sql_reads_table"
-        };
+        let references = analyze_body_references(&lexical);
         let mut dependencies = BTreeSet::new();
-        if let Some(table) = &analysis.primary_table {
-            dependencies.insert((primary_kind, object_basename(table)));
+        for table in references.tables_written {
+            dependencies.insert(("inline_sql_writes_table", object_basename(&table)));
         }
-        for join in &analysis.joined_tables {
-            dependencies.insert(("inline_sql_reads_table", object_basename(&join.table)));
+        for table in references.tables_read {
+            dependencies.insert(("inline_sql_reads_table", object_basename(&table)));
         }
         if dependencies.is_empty() && gaps.len() < 64 {
             gaps.push(format!(
@@ -279,7 +323,9 @@ mod tests {
     }
     #[test]
     fn same_method_constant_sql_retains_initializer_and_call_locations() {
-        let (paths, gaps) = dependencies("Const sql As String =\n\"SELECT * FROM dbo.Orders \" &\n\"WHERE Id = {0}\"\nUsing db As New WarehouseContext()\ndb.ExecuteQuery(Of OrderRow)(sql, id)\nEnd Using\n");
+        let (paths, gaps) = dependencies(
+            "Const sql As String =\n\"SELECT * FROM dbo.Orders \" &\n\"WHERE Id = {0}\"\nUsing db As New WarehouseContext()\ndb.ExecuteQuery(Of OrderRow)(sql, id)\nEnd Using\n",
+        );
         assert!(gaps.is_empty());
         assert_eq!(paths.len(), 1);
         assert_eq!(paths[0].target_name, "Orders");
@@ -300,6 +346,32 @@ mod tests {
             assert!(paths.is_empty());
             assert_eq!(gaps.len(), 1);
         }
+    }
+    #[test]
+    fn nested_existence_queries_and_outer_joined_tables_are_all_retained() {
+        let (paths, gaps) = dependencies(
+            "db.ExecuteQuery(Of UserRow)(\"SELECT u.Id, CASE WHEN EXISTS (SELECT 1 FROM dbo.TenantAccess ta WHERE ta.UserId = u.Id) THEN 1 ELSE 0 END, CASE WHEN EXISTS (SELECT 1 FROM dbo.UserAccess ua WHERE ua.UserId = u.Id) THEN 1 ELSE 0 END FROM dbo.Users u INNER JOIN dbo.Membership m ON m.UserId = u.Id LEFT JOIN dbo.UserRoles ur ON ur.UserId = u.Id LEFT JOIN dbo.Roles r ON r.Id = ur.RoleId WHERE u.Id = {0}\", id)\n",
+        );
+        assert!(gaps.is_empty());
+        assert_eq!(
+            paths
+                .iter()
+                .map(|path| path.target_name.as_str())
+                .collect::<Vec<_>>(),
+            vec![
+                "Membership",
+                "Roles",
+                "TenantAccess",
+                "UserAccess",
+                "UserRoles",
+                "Users"
+            ]
+        );
+        assert!(
+            paths
+                .iter()
+                .all(|path| path.kind == "inline_sql_reads_table")
+        );
     }
     #[test]
     fn dynamic_expressions_are_unresolved_and_commented_calls_do_not_count() {
