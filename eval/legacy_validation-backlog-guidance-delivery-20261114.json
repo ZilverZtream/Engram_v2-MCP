@@ -1,0 +1,43 @@
+{
+  "status": "DOCUMENTATION_CORRECTED_SOURCE_VERIFIED",
+  "at_utc": "2026-11-14T06:59:31.869426+00:00",
+  "finding": "EG26 current backlog guidance",
+  "changes": [
+    "Removed obsolete zero-implemented workflow claim.",
+    "Removed obsolete claim that edit-session bookends remain unimplemented.",
+    "Dated historical tool counts/problem descriptions and directed readers to per-item delivery evidence and unfinished limits."
+  ],
+  "verification": {
+    "workflow_tool_declarations": [
+      "ask_codebase",
+      "begin_edit_session",
+      "complete_edit_session",
+      "trace_user_request",
+      "one_shot_feature_plan",
+      "find_implementation_pattern",
+      "get_concept_footprint",
+      "find_similar_changes",
+      "batch_read"
+    ],
+    "source_declarations_in_tools_file": 156,
+    "capability_matrix_command": "python -B scripts/check_capabilities_matrix.py",
+    "capability_matrix_result": "PASS: 141 capability entries across three generated documentation matrices.",
+    "TODO_sha256": "b0eb0c4899c8a502ee971cc4448938662f7270ca932dcfb055f9698e2f052e72"
+  },
+  "runtime_change": false,
+  "new_tests": 0,
+  "full_EG26_closed": false,
+  "limits": [
+    "This verifies the corrected status statements and existing generated matrices, not every schema/document claim or task-level usefulness.",
+    "Original remaining items and failed feature-plan acceptance remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\backlog-guidance",
+    "retention": "Retain selection/verification evidence; no new fixture directories or background processes."
+  },
+  "selection_evidence": {
+    "prior_turn": "PROGRESS: default request-trace delivery b74547e pushed and installed.",
+    "history": "Filtered history embedding already delivered; retained later matching request 4.3188s supersedes the proposed need to restart the older 40.49s investigation.",
+    "planner": "Current source already labels semantic correctness UNVERIFIED; no repeated model tuning or runtime relabeling."
+  }
+}
