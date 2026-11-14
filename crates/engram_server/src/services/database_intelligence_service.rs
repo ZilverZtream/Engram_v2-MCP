@@ -561,7 +561,7 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
                 let trimmed = segment.trim();
                 let upper = trimmed.to_uppercase();
 
-                if upper.starts_with("CONSTRAINT") || upper.starts_with("PRIMARY KEY") {
+                if upper.starts_with("CONSTRAINT") || upper.starts_with("PRIMARY KEY") || upper.starts_with("FOREIGN KEY") {
                     parse_constraint(
                         trimmed,
                         &mut primary_key,
@@ -697,8 +697,11 @@ fn parse_constraint(
     });
     if let Some(cap) = PK_RE.captures(line) {
         for col in cap[1].split(',') {
+            let col = col.trim();
+            let col = col.rsplit_once(char::is_whitespace)
+                .filter(|(_, order)| order.eq_ignore_ascii_case("ASC") || order.eq_ignore_ascii_case("DESC"))
+                .map_or(col, |(name, _)| name.trim());
             let col_name = col
-                .trim()
                 .trim_matches('[')
                 .trim_matches(']')
                 .trim()
@@ -712,7 +715,7 @@ fn parse_constraint(
 
     // FOREIGN KEY
     static FK_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)FOREIGN\s+KEY\s*\(\[?(\w+)\]?\)\s*REFERENCES\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?\s*\(\[?(\w+)\]?\)")
+        Regex::new(&format!(r"(?i)FOREIGN\s+KEY\s*\(\s*\[?(\w+)\]?\s*\)\s*REFERENCES\s+{QUALIFIED_OBJECT_NAME}\s*\(\s*\[?(\w+)\]?\s*\)"))
             .expect("FK_RE")
     });
     if let Some(cap) = FK_RE.captures(line) {
@@ -730,7 +733,7 @@ fn parse_constraint(
 
         foreign_keys.push(ForeignKey {
             column: cap[1].to_string(),
-            references_table: cap[2].to_string(),
+            references_table: object_basename(&cap[2]).to_owned(),
             references_column: cap[3].to_string(),
             on_delete,
             on_update,
@@ -1839,6 +1842,24 @@ GO"#
         assert_eq!(views.len(), 1);
         assert_eq!(views[0].name, "vw_ActiveCustomers");
         assert!(views[0].source_tables.contains(&"Customers".to_string()));
+    }
+
+    #[test]
+    fn schema_keys_retain_real_columns_and_relationships_for_bare_and_named_declarations() {
+        let source = "CREATE TABLE [dbo].[aspnet_UsersInRoles] (\n[UserId] UNIQUEIDENTIFIER NOT NULL,\n[RoleId] UNIQUEIDENTIFIER NOT NULL,\nPRIMARY KEY CLUSTERED ([UserId] ASC, [RoleId] DESC),\nFOREIGN KEY ([RoleId]) REFERENCES [dbo].[aspnet_Roles] ([RoleId]),\nFOREIGN KEY ([UserId]) REFERENCES [dbo].[aspnet_Users] ([UserId])\n);";
+        let tables = parse_create_tables(&[("users-in-roles.sql".into(), source.into())]);
+        let table = &tables[0];
+        assert_eq!(table.columns.iter().map(|column| column.name.as_str()).collect::<Vec<_>>(), vec!["UserId", "RoleId"]);
+        assert_eq!(table.primary_key, vec!["UserId", "RoleId"]);
+        assert_eq!(table.foreign_keys.iter().map(|key| (key.column.as_str(), key.references_table.as_str(), key.references_column.as_str())).collect::<Vec<_>>(), vec![("RoleId", "aspnet_Roles", "RoleId"), ("UserId", "aspnet_Users", "UserId")]);
+
+        let named = "CREATE TABLE Child (ParentId INT, CONSTRAINT FK_Child_Parent FOREIGN KEY (ParentId) REFERENCES [dbo].[Parent] (Id) ON DELETE CASCADE ON UPDATE NO ACTION);";
+        let tables = parse_create_tables(&[("named.sql".into(), named.into())]);
+        assert_eq!(tables[0].columns.len(),1);
+        let key = &tables[0].foreign_keys[0];
+        assert_eq!((&key.column, &key.references_table, &key.references_column), (&"ParentId".to_string(), &"Parent".to_string(), &"Id".to_string()));
+        assert_eq!(key.on_delete.as_deref(),Some("CASCADE"));
+        assert_eq!(key.on_update.as_deref(),Some("NO ACTION"));
     }
 
     #[test]
