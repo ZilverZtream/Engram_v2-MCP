@@ -260,6 +260,14 @@ codebases:
   comprehensive per-file migration report with a cross-cutting summary,
   suitable for handing to a team or a migration agent
 
+### Focused database reports
+
+Use `analyze_database_intelligence` with `sql_file_path` to inspect one SQL file.
+The report recognizes INSERT writes with or without INTO and retains OUTPUT
+parameter directions. When that file has at most one procedure, it avoids the
+application-code ranking scan. Broader reports retain caller-based procedure
+ranking. These are static SQL observations, not proof of database execution.
+
 ### Git temporal intelligence
 
 - `index_git_history` — libgit2-backed commit-graph indexing
