@@ -1,0 +1,242 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T19:01:10.823750+00:00",
+  "improvements": [
+    {
+      "finding": "EG01",
+      "behavior": "Implementation-pattern exemplars carry complete applicable authored guidance in JSON/Markdown. Scope follows returned examples, not other candidates or historical partners. Live policy edits refresh without source reindexing; empty JSON results retain root guidance and search hints."
+    },
+    {
+      "finding": "TODO4/EG01",
+      "behavior": "get_concept_footprint honors a complete reply budget, default40KiB, with exact immutable JSON/Markdown recovery and scoped policy. JSON explicitly names footprint_markdown, returned source paths/completeness and policy; existing graph/lexical/group limits remain."
+    },
+    {
+      "finding": "TODO4",
+      "behavior": "Standalone pattern reports honor a complete reply budget, default40KiB, preserving full coverage/failures and exact original recovery. Source dossiers and implementation briefs use a private full-evidence path. Complete standalone guidance follows the original exemplar prefix so the existing bounded brief still sees its examples."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "e5171653119e3e792736acf29dca600d019fca0b",
+    "source_commit": "ed89b181bd72596b760242c5a26fc7c52e575fc7",
+    "root_source_commit": "293a36f12ac1559fa30eb44dcb2574b4e0243072",
+    "files": {
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "9a6126a47d824b758c5ba71e50b4ce009d589eebbf4fedf5b2b428e3160fa1b0",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs": "16dd4aeacc79037a78d29a7f8b79176aa0e31a0a4ef1d93f89e85d88dc7682b7",
+      "crates/engram_server/src/handlers/footprint_delivery.rs": "5a6f656cb5d9ced6f177b458bd05eb951bb81e987433a32065ec0ab8e9a2b1ce",
+      "crates/engram_server/src/handlers/pattern_delivery.rs": "f7f031c64e7251ce7f40a67df0965a1c2afea45d6480b2d60f7834d5ef1cfca8",
+      "crates/engram_server/src/handlers/planning_tools.rs": "2ab6cb043861ad40b721f8a37d917fa37ad02a8ee8886d27ff0ded38f718c5b2",
+      "crates/engram_server/src/models/requests.rs": "638c5432ead8c33f889a40bf25d1ea6935170985ebcff2600ee2998d68969bc1",
+      "crates/engram_server/src/tool_guidance.rs": "9f9dae8f9f691f27cb617e23607f0da4df417e0dda34966360c4634c7b26d439",
+      "crates/engram_server/src/tools.rs": "a3272383d83327acfe748ec4e6b1903bea3fe94b01fa5cf3644d94094285b84c",
+      "crates/engram_server/tests/planning_tools_test.rs": "ff3aa184971ef735851837aa4ba02827b7ba018d92e1e361ffdd0f52be8e4a08"
+    },
+    "components": [
+      "eval/ociusx-pattern-policy-progress-20261114.json",
+      "eval/ociusx-footprint-delivery-progress-20261114.json",
+      "eval/ociusx-pattern-delivery-progress-20261114.json"
+    ]
+  },
+  "root_source_commits": [
+    "4dac08a",
+    "355e9df",
+    "4f70f8a",
+    "293a36f"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 26,
+      "required_component_cases": {
+        "exemplar_policy_retains_returned_scope_and_live_exceptions_with_root_guidance_on_empty_results": true,
+        "complete_pattern_guidance_does_not_displace_exemplars_from_the_existing_brief_prefix": true,
+        "footprint_delivery_recovers_original_capped_evidence_paths_and_policy_in_both_formats": true,
+        "invalid_footprint_controls_and_minimum_metadata_refusal_write_no_snapshot": true,
+        "pattern_delivery_retains_coverage_and_exact_original_json_markdown_after_policy_edits": true,
+        "pattern_internal_evidence_bypasses_public_delivery_and_invalid_controls_write_no_snapshot": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "ed89b181bd72596b760242c5a26fc7c52e575fc7",
+      "resources": "Owned native Job/relay/temporary fixtures closed and removed; exact logs retained. Candidate/installed behavior remains pending."
+    },
+    "public": {
+      "candidate1": {
+        "pattern-policy-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\candidate1\\acceptance.json",
+            "sha256": "d740ccdf7ddcf54a2977f170b0da074b1244074346205006dfeacfb8aa2559ab"
+          },
+          "checks": {
+            "actual_exemplar_0_retained": true,
+            "exemplar_0_has_only_applicable_policy": true,
+            "exemplar_0_live_policy_without_reindex": true,
+            "exemplar_0_ranking_shape_and_coverage_unchanged": true,
+            "actual_exemplar_1_retained": true,
+            "exemplar_1_has_only_applicable_policy": true,
+            "exemplar_1_live_policy_without_reindex": true,
+            "exemplar_1_ranking_shape_and_coverage_unchanged": true,
+            "empty_json_keeps_root_guidance_and_hints": true,
+            "source_dossier_consumer_still_works_without_generation": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "footprint-delivery-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\candidate1\\acceptance.json",
+            "sha256": "4dc5d6e19997f15c72fc55f48764b8e73b99d85da960a4c04978a7f98bc22989"
+          },
+          "checks": {
+            "current_ociusx_footprint_and_complete_scoped_policy": true,
+            "default_complete_reply_budget": true,
+            "json_bounded_with_original_coverage": true,
+            "json_exact_recovery_retains_guide_after_edits": true,
+            "markdown_bounded_with_original_coverage": true,
+            "markdown_exact_recovery_retains_guide_after_edits": true,
+            "internal_change_set_keeps_ordinary_footprint_evidence": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "pattern-delivery-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\candidate1\\acceptance.json",
+            "sha256": "f51ff0ec0c7edf9824e331411cb3c1b82eea9be2f9165d50dced82f8f7798e00"
+          },
+          "checks": {
+            "actual_exemplar_and_complete_policy": true,
+            "default_complete_reply_budget": true,
+            "json_bounded_with_full_coverage": true,
+            "json_original_examples_and_policy_survive_edits": true,
+            "markdown_bounded_with_full_coverage": true,
+            "markdown_original_examples_and_policy_survive_edits": true,
+            "private_composed_planner_keeps_full_pattern_evidence": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        }
+      },
+      "installed1": {
+        "pattern-policy-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\installed1\\acceptance.json",
+            "sha256": "3d6ddf58287a97268135a861a319a0c10f89f0b505310cc607098eac2a65fab6"
+          },
+          "checks": {
+            "actual_exemplar_0_retained": true,
+            "exemplar_0_has_only_applicable_policy": true,
+            "exemplar_0_live_policy_without_reindex": true,
+            "exemplar_0_ranking_shape_and_coverage_unchanged": true,
+            "actual_exemplar_1_retained": true,
+            "exemplar_1_has_only_applicable_policy": true,
+            "exemplar_1_live_policy_without_reindex": true,
+            "exemplar_1_ranking_shape_and_coverage_unchanged": true,
+            "empty_json_keeps_root_guidance_and_hints": true,
+            "source_dossier_consumer_still_works_without_generation": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "footprint-delivery-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\installed1\\acceptance.json",
+            "sha256": "9ce751e43894897ef1cabc19be1f74e20cffd9087917c9e00225222060b4e5f8"
+          },
+          "checks": {
+            "current_ociusx_footprint_and_complete_scoped_policy": true,
+            "default_complete_reply_budget": true,
+            "json_bounded_with_original_coverage": true,
+            "json_exact_recovery_retains_guide_after_edits": true,
+            "markdown_bounded_with_original_coverage": true,
+            "markdown_exact_recovery_retains_guide_after_edits": true,
+            "internal_change_set_keeps_ordinary_footprint_evidence": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "pattern-delivery-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\installed1\\acceptance.json",
+            "sha256": "c89ccebfed8b1d46e27a802e88375afa302e4a6714320f2c5782b4ec6c4b54e3"
+          },
+          "checks": {
+            "actual_exemplar_and_complete_policy": true,
+            "default_complete_reply_budget": true,
+            "json_bounded_with_full_coverage": true,
+            "json_original_examples_and_policy_survive_edits": true,
+            "markdown_bounded_with_full_coverage": true,
+            "markdown_original_examples_and_policy_survive_edits": true,
+            "private_composed_planner_keeps_full_pattern_evidence": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        }
+      }
+    },
+    "baselines": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\baseline1\\acceptance.json",
+        "sha256": "22a6aea7368cc733d6844a280b9258db54ae4c9631ba42aed6ae445c989dc307"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\baseline1\\acceptance.json",
+        "sha256": "33d735f042b6821f5fedde8ef5d0c8e89182651ddb3cad1f03df43d081efd95d"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\baseline1\\acceptance.json",
+        "sha256": "5cef83627d2b2b166ace2ab68190ac7d0953f23e17ea721e1727f650c97ede3d"
+      }
+    ]
+  },
+  "runtime": {
+    "server_sha256": "4df9d9f04ba83adbdf7e4188c415ea3e4343df1e8ddb9016e77792b3c842e4be",
+    "manifest_sha256": "d6127bcb8363f08a75fb853a71aa99ab2c2a46b507788ff61f8ab163abe4be89",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114\\pair1.json",
+      "sha256": "e76b74171ab5ecb485274ecee4f7afe4fd90896d37846ee2ef17fbd13a8c8b72"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114\\release1.json",
+      "sha256": "dfe31c67c47fd82573f138564c97e6f2ae3de468b598b7aef4ae1190c784a4f6"
+    },
+    "release_runner_seconds": 1005.029764899984,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114\\deployment1-state.json",
+      "sha256": "fa0fb185c4150eae3b3d687a62b716e1cecef5b240123d81b40d0efff2c79849"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "3237d09f4e1dd05581fc79a0f4a39dc77e1d89140e030d38b231bdb6c1ac966f"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114\\Engram-win-x64-planning-delivery-20261114.zip",
+    "sha256": "5BC44723C8BFE83C83BB72860A807FADD9B537547EE8E5D036C6971B5466C7FB",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "D6127BCB8363F08A75FB853A71AA99AB2C2A46B507788FF61F8AB163ABE4BE89"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "application_sources_and_guidance_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "selected_generation": 3151,
+    "graph_and_index_formats_unchanged": true
+  },
+  "resources": {
+    "owned_test_build_fixture_resources_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and application-owned children in restoration receipt.",
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114"
+    ],
+    "retention": "Keep source/native/build/wire/baseline/package/ZIP evidence for review. Prior runtime pair retained by installer. No preexisting-folder deletion."
+  },
+  "limits": [
+    "Budgets estimate four UTF-8 bytes per token, not provider tokens. Exact recovery preserves the selected capped original report; it does not establish exhaustive repository coverage or current source freshness.",
+    "Authored guidance describes intended behavior. It does not prove that an exemplar complies, matches a feature, or establishes a final edit scope or accepted linked-policy set.",
+    "Concept JSON explicitly contains the existing Markdown plus source/policy metadata, not a new complete typed graph algorithm.",
+    "Public checks use unchanged current OciusX copies and owned fixture policies, without Site/Q source/declaration reads or application/database execution.",
+    "No full suite, generated-plan retuning, latency comparison or productivity claim. Full original backlog, usefulness requirements and19gates remain unfinished."
+  ]
+}

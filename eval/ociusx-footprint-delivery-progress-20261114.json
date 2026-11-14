@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "TODO4/EG01 bounded instruction-aware concept-footprint delivery",
   "original_requirement": "Bound complete AI tool replies with explicit coverage and exact recovery, preserving applicable authored guidance across planning/retrieval.",
   "observed_missing_behavior": "get_concept_footprint currently accepts only project_id/concept/max_per_group and returns unbudgeted Markdown. Per-group caps cannot bound the complete reply or recover its exact original, and the standalone footprint does not include authored guidance for its returned paths.",
@@ -24,8 +24,8 @@
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Exact recovery covers the selected capped footprint, not every repository touchpoint or proven source/runtime binding.",
     "Internal retrieval/ranking and graph algorithms are unchanged. No CodeMap/Blast work, target-language expansion or per-component build."
@@ -37,5 +37,8 @@
     "Exact original JSON/Markdown recovery with capped footprint qualifications, source identities and authored policy after policy edits",
     "Small/default/large budgets and invalid/minimum metadata controls without snapshot writes"
   ],
-  "resources": "Owned baseline fixture/MCP process closed and removed. Scripts/logs/receipts retained in this case for review; no build or native run started."
+  "resources": "Owned baseline fixture/MCP process closed and removed. Scripts/logs/receipts retained in this case for review; no build or native run started.",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "EG01 applicable authored guidance for implementation-pattern exemplars",
   "original_requirement": "The same applicable complete authored policy reaches planning, editing, retrieval and review; AI callers need accepted conditions and exceptions before imitating code.",
   "observed_missing_behavior": "find_implementation_pattern currently returns exemplars/common shapes/coverage without project_policy_sources in either format. The empty-match early return is plain text even for output_json and bypasses policy delivery.",
@@ -23,8 +23,8 @@
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Policy is authored intent, not proof that exemplar code complies or matches a future feature. Recheck the final edit scope.",
     "No CodeMap/Blast, ranking, parser, index/storage migration, language expansion or model behavior changes. First source component before the next combined batch verification."
@@ -37,5 +37,8 @@
     "Existing implementation-pattern ranking helpers and feature-plan source-dossier checks",
     "Complete standalone policy does not displace exemplar identity from the existing35-line implementation-brief prefix"
   ],
-  "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\source-check2.json"
+  "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\source-check2.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

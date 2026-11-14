@@ -342,6 +342,15 @@ byte offsets and verify the BLAKE3 identity; recovery needs no question and
 never reruns retrieval, routing or synthesis.
 [Delivery](eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json).
 
+`get_concept_footprint` and `find_implementation_pattern` also accept complete
+reply `max_tokens` budgets (default40KiB). Follow `response_delivery.next_call`
+to recover an oversized original without repeating retrieval. Both carry
+applicable authored guidance; pattern scope covers returned exemplar files.
+Concept JSON explicitly contains `footprint_markdown`, returned source paths,
+completeness and policy. Existing source-dossier/brief composition retains
+full pattern evidence and its original exemplar prefix.
+[Delivery](eval/ociusx-planning-delivery-batch-delivery-20261114.json).
+
 ### Per-method access layer
 
 Precise per-method context retrieval so an agent can touch one method

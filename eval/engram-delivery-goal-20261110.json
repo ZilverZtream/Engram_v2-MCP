@@ -869,21 +869,6 @@
     "last_release_compile_seconds": 1059,
     "pending": [
       {
-        "item": "Scoped guidance on implementation-pattern exemplars",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-pattern-policy-progress-20261114.json"
-      },
-      {
-        "item": "Bounded instruction-aware concept-footprint delivery",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-footprint-delivery-progress-20261114.json"
-      },
-      {
-        "item": "Complete pattern-report budgets and exact recovery",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-pattern-delivery-progress-20261114.json"
-      },
-      {
         "item": "Authored guidance on direct method/source reads",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
         "progress": "eval/ociusx-method-body-policy-progress-20261114.json"
@@ -893,19 +878,19 @@
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114",
     "completed_last_batch": [
       {
-        "component": "ask-response-budget",
-        "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
+        "component": "pattern-policy-20261114",
+        "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
       },
       {
-        "component": "sql-instruction-symbols",
-        "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
+        "component": "footprint-delivery-20261114",
+        "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
       },
       {
-        "component": "schema-policy-20261114",
-        "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
+        "component": "pattern-delivery-20261114",
+        "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
       }
     ],
-    "last_batch_delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json",
+    "last_batch_delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks."
   },
   "retained_ask_routing_contract": {
@@ -1329,5 +1314,6 @@
       "Exact original JSON/Markdown report recovery preserving complete coverage after policy edits",
       "Private composed-planner evidence bypass and invalid/minimum metadata controls without snapshot writes"
     ]
-  }
+  },
+  "planning_delivery_batch_delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
 }
