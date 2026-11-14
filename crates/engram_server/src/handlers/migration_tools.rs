@@ -2247,44 +2247,9 @@ impl Engram {
         let result = tokio::task::spawn_blocking(move || {
             use crate::services::database_intelligence_service as dbi;
 
-            // Find the SP body across all SQL files using two-step approach
-            // (Rust regex crate does not support lookahead assertions)
-            let header_re = regex::Regex::new(&format!(
-                r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+\[?(?:dbo\.)?\]?\[?{}\]?\b",
-                regex::escape(&sp_name)
-            ))
-            .map_err(|e| format!("Invalid SP name regex: {}", e))?;
-            let next_object_re = regex::Regex::new(
-                r"(?ims)\bCREATE\s+(?:OR\s+ALTER\s+)?(?:PROC(?:EDURE)?|FUNCTION|TRIGGER|VIEW)\b",
-            )
-            .expect("valid regex");
-
-            let mut sp_body: Option<String> = None;
-            let mut sp_source_file: Option<String> = None;
-            for (path, content) in &sql_files {
-                if let Some(hdr) = header_re.find(content) {
-                    let start = hdr.start();
-                    // Find the next CREATE after the header to delimit body
-                    let rest = &content[hdr.end()..];
-                    let end = next_object_re
-                        .find(rest)
-                        .map(|m| hdr.end() + m.start())
-                        .unwrap_or(content.len());
-                    sp_body = Some(content[start..end].trim_end().to_string());
-                    sp_source_file = Some(path.clone());
-                    break;
-                }
-            }
-
-            let sp_body = match sp_body {
-                Some(b) => b,
-                None => {
-                    return Err(format!(
-                        "Stored procedure '{}' not found in any .sql file.",
-                        sp_name
-                    ));
-                }
-            };
+            let (sp_source_file, sp_body, definition) =
+                dbi::find_procedure_source(&sql_files, &sp_name).ok_or_else(||
+                    format!("Stored procedure '{}' not found in any .sql file.", sp_name))?;
 
             // Deterministic summary
             let logic = dbi::deterministic_sp_summary(&sp_name, &sp_body);
@@ -2326,33 +2291,11 @@ impl Engram {
 
             // Find reverse SP callers (other SPs that EXEC this one)
             let mut called_by_sps: Vec<String> = Vec::new();
-            let exec_re = regex::Regex::new(&format!(
-                r"(?i)\b(?:EXEC(?:UTE)?)\s+\[?(?:dbo\.)?\]?\[?{}\]?\b",
-                regex::escape(&sp_name)
-            ))
-            .map_err(|e| format!("Invalid EXEC regex: {}", e))?;
-            {
-                // Look for other SP bodies that call this one
-                let sp_def_re = regex::Regex::new(
-                    r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?"
-                ).expect("valid regex");
-                for (_path, content) in &sql_files {
-                    for cap in sp_def_re.captures_iter(content) {
-                        let other_name = cap[1].to_string();
-                        if other_name.eq_ignore_ascii_case(&sp_name) {
-                            continue; // skip self
-                        }
-                        // Delimit body: from end of header to next CREATE object (any type)
-                        let start = cap.get(0).expect("group 0 always present").end();
-                        let remaining = &content[start..];
-                        let end = next_object_re
-                            .find(remaining)
-                            .map(|m| m.start())
-                            .unwrap_or(remaining.len());
-                        let other_body = &remaining[..end];
-                        if exec_re.is_match(other_body) {
-                            called_by_sps.push(other_name);
-                        }
+            for (_, content) in &sql_files {
+                for caller in engram_index::sp_extractor::parse_sp_definitions(content) {
+                    if !caller.name.eq_ignore_ascii_case(&sp_name)
+                        && caller.called_procedures.iter().any(|name| name.eq_ignore_ascii_case(&sp_name)) {
+                        called_by_sps.push(caller.name);
                     }
                 }
             }
@@ -2394,9 +2337,7 @@ impl Engram {
 
             // Build response markdown
             let mut out = format!("# Stored Procedure: {}\n\n", sp_name);
-            if let Some(ref src) = sp_source_file {
-                out.push_str(&format!("**Source file**: {}\n", src));
-            }
+            out.push_str(&format!("**Source file**: {}\n", sp_source_file));
             out.push_str(&format!("**Complexity**: {}\n", complexity));
             out.push_str(&format!("**Content hash**: {}\n\n", logic.content_hash));
 
@@ -2420,31 +2361,11 @@ impl Engram {
                 out.push('\n');
             }
 
-            // Tables written (via DML statements)
-            let write_re = regex::Regex::new(
-                r"(?i)\b(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM|MERGE\s+INTO)\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?"
-            ).expect("valid regex");
-            let tables_written: std::collections::HashSet<String> = write_re
-                .captures_iter(&sp_body)
-                .map(|c| c[1].to_string())
-                .collect();
-
-            // Tables read = all referenced tables minus written-only tables
-            let tables_read: Vec<String> = logic
-                .data_tables
-                .iter()
-                .filter(|t| {
-                    !tables_written
-                        .iter()
-                        .any(|w| w.eq_ignore_ascii_case(t))
-                })
-                .cloned()
-                .collect();
-            let tables_written_sorted: Vec<String> = {
-                let mut v: Vec<String> = tables_written.into_iter().collect();
-                v.sort();
-                v
-            };
+            // A table may be both read and written. Share the declaration
+            // parser's INSERT/UPDATE/DELETE/MERGE recognition and batch scope.
+            let tables_read = definition.tables_read;
+            let mut tables_written_sorted = definition.tables_written;
+            tables_written_sorted.sort();
 
             out.push_str("## Tables Read\n\n");
             if tables_read.is_empty() {
