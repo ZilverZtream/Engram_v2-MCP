@@ -10,6 +10,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::LazyLock;
 
 use regex::Regex;
+use engram_index::sql_names::{QUALIFIED_OBJECT_NAME, object_basename};
 use serde::Serialize;
 
 use super::full_project_migration_service::StoredProcedureCatalog;
@@ -189,16 +190,16 @@ static CREATE_VIEW_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static TABLE_REF_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)(?:FROM|JOIN|INTO|UPDATE)\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?")
+    Regex::new(&format!(r"(?im)(?:FROM|JOIN|INTO|UPDATE)\s+{QUALIFIED_OBJECT_NAME}"))
         .expect("TABLE_REF_RE")
 });
 
 static SQL_SELECT_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)(?:FROM|JOIN)\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?").expect("SQL_SELECT_RE")
+    Regex::new(&format!(r"(?im)(?:FROM|JOIN)\s+{QUALIFIED_OBJECT_NAME}")).expect("SQL_SELECT_RE")
 });
 
 static SQL_WRITE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?")
+    Regex::new(&format!(r"(?im)(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+{QUALIFIED_OBJECT_NAME}"))
         .expect("SQL_WRITE_RE")
 });
 
@@ -211,7 +212,7 @@ pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic
     // Extract tables read
     let tables_read: Vec<String> = SQL_SELECT_RE
         .captures_iter(sp_body)
-        .map(|c| c[1].to_string())
+        .map(|c| object_basename(&c[1]).to_owned())
         .filter(|t| !is_sql_keyword(t))
         .collect::<HashSet<_>>()
         .into_iter()
@@ -220,7 +221,7 @@ pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic
     // Extract tables written
     let tables_written: Vec<String> = SQL_WRITE_RE
         .captures_iter(sp_body)
-        .map(|c| c[1].to_string())
+        .map(|c| object_basename(&c[1]).to_owned())
         .filter(|t| !is_sql_keyword(t))
         .collect::<HashSet<_>>()
         .into_iter()
@@ -525,7 +526,7 @@ pub fn detect_triggers(sql_files: &[(String, String)]) -> Vec<TriggerInfo> {
 
             let tables_touched: Vec<String> = TABLE_REF_RE
                 .captures_iter(body)
-                .map(|c| c[1].to_string())
+                .map(|c| object_basename(&c[1]).to_owned())
                 .filter(|t| !is_sql_keyword(t) && t.to_lowercase() != table.to_lowercase())
                 .collect::<HashSet<_>>()
                 .into_iter()
@@ -803,7 +804,7 @@ pub fn parse_create_views(sql_files: &[(String, String)]) -> Vec<ViewInfo> {
             let body = &cap[2];
             let source_tables: Vec<String> = TABLE_REF_RE
                 .captures_iter(body)
-                .map(|c| c[1].to_string())
+                .map(|c| object_basename(&c[1]).to_owned())
                 .filter(|t| !is_sql_keyword(t))
                 .collect::<HashSet<_>>()
                 .into_iter()
@@ -2024,5 +2025,21 @@ GO"#
         assert!(md.contains("ss_systemsettings.sql"));
         assert!(md.contains("Seed"));
         assert!(md.contains("~195"));
+    }
+}
+
+#[cfg(test)]
+mod qualified_name_contract {
+    #[test]
+    fn database_reports_agree_on_qualified_read_and_write_objects() {
+        let sql = "CREATE PROCEDURE [dbo].[sync_membership] AS\nUPDATE [dbo].[aspnet_Membership] SET IsLockedOut = 0;\nSELECT UserId FROM [dbo].[aspnet_Users];";
+        let summary = super::deterministic_sp_summary("sync_membership", sql);
+        assert_eq!(summary.data_tables, vec!["aspnet_Membership", "aspnet_Users"]);
+        let definitions = engram_index::sp_extractor::parse_sp_definitions(sql);
+        assert_eq!(definitions.len(), 1);
+        assert!(definitions[0].tables_read.contains(&"aspnet_Users".to_owned()));
+        assert!(definitions[0].tables_written.contains(&"aspnet_Membership".to_owned()));
+        let statement = engram_index::sql_parser::analyze_sql("UPDATE dbo.aspnet_Membership SET IsLockedOut = 0");
+        assert_eq!(statement.primary_table.as_deref(), Some("aspnet_Membership"));
     }
 }
