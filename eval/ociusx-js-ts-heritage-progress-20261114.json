@@ -4,20 +4,39 @@
   "original_requirement": "Existing AI navigation must expose declared inheritance/interface relationships for the user's JavaScript/TypeScript workflow.",
   "observed_missing_behavior": "The JS/TS class capture emits symbols but no inherits_from or implements_interface edges. Existing graph ingestion already recognizes both kinds. Current first-party OciusX map and visualization pages declare MyApp extends q.page, and map.js declares controls extending q.ctrl.baseCtrl.",
   "current_configuration": "The unchanged OciusX runtime configuration uses Ollama embeddings and advertises all tools. JS/TS parsing already exists; this is not target-language expansion.",
-  "implementation_files": ["crates/engram_index/src/parsing.rs", "crates/engram_index/src/parsing/js_ts_heritage.rs"],
+  "implementation_files": [
+    "crates/engram_index/src/parsing.rs",
+    "crates/engram_index/src/parsing/js_ts_heritage.rs"
+  ],
   "acceptance": [
     "Use the already parsed JS/JSX/TS/TSX declaration syntax to emit class extends, class implements and interface extends relationships, retaining declaration identity, authored base spelling, clause location and explicit static-evidence limits.",
     "Do not evaluate computed/mixin base expressions or invent dispatch/binding proof. Keep comments and prose out of relationships. Preserve ordinary class/function/call extraction.",
     "Focused native cases cover ordinary JavaScript and typed generic/qualified declarations. Public MCP cases show local base/interface relationships before and after supported source refresh and retain unresolved external bases honestly.",
     "Verify unchanged current OciusX first-party declaration examples without reading Site/Q declarations. Queue source for combined verification/release; no per-component compile, parser-format migration or CodeMap/Blast algorithm change."
   ],
-  "limits": ["This supplies declared type relationships, not virtual dispatch, runtime receiver selection or general import/alias resolution.", "Existing indexed files require source re-extraction through supported refresh controls; no current-index relationship is claimed before that check.", "Java/Python/Rust/Go inheritance expansion and closed-tool improvement remain outside this delivery."],
+  "limits": [
+    "This supplies declared type relationships, not virtual dispatch, runtime receiver selection or general import/alias resolution.",
+    "Existing indexed files require source re-extraction through supported refresh controls; no current-index relationship is claimed before that check.",
+    "Java/Python/Rust/Go inheritance expansion and closed-tool improvement remain outside this delivery."
+  ],
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage",
   "implementation_complete": true,
   "validated": false,
   "deployed": false,
-  "queued_native_cases": ["Qualified JavaScript/JSX base with source location and intact method extraction", "Namespaced TS/TSX generic base/interface relationships", "Computed/mixin bases remain unresolved"],
-  "actual_source_examples": ["Site/modules/dashboard/ts/map/app.ts:19", "Site/modules/dashboard/ts/visualization/app.ts:4", "Site/modules/map/~.js/map.js:347", "Site/modules/map/~.js/map.js:384", "Site/ts/fbinstplan/app.ts:29"],
+  "queued_native_cases": [
+    "Qualified JavaScript/JSX base with source location and intact method extraction",
+    "Namespaced TS/TSX generic base/interface relationships",
+    "Computed/mixin bases remain unresolved"
+  ],
+  "actual_source_examples": [
+    "Site/modules/dashboard/ts/map/app.ts:19",
+    "Site/modules/dashboard/ts/visualization/app.ts:4",
+    "Site/modules/map/~.js/map.js:347",
+    "Site/modules/map/~.js/map.js:384",
+    "Site/ts/fbinstplan/app.ts:29"
+  ],
   "source_check_limits": "Rust parsing and preserved-work hashes only before combined verification; no type checking, native behavior or installed inheritance claim yet.",
-  "temporary_resources": "Only scripts and source-check evidence in the recorded case; no build, server, database or application source edit for this component. Retain with batch delivery evidence."
+  "temporary_resources": "Only scripts and source-check evidence in the recorded case; no build, server, database or application source edit for this component. Retain with batch delivery evidence.",
+  "source_commit": "62e30e1",
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage\\source-check2.json"
 }

@@ -10059,7 +10059,9 @@
         "Site/ts/fbinstplan/app.ts:29"
       ],
       "source_check_limits": "Rust parsing and preserved-work hashes only before combined verification; no type checking, native behavior or installed inheritance claim yet.",
-      "temporary_resources": "Only scripts and source-check evidence in the recorded case; no build, server, database or application source edit for this component. Retain with batch delivery evidence."
+      "temporary_resources": "Only scripts and source-check evidence in the recorded case; no build, server, database or application source edit for this component. Retain with batch delivery evidence.",
+      "source_commit": "62e30e1",
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage\\source-check2.json"
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10092,7 +10094,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Advance the next unfinished original OciusX requirement without replaying delivered acceptance.",
+    "next_user_visible_deliverable": "Implement the next ready original OciusX item while this completed source component awaits combined verification; do not rebuild it alone.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14449,7 +14451,14 @@
       "compiled_tests_seconds": 453,
       "actual_test_execution_seconds": 9.5,
       "last_release_compile_seconds": 1059,
-      "pending": [],
+      "pending": [
+        {
+          "item": "TODO9 JS/TS declared type relationships",
+          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+          "source_commit": "62e30e1",
+          "progress": "eval/ociusx-js-ts-heritage-progress-20261114.json"
+        }
+      ],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
       "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114",
       "completed_last_batch": [
