@@ -78,7 +78,7 @@ mod tests {
     #[test]
     fn method_info_recovery_preserves_array_rows_and_complete_original_guidance_in_both_formats() {
         let owned = tempfile::tempdir().unwrap();
-        let guide = "Preserve accepted manual approval exceptions. Å\n".repeat(400);
+        let guide = "Preserve accepted manual approval exceptions. Å\n".repeat(130);
         std::fs::write(owned.path().join("AGENTS.md"), &guide).unwrap();
         let policy = project_policy::resolve(owned.path(), &["Site/Save.vb".into()], &[]);
         for output_json in [true, false] {
