@@ -1,0 +1,25 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "Original TODO59 ordinary SQL schema key extraction",
+  "original_requirement": "Consolidate overlapping SQL/table analysis and supply accurate ordinary OciusX SQL metadata for AI workflows.",
+  "observed_missing_behavior": "Installed analyze_database_intelligence on unchanged actual aspnet_UsersInRoles.sql loses both standard bracketed foreign keys, invents two FOREIGN columns and retains ] ASC in primary-key column names.",
+  "implementation_files": [
+    "crates/engram_server/src/services/database_intelligence_service.rs"
+  ],
+  "acceptance": [
+    "For actual OciusX aspnet_UsersInRoles DDL, return exactly UserId/RoleId columns, primary key names UserId/RoleId, and both RoleId?aspnet_Roles.RoleId and UserId?aspnet_Users.UserId foreign keys.",
+    "Recognize bare and named single-column FOREIGN KEY constraints through the existing shared qualified-object-name recognizer, retaining existing basename metadata and referential actions. Keep declaration order and existing report formats.",
+    "Focused native ordinary-key behavior plus later candidate/installed public reports on unchanged OciusX DDL copies; no per-component build. Preserve WIP9/configuration and actual inputs."
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\baseline1\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\verify-public.py",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "limits": [
+    "Heuristic source-declared schema metadata, not deployed-database binding or execution. Composite foreign-key representation and other DDL grammar remain outside this selected change.",
+    "Unselected observation retained: bare CHECK dispatch was not characterized; do not expand this key fix into a general DDL rewrite."
+  ],
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
+}

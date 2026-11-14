@@ -10022,37 +10022,29 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
-      "finding": "Original TODO31 source-cited declared DI registration evidence",
-      "original_requirement": "Trace existing OciusX WebForms/VB Web API request paths with useful source-bound call/binding/database evidence and honest runtime gaps.",
-      "observed_missing_behavior": "Actual OciusX WebApiConfig.vb declares container.RegisterType(Of svc.IWebhookVetroService, svc.VetroService) at line45 and activates a UnityResolver at line50. Existing trace supplies source interface implementation candidates but no declared registration evidence. Installed baseline on unchanged config/controller/service/interface copies confirms the gap.",
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "Original TODO59 ordinary SQL schema key extraction",
+      "original_requirement": "Consolidate overlapping SQL/table analysis and supply accurate ordinary OciusX SQL metadata for AI workflows.",
+      "observed_missing_behavior": "Installed analyze_database_intelligence on unchanged actual aspnet_UsersInRoles.sql loses both standard bracketed foreign keys, invents two FOREIGN columns and retains ] ASC in primary-key column names.",
       "implementation_files": [
-        "crates/engram_server/src/services/request_trace.rs",
-        "crates/engram_server/src/services/request_trace/api.rs",
-        "crates/engram_server/src/services/request_trace/container_registrations.rs",
-        "crates/engram_server/src/tools.rs"
+        "crates/engram_server/src/services/database_intelligence_service.rs"
       ],
       "acceptance": [
-        "Each conventional VB API trace supplies literal generic RegisterType declarations from its own route-configuration source, retaining exact written contract/implementation names, receiver spelling, current source line/excerpt and BLAKE3.",
-        "Keep all existing handlers and interface implementation candidates. Declarations do not resolve imports/types/provider, select a runtime receiver, infer execution/conditions/lifetime/order or suppress candidates. Other files/factories/dynamic configuration remain explicitly outside coverage.",
-        "Bound inventory at64 declarations per route source with explicit truncation/gaps; unavailable source is unknown. Existing full-report budgets/recovery remain; no new project scan, graph traversal or language support.",
-        "One focused native source-declaration test and later candidate/installed public calls on unchanged actual OciusX configuration/controller/service/interface copies. Verify the real Vetro registration at line45 and independent line-based registration inventory. Preserve actual inputs/config/WIP9.",
-        "This work stays outside the frozen method-read release currently compiling. No separate compilation; include in the next combined batch."
+        "For actual OciusX aspnet_UsersInRoles DDL, return exactly UserId/RoleId columns, primary key names UserId/RoleId, and both RoleId?aspnet_Roles.RoleId and UserId?aspnet_Users.UserId foreign keys.",
+        "Recognize bare and named single-column FOREIGN KEY constraints through the existing shared qualified-object-name recognizer, retaining existing basename metadata and referential actions. Keep declaration order and existing report formats.",
+        "Focused native ordinary-key behavior plus later candidate/installed public reports on unchanged OciusX DDL copies; no per-component build. Preserve WIP9/configuration and actual inputs."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\baseline1\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\verify-public.py",
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
-      "configuration_observed": {
-        "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
-      },
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\baseline1\\acceptance.json",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\verify-public.py",
       "limits": [
-        "Source declarations are advisory configuration evidence, not established runtime DI binding or execution.",
-        "The declared registration inventory is scoped to the selected route source only. Existing source/hash, candidate and source-inventory qualifications remain."
+        "Heuristic source-declared schema metadata, not deployed-database binding or execution. Composite foreign-key representation and other DDL grammar remain outside this selected change.",
+        "Unselected observation retained: bare CHECK dispatch was not characterized; do not expand this key fix into a general DDL rewrite."
       ],
-      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\source-check1.json"
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10085,7 +10077,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Continue the later queued route-registration source and original OciusX backlog under the combined delivery cadence; the method-read runtime batch is delivered. Do not rebuild per component.",
+    "next_user_visible_deliverable": "Implement ordinary SQL schema keys, then the third original component before one combined focused/native/release batch.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14391,7 +14383,7 @@
     "latest_windows_first_install_delivery": "eval/ociusx-windows-first-install-delivery-20261113.json",
     "current_helper_qa_outcome_20261113": "eval/ociusx-snapping-helper-qa-outcome-20261113.json",
     "sql_identifiers_delivery": "eval/ociusx-sql-identifiers-delivery-20261114.json",
-    "prior_turn_classification": "PROGRESS: three improvements installed with candidate/installed public checks and actual OciusX caller lookup;71f4f7e pushed. One combined release after three implementations.",
+    "prior_turn_classification": "PROGRESS: method-read source, focused/native/public acceptance, installed runtime and pushed receipts delivered; broader original goal remains active.",
     "inline_sql_request_trace_delivery": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json",
     "feature_dossier_delivery": "eval/ociusx-feature-dossier-delivery-20261114.json",
     "planning_node_batch_delivery": "eval/ociusx-planning-node-batch-partial-20261114.json",
@@ -14447,6 +14439,11 @@
           "item": "Declared route dependency registrations",
           "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
           "progress": "eval/ociusx-route-registrations-progress-20261114.json"
+        },
+        {
+          "item": "Ordinary OciusX SQL schema keys",
+          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+          "progress": "eval/ociusx-schema-keys-progress-20261114.json"
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -14964,7 +14961,40 @@
       ],
       "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\source-check1.json"
     },
-    "method_read_batch_delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
+    "method_read_batch_delivery": "eval/ociusx-method-read-batch-delivery-20261114.json",
+    "retained_queued_route_registration_contract": {
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+      "finding": "Original TODO31 source-cited declared DI registration evidence",
+      "original_requirement": "Trace existing OciusX WebForms/VB Web API request paths with useful source-bound call/binding/database evidence and honest runtime gaps.",
+      "observed_missing_behavior": "Actual OciusX WebApiConfig.vb declares container.RegisterType(Of svc.IWebhookVetroService, svc.VetroService) at line45 and activates a UnityResolver at line50. Existing trace supplies source interface implementation candidates but no declared registration evidence. Installed baseline on unchanged config/controller/service/interface copies confirms the gap.",
+      "implementation_files": [
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/api.rs",
+        "crates/engram_server/src/services/request_trace/container_registrations.rs",
+        "crates/engram_server/src/tools.rs"
+      ],
+      "acceptance": [
+        "Each conventional VB API trace supplies literal generic RegisterType declarations from its own route-configuration source, retaining exact written contract/implementation names, receiver spelling, current source line/excerpt and BLAKE3.",
+        "Keep all existing handlers and interface implementation candidates. Declarations do not resolve imports/types/provider, select a runtime receiver, infer execution/conditions/lifetime/order or suppress candidates. Other files/factories/dynamic configuration remain explicitly outside coverage.",
+        "Bound inventory at64 declarations per route source with explicit truncation/gaps; unavailable source is unknown. Existing full-report budgets/recovery remain; no new project scan, graph traversal or language support.",
+        "One focused native source-declaration test and later candidate/installed public calls on unchanged actual OciusX configuration/controller/service/interface copies. Verify the real Vetro registration at line45 and independent line-based registration inventory. Preserve actual inputs/config/WIP9.",
+        "This work stays outside the frozen method-read release currently compiling. No separate compilation; include in the next combined batch."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114",
+      "implementation_complete": true,
+      "validated": false,
+      "deployed": false,
+      "configuration_observed": {
+        "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+      },
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\baseline1\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\verify-public.py",
+      "limits": [
+        "Source declarations are advisory configuration evidence, not established runtime DI binding or execution.",
+        "The declared registration inventory is scoped to the selected route source only. Existing source/hash, candidate and source-inventory qualifications remain."
+      ],
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\source-check1.json"
+    }
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }
