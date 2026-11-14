@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SOURCE_IMPLEMENTED_THREE_COMPONENT_BATCH_READY",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "Original TODO31/59 complete literal SQL body references in request traces",
     "original_requirement": "Source-cited request-to-database navigation and consolidation of overlapping SQL reference analysis.",
     "observed_missing_behavior": "Installed public trace on the unchanged LegacyValidation security SQL returns four tables, omitting outer aspnet_Users and second nested us_useraccess. The inline reader uses one primary FROM plus joins, unlike the shared SQL body reference engine already used by reports.",
@@ -58,9 +58,13 @@
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
-    "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json"
+    "validated": true,
+    "deployed": true,
+    "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json",
+    "native_validated": true,
+    "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\native-acceptance.json",
+    "bounded_delivery_complete": true,
+    "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -850,62 +854,33 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 306.0,
-    "actual_test_execution_seconds": 1.1600000000000001,
-    "last_release_compile_seconds": 913.0,
-    "pending": [
+    "compiled_tests_seconds": 221.0,
+    "actual_test_execution_seconds": 4.33,
+    "last_release_compile_seconds": 786.0,
+    "pending": [],
+    "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
+    "completed_last_batch": [
       {
         "component": "typed-query-trace-20261115",
-        "source_files": [
-          "crates/engram_server/src/services/request_trace/inline_sql.rs"
-        ],
-        "progress": "eval/legacy_validation-typed-query-trace-progress-20261115.json",
-        "validated": false,
-        "deployed": false
+        "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
       },
       {
         "component": "constant-sql-trace-20261115",
-        "source_files": [
-          "crates/engram_server/src/services/request_trace/inline_sql.rs"
-        ],
-        "progress": "eval/legacy_validation-constant-sql-trace-progress-20261115.json",
-        "validated": false,
-        "deployed": false
+        "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
       },
       {
         "component": "sql-body-trace-20261115",
-        "source_files": [
-          "crates/engram_server/src/services/request_trace/inline_sql.rs",
-          "crates/engram_server/src/tools.rs"
-        ],
-        "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json",
-        "validated": false,
-        "deployed": false
+        "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
       }
     ],
-    "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114",
-    "completed_last_batch": [
-      {
-        "component": "procedure-reference-engine-20261114",
-        "delivery": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json"
-      },
-      {
-        "component": "procedure-source-catalog-20261114",
-        "delivery": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json"
-      },
-      {
-        "component": "sp-details-scope-20261114",
-        "delivery": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json"
-      }
-    ],
-    "last_batch_delivery": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json",
+    "last_batch_delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-    "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 06s",
-    "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s",
+    "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s",
+    "last_release_compile": "Finished `release` profile [optimized] target(s) in 13m 06s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
-    "current_step_builds_required": 1,
-    "current_step_reason": "Three substantive source components now queued; run one combined focused native/release and candidate/installed acceptance."
+    "current_step_builds_required": 0,
+    "current_step_reason": "Three queued source components are validated and installed; no pending runtime source from this batch."
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -970,7 +945,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Select the next unfinished original LegacyValidation requirement without reopening delivered acceptance, CodeMap or Blast.",
+  "next_user_visible_deliverable": "Select the next unfinished original LegacyValidation requirement; these three SQL trace components are delivered. Preserve dynamic/runtime limits and failed task-usefulness evidence; no replay of closed acceptance.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1609,7 +1584,7 @@
     "future_read_wording_clarified": true
   },
   "queued_typed_query_contract": {
-    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "Original TODO31 typed VB ExecuteQuery request dependencies",
     "original_requirement": "Source-cited request navigation through existing VB.NET/WebForms calls to SQL tables.",
     "observed_missing_behavior": "The installed inline SQL reader matches ExecuteCommand only. Actual LegacyValidation detaljer.vb:154 calls ExecuteQuery(Of ath_atahuvud) with a literal parameterized SELECT. Its reached-method table dependency is currently skipped.",
@@ -1626,12 +1601,14 @@
     "actual_source_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\actual-query-source.json",
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
-    "progress": "eval/legacy_validation-typed-query-trace-progress-20261115.json"
+    "validated": true,
+    "deployed": true,
+    "progress": "eval/legacy_validation-typed-query-trace-progress-20261115.json",
+    "bounded_delivery_complete": true,
+    "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
   },
   "queued_constant_sql_contract": {
-    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "Original TODO31 same-method literal SQL constants",
     "original_requirement": "Follow ordinary existing VB request paths through known SQL text rather than silently losing the database dependency.",
     "observed_missing_behavior": "Actual AccountSecurityStateRepository.GetMasterState declares a multiline Const sql As String and passes sql to typed ExecuteQuery. The installed public Local fixture returns no table path even though its exact SQL is source-available.",
@@ -1648,12 +1625,16 @@
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
+    "validated": true,
+    "deployed": true,
     "limits": [
       "Literal same-method Const support, not mutable/dynamic SQL evaluation.",
       "No application request, database identity, permission semantics or execution claim."
     ],
-    "progress": "eval/legacy_validation-constant-sql-trace-progress-20261115.json"
-  }
+    "progress": "eval/legacy_validation-constant-sql-trace-progress-20261115.json",
+    "bounded_delivery_complete": true,
+    "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
+  },
+  "vb_sql_trace_batch_progress": "eval/legacy_validation-vb-sql-trace-batch-progress-20261115.json",
+  "vb_sql_trace_batch_delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
 }

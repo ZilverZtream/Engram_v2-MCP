@@ -463,6 +463,13 @@ revisions. Source excerpts retain guards and response expressions, with exact
 source-recovery requests when an excerpt is incomplete.
 Reached methods can also link literal `SqlCommand` stored-procedure candidates
 to matching qualified SQL definitions and their lexical table references.
+Reached VB methods also expose lexical table references from literal
+`ExecuteCommand` and typed `ExecuteQuery(Of T)` SQL, including supported
+same-method `Const` initializers. Invocation and initializer locations remain
+separate; nested subquery reads are retained. Mutable/dynamic SQL is unresolved,
+and receiver type, physical database binding and execution are not inferred.
+[Installed delivery](eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json).
+
 Database identity, dynamic commands and ORM translation remain unresolved.
 
 The result is static navigation, not an observed execution trace. Dynamic routes,

@@ -1,0 +1,257 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-14T23:56:37.794193+00:00",
+  "improvements": [
+    {
+      "finding": "TODO31",
+      "behavior": "Reached VB ExecuteQuery(Of T) literal SQL now produces source-cited read/write table paths, classified by SQL rather than the method return shape."
+    },
+    {
+      "finding": "TODO31",
+      "behavior": "Same-method literal Const SQL is recovered with separate initializer name/kind/line and invocation/source-hash evidence; unsupported mutable/dynamic/binding cases remain unresolved."
+    },
+    {
+      "finding": "TODO31/59",
+      "behavior": "Request traces reuse the shared SQL body reference engine. The unchanged security query retains all six source tables, including outer aspnet_Users and nested us_useraccess that were previously omitted."
+    }
+  ],
+  "implementation": {
+    "status": "FROZEN_FOR_ONE_COMBINED_BUILD",
+    "source_baseline": "a74864c2bb75163171a429ec6c22e88b76062f6c",
+    "source_commit": "155bc789c3be0d4fd6d20a2cbf5bb1efb255b6f6",
+    "root_source_commits": [
+      "273a1ca",
+      "da2de7d",
+      "213de5a",
+      "7ca56ac4c44aedec72765f4da968e68cdfd3a8eb"
+    ],
+    "files": {
+      "crates/engram_server/src/services/request_trace/inline_sql.rs": "c208434847b9a4fb4c2eee911e9b5114855cc41e702bfcf59d5b005f3fc6e90f",
+      "crates/engram_server/src/tools.rs": "c1b0676ec3709fa52155dc5644d845ab83dd5d53018e97b46d299788a5a4c4e5"
+    },
+    "components": [
+      "typed ExecuteQuery literal calls",
+      "same-method literal Const SQL",
+      "shared complete body table references"
+    ],
+    "worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "temporary_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
+    "removal_condition": "Reuse existing source checkout/target; do not remove preexisting checkout. New test fixtures close and clean; retain scripts/logs/package/evidence for review.",
+    "previous_failed_source_commit": "d93be5ed12dff4de67e630278258399e22110098",
+    "retained_failures": [
+      "native1.json (CLI rejected arguments before compilation)",
+      "native2.json (Rust reference lifetime error before tests)"
+    ]
+  },
+  "root_source_commits": [
+    "273a1ca",
+    "da2de7d",
+    "213de5a",
+    "7ca56ac4c44aedec72765f4da968e68cdfd3a8eb"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 37,
+      "required_component_cases": {
+        "typed_query_returns_literal_select_table_and_invocation_evidence": true,
+        "same_method_constant_sql_retains_initializer_and_call_locations": true,
+        "nested_existence_queries_and_outer_joined_tables_are_all_retained": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "155bc789c3be0d4fd6d20a2cbf5bb1efb255b6f6",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s",
+      "native_test_seconds": 4.33,
+      "retained_failed_attempts": [
+        "native1.json: invalid CLI before compilation",
+        "native2.json: borrowed reference lifetime error before tests"
+      ],
+      "resources": "Owned focused native Job/relay/temporary fixtures closed and removed; logs retained. Candidate/installed checks pending."
+    },
+    "public": {
+      "candidate1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\candidate1\\acceptance.json",
+          "sha256": "d82a0c410a13fc62b050099a7e8cc2942b3ac228d2e6d38534133288322e06e4"
+        },
+        "checks": {
+          "Typed_handler_reached": true,
+          "Typed_runtime_not_claimed": true,
+          "Typed_all_sql_tables_reached": true,
+          "Typed_source_citations_retained": true,
+          "Typed_invocation_preserved": true,
+          "Local_handler_reached": true,
+          "Local_runtime_not_claimed": true,
+          "Local_all_sql_tables_reached": true,
+          "Local_source_citations_retained": true,
+          "Local_invocation_preserved": true,
+          "local_initializer_provenance_retained": true,
+          "Nested_handler_reached": true,
+          "Nested_runtime_not_claimed": true,
+          "Nested_all_sql_tables_reached": true,
+          "Nested_source_citations_retained": true,
+          "Nested_invocation_preserved": true,
+          "database_selection_obeyed": true,
+          "fixture_sources_unchanged": true,
+          "actual_sources_unchanged": true
+        },
+        "observed_tables": {
+          "Typed": [
+            "ath_atahuvud"
+          ],
+          "Local": [
+            "aspnet_Membership",
+            "aspnet_Roles",
+            "aspnet_Users",
+            "aspnet_UsersInRoles",
+            "tea_tenantAccess",
+            "us_useraccess"
+          ],
+          "Nested": [
+            "aspnet_Membership",
+            "aspnet_Roles",
+            "aspnet_Users",
+            "aspnet_UsersInRoles",
+            "tea_tenantAccess",
+            "us_useraccess"
+          ]
+        }
+      },
+      "installed1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\installed1\\acceptance.json",
+          "sha256": "efb21c45d2bcf42767734a685d164f8f3efaaca305eb7178e7f7d3454ec71966"
+        },
+        "checks": {
+          "Typed_handler_reached": true,
+          "Typed_runtime_not_claimed": true,
+          "Typed_all_sql_tables_reached": true,
+          "Typed_source_citations_retained": true,
+          "Typed_invocation_preserved": true,
+          "Local_handler_reached": true,
+          "Local_runtime_not_claimed": true,
+          "Local_all_sql_tables_reached": true,
+          "Local_source_citations_retained": true,
+          "Local_invocation_preserved": true,
+          "local_initializer_provenance_retained": true,
+          "Nested_handler_reached": true,
+          "Nested_runtime_not_claimed": true,
+          "Nested_all_sql_tables_reached": true,
+          "Nested_source_citations_retained": true,
+          "Nested_invocation_preserved": true,
+          "database_selection_obeyed": true,
+          "fixture_sources_unchanged": true,
+          "actual_sources_unchanged": true
+        },
+        "observed_tables": {
+          "Typed": [
+            "ath_atahuvud"
+          ],
+          "Local": [
+            "aspnet_Membership",
+            "aspnet_Roles",
+            "aspnet_Users",
+            "aspnet_UsersInRoles",
+            "tea_tenantAccess",
+            "us_useraccess"
+          ],
+          "Nested": [
+            "aspnet_Membership",
+            "aspnet_Roles",
+            "aspnet_Users",
+            "aspnet_UsersInRoles",
+            "tea_tenantAccess",
+            "us_useraccess"
+          ]
+        }
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
+      "sha256": "cd307453dacb892a4c48b41f5ad9dfe5e1fe5054c8cf176f66bb1576ce0953bf"
+    },
+    "release_compile": "Finished `release` profile [optimized] target(s) in 13m 06s",
+    "retained_failures": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline1\\acceptance.json",
+        "sha256": "cce8b89e0440e38461e3d7c6076f5d472daa22fc28a3227680760c63441efac1"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\native1.json",
+        "sha256": "7068862245079bac0ffd90d7069c3cc492ad1ef416c25f287068e19c41702845"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\native2.json",
+        "sha256": "2ba75be1cc063175390da9f074b4358621db4abd3eeb314a589db5e312f41ca3"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\preflight1.json",
+        "sha256": "d539925a26ebcfe31e4d64ec23de84e26fa3dd683fb5121b271e3066508c451b"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\release1.json",
+        "sha256": "165fa07a96049bf13d6810a703e69249c6d821b530ad832f0e0b5e1fc7a8f5db"
+      }
+    ],
+    "failure_disposition": "One fixture slicing failure before server startup, one CLI failure before compilation, a corrected Rust lifetime error before tests, and a corrected package-preflight receipt pointer are retained. Cargo release succeeded in13m06s; its wrapper rejected argument ordering afterwards. The canonical cached verification passed in2.7s with no compilation and the same artifact hash. Original failures remain separate and are not counted as acceptance."
+  },
+  "runtime": {
+    "server_sha256": "5f56c60a844d4f7bb3be3ac28ae213ef1bc9cafafa8b4a61abd6a11c9db7f2b6",
+    "manifest_sha256": "71ecfb023036a76112dda15ede1396b9a8ee4e7337683bf6975323dbec8271e9",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\pair1.json",
+      "sha256": "fcf153a7cc75d91fdbdfb26719942fcb78bf3cec1478986797329541a774a989"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\release2.json",
+      "sha256": "01e8a6fe649a27e3a323775e8844d6028d4a10947c80f8e0283c22834d364f35"
+    },
+    "original_release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\release1.json",
+      "sha256": "165fa07a96049bf13d6810a703e69249c6d821b530ad832f0e0b5e1fc7a8f5db"
+    },
+    "release_runner_seconds": 798.6722992999712,
+    "cached_artifact_check_seconds": 2.6910588999744505,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\deployment1-state.json",
+      "sha256": "bfc52188aab5bc27b2955a8e270c8f2a84bc7fde36fcb337e5c82f2a2a700128"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\restored-runtime\\receipt.json",
+      "sha256": "83f523f24b3fc7866e90d6d7d05458f283089768b3437750e6aa3f9167974c44"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\Engram-win-x64-vb-sql-trace-20261115.zip",
+    "sha256": "50c8784ab621b40b799bdbf07a8079f5ffe3bed4e79cd3feb57338ca085ee38f",
+    "entries": 216,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "71ecfb023036a76112dda15ede1396b9a8ee4e7337683bf6975323dbec8271e9"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "actual_application_sources_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "source_and_graph_formats_unchanged": true
+  },
+  "resources": {
+    "owned_native_release_jobs_relays_and_temporary_directories_closed_and_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "config_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-347ff000005f4b67b80782d488ff48f1",
+    "old_runtime_pair_purpose": "Installer rollback backup of the prior f0b7646c pair; retain under the existing application backup policy, no deletion authorized here.",
+    "intentionally_retained_normal_daemon_pid": 87868,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
+    "retained_purpose": "Scripts, exact source/build/probe receipts, failed attempts, package and ZIP for review; no preexisting folder removed.",
+    "cleanup_condition": "Retain delivery evidence/package for review; existing source checkout and shared target are reused, not disposable."
+  },
+  "limits": [
+    "Actual unchanged non-Q SQL is exercised in owned WebForms wrappers, not by tracing an actual LegacyValidation request or executing its database. No Site/Q read or source edit was performed.",
+    "Lexical table references do not prove receiver type, alias/schema/database binding, branch reachability or runtime execution. General ORM, dynamic SQL and trigger/deployment limitations remain.",
+    "One combined focused native/release batch; no full native suite, fresh model comparison or measured latency/productivity gain. Original31findings/19gates and failed usability evidence remain unfinished."
+  ]
+}

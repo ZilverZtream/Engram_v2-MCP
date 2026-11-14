@@ -1,17 +1,16 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "component": "same-method literal SQL Const resolution",
   "finding": "Original TODO31 ordinary VB request-to-database source navigation",
   "implementation_files": [
     "crates/engram_server/src/services/request_trace/inline_sql.rs"
   ],
-  "source_sha256": "33530019af88ae642ce34357bf2ff14be3d3ae3df87669bc5090a7cb5f6b3f92",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
   "actual_sql_source": "Site/App_Code/users-security/code/AccountSecurityStateRepository.vb GetMasterState Const sql",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "builds_started": 0,
   "scope": "Single same-method Const with an all-literal initializer and no intervening closing/sibling scope boundary. Optional As String, concatenation and parameter values retained; mutable/dynamic SQL and general binding remain unresolved.",
   "native_tests_added": [
@@ -19,8 +18,20 @@
     "out-of-scope constant, dynamic initializer and mutable unknown query remain unresolved"
   ],
   "limits": [
+    "Actual unchanged non-Q SQL is exercised in owned WebForms wrappers, not by tracing an actual LegacyValidation request or executing its database. No Site/Q read or source edit was performed.",
+    "Lexical table references do not prove receiver type, alias/schema/database binding, branch reachability or runtime execution. General ORM, dynamic SQL and trigger/deployment limitations remain.",
+    "One combined focused native/release batch; no full native suite, fresh model comparison or measured latency/productivity gain. Original31findings/19gates and failed usability evidence remain unfinished."
+  ],
+  "implementation_checkpoint_sha256": "33530019af88ae642ce34357bf2ff14be3d3ae3df87669bc5090a7cb5f6b3f92",
+  "implementation_checkpoint_limits": [
     "Queued source only; combined native/public verification and deployment still required.",
     "MoveMarkers/UserAccountRequest dynamic SQL remains outside this literal-constant change; no new issue automatically selected.",
     "No runtime execution, receiver type or physical database binding is claimed."
-  ]
+  ],
+  "bounded_delivery_complete": true,
+  "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json",
+  "delivered_source_files": {
+    "crates/engram_server/src/services/request_trace/inline_sql.rs": "c208434847b9a4fb4c2eee911e9b5114855cc41e702bfcf59d5b005f3fc6e90f",
+    "crates/engram_server/src/tools.rs": "c1b0676ec3709fa52155dc5644d845ab83dd5d53018e97b46d299788a5a4c4e5"
+  }
 }

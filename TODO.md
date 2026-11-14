@@ -408,6 +408,12 @@ proposals that duplicate the existing surface:
   source citations from their route configuration. Runtime selection/execution
   remain unproven. [Delivery](eval/legacy_validation-request-schema-batch-delivery-20261114.json).
 
+  Literal VB query tracing installed 2026-11-15: typed ExecuteQuery calls and
+  same-method literal Const SQL now retain source-cited table paths and initializer
+  provenance. Shared body references include nested subquery and outer FROM tables;
+  the unchanged security query retains six tables instead of four. Dynamic SQL,
+  physical database binding and execution remain unresolved. [Delivery](eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json).
+
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.
