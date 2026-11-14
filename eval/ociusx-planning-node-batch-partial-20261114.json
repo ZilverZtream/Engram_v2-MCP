@@ -1,0 +1,150 @@
+{
+  "status": "IMPLEMENTED_PUSHED_DEPLOYED_LATENCY_ACCEPTANCE_UNFINISHED",
+  "at_utc": "2026-11-14T12:40:24.554503+00:00",
+  "finding": "TODO32/P4 planning source dossier latency",
+  "before": "The retained actual OciusX source dossier took95.1157s installed and109.6508s candidate. Each pattern/source file performed another full graph inventory scan.",
+  "after": "Existing request-local graph projection supplies per-file bounded function inventories for pattern candidates, initial source paths and subsequently queued WebForms components. Source/pattern evidence, candidate matching, limits, order and freshness checks are retained.",
+  "implementation": {
+    "source_baseline": "6db890157164f7ac0136b3e1e2b4ef7a4108bc33",
+    "source_commit": "f0bd533b698299d5bfd6ccb782f931ba9ec7f040",
+    "root_source_commit": "919af1a4c8f36ed094857ab2b935136b90013dc7",
+    "files": {
+      "crates/engram_server/src/handlers/file_functions.rs": "37f7ee98caf29d37d9eca16958d268948b0fc339e0c51df03cb979254a6cde09",
+      "crates/engram_server/src/handlers/mod.rs": "b96a0ae582df20def130ab8be9e79f0ff8b3a2c031297c8a15ec4d8db31d83fb",
+      "crates/engram_server/src/handlers/planning_tools.rs": "683d6be3f958ef23c2011914bee60c2f1d7189ca011d73130c75707c1ea6c662",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs": "98375563e126fab23e57a32decb83607cb3dcf1f9ff1ce5b7ec835a91cebac42"
+    }
+  },
+  "baseline": "eval/ociusx-feature-dossier-delivery-20261114.json",
+  "actual_ociusx": {
+    "candidate": {
+      "seconds": 53.62708720006049,
+      "source_files": 16,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\candidate1-actual\\acceptance.json",
+        "sha256": "3c486d2c5c7ec1b416ee210a8edf06c3069cfb302b97c074c54d668245652ece"
+      }
+    },
+    "installed": {
+      "seconds": 60.182777100009844,
+      "source_files": 16,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\installed1-actual\\acceptance.json",
+        "sha256": "628cc739e28c4e6c8f7bf11e3536fb86adea65bad7db58eafde0784c9012816e"
+      }
+    }
+  },
+  "public": {
+    "candidate": {
+      "checks": 10,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\candidate1\\acceptance.json",
+        "sha256": "2f0d9992e9046f0cabedfc6cded8d266b5fe06f7e5f64868cd096f98de99dc81"
+      }
+    },
+    "installed": {
+      "checks": 9,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\installed1\\acceptance.json",
+        "sha256": "e14f059ef8dc40ff185ee4e1b46643b2d2bdb1a19286c88fb2b72ba61aae8a23"
+      }
+    }
+  },
+  "native": {
+    "revised_checks": 15,
+    "revised": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\native1.json",
+        "sha256": "2aa588f929a9cd07c285eabaad72e6797fc2dc8e2915bd1ae7917a9148fd85a0"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\native2.json",
+        "sha256": "829710a5be9c8114a112104dabf176fdbf29b9f8039e04f8e50856f5025d200a"
+      }
+    ],
+    "unchanged_collector_and_patterns_checks": 10,
+    "retained": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\native4.json",
+        "sha256": "463a21abd5115887e0b1f9b7622f094f8ccdfba6cf0026577e25852d74ba1617"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\native6.json",
+        "sha256": "064e255a21b9cdeb7ae20ac66efe316acfbf541491906dd7fc1c18f6dcdbf63c"
+      }
+    ]
+  },
+  "runtime": {
+    "status": "INSTALLED_FUNCTIONAL_LATENCY_ACCEPTANCE_FAILED",
+    "normal_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\restored-runtime\\receipt.json",
+      "sha256": "346e0dd0335d3877628ff935c4c0787998b8fdb6c600f7596e7e6cb25d01c347"
+    },
+    "server_sha256": "b1e27185a77f8c3b722225769fe1bc3ce7c9e2e45697ea7e8eaac346a2da3487",
+    "manifest_sha256": "b64a8b50b1e0d58bec69ccc653624aef7dd1c94cfc361ef365f52ad0dd540230",
+    "unchanged_companion_assets": 214,
+    "package": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\pair1.json",
+      "sha256": "702c8debcc5738f7c30f62c7d35f9f394adf01dfa7a3cb851f1fa6a94bd5c88c"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\deployment3-state.json",
+      "sha256": "7f8491c053d15116b37c068a9c324573a9a92c8093ecc3132409eda17146d9a4"
+    },
+    "upgrade": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\planning-node-batch-r21-install-Upgrade.json",
+      "sha256": "2787faff252112d8d52642a51374c325f94c65d2db245eb287dec91762d4a305"
+    }
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\Engram-win-x64-planning-node-batch-20261114.zip",
+    "sha256": "564558EA0A19AD50DF92D7B485BB2895EA98CC0B5CC8AE61B04FCEB8C73D0539",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "B64A8B50B1E0D58BEC69CCC653624AEF7DD1C94CFC361EF365F52AD0DD540230"
+  },
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2\\review1.json",
+    "sha256": "d7ae5efcb6a98dc2481c6c0798e1ef348bef81777c75756e0c8a7d2d7870ffde"
+  },
+  "retained_failures": {
+    "initial_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\candidate1-actual\\acceptance.json",
+      "sha256": "244af25c314a01083a81c57d039744a1ed05454c19829c47c232703c24601cc4"
+    },
+    "initial_seconds": 60.18846430000849,
+    "preexisting_pattern_timeouts": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\retained-pattern-timeouts.json",
+      "sha256": "8a3e71eb4462f6ea5a571cb5969880bfd58df082ca0b64ddd3d50ee36d1ac327"
+    },
+    "baseline_timeout_control": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\baseline-control1.json",
+      "sha256": "b6aa53f7b3f0d44182d7cdc6824ea1501727db052e0dcc7020adfe5bfecdea62"
+    }
+  },
+  "preservation": {
+    "wip9_byte_pins_unchanged": true,
+    "configuration_bytes_unchanged": true,
+    "application_sources_unchanged": true,
+    "selected_generation": 3150,
+    "other_project_metadata_unchanged": true,
+    "sidecar_unchanged": true
+  },
+  "resource_accounting": {
+    "owned_native_public_and_build_temporary_resources_removed": true,
+    "owned_processes_and_config_hold_closed": true,
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2"
+    ],
+    "retained_purpose": "Source/build/wire/failure/package/ZIP evidence. Retain for review; no preexisting folder deletion.",
+    "installed_previous_pair": "Managed retained rollback pair recorded in upgrade receipt"
+  },
+  "limits": [
+    "Installed60.1828s misses the fixed60s acceptance despite candidate53.6271s. This selected latency delivery remains unfinished; no timing-only replay or further tuning is authorized by this bounded attempt.",
+    "One unchanged actual OciusX request; not a general latency or matched-productivity claim. The ZIP was assembled during candidate verification; these are observed request timings, not isolated benchmark statistics.",
+    "Original generated-planner semantic acceptance remains failed; full TODO32, original19gates and broader backlog remain unfinished.",
+    "No CodeMap/Blast, schema/index/cache, sidecar, target-language expansion or runtime configuration change.",
+    "Source-reader pattern timeout suite is not all green; retained baseline control proves one preexisting timeout."
+  ]
+}

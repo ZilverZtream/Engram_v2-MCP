@@ -383,6 +383,12 @@ proposals that duplicate the existing surface:
   verified source excerpts. Retrieval still took 95-110 seconds. Generated-plan
   semantic failures above remain unfinished; this mode does not close item 32.
   Evidence: [source dossier delivery](eval/ociusx-feature-dossier-delivery-20261114.json).
+  Planning inventory batching installed 2026-11-14: the same OciusX request returned
+  the identical 16 source excerpts and complete pattern output in 53.63s candidate
+  and 60.18s installed. Per-file caps and source freshness remain.
+  The installed result misses the fixed 60-second acceptance, which remains
+  unfinished. Retain the functional improvement and advance the backlog without
+  further timing replays. [Partial result](eval/ociusx-planning-node-batch-partial-20261114.json).
 
 - [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
   `batch_read` composes 1–16 typed `get_method_info`, `resolve_id` and `get_chunk`
