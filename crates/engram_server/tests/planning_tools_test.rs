@@ -249,6 +249,7 @@ namespace App {{
                 pattern_query: "SaveSettings".into(),
                 max_examples: 3,
                 output_json: false,
+                max_tokens:None, response_id:None, response_offset:0,
             },
         ))
         .await
