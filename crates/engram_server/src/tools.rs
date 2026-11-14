@@ -1523,7 +1523,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Deep analysis of a single stored procedure: purpose, parameters, tables, callers, call chain, triggers, side effects."
+        description = "Deep source analysis of a stored procedure: purpose, parameters, tables, callers, call chain, triggers and side effects. Optional sql_file_path inspects only that SQL file and limits reverse-procedure/trigger coverage accordingly. include_code_callers defaults true; set false to skip application-code discovery/reads and graph caller lookup when only SQL details are needed. Coverage is explicit; unrequested callers are not verified absent. Source declarations are not deployed database or runtime execution proof."
     )]
     pub async fn get_sp_details(
         &self,
