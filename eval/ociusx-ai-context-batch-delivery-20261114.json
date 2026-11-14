@@ -1,0 +1,261 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T16:04:03.439685+00:00",
+  "improvements": [
+    {
+      "finding": "EG01 scoped trace guidance",
+      "behavior": "Request traces include complete applicable authored guidance for returned loaded source paths, with hashes, omissions, live instruction refresh and exact original recovery when policy text exceeds the navigation budget."
+    },
+    {
+      "finding": "TODO59 stored-procedure details",
+      "behavior": "get_sp_details finds bracketed CREATE/ALTER declarations through the shared parser and uses parsed read/write targets and reverse callers, preserving OUTPUT, MERGE and read/write overlap."
+    },
+    {
+      "finding": "TODO4 bounded database reports",
+      "behavior": "Database reports default to65536UTF-8bytes and honor max_tokens, retaining counts/warnings and immutable exact recovery without re-analysis. JSON/Markdown small reports retain their report content; advisory hints remain outside snapshots."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "bfbdf611339c31610441a23c985c723f0d58ab3f",
+    "source_commit": "922060c014f5b2c672160e0f2d188f46fa1a4e2e",
+    "files": {
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "2760fa2da51d7919844427aa31f66d83931de97ff550faa4b32c5dbead2a5d8d",
+      "crates/engram_server/src/handlers/database_report_delivery.rs": "77175fbfc14c821e37dc2ce02a0f6fe9765e1689ed309fa44d734fd9825d0657",
+      "crates/engram_server/src/handlers/migration_tools.rs": "446c011fc88e7063fa6b611c7e227d3d3328967727878ee3cd82504c86245921",
+      "crates/engram_server/src/handlers/request_trace_delivery.rs": "ad5d5a83b32de52ce049cf43a58d1d4114f3d7cf13492261064a5b56f3b1d9ed",
+      "crates/engram_server/src/handlers/request_trace_policy.rs": "039eed7ab9435b02c376ff6a452eb23c947d7f60cfd89204d05b45db96b7f2af",
+      "crates/engram_server/src/handlers/request_trace_tools.rs": "65a2ea439d5650edf5eccfdce49876e13e22d76350560a9deaf389a5cdb70e73",
+      "crates/engram_server/src/models/requests.rs": "25257afe89af11da124d538e74d5511362d2b1d0a74de00f1df13b0eeabcac5f",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "38d5b74fa9a45be4c783935cff0a35104028868551c354320ebb035d8ff20281",
+      "crates/engram_server/src/tool_guidance.rs": "2c5ca32b415c5d862f0b07a5fff25330cdaa87c8400aaaa614c6834eb2a84762",
+      "crates/engram_server/src/tools.rs": "793c3b21f4c4a4415c2b81173205d204839ead1ffca4a1f100c0671cebde12eb",
+      "crates/engram_server/tests/phase37_wiring_test.rs": "9ee9d9a637cf14b0af720303f143586b8dce7746478f8093145c8f20cdf10a4f"
+    }
+  },
+  "root_source_commits": [
+    "28edfb7",
+    "d5d39a0",
+    "85bad0c",
+    "4101bab",
+    "1189fd9",
+    "54f6f6a"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "passed": 48,
+      "test_seconds": 0.96,
+      "compile_seconds": 243,
+      "cargo_exit_code": 0,
+      "native_source_commit": "0397165",
+      "wrapper_status": "FAIL",
+      "wrapper_failure": "The reused build-only success branch asserts a build command after successful cargo test. Exact test log proves 48 passes; source unchanged during run and all owned resources closed. No test rerun.",
+      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\native2.json",
+      "native_log_sha256": "55301e7f74d9e0d5533ae9fcac265c67a1a6afcf35be0aeeb6ae18e6407291b1",
+      "test_binary": {
+        "path": "C:/ai-projects/Engram-MCP_v2/target/debug/deps/engram_server-6aa1e091ada9fe4d.exe",
+        "sha256": "a2db999b8c9983ce123686814aeab37eb9c7fe5eb478908ddb55b847a9e657db"
+      },
+      "post_native_source_delta": "diff --git a/crates/engram_server/src/tool_guidance.rs b/crates/engram_server/src/tool_guidance.rs\nindex 72a9673..c36509e 100644\n--- a/crates/engram_server/src/tool_guidance.rs\n+++ b/crates/engram_server/src/tool_guidance.rs\n@@ -312,7 +312,7 @@ fn limit(tool: &str, arguments: &Map<String, Value>, registry: &[Tool]) -> Optio\n         .and_then(Value::as_u64);\n     let default = match tool {\n         \"batch_read\" => Some(8192),\n-        \"query_schema\" | \"detect_n_plus_one\" | \"find_missing_indexes\" | \"trace_user_request\" => {\n+        \"query_schema\" | \"detect_n_plus_one\" | \"find_missing_indexes\" | \"trace_user_request\" | \"analyze_database_intelligence\" => {\n             Some(16384)\n         }\n         _ => schema_default,\n",
+      "post_native_source_delta_validation": "Default budget guard is not covered by the retained native selection; verify public bounded replies using the release executable.",
+      "selected_test_source_unchanged": true,
+      "preserved_wip9": true,
+      "owned_resources_closed": true
+    },
+    "public": {
+      "candidate": {
+        "request-trace-policy": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-policy\\candidate2\\acceptance.json",
+            "sha256": "373e7461369922646e4f5fb47a58ec3ef29a7e6418af3858969847109c8ec025"
+          },
+          "checks": {
+            "root_markup_and_code_guidance": true,
+            "complete_text_and_hashes": true,
+            "actual_handler_and_runtime_limit": true,
+            "live_instruction_edit_without_reindex": true,
+            "bounded_navigation_and_explicit_policy_recovery": true,
+            "exact_recovery_with_final_exception": true,
+            "current_actual_route_and_controller": true,
+            "actual_root_guidance_and_overflow_reference": true,
+            "actual_inline_guidance_matches_source": true,
+            "original_sources_and_guidance_unchanged": true
+          }
+        },
+        "sp-details": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details\\candidate2\\acceptance.json",
+            "sha256": "fcb41398e1ad552a2eb48307818c755b3f14de3ff7e4c60c283684b6cc9246bd"
+          },
+          "checks": {
+            "actual_declaration_found": true,
+            "actual_output_parameter": true,
+            "actual_insert_without_into_write": true,
+            "bracketed_reverse_caller": true,
+            "alter_read_write_overlap": true,
+            "post_go_deployment_excluded": true,
+            "original_sql_matches_retained_copy": true
+          }
+        },
+        "database-report-budget": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-report-budget\\candidate2\\acceptance.json",
+            "sha256": "6701c73ae71006d8d1e2d39e8f244df99b487c9e6532bba010d3d03d5f53f8dc"
+          },
+          "checks": {
+            "default_budget_and_explicit_recovery": true,
+            "json_complete_reply_budget": true,
+            "json_selected_counts_and_format": true,
+            "markdown_complete_reply_budget": true,
+            "markdown_selected_counts_and_format": true,
+            "warnings_retained": true,
+            "json_complete_recovery_after_sql_removed": true,
+            "json_recovery_digest": true,
+            "markdown_exact_recovery_after_sql_removed": true,
+            "markdown_recovery_digest": true
+          }
+        }
+      },
+      "installed": {
+        "request-trace-policy": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-policy\\installed1\\acceptance.json",
+            "sha256": "9f987ecf2165cae4e14a68ca3bccaacb38fb9a820bddf1f5c34b153e3a5be7d2"
+          },
+          "checks": {
+            "root_markup_and_code_guidance": true,
+            "complete_text_and_hashes": true,
+            "actual_handler_and_runtime_limit": true,
+            "live_instruction_edit_without_reindex": true,
+            "bounded_navigation_and_explicit_policy_recovery": true,
+            "exact_recovery_with_final_exception": true,
+            "current_actual_route_and_controller": true,
+            "actual_root_guidance_and_overflow_reference": true,
+            "actual_inline_guidance_matches_source": true,
+            "original_sources_and_guidance_unchanged": true
+          }
+        },
+        "sp-details": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details\\installed1\\acceptance.json",
+            "sha256": "c47ce147d9a0dc565bf9c09cd3d1b0d3e40593b7ddc1dbf45edd9fd777b68d36"
+          },
+          "checks": {
+            "actual_declaration_found": true,
+            "actual_output_parameter": true,
+            "actual_insert_without_into_write": true,
+            "bracketed_reverse_caller": true,
+            "alter_read_write_overlap": true,
+            "post_go_deployment_excluded": true,
+            "original_sql_matches_retained_copy": true
+          }
+        },
+        "database-report-budget": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-report-budget\\installed1\\acceptance.json",
+            "sha256": "bfcde1f3f43736be7dd6bf0f7ddd63cd3c08491278b591af7e4b86e4267b4190"
+          },
+          "checks": {
+            "default_budget_and_explicit_recovery": true,
+            "json_complete_reply_budget": true,
+            "json_selected_counts_and_format": true,
+            "markdown_complete_reply_budget": true,
+            "markdown_selected_counts_and_format": true,
+            "warnings_retained": true,
+            "json_complete_recovery_after_sql_removed": true,
+            "json_recovery_digest": true,
+            "markdown_exact_recovery_after_sql_removed": true,
+            "markdown_recovery_digest": true
+          }
+        }
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details\\baseline-confirmed.json",
+      "sha256": "94d9c1de5acb6f3138fc4dfc924694d985af61994c90a0a9a62bc974df95e762"
+    },
+    "retained_failures": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\native1.json",
+        "sha256": "20f14f5c91894ae5bba3ea0dbf7425d4b6570d189120a0eb668559ff0f8a76f8"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\native2.json",
+        "sha256": "c2e87acc05a77566ae9fad0d001348e5e5f67b706039259eba1f8d51a9f928d1"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details\\baseline1\\acceptance.json",
+        "sha256": "fb4463a095399af2b9c78e7bb9c8abb295bba53b62dc7e13ccb7864971afbd87"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\candidate1\\acceptance.json",
+        "sha256": "40fcc811aa73c032d2d4da9176aad71972d1c0a51e2e48bd6d931103fda569dd"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\deployment4-state.json",
+        "sha256": "32d0e1eb70d50a2261c9496cb9a2cd1a0f557e626080c545eb8f1fa08eb4ca29"
+      }
+    ],
+    "candidate_verifier_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-policy\\candidate1\\line-ending-diagnosis.json",
+      "sha256": "ed09ac322ad3cbc716c5d9ac2d0e1bfff6aadf01096f077a16cdc73f11afd0f9"
+    }
+  },
+  "runtime": {
+    "server_sha256": "cf1019b8630305c72eaa69c70e98364d9198e80a3886f80092d93582286e4337",
+    "manifest_sha256": "2eb36822a1895f0736ec5656f89567932263ee2711384230ab47d08c31cd0a8d",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\pair1.json",
+      "sha256": "ced3bad64d7174bf36c04222afa7c53c375f5f0678ef3a1a6f81d094caf5d844"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\release1.json",
+      "sha256": "3ceaa53257e0664fe148ff935db425d23eb418121929eae788de9ae429cf3c4b"
+    },
+    "compile_seconds": 1336,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\deployment5-state.json",
+      "sha256": "485f82a66d6b1bb8ed8546e2ce275e7e38f4694a86c0c1cd162decd21ab74599"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "8710e78d71ec7ec11f1938198a584db60fd253d8aa4fb021c4b7742249498e58"
+    }
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114\\Engram-win-x64-ai-context-20261114.zip",
+    "sha256": "7713DB033447CD499D41F87501EB234CA1C4E1C2778CC9811EC21ACDDCAB5726",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "2EB36822A1895F0736EC5656F89567932263EE2711384230AB47D08C31CD0A8D"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "application_source_and_guidance_unchanged": true,
+    "selected_generation": 3150,
+    "project_registry_and_other_metadata_unchanged": true,
+    "graph_and_index_formats_unchanged": true
+  },
+  "resources": {
+    "owned_test_build_fixture_resources_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and application-owned children in restoration receipt.",
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-policy",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-report-budget"
+    ],
+    "retention": "Keep source/native/build/wire/baseline/failure/package/ZIP evidence for review; installer retains the prior runtime pair. No preexisting-folder deletion."
+  },
+  "limits": [
+    "Public checks use owned fixtures and unchanged current OciusX API/SQL source copies, not a production HTTP/database execution or productivity comparison.",
+    "Guidance covers returned files, not a future final edit scope, and delivery does not enforce its prose.",
+    "Procedure details retain the shared parser basename/heuristic contract; deployed schema identity, ambiguity resolution and execution remain unproved.",
+    "Report completeness means exact recovery of the selected original within existing scan and sp_limit bounds, not complete database coverage.",
+    "Native48passed; the reused runner post-check retained FAIL. One later advisory-budget default line is covered by public release acceptance, not the retained native selection.",
+    "Full original backlog, task-benefit requirements and19gates remain unfinished."
+  ]
+}

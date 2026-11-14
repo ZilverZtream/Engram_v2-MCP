@@ -1,23 +1,31 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "TODO59 / TODO35 usable stored-procedure details for bracketed declarations",
   "original_requirement": "Source-backed SQL understanding for the OciusX AI workflow using the existing database tools.",
   "observed_missing_behavior": "get_sp_details duplicates declaration, reverse-call and table-write regexes instead of the shared parser. Its declaration regex fails the existing OciusX [dbo].aspnet_Applications_CreateApplication declaration, and its table regex omits INSERT without INTO.",
-  "implementation_files": ["crates/engram_server/src/handlers/migration_tools.rs", "crates/engram_server/src/services/database_intelligence_service.rs"],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/migration_tools.rs",
+    "crates/engram_server/src/services/database_intelligence_service.rs"
+  ],
   "acceptance": [
     "Public owned fixture reproduces the missing procedure against the existing binary using an unchanged OciusX SQL source copy.",
     "Use existing parsed declarations and source spans for lookup, including bracketed CREATE/ALTER names, and exclude post-GO deployment statements from the selected source body.",
     "Use parsed read/write targets and reverse procedure calls in details; retain INSERT without INTO, read/write overlap and MERGE support. Preserve callers, parameters, triggers, warnings and existing not-found behavior.",
     "Focused native and combined candidate/installed public checks prove the real procedure lookup, OUTPUT parameter, expected tables and synthetic reverse caller. No per-feature build or graph/tracing change."
   ],
-  "limits": ["The existing parser/report use procedure and table basenames; this does not establish deployed schema identity, ambiguity resolution or execution.", "No new target language, parser format or reindex requirement."],
+  "limits": [
+    "The existing parser/report use procedure and table basenames; this does not establish deployed schema identity, ambiguity resolution or execution.",
+    "No new target language, parser format or reindex requirement."
+  ],
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "prior_queued_item": "eval/ociusx-request-trace-policy-progress-20261114.json",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details\\baseline-confirmed.json",
   "retained_verifier_failure": "baseline1/acceptance.json retains the verifier failure: the transport exception redacts the MCP message. The exact retained response independently confirms not-found; no baseline rerun performed.",
   "temporary_resources": "Owned public fixture/server closed naturally and fixture removed. Scripts and receipts remain in the recorded case for combined candidate/installed acceptance.",
-  "source_check_limits": "Rust parser and diff checks only before batch verification; no type-checking, native acceptance or deployment claimed."
+  "source_check_limits": "Rust parser and diff checks only before batch verification; no type-checking, native acceptance or deployment claimed.",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-ai-context-batch-delivery-20261114.json"
 }

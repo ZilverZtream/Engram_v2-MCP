@@ -62,6 +62,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   `output_json` consistently available. An agent's context is its scarcest resource;
   silent truncation is the worst failure mode because the agent doesn't know it's missing data.
 
+  Database report budgeting installed 2026-11-14: JSON/Markdown reports now
+  honor a complete reply budget with counts, warnings and exact recovery;
+  other response-budget work remains open. [Delivery](eval/ociusx-ai-context-batch-delivery-20261114.json).
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to
@@ -371,6 +375,9 @@ proposals that duplicate the existing surface:
   Exact-name binding, source hashes, SQL batches and bounded traversal are retained.
   Runtime execution and trigger/deployment limits above remain.
   [Batch delivery](eval/ociusx-ai-readiness-batch-delivery-20261114.json).
+  Applicable authored guidance now accompanies returned source paths, refreshes
+  without reindexing and retains complete-source recovery when navigation and
+  policy cannot fit together. [Batch delivery](eval/ociusx-ai-context-batch-delivery-20261114.json).
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 

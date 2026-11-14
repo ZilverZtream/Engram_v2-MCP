@@ -268,6 +268,13 @@ parameter directions. When that file has at most one procedure, it avoids the
 application-code ranking scan. Broader reports retain caller-based procedure
 ranking. These are static SQL observations, not proof of database execution.
 
+`get_sp_details` also locates bracketed CREATE/ALTER declarations and retains
+parsed read/write targets and reverse procedure callers. Database intelligence
+reports default to a 65,536-byte reply budget; follow `response_delivery.next_call`
+to recover an oversized JSON or Markdown report without rerunning analysis.
+Request traces return applicable authored guidance with hashes and recovery;
+recheck guidance for the final edit scope. [Delivery](eval/ociusx-ai-context-batch-delivery-20261114.json).
+
 ### Git temporal intelligence
 
 - `index_git_history` — libgit2-backed commit-graph indexing
