@@ -1,11 +1,11 @@
 //! Query understanding — the deterministic, multi-intent, multi-entity plan the
 //! planner produces and the retrieval DAGs consume.
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 use super::evidence::EvidenceKind;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum Intent {
     Explain,
@@ -21,7 +21,7 @@ pub enum Intent {
     Unknowns,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum EntityKind {
     Symbol,
@@ -174,6 +174,9 @@ pub enum AnswerType {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct QueryPlan {
+    /// Present only when the caller opted into model-assisted query routing.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub model_routing: Option<super::model_routing::RoutingOutcome>,
     pub intents: Vec<(Intent, f32)>, // weighted SET
     pub entities: Vec<EntityMention>,
     pub qualifiers: Qualifiers,

@@ -6,6 +6,7 @@
 //! `EvidenceItem`s straight from the substrate; nothing here parses Markdown.
 
 pub mod evidence;
+pub mod model_routing;
 pub mod plan;
 pub mod planner;
 pub mod providers;

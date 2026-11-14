@@ -1109,6 +1109,14 @@ pub struct AskCodebaseRequest {
     /// Who is asking (role/permissions — carried for future ACL).
     #[serde(default)]
     pub audience: Option<Audience>,
+    /// Opt into one configured model request to suggest additional retrieval
+    /// intents and exact question mentions. Failures retain deterministic routing.
+    #[serde(default)]
+    pub route_with_model: bool,
+    /// Model-routing timeout only (default 5000ms, clamped 1000..30000).
+    /// Independent of retrieval and optional answer synthesis.
+    #[serde(default)]
+    pub routing_timeout_ms: Option<u64>,
     /// Opt into one configured model request to synthesize a cited answer from
     /// the returned evidence. Default false; failures retain retrieval-only output.
     #[serde(default)]

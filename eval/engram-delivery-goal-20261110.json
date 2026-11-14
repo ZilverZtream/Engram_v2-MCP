@@ -40,42 +40,39 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_PUSHED_DEPLOYED_LATENCY_ACCEPTANCE_UNFINISHED",
-    "finding": "TODO32/P4 ordinary planning-dossier latency from repeated project graph scans",
-    "original_requirement": "Usable source-cited planning context for AI; original performance/reliability priority says slow brain tools get dropped from the workflow. Preserve complete scoped evidence and existing per-file limits.",
-    "observed_missing_behavior": "Retained actual OciusX source dossier takes95.1s installed and109.7s candidate. Change-set timings account for25.8s/37.6s. Pattern shape collection scans the entire project once for each of15 candidate files; source method capture repeats a project scan for each source file.",
-    "baseline": "eval/ociusx-feature-dossier-delivery-20261114.json",
+    "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
+    "finding": "TODO28 opt-in model-assisted ask_codebase routing",
+    "original_requirement": "Original natural-language entry point: deterministic router first, optional model routing; keep source-cited retrieval and honest coverage/status.",
+    "observed_missing_behavior": "ask_codebase calls planner::plan_query only; configured generation is used for optional synthesis but cannot assist intent/entity routing. TODO28 explicitly retains model-assisted routing as unfinished.",
     "implementation_files": [
-      "crates/engram_server/src/handlers/file_functions.rs",
-      "crates/engram_server/src/handlers/mod.rs",
-      "crates/engram_server/src/handlers/planning_tools.rs",
-      "crates/engram_server/src/handlers/feature_plan_tools.rs"
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/services/ask_engine.rs",
+      "crates/engram_server/src/services/ask_engine/plan.rs",
+      "crates/engram_server/src/services/ask_engine/planner.rs",
+      "crates/engram_server/src/services/ask_engine/model_routing.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/tools.rs"
     ],
     "acceptance": [
-      "Use existing graph projection once for each initial selected file group, retaining per-file budgets and stored node order; no graph schema/index/cache changes.",
-      "Preserve returned source evidence and pattern exemplars on the unchanged actual OciusX case; native and public generated/dossier/provider-disabled/current-source checks remain.",
-      "Candidate and installed actual dossier each finish within60s under unchanged source/configuration and retain all16 baseline source excerpts and method targets.",
-      "Package/install the verified source, preserve WIP/config/application files and clean newly owned resources."
+      "Default makes zero model-routing requests and preserves deterministic plan/output. Explicit opt-in makes one bounded configured generation request before ordinary source/entity resolution.",
+      "Accepted suggestions add only known intent arms and exact original-question entity mentions. Preserve existing scopes, modalities, answer contracts and deterministic intents; no model-authored evidence or guessed file/symbol identities.",
+      "Provider-disabled/failure/timeout/invalid output retain deterministic retrieval and disclose why routing was not applied in JSON and Markdown. Synthesis remains independent and opt-in.",
+      "Focused native and public candidate/installed MCP fixtures pass. One actual OciusX Swedish caller question routes to usage evidence and is independently compared with current VB source; retain any failure without prompt/model retry tuning.",
+      "Commit/push source, build/package/install, preserve current configuration/OciusX/WIP9 and clean newly owned resources."
     ],
     "limits": [
-      "No CodeMap/Blast work, kernel/SSD investigation, new indexing infrastructure, language expansion or semantic planner claim.",
-      "This is compound planning-intake latency, not closure of all production latency budgets or task-productivity requirements.",
-      "Retain baseline timings and failed/inconclusive evidence. Do not lower acceptance after a failure."
+      "No new tool/provider/configuration, model training or question-specific prompt tuning. No CodeMap/Blast, SQL expansion, indexing or language-support work.",
+      "Question-only model input; suggestions are not facts, and quote/entity validation does not prove semantic correctness or task benefit.",
+      "Prior planning60s acceptance and original19gates remain unfinished."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch",
-    "retention": "Keep scripts/receipts/package here; own and clean each newly created native/public fixture.",
-    "source_commit": "2aa6978783ca0bf6b3bae8d35e76e43222b570da",
-    "native_checks": 25,
-    "retained_timeouts": "retained-pattern-timeouts.json",
-    "retained_candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\candidate1-actual\\acceptance.json",
-    "revision_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2",
-    "revision_reason": "Group newly discovered pending component methods; exact60s/source/pattern criteria unchanged.",
-    "revision_source_commit": "919af1a4c8f36ed094857ab2b935136b90013dc7",
-    "runtime_source_commit": "f0bd533b698299d5bfd6ccb782f931ba9ec7f040",
-    "delivery": "eval/ociusx-planning-node-batch-partial-20261114.json",
-    "bounded_delivery_complete": false,
-    "revised_candidate_seconds": 53.62708720006049,
-    "installed_seconds": 60.182777100009844
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "retention": "Keep source/build/wire/package evidence here; remove newly owned fixtures after handles close. Preserve all preexisting folders.",
+    "progress": "eval/ociusx-ask-routing-progress-20261114.json",
+    "runtime_source_commit": "fce2d2a7da9401715d79d182ec84022b262ab2e2",
+    "implementation_complete": true,
+    "bounded_delivery_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -820,5 +817,61 @@
   "sql_identifiers_delivery": "eval/ociusx-sql-identifiers-delivery-20261114.json",
   "inline_sql_request_trace_delivery": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json",
   "feature_dossier_delivery": "eval/ociusx-feature-dossier-delivery-20261114.json",
-  "planning_node_batch_delivery": "eval/ociusx-planning-node-batch-partial-20261114.json"
+  "planning_node_batch_delivery": "eval/ociusx-planning-node-batch-partial-20261114.json",
+  "retained_planning_node_batch_contract": {
+    "status": "IMPLEMENTED_PUSHED_DEPLOYED_LATENCY_ACCEPTANCE_UNFINISHED",
+    "finding": "TODO32/P4 ordinary planning-dossier latency from repeated project graph scans",
+    "original_requirement": "Usable source-cited planning context for AI; original performance/reliability priority says slow brain tools get dropped from the workflow. Preserve complete scoped evidence and existing per-file limits.",
+    "observed_missing_behavior": "Retained actual OciusX source dossier takes95.1s installed and109.7s candidate. Change-set timings account for25.8s/37.6s. Pattern shape collection scans the entire project once for each of15 candidate files; source method capture repeats a project scan for each source file.",
+    "baseline": "eval/ociusx-feature-dossier-delivery-20261114.json",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/file_functions.rs",
+      "crates/engram_server/src/handlers/mod.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs"
+    ],
+    "acceptance": [
+      "Use existing graph projection once for each initial selected file group, retaining per-file budgets and stored node order; no graph schema/index/cache changes.",
+      "Preserve returned source evidence and pattern exemplars on the unchanged actual OciusX case; native and public generated/dossier/provider-disabled/current-source checks remain.",
+      "Candidate and installed actual dossier each finish within60s under unchanged source/configuration and retain all16 baseline source excerpts and method targets.",
+      "Package/install the verified source, preserve WIP/config/application files and clean newly owned resources."
+    ],
+    "limits": [
+      "No CodeMap/Blast work, kernel/SSD investigation, new indexing infrastructure, language expansion or semantic planner claim.",
+      "This is compound planning-intake latency, not closure of all production latency budgets or task-productivity requirements.",
+      "Retain baseline timings and failed/inconclusive evidence. Do not lower acceptance after a failure."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch",
+    "retention": "Keep scripts/receipts/package here; own and clean each newly created native/public fixture.",
+    "source_commit": "2aa6978783ca0bf6b3bae8d35e76e43222b570da",
+    "native_checks": 25,
+    "retained_timeouts": "retained-pattern-timeouts.json",
+    "retained_candidate_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch\\candidate1-actual\\acceptance.json",
+    "revision_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-node-batch-r2",
+    "revision_reason": "Group newly discovered pending component methods; exact60s/source/pattern criteria unchanged.",
+    "revision_source_commit": "919af1a4c8f36ed094857ab2b935136b90013dc7",
+    "runtime_source_commit": "f0bd533b698299d5bfd6ccb782f931ba9ec7f040",
+    "delivery": "eval/ociusx-planning-node-batch-partial-20261114.json",
+    "bounded_delivery_complete": false,
+    "revised_candidate_seconds": 53.62708720006049,
+    "installed_seconds": 60.182777100009844
+  },
+  "delivery_cadence": {
+    "status": "ACTIVE",
+    "reason": "User objected to repeated compilation dominating delivery. Reduce build frequency while preserving all final acceptance requirements.",
+    "batch_size": 3,
+    "implementation_concurrency": 1,
+    "rule": "Finish the already-running debug build and owned public acceptance for routing. Queue completed source improvements individually. Do not start another release build or install for routing alone. Implement the next two accepted original improvements, then run one combined focused verification/release build and public candidate/installed acceptance for the batch. Keep unvalidated or undeployed states explicit.",
+    "compiled_tests_seconds": 453,
+    "actual_test_execution_seconds": 9.5,
+    "last_release_compile_seconds": 1059,
+    "pending": [
+      {
+        "item": "TODO28 optional model-assisted ask routing",
+        "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
+        "progress": "eval/ociusx-ask-routing-progress-20261114.json"
+      }
+    ],
+    "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected."
+  }
 }

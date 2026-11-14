@@ -1,0 +1,59 @@
+{
+  "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
+  "finding": "TODO28 opt-in model-assisted ask routing",
+  "implementation": {
+    "source_baseline": "f0bd533b698299d5bfd6ccb782f931ba9ec7f040",
+    "source_commit": "fce2d2a7da9401715d79d182ec84022b262ab2e2",
+    "files": {
+      "crates/engram_server/src/models/requests.rs": "45ea405a37ce13a9d68c5f2e24f1c3dbbef3b266bbf78a33a89ca25ccccd52f0",
+      "crates/engram_server/src/handlers/ask_tools.rs": "24e88b586414fbf52d810a0c9d823d7ca6bafd83e9ee829c17afba905d88b455",
+      "crates/engram_server/src/services/ask_engine.rs": "0544cb44874a18b046461b39d60907d2a08843dc369b3273c5ca5d436acc23a7",
+      "crates/engram_server/src/services/ask_engine/plan.rs": "4f7d4ca157894689ee1cd6f7119b9765f8d158139ea44ebdedcf5be214036f01",
+      "crates/engram_server/src/services/ask_engine/planner.rs": "6a8cc2cf26b5d95f4d397322bd315d0b7675ed116287f5ea8a571008e921064a",
+      "crates/engram_server/src/services/ask_engine/model_routing.rs": "df7af995a251fd06d3f0a368599bae2436f3b84a3b842b0ffdaacaaa89ac9ec8",
+      "crates/engram_server/src/services/ask_engine/report.rs": "39121be25d6d9a0612580ba8a694bd5e16cbf8ccc88d8d4a7356951d49dd0a71",
+      "crates/engram_server/src/tools.rs": "4c20613d22438f1ccc2c5c28dea20f645bb441abfdd74d4ba4b2bd32851b4c63"
+    }
+  },
+  "native_checks": 40,
+  "native": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing\\native1.json",
+      "sha256": "3cccde915726a887a90601e9e7f96ab68266bceabbad55018eedb840a50d177f"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing\\native2.json",
+      "sha256": "1a1051e9ee4f9923316705828dafd54af41af3dd9a21bd4ae4a94c7dbb31ade3"
+    }
+  ],
+  "public_checks": 10,
+  "public": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing\\debug1\\acceptance.json",
+    "sha256": "e2e5e61f3a1d2d66c872d1c047b120d827b7bea641869ac7f2812897f6e05dfd"
+  },
+  "build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing\\debug1.json",
+    "sha256": "f62539ee66b18d81b3c8d9eff309d33a978a8c60d162dd3b454b32034e37d98b"
+  },
+  "behavior": "route_with_model=true adds known intent arms and exact question mentions before existing resolution/retrieval; preserves scopes, modalities, answer constraints and deterministic intents. JSON/Markdown expose model provenance or explicit deterministic fallback. Default makes zero routing generation calls.",
+  "remaining": [
+    "One combined release build for three accepted source improvements, then candidate/installed public acceptance and actual OciusX source checks.",
+    "This change is not in the installed runtime. No semantic model reliability, complete caller coverage or task-productivity claim."
+  ],
+  "review": {
+    "kind": "Parent manual review; not independent. Prior CodeRabbit authentication unavailable.",
+    "findings": [],
+    "inspected": [
+      "Question-only bounded model input; one generation with configured retry semantics and explicit timeout.",
+      "Suggestions are typed intents and exact question mentions, not resolved identities, source evidence or overrides of scope/answer constraints.",
+      "Original resolver, source ownership/freshness, evidence ranking and status remain; native and authored public caller evidence pass."
+    ]
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "production_runtime_and_configuration_untouched": true,
+    "owned_new_fixtures_and_build_temporary_resources_removed": true
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing",
+  "retention": "Retain scripts/source/native/build/wire evidence here; no preexisting folder deletion."
+}
