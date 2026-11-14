@@ -30,6 +30,9 @@ mod method_body_policy;
 #[path = "method_source_delivery.rs"]
 mod method_source_delivery;
 
+#[path = "method_info_delivery.rs"]
+mod method_info_delivery;
+
 /// Resolve application-relative directives from hosting evidence, never a
 /// repository-specific folder name. Nested web.config files can configure a
 /// subdirectory, so prefer an explicit application marker or the outermost
@@ -128,6 +131,8 @@ pub struct MethodInfoResult {
     pub session_keys_written: Vec<String>,
     pub complexity_score: u32,
     pub body_preview: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub project_policy_sources: Option<crate::services::project_policy::PolicyContext>,
 }
 
 /// A caller with file location context.
@@ -1502,6 +1507,7 @@ fn build_method_info_with_coverage(
         session_keys_written: session_writes,
         complexity_score: complexity,
         body_preview,
+        project_policy_sources: None,
     };
     let coverage = MethodInfoCoverage {
         callers: callers_status,
@@ -3869,12 +3875,28 @@ impl Engram {
         &self,
         req: GetMethodInfoRequest,
     ) -> Result<CallToolResult, McpError> {
+        crate::handlers::validate_project_id(&req.project_id)?;
+        if let Some(body) = method_info_delivery::recover(&self.state.cfg.data_dir, &req)? {
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
+        let original = self.method_info_evidence(req.clone()).await?;
+        let body = original.content.first().and_then(|content| content.as_text())
+            .ok_or_else(|| McpError::internal_error("Method metadata returned no text", None))?.text.clone();
+        let body = method_info_delivery::finish(&self.state.cfg.data_dir, &req, body)?;
+        Ok(CallToolResult::success(vec![Content::text(body)]))
+    }
+
+    pub(super) async fn method_info_evidence(
+        &self,
+        req: GetMethodInfoRequest,
+    ) -> Result<CallToolResult, McpError> {
         let rec = self.ensure_project_record(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let project_id = req.project_id.clone();
         let fqn_or_name = req.fqn_or_name.clone();
         let file_filter = req.file_path.clone();
         let output_json = req.output_json;
+        let policy_root = std::path::PathBuf::from(&rec.directory);
 
         let result = tokio::task::spawn_blocking(move || {
             // Strategy: query all function nodes that match the name pattern,
@@ -3900,10 +3922,12 @@ impl Engram {
             }
 
             // Build full MethodInfoResult for each match
-            let results: Vec<MethodInfoResult> = candidates
+            let mut results: Vec<MethodInfoResult> = candidates
                 .iter()
                 .map(|n| build_method_info_from_node(n, &graph, &project_id))
                 .collect();
+
+            method_info_delivery::attach_policy(&policy_root, &mut results);
 
             Ok(results)
         })
@@ -3928,6 +3952,7 @@ impl Engram {
                 .await.markdown_parts();
             let mut out = banner.unwrap_or_default();
             out.push_str(&render_method_info_markdown(&results[0]));
+            method_info_delivery::append_policy_markdown(&results, &mut out);
             out.push_str(&footer);
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
@@ -3970,6 +3995,7 @@ impl Engram {
         let (_, footer) = self
             .access_freshness(&req.project_id, &rec.directory, None)
             .await.markdown_parts();
+        method_info_delivery::append_policy_markdown(&results, &mut md);
         md.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(md)]))
     }
@@ -7152,6 +7178,7 @@ mod edit_safety_tests {
                 .collect(),
             complexity_score: complexity,
             body_preview: None,
+            project_policy_sources: None,
         }
     }
 

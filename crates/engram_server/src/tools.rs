@@ -1637,7 +1637,7 @@ impl Engram {
     // ── Phase 38: The Access Layer ────────────────────────────────────────────
 
     #[tool(
-        description = "Fast per-method metadata lookup from the method index. Returns signature, callers, callees, DB tables, session keys, complexity, VB traps, and method kind. Sub-200ms."
+        description = "Per-method indexed metadata: signature, callers/callees, DB tables, session keys, complexity, VB traps and kind. Complete applicable authored guidance is scoped to each returned method file; guidance and indexed previews do not verify current source or runtime behavior. JSON retains an array of method rows with project_policy_sources per row. max_tokens budgets the complete direct reply (default40KiB); oversized reports defer through response_delivery.next_call for exact immutable recovery without a new index/policy read. Recover the complete report before interpreting deferred metadata. Narrow large matches with file_path or a specific FQN. batch_read applies its own combined budget to complete method evidence."
     )]
     pub async fn get_method_info(
         &self,

@@ -3692,8 +3692,18 @@ fn default_max_callers() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct GetMethodInfoRequest {
     pub project_id: String,
+    /// Direct-reply budget (four UTF-8 bytes per estimated token), default40KiB.
+    /// batch_read applies its own combined budget to complete item evidence.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover the immutable original report, without querying the index or guidance.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
     /// Fully qualified name (e.g., "MyNamespace.CheckoutPage.ProcessOrder"),
     /// partial match (e.g., "CheckoutPage.ProcessOrder"), or just "ProcessOrder".
+    #[serde(default)]
     pub fqn_or_name: String,
     /// If ambiguous, filter by file path (partial match).
     #[serde(default)]
