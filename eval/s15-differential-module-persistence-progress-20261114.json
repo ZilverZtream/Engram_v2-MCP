@@ -1,0 +1,45 @@
+{
+  "status": "IMPLEMENTED_NATIVE_GRAPH_VALIDATED_CORPORA_PENDING",
+  "at_utc": "2026-11-14T07:40:38.602912+00:00",
+  "finding": "S15 update_project write amplification",
+  "original_failed_acceptance": "eval/s15-optimized-edit-acceptance-20261114.json",
+  "attribution": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\stage-write-attribution.json",
+    "sha256": "65659956632ffbcf57d80d2bbfeec04067b4c3dbbb2c3cc84480efff124972d3",
+    "symbol_resolver_stage_write_bytes": 123362148,
+    "real_edit_write_bytes": 154026528,
+    "edits": 50,
+    "scope": "Process-wide counter deltas in an isolated diagnostic run; includes IPC/background work, not physical disk writes."
+  },
+  "implementation": {
+    "source_baseline": "a725a33a6c1875b78bc860ee3ef248b0febfdba0",
+    "source_commit": "7ccdb4045ffde737b999ec51bbd17281127409a6",
+    "main_source_commit": "241e224e5c77f7520f0abac76be506086ca695d1",
+    "files": {
+      "crates/engram_graph/src/store/rust_modules.rs": "535d5f65974df7b021f76138f637d689e2191acfd7d9bf3c0d086f71b3dad500",
+      "crates/engram_graph/src/store/typescript_modules.rs": "e2d13de254acedbb27b85a4ab74d323a4d4c47a99c1fff18f10945e097f69050"
+    }
+  },
+  "behavior": "Preserve byte-identical resolved edges and their adjacency rows when another edge changes; persist only actual differences in the existing transaction. TypeScript and the existing generic storage fixture resolver share the targeted correction. No resolution/language-support expansion.",
+  "native_graph_tests_passed": 154,
+  "native_graph_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\targeted-native1.json",
+    "sha256": "baab9e25a8f65863fb1767187cbb8159d643681e2c56c068b7e49b3f02d44323"
+  },
+  "corpus_test_session": 50392,
+  "runtime_deployed": false,
+  "remaining": [
+    "Finish existing TypeScript and Rust source-oracle acceptance.",
+    "Build optimized candidate and repeat original500-edit protocol under unchanged limits, with complete checkpoints/restart/cleanup.",
+    "Verify owned TypeScript public edit behavior, package/install acceptance and preserve sidecar/configuration."
+  ],
+  "diagnostic_build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\diagnostic-build1.json",
+    "sha256": "70c7cdd37201cbb68732c721c9251b878bc5dcdb11b36ce517db03056a87d264",
+    "temporary_sources_restored": true,
+    "owned_build_resources_removed": true,
+    "diagnostic_runtime_fixture_removed": true,
+    "diagnostic_process_threads_handles_closed": true
+  },
+  "resource_accounting": "One initial compile-only filter selected0tests; its retained receipts are named compile-only-zero-filter. Corrected full graph invocation ran154 tests. Corpus tests now run in this task directory; all parked WIP hashes are unchanged."
+}
