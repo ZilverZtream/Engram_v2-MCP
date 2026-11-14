@@ -1767,6 +1767,7 @@ impl Engram {
                 None,
             ));
         }
+        let project_root = PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let (gen_, source_snapshot) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
         let source_snapshot = std::sync::Arc::new(source_snapshot);
@@ -1825,12 +1826,27 @@ impl Engram {
             coverage.lexical_status = "truncated".into();
         }
         if hits.is_empty() {
-            let mut out = format!(
+            let hint = format!(
                 "No code matching pattern '{}' found.\n\
                  hints: use the codebase's own vocabulary (try search_memory first to \
                  discover it); shorter queries match more.",
                 req.pattern_query
             );
+            let policy_root = project_root.clone();
+            let policy = tokio::task::spawn_blocking(move || pattern_policy_context(&policy_root, &[]))
+                .await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let result = PatternJson {
+                query:req.pattern_query.clone(), inferred_kind:kind.as_str().into(),
+                exemplars:vec![], common_shapes:vec![], coverage, project_policy_sources:policy,
+            };
+            if req.output_json {
+                let mut value=serde_json::to_value(&result).map_err(|e| McpError::internal_error(e.to_string(),None))?;
+                value["message"]=serde_json::json!(hint);
+                let text=serde_json::to_string_pretty(&value).map_err(|e| McpError::internal_error(e.to_string(),None))?;
+                return Ok(CallToolResult::success(vec![Content::text(text)]));
+            }
+            let mut out=hint;
+            out.push_str(&result.project_policy_sources.render_markdown());
             out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
@@ -1898,18 +1914,11 @@ impl Engram {
         // Structural pass (A3): shape from the graph + the .aspx on disk.
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
-        let project_dir = self
-            .state
-            .registry
-            .get_project(&req.project_id)
-            .ok()
-            .flatten()
-            .map(|r| r.directory)
-            .unwrap_or_default();
+        let shape_root = project_root.clone();
         let paths: Vec<String> = candidates.iter().map(|(p, _)| p.clone()).collect();
         let shapes: Vec<(String, ExemplarShape, Vec<String>, Vec<String>)> =
             tokio::task::spawn_blocking(move || {
-                let root = std::path::PathBuf::from(project_dir);
+                let root = shape_root;
                 let mut inventories = super::file_functions::collect(
                     &graph, &pid, &paths, 500, super::file_functions::LimitCounts::AllNodes,
                 ).ok();
@@ -1995,12 +2004,16 @@ impl Engram {
             .collect();
         common_shapes.sort_by(|a, b| b.count.cmp(&a.count).then(a.shape.cmp(&b.shape)));
 
+        let policy_paths=exemplars.iter().map(|exemplar| exemplar.path.clone()).collect::<Vec<_>>();
+        let policy=tokio::task::spawn_blocking(move || pattern_policy_context(&project_root,&policy_paths))
+            .await.map_err(|e| McpError::internal_error(e.to_string(),None))?;
         let result = PatternJson {
             query: req.pattern_query.clone(),
             inferred_kind: kind.as_str().into(),
             exemplars,
             common_shapes,
             coverage,
+            project_policy_sources:policy,
         };
         if req.output_json {
             let text = serde_json::to_string_pretty(&result)
@@ -2224,6 +2237,13 @@ pub(crate) struct PatternJson {
     pub exemplars: Vec<PatternExemplar>,
     pub common_shapes: Vec<CommonShape>,
     pub coverage: PatternCoverage,
+    pub project_policy_sources: crate::services::project_policy::PolicyContext,
+}
+
+fn pattern_policy_context(root: &std::path::Path, paths: &[String]) -> crate::services::project_policy::PolicyContext {
+    let mut policy=crate::services::project_policy::resolve(root,paths,&[]);
+    policy.notes.push("Policy scope covers returned exemplar files only, not other ranked candidates, historical co-change leads or every file a future edit may touch. Recheck guidance for the final edit scope. Authored guidance is intended behavior, not proof that an exemplar complies or fits the requested feature.".into());
+    policy
 }
 
 /// The house-pattern key of a handler chain: every target reduced to its
@@ -2540,6 +2560,7 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
         }
     ));
     out.push_str("ranking: file kind, then best lexical relevance; structural density is descriptive and breaks relevance ties, not proof of matching behavior. Repeated chunk hits do not outrank a stronger lexical match.\n");
+    out.push_str(&r.project_policy_sources.render_markdown());
     for ex in &r.exemplars {
         out.push_str(&format!(
             "\n## Exemplar #{}: {} ({} match(es), score {:.2}, structural {})\n",
@@ -2640,6 +2661,37 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
 #[cfg(test)]
 mod implementation_pattern_unit_tests {
     use super::*;
+
+    #[test]
+    fn exemplar_policy_retains_returned_scope_and_live_exceptions_with_root_guidance_on_empty_results() {
+        let owned=tempfile::tempdir().unwrap();
+        std::fs::create_dir_all(owned.path().join(".github/instructions")).unwrap();
+        let root="Preserve authored exceptions. Read [shared guidance](docs/shared.md).\n";
+        std::fs::write(owned.path().join("AGENTS.md"),root).unwrap();
+        for (name,scope,content) in [("vb","Site/Helpers/*.vb","Preserve manual approval before saving."),("script","Site/scripts/*.ts","Preserve the current client contract."),("other","Other/**","Unreturned candidate and historical partner guidance.")] {
+            std::fs::write(owned.path().join(format!(".github/instructions/{name}.instructions.md")),format!("---\napplyTo: '{scope}'\n---\n{content}\n")).unwrap();
+        }
+        let paths=["Site/Helpers/Save.vb".into(),"Site/scripts/save.ts".into()];
+        let policy=pattern_policy_context(owned.path(),&paths);
+        assert_eq!(policy.sources.len(),3);
+        assert!(policy.sources.iter().all(|source| !source.path.ends_with("other.instructions.md")));
+        assert!(policy.sources.iter().any(|source| source.content==root));
+        assert_eq!(policy.reference_coverage,"incomplete");
+        let original=policy.sources.iter().find(|source| source.path.ends_with("vb.instructions.md")).unwrap().blake3.clone();
+        let updated="---\napplyTo: 'Site/Helpers/*.vb'\n---\nPreserve the explicitly accepted approval exception.\n";
+        std::fs::write(owned.path().join(".github/instructions/vb.instructions.md"),updated).unwrap();
+        let refreshed=pattern_policy_context(owned.path(),&paths);
+        let source=refreshed.sources.iter().find(|source| source.path.ends_with("vb.instructions.md")).unwrap();
+        assert_ne!(source.blake3,original);
+        assert_eq!(source.content,updated);
+        assert_eq!(source.blake3,blake3::hash(updated.as_bytes()).to_hex().to_string());
+        assert!(refreshed.render_markdown().contains(updated));
+        let json=serde_json::to_value(&refreshed).unwrap();
+        assert!(json["sources"].as_array().unwrap().iter().any(|row| row["content"]==updated));
+        let empty=pattern_policy_context(owned.path(),&[]);
+        assert_eq!(empty.sources.len(),1);
+        assert_eq!(empty.sources[0].content,root);
+    }
 
     #[test]
     fn strongest_pattern_match_survives_more_than_fifteen_chunk_rich_files() {

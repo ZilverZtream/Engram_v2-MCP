@@ -1,0 +1,39 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "EG01 applicable authored guidance for implementation-pattern exemplars",
+  "original_requirement": "The same applicable complete authored policy reaches planning, editing, retrieval and review; AI callers need accepted conditions and exceptions before imitating code.",
+  "observed_missing_behavior": "find_implementation_pattern currently returns exemplars/common shapes/coverage without project_policy_sources in either format. The empty-match early return is plain text even for output_json and bypasses policy delivery.",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "acceptance": [
+    "Attach the shared complete policy context for returned exemplar paths only, excluding unreturned candidates and historical co-change leads. Preserve source selection, ranking, structural evidence, coverage and source-status limits.",
+    "JSON and Markdown receive the same policy source identities, exact content, hashes, linked references and omissions. Empty results retain root guidance and existing search hints; JSON requests remain structured.",
+    "Live instruction changes update without source reindexing. Oversized or source-capped policy continues to expose the existing exact recovery and incomplete coverage; do not silently trim it.",
+    "Focused native scope/freshness/rendering checks and public candidate/installed fixtures use current unchanged OciusX VB helper/root-guide copies, plus an unrelated policy area. Preserve source/config/WIP9 and source-only dossier consumers; no generated-plan tuning or latency replay."
+  ],
+  "configuration_observed": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "advertise_all_tools": true
+  },
+  "actual_source": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\Site\\App_Code\\visualisering\\code\\FileLayerZoomPolicy.vb",
+    "sha256": "3058bbd43cbac73f034d6ff90dd991d4b046c5cadf3afaf3a7f4596abd7a0f53"
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "limits": [
+    "Policy is authored intent, not proof that exemplar code complies or matches a future feature. Recheck the final edit scope.",
+    "No CodeMap/Blast, ranking, parser, index/storage migration, language expansion or model behavior changes. First source component before the next combined batch verification."
+  ],
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\source-check1.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\baseline1\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-policy-20261114\\verify-public.py",
+  "queued_native_cases": [
+    "Returned exemplar scope and live exception hashes; root guidance on empty results",
+    "Existing implementation-pattern ranking helpers and feature-plan source-dossier checks"
+  ]
+}
