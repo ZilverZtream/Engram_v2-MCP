@@ -426,6 +426,13 @@ fn trim_go_suffix(body: &str) -> &str {
     body
 }
 
+/// Reuse the indexed declaration parser without including procedure body locals.
+/// This exposes declaration metadata only; it does not bind runtime arguments.
+pub fn declared_parameters(source: &str) -> Vec<SpParameter> {
+    let end = find_as_keyword(source).unwrap_or(source.len());
+    extract_parameters(&source[..end])
+}
+
 /// Extract parameters from the region before AS.
 fn extract_parameters(param_region: &str) -> Vec<SpParameter> {
     let Some(param_re) = get_compiled_regex(

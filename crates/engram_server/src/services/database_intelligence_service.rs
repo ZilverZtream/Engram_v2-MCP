@@ -214,21 +214,9 @@ pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic
         .collect();
     data_tables.sort();
 
-    // Extract parameters (only from the declaration section, before AS/BEGIN)
-    static PARAM_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?im)^\s*(@\w+)\s+([\w]+(?:\(\d+(?:,\s*\d+)?\))?)").expect("PARAM_RE")
-    });
-    // Only look at the declaration section (before AS or BEGIN)
-    let decl_end = sp_body
-        .to_uppercase()
-        .find("\nAS\n")
-        .or_else(|| sp_body.to_uppercase().find("\nAS\r\n"))
-        .or_else(|| sp_body.to_uppercase().find("\nBEGIN"))
-        .unwrap_or(sp_body.len());
-    let decl_section = &sp_body[..decl_end];
-    let parameters: Vec<String> = PARAM_RE
-        .captures_iter(decl_section)
-        .map(|c| format!("{} {}", &c[1], &c[2]))
+    let parameters: Vec<String> = engram_index::sp_extractor::declared_parameters(sp_body)
+        .into_iter().map(|parameter| format!("{} {}{}", parameter.name, parameter.sql_type,
+            if matches!(parameter.direction.as_str(), "OUT" | "INOUT") { " OUTPUT" } else { "" }))
         .collect();
 
     let calls: Vec<String> = references.called_procedures.into_iter()
@@ -1451,6 +1439,13 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_sql_parameters_summary_retains_output_and_max_types_without_body_locals() {
+        let sql="CREATE PROCEDURE dbo.SaveApplication\n @Payload NVARCHAR(MAX),\n @ApplicationId UNIQUEIDENTIFIER OUTPUT\nAS\nBEGIN\n DECLARE @BodyLocal INT;\n SELECT 1;\nEND\n";
+        let summary=deterministic_sp_summary("SaveApplication",sql);
+        assert_eq!(summary.parameters,vec!["@Payload NVARCHAR(MAX)","@ApplicationId UNIQUEIDENTIFIER OUTPUT"]);
+    }
 
     #[test]
     fn shared_sql_body_summary_reports_optional_into_writes_and_preserves_parameters() {
