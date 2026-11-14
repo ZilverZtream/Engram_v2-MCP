@@ -10085,7 +10085,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Run one combined focused verification/release and candidate/installed acceptance for ask response budgets, SQL instruction evidence and schema guidance.",
+    "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented components.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14739,7 +14739,8 @@
         "Collected SQL procedure range/hash and changed-versus-unchanged guidance observations",
         "Shared-parser basename collisions remain ambiguous without schema binding"
       ]
-    }
+    },
+    "ask_sql_guidance_batch_progress": "eval/ociusx-ask-sql-guidance-batch-progress-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }

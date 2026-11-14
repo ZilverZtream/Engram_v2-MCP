@@ -962,7 +962,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Run one combined focused verification/release and candidate/installed acceptance for ask response budgets, SQL instruction evidence and schema guidance.",
+  "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented components.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1161,5 +1161,6 @@
       "Collected SQL procedure range/hash and changed-versus-unchanged guidance observations",
       "Shared-parser basename collisions remain ambiguous without schema binding"
     ]
-  }
+  },
+  "ask_sql_guidance_batch_progress": "eval/ociusx-ask-sql-guidance-batch-progress-20261114.json"
 }
