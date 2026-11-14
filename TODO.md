@@ -403,6 +403,11 @@ proposals that duplicate the existing surface:
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 
+  Declared dependency registrations installed 2026-11-14: conventional VB API
+  traces show literal RegisterType contract/implementation spellings with current
+  source citations from their route configuration. Runtime selection/execution
+  remain unproven. [Delivery](eval/ociusx-request-schema-batch-delivery-20261114.json).
+
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.
@@ -734,6 +739,12 @@ value is accuracy, this is the biggest meta-gap.
   explicit SQL file with at most one procedure avoids unused application-code scans.
   Candidate/installed checks passed on unchanged OciusX SQL in owned fixtures;
   broader consolidation remains unfinished. [Delivery](eval/ociusx-sql-analysis-batch-delivery-20261114.json).
+
+  SQL schema/reference analysis installed 2026-11-14: ordinary bracketed
+  foreign keys and sorted primary-key declarations preserve real key names;
+  schema-bound views are recognized; view/trigger references share the existing
+  SQL body recognizers, retaining INTO targets and INSERT without INTO.
+  Full consolidation remains open. [Delivery](eval/ociusx-request-schema-batch-delivery-20261114.json).
 
 - [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/ociusx-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.

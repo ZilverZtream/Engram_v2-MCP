@@ -1,0 +1,235 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T20:50:08.347438+00:00",
+  "improvements": [
+    {
+      "finding": "TODO31",
+      "behavior": "Conventional VB API traces supply current source-cited generic RegisterType declarations from the selected route configuration, including exact declared contract/implementation spellings. Actual OciusX Vetro registration at line45 is supplied. Existing interface candidates and default reply budget remain; no runtime DI/provider/type/order/condition/execution resolution is claimed."
+    },
+    {
+      "finding": "TODO59",
+      "behavior": "Ordinary bare and named single-column SQL foreign-key constraints use the shared qualified-object-name recognizer. Actual aspnet_UsersInRoles now has its two real columns, two foreign keys and clean composite primary-key column names instead of invented FOREIGN columns and ] ASC names. Referential actions and report formats remain."
+    },
+    {
+      "finding": "TODO59",
+      "behavior": "Database intelligence recognizes ordinary WITH SCHEMABINDING views. Actual rl_pris_view and all three source tables are visible in JSON and Markdown. View/trigger table extraction uses shared SQL body recognizers, preserving INTO targets and adding INSERT without INTO; existing keyword/pseudo-table/self-target exclusions remain."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "ff564d30b28ebe481e9cf505933c1a9a0bde3bc8",
+    "source_commit": "306b023abd93bdc27fb25c9e80f41acdad1b4834",
+    "root_source_commit": "0c49ceb2904f467ed5f5ea604ad35de8b90908d7",
+    "components": [
+      "eval/ociusx-route-registrations-progress-20261114.json",
+      "eval/ociusx-schema-keys-progress-20261114.json",
+      "eval/ociusx-schema-view-references-progress-20261114.json"
+    ],
+    "files": {
+      "crates/engram_index/src/sql_parser.rs": "9001bad56fedae861ca713e3460434c69450dd4bda51b5cc000a00a645771a6f",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "3037e8689241d3083fba8f8ac100322ef97b8b4834dd91271c033130427b3feb",
+      "crates/engram_server/src/services/request_trace.rs": "3b23c4ba133cc265e635ab17ac8507d815548b14c80275312ea64f44a1000166",
+      "crates/engram_server/src/services/request_trace/api.rs": "fc87ac5ef7dc021c36c090430c19868fd015fc270782e507c31029b3f6776de8",
+      "crates/engram_server/src/services/request_trace/container_registrations.rs": "78029761e3eca6f7747561d37ab360d0ad8de766c7518f78ae08be348bbe551b",
+      "crates/engram_server/src/tools.rs": "1973c591ad4ba80716d899f149ef28627632ea3ad839b8be6d6b613a8d43d401"
+    }
+  },
+  "root_source_commits": [
+    "190039d",
+    "2455a5c",
+    "0c49ceb"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 55,
+      "required_component_cases": {
+        "route_trace_supplies_current_declared_contract_implementation_without_claiming_runtime_selection": true,
+        "schema_keys_retain_real_columns_and_relationships_for_bare_and_named_declarations": true,
+        "shared_schema_bound_views_render_and_trigger_references_retain_standard_write_targets": true,
+        "shared_sql_body_into_targets_retain_merge_and_select_writes": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "306b023abd93bdc27fb25c9e80f41acdad1b4834",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 8m 12s",
+      "native_test_seconds": 5.41,
+      "resources": "Owned focused native Job/relay/temp fixtures closed and removed; exact logs retained. Candidate/installed verification pending."
+    },
+    "public": {
+      "candidate2": {
+        "route-registrations-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\candidate2\\acceptance.json",
+            "sha256": "ac1bc8e83a1f33f671e5e843f65a8b7725a3b39a642ab1239a61bf26fae3b7e2"
+          },
+          "checks": {
+            "actual_ociusx_route_navigable": true,
+            "existing_default_trace_budget_remains_usable": true,
+            "all_literal_current_configuration_registrations_supplied": true,
+            "vetro_binding_has_exact_current_source_citation": true,
+            "declarations_do_not_claim_runtime_resolution": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "schema-foreign-keys-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\candidate2\\acceptance.json",
+            "sha256": "c80dd9fe5ff09ee69eccfb98b62604502ebc70d0f1c8ff5b418a8a2bf20e3637"
+          },
+          "checks": {
+            "actual_columns_without_invented_foreign_column": true,
+            "actual_primary_key_column_names": true,
+            "both_actual_bracketed_foreign_keys_retained": true,
+            "named_foreign_key_retains_actions_and_real_columns": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "schema-view-references-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\candidate2\\acceptance.json",
+            "sha256": "cf621b7cce72e490611fb611f59111553b7fd6f20991b16de97fce43d3ffdbec"
+          },
+          "checks": {
+            "actual_schema_bound_view_and_all_three_tables": true,
+            "trigger_reads_writes_keep_into_and_add_optional_into_insert": true,
+            "trigger_metadata_keeps_target_and_events": true,
+            "actual_view_visible_in_markdown": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        }
+      },
+      "installed1": {
+        "route-registrations-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\installed1\\acceptance.json",
+            "sha256": "1a24cbfd20d3f5f2f9d78f6657bf9a6db93185dd57fb7ce1abdb9a7dd0cec6bb"
+          },
+          "checks": {
+            "actual_ociusx_route_navigable": true,
+            "existing_default_trace_budget_remains_usable": true,
+            "all_literal_current_configuration_registrations_supplied": true,
+            "vetro_binding_has_exact_current_source_citation": true,
+            "declarations_do_not_claim_runtime_resolution": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "schema-foreign-keys-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\installed1\\acceptance.json",
+            "sha256": "3094a6cf216e3f4f3d633f9558cbbdf1fb509f1b951a138b983e1b6daeeacaf0"
+          },
+          "checks": {
+            "actual_columns_without_invented_foreign_column": true,
+            "actual_primary_key_column_names": true,
+            "both_actual_bracketed_foreign_keys_retained": true,
+            "named_foreign_key_retains_actions_and_real_columns": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "schema-view-references-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\installed1\\acceptance.json",
+            "sha256": "c131d4208407324a065fde6e7e869cb0f7b370a28ddce7929b2de7483510bcf9"
+          },
+          "checks": {
+            "actual_schema_bound_view_and_all_three_tables": true,
+            "trigger_reads_writes_keep_into_and_add_optional_into_insert": true,
+            "trigger_metadata_keeps_target_and_events": true,
+            "actual_view_visible_in_markdown": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        }
+      }
+    },
+    "baselines": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\baseline1\\acceptance.json",
+        "sha256": "14e12e96b7b6a3c43c37ef5fd232ed1b6f5380c03d3ebcdd8103bd5a1ab1ba95"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\baseline1\\acceptance.json",
+        "sha256": "c14e33f42ed6fa3268d18625a5210e33399ce15d57fd079d5bb4c603f538ee32"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\baseline1\\acceptance.json",
+        "sha256": "5d17aa05bf6a0db36c0fd04552a2792fce533948beb0919f97ceb268f3452e7a"
+      }
+    ],
+    "verifier_correction": {
+      "status": "VERIFIER_STDLIB_IMPORT_SHADOW_CORRECTED_NO_BINARY_CHANGE",
+      "failure": "The owned queue.py was imported instead of Python stdlib queue before candidate MCP server startup. Its pending-count guard stopped the helper; no runtime or source implementation change was made.",
+      "failed_deployment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\deployment1-state.json",
+      "failed_candidate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\candidate1\\acceptance.json",
+      "helper_renamed_from": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\queue.py",
+      "helper_renamed_to": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\queue-source.py",
+      "retry_candidate": "candidate2",
+      "retry_deployment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\deployment2-state.json",
+      "compilations_started": 0,
+      "cleanup": "First failed fixture temp removed, no component MCP owner started; config hold closed and owned config copy removed. Prior idle production owner was stopped by the first quiescence step; retry maintains a new exclusive hold and verifies absence before candidate calls."
+    },
+    "retained_failed_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\candidate1\\acceptance.json",
+      "sha256": "5c19b5ef056eb90a04567f7a91fa8ea6babb429b12e2489a8eab9cb8ffe8f7a0"
+    },
+    "retained_failed_deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\deployment1-state.json",
+      "sha256": "12767e989f9feb587690fc4d4382fe77c9470bc196a56202d74e81fabfb806d1"
+    }
+  },
+  "runtime": {
+    "server_sha256": "8ce4c51c7999971e960cc6d76e169eeb31c8038dd647bba6158824b6cbc3a61a",
+    "manifest_sha256": "8a47bc310c27e9976e7ea64c24ea9702919b29ea45aa661a4d24dff30dbc32bb",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\pair1.json",
+      "sha256": "10d6efe9b76612bc7561a7e02d2a88123c30da888f2d30d04fa7104f0da9bff7"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\release1.json",
+      "sha256": "c85802e6696437b2092ad9f48f734e466af818300a5d234b2647a783383622cd"
+    },
+    "release_runner_seconds": 1180.5759801000822,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\deployment2-state.json",
+      "sha256": "b9c0c245988f7c4592d3131b572b3753eaae4e6b5918ba1fbe218c71d11f4a7f"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "66e4c6e9d6a865d1f790a41e4208cda3b4ccc788a87225b4ab1d031dff8f467c"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\Engram-win-x64-request-schema-20261114.zip",
+    "sha256": "B59E2C0E2727EA4BFF5CEB823EE9EFBEF22E97E522F87F3C800969C3103B8439",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "8A47BC310C27E9976E7EA64C24EA9702919B29EA45AA661A4D24DFF30DBC32BB"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "application_sources_and_guidance_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "selected_generation": 3151,
+    "graph_and_index_formats_unchanged": true
+  },
+  "resources": {
+    "owned_test_build_fixture_resources_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and application-owned children in restoration receipt.",
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114"
+    ],
+    "retention": "Keep source/native/build/wire/baseline/package/ZIP evidence for review. Prior runtime pair retained by installer. No preexisting-folder deletion."
+  },
+  "limits": [
+    "Dependency registrations are current source declarations in the selected route configuration only. They do not resolve imports/types/provider, runtime registration order/conditions/lifetime, receiver selection or execution, and do not suppress implementation candidates.",
+    "Schema metadata remains heuristic source declarations with existing basename conventions, not deployed-database binding. Composite foreign-key representation and broader SQL grammar/consolidation remain unfinished.",
+    "Actual unchanged OciusX Web API/table/view/root-guide copies are checked in owned fixtures. The separate trigger fixture is not an asserted OciusX deployed trigger. No production source or Site/Q reads/edits or runtime application/database execution.",
+    "One combined focused native run and one release build; no full suite, generated-plan tuning, new target language, CodeMap/Blast work or productivity claim. Original31findings/19gates and wider usefulness requirements remain unfinished."
+  ]
+}

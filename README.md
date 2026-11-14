@@ -360,6 +360,15 @@ certify current freshness. Method metadata keeps its JSON array format and
 indexed-evidence limits; `batch_read` owns its combined budget.
 [Delivery](eval/ociusx-method-read-batch-delivery-20261114.json).
 
+`trace_user_request` supplies `api_traces[].declared_dependency_registrations`
+for literal VB `RegisterType(Of Contract, Implementation)` calls in the selected
+route configuration. Written type names and source citations are configuration
+evidence; they do not resolve or select the runtime container or receiver.
+`analyze_database_intelligence` retains ordinary named/bare single-column foreign
+keys, clean primary-key column names and schema-bound view/table references.
+These are source declarations, not a deployed database schema check.
+[Delivery](eval/ociusx-request-schema-batch-delivery-20261114.json).
+
 ### Per-method access layer
 
 Precise per-method context retrieval so an agent can touch one method

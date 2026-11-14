@@ -855,25 +855,10 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original OciusX components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 453,
-    "actual_test_execution_seconds": 9.5,
-    "last_release_compile_seconds": 1059,
+    "compiled_tests_seconds": 492.0,
+    "actual_test_execution_seconds": 5.41,
+    "last_release_compile_seconds": 1167.0,
     "pending": [
-      {
-        "item": "Declared route dependency registrations",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
-        "progress": "eval/ociusx-route-registrations-progress-20261114.json"
-      },
-      {
-        "item": "Ordinary OciusX SQL schema keys",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-schema-keys-progress-20261114.json"
-      },
-      {
-        "item": "Shared SQL view/trigger references and schema-bound views",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-schema-view-references-progress-20261114.json"
-      },
       {
         "item": "Shared procedure/body reference engine",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
@@ -881,23 +866,25 @@
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114",
     "completed_last_batch": [
       {
-        "component": "method-body-policy-20261114",
-        "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
+        "component": "route-registrations-20261114",
+        "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
       },
       {
-        "component": "method-source-delivery-20261114",
-        "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
+        "component": "schema-foreign-keys-20261114",
+        "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
       },
       {
-        "component": "method-info-delivery-20261114",
-        "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
+        "component": "schema-view-references-20261114",
+        "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
       }
     ],
-    "last_batch_delivery": "eval/ociusx-method-read-batch-delivery-20261114.json",
-    "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks."
+    "last_batch_delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json",
+    "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
+    "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 8m 12s",
+    "last_release_compile": "Finished `release` profile [optimized] target(s) in 19m 27s"
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -962,7 +949,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish the existing request/schema release and installed verification. This subsequent shared procedure-reference source stays queued for a later combined batch.",
+  "next_user_visible_deliverable": "Continue the later queued shared procedure-reference source and original OciusX backlog under the combined delivery cadence; this request/schema runtime batch is delivered. Do not rebuild per component.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1483,5 +1470,6 @@
       "Actual OciusX view behavior is verified separately from the owned trigger fixture; no claim that OciusX currently deploys that fixture trigger."
     ],
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json"
-  }
+  },
+  "request_schema_batch_delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
 }

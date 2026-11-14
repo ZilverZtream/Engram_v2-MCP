@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "Original TODO59 ordinary SQL schema key extraction",
   "original_requirement": "Consolidate overlapping SQL/table analysis and supply accurate ordinary OciusX SQL metadata for AI workflows.",
   "observed_missing_behavior": "Installed analyze_database_intelligence on unchanged actual aspnet_UsersInRoles.sql loses both standard bracketed foreign keys, invents two FOREIGN columns and retains ] ASC in primary-key column names.",
@@ -15,11 +15,14 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\baseline1\\acceptance.json",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\verify-public.py",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Heuristic source-declared schema metadata, not deployed-database binding or execution. Composite foreign-key representation and other DDL grammar remain outside this selected change.",
     "Unselected observation retained: bare CHECK dispatch was not characterized; do not expand this key fix into a general DDL rewrite."
   ],
-  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

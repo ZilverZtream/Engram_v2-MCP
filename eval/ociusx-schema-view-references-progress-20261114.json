@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "Original TODO59 shared view/trigger table references and ordinary schema-bound views",
   "original_requirement": "Consolidate overlapping SQL/table extraction and supply usable existing OciusX SQL analysis.",
   "observed_missing_behavior": "Installed database intelligence omits actual rl_pris_view.sql because its ordinary WITH SCHEMABINDING declaration is not recognized. View/trigger bodies still use a separate table-reference regex; public fixture trigger misses an INSERT without INTO while retaining existing INTO targets.",
@@ -16,11 +16,14 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\baseline1\\acceptance.json",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\verify-public.py",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Existing heuristic SQL declaration/body analysis and basename conventions remain, not deployed schema binding or runtime execution. No general SQL grammar/optimizer rewrite.",
     "Actual OciusX view behavior is verified separately from the owned trigger fixture; no claim that OciusX currently deploys that fixture trigger."
   ],
-  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json"
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }
