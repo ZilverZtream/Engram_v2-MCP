@@ -1,0 +1,36 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "EG01 scoped method metadata and TODO4 complete reply delivery",
+  "original_requirement": "Applicable authored instructions and bounded complete evidence for existing OciusX method lookup, preserving JSON arrays and composed batch reads.",
+  "observed_missing_behavior": "get_method_info supplies indexed method metadata without applicable guidance, a caller reply budget or immutable recovery.",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/access_layer_tools.rs",
+    "crates/engram_server/src/handlers/method_info_delivery.rs",
+    "crates/engram_server/src/handlers/batch_read_tools.rs",
+    "crates/engram_server/src/handlers/change_set_delivery.rs",
+    "crates/engram_server/src/tool_guidance.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "acceptance": [
+    "Each returned method row retains existing metadata and the JSON root remains an array; complete applicable guidance is scoped to that method file, excluding unrelated scopes and refreshing on a new read without reindexing.",
+    "Markdown preserves existing metadata and appends complete guidance per distinct returned file. Guidance does not turn indexed previews or caller/callee leads into verified current source.",
+    "Positive max_tokens bounds complete direct replies; default40KiB. Overflow explicitly defers all metadata and guidance with exact immutable JSON/Markdown recovery after source/policy edits, without new retrieval.",
+    "batch_read keeps complete method evidence under its own existing shared budget; no nested direct-report deferral. Invalid direct controls and minimum metadata refusal write no snapshot.",
+    "One combined focused native/release/candidate/installed batch for the three queued original components; preserve WIP9, actual OciusX inputs/configuration and accepted deliveries."
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114",
+  "configuration_observed": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+  },
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\baseline1\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\verify-public.py",
+  "limits": [
+    "Existing indexed match/ranking and500-candidate cap remain. Metadata and body previews are not verified current source; existing multi-match Markdown detail limits remain disclosed.",
+    "Complete immutable reports use the existing8MiB/24hour/32snapshot cache. An oversized report refuses and asks for a narrower request; no new cache or indexing infrastructure."
+  ],
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\source-check1.json"
+}

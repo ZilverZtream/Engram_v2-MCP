@@ -138,7 +138,13 @@ impl Engram {
         for (index, item) in request.requests.into_iter().enumerate() {
             let result = match item.request {
                 BatchReadOperation::MethodInfo(arguments) => {
-                    self.handle_get_method_info(arguments).await
+                    if arguments.response_id.is_some() || arguments.response_offset != 0 {
+                        self.handle_get_method_info(arguments).await
+                    } else {
+                        // The batch owns its complete-reply budget. Keep complete
+                        // metadata/guidance here rather than nesting a deferral.
+                        self.method_info_evidence(arguments).await
+                    }
                 }
                 BatchReadOperation::ResolveId(arguments) => self.handle_resolve_id(arguments).await,
                 BatchReadOperation::Chunk(arguments) => self.handle_get_chunk(arguments).await,

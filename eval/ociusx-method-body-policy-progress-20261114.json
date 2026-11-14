@@ -11,7 +11,7 @@
   "acceptance": [
     "Attach shared complete policy context for the returned main file and actually returned nonempty caller bodies; exclude unrelated discovery leads. Cover indexed/explicit bodies, current file excerpts and source_ranges in JSON and Markdown.",
     "Preserve source bytes, ranges, hashes, caller expansion, freshness and all existing method/source qualification fields. Add JSON policy beside the existing result/freshness fields; keep the existing Markdown source first.",
-    "Live instruction changes refresh without source reindexing. Existing32KiB excerpt/source-range complete-reply limits include added policy and refuse instead of silently trimming evidence.",
+    "Live instruction changes refresh without source reindexing. Existing32KiB excerpt/source-range complete replies include added policy. Valid source plus policy overflow defers through exact immutable recovery; original raw source-window limits still refuse without partial windows.",
     "Focused native preservation/scope/freshness/limit checks and candidate/installed public calls on unchanged OciusX VB/root-guide copies in a later combined batch. Preserve config/source/WIP9 and all current deliveries."
   ],
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-body-policy-20261114",
