@@ -1,0 +1,86 @@
+{
+  "status": "FAILED_ORIGINAL_LOGICAL_WRITE_LIMIT",
+  "at_utc": "2026-11-14T07:09:11.078519+00:00",
+  "finding": "S15 optimized sustained-edit acceptance",
+  "runtime_binary_sha256": "9610dc38b795e8f70150729b7dbdb2863b6d2056fe412fcbafb7d27bf9dd00b4",
+  "original_workload_edits": 500,
+  "completed_edits": 271,
+  "last_completed_edit": 271,
+  "completed_maintenance_checkpoints": 5,
+  "complete_source_verifications": 5,
+  "restart_verified": false,
+  "protective_stop": {
+    "phase": "primary",
+    "kind": "cumulative_logical_write_limit",
+    "observed": 1074268421
+  },
+  "rpc_totals": {
+    "index_project": {
+      "calls": 1,
+      "logical_write_bytes": 12713215,
+      "seconds": 0.7914530999260023
+    },
+    "list_projects": {
+      "calls": 1,
+      "logical_write_bytes": 469,
+      "seconds": 0.00037129991687834263
+    },
+    "project_info": {
+      "calls": 1,
+      "logical_write_bytes": 2205,
+      "seconds": 0.000575499958358705
+    },
+    "update_project": {
+      "calls": 275,
+      "logical_write_bytes": 871959218,
+      "seconds": 127.99120880046394
+    },
+    "search_memory": {
+      "calls": 542,
+      "logical_write_bytes": 36098706,
+      "seconds": 9.539343200507574
+    },
+    "vector_search": {
+      "calls": 271,
+      "logical_write_bytes": 37116699,
+      "seconds": 15.902037399238907
+    }
+  },
+  "peak_private_bytes": 155344896,
+  "peak_resident_bytes": 195354624,
+  "fixture_removed": true,
+  "owned_threads_joined": true,
+  "owned_process_handles_closed": true,
+  "runtime_change": false,
+  "S15_closed": false,
+  "S19_closed": false,
+  "next_action": "Attribute update_project write amplification to the existing source-publication/graph/vector stages before selecting a targeted implementation change. Do not rerun this unchanged500-edit workload or raise its limits.",
+  "limits": [
+    "Existing generic Rust-symbol/local-vector fixture; not OciusX VB/JS/SQL or Ollama performance evidence. No language support development.",
+    "Process logical-write counters include IPC and buffered I/O; they are not physical SSD writes or kernel attribution.",
+    "Five checkpoints preserve all51 latest lexical/native declarations and reject obsolete declarations. The process stopped during the next update after271 completed edits; no complete500-edit/restart success is claimed.",
+    "Historical debug/control runs do not isolate the cause of this current optimized result."
+  ],
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\contract.json",
+      "sha256": "b22f9aa9ec0c80c9a24cdb9af177a65f5542c32cc0d12b5aee17c39c4aa4be06"
+    },
+    "report": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\run1\\report.json",
+      "sha256": "4aad1842831ba1686e717fb431eca3180bd6751b29a7eb40abb6ebe56d1fd5c8"
+    },
+    "collection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\run1\\collection-report.json",
+      "sha256": "f498683e5d76091c225ff1f4e6207da006e4bd91ca75fdc438095a7670b7a32f"
+    },
+    "stderr": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\run1\\stderr.log",
+      "sha256": "e278af917a19679653c92add3d428b37f9cc74424abb49e1d0ba2c72ed78e12f"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance",
+    "retention": "Keep reports/logs for the targeted fix and review; the runner-owned fixture has been removed. No preexisting folders removed."
+  }
+}

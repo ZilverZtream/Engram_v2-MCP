@@ -1158,7 +1158,8 @@
       "latest_bounded_observation": "s15_sustained500_empty_delete_suppression_20261103: all500edits+10GC/all51checkscomplete,900sstopduringrestartvalidation. No plateau;private+30.93MiB250..500;nativeitems+408/50. Prior100samebinaryprovesrestartandemptydelete suppression. OverallS15stillOPEN.",
       "latest_sustained_process_evidence": "execution_evidence_20261101.s15_sustained500_explicit_history_policy_20261103",
       "latest_sustained_resource_evidence": "s15_matched500_native_session_rotation_20261103: bothcurrent-native51file500edit10maintenance+11all51checks+restartPASS; finalprivate138.18->96.38MiB,peak169.59->134.88MiB,late250->500growth26.65->2.41MiB; elapsed600.52->594.35s/logicalwrites823.79->826.31MB,one ordereddebugprotocolpair. Allownedfixtures/processhandles/threadsclosed. Not wholeapp/release/production orhardRSSplateau proof.",
-      "previous_state_before_completed500_reconciliation_20261104": "Partial: optimized matched200 real-compaction pair remains valid with lower peak/settled memory but continued late growth. Subsequent native debug500 request stopped at unchanged900s limit after327edits:6GC/full51path checksPASS, no restart/plateau; sourcegroups/ranking bounded, native item count co-grows. Exact counters/cleanup under s15_debug_cycled500_protective_stop_20261103. OPEN."
+      "previous_state_before_completed500_reconciliation_20261104": "Partial: optimized matched200 real-compaction pair remains valid with lower peak/settled memory but continued late growth. Subsequent native debug500 request stopped at unchanged900s limit after327edits:6GC/full51path checksPASS, no restart/plateau; sourcegroups/ranking bounded, native item count co-grows. Exact counters/cleanup under s15_debug_cycled500_protective_stop_20261103. OPEN.",
+      "optimized_sustained_acceptance_20261114": "eval/s15-optimized-edit-acceptance-20261114.json"
     },
     {
       "id": "S16",
@@ -1193,7 +1194,8 @@
       "state": "Partial: matchednativeoptimizedworkloads plus actualno-vectordebug50-file40-edit20-query case nowcoveridle/no-op/edit/settling/restart/ownedteardown. Runtimecountersconfirmnot_compiled,notjustfts_only. Historicaldebugsource/buildlimits andfinaloptimized/deployedvalidation remain; no plateau or feature-only causal claim.",
       "actual_no_vector_evidence": "execution_evidence_20261101.s19_actual_no_vector_application_20261103",
       "startup_noop_evidence": "execution_evidence_20261101.s15_ready_store_startup_noop_20261103",
-      "latest_native_process_evidence": "execution_evidence_20261101.s15_sustained500_explicit_history_policy_20261103"
+      "latest_native_process_evidence": "execution_evidence_20261101.s15_sustained500_explicit_history_policy_20261103",
+      "optimized_sustained_acceptance_20261114": "eval/s15-optimized-edit-acceptance-20261114.json"
     }
   ],
   "recovered_omission": {
@@ -3200,7 +3202,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -10018,21 +10020,33 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DOCUMENTATION_CORRECTED_SOURCE_VERIFIED",
-      "finding": "EG26 current backlog guidance",
-      "original_requirement": "Reconcile roadmap statuses and dated tool/documentation claims so AI callers receive truthful current capability guidance.",
-      "observed_missing_behavior": "Primary TODO states workflow tools are unbuilt/zero implemented, and says edit-session bookends remain, directly contradicting their existing shipped delivery notes. Historical tool counts are presented without clear dating.",
-      "implementation_files": [
-        "TODO.md"
-      ],
+      "status": "ACCEPTANCE_FAILED_TARGETED_FIX_PENDING",
+      "finding": "S15 optimized sustained editing acceptance",
+      "original_requirement": "Many distinct-file edits across checkpoints and restart measure correctness, selector fragmentation, query/GC latency, memory and disk growth.",
+      "missing_evidence": "Existing full500-edit completion uses debug binaries; optimized50-file40-edit evidence does not cover the full500-edit/checkpoint workload.",
+      "implementation_files": [],
+      "runner": "eval/edit_collection_resource_workload.py",
       "acceptance": [
-        "Workflow section describes the existing deployed/partial tools accurately.",
-        "Historical counts and problem descriptions are explicitly dated; unfinished work remains open.",
-        "Existing generated capability matrices remain consistent with source."
+        "Run existing fixed51-file500-edit workload with ten maintenance checkpoints and eleven complete51-file verifications including restart.",
+        "Preserve original900-second,512MiB private/store and1GiB logical-write protective limits; report failures without extending limits.",
+        "Record exact installed optimized binary, resources, cleanup and observations; no production plateau or controlled performance claim."
       ],
-      "scope": "Documentation correction only; no runtime, response-engineering, planner tuning or new evaluations.",
-      "delivery": "eval/ociusx-backlog-guidance-delivery-20261114.json",
-      "bounded_delivery_complete": true
+      "binary_sha256": "9610dc38b795e8f70150729b7dbdb2863b6d2056fe412fcbafb7d27bf9dd00b4",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance",
+      "scope_limits": [
+        "The frozen fixture uses Rust-shaped symbols and local vectors solely as existing generic storage acceptance; no Rust support development.",
+        "Actual OciusX uses VB/WebForms/JS/TS/SQL and Ollama; this run does not measure that application/provider workload or close production resource acceptance.",
+        "No kernel/SSD investigation, new infrastructure, CodeMap/Blast changes or fault-case expansion."
+      ],
+      "retention": "Retain reports and logs; existing runner closes exact owned processes/threads and removes its new fixture.",
+      "previous_goal_turn_classification": "PROGRESS: backlog guidance corrected and published in7ac08d6.",
+      "outcome": "eval/s15-optimized-edit-acceptance-20261114.json",
+      "observed_missing_behavior": {
+        "phase": "primary",
+        "kind": "cumulative_logical_write_limit",
+        "observed": 1074268421
+      },
+      "next_action": "Attribute update_project write amplification to the existing source-publication/graph/vector stages before selecting a targeted implementation change. Do not rerun this unchanged500-edit workload or raise its limits."
     },
     "at_utc": "2026-11-14T06:59:31.869426+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10064,8 +10078,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG26 backlog guidance correction delivered; next original implementation not yet selected",
-    "next_user_visible_deliverable": "Advance a remaining original OciusX workflow requirement after checking existing delivery evidence.",
+    "active_original_item": "S15 update_project write amplification: optimized acceptance failed",
+    "next_user_visible_deliverable": "Attribute update_project write amplification to the existing source-publication/graph/vector stages before selecting a targeted implementation change. Do not rerun this unchanged500-edit workload or raise its limits.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10082,7 +10096,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: corrected stale primary backlog guidance against registered tools and verified existing capability matrices.",
+    "previous_goal_turn_classification": "PROGRESS: executed the original optimized500-edit acceptance; reproducible1GiB protective stop after271 completed edits, five successful full checkpoints, complete owned cleanup. Failure changes next action to update-stage write attribution.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

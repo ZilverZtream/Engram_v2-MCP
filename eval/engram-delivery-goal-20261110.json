@@ -40,21 +40,33 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DOCUMENTATION_CORRECTED_SOURCE_VERIFIED",
-    "finding": "EG26 current backlog guidance",
-    "original_requirement": "Reconcile roadmap statuses and dated tool/documentation claims so AI callers receive truthful current capability guidance.",
-    "observed_missing_behavior": "Primary TODO states workflow tools are unbuilt/zero implemented, and says edit-session bookends remain, directly contradicting their existing shipped delivery notes. Historical tool counts are presented without clear dating.",
-    "implementation_files": [
-      "TODO.md"
-    ],
+    "status": "ACCEPTANCE_FAILED_TARGETED_FIX_PENDING",
+    "finding": "S15 optimized sustained editing acceptance",
+    "original_requirement": "Many distinct-file edits across checkpoints and restart measure correctness, selector fragmentation, query/GC latency, memory and disk growth.",
+    "missing_evidence": "Existing full500-edit completion uses debug binaries; optimized50-file40-edit evidence does not cover the full500-edit/checkpoint workload.",
+    "implementation_files": [],
+    "runner": "eval/edit_collection_resource_workload.py",
     "acceptance": [
-      "Workflow section describes the existing deployed/partial tools accurately.",
-      "Historical counts and problem descriptions are explicitly dated; unfinished work remains open.",
-      "Existing generated capability matrices remain consistent with source."
+      "Run existing fixed51-file500-edit workload with ten maintenance checkpoints and eleven complete51-file verifications including restart.",
+      "Preserve original900-second,512MiB private/store and1GiB logical-write protective limits; report failures without extending limits.",
+      "Record exact installed optimized binary, resources, cleanup and observations; no production plateau or controlled performance claim."
     ],
-    "scope": "Documentation correction only; no runtime, response-engineering, planner tuning or new evaluations.",
-    "delivery": "eval/ociusx-backlog-guidance-delivery-20261114.json",
-    "bounded_delivery_complete": true
+    "binary_sha256": "9610dc38b795e8f70150729b7dbdb2863b6d2056fe412fcbafb7d27bf9dd00b4",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance",
+    "scope_limits": [
+      "The frozen fixture uses Rust-shaped symbols and local vectors solely as existing generic storage acceptance; no Rust support development.",
+      "Actual OciusX uses VB/WebForms/JS/TS/SQL and Ollama; this run does not measure that application/provider workload or close production resource acceptance.",
+      "No kernel/SSD investigation, new infrastructure, CodeMap/Blast changes or fault-case expansion."
+    ],
+    "retention": "Retain reports and logs; existing runner closes exact owned processes/threads and removes its new fixture.",
+    "previous_goal_turn_classification": "PROGRESS: backlog guidance corrected and published in7ac08d6.",
+    "outcome": "eval/s15-optimized-edit-acceptance-20261114.json",
+    "observed_missing_behavior": {
+      "phase": "primary",
+      "kind": "cumulative_logical_write_limit",
+      "observed": 1074268421
+    },
+    "next_action": "Attribute update_project write amplification to the existing source-publication/graph/vector stages before selecting a targeted implementation change. Do not rerun this unchanged500-edit workload or raise its limits."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -793,5 +805,6 @@
     "eg25_closed": false
   },
   "request_trace_budget_delivery": "eval/ociusx-request-trace-budget-delivery-20261114.json",
-  "backlog_guidance_delivery": "eval/ociusx-backlog-guidance-delivery-20261114.json"
+  "backlog_guidance_delivery": "eval/ociusx-backlog-guidance-delivery-20261114.json",
+  "optimized_sustained_edit_outcome": "eval/s15-optimized-edit-acceptance-20261114.json"
 }
