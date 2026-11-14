@@ -312,7 +312,7 @@ fn limit(tool: &str, arguments: &Map<String, Value>, registry: &[Tool]) -> Optio
         .and_then(Value::as_u64);
     let default = match tool {
         "batch_read" => Some(8192),
-        "query_schema" | "detect_n_plus_one" | "find_missing_indexes" | "trace_user_request" => {
+        "query_schema" | "detect_n_plus_one" | "find_missing_indexes" | "trace_user_request" | "analyze_database_intelligence" => {
             Some(16384)
         }
         _ => schema_default,
