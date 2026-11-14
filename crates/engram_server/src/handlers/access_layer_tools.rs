@@ -24,6 +24,9 @@ use std::sync::Arc;
 #[path = "access_layer_tools/context_response.rs"]
 mod context_response;
 
+#[path = "method_body_policy.rs"]
+mod method_body_policy;
+
 /// Resolve application-relative directives from hosting evidence, never a
 /// repository-specific folder name. Nested web.config files can configure a
 /// subdirectory, so prefer an explicit application marker or the outermost
@@ -3971,6 +3974,20 @@ impl Engram {
         &self,
         req: GetFullMethodBodyRequest,
     ) -> Result<CallToolResult, McpError> {
+        let (original,paths)=self.full_method_body_evidence(req.clone()).await?;
+        let root=std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
+        let body=original.content.first().and_then(|content| content.as_text())
+            .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.clone();
+        let strict_limit=if req.source_ranges.is_some() || (req.fqn.is_none() && req.file_path.is_some() && req.line_end.is_none()) {Some(EXCERPT_RESPONSE_BYTES)} else {None};
+        let body=tokio::task::spawn_blocking(move || method_body_policy::attach(&root,&paths,body,req.output_json,strict_limit))
+            .await.map_err(|error|McpError::internal_error(error.to_string(),None))?
+            .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
+        Ok(CallToolResult::success(vec![Content::text(body)]))
+    }
+
+    async fn full_method_body_evidence(
+        &self,req: GetFullMethodBodyRequest,
+    ) -> Result<(CallToolResult,Vec<String>),McpError> {
         validate_source_ranges(&req).map_err(|e| McpError::invalid_params(e, None))?;
         if req.fqn.is_some()
             && (req.file_path.is_some() || req.line_start.is_some() || req.line_end.is_some())
@@ -4007,7 +4024,7 @@ impl Engram {
             if out.len() > EXCERPT_RESPONSE_BYTES {
                 return Err(McpError::invalid_params("source_ranges rendered response exceeds the32KiB budget; no partial windows returned", None));
             }
-            return Ok(CallToolResult::success(vec![Content::text(out)]));
+            return Ok((CallToolResult::success(vec![Content::text(out)]),vec![result.file_path.clone()]));
         }
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
@@ -4109,6 +4126,8 @@ impl Engram {
             )
             .await;
         let (banner,footer)=freshness.markdown_parts();
+        let policy_paths=body_result.caller_bodies.iter().filter(|caller|!caller.source_code.is_empty())
+            .map(|caller|caller.file_path.clone()).chain(std::iter::once(body_result.file_path.clone())).collect::<Vec<_>>();
         loop {
             let out = if output_json {
                 serde_json::to_string_pretty(&FreshAccessResponse {result:&body_result,
@@ -4121,10 +4140,10 @@ impl Engram {
                 out
             };
             let Some(page)=body_result.file_excerpt.as_mut() else {
-                return Ok(CallToolResult::success(vec![Content::text(out)]));
+                return Ok((CallToolResult::success(vec![Content::text(out)]),policy_paths.clone()));
             };
             if out.len()<=EXCERPT_RESPONSE_BYTES {
-                return Ok(CallToolResult::success(vec![Content::text(out)]));
+                return Ok((CallToolResult::success(vec![Content::text(out)]),policy_paths.clone()));
             }
             if page.returned_lines<=1 {
                 return Err(McpError::invalid_params("The first requested line and response metadata exceed the32KiB excerpt response budget; no source was clipped or skipped",None));
