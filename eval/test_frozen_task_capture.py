@@ -49,6 +49,7 @@ class CurrentProducerTests(unittest.TestCase):
         self.tool_error = False
         self.close_error = False
         self.generation_after = 5
+        self.case_generation_overrides = {}
         self.visible_tools = capture.TOOLS | {'get_index_freshness'}
         self.identity = dict(binary=str(self.binary), created_ticks=789)
         outer = self
@@ -68,8 +69,16 @@ class CurrentProducerTests(unittest.TestCase):
                     return {'tools': [{'name': t} for t in outer.visible_tools]}
                 outer.on_call(params)
                 if params['name'] == 'get_index_freshness':
-                    generation = outer.generation_after if len(outer.calls) > 3 else 5
-                    text = (f'project_id: project\ndirectory: {outer.source}\nactive_generation: {generation}\n'
+                    project_id = params['arguments']['project_id']
+                    if 'case_projects' in outer.pins:
+                        project = next(p for p in outer.pins['case_projects'].values()
+                                       if p['project_id'] == project_id)
+                        source = project['source_root']
+                        generation = outer.case_generation_overrides.get(project_id, project['active_generation'])
+                    else:
+                        source = outer.source
+                        generation = outer.generation_after if len(outer.calls) > 3 else 5
+                    text = (f'project_id: {project_id}\ndirectory: {source}\nactive_generation: {generation}\n'
                             'generation_complete: true (1 of 1)\nsource_index_format: current (version 7)\n')
                 else:
                     text = 'Complete tool output\n' + 'line\n' * 4000
@@ -145,6 +154,67 @@ class CurrentProducerTests(unittest.TestCase):
         for case, name in zip(manifest['cases'], names):
             inputs = evaluation.packet(self.destination, manifest, case['id'], 'assisted', [])
             self.assertEqual(inputs['source_inputs']['tool_responses'][0]['request']['name'], name)
+
+    def isolated_case_sources(self):
+        self.spec['version'] = 2
+        self.spec['source_files'] = {}
+        self.pins['case_projects'] = {}
+        for number, case in enumerate(self.spec['cases']):
+            key = case['id']
+            source = self.root / ('source-' + key)
+            source.mkdir()
+            (source / 'entry.vb').write_text('Historical source for ' + key)
+            self.spec['source_files'][key] = {'entry.vb': capture.file_hash(source / 'entry.vb')}
+            self.pins['case_projects'][key] = dict(source_root=str(source), project_id=key,
+                                                  active_generation=number + 1)
+            case['tool_requests'] = [dict(name='derive_test_matrix', arguments={'project_id': key})]
+        self.write(self.pinfile, self.pins)
+
+    def test_historical_cases_capture_distinct_sources_and_verify_each_generation_twice(self):
+        self.isolated_case_sources()
+        self.run_capture()
+        freshness = [p['arguments']['project_id'] for method, p in self.calls
+                     if method == 'tools/call' and p['name'] == 'get_index_freshness']
+        self.assertEqual(sorted(freshness), sorted(list(self.pins['case_projects']) * 2))
+        manifest, _ = evaluation.load(self.destination)
+        for case in manifest['cases']:
+            assisted = evaluation.packet(self.destination, manifest, case['id'], 'assisted', [])
+            self.assertEqual(assisted['source_inputs']['tool_responses'][0]['request']['arguments']['project_id'],
+                             case['id'])
+        before = json.loads((self.destination / 'provenance/before.json').read_text())
+        self.assertEqual(before['source_files'], self.spec['source_files'])
+        self.assertTrue(self.pipe.closed)
+
+    def test_case_request_cannot_use_another_historical_projects_later_code(self):
+        self.isolated_case_sources()
+        self.spec['cases'][0]['tool_requests'][0]['arguments']['project_id'] = self.spec['cases'][1]['id']
+        self.assert_failed('pinned case project')
+        self.assertEqual(self.calls, [])
+
+    def test_unqueried_historical_source_drift_prevents_sealing(self):
+        self.isolated_case_sources()
+        last = self.pins['case_projects'][self.spec['cases'][-1]['id']]
+        def change(request):
+            if request['name'] == 'derive_test_matrix':
+                (Path(last['source_root']) / 'entry.vb').write_bytes(b'later code')
+        self.on_call = change
+        self.assert_failed('source evidence changed')
+        self.assertTrue(self.pipe.closed)
+
+    def test_stale_case_generation_prevents_model_inputs(self):
+        self.isolated_case_sources()
+        self.case_generation_overrides[self.spec['cases'][2]['id']] = 999
+        self.assert_failed('generation differs')
+        self.assertFalse(any(method == 'tools/call' and p['name'] == 'derive_test_matrix'
+                             for method, p in self.calls))
+
+    def test_historical_project_identity_cannot_be_reused_for_two_revisions(self):
+        self.isolated_case_sources()
+        projects = list(self.pins['case_projects'].values())
+        projects[1]['project_id'] = projects[0]['project_id']
+        self.write(self.pinfile, self.pins)
+        self.assert_failed('distinct pinned projects')
+        self.assertEqual(self.calls, [])
 
     def test_missing_requested_tool_fails_before_producer_calls(self):
         self.spec['cases'][0]['tool_requests'][0]['name'] = 'search_history'

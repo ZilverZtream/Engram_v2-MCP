@@ -2,6 +2,7 @@
 import contextlib
 import io
 import json
+from pathlib import Path
 import sys
 import unittest
 from unittest.mock import patch
@@ -90,6 +91,25 @@ class CurrentQualityCheckTests(unittest.TestCase):
         self.assertEqual(result['status'], 'current_producer_quality_failed')
         self.assertEqual(result['execution']['status'], 'complete')
         self.assertEqual(len(result['quality']['failed_cases']), 4)
+
+    def test_public_check_preserves_four_historical_project_pins_through_quality(self):
+        self.fixture.isolated_case_sources()
+        self.fixture.write(self.fixture.specdir / 'spec.json', self.fixture.spec)
+        code, result = self.command()
+        self.assertEqual(code, 0)
+        self.assertEqual(result['producer']['case_projects'], self.fixture.pins['case_projects'])
+        self.assertEqual(len(result['quality']['metrics']), 8)
+        self.assertEqual(len(self.executions), 1)
+
+    def test_check_output_cannot_be_placed_inside_any_historical_source(self):
+        self.fixture.isolated_case_sources()
+        self.fixture.write(self.fixture.specdir / 'spec.json', self.fixture.spec)
+        last = list(self.fixture.pins['case_projects'].values())[-1]
+        self.destination = Path(last['source_root']) / 'check'
+        with self.assertRaisesRegex(ValueError, 'outside the recipe and source roots'):
+            self.command()
+        self.assertFalse(self.destination.exists())
+        self.execute_mock.assert_not_called()
 
     def test_unmet_criteria_fail_the_public_command(self):
         self.quality_failure = 'criterion'

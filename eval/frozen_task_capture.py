@@ -1,7 +1,8 @@
 """Freeze current installed producer replies into the existing four-task corpus.
 
-Private, Windows, existing-daemon only. Never starts a server, opens an index,
-changes configuration, or invokes a model. Failures retain their new evidence.
+Private, Windows, existing-primary only. Never starts a server, opens an index
+directly, changes configuration, or launches candidate/judge models. Requested
+tools may use configured providers. Failures retain their new evidence.
 """
 import ctypes
 from ctypes import wintypes
@@ -189,6 +190,31 @@ def freshness(result, pins):
             'Producer source generation is incomplete, unavailable, or needs recovery')
 
 
+def project_sources(spec, pins):
+    """Pin each historical case to its own source/index, on one producer process."""
+    if spec.get('version') == 1:
+        return {'shared': dict(pins, source_files=spec['source_files'])}, {
+            case['id']: 'shared' for case in spec['cases']}
+    require(spec.get('version') == 2, 'Unsupported capture recipe version')
+    ids = {case['id'] for case in spec['cases']}
+    projects = pins.get('case_projects')
+    require(isinstance(projects, dict) and set(projects) == ids and
+            isinstance(spec.get('source_files'), dict) and set(spec['source_files']) == ids,
+            'Every case needs its own pinned project and source hashes')
+    require(all(isinstance(p, dict) and set(p) == {'source_root', 'project_id', 'active_generation'}
+                and isinstance(p['project_id'], str) and bool(p['project_id'])
+                and isinstance(p['active_generation'], int) and p['active_generation'] > 0
+                for p in projects.values()), 'Invalid case project pins')
+    require(len({p['project_id'] for p in projects.values()}) == len(ids),
+            'Historical cases require distinct pinned projects')
+    roots = [plain(p['source_root']) for p in projects.values()]
+    require(all(not a.is_relative_to(b) and not b.is_relative_to(a)
+                for i, a in enumerate(roots) for b in roots[i + 1:]),
+            'Historical case source roots must be disjoint')
+    return {key: dict(value, source_files=spec['source_files'][key])
+            for key, value in projects.items()}, {key: key for key in ids}
+
+
 def prepare_current(spec_directory, destination, pins_path, *, transport=InstalledPipe,
                     identify=process_identity):
     spec_directory, destination = plain(spec_directory), plain(destination)
@@ -196,20 +222,22 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
             not destination.is_relative_to(spec_directory), 'Capture needs a fresh external destination')
     spec_raw, pins_raw = read(spec_directory / 'spec.json'), read(pins_path)
     spec, pins = json.loads(spec_raw), json.loads(pins_raw)
-    require(spec.get('version') == 1, 'Unsupported capture recipe version')
     cases = spec['cases']
     require(len(cases) == 4 and {c['category'] for c in cases} == evaluation.CATEGORIES and
             len({c['id'] for c in cases}) == 4, 'Exactly four distinct original categories are required')
     require(all(re.fullmatch(r'[A-Za-z0-9_-]{1,80}', c['id']) and
                 isinstance(c['task'], str) and c['task'] for c in cases), 'Invalid case identity or task')
+    projects, case_projects = project_sources(spec, pins)
     requests = [r for c in cases for r in c['tool_requests']]
     require(1 <= len(requests) <= 32 and all(c['tool_requests'] for c in cases), 'Capture request count is invalid')
-    for request in requests:
-        require(set(request) == {'name', 'arguments'} and request['name'] in TOOLS and
-                isinstance(request['arguments'], dict) and
-                request['arguments'].get('project_id') == pins['project_id'] and
-                len(collection.encoded(request)) <= 4096,
-                'Only allowlisted read-only tools for the pinned project are allowed')
+    for case in cases:
+        project = projects[case_projects[case['id']]]
+        for request in case['tool_requests']:
+            require(set(request) == {'name', 'arguments'} and request['name'] in TOOLS and
+                    isinstance(request['arguments'], dict) and
+                    request['arguments'].get('project_id') == project['project_id'] and
+                    len(collection.encoded(request)) <= 4096,
+                    'Only allowlisted read-only tools for the pinned case project are allowed')
     inputs = {spec['oracle'], *spec.get('frozen_metadata', [])}
     for case in cases:
         require(isinstance(case['available_reads'], dict) and len(case['available_reads']) <= 64 and
@@ -227,11 +255,12 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
     canary = oracle['judge_only_canary'].encode()
     require(all(canary not in collection.encoded(parsed_inputs[name]) for c in cases
                 for name in [*c['base_inputs'], *c['available_reads'].values()]), 'Oracle canary leaked into source input')
-    sources = spec['source_files']
-    require(isinstance(sources, dict) and 1 <= len(sources) <= 512 and all(
-        re.fullmatch('[0-9a-f]{64}', h) for h in sources.values()), 'Pin independently prepared source hashes')
-    root = plain(pins['source_root'])
-    require(root.is_dir() and not destination.is_relative_to(root), 'Capture must be outside current source root')
+    for project in projects.values():
+        sources = project['source_files']
+        require(isinstance(sources, dict) and 1 <= len(sources) <= 512 and all(
+            re.fullmatch('[0-9a-f]{64}', h) for h in sources.values()), 'Pin independently prepared source hashes')
+        root = plain(project['source_root'])
+        require(root.is_dir() and not destination.is_relative_to(root), 'Capture must be outside current source root')
     destination.mkdir()
     evidence = {}
     def emit(name, raw):
@@ -262,10 +291,14 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
                     metadata.get('protocol_version') == '1', 'Primary metadata differs from pins')
             identity = identify(pins['primary_pid'])
             require(plain(identity['binary']) == plain(pins['binary']), 'Primary executable differs from pin')
-            hashes = {name: file_hash(relative(root, name), 16 * MAX_BYTES) for name in sources}
-            require(hashes == sources, 'Independent source evidence changed before/during capture')
+            hashes = {}
+            for key, project in projects.items():
+                hashes[key] = {name: file_hash(relative(plain(project['source_root']), name), 16 * MAX_BYTES)
+                               for name in project['source_files']}
+                require(hashes[key] == project['source_files'],
+                        'Independent source evidence changed before/during capture')
             return dict(metadata_sha256=collection.digest(metadata_raw), metadata=metadata,
-                        process=identity, source_files=hashes)
+                        process=identity, source_files=hashes['shared'] if spec['version'] == 1 else hashes)
         before = snapshot()
         emit('provenance/before.json', collection.encoded(before))
         emit('provenance/build-manifest.json', read(Path(pins['build_manifest'])))
@@ -284,8 +317,13 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
             emit(name, collection.encoded(result))
             tool_text(result)
             return result
-        fresh_request = dict(name='get_index_freshness', arguments=dict(project_id=pins['project_id'], check_disk=False))
-        freshness(call(fresh_request, 'provenance/freshness-before.json'), pins)
+        def check_freshness(stage):
+            for key, project in projects.items():
+                request = dict(name='get_index_freshness', arguments=dict(
+                    project_id=project['project_id'], check_disk=False))
+                suffix = '' if spec['version'] == 1 else '-' + key
+                freshness(call(request, f'provenance/freshness-{stage}{suffix}.json'), project)
+        check_freshness('before')
         manifest_cases = []
         for case in cases:
             base = [parsed_inputs[n] for n in case['base_inputs']]
@@ -302,7 +340,7 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
             manifest_cases.append(dict(id=case['id'], category=case['category'], task=case['task'],
                 available_reads={k: 'recipe/' + v for k, v in case['available_reads'].items()},
                 arms=dict(baseline={'input': baseline}, assisted={'input': assisted})))
-        freshness(call(fresh_request, 'provenance/freshness-after.json'), pins)
+        check_freshness('after')
         after = snapshot()
         emit('provenance/after.json', collection.encoded(after))
         require(after == before, 'Process, build, source or primary metadata drift')

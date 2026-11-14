@@ -12,9 +12,10 @@ def check_current(spec, destination, pins, executable, timeout_seconds=900):
     destination = capture.plain(destination)
     spec = capture.plain(spec)
     pinned = json.loads(capture.read(pins))
-    source = capture.plain(pinned['source_root'])
+    sources = [capture.plain(project['source_root']) for project in
+               pinned.get('case_projects', {'shared': pinned}).values()]
     capture.require(not destination.is_relative_to(spec) and
-                    not destination.is_relative_to(source),
+                    all(not destination.is_relative_to(source) for source in sources),
                     'Current check evidence must be outside the recipe and source roots')
     destination.mkdir()  # Never reuse an earlier capture, answer, or judgment.
     started = time.monotonic()

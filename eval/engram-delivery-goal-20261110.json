@@ -40,16 +40,16 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "ACTIVE_SOURCE_CANDIDATES_QUALIFIED_CORPUS_FREEZE_PENDING",
+    "status": "ACTIVE_TASK_INPUTS_FROZEN_PRODUCER_CAPTURE_PENDING",
     "finding": "EG-24 original regular accepted-task verification",
     "original_requirement": "Frozen leakage-controlled tasks covering scoped policy, companion edits, history and diagnosis; measure correctness, false guidance, useful evidence/read cost, context cost and latency.",
     "observed_missing_behavior": "Existing regular check command is delivered but its inspected four-case quality run failed. The claimed corpus absence was based only on a missing literal qa/bench path; actual QA archives provide source candidates. Fresh qualified corpus and isolated source/history remain unfinished.",
     "implementation_files": [
-      "eval/frozen_task_run.py (existing; unchanged)",
-      "eval/frozen_task_capture.py (existing; unchanged)",
-      "eval/frozen_task_eval.py (existing; unchanged)",
-      "README.md",
-      "eval/legacy_validation-qa-archive-qualification-20261114.json"
+      "eval/frozen_task_capture.py",
+      "eval/frozen_task_check.py",
+      "eval/test_frozen_task_capture.py",
+      "eval/test_frozen_task_check.py",
+      "eval/legacy_validation-task-source-isolation-progress-20261114.json"
     ],
     "acceptance": [
       "Verify existing archive metadata, local merge commits and first-parent before/after blobs for four non-Q source candidates; retain hashes and exact private provenance. COMPLETE: 29 eligible records, four source candidates, 46 verified blob copies.",
@@ -68,7 +68,9 @@
       "This archive admission resolves the false corpus-path blocker; it does not close EG24 or establish task usefulness.",
       "Four category assignments are candidates; no frozen accepted corpus or model performance result is claimed.",
       "Prior inspected 19/20 assisted versus20/20 baseline quality failure remains unchanged."
-    ]
+    ],
+    "source_isolation_progress": "eval/legacy_validation-task-source-isolation-progress-20261114.json",
+    "frozen_task_inputs": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

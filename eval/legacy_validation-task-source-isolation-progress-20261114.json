@@ -1,0 +1,95 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_PROTOCOL_AND_INSTALLED_CAPTURE_VALIDATED_EVALUATION_RUNNING",
+  "finding": "EG24 historical source isolation in the existing current-producer evaluator",
+  "missing_behavior": "The existing capture pins one project for all cases. Four archived tasks have distinct historical source states; one mixed/current project would leak later code.",
+  "implementation_files": [
+    "eval/frozen_task_capture.py",
+    "eval/frozen_task_check.py",
+    "eval/test_frozen_task_capture.py",
+    "eval/test_frozen_task_check.py"
+  ],
+  "behavior": "Optional version2 recipes pin one distinct project/root/generation and source hash map per original task, on the same producer process. Validate every source before/during capture and every generation before/after; reject cross-case tool requests. Existing version1 behavior and quality gates retained.",
+  "validation": {
+    "status": "PASS",
+    "exit_code": 0,
+    "elapsed_seconds": 12.26770900003612,
+    "command": "python -B -m unittest test_frozen_task_capture test_frozen_task_check",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\capture-contract",
+    "test_fixture_roots_removed": true,
+    "builds_started": 0,
+    "models_started": 0
+  },
+  "frozen_source_profiles": {
+    "scoped_policy": {
+      "pr": 2031,
+      "original_base": "fd73422ee6a679f7d039943255de941a3b5b3f81",
+      "files": 299,
+      "bytes": 1840741,
+      "filtered_history_commits": 1
+    },
+    "companion_edits": {
+      "pr": 2025,
+      "original_base": "11ce2caf227d2d052977ce8dbcf7e5b3b88db982",
+      "files": 120,
+      "bytes": 2020573,
+      "filtered_history_commits": 1
+    },
+    "history": {
+      "pr": 2082,
+      "original_base": "70755218c1d7a2f74eb30de64ee50844e05bb84f",
+      "files": 46,
+      "bytes": 937023,
+      "filtered_history_commits": 3
+    },
+    "diagnosis": {
+      "pr": 2086,
+      "original_base": "42ef634eeaf79c63dca17abfcd6cd74341564d25",
+      "files": 77,
+      "bytes": 1032969,
+      "filtered_history_commits": 1
+    }
+  },
+  "frozen_inputs": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json",
+  "source_preparation_failure_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\source-preparation-attempt1.json",
+  "candidate_models_started": 0,
+  "builds_started": 0,
+  "remaining": [
+    "Collect the same live evaluation once; retain any failed criterion or execution without retuning/replay.",
+    "Verify owned runtime cleanup and unchanged configuration/work; publish honest outcome. Hosted/held-out and implementation-benefit limitations remain separate."
+  ],
+  "limits": [
+    "Bounded archive-derived planning/diagnosis packets, not a full repository implementation trial or uninspected implementation holdout.",
+    "No task-quality, productivity or ranking gain is established by the capture protocol tests.",
+    "The runtime binary is unchanged."
+  ],
+  "installed_capture": {
+    "directory": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\check\\capture",
+    "manifest_sha256": "d2a5478e2b6e0a5b965f68063960cdc5f3bd5299b102f1587521b3453b7e3ec3",
+    "pins": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\pins.json",
+    "producer_projects": 4,
+    "producer_requests": 4,
+    "source_and_generation_checks": "All four before/after checks passed; one installed producer process with private stores."
+  },
+  "source_profiles_sha256": "97231f5dc64ebb10a252d77a37e238b6228e94bc2a52d74d0c8636a929cd1137",
+  "frozen_inputs_sha256": "a7fe087e150d4f50257b6e7d510177713369ed174ca70de42db461f1e9c8f68d",
+  "provider_profile": {
+    "embedding_backend": "ollama",
+    "embedding_model": "nomic-embed-text",
+    "llm_backend": "openai",
+    "llm_provider": "openrouter",
+    "llm_model": "openai/gpt-5.6-luna"
+  },
+  "config_overrides": [
+    "data_dir",
+    "allowed_roots",
+    "log_file",
+    "multi_client",
+    "multi_client_daemon"
+  ],
+  "resources": {
+    "controller_session": 95389,
+    "primary_pid": 47072,
+    "runtime_stores": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\owned-runtime-iqzy03vp\\data",
+    "cleanup": "Controller closes its primary/reader/pipes before deleting only the newly owned runtime directory. Frozen source/evaluation evidence retained; actual project stores unchanged."
+  }
+}

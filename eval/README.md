@@ -138,7 +138,8 @@ python -B eval/frozen_task_run.py prepare <new-private-corpus> <new-private-run>
 ```
 
 `prepare-current` connects only to an already running Windows Engram primary.
-It does not start services, change configuration, open databases or run models.
+It does not start services, change configuration, open databases directly or
+launch candidate/judge models. Requested tools may use their configured providers.
 `pins.json` requires `binary`, `binary_sha256`, `build_manifest`,
 `build_manifest_sha256`, `primary_metadata`, `primary_pid`,
 `primary_started_at_ms`, `source_root`, `project_id`, and `active_generation`.
@@ -158,6 +159,20 @@ collector's allowlist. Mutating and unknown tool requests remain rejected before
 connecting. Supply an oracle
 with `judge_only_canary` and `cases[id].criteria` as in existing frozen corpora.
 Freeze tasks, criteria and source evidence independently before capture.
+
+Historical cases with different source states can use `version: 2` in that same
+recipe. Keep the common binary/manifest and primary-process pins; replace the
+three shared project fields in `pins.json` with `case_projects`, keyed by the
+four case IDs. Each value contains `source_root`, `project_id` and
+`active_generation`. In `spec.json`, `source_files` is then keyed by those same
+case IDs, each containing that case's path-to-SHA256 map. The four projects must
+have distinct IDs and disjoint source roots. Every tool request must name its
+own case's project; a different case's project is rejected before connecting.
+All four source maps are checked throughout capture and each project's generation
+is checked before and after producer calls. The comparison still has exactly
+four categories, eight candidates, one separate judge and the existing quality
+gates. Preparing faithful historical source/history remains the operator's job;
+the capture does not create snapshots or prove a complete repository trial.
 
 The new destination retains the recipe before any producer query, full replies,
 tools/list, freshness observations, process/build pins and selected source
