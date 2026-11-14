@@ -1,0 +1,34 @@
+{
+  "status": "THREE_SOURCE_COMPONENTS_NATIVE_VERIFIED_PENDING_RELEASE",
+  "implementation": {
+    "source_baseline": "f2185739e729a8cb6f9abfa4e4d82421d7012f48",
+    "source_commit": "bfbdf611339c31610441a23c985c723f0d58ab3f",
+    "files": {
+      "crates/engram_index/src/sql_parser.rs": "6fbecdd47832afc9b8082fca171bb64fd97172d9bbe59cd1b6b2177f03574c52",
+      "crates/engram_index/src/sp_extractor.rs": "0130d4618a0692aec5b69af7d7c96dedf88ad4c0156401793ea81f583f320bd5",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "f9683600077dd5b03830543d4bc5e04a7b05d686161cd4a022360408ec6386ea",
+      "crates/engram_server/src/handlers/migration_tools.rs": "4175a9b2b88276eb7048387efc8350b13de5021fb8e007deac665068129b2a39"
+    }
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 88,
+    "current_index_module_checks": 83,
+    "reused_server_checks": 5,
+    "current_index": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114\\native2.json",
+    "server": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114\\native-server-control1.json",
+    "legacy_server_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114\\native-server-legacy1.log",
+    "basis": "Server source and declaration parser are unchanged since the compiled passing server checks. Only shared helper JOIN capture selection changed; the corrected helper and full SQL parser module pass83cases. The release executable still requires candidate/installed public validation.",
+    "retained_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114\\native1.json"
+  },
+  "findings": [
+    "Shared SQL references and optional-INTO writes",
+    "Shared declaration parameters retain OUTPUT",
+    "Single-procedure explicit SQL report skips unused code ranking"
+  ],
+  "pending": [
+    "One combined release build and candidate/installed owned MCP acceptance before deployment.",
+    "Full TODO59 and original goal remain unfinished."
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114"
+}
