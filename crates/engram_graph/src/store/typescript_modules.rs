@@ -456,11 +456,17 @@ impl GraphStore {
         {
             return Ok(0);
         }
+        let mut changed = 0;
         {
             let mut table = wtx.open_table(EDGES)?;
             let mut outgoing = wtx.open_table(ADJ_OUT)?;
             let mut incoming = wtx.open_table(ADJ_IN)?;
             for (key, edge) in &old {
+                if let Some(next) = desired.get(key)
+                    && bincode::serialize(edge)? == bincode::serialize(next)? {
+                    continue;
+                }
+                if !desired.contains_key(key) { changed += 1; }
                 table.remove(key.as_str())?;
                 outgoing.remove((
                     adj_key(project, &edge.edge_kind, &edge.source_id).as_str(),
@@ -473,6 +479,11 @@ impl GraphStore {
             }
             for (key, edge) in &desired {
                 let bytes = bincode::serialize(edge)?;
+                if let Some(previous) = old.get(key)
+                    && bincode::serialize(previous)? == bytes {
+                    continue;
+                }
+                changed += 1;
                 table.insert(key.as_str(), bytes.as_slice())?;
                 let bytes = encode_adj_value(edge.weight, edge.updated_at_ms);
                 outgoing.insert(
@@ -491,7 +502,6 @@ impl GraphStore {
                 )?;
             }
         }
-        let changed = desired.len() + old.keys().filter(|k| !desired.contains_key(*k)).count();
         wtx.commit()?;
         Ok(changed)
     }
