@@ -10055,7 +10055,9 @@
         "Historical reference comes from pinned guidance rather than current checkout"
       ],
       "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. Native and public behavior are not claimed yet.",
-      "temporary_resources": "Only source-check/focus scripts and receipts in the recorded case. No server, fixture database, build or application source edit for this component. Retain evidence with the combined delivery."
+      "temporary_resources": "Only source-check/focus scripts and receipts in the recorded case. No server, fixture database, build or application source edit for this component. Retain evidence with the combined delivery.",
+      "source_commit": "de2b10a",
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references\\source-check1.json"
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10088,7 +10090,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Implement the next ready original OciusX item while this completed source component awaits combined verification; do not rebuild it alone.",
+    "next_user_visible_deliverable": "Implement the third ready original OciusX component, then verify and release both queued components and that third item together. Do not rebuild either queued component alone.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14451,6 +14453,12 @@
           "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
           "source_commit": "62e30e1",
           "progress": "eval/ociusx-js-ts-heritage-progress-20261114.json"
+        },
+        {
+          "item": "EG27 linked guidance reference disclosures",
+          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+          "source_commit": "de2b10a",
+          "progress": "eval/ociusx-policy-reference-progress-20261114.json"
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
