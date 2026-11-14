@@ -656,6 +656,11 @@ value is accuracy, this is the biggest meta-gap.
 - [ ] **59. Consolidate the 3 overlapping DB-analysis services** (M)
   `database_intelligence_service`, `db_strategy_service`, parts of
   `full_project_migration_service` re-implement SQL parsing/table extraction.
+  Partial delivery 2026-11-14: shared qualified object-name recognition and
+  basename normalization correct ordinary `dbo.Table` / `[dbo].[Table]` analysis.
+  Native statement/SP/report checks and candidate/installed public dependency
+  reports pass. Full service consolidation remains open; public scaffold method
+  emission remains unverified. See `eval/ociusx-sql-identifiers-delivery-20261114.json`.
 
 - [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/ociusx-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.

@@ -1,0 +1,113 @@
+{
+  "status": "DEPLOYED_BOUNDED_EXTRACTION_STEP",
+  "at_utc": "2026-11-14T09:20:57.654361+00:00",
+  "original_requirement": "TODO59 consolidation of duplicated SQL analysis/table extraction; complete three-service consolidation remains open.",
+  "delivered_behavior": [
+    "Statement analysis of UPDATE dbo.aspnet_Membership identifies aspnet_Membership and generates the corresponding table-based method name.",
+    "Shared qualified object recognition preserves the table and alias in the OciusX-shaped dbo.aspnet_Users JOIN [dbo].[aspnet_Membership] query.",
+    "Public database intelligence over authored qualified read/write SQL reports aspnet_Membership and aspnet_Users; the prior installed runtime returned an empty dependency list."
+  ],
+  "ociusx_source_evidence": [
+    "Site/App_Code/users-security/code/SetPwdManager.vb:312",
+    "Site/App_Code/users-security/code/AccountSecurityStateRepository.vb:81"
+  ],
+  "implementation": {
+    "source_baseline": "7ccdb4045ffde737b999ec51bbd17281127409a6",
+    "source_commit": "5e18c5b82039d27364434b488ddca87a94785c21",
+    "root_source_commit": "dd79f153cf285a4fae6e8d77ea5f2e44d48f8636",
+    "files": {
+      "crates/engram_index/src/sql_names.rs": "205ae8c0dacc3f23d6c219eb2aa31c03eac3ab0346d38330e46a5a65757bd666",
+      "crates/engram_index/src/lib.rs": "e24e6130d7bb6bdb84238aaf8769d3ad4a7ee2e8f07d6b98c269c2ff3ae1afdc",
+      "crates/engram_index/src/sql_parser.rs": "662f8153ab4758130d1b2f9bc6f4554137f240cf48df4a4fe8eefd44ccac8611",
+      "crates/engram_index/src/sp_extractor.rs": "b1bee322504a4370e2f0603a8d15dd26da5da9960cbbabeb251f7d9b894bcf01",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "6a5b58346615962625b353e1d20bfc51fbdd837eebe301a032949491ddee4b8b"
+    }
+  },
+  "native_checks": {
+    "statement_analysis": 82,
+    "stored_procedure_extraction": 44,
+    "database_intelligence": 29,
+    "total_final_source_checks": 155,
+    "existing_scaffold_checks": 13
+  },
+  "candidate": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\candidate1\\acceptance.json",
+    "sha256": "a89ebb7f1e542ce1ae3fb1cfb2cb515ee1aee2283293ea780c33529194542041"
+  },
+  "installed": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\installed1\\acceptance.json",
+    "sha256": "73baf7cc4b5d8bfc994449258db061a4d5376e085333156fdc44a1825c0e31b3"
+  },
+  "before": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\baseline-public2\\database-intelligence.json",
+    "sha256": "b50778341f101dbf19b19667d6fefdc6f9cdae79ea1529c0a6c062c9c5ba3fb6"
+  },
+  "build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\release2.json",
+    "sha256": "0a57e13f72bfcd534d973059993473884db8b590a3bddd7f4c80a5d0143440a0"
+  },
+  "package": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\package1",
+    "server_sha256": "4bdd6ab7e31e6a4e7dab62f71ba844ba5605f79474c05282c231139e906ce1d9",
+    "manifest_sha256": "8eae57892ff9958fea5231171d439edbd10ebd93c91ac4f8586a21025037dff9",
+    "old_server_sha256": "268771bc22d2b5c59c69ef710f76f7701b9b82efcef672a9f6c9b8e8b8c93f67",
+    "old_manifest_sha256": "99989d044311b77cf54a9d2b0a10205dd7da5ea72d69f7fa24d043d448a20c7f",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\release2.json",
+      "sha256": "0a57e13f72bfcd534d973059993473884db8b590a3bddd7f4c80a5d0143440a0"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "99989d044311b77cf54a9d2b0a10205dd7da5ea72d69f7fa24d043d448a20c7f"
+    },
+    "source_commit": "5e18c5b82039d27364434b488ddca87a94785c21"
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\Engram-win-x64-sql-identifiers-20261114.zip",
+    "sha256": "02666D69EA999ABA832E146F984BE01BF17D2D3FE781725D55A4AD07994CDA20",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "8EAE57892FF9958FEA5231171D439EDBD10EBD93C91AC4F8586A21025037DFF9"
+  },
+  "preservation": {
+    "parked_wip_byte_pins_unchanged": true,
+    "production_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "production_registry_selection_and_other_metadata_unchanged": true,
+    "unchanged_companion_assets": 214
+  },
+  "resources": {
+    "new_test_fixtures_removed": true,
+    "all_owned_processes_and_handles_closed": true,
+    "read_only_config_hold_released": true,
+    "owned_config_copy_removed": true,
+    "cancelled_build1_job_and_temp_clean": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers",
+    "retained_purpose": "Delivery receipts, reproducible scripts, complete package and ZIP retained for review; no preexisting folder deletion."
+  },
+  "retained_failed_or_inconclusive_receipts": [
+    "baseline1.json: desired behavior fails before implementation",
+    "native1.json: implementation copy had not reached runtime checkout; failure retained",
+    "baseline-public1: empty scaffold makes method assertions inconclusive",
+    "baseline-public2: stronger scaffold assertion correctly failed; fixtures removed",
+    "release1.json and release1-cancellation.json: premature build cancelled after commit hook; neutral names committed without bypass"
+  ],
+  "limits": [
+    "Heuristic basename extraction; no full SQL grammar, schema binding, alias/CTE resolution, database execution or target-language expansion.",
+    "Full TODO59 three-service consolidation remains unfinished.",
+    "Public scaffold fixture emits no SQL repository methods; no public scaffold improvement claimed. This finding is recorded, not automatically selected as next work.",
+    "Authored public fixture proves the stated report behavior; no general AI productivity or full production-database accuracy claim.",
+    "Original19release gates remain open; delta applicability is separate.",
+    "GitHub Actions setting remains unchanged and packaging CI is held awaiting explicit user choice."
+  ],
+  "review": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers\\review1.json",
+    "sha256": "bcff643c7f18262a847bdefc0135be702665180adcb6f84f0f136f1a2dc9f7f2"
+  },
+  "goal_status": "active",
+  "next_action": "Advance another ready original OciusX improvement; no more SQL-name edge-case hardening."
+}
