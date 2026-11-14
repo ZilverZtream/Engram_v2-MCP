@@ -320,6 +320,25 @@ navigation budget, its metadata remains inline with `status: "deferred"` and
 `response_delivery.next_call` before relying on that guidance. Partial quotations
 are not substituted for complete instructions.
 
+### Database analysis delivery
+
+`analyze_database_intelligence` defaults to a 65,536-byte complete reply budget
+and accepts positive `max_tokens` (estimated UTF-8 bytes divided by four).
+Small JSON and Markdown reports retain their existing format. Oversized reports
+return counts, warnings and `response_delivery.next_call` for exact original
+recovery through the same tool's `response_id` and `response_offset` controls.
+Recovery does not rescan SQL or require the original file to remain present.
+Concatenate UTF-8 content by byte offset and verify BLAKE3 against `response_id`.
+Snapshots retain the existing 24-hour/32-report project limits. Report counts
+remain subject to existing discovery and `sp_limit` selection; this delivery
+does not establish complete database coverage or runtime effects.
+
+`get_sp_details` uses the shared indexed declaration parser to locate bracketed
+CREATE/ALTER procedures and their original source through the SQL batch boundary.
+Read/write tables (including overlap and MERGE) and reverse procedure callers use
+the same parser. This legacy report uses basenames; schema identity and runtime
+execution are not established.
+
 ### Optional ask_codebase synthesis
 
 `ask_codebase` includes `project_policy_sources` in JSON and a repository policy
