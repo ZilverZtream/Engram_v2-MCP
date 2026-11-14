@@ -362,15 +362,38 @@ pub(crate) fn find_procedure_source(
             if !definition.name.eq_ignore_ascii_case(name) { continue; }
             // The shared parser reports zero-based inclusive line spans. Keep
             // the original declaration and bytes, stopping at its SQL batch.
-            let body: String = source.split_inclusive('\n')
-                .skip(definition.start_line as usize)
-                .take((definition.end_line - definition.start_line + 1) as usize)
-                .take_while(|line| !line.trim().eq_ignore_ascii_case("GO"))
-                .collect();
-            return Some((path.clone(), body.trim_end().to_owned(), definition));
+            let body = procedure_source_text(source, &definition);
+            return Some((path.clone(), body, definition));
         }
     }
     None
+}
+
+fn procedure_source_text(source: &str, definition: &engram_index::sp_extractor::StoredProcedureDefinition) -> String {
+    source.split_inclusive('\n')
+        .skip(definition.start_line as usize)
+        .take((definition.end_line - definition.start_line + 1) as usize)
+        .take_while(|line| !line.trim().eq_ignore_ascii_case("GO"))
+        .collect::<String>().trim_end().to_owned()
+}
+
+fn summarize_catalog_procedures(catalog: &StoredProcedureCatalog, sql_files: &[(String, String)]) -> Vec<SpBusinessLogic> {
+    let mut wanted: HashMap<String,Vec<usize>> = HashMap::new();
+    for (index, procedure) in catalog.procedures.iter().enumerate() {
+        wanted.entry(procedure.name.to_ascii_lowercase()).or_default().push(index);
+    }
+    let mut summaries: Vec<Option<SpBusinessLogic>> = vec![None;catalog.procedures.len()];
+    for (_, source) in sql_files {
+        if wanted.is_empty() {break;}
+        for definition in engram_index::sp_extractor::parse_sp_definitions(source) {
+            let Some(indices) = wanted.remove(&definition.name.to_ascii_lowercase()) else {continue;};
+            let body = procedure_source_text(source,&definition);
+            for index in indices {
+                summaries[index] = Some(deterministic_sp_summary(&catalog.procedures[index].name,&body));
+            }
+        }
+    }
+    summaries.into_iter().flatten().collect()
 }
 
 /// Build linear procedure call paths and cycles using the shared parser.
@@ -1163,15 +1186,7 @@ pub fn build_database_intelligence(
     }
 
     // SP business logic (deterministic)
-    let sp_logic: Vec<SpBusinessLogic> = sp_catalog
-        .procedures
-        .iter()
-        .filter_map(|sp| {
-            // Find the SP body in sql_files
-            let body = find_sp_body(sql_files, &sp.name)?;
-            Some(deterministic_sp_summary(&sp.name, body))
-        })
-        .collect();
+    let sp_logic = summarize_catalog_procedures(sp_catalog, sql_files);
 
     // SP call chains
     let sp_call_chains = detect_sp_call_chains(sql_files);
@@ -1210,35 +1225,6 @@ pub fn build_database_intelligence(
         sql_scripts,
         warnings,
     }
-}
-
-/// Find the body of a stored procedure in SQL files.
-fn find_sp_body<'a>(sql_files: &'a [(String, String)], sp_name: &str) -> Option<&'a str> {
-    static SP_BODY_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?")
-            .expect("SP_BODY_RE")
-    });
-
-    for (_path, content) in sql_files {
-        // Collect all SP positions first to find boundaries
-        let sp_positions: Vec<(String, usize)> = SP_BODY_RE
-            .captures_iter(content)
-            .map(|cap| {
-                (
-                    cap[1].to_string(),
-                    cap.get(0).expect("group 0 always present").start(),
-                )
-            })
-            .collect();
-
-        for (i, (name, start)) in sp_positions.iter().enumerate() {
-            if name.eq_ignore_ascii_case(sp_name) {
-                let end = sp_positions.get(i + 1).map_or(content.len(), |(_, s)| *s);
-                return Some(&content[*start..end]);
-            }
-        }
-    }
-    None
 }
 
 // ── Rendering ────────────────────────────────────────────────────────────────
@@ -1489,6 +1475,25 @@ mod tests {
         let tables=HashSet::new();
         assert_eq!(serde_json::to_value(build_database_intelligence(&ranked,&sql,&tables)).unwrap(),
             serde_json::to_value(build_database_intelligence(&unranked,&sql,&tables)).unwrap());
+    }
+
+    #[test]
+    fn canonical_procedure_sources_keep_alter_forms_catalog_order_and_batch_bound_hashes() {
+        use crate::services::full_project_migration_service::build_sp_catalog_public;
+        let first = "CREATE PROCEDURE [dbo].[First] AS\r\nBEGIN\r\n SELECT Id FROM dbo.Alpha;\r\nEND";
+        let second = "ALTER PROCEDURE [dbo].[Second] AS\nBEGIN\n SELECT Id FROM dbo.Beta;\nEND";
+        let third = "CREATE OR ALTER PROCEDURE dbo.Third AS\nBEGIN\n SELECT Id FROM dbo.Gamma;\nEND";
+        let source = format!("{first}\r\nGO\r\nINSERT INTO DeploymentOnly(Id) VALUES(1);\r\nGO\r\n{second}\nGO\n{third}\nGO\n");
+        let files = vec![("procedures.sql".into(),source)];
+        let mut catalog = build_sp_catalog_public(&files,&[],20);
+        catalog.procedures.sort_by(|left,right|right.name.cmp(&left.name));
+        let report = build_database_intelligence(&catalog,&files,&HashSet::new());
+        assert_eq!(report.sp_logic.iter().map(|logic|logic.sp_name.as_str()).collect::<Vec<_>>(),vec!["Third","Second","First"]);
+        for (name,table,body) in [("First","Alpha",first),("Second","Beta",second),("Third","Gamma",third)] {
+            let summary = report.sp_logic.iter().find(|summary|summary.sp_name==name).unwrap();
+            assert_eq!(summary.data_tables,vec![table]);
+            assert_eq!(summary.content_hash,engram_core::ids::ContentHash::compute(body.as_bytes()).0);
+        }
     }
 
     #[test]
