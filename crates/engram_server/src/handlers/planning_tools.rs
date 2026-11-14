@@ -41,6 +41,9 @@ struct FootprintEvidence {
 #[path = "change_set_delivery.rs"]
 pub(crate) mod change_set_delivery;
 
+#[path = "footprint_delivery.rs"]
+mod footprint_delivery;
+
 #[cfg(test)]
 #[path = "planning_tools/source_reader_tests.rs"]
 mod source_reader_tests;
@@ -1027,8 +1030,20 @@ impl Engram {
         &self,
         req: GetConceptFootprintRequest,
     ) -> Result<CallToolResult, McpError> {
-        let evidence = self.concept_footprint(req).await?;
-        Ok(CallToolResult::success(vec![Content::text(evidence.text)]))
+        validate_project_id(&req.project_id)?;
+        if let Some(body)=footprint_delivery::recover(&self.state.cfg.data_dir,&req)? {
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
+        let evidence = self.concept_footprint(req.clone()).await?;
+        let root=PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
+        let paths=evidence.source_paths.clone();
+        let policy=tokio::task::spawn_blocking(move || {
+            let mut policy=crate::services::project_policy::resolve(&root,&paths,&[]);
+            policy.notes.push("Policy scope covers returned footprint paths within the existing group and source-coverage limits, not every concept touchpoint or the final edit scope. Recheck guidance for all files actually edited. Authored policy does not certify code compliance or database/runtime binding.".into());
+            policy
+        }).await.map_err(|error| McpError::internal_error(error.to_string(),None))?;
+        let body=footprint_delivery::finish(&self.state.cfg.data_dir,&req,evidence.text,evidence.source_paths,evidence.source_paths_complete,policy)?;
+        Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 
     async fn concept_footprint(
@@ -5938,6 +5953,7 @@ impl Engram {
                     project_id: req.project_id.clone(),
                     concept: concept.clone(),
                     max_per_group: 5,
+                    max_tokens:None, response_id:None, response_offset:0, output_json:false,
                 })
                 .await;
             match sub {
@@ -10183,6 +10199,7 @@ impl Engram {
                 project_id: req.project_id.clone(),
                 concept: c.clone(),
                 max_per_group: 12,
+                max_tokens:None, response_id:None, response_offset:0, output_json:false,
             }, Some(snapshot.clone()))
         }))
         .await;

@@ -232,7 +232,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Discover indexed touchpoints of a domain concept (e.g. 'photo', 'code category'): data, SQL, state, UI, logic, endpoints, anchor consumers and textual mentions. Use when scoping a concept across the codebase. Results are bounded by index coverage, concept matching and reported caps; inspect coverage/failures and verify cited consumers before treating the scope as complete. Related: find_implementation_pattern, detect_incomplete_changes."
+        description = "Discover indexed touchpoints of a domain concept (e.g. 'photo', 'code category'): data, SQL, state, UI, logic, endpoints, anchor consumers and textual mentions. Use when scoping a concept across the codebase. Results are bounded by index coverage, concept matching and reported caps; inspect coverage/failures and verify cited consumers before treating the scope as complete. Applicable authored guidance follows returned paths. max_tokens budgets the complete reply (default40KiB); recover an oversized original through response_delivery.next_call without repeating retrieval. output_json names footprint_markdown, source_paths, completeness and policy; it does not imply a complete typed graph. Related: find_implementation_pattern, detect_incomplete_changes."
     )]
     pub async fn get_concept_footprint(
         &self,

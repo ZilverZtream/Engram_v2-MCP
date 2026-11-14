@@ -84,6 +84,7 @@ namespace App {
                 project_id: project_id.clone(),
                 concept: "photo".into(),
                 max_per_group: 15,
+                max_tokens:None, response_id:None, response_offset:0, output_json:false,
             },
         ))
         .await

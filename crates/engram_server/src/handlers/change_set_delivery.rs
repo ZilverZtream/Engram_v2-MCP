@@ -16,7 +16,7 @@ pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
 }
 
 #[derive(Clone, Copy)]
-enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport }
+enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint }
 
 fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
@@ -28,7 +28,7 @@ fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
 }
 
 fn directory_for(data_dir: &Path, project_id: &str, family: Family) -> Result<PathBuf, McpError> {
-    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report" };
+    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint" };
     super::super::validate_project_id(project_id)?;
     engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
@@ -105,6 +105,10 @@ pub(crate) fn save_database_report(data_dir: &Path, project_id: &str, body: &str
 
 pub(crate) fn save_ask_report(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
     save_for(data_dir, project_id, body, Family::AskReport)
+}
+
+pub(crate) fn save_concept_footprint(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
+    save_for(data_dir, project_id, body, Family::ConceptFootprint)
 }
 
 fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Result<String, McpError> {
@@ -295,6 +299,17 @@ pub(crate) fn recover_ask_report(data_dir: &Path, project_id: &str, id: &str, of
     recover_for(data_dir, project_id, id, offset, budget, Family::AskReport)
 }
 
+pub(crate) fn concept_footprint_continuation(project_id: &str, id: &str, offset: usize, budget: usize) -> Value {
+    json!({"tool":"get_concept_footprint","arguments":{
+        "project_id":project_id,"response_id":id,"response_offset":offset,
+        "max_tokens":budget / 4,"output_json":true
+    }})
+}
+
+pub(crate) fn recover_concept_footprint(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize) -> Result<String, McpError> {
+    recover_for(data_dir, project_id, id, offset, budget, Family::ConceptFootprint)
+}
+
 fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
     let directory = directory_for(data_dir, project_id, family)?;
     let path = checked_path(&directory, id)?;
@@ -354,6 +369,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
                 Family::RequestTrace => request_trace_continuation(project_id, id, end, budget),
                 Family::DatabaseReport => database_report_continuation(project_id, id, end, budget),
                 Family::AskReport => ask_report_continuation(project_id, id, end, budget),
+                Family::ConceptFootprint => concept_footprint_continuation(project_id,id,end,budget),
             }},
         });
         let rendered = serde_json::to_string(&page)
