@@ -1,0 +1,22 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "EG27 linked guidance disclosure in shared policy retrieval",
+  "original_requirement": "Supply required linked guidance outside normal discovery or name unresolved, conflicting, unreadable or budget-omitted dependencies without silently broadening policy authority.",
+  "observed_missing_behavior": "PolicyContext supplies complete selected source text and source omissions but no structured account of Markdown references in that text. Links to guidance outside conventional discovery are neither returned nor named as unresolved. Current OciusX AGENTS.md links shared conventions and conditionally relevant UI guidance.",
+  "implementation_files": ["crates/engram_server/src/services/project_policy.rs", "crates/engram_server/src/services/project_policy/references.rs", "crates/engram_server/src/services/project_policy/historical.rs", "crates/engram_server/src/services/instruction_maintenance/manifest.rs", "crates/engram_server/src/services/instruction_maintenance/manifest/markdown_links.rs"],
+  "acceptance": [
+    "Reuse existing CommonMark parsing and document-relative path normalization to disclose Markdown guidance references from complete supplied policy sources, with source hashes and byte ranges.",
+    "Distinguish supplied sources, existing source omissions, unreturned/unassessed targets and unsupported or ambiguous references. A link does not establish applicability, authority, a valid heading or a live file. Do not read or automatically adopt linked documents.",
+    "Bound reference metadata and disclose omissions. Preserve complete source content, direct-source coverage and existing recovery. Live and pinned historical contexts use the same content-only observation without reading the live checkout for history.",
+    "Focused native and combined public MCP cases cover an out-of-discovery link, a supplied/omitted guide, changed link without reindex and pinned historical content. Check current OciusX authored references without reading Site/Q. No per-component compile."
+  ],
+  "limits": ["Reference coverage applies to supplied complete source text and supported CommonMark/inline Markdown-path observations, not all prose or omitted document bodies.", "The calling AI must assess source conditions and each target's own scope before applying linked guidance; no semantic compliance or automatic transitive policy closure is claimed."],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references",
+  "prior_queued_item": "eval/ociusx-js-ts-heritage-progress-20261114.json",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "queued_native_cases": ["Out-of-discovery reference remains unadopted with source hash/range", "Omitted, ambiguous and broken references retain explicit states", "Reference cap preserves complete source and omission count", "Historical reference comes from pinned guidance rather than current checkout"],
+  "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. Native and public behavior are not claimed yet.",
+  "temporary_resources": "Only source-check/focus scripts and receipts in the recorded case. No server, fixture database, build or application source edit for this component. Retain evidence with the combined delivery."
+}

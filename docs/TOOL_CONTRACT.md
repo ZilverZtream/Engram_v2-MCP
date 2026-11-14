@@ -320,6 +320,19 @@ navigation budget, its metadata remains inline with `status: "deferred"` and
 `response_delivery.next_call` before relying on that guidance. Partial quotations
 are not substituted for complete instructions.
 
+### References in supplied repository guidance
+
+Shared `project_policy_sources` contexts include `references` for supported
+Markdown links and inline Markdown paths in supplied complete instruction text.
+Each observation retains its source path/hash and byte range, original target,
+normalized path when supported, and whether the target was supplied, omitted or
+left unresolved. `reference_coverage` and `references_omitted` describe this bounded
+observation separately from direct-source coverage. A link does not establish
+authority, applicability, fragment validity or a live target file. Assess the
+source conditions and each target's own scope before applying it. Engram does
+not read or automatically adopt these linked targets. References in pinned
+historical contexts come from that revision's text; use that revision for recovery.
+
 ### JavaScript and TypeScript type relationships
 
 JavaScript/JSX and TypeScript/TSX extraction emits declared `inherits_from` and

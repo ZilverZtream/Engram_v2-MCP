@@ -132,6 +132,33 @@ mod tests {
     use super::*;
 
     #[test]
+    fn historical_reference_disclosures_use_the_pinned_source_not_live_links() -> anyhow::Result<()> {
+        let temp = tempfile::tempdir()?;
+        let repo = Repository::init(temp.path())?;
+        let original = "Read [shared guidance](docs/original.md#accepted-exceptions).\nPreserve the manual exception.\n";
+        std::fs::write(temp.path().join("AGENTS.md"), original)?;
+        let mut index = repo.index()?;
+        index.add_path(Path::new("AGENTS.md"))?;
+        index.write()?;
+        let tree = repo.find_tree(index.write_tree()?)?;
+        let signature = git2::Signature::now("Fixture", "fixture@example.invalid")?;
+        let revision = repo.commit(Some("HEAD"), &signature, &signature, "Original linked guidance", &tree, &[])?;
+        std::fs::write(temp.path().join("AGENTS.md"), "Read [future guidance](docs/future.md).\n")?;
+        let context = resolve_at_revision(temp.path(), revision, &["src/Page.vb".into()], &[])?;
+        assert_eq!(context.source_revision.as_deref(), Some(revision.to_string().as_str()));
+        assert_eq!(context.references.len(), 1);
+        assert_eq!(context.references[0].path.as_deref(), Some("docs/original.md"));
+        assert_eq!(context.references[0].fragment.as_deref(), Some("accepted-exceptions"));
+        assert_eq!(context.references[0].source_blake3, blake3::hash(original.as_bytes()).to_hex().to_string());
+        assert!(!context.render_markdown().contains("docs/future.md"));
+        drop(tree);
+        drop(index);
+        drop(repo);
+        temp.close()?;
+        Ok(())
+    }
+
+    #[test]
     fn historical_scope_and_omission_recovery_use_the_committed_policy() -> anyhow::Result<()> {
         let temp = tempfile::tempdir()?;
         let repo = Repository::init(temp.path())?;

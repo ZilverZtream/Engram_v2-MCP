@@ -41,45 +41,39 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "TODO9 declared JavaScript/TypeScript inheritance and interfaces",
-    "original_requirement": "Existing AI navigation must expose declared inheritance/interface relationships for the user's JavaScript/TypeScript workflow.",
-    "observed_missing_behavior": "The JS/TS class capture emits symbols but no inherits_from or implements_interface edges. Existing graph ingestion already recognizes both kinds. Current first-party OciusX map and visualization pages declare MyApp extends q.page, and map.js declares controls extending q.ctrl.baseCtrl.",
-    "current_configuration": "The unchanged OciusX runtime configuration uses Ollama embeddings and advertises all tools. JS/TS parsing already exists; this is not target-language expansion.",
+    "finding": "EG27 linked guidance disclosure in shared policy retrieval",
+    "original_requirement": "Supply required linked guidance outside normal discovery or name unresolved, conflicting, unreadable or budget-omitted dependencies without silently broadening policy authority.",
+    "observed_missing_behavior": "PolicyContext supplies complete selected source text and source omissions but no structured account of Markdown references in that text. Links to guidance outside conventional discovery are neither returned nor named as unresolved. Current OciusX AGENTS.md links shared conventions and conditionally relevant UI guidance.",
     "implementation_files": [
-      "crates/engram_index/src/parsing.rs",
-      "crates/engram_index/src/parsing/js_ts_heritage.rs"
+      "crates/engram_server/src/services/project_policy.rs",
+      "crates/engram_server/src/services/project_policy/references.rs",
+      "crates/engram_server/src/services/project_policy/historical.rs",
+      "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/markdown_links.rs"
     ],
     "acceptance": [
-      "Use the already parsed JS/JSX/TS/TSX declaration syntax to emit class extends, class implements and interface extends relationships, retaining declaration identity, authored base spelling, clause location and explicit static-evidence limits.",
-      "Do not evaluate computed/mixin base expressions or invent dispatch/binding proof. Keep comments and prose out of relationships. Preserve ordinary class/function/call extraction.",
-      "Focused native cases cover ordinary JavaScript and typed generic/qualified declarations. Public MCP cases show local base/interface relationships before and after supported source refresh and retain unresolved external bases honestly.",
-      "Verify unchanged current OciusX first-party declaration examples without reading Site/Q declarations. Queue source for combined verification/release; no per-component compile, parser-format migration or CodeMap/Blast algorithm change."
+      "Reuse existing CommonMark parsing and document-relative path normalization to disclose Markdown guidance references from complete supplied policy sources, with source hashes and byte ranges.",
+      "Distinguish supplied sources, existing source omissions, unreturned/unassessed targets and unsupported or ambiguous references. A link does not establish applicability, authority, a valid heading or a live file. Do not read or automatically adopt linked documents.",
+      "Bound reference metadata and disclose omissions. Preserve complete source content, direct-source coverage and existing recovery. Live and pinned historical contexts use the same content-only observation without reading the live checkout for history.",
+      "Focused native and combined public MCP cases cover an out-of-discovery link, a supplied/omitted guide, changed link without reindex and pinned historical content. Check current OciusX authored references without reading Site/Q. No per-component compile."
     ],
     "limits": [
-      "This supplies declared type relationships, not virtual dispatch, runtime receiver selection or general import/alias resolution.",
-      "Existing indexed files require source re-extraction through supported refresh controls; no current-index relationship is claimed before that check.",
-      "Java/Python/Rust/Go inheritance expansion and closed-tool improvement remain outside this delivery."
+      "Reference coverage applies to supplied complete source text and supported CommonMark/inline Markdown-path observations, not all prose or omitted document bodies.",
+      "The calling AI must assess source conditions and each target's own scope before applying linked guidance; no semantic compliance or automatic transitive policy closure is claimed."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references",
+    "prior_queued_item": "eval/ociusx-js-ts-heritage-progress-20261114.json",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
     "queued_native_cases": [
-      "Qualified JavaScript/JSX base with source location and intact method extraction",
-      "Namespaced TS/TSX generic base/interface relationships",
-      "Computed/mixin bases remain unresolved"
+      "Out-of-discovery reference remains unadopted with source hash/range",
+      "Omitted, ambiguous and broken references retain explicit states",
+      "Reference cap preserves complete source and omission count",
+      "Historical reference comes from pinned guidance rather than current checkout"
     ],
-    "actual_source_examples": [
-      "Site/modules/dashboard/ts/map/app.ts:19",
-      "Site/modules/dashboard/ts/visualization/app.ts:4",
-      "Site/modules/map/~.js/map.js:347",
-      "Site/modules/map/~.js/map.js:384",
-      "Site/ts/fbinstplan/app.ts:29"
-    ],
-    "source_check_limits": "Rust parsing and preserved-work hashes only before combined verification; no type checking, native behavior or installed inheritance claim yet.",
-    "temporary_resources": "Only scripts and source-check evidence in the recorded case; no build, server, database or application source edit for this component. Retain with batch delivery evidence.",
-    "source_commit": "62e30e1",
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage\\source-check2.json"
+    "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. Native and public behavior are not claimed yet.",
+    "temporary_resources": "Only source-check/focus scripts and receipts in the recorded case. No server, fixture database, build or application source edit for this component. Retain evidence with the combined delivery."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
