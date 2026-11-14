@@ -1,0 +1,75 @@
+name: Windows package
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/windows-package.yml'
+      - '.cargo/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'crates/**'
+      - 'tools/vb_roslyn_sidecar/**'
+      - 'scripts/build_windows_release.ps1'
+      - 'scripts/package_windows_release.ps1'
+      - 'scripts/install_windows.ps1'
+      - 'docs/WINDOWS_BUNDLE.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-package-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: windows-2022
+    timeout-minutes: 90
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      CARGO_TERM_COLOR: always
+      CARGO_BUILD_JOBS: 2
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@0f4a354dd5547a28c70b7853dbd95d5b67886e73 # v6
+        with:
+          global-json-file: tools/vb_roslyn_sidecar/global.json
+      - name: Select stable Rust
+        run: rustup default stable
+      - name: Build server and complete self-contained VB sidecar
+        run: ./scripts/build_windows_release.ps1 -TargetDirectory "$env:GITHUB_WORKSPACE/target"
+      - name: Package offline installer and record build identity
+        run: |
+          $bundle = ./scripts/package_windows_release.ps1 `
+            -PackageRoot "$env:GITHUB_WORKSPACE/target/release" `
+            -OutputPath "$env:GITHUB_WORKSPACE/target/Engram-win-x64.zip"
+          $bundle | ConvertTo-Json -Depth 10 | Set-Content target/build.json -Encoding utf8
+          "$($bundle.sha256.ToLowerInvariant())  Engram-win-x64.zip" |
+            Set-Content target/Engram-win-x64.zip.sha256 -Encoding ascii
+          $identity = [ordered]@{
+            repository = $env:GITHUB_REPOSITORY
+            commit = $env:GITHUB_SHA
+            run = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            archive_sha256 = $bundle.sha256.ToLowerInvariant()
+            runtime_manifest_sha256 = $bundle.runtime_manifest_sha256.ToLowerInvariant()
+            runtime_assets = $bundle.runtime_assets
+          }
+          $identity | ConvertTo-Json | Set-Content target/source.json -Encoding utf8
+      - name: Upload complete Windows bundle
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: Engram-win-x64-${{ github.sha }}
+          path: |
+            target/Engram-win-x64.zip
+            target/Engram-win-x64.zip.sha256
+            target/build.json
+            target/source.json
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30

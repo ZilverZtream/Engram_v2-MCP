@@ -40,48 +40,27 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "S15 optimized sustained editing acceptance",
-    "original_requirement": "Many distinct-file edits across checkpoints and restart measure correctness, selector fragmentation, query/GC latency, memory and disk growth.",
-    "missing_evidence": "Existing full500-edit completion uses debug binaries; optimized50-file40-edit evidence does not cover the full500-edit/checkpoint workload.",
+    "status": "SELECTED",
+    "finding": "TODO53 downloadable Windows package from master CI",
+    "original_requirement": "Prebuilt complete release binaries and straightforward installation without local Rust/.NET SDK builds.",
+    "observed_missing_behavior": "Only local complete ZIPs exist; no packaging workflow or published releases supplies a downloadable commit-bound Windows bundle.",
     "implementation_files": [
-      "crates/engram_graph/src/store/rust_modules.rs",
-      "crates/engram_graph/src/store/typescript_modules.rs"
+      ".github/workflows/windows-package.yml",
+      "docs/WINDOWS_BUNDLE.md"
     ],
-    "runner": "eval/edit_collection_resource_workload.py",
     "acceptance": [
-      "Run existing fixed51-file500-edit workload with ten maintenance checkpoints and eleven complete51-file verifications including restart.",
-      "Preserve original900-second,512MiB private/store and1GiB logical-write protective limits; report failures without extending limits.",
-      "Record exact installed optimized binary, resources, cleanup and observations; no production plateau or controlled performance claim."
+      "A master push produces a complete Windows ZIP and SHA256/build identity through existing build/package scripts.",
+      "The successful workflow artifact can be downloaded and installed into an owned directory using the existing installer.",
+      "The exact registered MCP command indexes an owned VB sample and retrieves its source; resources close and fixture removes."
     ],
-    "binary_sha256": "9610dc38b795e8f70150729b7dbdb2863b6d2056fe412fcbafb7d27bf9dd00b4",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance",
-    "scope_limits": [
-      "The frozen fixture uses Rust-shaped symbols and local vectors solely as existing generic storage acceptance; no Rust support development.",
-      "Actual OciusX uses VB/WebForms/JS/TS/SQL and Ollama; this run does not measure that application/provider workload or close production resource acceptance.",
-      "No kernel/SSD investigation, new infrastructure, CodeMap/Blast changes or fault-case expansion."
+    "limits": [
+      "Actions artifacts are retained builds, not permanent versioned releases. No new Git tags.",
+      "macOS/Linux distribution and permanent public release/bootstrap remain unfinished.",
+      "No OciusX source/configuration changes; preserve existing local WIP."
     ],
-    "retention": "Retain reports and logs; existing runner closes exact owned processes/threads and removes its new fixture.",
-    "previous_goal_turn_classification": "PROGRESS: backlog guidance corrected and published in7ac08d6.",
-    "outcome": "TypeScript and the existing generic storage fixture resolver preserve byte-identical edges and adjacency, persisting only actual differences in the original atomic transaction. Resolution decisions are unchanged.",
-    "observed_missing_behavior": {
-      "phase": "primary",
-      "kind": "cumulative_logical_write_limit",
-      "observed": 1074268421
-    },
-    "next_action": "Attribute update_project write amplification to the existing source-publication/graph/vector stages before selecting a targeted implementation change. Do not rerun this unchanged500-edit workload or raise its limits.",
-    "diagnostic_progress": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\diagnostic-progress.json",
-    "attribution": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\stage-write-attribution.json",
-    "implementation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\targeted-fix.json",
-    "progress": "eval/s15-differential-module-persistence-progress-20261114.json",
-    "source_commit": "241e224e5c77f7520f0abac76be506086ca695d1",
-    "runtime_source_commit": "7ccdb4045ffde737b999ec51bbd17281127409a6",
-    "corpus_test_session": 50392,
-    "release_acceptance_progress": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\release-acceptance-progress.json",
-    "release_acceptance_session": 68079,
-    "native_tests_passed": 156,
-    "delivery": "eval/s15-differential-module-persistence-delivery-20261114.json",
-    "bounded_delivery_complete": true
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-ci-distribution",
+    "retention": "Keep workflow, download, install and public-query evidence here; remove only newly owned test resources after processes close.",
+    "prior_turn_classification": "PROGRESS: differential persistence fix deployed and finite optimized500-edit acceptance completed;22f211c pushed."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

@@ -4,6 +4,28 @@ This archive includes the Windows x64 server, its complete self-contained VB.NET
 parser sidecar, and a first-time installer. Rust and .NET SDKs are not required.
 Use a trusted archive; checksums detect damaged files, not an untrusted publisher.
 
+Download a completed build from the repository's **Actions → Windows package**
+workflow. Choose a successful run for the commit you intend to install, then
+download its `Engram-win-x64-<commit>` artifact. GitHub access to the repository is
+required. These builds are retained for 30 days and are not permanent releases.
+The workflow runs for relevant changes on `master` and can also be started manually.
+
+Extract the downloaded Actions artifact. It contains `Engram-win-x64.zip`, its
+SHA256 file, and build/source identity JSON. Before extracting the inner ZIP:
+
+```powershell
+$expected = ((Get-Content .\Engram-win-x64.zip.sha256 -Raw).Trim() -split '\s+')[0]
+if ((Get-FileHash .\Engram-win-x64.zip -Algorithm SHA256).Hash -ine $expected) {
+    throw 'Archive checksum mismatch'
+}
+Expand-Archive .\Engram-win-x64.zip .\Engram
+Set-Location .\Engram
+```
+
+`source.json` identifies the source commit and workflow run. Retain it with the
+download when reporting an installation problem. The inner archive contains the
+same complete runtime and installer described below; no local build is needed.
+
 Extract the trusted archive. For **Codex**, with its CLI installed, run from the
 extracted directory:
 
