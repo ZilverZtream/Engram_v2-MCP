@@ -15025,7 +15025,8 @@
         "Unselected observation retained: bare CHECK dispatch was not characterized; do not expand this key fix into a general DDL rewrite."
       ],
       "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
-    }
+    },
+    "readiness_status_correction": "eval/ociusx-readiness-status-correction-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }

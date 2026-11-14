@@ -607,8 +607,16 @@ value is accuracy, this is the biggest meta-gap.
   assert response envelope contracts (#4).
 
 - [ ] **51. Finish the EQS gate plan** (per `eqs_gate_requirements.md`) (M)
-  Target 4.5+, currently ~2.5–3.0 with all EXH findings closed. The remaining gates
-  overlap heavily with #48–50 — do them together.
+  Original target: 4.5+. The earlier ~2.5–3.0 statement is historical, not a
+  current measured score. The referenced `eqs_gate_requirements.md` is absent
+  from this checkout and its available Git history. The dated
+  [March gate ledger](docs/gate_tracking/GATE_4.5_2026-03-27.md) records a 5.0
+  claim at commit `1f751d7`; it does not certify the current runtime.
+  The [November task check](eval/ociusx-current-task-check-outcome-20261113.json)
+  records a failed quality gate, and the original findings/release requirements
+  in [the inventory](eval/audit-inventory-20261101.json) remain open. No current
+  EQS score is established. Keep this item open; preserve the original plan and
+  target, and complete the overlapping #48–50 requirements with current evidence.
 
 - [~] **52. Latency budgets in CI** (S) - *search/method fixture gates implemented and locally verified 2026-11-13.*
   Three authored queries each exercise `search_memory` and `get_method_info` over
