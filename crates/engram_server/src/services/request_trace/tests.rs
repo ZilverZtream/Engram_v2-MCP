@@ -506,6 +506,37 @@ fn reached_method_resolves_sql_source_without_fabricated_database_graph_edges() 
 }
 
 const ORM_BODY: &str = "Public Class Orders\nPublic Shared Function Save() As Object\nDim db As New WarehouseDataContext\nDim data = From row In db.inv_items Select row\nReturn data\nEnd Function\nEnd Class\n";
+
+#[test]
+fn reached_inline_update_is_source_bound_and_obeys_database_selection() {
+    let fixture = fixture();
+    let mut sources = sources(VB);
+    let helper = "Public Class Orders\nPublic Shared Sub Save()\nUsing db As New WarehouseDataContext()\ndb.ExecuteCommand(\"UPDATE dbo.Orders \" & \"SET Name = {0}\", name)\nEnd Using\nEnd Sub\nEnd Class\n";
+    sources.iter_mut().find(|s| s.path == "Site/App_Code/Orders.vb").unwrap().content = helper;
+    let mut file = fixture.graph.get_node("project", "file:Site/App_Code/Orders.vb").unwrap().unwrap();
+    file.metadata = Some(json!({"file_hash":blake3::hash(helper.as_bytes()).to_hex().to_string()}));
+    let mut method = fixture.graph.get_node("project", "save").unwrap().unwrap();
+    method.end_line = 6;
+    fixture.graph.upsert_nodes("project", &[file, method]).unwrap();
+    fixture.graph.delete_edges_of_kind("project", &EdgeKind::CallsStoredProcedure).unwrap();
+    fixture.graph.delete_edges_of_kind("project", &EdgeKind::StoredProcWritesTable).unwrap();
+    let route = routing::resolve("buy/42", &sources).unwrap().candidates.remove(0);
+    for include_db in [true, false] {
+        let trace = execution::trace_page(&fixture.graph, "project", &route, Some("click btnBuy"), include_db, true, &sources, &fixture.selected).unwrap();
+        let dependencies: Vec<_> = trace.paths.iter().filter(|p| p.kind == "inline_sql_writes_table").collect();
+        assert_eq!(dependencies.len(), usize::from(include_db));
+        if let Some(dependency) = dependencies.first() {
+            assert_eq!(dependency.target_name, "Orders");
+            let evidence = dependency.evidence.as_ref().unwrap();
+            assert_eq!(evidence["file"], "Site/App_Code/Orders.vb");
+            assert_eq!(evidence["line"], 4);
+            assert_eq!(evidence["source_blake3"], blake3::hash(helper.as_bytes()).to_hex().to_string());
+        }
+    }
+    sources.iter_mut().find(|s| s.path == "Site/App_Code/Orders.vb").unwrap().content = "changed source";
+    let stale = execution::trace_page(&fixture.graph, "project", &route, Some("click btnBuy"), true, true, &sources, &fixture.selected).unwrap();
+    assert!(!stale.paths.iter().any(|p| p.kind.starts_with("inline_sql_")));
+}
 const DBML: &str = "<Database Class=\"WarehouseDataContext\" xmlns=\"http://schemas.microsoft.com/linqtosql/dbml/2007\">\n  <Table Name=\"dbo.Inventory\" Member=\"inv_items\"><Type Name=\"InventoryRow\" /></Table>\n</Database>";
 
 fn orm_trace(
