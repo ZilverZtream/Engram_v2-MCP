@@ -2253,7 +2253,7 @@ impl Engram {
             })
             .collect();
 
-        let result = tokio::task::spawn_blocking(move || {
+        let result = tokio::task::spawn_blocking(move || -> Result<String, String> {
             use crate::services::database_intelligence_service as dbi;
 
             let (sp_source_file, sp_body, definition) =
