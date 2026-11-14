@@ -308,6 +308,18 @@ Recovery uses the saved response without re-reading the checkout. Snapshots last
 at most 24 hours or 32 newer project trace snapshots. Small replies are unchanged;
 a budget too small for the complete navigation view still reports the minimum.
 
+`trace_user_request` also returns `project_policy_sources` for the returned source
+files in its loaded selected inventory, including route registrations, markup,
+codebehind, controllers and downstream source. The shared instruction resolver
+preserves complete authored documents, applicability, hashes and explicit
+omissions. Instruction edits take effect without reindexing. Guidance describes
+intended behavior; it does not prove runtime execution or code compliance.
+Recheck instructions for the final edit scope. If full guidance would exceed the
+navigation budget, its metadata remains inline with `status: "deferred"` and
+`response_delivery.deferred_policy_sources`; recover the exact original through
+`response_delivery.next_call` before relying on that guidance. Partial quotations
+are not substituted for complete instructions.
+
 ### Optional ask_codebase synthesis
 
 `ask_codebase` includes `project_policy_sources` in JSON and a repository policy

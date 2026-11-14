@@ -8,6 +8,8 @@ use serde_json::json;
 use std::{io::Read, path::Path};
 #[path = "request_trace_delivery.rs"]
 mod delivery;
+#[path = "request_trace_policy.rs"]
+mod policy;
 
 impl Engram {
     pub async fn handle_trace_user_request(
@@ -97,11 +99,14 @@ impl Engram {
             if routing.api_candidates.len() > 8 { gaps.push("API route expansion truncated at eight candidates".into()); }
             // The graph is mutable even while search membership is pinned. Each
             // expansion checks physical revision/hash; this is not an atomic graph snapshot.
-            Ok(serde_json::to_string(&json!({"status":"static_candidates","project_id":req.project_id,"active_generation":generation,
+            let mut report = json!({"status":"static_candidates","project_id":req.project_id,"active_generation":generation,
                 "entry_point":req.entry_point,"action":req.action,"routing":routing,"pages":pages,"api_traces":api_traces,
                 "coverage":{"source_files_read":sources.len(),"source_bytes_read":bytes,"source_inventory":"selected managed paths; current disk contents","gaps":gaps,
                 "graph_consistency":"Per-expanded-member source hash and selected physical revision checks; no atomic graph/disk snapshot or complete call-binding proof.",
-                "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}}))?)
+                "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}});
+            let loaded_paths = sources.iter().map(|source| source.path).collect();
+            policy::attach(Path::new(&record.directory), &mut report, &loaded_paths)?;
+            Ok(serde_json::to_string(&report)?)
         }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let output = delivery::finish(&self.state.cfg.data_dir, &project_id, output, budget)?;
