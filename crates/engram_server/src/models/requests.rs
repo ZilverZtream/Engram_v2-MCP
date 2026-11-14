@@ -3717,6 +3717,15 @@ pub struct SourceLineRange {
 #[serde(deny_unknown_fields)]
 pub struct GetFullMethodBodyRequest {
     pub project_id: String,
+    /// Complete reply budget at four UTF-8 bytes per estimated token.
+    /// Defaults40KiB for methods; excerpts/source_ranges retain a32KiB ceiling.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover the immutable original source/policy report without a new read.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
     /// Fully qualified name from method index. Mutually exclusive with file_path + line_start.
     #[serde(default)]
     pub fqn: Option<String>,

@@ -16,7 +16,7 @@ pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
 }
 
 #[derive(Clone, Copy)]
-enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint, PatternReport }
+enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint, PatternReport, MethodSource }
 
 fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
@@ -28,7 +28,7 @@ fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
 }
 
 fn directory_for(data_dir: &Path, project_id: &str, family: Family) -> Result<PathBuf, McpError> {
-    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint", Family::PatternReport => "pattern-report" };
+    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint", Family::PatternReport => "pattern-report", Family::MethodSource => "method-source" };
     super::super::validate_project_id(project_id)?;
     engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
@@ -113,6 +113,10 @@ pub(crate) fn save_concept_footprint(data_dir: &Path, project_id: &str, body: &s
 
 pub(crate) fn save_pattern_report(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
     save_for(data_dir, project_id, body, Family::PatternReport)
+}
+
+pub(crate) fn save_method_source(data_dir: &Path, project_id: &str, body: &str) -> Result<String,McpError> {
+    save_for(data_dir,project_id,body,Family::MethodSource)
 }
 
 fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Result<String, McpError> {
@@ -325,6 +329,17 @@ pub(crate) fn recover_pattern_report(data_dir: &Path, project_id: &str, id: &str
     recover_for(data_dir,project_id,id,offset,budget,Family::PatternReport)
 }
 
+pub(crate) fn method_source_continuation(project_id: &str,id: &str,offset: usize,budget: usize) -> Value {
+    json!({"tool":"get_full_method_body","arguments":{
+        "project_id":project_id,"response_id":id,"response_offset":offset,
+        "max_tokens":budget/4,"output_json":true
+    }})
+}
+
+pub(crate) fn recover_method_source(data_dir: &Path,project_id: &str,id: &str,offset: usize,budget: usize) -> Result<String,McpError> {
+    recover_for(data_dir,project_id,id,offset,budget,Family::MethodSource)
+}
+
 fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
     let directory = directory_for(data_dir, project_id, family)?;
     let path = checked_path(&directory, id)?;
@@ -386,6 +401,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
                 Family::AskReport => ask_report_continuation(project_id, id, end, budget),
                 Family::ConceptFootprint => concept_footprint_continuation(project_id,id,end,budget),
                 Family::PatternReport => pattern_report_continuation(project_id,id,end,budget),
+                Family::MethodSource => method_source_continuation(project_id,id,end,budget),
             }},
         });
         let rendered = serde_json::to_string(&page)

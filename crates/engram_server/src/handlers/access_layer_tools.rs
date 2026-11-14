@@ -27,6 +27,9 @@ mod context_response;
 #[path = "method_body_policy.rs"]
 mod method_body_policy;
 
+#[path = "method_source_delivery.rs"]
+mod method_source_delivery;
+
 /// Resolve application-relative directives from hosting evidence, never a
 /// repository-specific folder name. Nested web.config files can configure a
 /// subdirectory, so prefer an explicit application marker or the outermost
@@ -285,9 +288,12 @@ fn excerpt_next_page(
     file: &str,
     start: u32,
     output_json: bool,
+    max_tokens: Option<usize>,
 ) -> serde_json::Value {
-    serde_json::json!({"tool":"get_full_method_body","arguments":{
-        "project_id":project,"file_path":file,"line_start":start,"context_lines":0,"output_json":output_json}})
+    let mut next=serde_json::json!({"tool":"get_full_method_body","arguments":{
+        "project_id":project,"file_path":file,"line_start":start,"context_lines":0,"output_json":output_json}});
+    if let Some(tokens)=max_tokens {next["arguments"]["max_tokens"]=serde_json::json!(tokens.min(EXCERPT_RESPONSE_BYTES/4));}
+    next
 }
 
 fn current_file_excerpt(
@@ -369,7 +375,7 @@ fn current_file_excerpt(
             returned_lines: returned,
             reaches_eof: end == total,
             next_page: (end < total)
-                .then(|| excerpt_next_page(project, file, end + 1, request.output_json)),
+                .then(|| excerpt_next_page(project, file, end + 1, request.output_json,request.max_tokens)),
             read_limit_bytes: EXCERPT_FILE_BYTES,
             response_limit_bytes: EXCERPT_RESPONSE_BYTES,
             max_lines: EXCERPT_LINES,
@@ -3974,14 +3980,19 @@ impl Engram {
         &self,
         req: GetFullMethodBodyRequest,
     ) -> Result<CallToolResult, McpError> {
+        crate::handlers::validate_project_id(&req.project_id)?;
+        if let Some(body)=method_source_delivery::recover(&self.state.cfg.data_dir,&req)? {
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
         let (original,paths)=self.full_method_body_evidence(req.clone()).await?;
         let root=std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let body=original.content.first().and_then(|content| content.as_text())
             .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.clone();
-        let strict_limit=if req.source_ranges.is_some() || (req.fqn.is_none() && req.file_path.is_some() && req.line_end.is_none()) {Some(EXCERPT_RESPONSE_BYTES)} else {None};
-        let body=tokio::task::spawn_blocking(move || method_body_policy::attach(&root,&paths,body,req.output_json,strict_limit))
+        let policy_paths=paths.clone();let output_json=req.output_json;
+        let (body,policy)=tokio::task::spawn_blocking(move || method_body_policy::attach(&root,&policy_paths,body,output_json,None))
             .await.map_err(|error|McpError::internal_error(error.to_string(),None))?
             .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
+        let body=method_source_delivery::finish(&self.state.cfg.data_dir,&req,body,&paths,&policy)?;
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 
@@ -4154,7 +4165,7 @@ impl Engram {
             body_result.line_end-=1;
             page.returned_lines-=1;
             page.reaches_eof=false;
-            page.next_page=Some(excerpt_next_page(&req.project_id,&body_result.file_path,body_result.line_end+1,output_json));
+            page.next_page=Some(excerpt_next_page(&req.project_id,&body_result.file_path,body_result.line_end+1,output_json,req.max_tokens));
         }
     }
 
