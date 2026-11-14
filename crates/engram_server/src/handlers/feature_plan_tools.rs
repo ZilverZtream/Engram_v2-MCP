@@ -258,6 +258,42 @@ fn excerpt(source: &str, concepts: &[String]) -> (u32, u32, String) {
     (start as u32 + 1, end as u32, out)
 }
 
+fn changed_source_evidence(directory: &str, evidence: &[SourceEvidence]) -> BTreeSet<String> {
+    evidence.iter().filter_map(|row| {
+        let current = (|| -> anyhow::Result<bool> {
+            let mut bytes = Vec::new();
+            engram_core::safe_open_read(Path::new(directory), &row.file_path)?
+                .take(plan::MAX_SOURCE_BYTES as u64 + 1)
+                .read_to_end(&mut bytes)?;
+            Ok(bytes.len() <= plan::MAX_SOURCE_BYTES
+                && blake3::hash(&bytes).to_hex().as_str() == row.source_hash)
+        })().unwrap_or(false);
+        (!current).then(|| row.file_path.clone())
+    }).collect()
+}
+
+#[cfg(test)]
+mod feature_plan_source_freshness_tests {
+    use super::*;
+
+    #[test]
+    fn feature_plan_dossier_detects_a_changed_captured_file() {
+        let temp = tempfile::tempdir().unwrap();
+        let path = temp.path().join("Photos.aspx.vb");
+        let source = "Public Class Photos\nEnd Class\n";
+        std::fs::write(&path, source).unwrap();
+        let evidence = vec![SourceEvidence {
+            id: "E1".into(), file_path: "Photos.aspx.vb".into(),
+            source_hash: blake3::hash(source.as_bytes()).to_hex().to_string(),
+            start_line: 1, end_line: 2, excerpt: source.into(), methods: vec![],
+        }];
+        assert!(changed_source_evidence(temp.path().to_str().unwrap(), &evidence).is_empty());
+        std::fs::write(&path, "Public Class ChangedPhotos\nEnd Class\n").unwrap();
+        assert_eq!(changed_source_evidence(temp.path().to_str().unwrap(), &evidence),
+            BTreeSet::from(["Photos.aspx.vb".to_owned()]));
+    }
+}
+
 impl Engram {
     pub async fn handle_one_shot_feature_plan(
         &self,
@@ -281,31 +317,38 @@ impl Engram {
                 "Source reads check selected revision and content hash but are not an atomic filesystem snapshot."
             ]
         });
-        if identity.is_none() {
+        if identity.is_none() && !req.dossier_only {
             output["reason"] = json!("llm_backend_unavailable");
             return response(output);
         }
-        output["provenance"]["provider_calls"] = json!(1);
-        let intent_text = match self
-            .state
-            .dreaming
-            .generate_text(&plan::intent_prompt(&req), 3072, Duration::from_secs(90))
-            .await
-        {
-            Ok(text) => text,
-            Err(e) => {
-                output["failure"] = json!(AnalysisDegradation::from_error(&e));
-                output["reason"] = json!("intent_provider_failed");
-                return response(output);
-            }
-        };
-        let intent = match plan::parse_intent(&intent_text) {
-            Ok(intent) => intent,
-            Err(error) => {
-                output["reason"] = json!("invalid_intent_contract");
-                output["rejection"] = plan::rejection_details(&error, &intent_text);
-                return response(output);
-            }
+        let intent = if req.dossier_only {
+            output["request"] = json!(&req);
+            output["provenance"]["prompt_version"] = Value::Null;
+            None
+        } else {
+            output["provenance"]["provider_calls"] = json!(1);
+            let intent_text = match self
+                .state
+                .dreaming
+                .generate_text(&plan::intent_prompt(&req), 3072, Duration::from_secs(90))
+                .await
+            {
+                Ok(text) => text,
+                Err(e) => {
+                    output["failure"] = json!(AnalysisDegradation::from_error(&e));
+                    output["reason"] = json!("intent_provider_failed");
+                    return response(output);
+                }
+            };
+            let intent = match plan::parse_intent(&intent_text) {
+                Ok(intent) => intent,
+                Err(error) => {
+                    output["reason"] = json!("invalid_intent_contract");
+                    output["rejection"] = plan::rejection_details(&error, &intent_text);
+                    return response(output);
+                }
+            };
+            Some(intent)
         };
         output["intent"] = json!(intent);
         let runtime = self.ensure_project_runtime(&req.project_id).await?;
@@ -479,7 +522,7 @@ impl Engram {
             "excerpt_limit":"One lexical window of at most 100 lines / 12 KiB per file; at most 192 KiB total; unshown lines are unexamined",
             "recovery":{"tool":"get_change_set","arguments":{"project_id":req.project_id,"story":story,"output_json":true,"detail":"full","concepts":retrieval_concepts}}});
         let mut schema = Vec::new();
-        for name in &intent.schema_names {
+        for name in intent.iter().flat_map(|intent| &intent.schema_names) {
             let result = self
                 .handle_query_schema(QuerySchemaRequest {
                     project_id: req.project_id.clone(),
@@ -505,6 +548,20 @@ impl Engram {
             output["reason"] = json!("planning_context_limit");
             return response(output);
         }
+        if req.dossier_only {
+            let stale = changed_source_evidence(&record.directory, &evidence);
+            if !stale.is_empty() || self.get_active_generation(&req.project_id).await? != generation {
+                output["reason"] = json!("source_changed_during_planning");
+                output["changed_files"] = json!(stale);
+                return response(output);
+            }
+            output["status"] = json!("SOURCE_DOSSIER_READY");
+            output["source_freshness"] = json!("CURRENT_AT_RETURN");
+            output["planning_context"]["schema_status"] = json!("NOT_INFERRED_IN_DOSSIER_MODE");
+            output["edit_safety_status"] = json!("NOT_ASSESSED_NO_PROPOSED_EDITS");
+            return response(output);
+        }
+        let intent = intent.expect("generation mode parsed its intent before source intake");
         output["provenance"]["provider_calls"] = json!(2);
         let prompt = plan::assembly_prompt(&req, &intent, &evidence, &context);
         let plan_text = match self
@@ -598,21 +655,7 @@ impl Engram {
         }
         output["edit_safety"] = json!(safety);
         // Do not return a current proposal after files changed during provider calls.
-        let mut stale = BTreeSet::new();
-        for row in &evidence {
-            let current = (|| -> anyhow::Result<bool> {
-                let mut bytes = Vec::new();
-                engram_core::safe_open_read(Path::new(&record.directory), &row.file_path)?
-                    .take(plan::MAX_SOURCE_BYTES as u64 + 1)
-                    .read_to_end(&mut bytes)?;
-                Ok(bytes.len() <= plan::MAX_SOURCE_BYTES
-                    && blake3::hash(&bytes).to_hex().as_str() == row.source_hash)
-            })()
-            .unwrap_or(false);
-            if !current {
-                stale.insert(&row.file_path);
-            }
-        }
+        let stale = changed_source_evidence(&record.directory, &evidence);
         if !stale.is_empty() || self.get_active_generation(&req.project_id).await? != generation {
             output["reason"] = json!("source_changed_during_planning");
             output["changed_files"] = json!(stale);

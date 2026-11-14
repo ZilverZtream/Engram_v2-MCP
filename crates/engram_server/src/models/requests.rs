@@ -777,6 +777,11 @@ pub struct OneShotFeaturePlanRequest {
     /// Currently supported: webforms_vbnet (including its JS/TS and SQL files).
     pub target_stack: String,
     pub detail_level: PlanDetailLevel,
+    /// Return bounded source, scoped guidance and pattern context for the calling
+    /// AI to plan from, without server-side requirement/plan generation. No edit
+    /// safety verdict or generated implementation plan is produced. Default false.
+    #[serde(default)]
+    pub dossier_only: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize, JsonSchema)]

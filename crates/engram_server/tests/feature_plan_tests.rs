@@ -5,6 +5,18 @@ use engram_server::{
 use serde_json::{Value, json};
 
 #[test]
+fn feature_plan_dossier_mode_is_optional_and_explicit() {
+    let mut request = json!({"project_id":"project", "feature_description":"Configure photos",
+        "target_stack":"webforms_vbnet", "detail_level":"Detailed"});
+    let original: OneShotFeaturePlanRequest = serde_json::from_value(request.clone()).unwrap();
+    assert!(!original.dossier_only);
+    request["dossier_only"] = json!(true);
+    let dossier: OneShotFeaturePlanRequest = serde_json::from_value(request).unwrap();
+    assert!(dossier.dossier_only);
+    assert!(validate_request(&dossier).is_ok());
+}
+
+#[test]
 fn feature_plan_public_handler_reports_disabled_provider_without_generating_a_plan() {
     // Database owners and runtime are dropped before the owned directory,
     // including assertion unwinding.
@@ -53,6 +65,7 @@ fn feature_plan_public_handler_reports_disabled_provider_without_generating_a_pl
                 area_hint: None,
                 target_stack: "webforms_vbnet".into(),
                 detail_level: PlanDetailLevel::ReadyToCode,
+                dossier_only: false,
             })
             .await
             .unwrap();
@@ -314,6 +327,7 @@ fn feature_plan_rejects_unbounded_or_unrelated_intake() {
         area_hint: None,
         target_stack: "webforms_vbnet".into(),
         detail_level: PlanDetailLevel::Detailed,
+        dossier_only: false,
     };
     assert!(validate_request(&req).is_ok());
     req.target_stack = "java".into();
