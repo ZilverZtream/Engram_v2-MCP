@@ -1,5 +1,5 @@
 {
-  "status": "INDEX_CASES_PASS_FOCUSED_SERVER_VERIFICATION_RUNNING",
+  "status": "FOCUSED_NATIVE_COMPONENTS_PASS_COMBINED_RELEASE_BUILD_RUNNING",
   "components": ["eval/ociusx-js-ts-heritage-progress-20261114.json", "eval/ociusx-policy-reference-progress-20261114.json", "eval/ociusx-change-set-budget-progress-20261114.json"],
   "root_source_commits": ["62e30e1", "de2b10a", "b47b931"],
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114",
@@ -7,12 +7,14 @@
   "runtime_source_commit": "cc03f3a630152ad63f9bb2c3aebe6ce3f46e942d",
   "verification": {
     "native_index": "native-index1.json/log:4passed,0failed in0.67s after1m46s compilation. Includes all3new relationship cases and the existing lexical-this receiver control. Owned Job, relay and temporary resources closed.",
-    "native_server": "native-server1 currently runs the selected policy, snapshot, feature-plan and tool-guidance modules; session21587. No full suite.",
-    "native_server_exec_session": 21587,
-    "release_build_started": false,
+    "native_server": "27passed;2historical tests hit Git2's Windows path limit in the runner-generated TEMP path. Only those2were rerun from the identical compiled executable under a shorter owned BASE temporary root; both passed, no recompile. Initial failure retained.",
+    "native_acceptance": "native-acceptance.json records33distinct passing cases, source identity and cleanup.",
+    "release_exec_session": 51032,
+    "release_build_started": true,
+    "public_verifiers_prepared": ["js-ts-heritage/verify-public.py", "policy-references/verify-public.py", "change-set-budget/verify-public.py"],
     "full_suite_started": false
   },
-  "limits": "Native index cases prove extraction, not installed graph relationships. All three components still require combined candidate/installed public verification and deployment. Current runtime remains the preceding cf1019b8 package.",
-  "remaining": ["Finish the existing focused server run without restarting it", "Prepare public before/after source-refresh and instruction/budget checks", "One combined release build", "Candidate/installed acceptance, normal runtime restoration and resource accounting"],
-  "temporary_resources": "All new resources stay within the recorded current-task-check cases. Index native resources removed; the current server run owns its exact Job and temporary directory until completion. Retain source, logs and receipts for delivery review."
+  "limits": "Native cases do not establish installed behavior. All three components still require combined candidate/installed public verification and deployment. Current runtime remains the preceding cf1019b8 package.",
+  "remaining": ["Finish release session51032 without restarting it", "Candidate/installed acceptance, normal runtime restoration and resource accounting"],
+  "temporary_resources": "Index/server native Jobs, relays and fixture directories closed and removed. The2historical cases used BASE/np-history-6fs57kko, now removed after test handles closed. Current release owns edit-workload-focused-q0g7sjz3 and its exact Job until completion. Scripts, logs and receipts remain in recorded cases for review."
 }
