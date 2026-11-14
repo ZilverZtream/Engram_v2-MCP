@@ -477,6 +477,21 @@ impl Engram {
                     let (start, end, excerpt) = excerpt(&source, &concepts);
                     anyhow::ensure!(!excerpt.is_empty() && start <= end, "no_bounded_source_excerpt");
                     anyhow::ensure!(bytes + excerpt.len() <= plan::MAX_EVIDENCE_BYTES, "aggregate_evidence_limit");
+                    // Registered editors arrive after the initial inventory.
+                    // Gather the pending component group together, preserving
+                    // source admission and queue order for every file below.
+                    if let Some(files) = method_inventories.as_mut() {
+                        if !files.contains_key(&path) {
+                            let pending: Vec<_> = std::iter::once(&path).chain(queue.iter())
+                                .filter(|p| selected.contains_key(p.as_str()) && !files.contains_key(p.as_str()))
+                                .cloned().collect();
+                            if let Ok(found) = super::file_functions::collect(
+                                &graph, &project_id, &pending, 2000, super::file_functions::LimitCounts::Functions,
+                            ) {
+                                files.extend(found);
+                            }
+                        }
+                    }
                     let nodes = match method_inventories.as_mut().and_then(|files| files.remove(&path)) {
                         Some(nodes) => nodes,
                         None => graph.query_nodes(&project_id, Some("function"), None, Some(&path), 2000)?,
