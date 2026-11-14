@@ -7,6 +7,7 @@
 //! "just look at the first keyword" approach.
 
 use std::sync::OnceLock;
+use crate::sql_names::QUALIFIED_OBJECT_NAME;
 
 use regex::Regex;
 use serde::Serialize;
@@ -94,7 +95,7 @@ fn re_join() -> &'static Regex {
         // ON conditions are extracted separately to avoid the regex consuming the
         // next JOIN keyword as its terminator (which caused multi-JOIN queries to
         // only detect the first join).
-        Regex::new(r"(?i)\b(INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|CROSS\s+JOIN|FULL\s+(?:OUTER\s+)?JOIN|JOIN)\s+(\[?\w+\]?)(?:\s+(?:AS\s+)?(\w+))?").expect("re_join")
+        Regex::new(&format!(r"(?i)\b(INNER\s+JOIN|LEFT\s+(?:OUTER\s+)?JOIN|RIGHT\s+(?:OUTER\s+)?JOIN|CROSS\s+JOIN|FULL\s+(?:OUTER\s+)?JOIN|JOIN)\s+{QUALIFIED_OBJECT_NAME}(?:\s+(?:AS\s+)?(\w+))?")).expect("re_join")
     })
 }
 
@@ -135,28 +136,28 @@ fn re_group_by() -> &'static Regex {
 fn re_from_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| {
-        Regex::new(r"(?i)\bFROM\s+(\[?\w+\]?)(?:\s+(?:AS\s+)?(\w+))?").expect("re_from")
+        Regex::new(&format!(r"(?i)\bFROM\s+{QUALIFIED_OBJECT_NAME}(?:\s+(?:AS\s+)?(\w+))?")).expect("re_from")
     })
 }
 
 fn re_insert_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\bINSERT\s+INTO\s+(\[?\w+\]?)").expect("re_insert"))
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bINSERT\s+INTO\s+{QUALIFIED_OBJECT_NAME}")).expect("re_insert"))
 }
 
 fn re_update_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\bUPDATE\s+(\[?\w+\]?)").expect("re_update"))
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bUPDATE\s+{QUALIFIED_OBJECT_NAME}")).expect("re_update"))
 }
 
 fn re_delete_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\bDELETE\s+(?:FROM\s+)?(\[?\w+\]?)").expect("re_delete"))
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bDELETE\s+(?:FROM\s+)?{QUALIFIED_OBJECT_NAME}")).expect("re_delete"))
 }
 
 fn re_exec() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
-    RE.get_or_init(|| Regex::new(r"(?i)\b(?:EXEC(?:UTE)?)\s+(\[?\w+\]?)").expect("re_exec"))
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\b(?:EXEC(?:UTE)?)\s+{QUALIFIED_OBJECT_NAME}")).expect("re_exec"))
 }
 
 #[allow(dead_code)]
@@ -1046,6 +1047,24 @@ fn to_camel(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn qualified_update_uses_table_not_schema() {
+        for name in ["dbo.aspnet_Membership", "[dbo].[aspnet_Membership]"] {
+            let analysis = analyze_sql(&format!("UPDATE {name} SET IsLockedOut = @locked WHERE UserId = @userId"));
+            assert_eq!(analysis.operation, SqlOp::Update);
+            assert_eq!(analysis.primary_table.as_deref().map(strip_brackets), Some("aspnet_Membership"));
+            assert!(generate_method_name(&analysis).starts_with("UpdateAspnetMembership"));
+        }
+    }
+
+    #[test]
+    fn qualified_join_retains_object_and_alias() {
+        let analysis = analyze_sql("SELECT u.UserId FROM dbo.aspnet_Users u INNER JOIN [dbo].[aspnet_Membership] m ON m.UserId = u.UserId");
+        assert_eq!(analysis.primary_table.as_deref().map(strip_brackets), Some("aspnet_Users"));
+        assert_eq!(strip_brackets(&analysis.joined_tables[0].table), "aspnet_Membership");
+        assert_eq!(analysis.joined_tables[0].alias.as_deref(), Some("m"));
+    }
+
     use super::*;
 
     #[test]

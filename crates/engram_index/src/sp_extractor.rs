@@ -62,20 +62,7 @@ fn get_compiled_regex<'a>(
 
 /// Strip surrounding brackets `[Name]` → `Name`, and optional schema prefix.
 fn strip_sql_name(s: &str) -> String {
-    let s = s.trim();
-    // Remove schema prefix: [dbo].[Name] or dbo.Name
-    let name = if let Some(dot_pos) = s.rfind('.') {
-        &s[dot_pos + 1..]
-    } else {
-        s
-    };
-    // Remove brackets
-    let name = name.trim();
-    if name.starts_with('[') && name.ends_with(']') {
-        name[1..name.len() - 1].to_string()
-    } else {
-        name.to_string()
-    }
+    crate::sql_names::object_basename(s).to_owned()
 }
 
 /// Map T-SQL data types to C# equivalents.

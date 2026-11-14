@@ -32,6 +32,7 @@ pub mod quality_gates;
 pub mod report_extractor;
 pub mod solution_parser;
 pub mod sp_extractor;
+pub mod sql_names;
 pub mod sql_parser;
 #[cfg(feature = "vector")]
 mod sql_literals;
