@@ -37,5 +37,7 @@
     "Exact full JSON/Markdown/both report recovery after policy changes; original status/provider conflicts and unknowns retained",
     "Small/large/default budgets, invalid controls and no snapshot on minimum metadata refusal"
   ],
-  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py"
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py",
+  "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
+  "source_followup": "Use the existing crate-visible token_bytes helper directly; the planner-specific budget helper is private to its module. No build or behavioral validation claimed."
 }

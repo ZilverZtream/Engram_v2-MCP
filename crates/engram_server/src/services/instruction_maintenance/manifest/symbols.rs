@@ -133,7 +133,8 @@ pub(super) fn capture(
                 .unwrap_or("")
                 .to_ascii_lowercase();
             let vb = extension == "vb";
-            let supported = vb
+            let sql = extension == "sql";
+            let supported = vb || sql
                 || matches!(
                     extension.as_str(),
                     "rs" | "py"
@@ -159,6 +160,17 @@ pub(super) fn capture(
                             &snapshot.content,
                         )
                         .ok()
+                    } else if sql {
+                        let (mut symbols, _) = engram_index::sp_extractor::extract_stored_procedures(
+                            &engram_core::RelPath::new(path), &snapshot.content,
+                        );
+                        // The shared SQL extractor uses zero-based inclusive lines.
+                        // Candidate ranges in this manifest are one-based inclusive.
+                        for symbol in &mut symbols {
+                            symbol.start_line += 1;
+                            symbol.end_line += 1;
+                        }
+                        Some(symbols)
                     } else {
                         Some(engram_index::parsing::SymbolExtractor::new()
                             .extract(Path::new(path), &snapshot.content)
@@ -178,6 +190,8 @@ pub(super) fn capture(
                 "symbol_extractor_unavailable"
             } else if vb {
                 "regex_declaration_line_candidates_no_absence_proof"
+            } else if sql {
+                "regex_procedure_line_range_candidates_no_absence_proof"
             } else {
                 "tree_sitter_line_range_candidates_no_absence_proof"
             };
@@ -223,6 +237,8 @@ pub(super) fn capture(
                         .to_string(),
                     span_kind: if vb {
                         "regex_declaration_line_only"
+                    } else if sql {
+                        "regex_procedure_line_range"
                     } else {
                         "extracted_declaration_line_range"
                     },
@@ -508,4 +524,59 @@ pub(super) fn changes(references: &[Reference], indices: &[usize]) -> Vec<Change
             }
         })
         .collect()
+}
+
+#[cfg(test)]
+mod sql_tests {
+    use super::*;
+
+    fn snapshot(content: &str) -> Snapshot {
+        Snapshot {blake3:blake3::hash(content.as_bytes()).to_hex().to_string(),content:content.into()}
+    }
+
+    #[test]
+    fn collected_sql_procedure_ranges_separate_changed_and_unchanged_instruction_evidence() {
+        let guidance="Preserve `Important` and `Other`.\n";
+        let instructions=vec![Instruction {path:"AGENTS.md".into(),before:Some(snapshot(guidance)),current:snapshot(guidance)}];
+        let before="CREATE PROCEDURE [dbo].[Important] AS SELECT 10;\nGO\nALTER PROCEDURE [dbo].[Other] AS SELECT 20;\n";
+        let after=before.replace("SELECT 20","SELECT 30");
+        let evidence=vec![Evidence {path:"db/procedures.sql".into(),before:Some(snapshot(before)),after:Some(snapshot(&after))}];
+        let mut issues=vec![];
+        let (references,inventory)=capture(&instructions,&evidence,&BTreeMap::new(),&mut issues);
+        assert!(issues.is_empty());
+        assert_eq!(inventory.len(),2);
+        assert!(inventory.iter().all(|row| row.status=="regex_procedure_line_range_candidates_no_absence_proof" && row.retained_candidates==2 && row.omitted_candidates==0));
+        for reference in &references {
+            assert_eq!(reference.status,"single_observed_declaration_candidate");
+            assert_eq!(reference.candidates.len(),1);
+            let candidate=&reference.candidates[0];
+            assert_eq!(candidate.kind,"stored_procedure");
+            assert_eq!(candidate.span_kind,"regex_procedure_line_range");
+            assert!(!candidate.absence_proof);
+            let source=if reference.version==Version::Before {before} else {&after};
+            let bytes=&source[candidate.byte_range[0]..candidate.byte_range[1]];
+            assert_eq!(candidate.source_blake3,blake3::hash(source.as_bytes()).to_hex().to_string());
+            assert_eq!(candidate.evidence_blake3,blake3::hash(bytes.as_bytes()).to_hex().to_string());
+            assert_eq!(candidate.start_line,if candidate.name=="Important" {1} else {3});
+            if candidate.name=="Important" {assert!(!bytes.contains("Other"));}
+        }
+        let compared=changes(&references,&(0..references.len()).collect::<Vec<_>>());
+        assert_eq!(compared.iter().find(|row| row.literal=="Important").unwrap().status,"same_observed_candidate_bytes");
+        assert_eq!(compared.iter().find(|row| row.literal=="Other").unwrap().status,"changed_observed_candidate_bytes");
+    }
+
+    #[test]
+    fn collected_sql_basename_collisions_remain_ambiguous_without_schema_binding() {
+        let guidance="Preserve `SaveOrder`.\n";
+        let instructions=vec![Instruction {path:"AGENTS.md".into(),before:Some(snapshot(guidance)),current:snapshot(guidance)}];
+        let evidence:Vec<_>=[("db/dbo.sql","CREATE PROCEDURE dbo.SaveOrder AS SELECT 1;"),("db/audit.sql","CREATE PROCEDURE audit.SaveOrder AS SELECT 2;")]
+            .into_iter().map(|(path,content)| Evidence {path:path.into(),before:Some(snapshot(content)),after:Some(snapshot(content))}).collect();
+        let (references,_)=capture(&instructions,&evidence,&BTreeMap::new(),&mut vec![]);
+        assert_eq!(references.len(),2);
+        for reference in &references {
+            assert_eq!(reference.status,"ambiguous_symbol_candidates");
+            assert_eq!(reference.observed_candidate_count,2);
+            assert!(reference.candidates.iter().all(|row| !row.absence_proof));
+        }
+    }
 }

@@ -7,7 +7,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
-    snapshots::budget(tokens)
+    Ok(crate::handlers::search_tools::response_budget::token_bytes(tokens)?.unwrap_or(40 * 1024))
 }
 
 pub(super) fn recover(data: &Path, req: &AskCodebaseRequest) -> Result<Option<String>, McpError> {
