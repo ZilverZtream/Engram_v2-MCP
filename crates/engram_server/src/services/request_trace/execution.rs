@@ -362,7 +362,7 @@ pub(super) fn trace_selected(
     }
     if let Some(database) = &database {
         result.gaps.extend(database.gaps.iter().cloned());
-        result.gaps.push("Database coverage is partial: source fallback covers local literal SqlCommand stored-procedure candidates, literal VB ExecuteCommand SQL table references and explicit local VB context/member DBML mappings. Dynamic commands, generated SQL/ORM translation, aliases, nested procedure execution and deployed database identity are not resolved.".into());
+        result.gaps.push("Database coverage is partial: source fallback covers local literal SqlCommand stored-procedure candidates, bounded literal EXEC/EXECUTE procedure references, literal VB ExecuteCommand SQL table references and explicit local VB context/member DBML mappings. Dynamic commands, generated SQL/ORM translation, aliases, deployed database identity and runtime or recursive procedure execution are not resolved.".into());
     }
     let mut visited = BTreeSet::new();
     while let Some((node, depth)) = queue.pop_front() {

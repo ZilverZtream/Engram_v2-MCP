@@ -9,7 +9,7 @@ use sqlparser::{
     dialect::MsSqlDialect,
     tokenizer::{Location, Token, Tokenizer, Whitespace},
 };
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 
 pub(super) struct Catalog {
     definitions: Vec<Definition>,
@@ -26,6 +26,51 @@ struct Definition {
     reads: Vec<String>,
     writes: Vec<String>,
     dynamic: bool,
+    calls: Vec<ProcedureCall>,
+    calls_truncated: bool,
+}
+
+struct ProcedureCall {
+    name: String,
+    key: Vec<String>,
+    line: u32,
+}
+
+fn procedure_id(definition: &Definition) -> String {
+    format!("source-sp:{}:{}:{}", definition.path, definition.line, definition.name)
+}
+
+/// The caller supplies comment/string-masked SQL with original line positions.
+/// GO ends the procedure's batch; deployment calls after it are not body calls.
+fn procedure_calls(source: &str, first_line: u32) -> Vec<ProcedureCall> {
+    let mut end = 0;
+    for line in source.split_inclusive('\n') {
+        if line.trim().eq_ignore_ascii_case("GO") { break; }
+        end += line.len();
+    }
+    let Ok(tokens) = Tokenizer::new(&MsSqlDialect {}, &source[..end]).tokenize_with_location() else { return Vec::new(); };
+    let tokens: Vec<_> = tokens.iter().filter(|token| !matches!(token.token, Token::Whitespace(_))).collect();
+    let word = |index: usize, expected: &str| tokens.get(index).is_some_and(|token|
+        matches!(&token.token, Token::Word(value) if value.quote_style.is_none() && value.value.eq_ignore_ascii_case(expected)));
+    let mut calls = Vec::new();
+    for i in 0..tokens.len() {
+        if !word(i, "EXEC") && !word(i, "EXECUTE") { continue; }
+        let mut j = i + 1;
+        if word(j, "AS") { continue; } // execution context, not a procedure call
+        if tokens.get(j).is_some_and(|token| token.token.to_string().starts_with('@'))
+            && tokens.get(j + 1).is_some_and(|token| token.token == Token::Eq) { j += 2; }
+        let begin = j;
+        if !tokens.get(j).is_some_and(|token| matches!(&token.token, Token::Word(value) if !value.value.starts_with('@'))) { continue; }
+        j += 1;
+        while tokens.get(j).is_some_and(|token| token.token == Token::Period)
+            && tokens.get(j + 1).is_some_and(|token| matches!(token.token, Token::Word(_))) { j += 2; }
+        let name = tokens[begin..j].iter().map(|token| token.token.to_string()).collect::<String>();
+        if let Some(key) = name_key(&name) {
+            calls.push(ProcedureCall {name, key, line:first_line + tokens[i].span.start.line as u32 - 1});
+            if calls.len() == 65 { break; }
+        }
+    }
+    calls
 }
 
 fn name_key(name: &str) -> Option<Vec<String>> {
@@ -183,6 +228,7 @@ impl Catalog {
                     }
                     continue;
                 };
+                let calls = procedure_calls(&masked[*start..end], *line);
                 result.definitions.push(Definition {
                     key: key.clone(),
                     name: name.clone(),
@@ -198,6 +244,8 @@ impl Catalog {
                     reads: definition.tables_read.iter().take(64).cloned().collect(),
                     writes: definition.tables_written.iter().take(64).cloned().collect(),
                     dynamic: definition.has_dynamic_sql,
+                    calls_truncated: calls.len() > 64,
+                    calls: calls.into_iter().take(64).collect(),
                 });
             }
         }
@@ -241,6 +289,17 @@ impl Catalog {
                 gaps.push(format!("{}: {} exact qualified procedure declarations; no default schema or basename binding inferred",command.name,matches.len()));
                 continue;
             };
+            self.append_procedure(project, definition, hops, members, gaps, cap);
+        }
+    }
+
+    fn append_procedure(&self, project: &str, root: &Definition, hops: &mut Vec<Hop>,
+        members: &mut Vec<Value>, gaps: &mut Vec<String>, cap: usize) {
+        let mut pending = VecDeque::from([root]);
+        let mut expanded = BTreeSet::new();
+        while let Some(definition) = pending.pop_front() {
+            let id = procedure_id(definition);
+            if !expanded.insert(id.clone()) { continue; }
             members.push(json!({"node_id":id,"file":definition.path,"line_start":definition.line,"line_end":definition.end,"source_blake3":definition.hash,
                 "excerpt":definition.excerpt,"interpretation":"Current SQL source matched by its full authored procedure name; definition deployment/database identity and runtime effects are not proven.",
                 "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,"file_path":definition.path,"line_start":definition.line,"context_lines":0}}}));
@@ -264,6 +323,24 @@ impl Catalog {
                     "{}: dynamic SQL effects remain unresolved",
                     definition.name
                 ));
+            }
+            if definition.calls_truncated {
+                gaps.push(format!("{}: nested procedure references truncated at 64 call sites", definition.name));
+            }
+            for call in &definition.calls {
+                if hops.len() >= cap {
+                    gaps.push("Nested procedure evidence truncated at complete path limit".into());
+                    break;
+                }
+                let matches: Vec<_> = self.definitions.iter().filter(|target| target.key == call.key).collect();
+                let target = if matches.len() == 1 { Some(matches[0]) } else { None };
+                let target_id = target.map_or_else(||format!("unresolved-sp:{}",call.name),procedure_id);
+                hops.push(Hop {table_mapping:None,from:id.clone(),to:target_id,kind:"calls_stored_procedure".into(),target_name:call.name.clone(),
+                    target_file:target.map(|target| target.path.clone()),target_line:target.map(|target| target.line),target_source_verified:target.is_some(),
+                    evidence:Some(json!({"origin":"current_sql_literal_exec_candidate","file":definition.path,"call_site_line":call.line,"source_blake3":definition.hash,
+                        "interpretation":"Literal EXEC/EXECUTE reference matched only by the full authored procedure name. Each source definition is expanded once per root within the path cap; branch reachability, deployment and successful or recursive execution are not established."}))});
+                if let Some(target) = target { pending.push_back(target); }
+                else { gaps.push(format!("{}:{}: {} has {} exact qualified procedure declarations; no default schema or basename binding inferred", definition.path,call.line,call.name,matches.len())); }
             }
         }
     }
@@ -405,6 +482,52 @@ fn commands(body: &str, vb: bool) -> Vec<Command> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn trace_sql(sources: &[Source<'_>]) -> (Vec<Hop>, Vec<Value>, Vec<String>) {
+        let catalog = Catalog::new(sources);
+        let method = engram_graph::Node {
+            node_id:"save".into(),node_type:"function".into(),name:"Save".into(),
+            namespace:"memory".into(),language:"vbnet".into(),file_path:engram_core::RelPath::new("Save.vb"),
+            start_line:1,end_line:4,generation:1,metadata:None,
+        };
+        let mut hops=Vec::new();let mut members=Vec::new();let mut gaps=Vec::new();
+        catalog.append("project",&method,"Dim cmd As New SqlCommand(\"dbo.Save\")\ncmd.CommandType = CommandType.StoredProcedure\ncmd.ExecuteNonQuery()\n",&mut hops,&mut members,&mut gaps,128);
+        (hops,members,gaps)
+    }
+
+    #[test]
+    fn delivery_batch_nested_procedures_reach_tables_with_call_site_and_schema_provenance() {
+        let sql="CREATE PROCEDURE dbo.Save AS\nEXEC dbo.SaveChild;\nEXECUTE @status = audit.SaveChild;\nGO\nEXEC dbo.AfterDeployment;\nCREATE PROCEDURE dbo.SaveChild AS\nSELECT * FROM dbo.Orders;\nGO\nCREATE PROCEDURE audit.SaveChild AS\nSELECT * FROM audit.Log;\n";
+        let (hops,members,gaps)=trace_sql(&[Source{path:"db/procedures.sql",content:sql}]);
+        assert_eq!(members.len(),3);
+        for (name,line) in [("dbo.SaveChild",2),("audit.SaveChild",3)] {
+            let hop=hops.iter().find(|hop|hop.target_name==name).unwrap();
+            assert!(hop.target_source_verified);
+            assert_eq!(hop.evidence.as_ref().unwrap()["call_site_line"],line);
+            assert_eq!(hop.evidence.as_ref().unwrap()["source_blake3"],blake3::hash(sql.as_bytes()).to_hex().to_string());
+        }
+        for table in ["Orders","Log"] {
+            assert!(hops.iter().any(|hop|hop.kind=="stored_proc_reads_table" && hop.target_name==table));
+        }
+        assert!(!hops.iter().any(|hop|hop.target_name.contains("AfterDeployment")));
+        assert!(gaps.is_empty(),"{gaps:?}");
+    }
+
+    #[test]
+    fn delivery_batch_nested_procedure_binding_does_not_guess_schema_or_ambiguous_definitions() {
+        let root="CREATE PROCEDURE dbo.Save AS\nEXEC Child;\nEXEC dbo.Duplicate;\nEXECUTE AS OWNER;\nEXEC (@dynamic);\n-- EXEC dbo.CommentExample;\nPRINT 'EXEC dbo.StringExample';\nGO\n";
+        let child="CREATE PROCEDURE dbo.Child AS SELECT * FROM dbo.Orders;\n";
+        let duplicate="CREATE PROCEDURE dbo.Duplicate AS SELECT * FROM dbo.Log;\n";
+        let (hops,_,gaps)=trace_sql(&[Source{path:"root.sql",content:root},Source{path:"child.sql",content:child},
+            Source{path:"one.sql",content:duplicate},Source{path:"two.sql",content:duplicate}]);
+        for name in ["Child","dbo.Duplicate"] {
+            let hop=hops.iter().find(|hop|hop.target_name==name).unwrap();assert!(!hop.target_source_verified);
+        }
+        assert!(!hops.iter().any(|hop|hop.kind=="stored_proc_reads_table"));
+        assert!(!hops.iter().any(|hop|["OWNER","dbo.CommentExample","dbo.StringExample"].contains(&hop.target_name.as_str())));
+        assert!(gaps.iter().any(|gap|gap.contains("Child has 0")));
+        assert!(gaps.iter().any(|gap|gap.contains("dbo.Duplicate has 2")));
+    }
     #[test]
     fn qualified_command_constructor_tracks_its_receiver_and_ignores_examples() {
         let source = "Dim cmd As New SqlCommand(\"dbo.CreateOrder\")\ncmd.CommandType = System.Data.CommandType.StoredProcedure\ncmd.ExecuteNonQuery()\n' fake.ExecuteNonQuery()\n";
