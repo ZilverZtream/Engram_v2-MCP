@@ -10,6 +10,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 mod historical;
+mod references;
 pub use historical::resolve_at_revision;
 
 const MAX_DISCOVERY_ENTRIES: usize = 2_048;
@@ -55,6 +56,18 @@ pub struct PolicyOmission {
 }
 
 #[derive(Debug, Clone, Serialize)]
+pub struct PolicyReference {
+    pub source_path: String,
+    pub source_blake3: String,
+    pub byte_range: [usize; 2],
+    pub target: String,
+    pub path: Option<String>,
+    pub fragment: Option<String>,
+    pub status: String,
+    pub target_blake3: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct PolicyContext {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source_revision: Option<String>,
@@ -68,6 +81,9 @@ pub struct PolicyContext {
     pub character_cap_per_source: usize,
     pub character_cap_total: usize,
     pub omissions: Vec<PolicyOmission>,
+    pub references: Vec<PolicyReference>,
+    pub reference_coverage: String,
+    pub references_omitted: usize,
     pub notes: Vec<String>,
     pub instruction: String,
 }
@@ -86,6 +102,9 @@ impl PolicyContext {
             character_cap_per_source: budget.max_characters_per_source,
             character_cap_total: budget.max_characters_total,
             omissions: vec![],
+            references: vec![],
+            reference_coverage: "not_evaluated".into(),
+            references_omitted: 0,
             notes: vec![],
             instruction: POLICY_INSTRUCTION.into(),
         }
@@ -120,6 +139,7 @@ impl PolicyContext {
         if let Some(revision) = &self.source_revision {
             let _ = writeln!(text, "\nPolicy source revision: `{revision}`.");
         }
+        let _ = writeln!(text, "\nLinked document coverage: {}; omitted reference observations: {}. This covers supported references in supplied complete sources, not omitted bodies or all prose/HTML. A link does not establish authority or applicability.", self.reference_coverage, self.references_omitted);
         for source in &self.sources {
             let _ = writeln!(
                 text,
@@ -143,6 +163,11 @@ impl PolicyContext {
                     .map(|hash| format!(" BLAKE3: `{hash}`."))
                     .unwrap_or_default()
             );
+        }
+        for reference in &self.references {
+            let _ = writeln!(text, "\n- Linked document: `{}` bytes {}..{} (BLAKE3 `{}`) → `{}`; status: {}; normalized path: {}. Assess the source conditions and target scope before applying it.",
+                reference.source_path, reference.byte_range[0], reference.byte_range[1], reference.source_blake3,
+                reference.target, reference.status, reference.path.as_deref().unwrap_or("unresolved"));
         }
         for note in &self.notes {
             let _ = writeln!(text, "\n- Coverage note: {note}");
@@ -827,6 +852,7 @@ fn select_sources(
         }
     }
     context.sources_shown = context.sources.len();
+    references::observe(&mut context);
     if !context.omissions.is_empty() || !context.notes.is_empty() {
         context.status = "incomplete".into();
         context.coverage = "incomplete".into();

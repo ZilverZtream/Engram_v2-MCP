@@ -2,7 +2,7 @@
 use super::*;
 use std::collections::{BTreeMap, VecDeque};
 
-mod markdown_links;
+pub(crate) mod markdown_links;
 mod symbols;
 
 const DEPENDENCY_LIMIT: usize = 16;
@@ -213,7 +213,7 @@ fn line_ending_equivalent(before: &str, after: &str) -> bool {
     normalized(before).eq(normalized(after))
 }
 
-fn normalize(source: &str, target: &str) -> Option<(String, Option<String>)> {
+pub(crate) fn normalize(source: &str, target: &str) -> Option<(String, Option<String>)> {
     let (file, fragment) = target
         .split_once('#')
         .map_or((target, None), |(f, a)| (f, Some(a.to_owned())));

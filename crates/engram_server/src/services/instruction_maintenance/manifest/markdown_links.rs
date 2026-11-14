@@ -3,7 +3,7 @@
 use pulldown_cmark::{BrokenLink, Event, LinkType, Options, Parser, Tag, TagEnd};
 use std::collections::BTreeMap;
 
-pub(super) struct Link {
+pub(crate) struct Link {
     pub offset: usize,
     pub end: usize,
     pub target: String,
@@ -13,7 +13,7 @@ pub(super) struct Link {
     pub unresolved_status: Option<&'static str>,
 }
 
-pub(super) struct Parsed {
+pub(crate) struct Parsed {
     pub links: Vec<Link>,
     /// One omission per category, with first source offset and total count.
     pub issues: BTreeMap<&'static str, (usize, usize)>,
@@ -58,7 +58,7 @@ impl Parsed {
     }
 }
 
-pub(super) fn parse(content: &str, available: usize) -> Parsed {
+pub(crate) fn parse(content: &str, available: usize) -> Parsed {
     let mut parsed = Parsed {
         links: Vec::new(),
         issues: BTreeMap::new(),
