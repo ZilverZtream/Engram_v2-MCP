@@ -350,7 +350,28 @@ fn is_sql_keyword(s: &str) -> bool {
 // ── SP Call Chain Detection ──────────────────────────────────────────────────
 
 /// Build SP→SP call chains from SQL file contents.
-/// Returns chains (linear paths and cycles).
+/// Locate the original declaration body for a basename-based procedure report.
+pub(crate) fn find_procedure_source(
+    sql_files: &[(String, String)],
+    name: &str,
+) -> Option<(String, String, engram_index::sp_extractor::StoredProcedureDefinition)> {
+    for (path, source) in sql_files {
+        for definition in engram_index::sp_extractor::parse_sp_definitions(source) {
+            if !definition.name.eq_ignore_ascii_case(name) { continue; }
+            // The shared parser reports zero-based inclusive line spans. Keep
+            // the original declaration and bytes, stopping at its SQL batch.
+            let body: String = source.split_inclusive('\n')
+                .skip(definition.start_line as usize)
+                .take((definition.end_line - definition.start_line + 1) as usize)
+                .take_while(|line| !line.trim().eq_ignore_ascii_case("GO"))
+                .collect();
+            return Some((path.clone(), body.trim_end().to_owned(), definition));
+        }
+    }
+    None
+}
+
+/// Build linear procedure call paths and cycles using the shared parser.
 pub fn detect_sp_call_chains(sql_files: &[(String, String)]) -> Vec<SpCallChain> {
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
     let mut all_sps: HashSet<String> = HashSet::new();
@@ -1439,6 +1460,26 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn procedure_details_find_bracketed_create_and_alter_without_deployment_tail() {
+        let create = "CREATE PROCEDURE [dbo].SaveRecord\r\n @Id uniqueidentifier OUTPUT\r\nAS\r\nBEGIN\r\n INSERT [dbo].[Records] (Id) VALUES (@Id);\r\n SELECT Id FROM [dbo].[Records];\r\nEND\r\nGO\r\nINSERT INTO DeploymentOnly(Id) VALUES (1);\r\n";
+        let alter = "ALTER PROCEDURE [dbo].[RefreshRecord]\nAS\nBEGIN\n MERGE INTO [dbo].[Archive] AS target USING [dbo].[Records] AS source ON target.Id = source.Id WHEN MATCHED THEN UPDATE SET Id = source.Id;\n EXEC [dbo].SaveRecord;\nEND\nGO\n";
+        let files = vec![("create.sql".into(), create.into()), ("alter.sql".into(), alter.into())];
+        let (path, body, definition) = find_procedure_source(&files, "saverecord").unwrap();
+        assert_eq!(path, "create.sql");
+        assert!(body.starts_with("CREATE PROCEDURE [dbo].SaveRecord\r\n"));
+        assert!(body.ends_with("END"));
+        assert!(!body.contains("DeploymentOnly"));
+        assert_eq!(definition.tables_read, ["Records"]);
+        assert_eq!(definition.tables_written, ["Records"]);
+        assert_eq!(definition.parameters[0].direction, "OUT");
+        let (_, body, definition) = find_procedure_source(&files, "RefreshRecord").unwrap();
+        assert!(body.starts_with("ALTER PROCEDURE [dbo].[RefreshRecord]"));
+        assert!(definition.tables_written.iter().any(|name| name == "Archive"), "MERGE support must remain");
+        assert_eq!(definition.called_procedures, ["SaveRecord"]);
+        assert!(find_procedure_source(&files, "MissingProcedure").is_none());
+    }
 
     #[test]
     fn shared_sql_single_procedure_report_is_identical_without_unused_caller_ranking() {
