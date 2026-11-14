@@ -378,7 +378,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Assemble a WebForms/VB.NET feature implementation proposal: structured requirements, cited source patterns, proposed file edits and SQL DDL, ordered steps, per-method safety and acceptance checks. Uses the configured LLM; unavailable or invalid inference returns explicit incomplete evidence. ReadyToCode adds proposed code templates. Read-only: never edits application files or executes SQL. Proposals require source and requirement review."
+        description = "Assemble WebForms/VB.NET feature context and optional implementation proposals. Set dossier_only=true to retrieve bounded source excerpts, scoped change-set guidance and patterns for the calling AI, with zero server text-generation calls and no generated plan or edit-safety verdict. Otherwise uses the configured LLM for requirements, cited proposals, ordered steps, per-method safety and acceptance checks; ReadyToCode adds proposed templates. Read-only: never edits application files or executes SQL. Generated proposals require source and requirement review."
     )]
     pub async fn one_shot_feature_plan(
         &self,
