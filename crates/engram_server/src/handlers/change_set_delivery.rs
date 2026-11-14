@@ -11,6 +11,10 @@ const SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
 const SNAPSHOTS_PER_PROJECT: usize = 32;
 const RETENTION: Duration = Duration::from_secs(24 * 60 * 60);
 
+pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
+    Ok(crate::handlers::search_tools::response_budget::token_bytes(tokens)?.unwrap_or(RESPONSE_BYTES))
+}
+
 #[derive(Clone, Copy)]
 enum Family { ChangeSet, Review, RequestTrace, DatabaseReport }
 
@@ -45,10 +49,10 @@ fn checked_path(directory: &Path, id: &str) -> Result<PathBuf, McpError> {
         .map_err(|_| failure("Cannot safely access the requested change-set response snapshot"))
 }
 
-fn continuation(project_id: &str, id: &str, offset: usize) -> Value {
+fn continuation(project_id: &str, id: &str, offset: usize, limit: usize) -> Value {
     json!({"tool": "get_change_set", "arguments": {
         "project_id": project_id, "story": "", "response_id": id,
-        "response_offset": offset, "output_json": true
+        "response_offset": offset, "output_json": true, "max_tokens": limit / 4
     }})
 }
 
@@ -161,25 +165,33 @@ fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Re
 
 /// Leave small responses byte-for-byte unchanged. Oversized responses retain
 /// every mandatory identity; their full original evidence has immutable recovery.
+#[cfg(test)]
 pub(super) fn bounded(
+    data_dir: &Path, project_id: &str, body: String, output_json: bool, manifest: Value,
+) -> Result<String, McpError> {
+    bounded_with_budget(data_dir, project_id, body, output_json, manifest, RESPONSE_BYTES)
+}
+
+pub(super) fn bounded_with_budget(
     data_dir: &Path,
     project_id: &str,
     body: String,
     output_json: bool,
     mut manifest: Value,
+    limit: usize,
 ) -> Result<String, McpError> {
-    if body.len() <= RESPONSE_BYTES {
+    if body.len() <= limit {
         return Ok(body);
     }
-    let id = save(data_dir, project_id, &body)?;
+    let id = blake3::hash(body.as_bytes()).to_hex().to_string();
     let delivery = json!({
         "status": "DEFERRED_CONTEXT", "complete": false,
         "response_id": id, "original_bytes": body.len(),
         "original_format": if output_json {"json"} else {"markdown"},
-        "response_budget_bytes": RESPONSE_BYTES,
+        "response_budget_bytes": limit,
         "retention": "At most 24 hours or 32 newer project snapshots; missing snapshots require a fresh planning call and fresh receipt reconciliation.",
         "instruction": "The complete original response is deferred, not absent. Recover it before completing intake or validating the feature contract. Concatenate recovery content in byte-offset order; the BLAKE3 digest binds the exact original UTF-8 response. Recovery does not certify that the current checkout is unchanged.",
-        "next_call": continuation(project_id, &id, 0),
+        "next_call": continuation(project_id, &id, 0, limit),
     });
     manifest["response_delivery"] = delivery;
     let mut rendered = serde_json::to_string(&manifest)
@@ -191,7 +203,7 @@ pub(super) fn bounded(
     } else {
         MARKDOWN_PREFIX.len() + MARKDOWN_SUFFIX.len()
     };
-    if rendered.len() + wrapper_bytes > RESPONSE_BYTES {
+    if rendered.len() + wrapper_bytes > limit {
         // Paths and checkpoint bodies may be arbitrarily long; their identities
         // remain inline, while their exact content stays in the snapshot.
         if let Some(rows) = manifest["reconciliation_rows"].as_array_mut() {
@@ -211,21 +223,29 @@ pub(super) fn bounded(
     } else {
         format!("{MARKDOWN_PREFIX}{rendered}{MARKDOWN_SUFFIX}")
     };
-    if rendered.len() > RESPONSE_BYTES {
-        return Err(failure(
-            "Mandatory change-set identities exceed the response budget; narrow the story or configured hard rules. No receipt or mandatory identity was silently removed.",
-        ));
+    if rendered.len() > limit {
+        return Err(McpError::invalid_params(format!(
+            "max_tokens is too small for mandatory change-set identities: at least {} estimated tokens ({} UTF-8 bytes) required. Increase max_tokens or narrow the request. No receipt or mandatory identity was silently removed.",
+            rendered.len().div_ceil(4), rendered.len()), None));
     }
+    save(data_dir, project_id, &body)?;
     Ok(rendered)
 }
 
+#[cfg(test)]
 pub(super) fn recover(
     data_dir: &Path,
     project_id: &str,
     id: &str,
     offset: usize,
 ) -> Result<String, McpError> {
-    recover_for(data_dir, project_id, id, offset, RESPONSE_BYTES, Family::ChangeSet)
+    recover_with_budget(data_dir, project_id, id, offset, RESPONSE_BYTES)
+}
+
+pub(super) fn recover_with_budget(
+    data_dir: &Path, project_id: &str, id: &str, offset: usize, limit: usize,
+) -> Result<String, McpError> {
+    recover_for(data_dir, project_id, id, offset, limit, Family::ChangeSet)
 }
 
 pub(crate) fn review_continuation(project_id: &str, id: &str, offset: usize, budget: usize) -> Value {
@@ -314,7 +334,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
             "complete": complete, "content": &body[offset..end],
             "evidence_scope": "Immutable original response; current checkout freshness is not re-evaluated",
             "next_call": if complete {Value::Null} else {match family {
-                Family::ChangeSet => continuation(project_id, id, end),
+                Family::ChangeSet => continuation(project_id, id, end, budget),
                 Family::Review => review_continuation(project_id, id, end, budget),
                 Family::RequestTrace => request_trace_continuation(project_id, id, end, budget),
                 Family::DatabaseReport => database_report_continuation(project_id, id, end, budget),
@@ -358,6 +378,51 @@ mod tests {
             "contract_checkpoint": {"receipt": {"receipt_id":"sha256:checkpoint"}, "hard_items":[{"id":"RULE-001","requirement":"Preserve this exact requirement"}]},
             "contract_checkpoint_identity": {"receipt_id":"sha256:checkpoint", "hard_item_ids":["RULE-001"]}
         })
+    }
+
+    #[test]
+    fn chosen_change_set_budget_preserves_identities_and_exact_recovery_in_both_formats() {
+        let tmp = tempfile::tempdir().unwrap();
+        let original = "Complete qualification: α and quoted \"source\".\n".repeat(2_000);
+        for output_json in [false, true] {
+            let response = bounded_with_budget(tmp.path(), "project", original.clone(), output_json, manifest(), 8192).unwrap();
+            assert!(response.len() <= 8192);
+            let encoded = if output_json { response.as_str() } else {
+                response.split("```json\n").nth(1).unwrap().split("\n```").next().unwrap()
+            };
+            let delivered: Value = serde_json::from_str(encoded).unwrap();
+            assert_eq!(delivered["reconciliation"]["required_rows"], 120);
+            assert_eq!(delivered["reconciliation_rows"].as_array().unwrap().len(), 120);
+            assert_eq!(delivered["contract_checkpoint_identity"]["hard_item_ids"], json!(["RULE-001"]));
+            let delivery = &delivered["response_delivery"];
+            assert_eq!(delivery["response_budget_bytes"], 8192);
+            assert_eq!(delivery["next_call"]["arguments"]["max_tokens"], 2048);
+            let id = delivery["response_id"].as_str().unwrap();
+            let mut recovered = String::new();
+            loop {
+                let raw = recover_with_budget(tmp.path(), "project", id, recovered.len(), 8192).unwrap();
+                assert!(raw.len() <= 8192);
+                let page: Value = serde_json::from_str(&raw).unwrap();
+                recovered.push_str(page["content"].as_str().unwrap());
+                if page["complete"] == true { break; }
+                assert_eq!(page["next_call"]["arguments"]["max_tokens"], 2048);
+                assert_eq!(page["next_call"]["arguments"]["story"], "");
+            }
+            assert_eq!(recovered, original);
+        }
+    }
+
+    #[test]
+    fn larger_budget_can_return_complete_dossier_and_small_budget_failure_writes_no_snapshot() {
+        let tmp = tempfile::tempdir().unwrap();
+        let original = "Complete authored dossier.\n".repeat(2_000);
+        assert!(original.len() > RESPONSE_BYTES);
+        assert_eq!(bounded_with_budget(tmp.path(), "project", original.clone(), true, manifest(), 100_000).unwrap(), original);
+        assert!(bounded_with_budget(tmp.path(), "project", original, true, manifest(), 4).is_err());
+        assert_eq!(std::fs::read_dir(tmp.path()).unwrap().count(), 0);
+        assert_eq!(budget(None).unwrap(), RESPONSE_BYTES);
+        assert!(budget(Some(0)).is_err());
+        assert!(budget(Some(usize::MAX)).is_err());
     }
 
     #[test]

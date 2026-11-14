@@ -320,6 +320,15 @@ navigation budget, its metadata remains inline with `status: "deferred"` and
 `response_delivery.next_call` before relying on that guidance. Partial quotations
 are not substituted for complete instructions.
 
+### Caller budgets for change sets
+
+`get_change_set` accepts positive `max_tokens` for complete reply text, using
+the existing four-UTF-8-bytes-per-token estimate. Omitting it retains the 40 KiB
+default. The budget also travels with every exact-original recovery action.
+Mandatory reconciliation and checkpoint identities remain inline; if they
+cannot fit, the tool reports a minimum budget before saving a response snapshot.
+The same controls apply to JSON and Markdown without changing dossier selection.
+
 ### References in supplied repository guidance
 
 Shared `project_policy_sources` contexts include `references` for supported

@@ -802,6 +802,10 @@ pub enum PlanDetailLevel {
 #[serde(deny_unknown_fields)]
 pub struct GetChangeSetRequest {
     pub project_id: String,
+    /// Complete reply-text budget estimated as UTF-8 bytes / 4.
+    /// Default 10240 tokens (40 KiB). Recovery pages honor the same budget.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
     /// Recover a previously captured oversized response without rerunning
     /// planning. Use the exact project-scoped BLAKE3 response ID returned in
     /// `response_delivery`; supply an empty `story` for recovery calls.
