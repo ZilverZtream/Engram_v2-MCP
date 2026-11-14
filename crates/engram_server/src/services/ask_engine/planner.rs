@@ -281,6 +281,7 @@ pub fn plan_query(question: &str) -> QueryPlan {
     let contract = derive_contract(&lower, &entities);
 
     QueryPlan {
+        model_routing: None,
         intents,
         entities,
         qualifiers,
@@ -957,7 +958,7 @@ pub fn extract_qualifiers(q: &str, lower: &str) -> Qualifiers {
     ql
 }
 
-fn primary_answer_type(top: Option<Intent>) -> AnswerType {
+pub(super) fn primary_answer_type(top: Option<Intent>) -> AnswerType {
     match top {
         Some(Intent::Impact) => AnswerType::ImpactSet,
         Some(Intent::Usage) => AnswerType::UsageSites,
@@ -973,7 +974,7 @@ fn primary_answer_type(top: Option<Intent>) -> AnswerType {
     }
 }
 
-fn needed_evidence_for(intents: &[(Intent, f32)]) -> Vec<EvidenceKind> {
+pub(super) fn needed_evidence_for(intents: &[(Intent, f32)]) -> Vec<EvidenceKind> {
     use EvidenceKind::*;
     let mut set: Vec<EvidenceKind> = Vec::new();
     let want = |k: EvidenceKind, s: &mut Vec<EvidenceKind>| {

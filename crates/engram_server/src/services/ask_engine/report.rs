@@ -216,6 +216,11 @@ pub fn render_markdown(r: &AskReport) -> String {
         })
         .collect();
     let _ = writeln!(s, "**understanding:** intents [{}]", intents.join(", "));
+    if let Some(routing) = &r.plan.model_routing {
+        let _ = writeln!(s, "**model routing:** {}{}", routing.status,
+            routing.reason.map(|reason| format!(" ({reason}); deterministic routing retained")).unwrap_or_default());
+        let _ = writeln!(s, "{}", super::model_routing::LIMITATION);
+    }
     if !ents.is_empty() {
         let _ = writeln!(s, "**entities:** {}", ents.join(", "));
     }

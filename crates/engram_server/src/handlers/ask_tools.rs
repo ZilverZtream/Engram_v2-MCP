@@ -91,6 +91,12 @@ impl Engram {
 
         // Plan, then resolve entities against the graph (sync redb → spawn_blocking).
         let mut plan = planner::plan_query(&req.question);
+        if req.route_with_model {
+            let wait = Duration::from_millis(req.routing_timeout_ms.unwrap_or(5_000).clamp(1_000, 30_000));
+            crate::services::ask_engine::model_routing::route(
+                &self.state.dreaming, &req.question, &mut plan, wait,
+            ).await;
+        }
         let graph = self.state.graph.clone();
         let pid_for_resolve = req.project_id.clone();
         let question_for_resolve = req.question.clone();

@@ -294,7 +294,11 @@ proposals that duplicate the existing surface:
   optional synthesis can cite exact policy text. Installed LegacyValidation map-layer guidance
   matched the independent source exactly. This does not establish model compliance.
   Evidence: [scoped-guidance delivery](eval/legacy_validation-ask-policy-delivery-20261113.json).
-  Optional model-assisted routing and broader task acceptance remain unfinished.
+  Opt-in model-assisted routing is implemented in source (2026-11-14), with 40
+  native checks and owned debug MCP acceptance. Default makes no routing model
+  request; rejected/unavailable routing retains the deterministic plan. Deployment
+  and actual LegacyValidation acceptance are pending the next batched release. Broader task
+  acceptance remains unfinished. [Progress](eval/legacy_validation-ask-routing-progress-20261114.json).
   Evidence: [member-context delivery](eval/legacy_validation-ask-member-context-delivery-20261113.json);
   [retained earlier 3/4 result](eval/legacy_validation-ask-synthesis-delivery-20261113.json).
   Routes a question to search + graph + access-layer internally and returns a synthesized,
