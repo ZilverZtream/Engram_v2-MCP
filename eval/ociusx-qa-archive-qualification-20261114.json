@@ -1,0 +1,64 @@
+{
+  "status": "EXISTING_ARCHIVE_FOUND_SOURCE_CANDIDATES_VERIFIED",
+  "at_utc": "2026-11-14T22:11:58.349809+00:00",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
+  "archive": "C:\\Users\\Dennis\\source\\repos\\OciusX\\.pr-review\\qa",
+  "literal_bench_directory_exists": false,
+  "eligible_metadata_records": 29,
+  "builds_started": 0,
+  "model_calls_started": 0,
+  "index_updates_started": 0,
+  "actual_source_modified": false,
+  "actual_site_q_read": false,
+  "remaining": [
+    "Freeze complete category-specific tasks, authored-policy evidence, criteria and blind packets before model outputs.",
+    "Ensure each historical task is served from matching isolated pre-change source and history; no mixed-version project or current-source leakage.",
+    "Run the existing current-producer command once after corpus qualification; preserve any quality failure without retuning/replay."
+  ],
+  "limits": [
+    "This archive admission resolves the false corpus-path blocker; it does not close EG24 or establish task usefulness.",
+    "Four category assignments are candidates; no frozen accepted corpus or model performance result is claimed.",
+    "Prior inspected 19/20 assisted versus20/20 baseline quality failure remains unchanged."
+  ],
+  "resources": {
+    "retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
+    "purpose": "Private exact selected non-Q before/after Git blobs, diffs, metadata pins and qualification receipt for EG24 corpus preparation.",
+    "cleanup_condition": "Retain for review until accepted corpus provenance no longer requires these source candidates; no preexisting directory removed.",
+    "servers_or_projects_created": 0
+  },
+  "qualification_sha256": "51c8ebcc0b6e80d55b6d01a074b76c84c28a6520b8255565fed82b30b6223bd0",
+  "candidate_summary": [
+    {
+      "pr": 2031,
+      "category": "scoped_policy",
+      "merge_commit": "f0cfba0cde7935bbefc2f06a26c7ffe2b32fb1ee",
+      "first_parent": "fd73422ee6a679f7d039943255de941a3b5b3f81",
+      "source_files": 4,
+      "provenance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\PR2031\\provenance.json"
+    },
+    {
+      "pr": 2025,
+      "category": "companion_edits",
+      "merge_commit": "fa4e8b5e59fc18fc11b605936caa3bae12f7f1f6",
+      "first_parent": "11ce2caf227d2d052977ce8dbcf7e5b3b88db982",
+      "source_files": 16,
+      "provenance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\PR2025\\provenance.json"
+    },
+    {
+      "pr": 2082,
+      "category": "history",
+      "merge_commit": "ad751d621114f273f9d9a184c2067aafcf97b60d",
+      "first_parent": "70755218c1d7a2f74eb30de64ee50844e05bb84f",
+      "source_files": 1,
+      "provenance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\PR2082\\provenance.json"
+    },
+    {
+      "pr": 2086,
+      "category": "diagnosis",
+      "merge_commit": "c481dfa3a1b0a806354c3608e9a3bd245a08655e",
+      "first_parent": "42ef634eeaf79c63dca17abfcd6cd74341564d25",
+      "source_files": 2,
+      "provenance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\PR2086\\provenance.json"
+    }
+  ]
+}

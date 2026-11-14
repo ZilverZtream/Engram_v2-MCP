@@ -40,36 +40,35 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "Original TODO59 focused standalone procedure inspection",
-    "original_requirement": "Usable SQL analysis without unnecessary application-code scans; consolidate overlapping SQL input/analysis work.",
-    "observed_missing_behavior": "Installed get_sp_details has no explicit SQL-file selector or way to omit application callers: it always discovers project SQL and up to5000 VB/C# files. OciusX targeted SQL inspection needs an explicit source-only mode; baseline confirms both controls are absent and default code/reverse-SP callers are currently returned.",
+    "status": "ACTIVE_SOURCE_CANDIDATES_QUALIFIED_CORPUS_FREEZE_PENDING",
+    "finding": "EG-24 original regular accepted-task verification",
+    "original_requirement": "Frozen leakage-controlled tasks covering scoped policy, companion edits, history and diagnosis; measure correctness, false guidance, useful evidence/read cost, context cost and latency.",
+    "observed_missing_behavior": "Existing regular check command is delivered but its inspected four-case quality run failed. The claimed corpus absence was based only on a missing literal qa/bench path; actual QA archives provide source candidates. Fresh qualified corpus and isolated source/history remain unfinished.",
     "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/migration_tools.rs",
-      "crates/engram_server/src/handlers/migration_sql_sources.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/phase37_wiring_test.rs"
+      "eval/frozen_task_run.py (existing; unchanged)",
+      "eval/frozen_task_capture.py (existing; unchanged)",
+      "eval/frozen_task_eval.py (existing; unchanged)",
+      "README.md",
+      "eval/ociusx-qa-archive-qualification-20261114.json"
     ],
     "acceptance": [
-      "Optional sql_file_path reads only that explicit SQL input via safe_join; otherwise preserve bounded SQL discovery. Share the existing SQL input loader with analyze_database_intelligence rather than duplicating its file-scope logic.",
-      "Optional include_code_callers defaults true. False skips application-code discovery/reads and graph caller lookup, while returning complete selected procedure details. Explicitly label code callers NOT_REQUESTED; do not present absent caller evidence as verified no callers.",
-      "Disclose explicit-file versus project SQL scope and that reverse-procedure callers/triggers outside that file were not checked. Keep default code/reverse-SP callers, real OciusX source/body hash, parameters/read/write facts and existing force_refresh compatibility.",
-      "Focused native file-scope behavior and combined candidate/installed public checks on unchanged actual OciusX SQL copies plus owned code/reverse-SP callers. No per-component compile; preserve actual inputs/config/WIP9."
+      "Verify existing archive metadata, local merge commits and first-parent before/after blobs for four non-Q source candidates; retain hashes and exact private provenance. COMPLETE: 29 eligible records, four source candidates, 46 verified blob copies.",
+      "Freeze exactly four complete tasks in the original four categories, authored intent/policy evidence, independent criteria and blind packets before model output. Candidate categories alone do not satisfy this requirement.",
+      "Use matching isolated source/history with the existing installed producer and existing evaluator; do not mix revisions, borrow current policy for historical tasks, read actual Site/Q, create another platform or expand to extra cases.",
+      "Run the existing check once after freeze, retain failures without retuning/replay, record original quality/cost/latency measures and resource cleanup. A completed evaluation may fail quality and does not itself establish productivity."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\baseline1\\acceptance.json",
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\verify-public.py",
-    "implementation_complete": true,
-    "validated": true,
-    "deployed": true,
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
+    "qualification": "eval/ociusx-qa-archive-qualification-20261114.json",
+    "qualification_complete": true,
+    "corpus_frozen": false,
+    "evaluation_executed": false,
+    "production_source_changed": false,
+    "validation_scope": "Archive/source qualification only; zero builds, suites, index updates or model calls.",
     "limits": [
-      "A focused read deliberately supplies less caller/trigger coverage and reports that scope. It is not runtime/deployed database proof.",
-      "No claimed measured latency improvement, general source-permission framework or target-language expansion."
-    ],
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\source-check1.json",
-    "bounded_delivery_complete": true,
-    "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
+      "This archive admission resolves the false corpus-path blocker; it does not close EG24 or establish task usefulness.",
+      "Four category assignments are candidates; no frozen accepted corpus or model performance result is claimed.",
+      "Prior inspected 19/20 assisted versus20/20 baseline quality failure remains unchanged."
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -882,7 +881,10 @@
     "last_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
     "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 06s",
-    "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s"
+    "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s",
+    "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
+    "current_step_builds_required": 0,
+    "current_step_reason": "EG24 archive qualification/freeze uses existing evaluator and installed producer; no runtime source changed."
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -1529,13 +1531,21 @@
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json"
   },
   "benchmark_corpus_observation_20261114": {
-    "status": "EXISTING_CORPUS_STILL_ABSENT",
-    "path": "C:/Users/Dennis/source/repos/OciusX/.pr-review/qa/bench",
-    "prior_evidence": "eval/ociusx-holdout-prerequisite-20261113.json",
+    "status": "EXISTING_ARCHIVE_FOUND_SOURCE_CANDIDATES_VERIFIED",
+    "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\.pr-review\\qa",
+    "literal_bench_directory_exists": false,
+    "eligible_metadata_records": 29,
+    "verified_source_candidates": 4,
+    "receipt": "eval/ociusx-qa-archive-qualification-20261114.json",
     "model_calls_started": 0,
-    "scope": "Original EG24 remains open; no optional-question stall or replay of the inspected failed task."
+    "builds_started": 0,
+    "correction": "The earlier absence claim checked only qa/bench. Existing QA archive records and exact non-Q Git blobs are available; they are not yet a frozen accepted corpus.",
+    "scope": "Original EG24 remains open. Prior inspected failed comparisons remain unchanged; no replay or task-usefulness claim."
   },
   "procedure_analysis_batch_progress": "eval/ociusx-procedure-analysis-batch-progress-20261114.json",
   "shortlist_status_update": "eval/ociusx-shortlist-status-update-20261114.json",
-  "procedure_analysis_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
+  "procedure_analysis_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json",
+  "delivery_records": {
+    "qa_archive_qualification_20261114": "eval/ociusx-qa-archive-qualification-20261114.json"
+  }
 }

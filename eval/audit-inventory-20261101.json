@@ -3204,7 +3204,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -10022,38 +10022,37 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-      "finding": "Original TODO59 focused standalone procedure inspection",
-      "original_requirement": "Usable SQL analysis without unnecessary application-code scans; consolidate overlapping SQL input/analysis work.",
-      "observed_missing_behavior": "Installed get_sp_details has no explicit SQL-file selector or way to omit application callers: it always discovers project SQL and up to5000 VB/C# files. OciusX targeted SQL inspection needs an explicit source-only mode; baseline confirms both controls are absent and default code/reverse-SP callers are currently returned.",
+      "status": "ACTIVE_SOURCE_CANDIDATES_QUALIFIED_CORPUS_FREEZE_PENDING",
+      "finding": "EG-24 original regular accepted-task verification",
+      "original_requirement": "Frozen leakage-controlled tasks covering scoped policy, companion edits, history and diagnosis; measure correctness, false guidance, useful evidence/read cost, context cost and latency.",
+      "observed_missing_behavior": "Existing regular check command is delivered but its inspected four-case quality run failed. The claimed corpus absence was based only on a missing literal qa/bench path; actual QA archives provide source candidates. Fresh qualified corpus and isolated source/history remain unfinished.",
       "implementation_files": [
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/migration_tools.rs",
-        "crates/engram_server/src/handlers/migration_sql_sources.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/phase37_wiring_test.rs"
+        "eval/frozen_task_run.py (existing; unchanged)",
+        "eval/frozen_task_capture.py (existing; unchanged)",
+        "eval/frozen_task_eval.py (existing; unchanged)",
+        "README.md",
+        "eval/ociusx-qa-archive-qualification-20261114.json"
       ],
       "acceptance": [
-        "Optional sql_file_path reads only that explicit SQL input via safe_join; otherwise preserve bounded SQL discovery. Share the existing SQL input loader with analyze_database_intelligence rather than duplicating its file-scope logic.",
-        "Optional include_code_callers defaults true. False skips application-code discovery/reads and graph caller lookup, while returning complete selected procedure details. Explicitly label code callers NOT_REQUESTED; do not present absent caller evidence as verified no callers.",
-        "Disclose explicit-file versus project SQL scope and that reverse-procedure callers/triggers outside that file were not checked. Keep default code/reverse-SP callers, real OciusX source/body hash, parameters/read/write facts and existing force_refresh compatibility.",
-        "Focused native file-scope behavior and combined candidate/installed public checks on unchanged actual OciusX SQL copies plus owned code/reverse-SP callers. No per-component compile; preserve actual inputs/config/WIP9."
+        "Verify existing archive metadata, local merge commits and first-parent before/after blobs for four non-Q source candidates; retain hashes and exact private provenance. COMPLETE: 29 eligible records, four source candidates, 46 verified blob copies.",
+        "Freeze exactly four complete tasks in the original four categories, authored intent/policy evidence, independent criteria and blind packets before model output. Candidate categories alone do not satisfy this requirement.",
+        "Use matching isolated source/history with the existing installed producer and existing evaluator; do not mix revisions, borrow current policy for historical tasks, read actual Site/Q, create another platform or expand to extra cases.",
+        "Run the existing check once after freeze, retain failures without retuning/replay, record original quality/cost/latency measures and resource cleanup. A completed evaluation may fail quality and does not itself establish productivity."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114",
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\baseline1\\acceptance.json",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\verify-public.py",
-      "implementation_complete": true,
-      "validated": true,
-      "deployed": true,
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
+      "qualification": "eval/ociusx-qa-archive-qualification-20261114.json",
+      "qualification_complete": true,
+      "corpus_frozen": false,
+      "evaluation_executed": false,
+      "production_source_changed": false,
+      "validation_scope": "Archive/source qualification only; zero builds, suites, index updates or model calls.",
       "limits": [
-        "A focused read deliberately supplies less caller/trigger coverage and reports that scope. It is not runtime/deployed database proof.",
-        "No claimed measured latency improvement, general source-permission framework or target-language expansion."
-      ],
-      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\source-check1.json",
-      "bounded_delivery_complete": true,
-      "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
+        "This archive admission resolves the false corpus-path blocker; it does not close EG24 or establish task usefulness.",
+        "Four category assignments are candidates; no frozen accepted corpus or model performance result is claimed.",
+        "Prior inspected 19/20 assisted versus20/20 baseline quality failure remains unchanged."
+      ]
     },
-    "at_utc": "2026-11-14T11:02:15.744704+00:00",
+    "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10083,8 +10082,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Select the next unfinished original OciusX requirement without reopening delivered acceptance, CodeMap or Blast.",
+    "active_original_item": "EG24 qualify and freeze existing QA archive tasks using the delivered evaluator; no rebuild",
+    "next_user_visible_deliverable": "Four original-category frozen task packets with matching source/history provenance, followed by one unchanged-evaluator run. Prior failed quality evidence stays visible.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -12826,72 +12825,36 @@
     "historical_checkpoint_scope": "Earlier named checkpoint entries retain historical/partial evidence. Current active selection is selected_delivery_contract; completed delivery receipts supersede their stale next-step text without discarding unfinished findings.",
     "historical_next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success.",
     "previous_completed_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "at_utc": "2026-11-12T11:35:42.569629+00:00",
-      "original_requirement": "Original TODO26: audit the 56 WebForms-biased service files for non-.NET behavior. Specialized services must no-op clearly as not applicable or generalize; produce_claude_md, pre_commit_review gates and coding-style analysis must be language-neutral.",
-      "observed_missing_behavior": "Installed public MCP on an authored Node project returns migration plans/order and progress instead of not-applicable even though discovery hides those tools. Neutral TypeScript style output is useful; generated guidance incorrectly adds npm test when package.json has no test script. Baseline owners closed and fixture removed.",
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+      "finding": "Original TODO59 focused standalone procedure inspection",
+      "original_requirement": "Usable SQL analysis without unnecessary application-code scans; consolidate overlapping SQL input/analysis work.",
+      "observed_missing_behavior": "Installed get_sp_details has no explicit SQL-file selector or way to omit application callers: it always discovers project SQL and up to5000 VB/C# files. OciusX targeted SQL inspection needs an explicit source-only mode; baseline confirms both controls are absent and default code/reverse-SP callers are currently returned.",
       "implementation_files": [
-        "crates/engram_server/src/capabilities.rs",
-        "crates/engram_server/src/capabilities/applicability.rs",
-        "crates/engram_server/src/capabilities/project.rs",
-        "crates/engram_server/src/handlers/cognitive_tools.rs",
-        "crates/engram_server/src/handlers/review_tools.rs",
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/services/business_logic_service.rs",
-        "crates/engram_server/src/services/code_review_ingest_service.rs",
-        "crates/engram_server/src/services/pre_commit_review_service.rs",
-        "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
-        "crates/engram_server/src/services/produce_claude_md_service.rs",
-        "crates/engram_server/src/services/slice_service.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/migration_tools.rs",
+        "crates/engram_server/src/handlers/migration_sql_sources.rs",
         "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/legacy_applicability_test.rs",
-        "crates/engram_server/tests/pre_commit_empty_corpus_tests.rs",
-        "crates/engram_server/tests/pre_commit_gate_outcomes_tests.rs"
+        "crates/engram_server/tests/phase37_wiring_test.rs"
       ],
-      "finite_acceptance": [
-        "Account for the original service audit across the current corresponding service modules. Record each disposition and supporting source paths, including shared internals; do not equate file counts or an audit report with working behavior.",
-        "Direct MCP calls to specialized legacy tools on known-inapplicable source projects return an explicit not-applicable outcome without misleading analysis, generated migration output, mutation or jobs. Evaluate the requested project rather than the discovery union. Preserve applicable .NET/WebForms/VB/JavaScript cases according to each tool actual supported inputs.",
-        "File-scoped tools in mixed projects do not misinterpret non-supported target files. Unknown source capability coverage is explicit, never represented as proved applicability or a clean analysis. Preserve request validation and existing source publication ownership.",
-        "Independently authored TS/Python/Rust/Go source/diff examples verify useful neutral instruction generation, review findings and style output without invented WebForms defaults. Preserve already delivered instruction scope/freshness and review authority semantics; record any unsupported analyzer coverage honestly.",
-        "Relevant checks and owned candidate/installed public MCP acceptance demonstrate inapplicable no-op, applicable legacy behavior and neutral examples. Commit/push origin/master, deploy runtime changes, record installed identity and close owned fixture resources before advancing."
+      "acceptance": [
+        "Optional sql_file_path reads only that explicit SQL input via safe_join; otherwise preserve bounded SQL discovery. Share the existing SQL input loader with analyze_database_intelligence rather than duplicating its file-scope logic.",
+        "Optional include_code_callers defaults true. False skips application-code discovery/reads and graph caller lookup, while returning complete selected procedure details. Explicitly label code callers NOT_REQUESTED; do not present absent caller evidence as verified no callers.",
+        "Disclose explicit-file versus project SQL scope and that reverse-procedure callers/triggers outside that file were not checked. Keep default code/reverse-SP callers, real OciusX source/body hash, parameters/read/write facts and existing force_refresh compatibility.",
+        "Focused native file-scope behavior and combined candidate/installed public checks on unchanged actual OciusX SQL copies plus owned code/reverse-SP callers. No per-component compile; preserve actual inputs/config/WIP9."
       ],
-      "constraints": "One implementation item: original TODO26. No CodeMap/Blast improvement, modern state-extractor expansion (TODO27), new approval UI, broad infrastructure, kernel/SSD investigation or preexisting-folder deletion. Preserve completed TODO23/24/25 and all original unfinished findings.",
-      "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112",
-      "next_action": "Inspect original TODO27 modern state tracking and existing evidence once, then select its finite delivery contract. Preserve all completed deliveries and remaining accepted findings; CodeMap/Blast improvements remain closed.",
-      "baseline_evidence": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\baseline\\receipt.json",
-        "sha256": "008642bf3e4f0ec198f518b95d700a6c92d1da6bc97a69373df89018cad95d3a"
-      },
-      "service_inventory": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p130-service-applicability-20261112\\service-inventory.json",
-        "sha256": "ea57419a1ed95762930b343c95607b31216e1ee1efb8fd8a6ff2f1984d1d090f"
-      },
-      "scope_reconciliation": "The original text names 56 biased service files without enumerating them. The full 86-file introduction-tree boundaries are accounted in the service dispositions; candidate and installed public behavior passed in the separate delivery receipt. Counts alone do not establish behavior.",
-      "unfinished_audit_observations": [
-        {
-          "path": "crates/engram_server/src/services/slice_service.rs",
-          "evidence": "apply_logical_slice names its language argument _language and applies ASP.NET-specific event/UI/data/state regexes regardless of source language. Need explicit applicability in caller output while preserving requested source recovery.",
-          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
-        },
-        {
-          "path": "crates/engram_server/src/services/benchmark_service.rs",
-          "evidence": "Default generator is generate_legacy_benchmark_queries; inspect public benchmark handler so a non-WebForms project is not silently graded against WebForms queries.",
-          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
-        },
-        {
-          "path": "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
-          "evidence": "GuardParityGate recognizes WebMethod/Click handlers and UiHouseStyleGate is markup-specific. Verify neutral review usefulness and whether non-applicable gate coverage is explicit; do not equate absent matches with supported analysis.",
-          "status": "DELIVERED_WITH_RECORDED_LIMITATIONS"
-        }
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\baseline1\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\verify-public.py",
+      "implementation_complete": true,
+      "validated": true,
+      "deployed": true,
+      "limits": [
+        "A focused read deliberately supplies less caller/trigger coverage and reports that scope. It is not runtime/deployed database proof.",
+        "No claimed measured latency improvement, general source-permission framework or target-language expansion."
       ],
-      "progress": "eval/p130-service-applicability-progress-20261112.json",
-      "service_dispositions": "eval/p130-service-applicability-service-dispositions-20261112.json",
-      "delivery_receipt": "eval/p130-service-applicability-delivery-20261112.json",
-      "initial_partial_implementation": [
-        "Typed public wrappers for 31 project-based legacy tools use per-request project/source capability checks before analysis or mutation. Concrete target paths are checked separately in mixed projects. Unknown source coverage has an explicit outcome.",
-        "Removed invented npm test fallback when a Node manifest has no scripts.",
-        "Added actual-indexing behavioral tests for cross-project isolation, no migration-status mutation, mixed-file rejection, authored WebForms validation, path traversal rejection and neutral TypeScript guidance/style."
-      ]
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\source-check1.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
     },
     "retained_todo27_contract_at_ociusx_correction": {
       "status": "SELECTED_INSTALLED_BASELINE_CONFIRMED",
@@ -14461,7 +14424,10 @@
       "last_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json",
       "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
       "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 06s",
-      "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s"
+      "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s",
+      "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
+      "current_step_builds_required": 0,
+      "current_step_reason": "EG24 archive qualification/freeze uses existing evaluator and installed producer; no runtime source changed."
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15106,15 +15072,23 @@
       "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json"
     },
     "benchmark_corpus_observation_20261114": {
-      "status": "EXISTING_CORPUS_STILL_ABSENT",
-      "path": "C:/Users/Dennis/source/repos/OciusX/.pr-review/qa/bench",
-      "prior_evidence": "eval/ociusx-holdout-prerequisite-20261113.json",
+      "status": "EXISTING_ARCHIVE_FOUND_SOURCE_CANDIDATES_VERIFIED",
+      "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\.pr-review\\qa",
+      "literal_bench_directory_exists": false,
+      "eligible_metadata_records": 29,
+      "verified_source_candidates": 4,
+      "receipt": "eval/ociusx-qa-archive-qualification-20261114.json",
       "model_calls_started": 0,
-      "scope": "Original EG24 remains open; no optional-question stall or replay of the inspected failed task."
+      "builds_started": 0,
+      "correction": "The earlier absence claim checked only qa/bench. Existing QA archive records and exact non-Q Git blobs are available; they are not yet a frozen accepted corpus.",
+      "scope": "Original EG24 remains open. Prior inspected failed comparisons remain unchanged; no replay or task-usefulness claim."
     },
     "procedure_analysis_batch_progress": "eval/ociusx-procedure-analysis-batch-progress-20261114.json",
     "shortlist_status_update": "eval/ociusx-shortlist-status-update-20261114.json",
     "procedure_analysis_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
   },
-  "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
+  "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json",
+  "delivery_records": {
+    "qa_archive_qualification_20261114": "eval/ociusx-qa-archive-qualification-20261114.json"
+  }
 }
