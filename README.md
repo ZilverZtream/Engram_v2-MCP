@@ -303,6 +303,16 @@ frame-boosted search. Graph-aware search that expands hits along
 configurable edge kinds so you get the method PLUS its callers, callees,
 or temporal-coupling partners in one call.
 
+### Natural-language code questions
+
+`ask_codebase` returns a source-cited evidence report for a plain-language
+question. Set `route_with_model: true` for one optional question-routing
+request using the configured model. It adds retrieval hints while preserving
+scopes and answer constraints. `routing_timeout_ms` defaults to 5000 ms;
+invalid or unavailable routing retains the deterministic plan with an explicit
+reason. This option is separate from `synthesize: true` and supplies no
+generated answer.
+
 ### Per-method access layer
 
 Precise per-method context retrieval so an agent can touch one method
