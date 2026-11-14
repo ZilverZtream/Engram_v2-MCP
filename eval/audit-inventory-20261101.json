@@ -909,7 +909,8 @@
         "broader_finding_complete": false
       },
       "workflow_guidance_delivery_20261113": "eval/ociusx-workflow-guidance-delivery-20261113.json",
-      "original_shortlist_status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json"
+      "original_shortlist_status_reconciliation_20261113": "eval/ociusx-shortlist-status-reconciliation-20261113.json",
+      "backlog_guidance_delivery_20261114": "eval/ociusx-backlog-guidance-delivery-20261114.json"
     },
     {
       "id": "EG-27",
@@ -10017,36 +10018,23 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "TODO31 usable default request traces for AI",
-      "original_requirement": "Trace URL/route to handler, source call path and database evidence in a usable AI workflow; preserve bounded complete evidence recovery.",
-      "observed_failure": "Installed trace_user_request for POST /webhook/vetro/42 rejects the default 16384-token budget. The successful manual recovery required max_tokens=32628 and 130509 bytes.",
-      "baseline_evidence": "eval/ociusx-interface-request-trace-delivery-20261113.json",
+      "status": "DOCUMENTATION_CORRECTED_SOURCE_VERIFIED",
+      "finding": "EG26 current backlog guidance",
+      "original_requirement": "Reconcile roadmap statuses and dated tool/documentation claims so AI callers receive truthful current capability guidance.",
+      "observed_missing_behavior": "Primary TODO states workflow tools are unbuilt/zero implemented, and says edit-session bookends remain, directly contradicting their existing shipped delivery notes. Historical tool counts are presented without clear dating.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/request_trace_tools.rs",
-        "crates/engram_server/src/services/request_trace.rs"
+        "TODO.md"
       ],
       "acceptance": [
-        "The same ordinary OciusX request works at the default response budget and includes route, controller, explicit implementation candidate, downstream SaveEventsToDB source evidence and static-execution caveats.",
-        "If details exceed the budget, expose explicit omitted detail counts and recoverable source/evidence using existing delivery mechanisms; preserve identities and citations.",
-        "Verify ordinary small trace behavior and exact deferred recovery where used, then build, install, verify the actual OciusX default call, publish and stop this item."
+        "Workflow section describes the existing deployed/partial tools accurately.",
+        "Historical counts and problem descriptions are explicitly dated; unfinished work remains open.",
+        "Existing generated capability matrices remain consistent with source."
       ],
-      "scope_limits": [
-        "No new routing, DI, ORM or database execution inference.",
-        "No CodeMap/Blast changes, general response infrastructure rewrite, language expansion or extra QA comparison.",
-        "Reuse existing checkout, clean runtime-source checkout and build target; preserve parked WIP."
-      ],
-      "previous_acceptance": "eval/ociusx-snapping-helper-qa-outcome-20261113.json",
-      "previous_goal_turn_classification": "PROGRESS: completed the single matched real-helper QA acceptance step; both arms detect 6/6 fixed regressions, no incremental benefit demonstrated. Alias documentation requirement reconciled from existing implementation.",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget",
-      "main_source_commit": "019b016e1dfc3d59fff7faa0aae802753fb05596",
-      "runtime_source_commit": "a725a33a6c1875b78bc860ee3ef248b0febfdba0",
-      "native_tests": 34,
-      "delivery": "eval/ociusx-request-trace-budget-delivery-20261114.json",
-      "bounded_delivery_complete": true,
-      "outcome": "Oversized request traces return every selected edge through compact node references, retaining handlers, source locations/hashes and coverage limits. Detailed source and binding evidence has exact immutable response recovery. Small replies are unchanged."
+      "scope": "Documentation correction only; no runtime, response-engineering, planner tuning or new evaluations.",
+      "delivery": "eval/ociusx-backlog-guidance-delivery-20261114.json",
+      "bounded_delivery_complete": true
     },
-    "at_utc": "2026-11-14T06:49:08.767649+00:00",
+    "at_utc": "2026-11-14T06:59:31.869426+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10076,8 +10064,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO31 default request-trace delivery complete; next original item not yet selected",
-    "next_user_visible_deliverable": "Advance another unfinished original OciusX AI workflow requirement; this default-budget fix and the inspected helper QA comparison are closed for further work.",
+    "active_original_item": "EG26 backlog guidance correction delivered; next original implementation not yet selected",
+    "next_user_visible_deliverable": "Advance a remaining original OciusX workflow requirement after checking existing delivery evidence.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10094,7 +10082,7 @@
       "evidence": "eval/ociusx-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: default request-trace failure fixed, 34 focused checks passed, candidate and installed actual OciusX default/recovery verified, full bundle refreshed.",
+    "previous_goal_turn_classification": "PROGRESS: corrected stale primary backlog guidance against registered tools and verified existing capability matrices.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",

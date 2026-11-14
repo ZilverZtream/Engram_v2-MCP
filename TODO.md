@@ -6,6 +6,11 @@ token spent, per call made?** Tiers are strictly ordered; items within a tier ar
 too. File references come from a full-codebase review (2026-06-12); verify line numbers at
 implementation time.
 
+Problem descriptions and tool counts from that review are historical context.
+Use each item's current delivery notes and linked receipts for implementation and
+validation status. Checked or partial items retain their stated limits; remaining
+work is not implied complete by an available tool name.
+
 Effort: **S** = hours, **M** = days, **L** = a week+.
 
 ---
@@ -267,9 +272,11 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
 
 ## P3 — Agent workflow & orchestration tools
 
-The unbuilt AGENT_ENHANCEMENT_SPEC phases 39–45 (33 tools, zero implemented). Not all are
-worth building — these are, in this order. (Skip ones that duplicate existing surface:
-`find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.)
+The original AGENT_ENHANCEMENT_SPEC phases 39–45 proposed these workflows. Several
+are now implemented and installed; the item notes below identify delivered behavior,
+failed acceptance and remaining work. Preserve the original priority order. Skip
+proposals that duplicate the existing surface:
+`find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
   Optional cited synthesis installed 2026-11-13. Default requests retain the
@@ -295,7 +302,7 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   selection problem for the 80% case and makes Engram useful to agents that never learn
   the full surface. Deterministic router first; optional LLM synthesis later.
 
-- [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Session bookends (begin/complete) remain.*
+- [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and
   it composes the already-built check_edit_safety/pre_commit_review machinery.
