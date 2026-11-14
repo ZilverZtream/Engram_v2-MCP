@@ -2575,7 +2575,6 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
         }
     ));
     out.push_str("ranking: file kind, then best lexical relevance; structural density is descriptive and breaks relevance ties, not proof of matching behavior. Repeated chunk hits do not outrank a stronger lexical match.\n");
-    out.push_str(&r.project_policy_sources.render_markdown());
     for ex in &r.exemplars {
         out.push_str(&format!(
             "\n## Exemplar #{}: {} ({} match(es), score {:.2}, structural {})\n",
@@ -2670,6 +2669,7 @@ pub(crate) fn render_pattern_markdown(r: &PatternJson) -> String {
          get_page_context on its .aspx for the control wiring; get_concept_footprint for the \
          domain concept you're wiring in.\n",
     );
+    out.push_str(&r.project_policy_sources.render_markdown());
     out
 }
 
@@ -2725,6 +2725,23 @@ mod implementation_pattern_unit_tests {
         PatternExemplar { path: path.into(), rank: 0, kind_match: true, hits: 1,
             score, structural, shape: ExemplarShape::default(), coupled: vec![],
             snippet: String::new(), line: 1 }
+    }
+
+    #[test]
+    fn complete_pattern_guidance_does_not_displace_exemplars_from_the_existing_brief_prefix() {
+        let owned=tempfile::tempdir().unwrap();let guide="Preserve this authored approval exception.\n".repeat(100);
+        std::fs::write(owned.path().join("AGENTS.md"),&guide).unwrap();
+        let result=PatternJson {
+            query:"Exact helper".into(),inferred_kind:"class".into(),exemplars:vec![ranked_example("src/Exact.vb",40.0,0)],common_shapes:vec![],
+            coverage:PatternCoverage {lexical_hits:1,lexical_cap:PATTERN_LEXICAL_CAP,lexical_status:"complete".into(),lexical_files:1,
+                kind_filter:"class".into(),kind_filter_applied:true,kind_matched_files:1,candidates_considered:1,candidates_cap:PATTERN_CANDIDATES,
+                exemplar_cap:1,handlers_cap:PATTERN_HANDLERS_CAP,controls_cap:PATTERN_CONTROLS_CAP,data_cap:PATTERN_DATA_CAP,chain_depth_cap:PATTERN_CHAIN_DEPTH,failures:vec![]},
+            project_policy_sources:pattern_policy_context(owned.path(),&["src/Exact.vb".into()]),
+        };
+        let markdown=render_pattern_markdown(&result);
+        let brief=bounded_planning_excerpt(&markdown,35,"find_implementation_pattern");
+        assert!(brief.contains("src/Exact.vb"),"Complete authored guidance must not push the selected example out of the existing implementation brief");
+        assert!(markdown.contains(&guide),"The standalone response still carries complete authored guidance");
     }
 
     #[test]
