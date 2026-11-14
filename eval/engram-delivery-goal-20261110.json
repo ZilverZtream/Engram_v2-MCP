@@ -40,32 +40,34 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
-    "finding": "Original TODO59 shared procedure/body reference engine",
-    "original_requirement": "Consolidate overlapping SQL parsing/table extraction used by existing SQL tools and migration analysis.",
-    "observed_missing_behavior": "Procedure declarations and database-report bodies still use separate read/write/call regexes. Installed public baseline: the declaration reader reports the ordinary MERGE Ledger write while the database-report summary omits it. Actual aspnet_Applications_CreateApplication read/write source and OUTPUT parameter remain a compatibility case.",
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "Original TODO59 canonical procedure source selection",
+    "original_requirement": "Consolidate overlapping SQL parsing and procedure/table analysis used by existing reports.",
+    "observed_missing_behavior": "Installed public baseline: get_sp_details finds an ALTER PROCEDURE, but analyze_database_intelligence omits it because its separate source lookup recognizes CREATE only. Existing actual aspnet_Applications_CreateApplication fields and body hash already agree and must remain compatible.",
     "implementation_files": [
-      "crates/engram_index/src/sql_parser.rs",
-      "crates/engram_index/src/sp_extractor.rs"
+      "crates/engram_server/src/services/database_intelligence_service.rs"
     ],
     "acceptance": [
-      "One shared body-reference implementation supplies procedure declarations and standalone report bodies. Remove the old seven SP_BODY reference regexes and three duplicate extractor functions.",
-      "Retain procedure-specific keyword/temporary-table/dynamic-procedure filters, strict UPDATE-before-SET and EXEC name terminator rules, and established first-seen pattern ordering. Header/name/parameter, source-line, dynamic/cursor and return metadata parsing remain unchanged. No qualified-procedure lookup work.",
-      "Shared body reports recognize MERGE with or without INTO. Public declaration/report output agrees on the ordinary MERGE write; preserve actual OciusX procedure read/write source and OUTPUT parameter through current public calls on unchanged owned copies.",
-      "Focused native shared recognition/ordinary procedure behavior plus next combined candidate/installed batch. No compilation for this component and no inclusion in the already-frozen request/schema runtime build."
+      "Use the shared declaration parser and existing source/batch slicing for report summaries; remove the duplicate SP_BODY_RE/find_sp_body lookup. CREATE, ALTER and CREATE OR ALTER procedures stay available.",
+      "Select wanted catalog procedures in one pass per SQL file, retaining catalog ordering and first matching basename behavior. Do not replace the old light lookup with repeated full parsing for each procedure; no qualified-procedure selection work.",
+      "Procedure summaries exclude deployment text after GO and preserve exact selected declaration bytes/CRLF. Actual OciusX procedure fields/body hash remain compatible; the ALTER fixture becomes visible in JSON/Markdown with the same body hash as get_sp_details.",
+      "Focused native ordinary multi-procedure/body/order behavior and combined candidate/installed checks. No per-component compilation; preserve actual inputs/configuration/WIP9."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\baseline1\\acceptance.json",
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\verify-public.py",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline2\\acceptance.json",
+    "retained_baseline_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline1\\acceptance.json",
+      "reason": "Initial hypothesis that the actual CREATE body hashes disagreed was false. Existing equality is preserved as compatibility evidence; reproduced missing ALTER summary remains the selected gap."
+    },
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\verify-public.py",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
     "limits": [
-      "Existing heuristic literal recognition and basename metadata remain; no alias/deployed-schema/runtime execution proof.",
-      "This source is later queued work. Current request/schema delivery remains pinned to its frozen source commit; do not claim this engine shipped with it."
+      "Existing basename matching, heuristic parsing and report formats remain; source declarations do not bind the deployed database or establish execution.",
+      "No elapsed-time speedup claim or broad indexing/storage change."
     ],
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\source-check1.json",
-    "source_implementation": "Removed seven duplicate procedure-reference regexes and three extractor functions. Shared references retain procedure-specific UPDATE/EXEC and first-seen ordering; generic body reports gain the existing MERGE-without-INTO target recognition."
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -863,6 +865,11 @@
         "item": "Shared procedure/body reference engine",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
         "progress": "eval/ociusx-procedure-reference-engine-progress-20261114.json"
+      },
+      {
+        "item": "Canonical procedure source catalog",
+        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+        "progress": "eval/ociusx-procedure-source-catalog-progress-20261114.json"
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -949,7 +956,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Continue the later queued shared procedure-reference source and original OciusX backlog under the combined delivery cadence; this request/schema runtime batch is delivered. Do not rebuild per component.",
+  "next_user_visible_deliverable": "Complete canonical procedure source selection, then the third original OciusX component before one combined verification/release batch.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1417,7 +1424,7 @@
     ],
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\route-registrations-20261114\\source-check1.json"
   },
-  "prior_turn_classification": "PROGRESS: method-read source, focused/native/public acceptance, installed runtime and pushed receipts delivered; broader original goal remains active.",
+  "prior_turn_classification": "PROGRESS: three request/schema components implemented, natively/publicly verified, installed and pushed; documentation status corrected; subsequent shared procedure-reference source queued.",
   "retained_queued_schema_keys_contract": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
     "finding": "Original TODO59 ordinary SQL schema key extraction",
@@ -1471,5 +1478,33 @@
     ],
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json"
   },
-  "request_schema_batch_delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
+  "request_schema_batch_delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json",
+  "retained_queued_procedure_reference_contract": {
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+    "finding": "Original TODO59 shared procedure/body reference engine",
+    "original_requirement": "Consolidate overlapping SQL parsing/table extraction used by existing SQL tools and migration analysis.",
+    "observed_missing_behavior": "Procedure declarations and database-report bodies still use separate read/write/call regexes. Installed public baseline: the declaration reader reports the ordinary MERGE Ledger write while the database-report summary omits it. Actual aspnet_Applications_CreateApplication read/write source and OUTPUT parameter remain a compatibility case.",
+    "implementation_files": [
+      "crates/engram_index/src/sql_parser.rs",
+      "crates/engram_index/src/sp_extractor.rs"
+    ],
+    "acceptance": [
+      "One shared body-reference implementation supplies procedure declarations and standalone report bodies. Remove the old seven SP_BODY reference regexes and three duplicate extractor functions.",
+      "Retain procedure-specific keyword/temporary-table/dynamic-procedure filters, strict UPDATE-before-SET and EXEC name terminator rules, and established first-seen pattern ordering. Header/name/parameter, source-line, dynamic/cursor and return metadata parsing remain unchanged. No qualified-procedure lookup work.",
+      "Shared body reports recognize MERGE with or without INTO. Public declaration/report output agrees on the ordinary MERGE write; preserve actual OciusX procedure read/write source and OUTPUT parameter through current public calls on unchanged owned copies.",
+      "Focused native shared recognition/ordinary procedure behavior plus next combined candidate/installed batch. No compilation for this component and no inclusion in the already-frozen request/schema runtime build."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\baseline1\\acceptance.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\verify-public.py",
+    "implementation_complete": true,
+    "validated": false,
+    "deployed": false,
+    "limits": [
+      "Existing heuristic literal recognition and basename metadata remain; no alias/deployed-schema/runtime execution proof.",
+      "This source is later queued work. Current request/schema delivery remains pinned to its frozen source commit; do not claim this engine shipped with it."
+    ],
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\source-check1.json",
+    "source_implementation": "Removed seven duplicate procedure-reference regexes and three extractor functions. Shared references retain procedure-specific UPDATE/EXEC and first-seen ordering; generic body reports gain the existing MERGE-without-INTO target recognition."
+  }
 }
