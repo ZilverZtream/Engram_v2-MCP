@@ -2066,52 +2066,60 @@ impl Engram {
         }
 
         // ── Discover code files for SP cross-referencing ────────────────────
-        let graph_clone = graph.clone();
-        let pid_clone = pid.clone();
-        let file_nodes = tokio::task::spawn_blocking(move || {
-            graph_clone.query_nodes(&pid_clone, Some("file"), None, None, 50_000)
-        })
-        .await
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?
-        .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-
-        let mut code_paths: Vec<String> = Vec::new();
-        for n in &file_nodes {
-            let lower = n.name.to_lowercase();
-            if lower.ends_with(".vb") || lower.ends_with(".cs") {
-                code_paths.push(n.name.clone());
-            }
-        }
-
-        // Fallback: disk discovery if graph is empty
-        if code_paths.is_empty() {
-            let disc = discover_files_recursive(
-                std::path::Path::new(&project_dir),
-                &[".vb", ".cs"],
-                5_000,
-            )
-            .await;
-            code_paths = disc;
-        }
-
-        let code_files: Vec<(String, String)> = code_paths
-            .into_iter()
-            .filter_map(|rel| {
-                let full = safe_join(Path::new(&project_dir), &rel).ok()?;
-                match std::fs::read_to_string(&full) {
-                    Ok(c) => Some((rel, c)),
-                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
-                    Err(e) => {
-                        tracing::warn!(
-                            "ENG-AUD-2026-S10-0003: failed to read code file {:?}: {}",
-                            full,
-                            e
-                        );
-                        None
-                    }
-                }
+        // Caller metadata only ranks procedure candidates. With at most one
+        // procedure in an explicit file, it cannot affect this report.
+        let single_sql_report = sql_file_path.is_some() && sql_files.iter()
+            .flat_map(|(_, sql)| engram_index::sp_extractor::parse_sp_definitions(sql))
+            .take(2).count() <= 1;
+        let code_files = if single_sql_report { Vec::new() } else {
+            let graph_clone = graph.clone();
+            let pid_clone = pid.clone();
+            let file_nodes = tokio::task::spawn_blocking(move || {
+                graph_clone.query_nodes(&pid_clone, Some("file"), None, None, 50_000)
             })
-            .collect();
+            .await
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+
+            let mut code_paths: Vec<String> = Vec::new();
+            for n in &file_nodes {
+                let lower = n.name.to_lowercase();
+                if lower.ends_with(".vb") || lower.ends_with(".cs") {
+                    code_paths.push(n.name.clone());
+                }
+            }
+
+            // Fallback: disk discovery if graph is empty
+            if code_paths.is_empty() {
+                let disc = discover_files_recursive(
+                    std::path::Path::new(&project_dir),
+                    &[".vb", ".cs"],
+                    5_000,
+                )
+                .await;
+                code_paths = disc;
+            }
+
+            let code_files: Vec<(String, String)> = code_paths
+                .into_iter()
+                .filter_map(|rel| {
+                    let full = safe_join(Path::new(&project_dir), &rel).ok()?;
+                    match std::fs::read_to_string(&full) {
+                        Ok(c) => Some((rel, c)),
+                        Err(e) if e.kind() == std::io::ErrorKind::NotFound => None,
+                        Err(e) => {
+                            tracing::warn!(
+                                "ENG-AUD-2026-S10-0003: failed to read code file {:?}: {}",
+                                full,
+                                e
+                            );
+                            None
+                        }
+                    }
+                })
+                .collect();
+            code_files
+        };
 
         // ── Build SP catalog + database intelligence in blocking task ───────
         let sql_files_owned = sql_files;

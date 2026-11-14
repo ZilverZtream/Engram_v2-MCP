@@ -1441,6 +1441,20 @@ mod tests {
     use super::*;
 
     #[test]
+    fn shared_sql_single_procedure_report_is_identical_without_unused_caller_ranking() {
+        use crate::services::full_project_migration_service::build_sp_catalog_public;
+        let sql=vec![("single.sql".into(),"CREATE PROCEDURE dbo.SaveApplication AS BEGIN INSERT dbo.Applications (Id) VALUES (1); END\n".into())];
+        let callers=[("Caller.vb","Dim command As New SqlCommand(\"SaveApplication\")\ncommand.CommandText = \"SaveApplication\"\ncommand.CommandType = CommandType.StoredProcedure\ncommand.ExecuteNonQuery()\n")];
+        let ranked=build_sp_catalog_public(&sql,&callers,20);
+        let unranked=build_sp_catalog_public(&sql,&[],20);
+        assert_eq!(ranked.procedures[0].called_from,vec!["Caller.vb"]);
+        assert!(unranked.procedures[0].called_from.is_empty());
+        let tables=HashSet::new();
+        assert_eq!(serde_json::to_value(build_database_intelligence(&ranked,&sql,&tables)).unwrap(),
+            serde_json::to_value(build_database_intelligence(&unranked,&sql,&tables)).unwrap());
+    }
+
+    #[test]
     fn shared_sql_parameters_summary_retains_output_and_max_types_without_body_locals() {
         let sql="CREATE PROCEDURE dbo.SaveApplication\n @Payload NVARCHAR(MAX),\n @ApplicationId UNIQUEIDENTIFIER OUTPUT\nAS\nBEGIN\n DECLARE @BodyLocal INT;\n SELECT 1;\nEND\n";
         let summary=deterministic_sp_summary("SaveApplication",sql);

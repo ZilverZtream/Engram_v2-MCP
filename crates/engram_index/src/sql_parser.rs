@@ -201,16 +201,16 @@ pub struct SqlBodyReferences {
 }
 
 pub fn analyze_body_references(sql: &str) -> SqlBodyReferences {
-    let names = |patterns: &[&Regex]| -> Vec<String> {
-        patterns.iter().flat_map(|pattern| pattern.captures_iter(sql))
-            .filter_map(|capture| capture.get(1))
-            .map(|name| strip_brackets(name.as_str()).to_owned())
+    let names = |patterns: &[(&Regex, usize)]| -> Vec<String> {
+        patterns.iter().flat_map(|(pattern, group)| pattern.captures_iter(sql)
+            .filter_map(move |capture| capture.get(*group)
+                .map(|name| strip_brackets(name.as_str()).to_owned())))
             .collect::<std::collections::BTreeSet<_>>().into_iter().collect()
     };
     SqlBodyReferences {
-        tables_read: names(&[re_from_table(), re_join()]),
-        tables_written: names(&[re_insert_table(), re_update_table(), re_delete_table()]),
-        called_procedures: names(&[re_exec()]),
+        tables_read: names(&[(re_from_table(), 1), (re_join(), 2)]),
+        tables_written: names(&[(re_insert_table(), 1), (re_update_table(), 1), (re_delete_table(), 1)]),
+        called_procedures: names(&[(re_exec(), 1)]),
     }
 }
 
