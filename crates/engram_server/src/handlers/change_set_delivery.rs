@@ -11,17 +11,20 @@ const SNAPSHOT_BYTES: usize = 8 * 1024 * 1024;
 const SNAPSHOTS_PER_PROJECT: usize = 32;
 const RETENTION: Duration = Duration::from_secs(24 * 60 * 60);
 
+#[derive(Clone, Copy)]
+enum Family { ChangeSet, Review, RequestTrace }
+
 fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
 }
 
 #[cfg(test)]
 fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
-    directory_for(data_dir, project_id, false)
+    directory_for(data_dir, project_id, Family::ChangeSet)
 }
 
-fn directory_for(data_dir: &Path, project_id: &str, review: bool) -> Result<PathBuf, McpError> {
-    let family = if review { "review" } else { "change-set" };
+fn directory_for(data_dir: &Path, project_id: &str, family: Family) -> Result<PathBuf, McpError> {
+    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace" };
     super::super::validate_project_id(project_id)?;
     engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
@@ -81,24 +84,28 @@ fn prune(directory: &Path, keep: &Path) {
 }
 
 fn save(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
-    save_for(data_dir, project_id, body, false)
+    save_for(data_dir, project_id, body, Family::ChangeSet)
 }
 
 pub(crate) fn save_review(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
-    save_for(data_dir, project_id, body, true)
+    save_for(data_dir, project_id, body, Family::Review)
 }
 
-fn save_for(data_dir: &Path, project_id: &str, body: &str, review: bool) -> Result<String, McpError> {
+pub(crate) fn save_request_trace(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
+    save_for(data_dir, project_id, body, Family::RequestTrace)
+}
+
+fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Result<String, McpError> {
     if body.len() > SNAPSHOT_BYTES {
         return Err(failure(
             "Response evidence exceeds the 8 MiB snapshot limit; narrow the original request. No evidence was silently truncated.",
         ));
     }
-    let directory = directory_for(data_dir, project_id, review)?;
+    let directory = directory_for(data_dir, project_id, family)?;
     std::fs::create_dir_all(&directory)
         .map_err(|_| failure("Cannot create the change-set response cache"))?;
     // Validate again after creation so existing symlink components cannot redirect writes.
-    let directory = self::directory_for(data_dir, project_id, review)?;
+    let directory = self::directory_for(data_dir, project_id, family)?;
     // tempfile's Windows persistence calls native APIs with the supplied paths.
     // Canonical paths carry the extended-length prefix needed beyond MAX_PATH.
     // Both the temporary file and final filename must use this same directory.
@@ -214,7 +221,7 @@ pub(super) fn recover(
     id: &str,
     offset: usize,
 ) -> Result<String, McpError> {
-    recover_for(data_dir, project_id, id, offset, RESPONSE_BYTES, false)
+    recover_for(data_dir, project_id, id, offset, RESPONSE_BYTES, Family::ChangeSet)
 }
 
 pub(crate) fn review_continuation(project_id: &str, id: &str, offset: usize, budget: usize) -> Value {
@@ -225,11 +232,21 @@ pub(crate) fn review_continuation(project_id: &str, id: &str, offset: usize, bud
 }
 
 pub(crate) fn recover_review(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize) -> Result<String, McpError> {
-    recover_for(data_dir, project_id, id, offset, budget, true)
+    recover_for(data_dir, project_id, id, offset, budget, Family::Review)
 }
 
-fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, review: bool) -> Result<String, McpError> {
-    let directory = directory_for(data_dir, project_id, review)?;
+pub(crate) fn request_trace_continuation(project_id: &str, id: &str, offset: usize, budget: usize) -> Value {
+    json!({"tool":"trace_user_request", "arguments":{
+        "project_id":project_id, "response_id":id, "response_offset":offset, "max_tokens":budget / 4
+    }})
+}
+
+pub(crate) fn recover_request_trace(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize) -> Result<String, McpError> {
+    recover_for(data_dir, project_id, id, offset, budget, Family::RequestTrace)
+}
+
+fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
+    let directory = directory_for(data_dir, project_id, family)?;
     let path = checked_path(&directory, id)?;
     let metadata = std::fs::symlink_metadata(&path)
         .map_err(|_| McpError::invalid_params("Response snapshot unavailable; rerun the original request and reconcile its new result", None))?;
@@ -281,7 +298,11 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
             "start_byte": offset, "end_byte": end,
             "complete": complete, "content": &body[offset..end],
             "evidence_scope": "Immutable original response; current checkout freshness is not re-evaluated",
-            "next_call": if complete {Value::Null} else if review {review_continuation(project_id, id, end, budget)} else {continuation(project_id, id, end)},
+            "next_call": if complete {Value::Null} else {match family {
+                Family::ChangeSet => continuation(project_id, id, end),
+                Family::Review => review_continuation(project_id, id, end, budget),
+                Family::RequestTrace => request_trace_continuation(project_id, id, end, budget),
+            }},
         });
         let rendered = serde_json::to_string(&page)
             .map_err(|_| failure("Cannot render response recovery page"))?;

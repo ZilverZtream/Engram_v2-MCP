@@ -3844,6 +3844,8 @@ pub enum BatchReadOperation {
 pub struct TraceUserRequestRequest {
     pub project_id: String,
     /// URL, application-relative path, or project-relative page; optional HTTP verb prefix.
+    /// Required for a new trace; omit when recovering response_id.
+    #[serde(default)]
     pub entry_point: String,
     /// "load page", "click controlID", "submit form", or an exact method name.
     #[serde(default)]
@@ -3855,9 +3857,16 @@ pub struct TraceUserRequestRequest {
     #[serde(default = "default_true")]
     pub include_triggers: bool,
     /// Complete JSON reply budget in ceil(UTF-8 bytes/4); default 16384.
-    /// Insufficient budgets fail with the required size rather than omit evidence.
+    /// Oversized traces retain every path in a compact node/edge view and provide
+    /// exact full-response recovery. Budgets too small for that view still fail.
     #[serde(default)]
     pub max_tokens: Option<usize>,
+    /// Immutable full-response identifier from response_delivery; recovery does not rerun tracing.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset from the returned recovery action. Requires response_id.
+    #[serde(default)]
+    pub response_offset: usize,
 }
 
 // ── Phase 38-5: prepare_implementation_context ────────────────────────────────

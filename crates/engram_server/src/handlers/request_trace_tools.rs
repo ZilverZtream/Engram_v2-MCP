@@ -6,12 +6,24 @@ use rmcp::{
 };
 use serde_json::json;
 use std::{io::Read, path::Path};
+#[path = "request_trace_delivery.rs"]
+mod delivery;
 
 impl Engram {
     pub async fn handle_trace_user_request(
         &self,
         req: TraceUserRequestRequest,
     ) -> Result<CallToolResult, McpError> {
+        super::validate_project_id(&req.project_id)?;
+        let budget = delivery::budget(req.max_tokens)?;
+        if let Some(id) = req.response_id.as_deref() {
+            let body = super::planning_tools::change_set_delivery::recover_request_trace(
+                &self.state.cfg.data_dir, &req.project_id, id, req.response_offset, budget)?;
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
+        if req.response_offset != 0 {
+            return Err(McpError::invalid_params("response_offset requires response_id from trace recovery", None));
+        }
         // Validate all caller controls before opening project stores.
         routing::resolve(&req.entry_point, &[])
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
@@ -23,7 +35,6 @@ impl Engram {
                 None,
             ));
         }
-        super::search_tools::response_budget::token_bytes(req.max_tokens)?;
         let record = self.ensure_project_record(&req.project_id).await?;
         let runtime = self.ensure_project_runtime(&req.project_id).await?;
         let (generation, view) = self
@@ -39,7 +50,7 @@ impl Engram {
             "request trace source and graph evidence",
         )
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let max_tokens = req.max_tokens.or(Some(16_384));
+        let project_id = req.project_id.clone();
         let output = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
             let _reservation = reservation;
             let selected = view.selected_file_revisions().ok_or_else(|| anyhow::anyhow!("Request tracing requires a managed source inventory; update_project first"))?;
@@ -93,7 +104,7 @@ impl Engram {
                 "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}}))?)
         }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-        let output = super::search_tools::response_budget::bounded_message(output, max_tokens)?;
+        let output = delivery::finish(&self.state.cfg.data_dir, &project_id, output, budget)?;
         Ok(CallToolResult::success(vec![Content::text(output)]))
     }
 }
