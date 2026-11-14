@@ -639,7 +639,21 @@ pub struct GetIndexFreshnessRequest {
 pub struct GetConceptFootprintRequest {
     pub project_id: String,
     /// Domain term to map, e.g. "photo", "code category", "OrderStatus".
+    /// May be omitted only for immutable response recovery.
+    #[serde(default)]
     pub concept: String,
+    /// Complete reply budget, estimated at four UTF-8 bytes per token.
+    /// Default10240tokens (40KiB). Existing per-group caps remain separate.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover the immutable original without repeating graph/source retrieval.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
+    /// JSON names the original Markdown, returned source paths and policy.
+    #[serde(default)]
+    pub output_json: bool,
     /// Cap per output group. Default 8, ceiling 500; a cut is always
     /// reported as "… and N more" — raise this to see a whole section.
     #[serde(default = "default_footprint_group_cap")]
