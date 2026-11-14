@@ -320,6 +320,17 @@ navigation budget, its metadata remains inline with `status: "deferred"` and
 `response_delivery.next_call` before relying on that guidance. Partial quotations
 are not substituted for complete instructions.
 
+### JavaScript and TypeScript type relationships
+
+JavaScript/JSX and TypeScript/TSX extraction emits declared `inherits_from` and
+`implements_interface` relationships for named bases. These carry the declaring
+type, authored base expression and source location. Type arguments do not become
+part of the target declaration name. This is declaration evidence, not proof of
+import binding or runtime dispatch. Computed/mixin base expressions remain in
+the class symbol's `heritage_unresolved` metadata instead of invented type edges.
+Existing indexed files need source re-extraction before these new relationships
+are available through `find_references` or `traverse_graph`.
+
 ### Database analysis delivery
 
 `analyze_database_intelligence` defaults to a 65,536-byte complete reply budget
