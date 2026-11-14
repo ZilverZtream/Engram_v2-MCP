@@ -173,6 +173,7 @@ fn change_request(
 ) -> GetChangeSetRequest {
     GetChangeSetRequest {
         project_id: project.into(),
+        max_tokens: None,
         story: story.into(),
         concepts,
         response_id: None,

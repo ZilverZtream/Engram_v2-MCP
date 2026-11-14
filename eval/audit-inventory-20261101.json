@@ -10023,41 +10023,36 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "EG27 linked guidance disclosure in shared policy retrieval",
-      "original_requirement": "Supply required linked guidance outside normal discovery or name unresolved, conflicting, unreadable or budget-omitted dependencies without silently broadening policy authority.",
-      "observed_missing_behavior": "PolicyContext supplies complete selected source text and source omissions but no structured account of Markdown references in that text. Links to guidance outside conventional discovery are neither returned nor named as unresolved. Current OciusX AGENTS.md links shared conventions and conditionally relevant UI guidance.",
+      "finding": "EG02 / TODO4 caller-controlled complete change-set responses",
+      "original_requirement": "Bound complete actionable planning responses and exact recovery to the AI caller's context budget without losing mandatory identities or qualifications.",
+      "observed_missing_behavior": "get_change_set has only a fixed40KiB delivery threshold and fixed40KiB recovery pages. Its schema rejects max_tokens, so an AI cannot request a smaller dossier/recovery page or a larger complete response when its available context differs.",
       "implementation_files": [
-        "crates/engram_server/src/services/project_policy.rs",
-        "crates/engram_server/src/services/project_policy/references.rs",
-        "crates/engram_server/src/services/project_policy/historical.rs",
-        "crates/engram_server/src/services/instruction_maintenance/manifest.rs",
-        "crates/engram_server/src/services/instruction_maintenance/manifest/markdown_links.rs"
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/src/handlers/change_set_delivery.rs",
+        "crates/engram_server/src/handlers/feature_plan_tools.rs",
+        "crates/engram_server/src/tool_guidance.rs"
       ],
       "acceptance": [
-        "Reuse existing CommonMark parsing and document-relative path normalization to disclose Markdown guidance references from complete supplied policy sources, with source hashes and byte ranges.",
-        "Distinguish supplied sources, existing source omissions, unreturned/unassessed targets and unsupported or ambiguous references. A link does not establish applicability, authority, a valid heading or a live file. Do not read or automatically adopt linked documents.",
-        "Bound reference metadata and disclose omissions. Preserve complete source content, direct-source coverage and existing recovery. Live and pinned historical contexts use the same content-only observation without reading the live checkout for history.",
-        "Focused native and combined public MCP cases cover an out-of-discovery link, a supplied/omitted guide, changed link without reindex and pinned historical content. Check current OciusX authored references without reading Site/Q. No per-component compile."
+        "Optional positive max_tokens bounds complete reply text at four UTF-8 bytes per estimated token. Missing max_tokens retains the existing40KiB default. Validate controls before project/retrieval work.",
+        "Preserve every mandatory reconciliation/checkpoint identity and existing omission summaries. Small responses remain unchanged; metadata too large for the chosen budget returns a concrete minimum-budget error before writing a snapshot.",
+        "Exact immutable recovery carries the chosen budget in every continuation and never reruns planning. Preserve default callers and internal feature-plan request construction.",
+        "Run focused native and public MCP initial/recovery checks in both JSON and Markdown as part of the three-component batch; verify exact recovered evidence and default compatibility. No planner retrieval/ranking, CodeMap/Blast or target-language change."
       ],
-      "limits": [
-        "Reference coverage applies to supplied complete source text and supported CommonMark/inline Markdown-path observations, not all prose or omitted document bodies.",
-        "The calling AI must assess source conditions and each target's own scope before applying linked guidance; no semantic compliance or automatic transitive policy closure is claimed."
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget",
+      "prior_queued_items": [
+        "eval/ociusx-js-ts-heritage-progress-20261114.json",
+        "eval/ociusx-policy-reference-progress-20261114.json"
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references",
-      "prior_queued_item": "eval/ociusx-js-ts-heritage-progress-20261114.json",
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
       "queued_native_cases": [
-        "Out-of-discovery reference remains unadopted with source hash/range",
-        "Omitted, ambiguous and broken references retain explicit states",
-        "Reference cap preserves complete source and omission count",
-        "Historical reference comes from pinned guidance rather than current checkout"
+        "Chosen budgets preserve all mandatory identities and exact JSON/Markdown recovery",
+        "Larger complete response, default compatibility, invalid budgets and no snapshot after minimum-budget refusal"
       ],
-      "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. Native and public behavior are not claimed yet.",
-      "temporary_resources": "Only source-check/focus scripts and receipts in the recorded case. No server, fixture database, build or application source edit for this component. Retain evidence with the combined delivery.",
-      "source_commit": "de2b10a",
-      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references\\source-check1.json"
+      "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. No native/public acceptance or deployment claimed yet.",
+      "temporary_resources": "Only focus/source-check scripts and receipts in the recorded case; no runtime, fixture database or build started for this component yet. Retain with combined batch evidence."
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",

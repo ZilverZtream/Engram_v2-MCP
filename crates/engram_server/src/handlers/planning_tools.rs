@@ -9574,14 +9574,16 @@ impl Engram {
         req: crate::models::GetChangeSetRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let response_budget = change_set_delivery::budget(req.max_tokens)?;
         if let Some(response_id) = req.response_id.as_deref() {
             // Recovery is immutable delivery only: no project runtime, work-item
             // fetch, indexing, or LLM is needed to recover already captured evidence.
-            let text = change_set_delivery::recover(
+            let text = change_set_delivery::recover_with_budget(
                 &self.state.cfg.data_dir,
                 &req.project_id,
                 response_id,
                 req.response_offset.unwrap_or(0),
+                response_budget,
             )?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
@@ -12028,13 +12030,14 @@ impl Engram {
                 "snapshot_generation": snapshot_generation,
                 "coverage": {"status": "DEFERRED_CONTEXT", "intake_complete": false},
             });
-            let text = change_set_delivery::bounded(
+            let text = change_set_delivery::bounded_with_budget(
                 &self.state.cfg.data_dir,
                 &req.project_id,
                 serde_json::to_string_pretty(&payload)
                     .map_err(|error| McpError::internal_error(error.to_string(), None))?,
                 true,
                 manifest,
+                response_budget,
             )?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
@@ -12849,8 +12852,8 @@ impl Engram {
             "snapshot_generation": snapshot_generation,
             "coverage": {"status": "DEFERRED_CONTEXT", "intake_complete": false},
         });
-        let out = change_set_delivery::bounded(
-            &self.state.cfg.data_dir, &req.project_id, out, false, manifest,
+        let out = change_set_delivery::bounded_with_budget(
+            &self.state.cfg.data_dir, &req.project_id, out, false, manifest, response_budget,
         )?;
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
