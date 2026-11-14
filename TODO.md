@@ -356,6 +356,12 @@ proposals that duplicate the existing surface:
   the original response byte for byte. This supersedes the earlier default-budget
   refusal above; runtime binding/database limits remain.
   Evidence: [default trace delivery](eval/ociusx-request-trace-budget-delivery-20261114.json).
+  Literal VB `ExecuteCommand` table tracing installed 2026-11-14. Constant
+  SQL concatenation and separate format-value arguments now produce source-cited
+  read/write table candidates in reached methods. Thirty native and seven checks
+  on each candidate/installed public fixture passed; dynamic commands remain
+  unresolved and database binding/execution are not claimed.
+  Evidence: [inline SQL delivery](eval/ociusx-inline-sql-request-trace-delivery-20261114.json).
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 

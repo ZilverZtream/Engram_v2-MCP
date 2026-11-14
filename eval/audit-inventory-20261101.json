@@ -10023,42 +10023,36 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "DEPLOYED_BOUNDED_STEP_COMPLETE",
-      "finding": "TODO59 shared SQL object-name extraction for AI analysis",
-      "original_requirement": "Consolidate overlapping SQL parsing/table extraction across DB analysis services; improve ordinary OciusX SQL workflows.",
-      "observed_missing_behavior": "Statement analysis captures dbo as the primary table in UPDATE dbo.aspnet_Membership, matching actual OciusX password-update syntax. Different analysis paths duplicate schema/bracket handling.",
-      "ociusx_evidence": [
-        "Site/App_Code/users-security/code/SetPwdManager.vb:312",
-        "Site/App_Code/users-security/code/AccountSecurityStateRepository.vb:81"
-      ],
-      "implementation_files": [
-        "crates/engram_index/src/sql_names.rs",
-        "crates/engram_index/src/lib.rs",
-        "crates/engram_index/src/sql_parser.rs",
-        "crates/engram_index/src/sp_extractor.rs",
-        "crates/engram_server/src/services/database_intelligence_service.rs"
-      ],
+      "finding": "TODO31 source-cited inline DataContext.ExecuteCommand table tracing",
+      "original_requirement": "Trace ordinary OciusX request handlers to source-supported SQL/table dependencies.",
+      "observed_missing_behavior": "Source fallback only handles local stored-procedure SqlCommand. Actual SetPwdManager uses literal-concatenated DataContext.ExecuteCommand UPDATE dbo.aspnet_Membership.",
+      "ociusx_evidence": "Site/App_Code/users-security/code/SetPwdManager.vb:309-317",
       "acceptance": [
-        "Reproduce wrong dbo table identity before change.",
-        "Use shared qualified-name recognition and existing basename semantics across statement and SP/business analyses; preserve operation, alias, parameter and scaffold contracts.",
-        "Focused native statement/SP/database checks and public candidate/installed database dependency reports agree with authored qualified SQL table names.",
-        "Build/package/install the verified delta; retain failed evidence and preserve source/configuration/WIP."
+        "Public installed baseline reaches authored handler but lacks inline SQL table path.",
+        "Source-bound literal ExecuteCommand SQL, including ordinary VB literal concatenation and format parameters, contributes table dependency candidates using existing SQL analysis.",
+        "Dynamic SQL is not guessed; include_db=false suppresses inline dependencies; source mismatch remains withheld by existing admission.",
+        "Native request-trace tests and candidate/installed public fixture pass; package/install and preserve config/source/WIP."
       ],
-      "scope_limits": [
-        "No full SQL grammar, alias/CTE binding, database execution, schema-resolution guarantee or language expansion.",
-        "This is a bounded extraction step; complete three-service consolidation remains unfinished.",
-        "Actions-disabled packaging remains held awaiting explicit repository-setting choice; broader goal is active.",
-        "Existing public scaffold fixture emits no SQL repository methods; public method-name improvement remains unverified. Preserve this finding without expanding current implementation."
+      "limits": [
+        "Source SQL/table candidates only; no database execution, deployed schema, runtime effects or general ORM translation proof.",
+        "No nested procedure/trigger/language expansion, CodeMap or Blast work."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-identifiers",
-      "retention": "Keep scripts/receipts under this task directory; own and clean newly created test fixtures.",
-      "root_source_commit": "dd79f15",
-      "runtime_source_commit": "5e18c5b",
-      "native_checks": 155,
-      "delivery_not_yet_claimed": false,
-      "receipt": "eval/ociusx-sql-identifiers-delivery-20261114.json",
-      "next_action": "Advance another ready original OciusX improvement; no more SQL-name edge-case hardening."
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace",
+      "retention": "Keep scripts and receipts here; clean newly owned fixtures after exact process/handle closure.",
+      "implementation_files": [
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/execution.rs",
+        "crates/engram_server/src/services/request_trace/inline_sql.rs",
+        "crates/engram_server/src/services/request_trace/tests.rs"
+      ],
+      "source_commit": "9360212981ae4647fdfc58e5bb69bd93f5454fa7",
+      "native_checks": 30,
+      "receipt": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json",
+      "candidate_public_checks": 7,
+      "installed_public_checks": 7,
+      "next_action": "Advance another ready original OciusX requirement after this finite delivery; do not expand into SQL edge-case hardening."
     },
-    "at_utc": "2026-11-14T09:20:57.654361+00:00",
+    "at_utc": "2026-11-14T09:53:19.073664+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/ocius_workflows messages",
     "original_tool_roi_five": [
@@ -10088,8 +10082,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "None: bounded TODO59 extraction delivery complete; advance original backlog",
-    "next_user_visible_deliverable": "Advance another ready original OciusX improvement; no more SQL-name edge-case hardening.",
+    "active_original_item": "None: literal ExecuteCommand trace delivery complete; advance original backlog",
+    "next_user_visible_deliverable": "Advance another ready original OciusX requirement after this finite delivery; do not expand into SQL edge-case hardening.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14394,7 +14388,9 @@
     "latest_planner_reconciliation_result": "eval/ociusx-feature-plan-reconciliation-failed-20261113.json",
     "latest_windows_first_install_delivery": "eval/ociusx-windows-first-install-delivery-20261113.json",
     "current_helper_qa_outcome_20261113": "eval/ociusx-snapping-helper-qa-outcome-20261113.json",
-    "sql_identifiers_delivery": "eval/ociusx-sql-identifiers-delivery-20261114.json"
+    "sql_identifiers_delivery": "eval/ociusx-sql-identifiers-delivery-20261114.json",
+    "prior_turn_classification": "PROGRESS: qualified SQL name fix installed and public acceptance passed; d3aa03e pushed.",
+    "inline_sql_request_trace_delivery": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }

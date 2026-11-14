@@ -1,0 +1,119 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T09:53:19.073664+00:00",
+  "finding": "TODO31 literal VB ExecuteCommand table dependencies in request traces",
+  "original_requirement": "Source-cited request-to-database navigation for ordinary OciusX workflows; full TODO31 remains open.",
+  "before": "Installed trace reached the authored Page_Load handler but returned no inline SQL table dependency for the literal concatenated UPDATE.",
+  "after": "Candidate and installed traces return one inline_sql_writes_table path to aspnet_Membership, with the exact call line, source file hash, receiver and combined literal SQL. include_db=false suppresses it. The path explicitly does not prove receiver type, database/schema binding or execution.",
+  "implementation": {
+    "source_baseline": "5e18c5b82039d27364434b488ddca87a94785c21",
+    "source_commit": "2992898e0694a46a153279571569de7f1ae30319",
+    "root_source_commit": "9360212981ae4647fdfc58e5bb69bd93f5454fa7",
+    "files": {
+      "crates/engram_server/src/services/request_trace.rs": "4e13e9525bef4278914c350cef14e63878aac40c0249f4bec27816e1ffef0f91",
+      "crates/engram_server/src/services/request_trace/execution.rs": "7f9fac2e93d38ec0224200ec8b670e6512dfdceb5d2ff662433b8eb556735ea8",
+      "crates/engram_server/src/services/request_trace/inline_sql.rs": "43794346f2c661b6a19713d3604b0ef329ae0e688d6d2cabfdbcc799bb20ec8c",
+      "crates/engram_server/src/services/request_trace/tests.rs": "687bb0ef43bb7d8514a282c0a5853e40599102c70896844876d7462f4246bbb3"
+    }
+  },
+  "validation": {
+    "native_checks": 30,
+    "candidate_public_checks": 7,
+    "installed_public_checks": 7,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\native1.json",
+      "sha256": "6f7d4fb2acc729f89e1f0fe1b3d70a86c57202d2597d22887fc857f8c316eac0"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\baseline1\\acceptance.json",
+      "sha256": "1cb6a1a04a555329def1037909e97738f672778f0db59683fed676a481bfe808"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\candidate1\\acceptance.json",
+      "sha256": "378a328bfba138cbf1caac4fa03aa5999bfe9be2eb6311dd568ef64d6e33fb17"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\installed1\\acceptance.json",
+      "sha256": "e052108b8b630cddee0e2d188e0b70e2715b9dd8a1dcd2449bb9b8e2c3b42df7"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\release1.json",
+      "sha256": "a717a3eda37c2efafea308ff43bb77f61a941fe341ed5a38d25b43db1df83411"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\review1.json",
+      "sha256": "e4eac626195ea2515d561e952fcb4cb6771b8544deae9105ad5e1f49d3a87806"
+    },
+    "public_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\verify-public.py",
+      "sha256": "823fa185ffd26cba9eca574115bfa448ff5a6b85d055f9715b6c4ceeb28a2f2a"
+    },
+    "original_full19gates_closed": false
+  },
+  "actual_ociusx_context": {
+    "evidence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\actual-source-evidence1.json",
+      "sha256": "2c630b9e9409e9c80612ee2e5a35fd23b1a89539444d84125ff620f151b305d7"
+    },
+    "path": "Site/App_Code/users-security/code/SetPwdManager.vb",
+    "line_start": 309,
+    "source_unchanged": true,
+    "scope": "Actual syntax motivates the representative owned fixture; no full OciusX request/runtime acceptance claimed."
+  },
+  "runtime": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\package1",
+    "server_sha256": "88472b4052163877361a43da8fa1a7ccb9c80fad16f2da18d8469e8ce55256e8",
+    "manifest_sha256": "d86b4a808a5bb1494aa4227f855fe6c426f7a6baf229b95cf24c00a6faf32280",
+    "old_server_sha256": "4bdd6ab7e31e6a4e7dab62f71ba844ba5605f79474c05282c231139e906ce1d9",
+    "old_manifest_sha256": "8eae57892ff9958fea5231171d439edbd10ebd93c91ac4f8586a21025037dff9",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\release1.json",
+      "sha256": "a717a3eda37c2efafea308ff43bb77f61a941fe341ed5a38d25b43db1df83411"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "8eae57892ff9958fea5231171d439edbd10ebd93c91ac4f8586a21025037dff9"
+    },
+    "source_commit": "2992898e0694a46a153279571569de7f1ae30319"
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\Engram-win-x64-inline-sql-trace-20261114.zip",
+    "sha256": "D354E843D9A27EC254BC0C42F3E9C19A66012E19C28838749F6CD2254B05DBB9",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "D86B4A808A5BB1494AA4227F855FE6C426F7A6BAF229B95CF24C00A6FAF32280"
+  },
+  "preservation": {
+    "parked_wip_byte_pins_unchanged": true,
+    "production_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "production_registry_selection_and_other_metadata_unchanged": true,
+    "unchanged_companion_assets": 214
+  },
+  "resources": {
+    "all_owned_processes_and_handles_closed": true,
+    "new_native_and_public_fixtures_removed": true,
+    "read_only_config_hold_released": true,
+    "owned_config_copy_removed": true,
+    "retained_delivery_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a188e088f3e441268219d6f4ea958c15",
+    "install_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace\\inline-sql-trace1-install-Upgrade.json",
+      "sha256": "b172f1670f29627af4603765fa6184b57a0adc4fb525cebc6947f9a78ddae410"
+    },
+    "retention": "Keep scripts, receipts, complete package and ZIP for review. Managed installer rollback pair and journals retained by existing release workflow. No preexisting folder deletion."
+  },
+  "limits": [
+    "SQL/table output is a static heuristic candidate. Receiver type, schema/database identity, branch reachability and actual execution are not established.",
+    "Literal VB ExecuteCommand only; dynamic expressions, batches/procedure effects and unsupported SQL produce explicit gaps. No general ORM translation, nested procedure or trigger proof.",
+    "Existing SQL analyzer basename semantics remain; no SQL grammar or target-language expansion.",
+    "Full original TODO31 and original19gates remain unfinished; no general AI productivity claim.",
+    "GitHub Actions setting remains unchanged by this work; distribution setting choice remains held."
+  ],
+  "goal_status": "active",
+  "next_action": "Advance another ready original OciusX requirement after this finite delivery; do not expand into SQL edge-case hardening."
+}
