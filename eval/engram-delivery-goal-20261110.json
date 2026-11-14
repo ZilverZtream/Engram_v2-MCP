@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_VALIDATED_BUILDING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "TODO31 usable default request traces for AI",
     "original_requirement": "Trace URL/route to handler, source call path and database evidence in a usable AI workflow; preserve bounded complete evidence recovery.",
     "observed_failure": "Installed trace_user_request for POST /webhook/vetro/42 rejects the default 16384-token budget. The successful manual recovery required max_tokens=32628 and 130509 bytes.",
@@ -64,7 +64,10 @@
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget",
     "main_source_commit": "019b016e1dfc3d59fff7faa0aae802753fb05596",
     "runtime_source_commit": "a725a33a6c1875b78bc860ee3ef248b0febfdba0",
-    "native_tests": 34
+    "native_tests": 34,
+    "delivery": "eval/ociusx-request-trace-budget-delivery-20261114.json",
+    "bounded_delivery_complete": true,
+    "outcome": "Oversized request traces return every selected edge through compact node references, retaining handlers, source locations/hashes and coverage limits. Detailed source and binding evidence has exact immutable response recovery. Small replies are unchanged."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -801,5 +804,6 @@
     "outcome": "eval/ociusx-snapping-helper-qa-outcome-20261113.json",
     "status": "MATCHED_HELPER_QA_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
     "eg25_closed": false
-  }
+  },
+  "request_trace_budget_delivery": "eval/ociusx-request-trace-budget-delivery-20261114.json"
 }

@@ -1,0 +1,134 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T06:49:08.767649+00:00",
+  "finding": "TODO31 usable default request traces for AI",
+  "source_commit": "019b016e1dfc3d59fff7faa0aae802753fb05596",
+  "runtime_source_commit": "a725a33a6c1875b78bc860ee3ef248b0febfdba0",
+  "bounded_delivery_complete": true,
+  "full_todo31_complete": false,
+  "before": "Actual OciusX POST /webhook/vetro/42 refused the default 16384-token response budget; callers needed a manual max_tokens=32628 increase for 130509 bytes.",
+  "after": "Oversized request traces return every selected edge through compact node references, retaining handlers, source locations/hashes and coverage limits. Detailed source and binding evidence has exact immutable response recovery. Small replies are unchanged.",
+  "validation": {
+    "native_request_trace_cases": 26,
+    "native_snapshot_cases": 8,
+    "candidate": {
+      "default_budget": true,
+      "exact_recovery": true,
+      "recomputed_trace_evidence": true,
+      "suggestions_separate_from_snapshot": true,
+      "routing_handlers_and_limits": true,
+      "every_edge_identity_and_location": true,
+      "useful_request_chain": true,
+      "actual_source_hashes": true,
+      "source_unchanged": true
+    },
+    "installed": {
+      "default_budget": true,
+      "exact_recovery": true,
+      "recomputed_trace_evidence": true,
+      "suggestions_separate_from_snapshot": true,
+      "routing_handlers_and_limits": true,
+      "every_edge_identity_and_location": true,
+      "useful_request_chain": true,
+      "actual_source_hashes": true,
+      "source_unchanged": true
+    }
+  },
+  "actual_ociusx": {
+    "entry_point": "POST /webhook/vetro/42",
+    "generation": 3150,
+    "default_budget_bytes": 65536,
+    "response_bytes": 61187,
+    "full_response_bytes": 130509,
+    "selected_paths": 128,
+    "recovery_pages": 4,
+    "default_seconds": 0.6078444999875501,
+    "exact_recovery": true,
+    "source_and_registry_unchanged": true
+  },
+  "runtime": {
+    "server_sha256": "9610dc38b795e8f70150729b7dbdb2863b6d2056fe412fcbafb7d27bf9dd00b4",
+    "manifest_sha256": "55e63fcc24003ebb2ab6b1c64f818192837ef102cf5edb178b7ee9f7109302b8",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\Engram-win-x64.zip",
+    "sha256": "64ce6f04037410e7ac24716a60f0c02ca0c1c47d38f6a62326fd9418908a7b2c",
+    "runtime_assets": 215,
+    "entries": 218
+  },
+  "evidence": {
+    "contract": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\contract.json",
+      "sha256": "814998a38db65df694edd81f02efb81920d8cd1e66d1819b3146cfe3a0904cb9"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\implementation1.json",
+      "sha256": "7f16e72a8cc8f4a6ec7e7bb5a69d58f568db9a74014ae8288a1c50a485e26b66"
+    },
+    "review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\manual-review.json",
+      "sha256": "b0597f8ad07afe437d91f8fab696fb1325f7118f763aeac889ad622348cc9876"
+    },
+    "native_trace": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\native1.json",
+      "sha256": "786a4a21d67177726036bbc35a600e7c5cdcf91e6e7489f930f844544259dc96"
+    },
+    "native_recovery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\native2.json",
+      "sha256": "e301d75074de94d1a7a3fba3427cf2d59183890fff50e1318d02fadae34dbe70"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\release1.json",
+      "sha256": "4ab57ad70abebbf6e0329a6e99cdbe21b4e2880719be05383bd0bcd8daf8b0b6"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\candidate2\\acceptance.json",
+      "sha256": "d17c4217df7e63a35f434673049281ff99a147a137484fa2b1a9b97a6dd941ec"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\installed1\\acceptance.json",
+      "sha256": "1e2509b42f93dfc4b1fabb9552a2f7389a99764fca6e26dd729f81ca1694a666"
+    },
+    "default_trace": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\installed1\\default.json",
+      "sha256": "6d862b80cc6ea6a66eaa9961f5a1cd021f73dd4f39658cb7165557fc98f48156"
+    },
+    "recovered_trace": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\installed1\\recovered.json",
+      "sha256": "f61b9d3b2c5c4d188df438d8fe7e5e573a16eed79300dc7e1f5eaa2b1ff0b30d"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\deployment2-state.json",
+      "sha256": "0c9fc7fc2699cb7cc7e634cf72ce5fe8621f8a3a96eb6da1fdafadc58662a92c"
+    },
+    "verifier_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\verifier-correction.json",
+      "sha256": "c62ffc3c8555917553efd9ee8c96f50761223fc882be18ffd70115181e50e929"
+    },
+    "first_candidate_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget\\candidate1\\acceptance.json",
+      "sha256": "99dffc4def296b86eb6359a6e7b9e6822f327a731abfd534515cea4cd5bcc146"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-budget",
+    "new_fixture_directories_removed": true,
+    "build_temp_removed": true,
+    "configuration_hold_released": true,
+    "owned_configuration_removed": true,
+    "parked_wip9_unchanged": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ae6ea1d691eb440d8dae16b0cc8ba0b5",
+    "retention": "Retain runtime pair, ZIP and delivery evidence for review/rollback. New response snapshots use normal 24-hour/32-newer-project-traces retention. No preexisting project directories deleted."
+  },
+  "limits": [
+    "All selected paths retained; original traversal limits and unresolved paths remain. This is not complete runtime execution or DI/database-effect proof.",
+    "Recover full evidence before making detailed binding/database assertions; snapshots do not re-evaluate current source.",
+    "A budget too small for the compact view still refuses with a minimum; unavailable snapshots require a new trace.",
+    "Saved bytes cover the trace evidence before tool_guidance adds next_tools and next_tools_status. Those suggestions are independently checked and are not part of the response_id hash; the first verifier incorrectly included them in a byte comparison and its failed receipt is retained.",
+    "Parent review only; no external CodeRabbit review. No general productivity, full TODO31 or full19gate claim."
+  ]
+}

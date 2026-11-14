@@ -342,6 +342,13 @@ worth building — these are, in this order. (Skip ones that duplicate existing 
   Actual OciusX required max_tokens=32628 (130509-byte response); its default
   output budget was insufficient.
   Evidence: [interface trace delivery](eval/ociusx-interface-request-trace-delivery-20261113.json).
+  Default-budget usability fixed 2026-11-14. Oversized traces retain all selected
+  paths in a compact node/edge view with exact immutable full-response recovery.
+  Actual OciusX POST /webhook/vetro/42 now returns within the default budget;
+  every selected path and source location is retained and full recovery matches
+  the original response byte for byte. This supersedes the earlier default-budget
+  refusal above; runtime binding/database limits remain.
+  Evidence: [default trace delivery](eval/ociusx-request-trace-budget-delivery-20261114.json).
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 
