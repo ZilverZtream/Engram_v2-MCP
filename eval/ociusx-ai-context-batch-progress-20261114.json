@@ -1,24 +1,26 @@
 {
-  "status": "THREE_COMPONENTS_IMPLEMENTED_FOCUSED_NATIVE_VERIFICATION_RUNNING",
+  "status": "FOCUSED_NATIVE_COMPONENTS_PASS_COMBINED_RELEASE_BUILD_RUNNING",
   "components": [
     "eval/ociusx-request-trace-policy-progress-20261114.json",
     "eval/ociusx-sp-details-progress-20261114.json",
     "eval/ociusx-database-report-budget-progress-20261114.json"
   ],
-  "root_source_commits": ["28edfb7", "d5d39a0", "85bad0c", "4101bab", "1189fd9"],
+  "root_source_commits": ["28edfb7", "d5d39a0", "85bad0c", "4101bab", "1189fd9", "54f6f6a"],
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-context-batch-20261114",
   "runtime_source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-  "runtime_source_commit": "0397165",
+  "runtime_source_commit": "922060c014f5b2c672160e0f2d188f46fa1a4e2e",
   "verification": {
     "native1": "Failed at type checking after 64.19 seconds: missing worker error-type annotation. Fixed in 1189fd9 / runtime 0397165. Owned Job, relay and temporary directory closed and removed.",
-    "native2": "Same focused selection currently running: request-trace delivery/policy, database-report delivery, database-intelligence service and shared response snapshots. Source receipt and process state are in the recorded batch case.",
-    "native2_exec_session": 30427,
-    "release_build_started": false,
+    "native2": "48 focused tests passed in0.96seconds after4m03s compilation. Cargo exit0. The reused runner then failed its build-only command post-check, retained as FAIL. Source stayed unchanged; owned Job, relay and temp closed. native-acceptance.json separately records the actual tests and wrapper limit; no rerun.",
+    "native_acceptance": "native-acceptance.json",
+    "post_native_source_delta": "One line adds the database-report default to the advisory-hint budget guard. Selected tested modules remain byte-identical; public release acceptance must cover the complete response integration.",
+    "release_exec_session": 10250,
+    "release_build_started": true,
     "full_suite_started": false,
     "public_verifiers_prepared": ["request-trace-policy/verify-public.py", "sp-details/verify-public.py", "database-report-budget/verify-public.py"],
     "actual_source_scope": "Trace acceptance uses unchanged copies of current WebApiConfig, VetroController and Global.asax plus authored guides in a private fixture. No production index/trace operation or Site/Q source read. Procedure acceptance uses the retained unchanged real SQL copy."
   },
-  "source_check_limits": "Syntax/source checks and the old-binary procedure lookup reproduction do not establish candidate behavior. No new component is deployed yet.",
-  "remaining": ["Finish focused native checks", "One release build for all three", "Candidate and installed public acceptance", "Record pairing, preserved state and owned-resource teardown"],
-  "temporary_resources": "All new fixtures and build resources stay under the recorded current-task-check cases. Baseline procedure fixture removed; running native2 build owns its temporary directory and exact Job. Retain scripts, logs and receipts with the delivery."
+  "source_check_limits": "Native helper tests do not establish candidate/installed behavior. No new component is deployed yet. Public acceptance and deployment scripts are prepared using the existing workflow and current installed identity pins.",
+  "remaining": ["Finish the existing release build; poll session10250 without restarting it", "Candidate and installed public acceptance", "Record pairing, preserved state and owned-resource teardown"],
+  "temporary_resources": "All new fixtures and build resources stay under the recorded current-task-check cases. Baseline and native fixture resources removed; release1 owns edit-workload-focused-9809iyw4 and its exact Job until completion. Retain scripts, logs and receipts with the delivery."
 }
