@@ -970,7 +970,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Run one combined focused verification/release and public candidate/installed acceptance for pattern guidance and complete footprint/pattern delivery.",
+  "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented planning components.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1286,5 +1286,6 @@
       "Small/default/large budgets and invalid/minimum metadata controls without snapshot writes"
     ],
     "resources": "Owned baseline fixture/MCP process closed and removed. Scripts/logs/receipts retained in this case for review; no build or native run started."
-  }
+  },
+  "planning_delivery_batch_progress": "eval/ociusx-planning-delivery-batch-progress-20261114.json"
 }
