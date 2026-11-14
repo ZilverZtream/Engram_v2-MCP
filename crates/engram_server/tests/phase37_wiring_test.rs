@@ -277,6 +277,9 @@ async fn w1_analyze_database_intelligence_markdown() {
                 sql_file_path: None,
                 sp_limit: 50,
                 output_json: false,
+                max_tokens: None,
+                response_id: None,
+                response_offset: 0,
             },
         ))
         .await
@@ -308,6 +311,9 @@ async fn w1_analyze_database_intelligence_json() {
                 sql_file_path: None,
                 sp_limit: 50,
                 output_json: true,
+                max_tokens: None,
+                response_id: None,
+                response_offset: 0,
             },
         ))
         .await
@@ -332,6 +338,9 @@ async fn w1_analyze_database_intelligence_specific_file() {
                 sql_file_path: Some("database.sql".into()),
                 sp_limit: 50,
                 output_json: false,
+                max_tokens: None,
+                response_id: None,
+                response_offset: 0,
             },
         ))
         .await
@@ -353,6 +362,9 @@ async fn w1_no_sql_files_returns_message() {
                 sql_file_path: None,
                 sp_limit: 50,
                 output_json: false,
+                max_tokens: None,
+                response_id: None,
+                response_offset: 0,
             },
         ))
         .await

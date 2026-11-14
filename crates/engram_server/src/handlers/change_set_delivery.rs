@@ -12,7 +12,7 @@ const SNAPSHOTS_PER_PROJECT: usize = 32;
 const RETENTION: Duration = Duration::from_secs(24 * 60 * 60);
 
 #[derive(Clone, Copy)]
-enum Family { ChangeSet, Review, RequestTrace }
+enum Family { ChangeSet, Review, RequestTrace, DatabaseReport }
 
 fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
@@ -24,7 +24,7 @@ fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
 }
 
 fn directory_for(data_dir: &Path, project_id: &str, family: Family) -> Result<PathBuf, McpError> {
-    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace" };
+    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report" };
     super::super::validate_project_id(project_id)?;
     engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
@@ -93,6 +93,10 @@ pub(crate) fn save_review(data_dir: &Path, project_id: &str, body: &str) -> Resu
 
 pub(crate) fn save_request_trace(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
     save_for(data_dir, project_id, body, Family::RequestTrace)
+}
+
+pub(crate) fn save_database_report(data_dir: &Path, project_id: &str, body: &str) -> Result<String, McpError> {
+    save_for(data_dir, project_id, body, Family::DatabaseReport)
 }
 
 fn save_for(data_dir: &Path, project_id: &str, body: &str, family: Family) -> Result<String, McpError> {
@@ -245,6 +249,17 @@ pub(crate) fn recover_request_trace(data_dir: &Path, project_id: &str, id: &str,
     recover_for(data_dir, project_id, id, offset, budget, Family::RequestTrace)
 }
 
+pub(crate) fn database_report_continuation(project_id: &str, id: &str, offset: usize, budget: usize) -> Value {
+    json!({"tool":"analyze_database_intelligence", "arguments":{
+        "project_id":project_id, "response_id":id, "response_offset":offset,
+        "max_tokens":budget / 4, "output_json":true
+    }})
+}
+
+pub(crate) fn recover_database_report(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize) -> Result<String, McpError> {
+    recover_for(data_dir, project_id, id, offset, budget, Family::DatabaseReport)
+}
+
 fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
     let directory = directory_for(data_dir, project_id, family)?;
     let path = checked_path(&directory, id)?;
@@ -302,6 +317,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
                 Family::ChangeSet => continuation(project_id, id, end),
                 Family::Review => review_continuation(project_id, id, end, budget),
                 Family::RequestTrace => request_trace_continuation(project_id, id, end, budget),
+                Family::DatabaseReport => database_report_continuation(project_id, id, end, budget),
             }},
         });
         let rendered = serde_json::to_string(&page)

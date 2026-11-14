@@ -22,6 +22,8 @@ use engram_graph::store::ResolveResult;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use std::path::Path;
+#[path = "database_report_delivery.rs"]
+mod database_report_delivery;
 
 fn format_ambiguous_symbol_error(input: &str, candidates: &[engram_graph::Node]) -> String {
     let details = candidates
@@ -2024,6 +2026,10 @@ impl Engram {
         &self,
         req: AnalyzeDatabaseIntelligenceRequest,
     ) -> Result<CallToolResult, McpError> {
+        super::validate_project_id(&req.project_id)?;
+        if let Some(body) = database_report_delivery::recover(&self.state.cfg.data_dir, &req)? {
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
         let rec = self.ensure_project_record(&req.project_id).await?;
         let project_dir = rec.directory.clone();
         let graph = self.state.graph.clone();
@@ -2060,9 +2066,10 @@ impl Engram {
         };
 
         if sql_files.is_empty() {
-            return Ok(CallToolResult::success(vec![Content::text(
-                "No .sql files found. Place a database.sql (or other .sql files) in the project directory and re-run.",
-            )]));
+            let body = database_report_delivery::finish(&self.state.cfg.data_dir, &req,
+                "No .sql files found. Place a database.sql (or other .sql files) in the project directory and re-run.".into(),
+                serde_json::json!({"stored_procedures":0, "warnings":[], "sp_limit":sp_limit}))?;
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
         }
 
         // ── Discover code files for SP cross-referencing ────────────────────
@@ -2168,17 +2175,19 @@ impl Engram {
 
         let (_sp_catalog, intel) = result;
 
-        if output_json {
-            let json = serde_json::to_string_pretty(&intel)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
-        }
-
-        let md =
+        let summary = serde_json::json!({"stored_procedures":intel.sp_logic.len(), "call_chains":intel.sp_call_chains.len(),
+            "triggers":intel.triggers.len(), "sql_scripts":intel.sql_scripts.len(), "warnings":intel.warnings,
+            "sp_limit":sp_limit});
+        let body = if output_json {
+            serde_json::to_string_pretty(&intel)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        } else {
             crate::services::database_intelligence_service::render_database_intelligence_markdown(
                 &intel,
-            );
-        Ok(CallToolResult::success(vec![Content::text(md)]))
+            )
+        };
+        let body = database_report_delivery::finish(&self.state.cfg.data_dir, &req, body, summary)?;
+        Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 
     /// 37-W2: Deep analysis for a single stored procedure.

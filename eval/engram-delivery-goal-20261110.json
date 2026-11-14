@@ -41,32 +41,31 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "TODO59 / TODO35 usable stored-procedure details for bracketed declarations",
-    "original_requirement": "Source-backed SQL understanding for the OciusX AI workflow using the existing database tools.",
-    "observed_missing_behavior": "get_sp_details duplicates declaration, reverse-call and table-write regexes instead of the shared parser. Its declaration regex fails the existing OciusX [dbo].aspnet_Applications_CreateApplication declaration, and its table regex omits INSERT without INTO.",
+    "finding": "TODO4 bounded complete database-analysis reports",
+    "original_requirement": "Unbounded migration/database reports must honor an AI context budget with explicit exact recovery instead of silent truncation.",
+    "observed_missing_behavior": "analyze_database_intelligence serializes the entire multi-procedure/schema report directly in either JSON or Markdown. Its request has no max_tokens or continuation despite the default allowing 500 procedure summaries.",
     "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
       "crates/engram_server/src/handlers/migration_tools.rs",
-      "crates/engram_server/src/services/database_intelligence_service.rs"
+      "crates/engram_server/src/handlers/database_report_delivery.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs"
     ],
     "acceptance": [
-      "Public owned fixture reproduces the missing procedure against the existing binary using an unchanged OciusX SQL source copy.",
-      "Use existing parsed declarations and source spans for lookup, including bracketed CREATE/ALTER names, and exclude post-GO deployment statements from the selected source body.",
-      "Use parsed read/write targets and reverse procedure calls in details; retain INSERT without INTO, read/write overlap and MERGE support. Preserve callers, parameters, triggers, warnings and existing not-found behavior.",
-      "Focused native and combined candidate/installed public checks prove the real procedure lookup, OUTPUT parameter, expected tables and synthetic reverse caller. No per-feature build or graph/tracing change."
+      "Default complete reply text fits 65536 UTF-8 bytes, or a caller-selected positive max_tokens*4 budget; small existing JSON and Markdown reports remain byte-for-byte unchanged.",
+      "Oversized reports retain summary counts and warnings plus an exact immutable-original recovery action. JSON/Markdown identity, original request scan/selection limits and current-source caveats remain explicit.",
+      "Recovery returns hash-verified byte pages without rerunning analysis or requiring the original SQL file to remain present; existing project/family isolation and retention behavior remain.",
+      "Focused native and combined candidate/installed public checks reconstruct both full formats exactly after fixture SQL mutation and verify invalid/minimum budgets. No extra build for this component."
     ],
-    "limits": [
-      "The existing parser/report use procedure and table basenames; this does not establish deployed schema identity, ambiguity resolution or execution.",
-      "No new target language, parser format or reindex requirement."
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-report-budget",
+    "prior_queued_items": [
+      "eval/ociusx-request-trace-policy-progress-20261114.json",
+      "eval/ociusx-sp-details-progress-20261114.json"
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
-    "prior_queued_item": "eval/ociusx-request-trace-policy-progress-20261114.json",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details\\baseline-confirmed.json",
-    "retained_verifier_failure": "baseline1/acceptance.json retains the verifier failure: the transport exception redacts the MCP message. The exact retained response independently confirms not-found; no baseline rerun performed.",
-    "temporary_resources": "Owned public fixture/server closed naturally and fixture removed. Scripts and receipts remain in the recorded case for combined candidate/installed acceptance.",
-    "source_check_limits": "Rust parser and diff checks only before batch verification; no type-checking, native acceptance or deployment claimed."
+    "source_check_limits": "Five affected Rust files parse. Type checking and behavioral acceptance remain queued for the combined batch.",
+    "temporary_resources": "Public verifier and focus-update script retained in the recorded case. No fixture, database or runtime started for this component yet."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

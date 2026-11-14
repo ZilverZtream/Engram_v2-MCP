@@ -3482,6 +3482,17 @@ pub struct AnalyzeDatabaseIntelligenceRequest {
     /// Output as JSON instead of Markdown report. Default: false.
     #[serde(default)]
     pub output_json: bool,
+    /// Complete reply-text budget estimated as UTF-8 bytes / 4. Default: 16384.
+    /// Oversized reports return summary metadata and exact-original recovery.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Immutable report response_id returned by an oversized initial request.
+    /// Recovery does not read current SQL or rerun analysis.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset into the immutable original; requires response_id.
+    #[serde(default)]
+    pub response_offset: usize,
 }
 
 /// Retrieve deep analysis for a single stored procedure by name.
