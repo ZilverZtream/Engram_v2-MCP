@@ -41,44 +41,37 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "TODO4 / TODO28 complete natural-language evidence delivery",
-    "original_requirement": "Give AI callers a complete response budget, explicit omissions and exact recovery instead of unbounded tool text.",
-    "observed_missing_behavior": "ask_codebase rejects max_tokens/response_id and returns the entire rendered evidence and policy report without a delivery budget. Existing immutable snapshots already support this behavior for other central tools.",
+    "finding": "EG27/EG31 SQL procedure evidence in instruction maintenance",
+    "original_requirement": "Track instruction evidence dependencies, freshness and reference drift in OciusX VB.NET/JS/TS/SQL workflows.",
+    "observed_missing_behavior": "The maintenance symbol manifest supports VB and tree-sitter sources but marks every SQL input unsupported. Authored references to a collected stored procedure cannot show declaration candidates or procedure-specific byte changes despite the shared stored-procedure extractor already existing.",
     "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/src/handlers/ask_response_delivery.rs",
-      "crates/engram_server/src/handlers/change_set_delivery.rs",
-      "crates/engram_server/src/tool_guidance.rs",
-      "crates/engram_server/src/tools.rs"
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
     ],
     "acceptance": [
-      "Optional positive max_tokens bounds full UTF-8 reply text at four bytes per estimated token; default40KiB. Small reports remain identical in JSON/Markdown/both formats.",
-      "Oversized reports retain status, mode, freshness, provider outcomes, conflicts, unknowns and next actions in explicit deferred metadata; exact original evidence, synthesized answer and authored policy remain recoverable.",
-      "Recovery bypasses project initialization, routing, retrieval and synthesis, even with an empty question, and every continuation carries max_tokens. Snapshot family is isolated from existing tools.",
-      "Native known-input recovery and public initial/recovery checks preserve complete original UTF-8 bytes/hash after instruction edits. Invalid controls and minimum metadata refusal create no snapshot.",
-      "Verify candidate and installed public behavior in the next three-component batch; use current OciusX source/guidance copies outside Site/Q, preserve existing WIP9/configuration."
+      "Reuse extract_stored_procedures on already collected complete SQL snapshots. Convert its zero-based inclusive spans to the existing one-based candidate contract and retain exact source/evidence hashes.",
+      "Existing per-instruction comparisons distinguish unchanged versus changed referenced procedure ranges, leaving unrelated procedures separate. Preserve duplicate-name ambiguity, no-absence-proof, original SQL parser basename/heuristic limits and all existing budgets.",
+      "Focused native checks cover initial-line and later declarations, changed versus unchanged procedures, exact source slices/hashes and duplicate names without index/filesystem reads.",
+      "Combined candidate/installed pre_push_audit on owned SQL fixtures, including an unchanged current OciusX procedure copy and an owned modified version, shows the matching procedure change while writing no authored files. No production source edits or Site/Q reads."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget",
-    "configuration_observed": {
-      "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-      "llm_backend": "\"openai\"",
-      "embedding_backend": "\"ollama\"",
-      "advertise_all_tools": "true"
+    "actual_source": {
+      "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Stored Procedures\\aspnet_Applications_CreateApplication.sql",
+      "sha256": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2"
     },
-    "limits": [
-      "No retrieval/ranking/model/CodeMap/Blast behavior change. No productivity gain claimed.",
-      "Source implementation will be queued; no feature-specific compilation or deployment."
-    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\source-check1.json",
-    "queued_native_cases": [
-      "Exact full JSON/Markdown/both report recovery after policy changes; original status/provider conflicts and unknowns retained",
-      "Small/large/default budgets, invalid controls and no snapshot on minimum metadata refusal"
+    "limits": [
+      "Source observations do not prove database schema binding, case collation, execution, semantic policy correctness or complete SQL grammar support.",
+      "No new SQL parser, target language, index/storage migration or CodeMap/Blast work. Queued for the next three-component combined build."
     ],
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py"
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\baseline1\\acceptance.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\verify-public.py",
+    "queued_native_cases": [
+      "Collected SQL procedure range/hash and changed-versus-unchanged guidance observations",
+      "Shared-parser basename collisions remain ambiguous without schema binding"
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -876,6 +869,11 @@
         "item": "Complete ask_codebase response budgets and exact recovery",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
         "progress": "eval/ociusx-ask-response-budget-progress-20261114.json"
+      },
+      {
+        "item": "SQL procedure instruction evidence",
+        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+        "progress": "eval/ociusx-sql-instruction-symbols-progress-20261114.json"
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -960,7 +958,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Implement the next original OciusX component before combined verification; ask_codebase source is queued, not validated or deployed.",
+  "next_user_visible_deliverable": "Implement the third original OciusX component, then run one combined focused verification/release for the queued batch.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1082,5 +1080,48 @@
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget\\source-check1.json",
     "bounded_delivery_complete": true,
     "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+  },
+  "retained_queued_ask_response_contract": {
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "TODO4 / TODO28 complete natural-language evidence delivery",
+    "original_requirement": "Give AI callers a complete response budget, explicit omissions and exact recovery instead of unbounded tool text.",
+    "observed_missing_behavior": "ask_codebase rejects max_tokens/response_id and returns the entire rendered evidence and policy report without a delivery budget. Existing immutable snapshots already support this behavior for other central tools.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/handlers/ask_response_delivery.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/tool_guidance.rs",
+      "crates/engram_server/src/tools.rs"
+    ],
+    "acceptance": [
+      "Optional positive max_tokens bounds full UTF-8 reply text at four bytes per estimated token; default40KiB. Small reports remain identical in JSON/Markdown/both formats.",
+      "Oversized reports retain status, mode, freshness, provider outcomes, conflicts, unknowns and next actions in explicit deferred metadata; exact original evidence, synthesized answer and authored policy remain recoverable.",
+      "Recovery bypasses project initialization, routing, retrieval and synthesis, even with an empty question, and every continuation carries max_tokens. Snapshot family is isolated from existing tools.",
+      "Native known-input recovery and public initial/recovery checks preserve complete original UTF-8 bytes/hash after instruction edits. Invalid controls and minimum metadata refusal create no snapshot.",
+      "Verify candidate and installed public behavior in the next three-component batch; use current OciusX source/guidance copies outside Site/Q, preserve existing WIP9/configuration."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget",
+    "configuration_observed": {
+      "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "llm_backend": "\"openai\"",
+      "embedding_backend": "\"ollama\"",
+      "advertise_all_tools": "true"
+    },
+    "limits": [
+      "No retrieval/ranking/model/CodeMap/Blast behavior change. No productivity gain claimed.",
+      "Source implementation will be queued; no feature-specific compilation or deployment."
+    ],
+    "implementation_complete": true,
+    "validated": false,
+    "deployed": false,
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\source-check1.json",
+    "queued_native_cases": [
+      "Exact full JSON/Markdown/both report recovery after policy changes; original status/provider conflicts and unknowns retained",
+      "Small/large/default budgets, invalid controls and no snapshot on minimum metadata refusal"
+    ],
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py",
+    "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
+    "source_followup": "Use the existing crate-visible token_bytes helper directly; the planner-specific budget helper is private to its module. No build or behavioral validation claimed."
   }
 }
