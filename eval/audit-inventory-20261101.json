@@ -10022,29 +10022,37 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-      "finding": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-      "original_requirement": "Usable source-backed database analysis for OciusX AI workflows; avoid redundant analysis while preserving report evidence.",
-      "observed_missing_behavior": "analyze_database_intelligence always queries up to50000file nodes and reads project VB/CS source, including a disk fallback, even for one explicit SQL file with one procedure. Code callers only rank/truncate procedure candidates; DatabaseIntelligence does not return caller metadata. OciusX selected SQL project uses individual procedure files, including the current application-creation example.",
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "EG01 / TODO28 scoped authored guidance in request tracing",
+      "original_requirement": "Return applicable authored instructions where an AI gathers source context before editing.",
+      "observed_missing_behavior": "trace_user_request returns routing, pages, controllers and call paths without project_policy_sources; the shared resolver is already used by ask_codebase and editing/review contexts.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/migration_tools.rs",
-        "crates/engram_server/src/services/database_intelligence_service.rs"
+        "crates/engram_server/src/handlers/request_trace_tools.rs",
+        "crates/engram_server/src/handlers/request_trace_policy.rs",
+        "crates/engram_server/src/handlers/request_trace_delivery.rs"
       ],
       "acceptance": [
-        "For an explicitly requested SQL file with zero or one parsed procedure, skip application code discovery/read/ranking; preserve SQL content, complete returned report, graph table cross-references and request controls.",
-        "Leave project-wide and multi-procedure ranking unchanged. Native comparison proves identical complete single-procedure reports with and without caller-ranking metadata.",
-        "Public owned fixture with unchanged OciusX SQL proves the report stays usable without reading unrelated ignored source; candidate/installed checks cover the whole queued batch.",
-        "No separate compile; combine with queued shared body and parameter fixes. Preserve WIP9/config/source and account for fixtures."
+        "Resolve current authored guidance only for actual returned source paths admitted by the loaded selected inventory, including route registrations, markup, codebehind, controller and downstream source.",
+        "Preserve complete applicable guidance, hashes, exclusions and omission/refetch disclosures; exclude unrelated topic instructions and reflect instruction edits without reindexing.",
+        "Preserve default-budget trace navigation. If policy text cannot fit after normal compaction, retain policy metadata and an explicit exact-original recovery reference rather than silently truncating policy.",
+        "Run focused native coverage and candidate/installed public MCP fixture checks in the next combined batch, including one current OciusX route without reading Site/Q. No per-feature build."
       ],
       "limits": [
-        "No whole-project performance claim, graph/index/cache redesign or CodeMap/Blast change.",
-        "This removes unused VB/CS file scans from the specified report path; it does not close all source-admission or database-analysis requirements."
+        "Guidance covers returned source paths, not the final edit scope; it does not prove code compliance or runtime execution.",
+        "No tracing algorithm, index format, CodeMap or Blast Radius change."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\single-sql-report",
-      "progress": "eval/ociusx-sql-analysis-batch-progress-20261114.json",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-policy",
       "implementation_complete": true,
-      "bounded_delivery_complete": true,
-      "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
+      "validated": false,
+      "deployed": false,
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trace-policy\\source-check1.json",
+      "source_check_limits": "Three Rust files parse; preserved WIP9 hashes match. This is not type checking or behavioral acceptance. No compiler, test suite or release build started.",
+      "queued_checks": [
+        "Scope filtering and live instruction edits",
+        "Large-guide exact recovery and unchanged navigation",
+        "Public candidate/installed guidance and current OciusX source agreement"
+      ],
+      "temporary_resources": "Only scripts and source-check receipt in the recorded scratch directory; no runtime processes or fixture directories created. Retain evidence until combined delivery completes."
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
