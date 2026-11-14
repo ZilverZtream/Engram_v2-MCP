@@ -317,7 +317,7 @@ without re-reading an entire file:
 | `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
 | `batch_read` | Up to 16 method, identity and stored-chunk reads under one response budget |
 | `query_schema` | Qualified, source-cited SQL table, column, key, index, view, trigger and procedure queries |
-| `one_shot_feature_plan` | Source-cited WebForms/VB.NET feature proposal with existing-behavior findings, proposed edits and unresolved requirements |
+| `one_shot_feature_plan` | Source-cited WebForms/VB.NET feature dossier for the calling AI, or a generated implementation proposal |
 | `detect_n_plus_one` | Source-cited candidates for database calls repeated by VB loops or WebForms row binding |
 | `find_missing_indexes` | Review-only SQL index candidates from cited queries and source-declared index coverage |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
@@ -368,6 +368,15 @@ area and existing pattern. It covers the WebForms/VB.NET application's JS/TS
 and SQL files; other target stacks are not implemented. The tool is available
 in the full catalog and is not added to the default core preset.
 
+Set `dossier_only: true` when the calling AI will do the planning. The tool
+returns bounded source excerpts with hashes and line ranges, existing change-set
+guidance and pattern context, and coverage/recovery information as
+`SOURCE_DOSSIER_READY`. It preserves the feature request verbatim and makes zero
+server text-generation calls, including when the generation backend is disabled.
+Retrieval and embeddings still follow the project configuration. This mode
+returns no generated requirements, plan, inferred schema or edit-safety verdict.
+Omit the flag to use the generated-proposal workflow below.
+
 The configured model proposes requirements, reconciles them with admitted source,
 and returns proposed files, DDL, ordered steps, validation checks and explicit
 `planned`, `already_present`, or `unresolved` dispositions. Existing behavior can
@@ -375,7 +384,7 @@ justify a plan with no edits. `ReadyToCode` adds proposed code templates; it doe
 not authorize edits or establish runtime correctness. The tool never writes
 application files or executes SQL.
 
-A usable response is labeled `DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW`.
+A structurally valid generated proposal is labeled `DRAFT_REQUIRES_SOURCE_AND_REQUIREMENT_REVIEW`.
 Plans are limited to 12 new/modified files and 48 steps. Invalid model contracts
 may receive one correction attempt using the same evidence and validation rules:
 two normal generation requests, at most three with correction, plus the configured
