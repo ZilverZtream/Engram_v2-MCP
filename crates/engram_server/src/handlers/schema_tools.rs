@@ -10,6 +10,9 @@ use rmcp::{
 use serde_json::json;
 use std::{io::Read, path::Path};
 
+#[path = "schema_policy.rs"]
+mod schema_policy;
+
 impl Engram {
     pub async fn handle_query_schema(
         &self,
@@ -36,6 +39,7 @@ impl Engram {
             let selected=view.selected_file_revisions().ok_or_else(||anyhow::anyhow!("Schema queries require a managed source inventory; update_project first"))?;
             anyhow::ensure!(selected.len()<=50_000,"Selected inventory exceeds 50000 paths");
             let mut catalog=Catalog::default();
+            let mut admitted_paths=std::collections::BTreeSet::new();
             let (mut bytes,mut admitted,mut sql_files)=(0usize,0usize,0usize);
             for (path,revision) in selected {
                 if !path.to_ascii_lowercase().ends_with(".sql") {continue;}
@@ -55,6 +59,7 @@ impl Engram {
                     Ok(source)=>{
                         bytes+=source.len();anyhow::ensure!(bytes<=64*1024*1024,"Schema source scan exceeds 64 MiB");
                         catalog.add_source(path,&source)?;admitted+=1;
+                        admitted_paths.insert(path.clone());
                     },
                     Err(error)=>catalog.gaps.push(format!("{path}: {error}")),
                 }
@@ -81,7 +86,10 @@ impl Engram {
                         Ok(hash)
                     })();
                     match verified {
-                        Ok(hash)=>leads.push(json!({"node_id":node.node_id,"file":path,"start_line":node.start_line,"end_line":node.end_line,"source_hash":hash})),
+                        Ok(hash)=>{
+                            admitted_paths.insert(path.to_owned());
+                            leads.push(json!({"node_id":node.node_id,"file":path,"start_line":node.start_line,"end_line":node.end_line,"source_hash":hash}));
+                        },
                         Err(_)=>withheld+=1,
                     }
                 }
@@ -102,6 +110,7 @@ impl Engram {
                 let mut recovery=req.clone();recovery.offset=Some(next as usize);
                 result["next_page"]=json!({"tool":"query_schema","arguments":recovery,"consistency":"Repeat only while source generation and fingerprints remain unchanged"});
             }
+            schema_policy::attach(Path::new(&record.directory), &mut result, &admitted_paths)?;
             Ok(serde_json::to_string(&result)?)
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(e.to_string(),None))?;

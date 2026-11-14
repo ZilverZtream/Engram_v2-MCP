@@ -10023,36 +10023,35 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "EG27/EG31 SQL procedure evidence in instruction maintenance",
-      "original_requirement": "Track instruction evidence dependencies, freshness and reference drift in OciusX VB.NET/JS/TS/SQL workflows.",
-      "observed_missing_behavior": "The maintenance symbol manifest supports VB and tree-sitter sources but marks every SQL input unsupported. Authored references to a collected stored procedure cannot show declaration candidates or procedure-specific byte changes despite the shared stored-procedure extractor already existing.",
+      "finding": "EG01 scoped authored guidance in SQL schema retrieval",
+      "original_requirement": "The same applicable complete authored guidance reaches planning, editing, retrieval and review in OciusX workflows.",
+      "observed_missing_behavior": "query_schema returns verified SQL declaration citations and code leads without project_policy_sources. Root and scoped instructions are absent even though the common policy resolver is already available.",
       "implementation_files": [
-        "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
+        "crates/engram_server/src/handlers/schema_tools.rs",
+        "crates/engram_server/src/handlers/schema_policy.rs"
       ],
       "acceptance": [
-        "Reuse extract_stored_procedures on already collected complete SQL snapshots. Convert its zero-based inclusive spans to the existing one-based candidate contract and retain exact source/evidence hashes.",
-        "Existing per-instruction comparisons distinguish unchanged versus changed referenced procedure ranges, leaving unrelated procedures separate. Preserve duplicate-name ambiguity, no-absence-proof, original SQL parser basename/heuristic limits and all existing budgets.",
-        "Focused native checks cover initial-line and later declarations, changed versus unchanged procedures, exact source slices/hashes and duplicate names without index/filesystem reads.",
-        "Combined candidate/installed pre_push_audit on owned SQL fixtures, including an unchanged current OciusX procedure copy and an owned modified version, shows the matching procedure change while writing no authored files. No production source edits or Site/Q reads."
+        "Resolve guidance from returned declaration citation paths and verified returned code leads, intersected with successfully admitted sources. Do not expand scope to all scanned SQL files or arbitrary path-like strings.",
+        "Preserve schema results, qualifications, ambiguity and paging. Root and SQL/code scoped instructions include complete text, hashes, omissions and linked-reference disclosures, without upgrading static declarations into database execution proof.",
+        "Live authored instruction edits refresh without source reindexing. The existing max_tokens check includes the added guidance and refuses rather than silently discarding evidence.",
+        "Focused native scope/freshness check and candidate/installed public query_schema on an unchanged actual OciusX table copy include actual root guidance and matching scoped guidance, excluding an unrelated scanned SQL area. Preserve application/config/WIP9."
       ],
       "actual_source": {
-        "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Stored Procedures\\aspnet_Applications_CreateApplication.sql",
-        "sha256": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2"
+        "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Tables\\aspnet_Applications.sql",
+        "sha256": "a2d5c0eba1a7dd03099d96d55bad48bd11884404e665caacee6db63690256efd"
       },
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114",
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
       "limits": [
-        "Source observations do not prove database schema binding, case collation, execution, semantic policy correctness or complete SQL grammar support.",
-        "No new SQL parser, target language, index/storage migration or CodeMap/Blast work. Queued for the next three-component combined build."
+        "Guidance covers returned evidence paths, not the final edit scope or a recursively established linked-policy set.",
+        "No SQL parser, query/ranking, database binding, index/storage or CodeMap/Blast changes. Third component for one combined verification/build."
       ],
-      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\baseline1\\acceptance.json",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\verify-public.py",
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\source-check1.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\verify-public.py",
       "queued_native_cases": [
-        "Collected SQL procedure range/hash and changed-versus-unchanged guidance observations",
-        "Shared-parser basename collisions remain ambiguous without schema binding"
+        "Returned SQL declaration and verified code scopes include matching live policy without changing schema evidence"
       ]
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
@@ -10086,7 +10085,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Implement the third original OciusX component, then run one combined focused verification/release for the queued batch.",
+    "next_user_visible_deliverable": "Run one combined focused verification/release and candidate/installed acceptance for ask response budgets, SQL instruction evidence and schema guidance.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14453,10 +14452,15 @@
           "item": "SQL procedure instruction evidence",
           "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
           "progress": "eval/ociusx-sql-instruction-symbols-progress-20261114.json"
+        },
+        {
+          "item": "Scoped schema-query guidance",
+          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+          "progress": "eval/ociusx-schema-policy-progress-20261114.json"
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114",
       "completed_last_batch": [
         {
           "component": "js-ts-heritage",
@@ -14701,6 +14705,40 @@
       "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py",
       "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
       "source_followup": "Use the existing crate-visible token_bytes helper directly; the planner-specific budget helper is private to its module. No build or behavioral validation claimed."
+    },
+    "retained_queued_sql_instruction_contract": {
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "EG27/EG31 SQL procedure evidence in instruction maintenance",
+      "original_requirement": "Track instruction evidence dependencies, freshness and reference drift in OciusX VB.NET/JS/TS/SQL workflows.",
+      "observed_missing_behavior": "The maintenance symbol manifest supports VB and tree-sitter sources but marks every SQL input unsupported. Authored references to a collected stored procedure cannot show declaration candidates or procedure-specific byte changes despite the shared stored-procedure extractor already existing.",
+      "implementation_files": [
+        "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs"
+      ],
+      "acceptance": [
+        "Reuse extract_stored_procedures on already collected complete SQL snapshots. Convert its zero-based inclusive spans to the existing one-based candidate contract and retain exact source/evidence hashes.",
+        "Existing per-instruction comparisons distinguish unchanged versus changed referenced procedure ranges, leaving unrelated procedures separate. Preserve duplicate-name ambiguity, no-absence-proof, original SQL parser basename/heuristic limits and all existing budgets.",
+        "Focused native checks cover initial-line and later declarations, changed versus unchanged procedures, exact source slices/hashes and duplicate names without index/filesystem reads.",
+        "Combined candidate/installed pre_push_audit on owned SQL fixtures, including an unchanged current OciusX procedure copy and an owned modified version, shows the matching procedure change while writing no authored files. No production source edits or Site/Q reads."
+      ],
+      "actual_source": {
+        "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Stored Procedures\\aspnet_Applications_CreateApplication.sql",
+        "sha256": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2"
+      },
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols",
+      "implementation_complete": true,
+      "validated": false,
+      "deployed": false,
+      "limits": [
+        "Source observations do not prove database schema binding, case collation, execution, semantic policy correctness or complete SQL grammar support.",
+        "No new SQL parser, target language, index/storage migration or CodeMap/Blast work. Queued for the next three-component combined build."
+      ],
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\baseline1\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\verify-public.py",
+      "queued_native_cases": [
+        "Collected SQL procedure range/hash and changed-versus-unchanged guidance observations",
+        "Shared-parser basename collisions remain ambiguous without schema binding"
+      ]
     }
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
