@@ -252,7 +252,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Find concrete exemplars of how THIS codebase implements a pattern (e.g. 'admin settings page save', 'dropdown bound to lookup table'): top matching files with their symbols, SQL/table/state edges, co-changed partners, and a snippet — plus the ingredients common across exemplars. Imitate the best exemplar instead of inventing a new approach. Related: get_chunk for full source."
+        description = "Find concrete exemplars of how THIS codebase implements a pattern (e.g. 'admin settings page save', 'dropdown bound to lookup table'): top matching files with their symbols, SQL/table/state edges, co-changed partners, and a snippet — plus the ingredients common across exemplars. Applicable authored guidance accompanies returned exemplar files in JSON and Markdown; preserve its conditions/exceptions and recheck guidance for the final edit scope. Imitate the best exemplar instead of inventing a new approach. Related: get_chunk for full source."
     )]
     pub async fn find_implementation_pattern(
         &self,
