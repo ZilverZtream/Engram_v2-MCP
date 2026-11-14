@@ -456,6 +456,11 @@ impl Engram {
             let mut evidence = Vec::new();
             let mut gaps = Vec::new();
             let mut composition = Vec::new();
+            let inventory_paths: Vec<_> = source_paths.iter()
+                .filter(|path| selected.contains_key(path.as_str())).cloned().collect();
+            let mut method_inventories = super::file_functions::collect(
+                &graph, &project_id, &inventory_paths, 2000, super::file_functions::LimitCounts::Functions,
+            ).ok();
             let mut queued: BTreeSet<_> = source_paths.iter().cloned().collect();
             let mut queue = VecDeque::from(source_paths);
             let mut bytes = 0;
@@ -472,7 +477,11 @@ impl Engram {
                     let (start, end, excerpt) = excerpt(&source, &concepts);
                     anyhow::ensure!(!excerpt.is_empty() && start <= end, "no_bounded_source_excerpt");
                     anyhow::ensure!(bytes + excerpt.len() <= plan::MAX_EVIDENCE_BYTES, "aggregate_evidence_limit");
-                    let methods = graph.query_nodes(&project_id, Some("function"), None, Some(&path), 2000)?
+                    let nodes = match method_inventories.as_mut().and_then(|files| files.remove(&path)) {
+                        Some(nodes) => nodes,
+                        None => graph.query_nodes(&project_id, Some("function"), None, Some(&path), 2000)?,
+                    };
+                    let methods = nodes
                         .into_iter().filter(|n| n.file_path.as_str().replace('\\', "/") == path && n.generation == *revision && n.start_line >= start && n.start_line <= end)
                         .map(|n| MethodTarget {method_name:n.name.rsplit('.').next().unwrap_or(&n.name).to_owned(), line:n.start_line}).collect();
                     bytes += excerpt.len();
