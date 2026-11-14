@@ -79,6 +79,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   and scoped authored guidance. Existing composed planners keep full evidence.
   [Delivery](eval/ociusx-planning-delivery-batch-delivery-20261114.json).
 
+  Direct method/source and metadata reads installed 2026-11-14: complete
+  scoped authored guidance, caller reply budgets and exact immutable recovery.
+  Method source defaults40KiB; source windows/recovery retain32KiB ceilings.
+  Method metadata retains JSON arrays; batch_read keeps complete item evidence.
+  [Delivery](eval/ociusx-method-read-batch-delivery-20261114.json).
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "EG01 complete authored guidance with direct method/source reads",
   "original_requirement": "Applicable complete authored guidance must accompany direct retrieval and editing evidence, preserving scope, exceptions and source qualifications.",
   "observed_missing_behavior": "get_full_method_body returns method bodies, caller bodies, file excerpts and source ranges without project_policy_sources. Its pre-edit context counterpart already supplies policy, so the direct read path misses authored conditions and exceptions.",
@@ -19,8 +19,8 @@
     "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
   },
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "This source work is outside the frozen planning-delivery runtime checkout currently compiling; do not include it in that package or mark it deployed with that batch.",
     "No source parsing/resolution, retrieval/ranking, caller graph, model, CodeMap/Blast or index/storage changes. Guidance is intended policy, not execution/compliance proof."
@@ -35,5 +35,8 @@
     "Complete source and guidance retain the existing source-window reply limit"
   ],
   "delivery_integration": "The subsequent complete-reply layer replaces policy-stage size refusal with explicit immutable recovery when valid source plus policy exceeds its reply budget. Original raw source-window validation and32KiB complete replies/recovery remain bounded; no evidence is clipped.",
-  "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114\\source-check1.json"
+  "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114\\source-check1.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

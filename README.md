@@ -351,6 +351,15 @@ completeness and policy. Existing source-dossier/brief composition retains
 full pattern evidence and its original exemplar prefix.
 [Delivery](eval/ociusx-planning-delivery-batch-delivery-20261114.json).
 
+`get_full_method_body` and `get_method_info` include complete applicable
+authored guidance for returned files and accept complete-reply `max_tokens`
+budgets (default40KiB; source windows/source recovery keep32KiB ceilings).
+Follow `response_delivery.next_call` to recover an oversized original without
+repeating retrieval. Recovery preserves original qualifications and cannot
+certify current freshness. Method metadata keeps its JSON array format and
+indexed-evidence limits; `batch_read` owns its combined budget.
+[Delivery](eval/ociusx-method-read-batch-delivery-20261114.json).
+
 ### Per-method access layer
 
 Precise per-method context retrieval so an agent can touch one method
@@ -358,8 +367,8 @@ without re-reading an entire file:
 
 | Tool | Purpose |
 |---|---|
-| `get_method_info` | Signature, surrounding class, edges |
-| `get_full_method_body` | Indexed method or explicit range, with source fingerprint status |
+| `get_method_info` | Indexed signature, class and edges, with guidance scoped to each method file |
+| `get_full_method_body` | Indexed method, strict explicit range or bounded current-file windows, with source fingerprint status and scoped guidance |
 | `get_method_edit_context` | Source + immediate call / caller neighbourhood |
 | `get_page_context` · `prepare_implementation_context` | ASPX-aware context for WebForms edits |
 | `trace_user_request` | URL/page → authored handler candidates → indexed calls and database relationships |
@@ -370,6 +379,31 @@ without re-reading an entire file:
 | `find_missing_indexes` | Review-only SQL index candidates from cited queries and source-declared index coverage |
 | `validate_generated_code` · `validate_sql_fragment` | Pre-commit validation |
 | `find_tests_for_method` · `find_dead_methods` · `check_edit_safety` | Discovery and safety checks |
+
+For a direct method lookup, use `get_method_info` with `project_id`,
+`fqn_or_name`, optional `file_path`, `output_json` and `max_tokens`. A complete
+JSON report is an array; each row's `project_policy_sources` describes guidance
+for that row's file. Caller/callee leads do not extend that policy scope.
+Indexed metadata and previews do not establish current source contents.
+
+Read source with `get_full_method_body`: supply a unique `fqn`, or `file_path`
+for a current-file excerpt, or explicit inclusive `line_start` and `line_end`.
+`source_ranges` selects up to three ordered, nonoverlapping windows from one
+file snapshot; use `context_lines: 0` and `include_caller_bodies: false` with
+that mode. Excerpts and ranges do not establish method boundaries. Retain the
+returned source hash, freshness and boundary qualifications when using source.
+
+Both tools budget the complete reply at four UTF-8 bytes per estimated token,
+default40KiB. Source windows and source-report recovery retain a32KiB ceiling.
+An oversized reply is an explicit deferred object, including in JSON metadata
+mode. Follow `response_delivery.next_call` exactly; recovery pages are objects
+whose `content` must be concatenated by byte offset until `complete` is true.
+Verify the reconstructed bytes against the original `response_id` BLAKE3 hash
+before interpreting deferred evidence. Recovery retains the original JSON or
+Markdown, including guidance and omissions, without a new source/index/policy
+read; it cannot certify current freshness. Fresh excerpt `next_page` requests
+perform new reads, so compare their source hashes instead. `batch_read` applies
+its own shared budget to complete metadata items.
 
 Specialty-tool replies can include `next_tools` entries with a tool name, a reason,
 and optional complete `arguments` copied from the request or cited result. For

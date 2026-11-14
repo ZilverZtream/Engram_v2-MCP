@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "EG01 scoped method metadata and TODO4 complete reply delivery",
   "original_requirement": "Applicable authored instructions and bounded complete evidence for existing OciusX method lookup, preserving JSON arrays and composed batch reads.",
   "observed_missing_behavior": "get_method_info supplies indexed method metadata without applicable guidance, a caller reply budget or immutable recovery.",
@@ -24,13 +24,16 @@
     "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
   },
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\baseline1\\acceptance.json",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\verify-public.py",
   "limits": [
     "Existing indexed match/ranking and500-candidate cap remain. Metadata and body previews are not verified current source; existing multi-match Markdown detail limits remain disclosed.",
     "Complete immutable reports use the existing8MiB/24hour/32snapshot cache. An oversized report refuses and asks for a narrower request; no new cache or indexing infrastructure."
   ],
-  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\source-check1.json"
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\source-check1.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

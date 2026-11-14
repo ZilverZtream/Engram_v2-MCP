@@ -865,21 +865,6 @@
     "last_release_compile_seconds": 1059,
     "pending": [
       {
-        "item": "Authored guidance on direct method/source reads",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
-        "progress": "eval/ociusx-method-body-policy-progress-20261114.json"
-      },
-      {
-        "item": "Complete direct method/source delivery",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-method-source-delivery-progress-20261114.json"
-      },
-      {
-        "item": "Scoped and bounded method metadata",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-method-info-delivery-progress-20261114.json"
-      },
-      {
         "item": "Declared route dependency registrations",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
         "progress": "eval/ociusx-route-registrations-progress-20261114.json"
@@ -889,19 +874,19 @@
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114",
     "completed_last_batch": [
       {
-        "component": "pattern-policy-20261114",
-        "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
+        "component": "method-body-policy-20261114",
+        "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
       },
       {
-        "component": "footprint-delivery-20261114",
-        "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
+        "component": "method-source-delivery-20261114",
+        "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
       },
       {
-        "component": "pattern-delivery-20261114",
-        "delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json"
+        "component": "method-info-delivery-20261114",
+        "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
       }
     ],
-    "last_batch_delivery": "eval/ociusx-planning-delivery-batch-delivery-20261114.json",
+    "last_batch_delivery": "eval/ociusx-method-read-batch-delivery-20261114.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks."
   },
   "retained_ask_routing_contract": {
@@ -967,7 +952,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish the existing method-read release/candidate/installed delivery; this later registration-evidence source remains queued for the next combined batch.",
+  "next_user_visible_deliverable": "Continue the later queued route-registration source and original OciusX backlog under the combined delivery cadence; the method-read runtime batch is delivered. Do not rebuild per component.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1400,5 +1385,6 @@
       "Complete immutable reports use the existing8MiB/24hour/32snapshot cache. An oversized report refuses and asks for a narrower request; no new cache or indexing infrastructure."
     ],
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-info-delivery-20261114\\source-check1.json"
-  }
+  },
+  "method_read_batch_delivery": "eval/ociusx-method-read-batch-delivery-20261114.json"
 }

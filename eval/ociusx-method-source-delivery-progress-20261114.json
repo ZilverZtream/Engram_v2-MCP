@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "TODO4 complete direct method/source reply budgets and exact recovery",
   "original_requirement": "Budget complete AI replies without losing source identities, exact source text, authored guidance or original freshness/boundary qualifications.",
   "observed_missing_behavior": "get_full_method_body has no caller max_tokens or immutable recovery. Indexed/explicit bodies can be large, and complete added guidance can exceed the fixed excerpt/range reply limit even when the original source windows are valid.",
@@ -24,8 +24,8 @@
     "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
   },
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Recovery is the immutable original report, not a new current-source read. Original unverified boundaries/call bindings and scope limits remain.",
     "No parser, lookup/ranking, caller graph, model, CodeMap/Blast or index/storage format change. No per-component compilation."
@@ -36,5 +36,8 @@
   "queued_native_cases": [
     "Exact original JSON/Markdown source/policy/freshness/boundary recovery after source/policy changes",
     "Source-window/recovery ceilings, chosen budgets and no cache writes on invalid/minimum controls"
-  ]
+  ],
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-method-read-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }
