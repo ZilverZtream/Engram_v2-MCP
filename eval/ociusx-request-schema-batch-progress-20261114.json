@@ -1,0 +1,31 @@
+{
+  "status": "FOCUSED_NATIVE_COMPONENTS_PASS_COMBINED_RELEASE_BUILD_RUNNING",
+  "components": [
+    "eval/ociusx-route-registrations-progress-20261114.json",
+    "eval/ociusx-schema-keys-progress-20261114.json",
+    "eval/ociusx-schema-view-references-progress-20261114.json"
+  ],
+  "root_source_commits": [
+    "190039d",
+    "2455a5c",
+    "0c49ceb"
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114",
+  "runtime_source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "runtime_source_commit": "306b023abd93bdc27fb25c9e80f41acdad1b4834",
+  "verification": {
+    "native_cases": 55,
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 8m 12s",
+    "native_test_seconds": 5.41,
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114\\native-acceptance.json",
+    "release_exec_session": 96455,
+    "release_build_started": true,
+    "full_suite_started": false
+  },
+  "limits": "Candidate/installed behavior is not yet verified. Installed runtime remains3ecd23df, source selection3151. All three public fixtures are prepared; one combined release is compiling.",
+  "remaining": [
+    "Finish the same release session96455 without restarting it",
+    "Candidate/installed acceptance, normal runtime restoration, paired ZIP and resource accounting"
+  ],
+  "temporary_resources": "Owned native Job/relay/temp resources closed and removed. Current release owns its recorded Job/temp directory until completion. Keep scripts/logs/receipts in the recorded cases for review."
+}

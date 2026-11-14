@@ -955,7 +955,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish the selected view/reference implementation, then verify and deploy the three queued original OciusX components in one combined batch.",
+  "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented request/schema components.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1449,5 +1449,6 @@
     ],
     "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
   },
-  "readiness_status_correction": "eval/ociusx-readiness-status-correction-20261114.json"
+  "readiness_status_correction": "eval/ociusx-readiness-status-correction-20261114.json",
+  "request_schema_batch_progress": "eval/ociusx-request-schema-batch-progress-20261114.json"
 }

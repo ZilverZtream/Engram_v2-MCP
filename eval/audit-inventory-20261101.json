@@ -10078,7 +10078,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Finish the selected view/reference implementation, then verify and deploy the three queued original OciusX components in one combined batch.",
+    "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented request/schema components.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15026,7 +15026,8 @@
       ],
       "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
     },
-    "readiness_status_correction": "eval/ociusx-readiness-status-correction-20261114.json"
+    "readiness_status_correction": "eval/ociusx-readiness-status-correction-20261114.json",
+    "request_schema_batch_progress": "eval/ociusx-request-schema-batch-progress-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }
