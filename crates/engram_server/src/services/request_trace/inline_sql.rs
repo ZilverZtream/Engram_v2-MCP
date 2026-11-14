@@ -216,11 +216,11 @@ pub(super) fn append(
         }
         let references = analyze_body_references(&lexical);
         let mut dependencies = BTreeSet::new();
-        for table in references.tables_written {
-            dependencies.insert(("inline_sql_writes_table", object_basename(&table)));
+        for table in &references.tables_written {
+            dependencies.insert(("inline_sql_writes_table", object_basename(table)));
         }
-        for table in references.tables_read {
-            dependencies.insert(("inline_sql_reads_table", object_basename(&table)));
+        for table in &references.tables_read {
+            dependencies.insert(("inline_sql_reads_table", object_basename(table)));
         }
         if dependencies.is_empty() && gaps.len() < 64 {
             gaps.push(format!(
