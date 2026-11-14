@@ -294,11 +294,11 @@ proposals that duplicate the existing surface:
   optional synthesis can cite exact policy text. Installed OciusX map-layer guidance
   matched the independent source exactly. This does not establish model compliance.
   Evidence: [scoped-guidance delivery](eval/ociusx-ask-policy-delivery-20261113.json).
-  Opt-in model-assisted routing is implemented in source (2026-11-14), with 40
-  native checks and owned debug MCP acceptance. Default makes no routing model
-  request; rejected/unavailable routing retains the deterministic plan. Deployment
-  and actual OciusX acceptance are pending the next batched release. Broader task
-  acceptance remains unfinished. [Progress](eval/ociusx-ask-routing-progress-20261114.json).
+  Opt-in model-assisted routing installed 2026-11-14. Default makes no routing
+  model request; rejected/unavailable routing retains the deterministic plan.
+  Forty native checks and candidate/installed public checks passed, including
+  a source-matched OciusX caller query. Broader task acceptance remains unfinished.
+  [Batch delivery](eval/ociusx-ai-readiness-batch-delivery-20261114.json).
   Evidence: [member-context delivery](eval/ociusx-ask-member-context-delivery-20261113.json);
   [retained earlier 3/4 result](eval/ociusx-ask-synthesis-delivery-20261113.json).
   Routes a question to search + graph + access-layer internally and returns a synthesized,
@@ -366,6 +366,11 @@ proposals that duplicate the existing surface:
   on each candidate/installed public fixture passed; dynamic commands remain
   unresolved and database binding/execution are not claimed.
   Evidence: [inline SQL delivery](eval/ociusx-inline-sql-request-trace-delivery-20261114.json).
+  Literal nested procedure tracing installed 2026-11-14: reached SQL procedures now
+  lead through source-cited EXEC/EXECUTE references to downstream procedures/tables.
+  Exact-name binding, source hashes, SQL batches and bounded traversal are retained.
+  Runtime execution and trigger/deployment limits above remain.
+  [Batch delivery](eval/ociusx-ai-readiness-batch-delivery-20261114.json).
   URL/route → handler → SPs → tables, end to end. Mostly composes existing edges; huge for
   "where do I start" questions.
 
@@ -684,6 +689,9 @@ value is accuracy, this is the biggest meta-gap.
   Native statement/SP/report checks and candidate/installed public dependency
   reports pass. Full service consolidation remains open; public scaffold method
   emission remains unverified. See `eval/ociusx-sql-identifiers-delivery-20261114.json`.
+  Call-chain reports now share the indexed procedure parser (2026-11-14),
+  correctly recognizing ordinary `[dbo].Procedure` declarations. Full consolidation
+  remains unfinished. [Batch delivery](eval/ociusx-ai-readiness-batch-delivery-20261114.json).
 
 - [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/ociusx-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.

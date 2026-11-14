@@ -1,0 +1,138 @@
+{
+  "status": "THREE_BOUNDED_IMPROVEMENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T13:43:33.379460+00:00",
+  "improvements": [
+    {
+      "finding": "TODO28 optional model-assisted ask routing",
+      "behavior": "route_with_model=true requests known intent arms and exact question mentions before ordinary resolution/retrieval. Default zero model calls and explicit deterministic fallback are retained. Actual Swedish caller query reaches source-matched SaveEventsToDB callers."
+    },
+    {
+      "finding": "TODO31 nested procedure source traces",
+      "behavior": "Literal EXEC/EXECUTE calls continue a reached source procedure to downstream procedure/table candidates with exact-name binding, source hashes and call-site provenance; SQL batch boundaries and existing path caps remain."
+    },
+    {
+      "finding": "TODO59 shared procedure parsing",
+      "behavior": "Database-intelligence call chains use the indexed procedure parser; ordinary [dbo].Procedure declarations produce correct procedure names instead of dbo."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "f0bd533b698299d5bfd6ccb782f931ba9ec7f040",
+    "source_commit": "f2185739e729a8cb6f9abfa4e4d82421d7012f48",
+    "files": {
+      "crates/engram_server/src/models/requests.rs": "45ea405a37ce13a9d68c5f2e24f1c3dbbef3b266bbf78a33a89ca25ccccd52f0",
+      "crates/engram_server/src/handlers/ask_tools.rs": "24e88b586414fbf52d810a0c9d823d7ca6bafd83e9ee829c17afba905d88b455",
+      "crates/engram_server/src/services/ask_engine.rs": "0544cb44874a18b046461b39d60907d2a08843dc369b3273c5ca5d436acc23a7",
+      "crates/engram_server/src/services/ask_engine/plan.rs": "4f7d4ca157894689ee1cd6f7119b9765f8d158139ea44ebdedcf5be214036f01",
+      "crates/engram_server/src/services/ask_engine/planner.rs": "6a8cc2cf26b5d95f4d397322bd315d0b7675ed116287f5ea8a571008e921064a",
+      "crates/engram_server/src/services/ask_engine/model_routing.rs": "df7af995a251fd06d3f0a368599bae2436f3b84a3b842b0ffdaacaaa89ac9ec8",
+      "crates/engram_server/src/services/ask_engine/report.rs": "39121be25d6d9a0612580ba8a694bd5e16cbf8ccc88d8d4a7356951d49dd0a71",
+      "crates/engram_server/src/tools.rs": "4c20613d22438f1ccc2c5c28dea20f645bb441abfdd74d4ba4b2bd32851b4c63",
+      "crates/engram_server/src/services/request_trace/database.rs": "e56e60ea3b4a073f58e0e231fae91c6d4d78b22f6ce2160bad2b34e0756f9de9",
+      "crates/engram_server/src/services/request_trace/execution.rs": "2287357eeb209e6d1a5d9b5b544664b38b659479d13d288ebc9aece21ae00397",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "359fa7fec444406615f4cb35f5587092ce41dbf0a62903e6651a108101bd7055"
+    }
+  },
+  "root_source_commits": [
+    "0ce649daf4d0b1d4d6cffad4c0d14f6e820b2816",
+    "ec8aaa81068ec5fa6e4234fb9b62837f11260708",
+    "34e4f78d52b852db36e905a048092e3c55346bc4"
+  ],
+  "native": {
+    "total": 45,
+    "retained_routing_checks": 40,
+    "current_sql_checks": 5,
+    "routing_progress": "eval/ociusx-ask-routing-progress-20261114.json",
+    "sql": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\native1.json",
+        "sha256": "f5fc3ef8223e5a9c43ca22c99f1b8334f2cc007becb221a8a6e138bcf651ce25"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\native2.json",
+        "sha256": "7c3b366ffc63648135bd6176831904f9570e798e2945a014b7db60d663753ee2"
+      }
+    ]
+  },
+  "public": {
+    "candidate": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\candidate1\\acceptance.json",
+        "sha256": "0354c37f51af08e1bde2d812411ee16f01caaa274c09f42f3ed7f7bf3a844736"
+      },
+      "actual_ociusx": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\candidate1-actual\\acceptance.json",
+        "sha256": "e97ccb7d8ee62691dbc4be834048949e1c2bd71a92763a33421028a2d84dc076"
+      },
+      "sql": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\candidate1-sql\\acceptance.json",
+        "sha256": "b5c76634c377945c75d113023dd3c305eb5d8d8b107c83796c9bd7d234f4b0b7"
+      }
+    },
+    "installed": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\installed1\\acceptance.json",
+        "sha256": "f36d523408b60f51770ec9684da5663f03276394174d7656c632bbe786f0b10e"
+      },
+      "actual_ociusx": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\installed1-actual\\acceptance.json",
+        "sha256": "fe624a3e416c248818997eafd37b2264d492a98fb0c9ba29ecee1f1610d311ea"
+      },
+      "sql": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\installed1-sql\\acceptance.json",
+        "sha256": "1c720ee6c211d69e9e42b006a9a0e91821a84705dd68157eac32a9c35c4421d5"
+      }
+    }
+  },
+  "runtime": {
+    "server_sha256": "5ab87a03b7c97ff12358a3df9e40a7f3223807b16a9d2d709ed7f5072ec7adae",
+    "manifest_sha256": "6ad42da81b421ec909e5d5dfb1eb743012f6f0adb31475ed002a9aa80eb9f351",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\pair1.json",
+      "sha256": "a24013060234685c3ad2076e83c7ac8629efb28135a10f1d16b75d55ee65a6ab"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\deployment4-state.json",
+      "sha256": "b3f7f14b945fe336cf384ba80706aa1405773697223fb7e98fe101040e730ef1"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "bbd499817e86062d2364aca1f53c47946fa4f7c4852342f415733cfcd33cfaa8"
+    }
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\Engram-win-x64-ai-readiness-20261114.zip",
+    "sha256": "50AB83DA0E911E39BD616C83985B2AB2C5B27C309245F4C70F9B2D0CDF9520A8",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "6AD42DA81B421EC909E5D5DFB1EB743012F6F0ADB31475ED002A9AA80EB9F351"
+  },
+  "build": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114\\release1.json",
+    "sha256": "33cc2acd31ba6439c5541a7917330b4e943e4ed0a5f33d0d086e2f2a15de542d"
+  },
+  "preservation": {
+    "wip9_byte_pins_unchanged": true,
+    "configuration_unchanged": true,
+    "checked_application_sources_unchanged": true,
+    "selected_generation": 3150,
+    "other_project_metadata_unchanged": true
+  },
+  "resource_accounting": {
+    "owned_native_build_public_fixture_resources_removed": true,
+    "owned_verification_processes_and_configuration_hold_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and its application-owned children; restoration receipt identifies owner.",
+    "retained_evidence_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nested-sql-trace",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-procedure-chains"
+    ],
+    "purpose": "Source/build/native/wire/failure/package/ZIP evidence retained for review; no preexisting-folder deletion. Managed previous runtime pair retained by installer."
+  },
+  "limits": [
+    "Model hints and source matching do not establish general semantic reliability, complete caller coverage or matched task benefit.",
+    "SQL acceptance uses unchanged selected OciusX SQL copied into an owned authored caller fixture; no actual production HTTP route, deployed database identity, trigger effects or runtime/recursive execution is claimed.",
+    "These bounded components do not complete full TODO28/31/59, all original19gates, broader backlog or the earlier failed60s planning-latency acceptance."
+  ]
+}
