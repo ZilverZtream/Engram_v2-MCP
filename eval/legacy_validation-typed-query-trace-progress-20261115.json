@@ -1,0 +1,28 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "component": "typed ExecuteQuery literal request dependencies",
+  "finding": "Original TODO31 source-cited VB request-to-database navigation",
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/inline_sql.rs"
+  ],
+  "source_sha256": "bf3a12b3649ceeff26c3b5cb598b97f26c4a0a6abdb33fbe35211cc825035f04",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
+  "retained_failed_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline1\\acceptance.json",
+  "failure_disposition": "Baseline1 failed before any server started: diagnostic initializer slicing assumed LF blank lines. Baseline2 uses source lines and confirms the three actual behavior gaps; no production change/rebuild was made for the fixture failure.",
+  "actual_source_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\actual-query-source.json",
+  "native_tests_added": [
+    "typed SELECT with invocation and call provenance",
+    "UPDATE OUTPUT retains write classification despite ExecuteQuery return rows",
+    "unknown/dynamic query remains unresolved"
+  ],
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "limits": [
+    "Queued source only; installed binary remains f0b7646c and has the reproduced gap.",
+    "Native and public final acceptance wait for the three-component combined batch; no per-component Cargo compile.",
+    "Source-only lexical references; no receiver, schema/database binding or execution proof."
+  ]
+}

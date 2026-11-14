@@ -1,4 +1,4 @@
-//! Literal VB ExecuteCommand dependencies in already source-verified methods.
+//! Literal VB SQL-call dependencies in already source-verified methods.
 //! These are lexical table references, not deployed database bindings or effects.
 use super::{
     execution::Hop,
@@ -16,6 +16,28 @@ use sqlparser::{
 };
 use std::collections::BTreeSet;
 
+fn argument_start(tokens: &[routing::Token], member: usize) -> Option<usize> {
+    let mut open = member + 1;
+    if tokens.get(open)?.text != "(" {
+        return None;
+    }
+    if tokens[member].text.eq_ignore_ascii_case("ExecuteQuery")
+        && tokens.get(open + 1)?.text.eq_ignore_ascii_case("Of")
+    {
+        // VB generic type arguments precede the invocation's argument list.
+        let mut depth = 1;
+        open = (open + 1..tokens.len().min(open + 65)).find(|&index| {
+            match tokens[index].text.as_str() {
+                "(" => depth += 1,
+                ")" => depth -= 1,
+                _ => (),
+            }
+            depth == 0
+        })? + 1;
+    }
+    (tokens.get(open)?.text == "(").then_some(open + 1)
+}
+
 pub(super) fn append(
     method: &Node,
     source: &Source<'_>,
@@ -32,17 +54,22 @@ pub(super) fn append(
         if tokens[i].string
             || tokens[i + 1].text != "."
             || tokens[i + 2].string
-            || !tokens[i + 2].text.eq_ignore_ascii_case("ExecuteCommand")
-            || tokens[i + 3].text != "("
+            || !["ExecuteCommand", "ExecuteQuery"].iter()
+                .any(|name| tokens[i + 2].text.eq_ignore_ascii_case(name))
         {
             continue;
         }
+        let Some(mut cursor) = argument_start(&tokens, i + 2) else { continue; };
+        let invocation = if tokens[i + 2].text.eq_ignore_ascii_case("ExecuteQuery") {
+            "ExecuteQuery"
+        } else {
+            "ExecuteCommand"
+        };
         if paths.len() >= cap {
             gaps.push("Inline SQL dependencies truncated at complete path limit".into());
             return;
         }
         let line = method.start_line + tokens[i].line as u32 - 1;
-        let mut cursor = i + 4;
         let mut sql = String::new();
         while let Some(literal) = tokens.get(cursor).filter(|token| token.string) {
             sql.push_str(&literal.text);
@@ -66,13 +93,13 @@ pub(super) fn append(
                 .is_some_and(|t| matches!(t.text.as_str(), "," | ")"))
         {
             if gaps.len() < 64 {
-                gaps.push(format!("{}:{line}: ExecuteCommand SQL is dynamic or exceeds literal capture; table dependencies unresolved", source.path));
+                gaps.push(format!("{}:{line}: {invocation} SQL is dynamic or exceeds literal capture; table dependencies unresolved", source.path));
             }
             continue;
         }
         let Ok(sql_tokens) = Tokenizer::new(&MsSqlDialect {}, &sql).tokenize() else {
             if gaps.len() < 64 {
-                gaps.push(format!("{}:{line}: ExecuteCommand SQL tokenization unavailable; table dependencies unresolved", source.path));
+                gaps.push(format!("{}:{line}: {invocation} SQL tokenization unavailable; table dependencies unresolved", source.path));
             }
             continue;
         };
@@ -94,7 +121,7 @@ pub(super) fn append(
         if analysis.is_multi_statement || analysis.operation == SqlOp::Exec {
             if gaps.len() < 64 {
                 gaps.push(format!(
-                    "{}:{line}: ExecuteCommand batch/procedure effects are not expanded",
+                    "{}:{line}: {invocation} batch/procedure effects are not expanded",
                     source.path
                 ));
             }
@@ -130,10 +157,10 @@ pub(super) fn append(
                 from: method.node_id.clone(), to: format!("sql-table-reference:{table}"),
                 kind: kind.into(), target_name: table.into(), target_file: None, target_line: None,
                 target_source_verified: false, table_mapping: None,
-                evidence: Some(json!({"origin":"current_method_literal_execute_command",
+                evidence: Some(json!({"origin":if invocation == "ExecuteQuery" {"current_method_literal_execute_query"} else {"current_method_literal_execute_command"},
                     "file":source.path,"line":line,"source_blake3":blake3::hash(source.content.as_bytes()).to_hex().to_string(),
-                    "receiver":tokens[i].text,"sql":sql,
-                    "interpretation":"Lexical table reference in literal ExecuteCommand SQL at the cited source call. Receiver type, database/schema binding, branch reachability and execution are not proven."})),
+                    "receiver":tokens[i].text,"invocation":invocation,"sql":sql,
+                    "interpretation":format!("Lexical table reference in literal {invocation} SQL at the cited source call. Receiver type, database/schema binding, branch reachability and execution are not proven.")})),
             });
         }
     }
@@ -181,6 +208,38 @@ mod tests {
         assert_eq!(paths[0].target_name, "aspnet_Membership");
         assert_eq!(paths[0].evidence.as_ref().unwrap()["line"], 4);
         assert!(!paths[0].target_source_verified);
+    }
+    #[test]
+    fn typed_query_returns_literal_select_table_and_invocation_evidence() {
+        let (paths, gaps) = dependencies(
+            "Dim row = db.ExecuteQuery(Of Models.OrderRow)(\"SELECT * FROM dbo.Orders WHERE Id = {0}\", id).FirstOrDefault()\n",
+        );
+        assert!(gaps.is_empty());
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].kind, "inline_sql_reads_table");
+        assert_eq!(paths[0].target_name, "Orders");
+        let evidence = paths[0].evidence.as_ref().unwrap();
+        assert_eq!(evidence["line"], 4);
+        assert_eq!(evidence["invocation"], "ExecuteQuery");
+        assert!(evidence["sql"].as_str().unwrap().contains("{0}"));
+        assert!(!paths[0].target_source_verified);
+    }
+    #[test]
+    fn query_returning_updated_rows_is_classified_by_sql_operation() {
+        let (paths, gaps) = dependencies(
+            "db.ExecuteQuery(Of Integer)(\"UPDATE dbo.Orders SET Status = {0} OUTPUT inserted.Id WHERE Id = {1}\", status, id)\n",
+        );
+        assert!(gaps.is_empty());
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].kind, "inline_sql_writes_table");
+        assert_eq!(paths[0].target_name, "Orders");
+    }
+    #[test]
+    fn typed_query_with_unknown_sql_keeps_dependencies_unresolved() {
+        let (paths, gaps) = dependencies("db.ExecuteQuery(Of Integer)(sql, id)\n");
+        assert!(paths.is_empty());
+        assert_eq!(gaps.len(), 1);
+        assert!(gaps[0].contains("ExecuteQuery SQL is dynamic"));
     }
     #[test]
     fn dynamic_expressions_are_unresolved_and_commented_calls_do_not_count() {
