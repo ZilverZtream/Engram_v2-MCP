@@ -2,6 +2,7 @@
 pub mod api;
 mod database;
 mod dbml;
+mod inline_sql;
 pub mod execution;
 pub mod routing;
 #[cfg(test)]
