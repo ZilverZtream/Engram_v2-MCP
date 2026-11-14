@@ -41,31 +41,26 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
-    "finding": "TODO59 shared SQL body references and optional-INTO write reporting",
-    "original_requirement": "Consolidate overlapping database analysis so AI callers receive consistent read/write/procedure relationships.",
-    "observed_missing_behavior": "The on-demand sql_parser statement analyzer and database-intelligence summary both require INSERT INTO, while indexed SP extraction already accepts INSERT dbo.Table. Actual selected OciusX aspnet_Applications_CreateApplication.sql:29 uses INSERT dbo.aspnet_Applications; its summary can omit the write effect.",
+    "finding": "TODO59 shared procedure parameter metadata",
+    "original_requirement": "Consolidate overlapping SQL analysis and retain useful procedure contracts for AI callers.",
+    "observed_missing_behavior": "The saved installed report for actual selected OciusX aspnet_Applications_CreateApplication omits OUTPUT from @ApplicationId, although the existing indexed declaration parser already exposes OUT/INOUT. The report maintains a separate narrower parameter regex.",
     "implementation_files": [
-      "crates/engram_index/src/sql_parser.rs",
+      "crates/engram_index/src/sp_extractor.rs",
       "crates/engram_server/src/services/database_intelligence_service.rs"
     ],
     "acceptance": [
-      "Reuse statement-analyzer table/procedure recognition for database-intelligence body aggregation; remove its duplicate read/write/EXEC regex definitions. Preserve qualified-name basename behavior, parameters, content hashes and summary shape.",
-      "Support ordinary INSERT with or without INTO through the existing shared statement analyzer, so database strategy, scaffold analysis, inline-SQL request tracing and SP summaries agree on target table names. No persisted index-parser behavior or source format change.",
-      "Focused native checks prove optional-INTO targets and summary write effects while retaining qualified names and existing parameter/call behavior. Queue source for combined verification/release; no per-feature compile loop.",
-      "Candidate and installed public database-intelligence checks on unchanged actual OciusX SQL copied into an owned fixture report the aspnet_Applications write. Preserve source/config/WIP9 and all prior deliveries."
+      "Reuse the existing declaration parameter extraction for summaries; remove duplicate parameter regex and AS/BEGIN slicing. Preserve name/type and explicitly retain OUTPUT for OUT/INOUT parameters.",
+      "Do not change persisted index parsing or source formats; expose the existing behavior for the report. Preserve read/write/hash/summary shape and prior accepted work.",
+      "Focused queued checks cover standard input/output parameters, MAX type and exclusion of body locals; combined public acceptance on the same unchanged OciusX SQL reports @ApplicationId as OUTPUT.",
+      "Keep source unvalidated/undeployed until combined verification and release; no separate compile."
     ],
+    "baseline": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/shared-sql-body/baseline1/acceptance.json",
     "limits": [
-      "Heuristic references, not schema/alias binding or SQL execution proof. No new SQL grammar, graph/index/cache, CodeMap/Blast or target-language work.",
-      "Full TODO59 consolidation and other original acceptance remain unfinished."
+      "Parameter summaries are authored declaration metadata, not runtime parameter binding or database identity proof.",
+      "Full TODO59 and the broader goal remain unfinished."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-body",
-    "delivery_cadence": "First implementation in the next batch; source commit may precede combined verification, with validation/deployment states explicit.",
-    "actual_source": {
-      "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Stored Procedures\\aspnet_Applications_CreateApplication.sql",
-      "sha256": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2",
-      "line": 29
-    },
-    "progress": "eval/ociusx-shared-sql-body-progress-20261114.json",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-parameters",
+    "progress": "eval/ociusx-shared-sql-parameters-progress-20261114.json",
     "implementation_complete": true,
     "bounded_delivery_complete": false
   },
@@ -865,6 +860,11 @@
         "item": "TODO59 shared SQL body references and optional-INTO write reporting",
         "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
         "progress": "eval/ociusx-shared-sql-body-progress-20261114.json"
+      },
+      {
+        "item": "TODO59 shared procedure parameter metadata",
+        "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+        "progress": "eval/ociusx-shared-sql-parameters-progress-20261114.json"
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -976,5 +976,35 @@
     "implementation_complete": true,
     "bounded_delivery_complete": true,
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+  },
+  "retained_shared_sql_body_contract": {
+    "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+    "finding": "TODO59 shared SQL body references and optional-INTO write reporting",
+    "original_requirement": "Consolidate overlapping database analysis so AI callers receive consistent read/write/procedure relationships.",
+    "observed_missing_behavior": "The on-demand sql_parser statement analyzer and database-intelligence summary both require INSERT INTO, while indexed SP extraction already accepts INSERT dbo.Table. Actual selected OciusX aspnet_Applications_CreateApplication.sql:29 uses INSERT dbo.aspnet_Applications; its summary can omit the write effect.",
+    "implementation_files": [
+      "crates/engram_index/src/sql_parser.rs",
+      "crates/engram_server/src/services/database_intelligence_service.rs"
+    ],
+    "acceptance": [
+      "Reuse statement-analyzer table/procedure recognition for database-intelligence body aggregation; remove its duplicate read/write/EXEC regex definitions. Preserve qualified-name basename behavior, parameters, content hashes and summary shape.",
+      "Support ordinary INSERT with or without INTO through the existing shared statement analyzer, so database strategy, scaffold analysis, inline-SQL request tracing and SP summaries agree on target table names. No persisted index-parser behavior or source format change.",
+      "Focused native checks prove optional-INTO targets and summary write effects while retaining qualified names and existing parameter/call behavior. Queue source for combined verification/release; no per-feature compile loop.",
+      "Candidate and installed public database-intelligence checks on unchanged actual OciusX SQL copied into an owned fixture report the aspnet_Applications write. Preserve source/config/WIP9 and all prior deliveries."
+    ],
+    "limits": [
+      "Heuristic references, not schema/alias binding or SQL execution proof. No new SQL grammar, graph/index/cache, CodeMap/Blast or target-language work.",
+      "Full TODO59 consolidation and other original acceptance remain unfinished."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-body",
+    "delivery_cadence": "First implementation in the next batch; source commit may precede combined verification, with validation/deployment states explicit.",
+    "actual_source": {
+      "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Stored Procedures\\aspnet_Applications_CreateApplication.sql",
+      "sha256": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2",
+      "line": 29
+    },
+    "progress": "eval/ociusx-shared-sql-body-progress-20261114.json",
+    "implementation_complete": true,
+    "bounded_delivery_complete": false
   }
 }

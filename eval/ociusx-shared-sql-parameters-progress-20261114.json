@@ -1,0 +1,28 @@
+{
+  "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+  "finding": "TODO59 shared procedure parameter metadata",
+  "implementation": {
+    "source_baseline": "e170df2f6456606569b62bc63823ca88a5bcf579",
+    "source_commit": "847f9d7f7de3f82d1c351d0cfd632cec9919788c",
+    "files": {
+      "crates/engram_index/src/sp_extractor.rs": "0130d4618a0692aec5b69af7d7c96dedf88ad4c0156401793ea81f583f320bd5",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "371d1d05998a36c772f925ab3f6f9cfbb198b85ea675381df40f6844515a3ba2"
+    }
+  },
+  "before": "Saved installed actual-SQL report shows @ApplicationId uniqueidentifier without its authored OUTPUT modifier.",
+  "source_change": "The summary uses the existing declaration parser, preserving parameter name/type and displaying OUTPUT for OUT/INOUT. Its duplicate header regex and slicing are removed.",
+  "validation": {
+    "new_native_checks_run": 0,
+    "new_native_checks_queued": 1,
+    "new_runtime_verification_run": false,
+    "compilation_started": false
+  },
+  "remaining": [
+    "Combined focused checks and public candidate/installed acceptance before deployment.",
+    "Full TODO59 and original backlog remain unfinished."
+  ],
+  "baseline": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/snapshot-verification-20261101/p131-modern-state-20261112/current-task-check/shared-sql-body/baseline1/acceptance.json",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-parameters",
+  "preserved_wip9_unchanged": true,
+  "retention": "Keep contracts/receipts/source review evidence for batched delivery; no fixture created by this component and no preexisting folder deletion."
+}
