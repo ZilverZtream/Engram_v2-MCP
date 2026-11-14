@@ -392,45 +392,18 @@ fn is_sql_keyword(s: &str) -> bool {
 /// Build SP→SP call chains from SQL file contents.
 /// Returns chains (linear paths and cycles).
 pub fn detect_sp_call_chains(sql_files: &[(String, String)]) -> Vec<SpCallChain> {
-    // Extract all SP names and their bodies
-    static SP_DEF_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\s+\[?(?:dbo\.)?\]?\[?(\w+)\]?")
-            .expect("SP_DEF_RE")
-    });
-
     let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
     let mut all_sps: HashSet<String> = HashSet::new();
 
     for (_path, content) in sql_files {
-        // Find SP definitions and extract their call targets
-        let mut sp_starts: Vec<(String, usize)> = Vec::new();
-        for cap in SP_DEF_RE.captures_iter(content) {
-            let name = cap[1].to_string();
-            let pos = cap.get(0).expect("group 0 always present").start();
-            all_sps.insert(name.clone());
-            sp_starts.push((name, pos));
-        }
-
-        // For each SP, extract the body until the next SP or end of file
-        for i in 0..sp_starts.len() {
-            let (ref sp_name, start) = sp_starts[i];
-            let end = if i + 1 < sp_starts.len() {
-                sp_starts[i + 1].1
-            } else {
-                content.len()
-            };
-            let body = &content[start..end];
-
-            let callees: Vec<String> = EXEC_SP_RE
-                .captures_iter(body)
-                .map(|c| c[1].to_string())
-                .filter(|n| n.to_lowercase() != sp_name.to_lowercase())
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect();
-
+        // Share the indexer's declaration/call recognition. This legacy report
+        // uses procedure basenames; it does not establish database/schema binding.
+        for definition in engram_index::sp_extractor::parse_sp_definitions(content) {
+            all_sps.insert(definition.name.clone());
+            let callees: Vec<_> = definition.called_procedures.into_iter()
+                .filter(|name| !name.eq_ignore_ascii_case(&definition.name)).collect();
             if !callees.is_empty() {
-                adjacency.insert(sp_name.clone(), callees);
+                adjacency.insert(definition.name, callees);
             }
         }
     }
@@ -1552,6 +1525,15 @@ END"#;
                 .calls_other_sps
                 .contains(&"usp_UpdateStock".to_string())
         );
+    }
+
+    #[test]
+    fn delivery_batch_database_chains_use_actual_sql_project_declaration_forms() {
+        let sql=vec![("membership.sql".into(),
+            "CREATE PROCEDURE [dbo].aspnet_Membership_CreateUser AS\nBEGIN\nEXEC dbo.aspnet_Applications_CreateApplication;\nEND\nGO\nCREATE PROCEDURE [dbo].[aspnet_Applications_CreateApplication] AS\nBEGIN\nSELECT * FROM dbo.aspnet_Applications;\nEND\nGO\n".into())];
+        let chains=detect_sp_call_chains(&sql);
+        assert!(chains.iter().any(|chain|chain.chain==["aspnet_Membership_CreateUser","aspnet_Applications_CreateApplication"]));
+        assert!(!chains.iter().any(|chain|chain.chain.iter().any(|name|name=="dbo")));
     }
 
     #[test]

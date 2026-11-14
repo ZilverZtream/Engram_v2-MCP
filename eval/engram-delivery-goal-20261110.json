@@ -40,37 +40,25 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
-    "finding": "TODO28 opt-in model-assisted ask_codebase routing",
-    "original_requirement": "Original natural-language entry point: deterministic router first, optional model routing; keep source-cited retrieval and honest coverage/status.",
-    "observed_missing_behavior": "ask_codebase calls planner::plan_query only; configured generation is used for optional synthesis but cannot assist intent/entity routing. TODO28 explicitly retains model-assisted routing as unfinished.",
+    "status": "THREE_SOURCE_IMPROVEMENTS_NATIVE_VERIFIED_PENDING_ONE_RELEASE",
+    "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
+    "original_requirement": "Consolidate overlapping SQL analysis and give AI callers consistent database dependency evidence.",
+    "observed_missing_behavior": "detect_sp_call_chains duplicates a declaration regex that reads normal [dbo].Procedure declarations as dbo. The existing index stored-procedure parser already recognizes these declarations and called procedures. Actual selected OciusX Membership_CreateUser calls Applications_CreateApplication using this declaration form.",
     "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/src/services/ask_engine.rs",
-      "crates/engram_server/src/services/ask_engine/plan.rs",
-      "crates/engram_server/src/services/ask_engine/planner.rs",
-      "crates/engram_server/src/services/ask_engine/model_routing.rs",
-      "crates/engram_server/src/services/ask_engine/report.rs",
-      "crates/engram_server/src/tools.rs"
+      "crates/engram_server/src/services/database_intelligence_service.rs"
     ],
     "acceptance": [
-      "Default makes zero model-routing requests and preserves deterministic plan/output. Explicit opt-in makes one bounded configured generation request before ordinary source/entity resolution.",
-      "Accepted suggestions add only known intent arms and exact original-question entity mentions. Preserve existing scopes, modalities, answer contracts and deterministic intents; no model-authored evidence or guessed file/symbol identities.",
-      "Provider-disabled/failure/timeout/invalid output retain deterministic retrieval and disclose why routing was not applied in JSON and Markdown. Synthesis remains independent and opt-in.",
-      "Focused native and public candidate/installed MCP fixtures pass. One actual OciusX Swedish caller question routes to usage evidence and is independently compared with current VB source; retain any failure without prompt/model retry tuning.",
-      "Commit/push source, build/package/install, preserve current configuration/OciusX/WIP9 and clean newly owned resources."
+      "Reuse existing indexed stored-procedure definitions/call extraction for the report instead of the overlapping declaration/call regex loop.",
+      "Public analyze_database_intelligence shows the real membership-to-application call chain on unchanged OciusX SQL copied to an owned fixture, using correct procedure names rather than dbo. Existing linear/cycle report behavior remains.",
+      "Run focused tests once with queued nested request-tracing checks; run candidate/installed public acceptance as part of the three-improvement release.",
+      "Keep existing legacy report name semantics explicit; this is shared procedure parsing, not full service consolidation, schema binding or runtime execution proof."
     ],
     "limits": [
-      "No new tool/provider/configuration, model training or question-specific prompt tuning. No CodeMap/Blast, SQL expansion, indexing or language-support work.",
-      "Question-only model input; suggestions are not facts, and quote/entity validation does not prove semantic correctness or task benefit.",
-      "Prior planning60s acceptance and original19gates remain unfinished."
+      "No new SQL parser, graph/index/storage, CodeMap/Blast or language-support work.",
+      "Full TODO59 service consolidation and actual production request/database binding remain unfinished."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing",
-    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
-    "retention": "Keep source/build/wire/package evidence here; remove newly owned fixtures after handles close. Preserve all preexisting folders.",
-    "progress": "eval/ociusx-ask-routing-progress-20261114.json",
-    "runtime_source_commit": "fce2d2a7da9401715d79d182ec84022b262ab2e2",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-procedure-chains",
+    "progress": "eval/ociusx-ai-readiness-batch-progress-20261114.json",
     "implementation_complete": true,
     "bounded_delivery_complete": false
   },
@@ -870,8 +858,76 @@
         "item": "TODO28 optional model-assisted ask routing",
         "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
         "progress": "eval/ociusx-ask-routing-progress-20261114.json"
+      },
+      {
+        "item": "TODO31 literal nested stored-procedure source tracing",
+        "status": "SOURCE_NATIVE_VERIFIED_PENDING_BATCHED_RELEASE"
+      },
+      {
+        "item": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
+        "status": "SOURCE_NATIVE_VERIFIED_PENDING_BATCHED_RELEASE"
       }
     ],
-    "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected."
+    "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114"
+  },
+  "retained_ask_routing_contract": {
+    "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
+    "finding": "TODO28 opt-in model-assisted ask_codebase routing",
+    "original_requirement": "Original natural-language entry point: deterministic router first, optional model routing; keep source-cited retrieval and honest coverage/status.",
+    "observed_missing_behavior": "ask_codebase calls planner::plan_query only; configured generation is used for optional synthesis but cannot assist intent/entity routing. TODO28 explicitly retains model-assisted routing as unfinished.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/services/ask_engine.rs",
+      "crates/engram_server/src/services/ask_engine/plan.rs",
+      "crates/engram_server/src/services/ask_engine/planner.rs",
+      "crates/engram_server/src/services/ask_engine/model_routing.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/tools.rs"
+    ],
+    "acceptance": [
+      "Default makes zero model-routing requests and preserves deterministic plan/output. Explicit opt-in makes one bounded configured generation request before ordinary source/entity resolution.",
+      "Accepted suggestions add only known intent arms and exact original-question entity mentions. Preserve existing scopes, modalities, answer contracts and deterministic intents; no model-authored evidence or guessed file/symbol identities.",
+      "Provider-disabled/failure/timeout/invalid output retain deterministic retrieval and disclose why routing was not applied in JSON and Markdown. Synthesis remains independent and opt-in.",
+      "Focused native and public candidate/installed MCP fixtures pass. One actual OciusX Swedish caller question routes to usage evidence and is independently compared with current VB source; retain any failure without prompt/model retry tuning.",
+      "Commit/push source, build/package/install, preserve current configuration/OciusX/WIP9 and clean newly owned resources."
+    ],
+    "limits": [
+      "No new tool/provider/configuration, model training or question-specific prompt tuning. No CodeMap/Blast, SQL expansion, indexing or language-support work.",
+      "Question-only model input; suggestions are not facts, and quote/entity validation does not prove semantic correctness or task benefit.",
+      "Prior planning60s acceptance and original19gates remain unfinished."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-routing",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "retention": "Keep source/build/wire/package evidence here; remove newly owned fixtures after handles close. Preserve all preexisting folders.",
+    "progress": "eval/ociusx-ask-routing-progress-20261114.json",
+    "runtime_source_commit": "fce2d2a7da9401715d79d182ec84022b262ab2e2",
+    "implementation_complete": true,
+    "bounded_delivery_complete": false
+  },
+  "retained_nested_sql_trace_contract": {
+    "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_COMBINED_BATCH",
+    "finding": "TODO31 literal nested stored-procedure source tracing",
+    "original_requirement": "Original trace_user_request end-to-end URL/handler/procedure/table source workflow. TODO31 explicitly retains nested procedure execution as unresolved; deliver static nested procedure references without claiming execution.",
+    "observed_missing_behavior": "The existing request-trace catalog reports direct procedure tables, but discards called-procedure relationships already present in SQL. Actual selected OciusX SQL includes Membership_CreateUser line59 calling dbo.aspnet_Applications_CreateApplication, whose body reads aspnet_Applications. Both SQL files are selected in source generation3150;329 SQL files are selected.",
+    "implementation_files": [
+      "crates/engram_server/src/services/request_trace/database.rs",
+      "crates/engram_server/src/services/request_trace/execution.rs"
+    ],
+    "acceptance": [
+      "A reached literal SqlCommand procedure leads through literal EXEC/EXECUTE procedure references to downstream table candidates, with exact qualified-name binding and source hash/call-site/definition provenance.",
+      "Keep traversal within existing complete-path cap and inspect each procedure once per root; disclose unresolved, ambiguous, dynamic and capped paths. Do not infer default schemas, triggers, database deployment or runtime execution.",
+      "Honor SQL batch boundaries for nested call membership; comments, literals and post-procedure deployment calls are not procedure body calls.",
+      "Use focused native and combined candidate/installed MCP acceptance for an authored WebForms route and unchanged real OciusX SQL source pair copied into an owned fixture. The fixture caller is authored for acceptance, not proof of an actual OciusX route to MembershipProvider internals.",
+      "Queue source with routing; no additional compilation until the third original improvement is implemented, then run one focused batch and combined release acceptance."
+    ],
+    "limits": [
+      "No CodeMap/Blast, graph/schema/index/cache, target-language, SQL-service consolidation or general SQL/dataflow redesign.",
+      "Existing SQL catalog64-declaration/source/path limits remain; full OciusX procedure coverage and runtime effects remain unfinished.",
+      "Actual SQL source applicability is verified; no actual production HTTP/database execution is claimed."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nested-sql-trace",
+    "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source"
   }
 }
