@@ -1549,5 +1549,6 @@
     "model_calls_started": 0,
     "scope": "Original EG24 remains open; no optional-question stall or replay of the inspected failed task."
   },
-  "procedure_analysis_batch_progress": "eval/ociusx-procedure-analysis-batch-progress-20261114.json"
+  "procedure_analysis_batch_progress": "eval/ociusx-procedure-analysis-batch-progress-20261114.json",
+  "shortlist_status_update": "eval/ociusx-shortlist-status-update-20261114.json"
 }

@@ -1,0 +1,32 @@
+{
+  "status": "DOCUMENTATION_UPDATED_FROM_EXISTING_DELIVERY_AND_CONFIGURATION_EVIDENCE",
+  "finding": "Original EG26 truthful original-shortlist status",
+  "at_utc": "2026-11-14T21:29:13.131940+00:00",
+  "changed_files": [
+    "README.md"
+  ],
+  "changes": [
+    "Record that preset reduction is not active with the current advertise_all_tools=true configuration.",
+    "Keep the failed19/20vs20/20 known task comparison and lack of demonstrated helper QA advantage visible.",
+    "Link the later installed method-read and request/schema behavior without claiming global task benefit or current full-feature revalidation."
+  ],
+  "configuration": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "advertise_all_tools": true
+  },
+  "benchmark_corpus": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\.pr-review\\qa\\bench",
+    "exists": false
+  },
+  "evidence": [
+    "eval/eg18-installed-preset-delivery-20261111.json",
+    "eval/ociusx-current-task-check-outcome-20261113.json",
+    "eval/ociusx-snapping-helper-qa-outcome-20261113.json",
+    "eval/ociusx-method-read-batch-delivery-20261114.json",
+    "eval/ociusx-request-schema-batch-delivery-20261114.json"
+  ],
+  "limits": [
+    "No new benchmark/model calls or replay/tuning of inspected cases. No source/runtime change or new build.",
+    "Original EG24/25 benefit, wider EG26 coverage and full original scope remain unfinished."
+  ]
+}
