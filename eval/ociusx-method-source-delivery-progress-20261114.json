@@ -1,0 +1,40 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "TODO4 complete direct method/source reply budgets and exact recovery",
+  "original_requirement": "Budget complete AI replies without losing source identities, exact source text, authored guidance or original freshness/boundary qualifications.",
+  "observed_missing_behavior": "get_full_method_body has no caller max_tokens or immutable recovery. Indexed/explicit bodies can be large, and complete added guidance can exceed the fixed excerpt/range reply limit even when the original source windows are valid.",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/access_layer_tools.rs",
+    "crates/engram_server/src/handlers/method_body_policy.rs",
+    "crates/engram_server/src/handlers/method_source_delivery.rs",
+    "crates/engram_server/src/handlers/change_set_delivery.rs",
+    "crates/engram_server/src/tool_guidance.rs",
+    "crates/engram_server/src/tools.rs"
+  ],
+  "acceptance": [
+    "Optional positive max_tokens budgets the entire JSON/Markdown reply at four UTF-8 bytes per estimated token. Default40KiB for indexed/explicit methods; file excerpts/source_ranges keep a32KiB complete-reply ceiling, including policy/advice.",
+    "Keep the existing4MiB file-read,120-line, original32KiB source-window, boundary validation and caller-expansion rules. Valid source plus guidance may defer as an exact original report; oversized original source windows still refuse without partial windows.",
+    "Immutable recovery preserves all original source/ranges/hashes/caller/freshness/boundary/policy evidence after source/policy changes. Initial summaries explicitly supply no source and require full recovery before interpreting details. Continuations carry effective budgets and bypass retrieval.",
+    "Fresh file-excerpt next_page also carries an explicitly chosen effective budget. Invalid controls and minimum metadata refusal write no snapshot; namespaces remain isolated.",
+    "Focused native complete-text/JSON/Unicode recovery and ceiling/control tests, then candidate/installed calls on unchanged current OciusX copies in the next combined batch. Preserve WIP9/config/source and all accepted deliveries."
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114",
+  "configuration_observed": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+  },
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "limits": [
+    "Recovery is the immutable original report, not a new current-source read. Original unverified boundaries/call bindings and scope limits remain.",
+    "No parser, lookup/ranking, caller graph, model, CodeMap/Blast or index/storage format change. No per-component compilation."
+  ],
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114\\source-check1.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114\\baseline1\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114\\verify-public.py",
+  "queued_native_cases": [
+    "Exact original JSON/Markdown source/policy/freshness/boundary recovery after source/policy changes",
+    "Source-window/recovery ceilings, chosen budgets and no cache writes on invalid/minimum controls"
+  ]
+}

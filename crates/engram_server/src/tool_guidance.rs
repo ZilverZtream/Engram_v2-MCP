@@ -303,6 +303,12 @@ pub fn context(arguments: Option<&Map<String, Value>>) -> Map<String, Value> {
 }
 
 fn limit(tool: &str, arguments: &Map<String, Value>, registry: &[Tool]) -> Option<usize> {
+    let source_window=tool=="get_full_method_body" && (
+        arguments.get("response_id").and_then(Value::as_str).is_some()
+        || arguments.get("source_ranges").is_some_and(|value|!value.is_null())
+        || (arguments.get("fqn").is_none_or(Value::is_null)
+            && arguments.get("file_path").and_then(Value::as_str).is_some()
+            && arguments.get("line_end").is_none_or(Value::is_null)));
     let explicit = arguments.get("max_tokens").and_then(Value::as_u64);
     let schema_default = registry
         .iter()
@@ -312,6 +318,7 @@ fn limit(tool: &str, arguments: &Map<String, Value>, registry: &[Tool]) -> Optio
         .and_then(Value::as_u64);
     let default = match tool {
         "batch_read" => Some(8192),
+        "get_full_method_body" => Some(if source_window {8192} else {10240}),
         "get_change_set" | "ask_codebase" | "get_concept_footprint" | "find_implementation_pattern" => Some(10240),
         "query_schema" | "detect_n_plus_one" | "find_missing_indexes" | "trace_user_request" | "analyze_database_intelligence" => {
             Some(16384)
@@ -323,6 +330,8 @@ fn limit(tool: &str, arguments: &Map<String, Value>, registry: &[Tool]) -> Optio
             .ok()
             .and_then(|n| n.checked_mul(4))
             .unwrap_or(0)
+    }).map(|bytes| {
+        if source_window {bytes.min(32768)} else {bytes}
     })
 }
 

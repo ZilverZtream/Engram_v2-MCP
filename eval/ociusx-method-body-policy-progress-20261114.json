@@ -33,5 +33,7 @@
   "queued_native_cases": [
     "Direct-source JSON preservation and returned-file policy scope with live exceptions",
     "Complete source and guidance retain the existing source-window reply limit"
-  ]
+  ],
+  "delivery_integration": "The subsequent complete-reply layer replaces policy-stage size refusal with explicit immutable recovery when valid source plus policy exceeds its reply budget. Original raw source-window validation and32KiB complete replies/recovery remain bounded; no evidence is clipped.",
+  "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-source-delivery-20261114\\source-check1.json"
 }
