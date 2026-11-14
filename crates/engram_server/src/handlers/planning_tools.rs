@@ -1910,12 +1910,16 @@ impl Engram {
         let shapes: Vec<(String, ExemplarShape, Vec<String>, Vec<String>)> =
             tokio::task::spawn_blocking(move || {
                 let root = std::path::PathBuf::from(project_dir);
+                let mut inventories = super::file_functions::collect(
+                    &graph, &pid, &paths, 500, super::file_functions::LimitCounts::AllNodes,
+                ).ok();
                 paths
                     .into_iter()
                     .map(|path| {
                         let mut failures = Vec::new();
+                        let nodes = inventories.as_mut().and_then(|files| files.remove(&path));
                         let (shape, coupled) =
-                            derive_exemplar_shape(&graph, &pid, &root, &path, &mut failures);
+                            derive_exemplar_shape(&graph, &pid, &root, &path, &mut failures, nodes);
                         (path, shape, coupled, failures)
                     })
                     .collect()
@@ -2317,9 +2321,10 @@ pub(crate) fn derive_exemplar_shape(
     root: &std::path::Path,
     path: &str,
     failures: &mut Vec<String>,
+    prefetched_functions: Option<Vec<engram_graph::Node>>,
 ) -> (ExemplarShape, Vec<String>) {
     let mut shape = ExemplarShape::default();
-    let nodes = match graph.query_nodes(pid, None, None, Some(path), 500) {
+    let nodes = match prefetched_functions.map(Ok).unwrap_or_else(|| graph.query_nodes(pid, None, None, Some(path), 500)) {
         Ok(n) => n,
         Err(e) => {
             failures.push(format!("{path}: graph node query failed: {e}"));
