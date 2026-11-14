@@ -20,13 +20,6 @@ use std::sync::OnceLock;
 static CREATE_PROC_RE: OnceLock<Regex> = OnceLock::new();
 static ALTER_PROC_RE: OnceLock<Regex> = OnceLock::new();
 static PARAM_LINE_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_SELECT_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_INSERT_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_UPDATE_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_DELETE_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_MERGE_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_JOIN_RE: OnceLock<Regex> = OnceLock::new();
-static SP_BODY_EXEC_RE: OnceLock<Regex> = OnceLock::new();
 static SP_DYNAMIC_SQL_RE: OnceLock<Regex> = OnceLock::new();
 static SP_CURSOR_RE: OnceLock<Regex> = OnceLock::new();
 static SP_RETURN_SELECT_RE: OnceLock<Regex> = OnceLock::new();
@@ -364,9 +357,12 @@ pub fn parse_sp_definitions(source: &str) -> Vec<StoredProcedureDefinition> {
         };
 
         // Analyze body for table references
-        let tables_read = extract_tables_read(body);
-        let tables_written = extract_tables_written(body);
-        let called_procedures = extract_called_procedures(body);
+        let references = crate::sql_parser::procedure_body_references(body);
+        let table_allowed = |name: &String| !is_sql_keyword(name) && !name.starts_with('@') && !name.starts_with('#');
+        let tables_read = references.tables_read.into_iter().filter(table_allowed).collect();
+        let tables_written = references.tables_written.into_iter().filter(table_allowed).collect();
+        let called_procedures = references.called_procedures.into_iter()
+            .filter(|name| !name.eq_ignore_ascii_case("sp_executesql") && !name.starts_with('@') && !is_sql_keyword(name)).collect();
         let has_dynamic_sql = check_dynamic_sql(body);
         let has_cursor = check_cursor(body);
         let return_columns = extract_return_columns(body);
@@ -473,153 +469,6 @@ fn extract_parameters(param_region: &str) -> Vec<SpParameter> {
     }
 
     params
-}
-
-/// Extract table names that the SP reads from (SELECT ... FROM / JOIN).
-fn extract_tables_read(body: &str) -> Vec<String> {
-    let mut tables = Vec::new();
-
-    // SELECT ... FROM [schema.]table
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_SELECT_RE,
-        r"(?i)\bFROM\s+((?:\[?\w+\]?\.)?(?:\[?\w+\]?))",
-        "sp_select_from",
-    ) {
-        for cap in re.captures_iter(body) {
-            let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table)
-                && !table.starts_with('@')
-                && !table.starts_with('#')
-                && !tables.contains(&table)
-            {
-                tables.push(table);
-            }
-        }
-    }
-
-    // JOIN [schema.]table
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_JOIN_RE,
-        r"(?i)\bJOIN\s+((?:\[?\w+\]?\.)?(?:\[?\w+\]?))",
-        "sp_join",
-    ) {
-        for cap in re.captures_iter(body) {
-            let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table)
-                && !table.starts_with('@')
-                && !table.starts_with('#')
-                && !tables.contains(&table)
-            {
-                tables.push(table);
-            }
-        }
-    }
-
-    tables
-}
-
-/// Extract table names that the SP writes to (INSERT/UPDATE/DELETE/MERGE).
-fn extract_tables_written(body: &str) -> Vec<String> {
-    let mut tables = Vec::new();
-
-    // INSERT INTO [schema.]table
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_INSERT_RE,
-        r"(?i)\bINSERT\s+(?:INTO\s+)?((?:\[?\w+\]?\.)?(?:\[?\w+\]?))",
-        "sp_insert",
-    ) {
-        for cap in re.captures_iter(body) {
-            let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table)
-                && !table.starts_with('@')
-                && !table.starts_with('#')
-                && !tables.contains(&table)
-            {
-                tables.push(table);
-            }
-        }
-    }
-
-    // UPDATE [schema.]table
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_UPDATE_RE,
-        r"(?i)\bUPDATE\s+((?:\[?\w+\]?\.)?(?:\[?\w+\]?))\s+SET\b",
-        "sp_update",
-    ) {
-        for cap in re.captures_iter(body) {
-            let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table)
-                && !table.starts_with('@')
-                && !table.starts_with('#')
-                && !tables.contains(&table)
-            {
-                tables.push(table);
-            }
-        }
-    }
-
-    // DELETE FROM [schema.]table
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_DELETE_RE,
-        r"(?i)\bDELETE\s+(?:FROM\s+)?((?:\[?\w+\]?\.)?(?:\[?\w+\]?))",
-        "sp_delete",
-    ) {
-        for cap in re.captures_iter(body) {
-            let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table)
-                && !table.starts_with('@')
-                && !table.starts_with('#')
-                && !tables.contains(&table)
-            {
-                tables.push(table);
-            }
-        }
-    }
-
-    // MERGE INTO [schema.]table
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_MERGE_RE,
-        r"(?i)\bMERGE\s+(?:INTO\s+)?((?:\[?\w+\]?\.)?(?:\[?\w+\]?))",
-        "sp_merge",
-    ) {
-        for cap in re.captures_iter(body) {
-            let table = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            if !is_sql_keyword(&table)
-                && !table.starts_with('@')
-                && !table.starts_with('#')
-                && !tables.contains(&table)
-            {
-                tables.push(table);
-            }
-        }
-    }
-
-    tables
-}
-
-/// Extract called stored procedures (EXEC/EXECUTE calls within the body).
-fn extract_called_procedures(body: &str) -> Vec<String> {
-    let mut called = Vec::new();
-
-    if let Some(re) = get_compiled_regex(
-        &SP_BODY_EXEC_RE,
-        r"(?i)\bEXEC(?:UTE)?\s+((?:\[?\w+\]?\.)?(?:\[?\w+\]?))(?:\s|$|;|,)",
-        "sp_exec",
-    ) {
-        for cap in re.captures_iter(body) {
-            let name = strip_sql_name(cap.get(1).map_or("", |m| m.as_str()));
-            // Filter out system procedures and dynamic SQL (sp_executesql)
-            if !name.eq_ignore_ascii_case("sp_executesql")
-                && !name.starts_with('@')
-                && !is_sql_keyword(&name)
-                && !called.contains(&name)
-            {
-                called.push(name);
-            }
-        }
-    }
-
-    called
 }
 
 /// Check if the SP body contains dynamic SQL (EXEC(@sql) or sp_executesql).
@@ -1106,6 +955,21 @@ pub fn extract_code_side_sp_calls(
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shared_procedure_references_preserve_roles_filters_order_and_output_parameters() {
+        let sql = "CREATE PROCEDURE dbo.SaveOrders @Id INT, @Marker INT OUTPUT AS\nBEGIN\nSELECT o.Id FROM dbo.Orders o JOIN dbo.Accounts a ON a.Id=o.AccountId;\nINSERT dbo.Audit SELECT Id FROM dbo.Orders;\nUPDATE dbo.Orders SET Seen=1;\nDELETE FROM dbo.OldRows;\nMERGE dbo.Ledger USING dbo.Orders ON Ledger.Id=Orders.Id WHEN MATCHED THEN UPDATE SET Seen=1;\nEXEC dbo.VerifyOrder @Id;\nEXEC sp_executesql @query;\nUPDATE STATISTICS dbo.Orders;\nEND\nGO\n";
+        let procedures = parse_sp_definitions(sql);
+        assert_eq!(procedures.len(),1);
+        let procedure = &procedures[0];
+        assert_eq!(procedure.name,"SaveOrders");
+        assert_eq!(procedure.tables_read,vec!["Orders","OldRows","Accounts"]);
+        assert_eq!(procedure.tables_written,vec!["Audit","Orders","OldRows","Ledger"]);
+        assert_eq!(procedure.called_procedures,vec!["VerifyOrder"]);
+        assert_eq!(procedure.parameters.len(),2);
+        assert_eq!(procedure.parameters[1].name,"@Marker");
+        assert_eq!(procedure.parameters[1].direction,"OUT");
+    }
+
     use super::*;
 
     #[test]
