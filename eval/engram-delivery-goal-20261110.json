@@ -40,41 +40,45 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "EG02 / TODO4 caller-controlled complete change-set responses",
-    "original_requirement": "Bound complete actionable planning responses and exact recovery to the AI caller's context budget without losing mandatory identities or qualifications.",
-    "observed_missing_behavior": "get_change_set has only a fixed40KiB delivery threshold and fixed40KiB recovery pages. Its schema rejects max_tokens, so an AI cannot request a smaller dossier/recovery page or a larger complete response when its available context differs.",
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "TODO4 / TODO28 complete natural-language evidence delivery",
+    "original_requirement": "Give AI callers a complete response budget, explicit omissions and exact recovery instead of unbounded tool text.",
+    "observed_missing_behavior": "ask_codebase rejects max_tokens/response_id and returns the entire rendered evidence and policy report without a delivery budget. Existing immutable snapshots already support this behavior for other central tools.",
     "implementation_files": [
       "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/handlers/ask_response_delivery.rs",
       "crates/engram_server/src/handlers/change_set_delivery.rs",
-      "crates/engram_server/src/handlers/feature_plan_tools.rs",
-      "crates/engram_server/src/tool_guidance.rs"
+      "crates/engram_server/src/tool_guidance.rs",
+      "crates/engram_server/src/tools.rs"
     ],
     "acceptance": [
-      "Optional positive max_tokens bounds complete reply text at four UTF-8 bytes per estimated token. Missing max_tokens retains the existing40KiB default. Validate controls before project/retrieval work.",
-      "Preserve every mandatory reconciliation/checkpoint identity and existing omission summaries. Small responses remain unchanged; metadata too large for the chosen budget returns a concrete minimum-budget error before writing a snapshot.",
-      "Exact immutable recovery carries the chosen budget in every continuation and never reruns planning. Preserve default callers and internal feature-plan request construction.",
-      "Run focused native and public MCP initial/recovery checks in both JSON and Markdown as part of the three-component batch; verify exact recovered evidence and default compatibility. No planner retrieval/ranking, CodeMap/Blast or target-language change."
+      "Optional positive max_tokens bounds full UTF-8 reply text at four bytes per estimated token; default40KiB. Small reports remain identical in JSON/Markdown/both formats.",
+      "Oversized reports retain status, mode, freshness, provider outcomes, conflicts, unknowns and next actions in explicit deferred metadata; exact original evidence, synthesized answer and authored policy remain recoverable.",
+      "Recovery bypasses project initialization, routing, retrieval and synthesis, even with an empty question, and every continuation carries max_tokens. Snapshot family is isolated from existing tools.",
+      "Native known-input recovery and public initial/recovery checks preserve complete original UTF-8 bytes/hash after instruction edits. Invalid controls and minimum metadata refusal create no snapshot.",
+      "Verify candidate and installed public behavior in the next three-component batch; use current OciusX source/guidance copies outside Site/Q, preserve existing WIP9/configuration."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget",
-    "prior_queued_items": [
-      "eval/ociusx-js-ts-heritage-progress-20261114.json",
-      "eval/ociusx-policy-reference-progress-20261114.json"
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget",
+    "configuration_observed": {
+      "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "llm_backend": "\"openai\"",
+      "embedding_backend": "\"ollama\"",
+      "advertise_all_tools": "true"
+    },
+    "limits": [
+      "No retrieval/ranking/model/CodeMap/Blast behavior change. No productivity gain claimed.",
+      "Source implementation will be queued; no feature-specific compilation or deployment."
     ],
     "implementation_complete": true,
-    "validated": true,
-    "deployed": true,
+    "validated": false,
+    "deployed": false,
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\source-check1.json",
     "queued_native_cases": [
-      "Chosen budgets preserve all mandatory identities and exact JSON/Markdown recovery",
-      "Larger complete response, default compatibility, invalid budgets and no snapshot after minimum-budget refusal"
+      "Exact full JSON/Markdown/both report recovery after policy changes; original status/provider conflicts and unknowns retained",
+      "Small/large/default budgets, invalid controls and no snapshot on minimum metadata refusal"
     ],
-    "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. No native/public acceptance or deployment claimed yet.",
-    "temporary_resources": "Only focus/source-check scripts and receipts in the recorded case; no runtime, fixture database or build started for this component yet. Retain with combined batch evidence.",
-    "source_commit": "b47b931",
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget\\source-check1.json",
-    "bounded_delivery_complete": true,
-    "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -863,11 +867,17 @@
     "reason": "User objected to repeated compilation dominating delivery. Reduce build frequency while preserving all final acceptance requirements.",
     "batch_size": 3,
     "implementation_concurrency": 1,
-    "rule": "Finish the already-running debug build and owned public acceptance for routing. Queue completed source improvements individually. Do not start another release build or install for routing alone. Implement the next two accepted original improvements, then run one combined focused verification/release build and public candidate/installed acceptance for the batch. Keep unvalidated or undeployed states explicit.",
+    "rule": "Implement three original OciusX components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
     "compiled_tests_seconds": 453,
     "actual_test_execution_seconds": 9.5,
     "last_release_compile_seconds": 1059,
-    "pending": [],
+    "pending": [
+      {
+        "item": "Complete ask_codebase response budgets and exact recovery",
+        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+        "progress": "eval/ociusx-ask-response-budget-progress-20261114.json"
+      }
+    ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114",
     "completed_last_batch": [
@@ -950,7 +960,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Select the next unfinished original OciusX requirement; do not reopen delivered acceptance, CodeMap or Blast.",
+  "next_user_visible_deliverable": "Implement the next original OciusX component before combined verification; ask_codebase source is queued, not validated or deployed.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1035,5 +1045,42 @@
   "sql_analysis_batch_delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json",
   "ai_context_batch_delivery": "eval/ociusx-ai-context-batch-delivery-20261114.json",
   "navigation_policy_batch_progress": "eval/ociusx-navigation-policy-batch-progress-20261114.json",
-  "navigation_policy_batch_delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+  "navigation_policy_batch_delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json",
+  "retained_navigation_policy_delivery_contract": {
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+    "finding": "EG02 / TODO4 caller-controlled complete change-set responses",
+    "original_requirement": "Bound complete actionable planning responses and exact recovery to the AI caller's context budget without losing mandatory identities or qualifications.",
+    "observed_missing_behavior": "get_change_set has only a fixed40KiB delivery threshold and fixed40KiB recovery pages. Its schema rejects max_tokens, so an AI cannot request a smaller dossier/recovery page or a larger complete response when its available context differs.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
+      "crates/engram_server/src/tool_guidance.rs"
+    ],
+    "acceptance": [
+      "Optional positive max_tokens bounds complete reply text at four UTF-8 bytes per estimated token. Missing max_tokens retains the existing40KiB default. Validate controls before project/retrieval work.",
+      "Preserve every mandatory reconciliation/checkpoint identity and existing omission summaries. Small responses remain unchanged; metadata too large for the chosen budget returns a concrete minimum-budget error before writing a snapshot.",
+      "Exact immutable recovery carries the chosen budget in every continuation and never reruns planning. Preserve default callers and internal feature-plan request construction.",
+      "Run focused native and public MCP initial/recovery checks in both JSON and Markdown as part of the three-component batch; verify exact recovered evidence and default compatibility. No planner retrieval/ranking, CodeMap/Blast or target-language change."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget",
+    "prior_queued_items": [
+      "eval/ociusx-js-ts-heritage-progress-20261114.json",
+      "eval/ociusx-policy-reference-progress-20261114.json"
+    ],
+    "implementation_complete": true,
+    "validated": true,
+    "deployed": true,
+    "queued_native_cases": [
+      "Chosen budgets preserve all mandatory identities and exact JSON/Markdown recovery",
+      "Larger complete response, default compatibility, invalid budgets and no snapshot after minimum-budget refusal"
+    ],
+    "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. No native/public acceptance or deployment claimed yet.",
+    "temporary_resources": "Only focus/source-check scripts and receipts in the recorded case; no runtime, fixture database or build started for this component yet. Retain with combined batch evidence.",
+    "source_commit": "b47b931",
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget\\source-check1.json",
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+  }
 }

@@ -1099,8 +1099,20 @@ pub fn default_pattern_examples() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct AskCodebaseRequest {
     pub project_id: String,
-    /// Any question about the codebase, in plain language.
+    /// Any question about the codebase, in plain language. Required for a new
+    /// query; may be omitted when recovering an existing response_id.
+    #[serde(default)]
     pub question: String,
+    /// Complete reply budget in estimated tokens (four UTF-8 bytes each).
+    /// Defaults to 10240 (40 KiB), including delivery metadata.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover the immutable original report without rerunning retrieval or models.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset supplied by the previous recovery page.
+    #[serde(default)]
+    pub response_offset: usize,
     /// Optional conversation/session id (carried for future working memory).
     #[serde(default)]
     pub session_id: Option<String>,

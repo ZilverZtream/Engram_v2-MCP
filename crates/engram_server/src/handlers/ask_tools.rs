@@ -15,6 +15,9 @@ use crate::services::ask_engine::retrieval::{self, RetrievalCtx, parse_depth};
 use crate::services::ask_engine::{planner, ranking, resolver, status};
 use crate::tools::Engram;
 
+#[path = "ask_response_delivery.rs"]
+mod response_delivery;
+
 /// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
 /// for it (`include_insights: true`) — the ablation showed no measurable
 /// effect, so the default must not spend retrieval budget on it.
@@ -69,6 +72,9 @@ impl Engram {
         req: crate::models::AskCodebaseRequest,
     ) -> Result<CallToolResult, McpError> {
         crate::handlers::validate_project_id(&req.project_id)?;
+        if let Some(body) = response_delivery::recover(&self.state.cfg.data_dir, &req)? {
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
         if req.question.trim().is_empty() {
             return Err(McpError::invalid_params(
                 "question must not be empty".to_string(),
@@ -506,6 +512,7 @@ impl Engram {
             ),
             _ => report::render_markdown(&out),
         };
+        let body = response_delivery::finish(&self.state.cfg.data_dir, &req, body, &out)?;
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 }
