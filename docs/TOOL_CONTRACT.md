@@ -296,6 +296,18 @@ the interface call separately; candidates do not prove which receiver a DI
 container selects, that registration executes, or that downstream effects occur.
 This reuses the existing interface mapping reader and traversal limits.
 
+The default reply budget is 16,384 estimated tokens (65,536 UTF-8 bytes).
+Oversized traces retain every selected edge in `paths`, with integer `from`/`to`
+references into the same trace's `path_nodes`. Handlers, source locations and
+hashes, coverage gaps and runtime limitations remain inline. Detailed edge
+evidence and source excerpts are deferred with explicit counts; `evidence_index`
+identifies the original path. Follow `response_delivery.next_call` to recover
+the exact full response through `trace_user_request(response_id, response_offset)`.
+Concatenate content in byte order and verify its BLAKE3 against `response_id`.
+Recovery uses the saved response without re-reading the checkout. Snapshots last
+at most 24 hours or 32 newer project trace snapshots. Small replies are unchanged;
+a budget too small for the complete navigation view still reports the minimum.
+
 ### Optional ask_codebase synthesis
 
 `ask_codebase` includes `project_policy_sources` in JSON and a repository policy
