@@ -1513,7 +1513,7 @@ impl Engram {
     // ── Phase 37: Wiring — Expose Existing Services ──────────────────────────
 
     #[tool(
-        description = "Full database intelligence: schema, stored procedures, triggers, SP call chains, cross-reference warnings."
+        description = "Database intelligence from project SQL: schema, procedures, triggers, call chains and warnings. Defaults to a bounded reply; use response_delivery.next_call to recover an oversized report exactly without rerunning analysis."
     )]
     pub async fn analyze_database_intelligence(
         &self,

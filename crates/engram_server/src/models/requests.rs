@@ -3473,7 +3473,7 @@ fn default_sp_limit() -> usize {
 pub struct AnalyzeDatabaseIntelligenceRequest {
     pub project_id: String,
     /// Optional: path to a specific .sql file to analyze in isolation.
-    /// If omitted, uses all .sql files already indexed for the project.
+    /// If omitted, discovers up to 2000 .sql files under the project directory.
     #[serde(default)]
     pub sql_file_path: Option<String>,
     /// Maximum stored procedures to summarize (avoid runaway cost). Default: 500.
