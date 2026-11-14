@@ -10052,7 +10052,9 @@
         "Larger complete response, default compatibility, invalid budgets and no snapshot after minimum-budget refusal"
       ],
       "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. No native/public acceptance or deployment claimed yet.",
-      "temporary_resources": "Only focus/source-check scripts and receipts in the recorded case; no runtime, fixture database or build started for this component yet. Retain with combined batch evidence."
+      "temporary_resources": "Only focus/source-check scripts and receipts in the recorded case; no runtime, fixture database or build started for this component yet. Retain with combined batch evidence.",
+      "source_commit": "b47b931",
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget\\source-check1.json"
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10085,7 +10087,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Implement the third ready original OciusX component, then verify and release both queued components and that third item together. Do not rebuild either queued component alone.",
+    "next_user_visible_deliverable": "Finish the existing focused verification, then one combined release and public candidate/installed acceptance for all three queued components; preserve prior deliveries and all unfinished original scope.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14454,10 +14456,16 @@
           "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
           "source_commit": "de2b10a",
           "progress": "eval/ociusx-policy-reference-progress-20261114.json"
+        },
+        {
+          "item": "EG02 caller-controlled change-set budgets",
+          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+          "source_commit": "b47b931",
+          "progress": "eval/ociusx-change-set-budget-progress-20261114.json"
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-analysis-batch-20261114",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114",
       "completed_last_batch": [
         {
           "component": "request-trace-policy",
@@ -14620,7 +14628,8 @@
       "delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json"
     },
     "sql_analysis_batch_delivery": "eval/ociusx-sql-analysis-batch-delivery-20261114.json",
-    "ai_context_batch_delivery": "eval/ociusx-ai-context-batch-delivery-20261114.json"
+    "ai_context_batch_delivery": "eval/ociusx-ai-context-batch-delivery-20261114.json",
+    "navigation_policy_batch_progress": "eval/ociusx-navigation-policy-batch-progress-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }

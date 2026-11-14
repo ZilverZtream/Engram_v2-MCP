@@ -1,0 +1,18 @@
+{
+  "status": "INDEX_CASES_PASS_FOCUSED_SERVER_VERIFICATION_RUNNING",
+  "components": ["eval/ociusx-js-ts-heritage-progress-20261114.json", "eval/ociusx-policy-reference-progress-20261114.json", "eval/ociusx-change-set-budget-progress-20261114.json"],
+  "root_source_commits": ["62e30e1", "de2b10a", "b47b931"],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114",
+  "runtime_source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "runtime_source_commit": "cc03f3a630152ad63f9bb2c3aebe6ce3f46e942d",
+  "verification": {
+    "native_index": "native-index1.json/log:4passed,0failed in0.67s after1m46s compilation. Includes all3new relationship cases and the existing lexical-this receiver control. Owned Job, relay and temporary resources closed.",
+    "native_server": "native-server1 currently runs the selected policy, snapshot, feature-plan and tool-guidance modules; session21587. No full suite.",
+    "native_server_exec_session": 21587,
+    "release_build_started": false,
+    "full_suite_started": false
+  },
+  "limits": "Native index cases prove extraction, not installed graph relationships. All three components still require combined candidate/installed public verification and deployment. Current runtime remains the preceding cf1019b8 package.",
+  "remaining": ["Finish the existing focused server run without restarting it", "Prepare public before/after source-refresh and instruction/budget checks", "One combined release build", "Candidate/installed acceptance, normal runtime restoration and resource accounting"],
+  "temporary_resources": "All new resources stay within the recorded current-task-check cases. Index native resources removed; the current server run owns its exact Job and temporary directory until completion. Retain source, logs and receipts for delivery review."
+}
