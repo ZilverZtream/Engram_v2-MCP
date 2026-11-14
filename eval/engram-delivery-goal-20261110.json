@@ -40,28 +40,34 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
-    "original_requirement": "Consolidate overlapping SQL analysis and give AI callers consistent database dependency evidence.",
-    "observed_missing_behavior": "detect_sp_call_chains duplicates a declaration regex that reads normal [dbo].Procedure declarations as dbo. The existing index stored-procedure parser already recognizes these declarations and called procedures. Actual selected OciusX Membership_CreateUser calls Applications_CreateApplication using this declaration form.",
+    "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+    "finding": "TODO59 shared SQL body references and optional-INTO write reporting",
+    "original_requirement": "Consolidate overlapping database analysis so AI callers receive consistent read/write/procedure relationships.",
+    "observed_missing_behavior": "The on-demand sql_parser statement analyzer and database-intelligence summary both require INSERT INTO, while indexed SP extraction already accepts INSERT dbo.Table. Actual selected OciusX aspnet_Applications_CreateApplication.sql:29 uses INSERT dbo.aspnet_Applications; its summary can omit the write effect.",
     "implementation_files": [
+      "crates/engram_index/src/sql_parser.rs",
       "crates/engram_server/src/services/database_intelligence_service.rs"
     ],
     "acceptance": [
-      "Reuse existing indexed stored-procedure definitions/call extraction for the report instead of the overlapping declaration/call regex loop.",
-      "Public analyze_database_intelligence shows the real membership-to-application call chain on unchanged OciusX SQL copied to an owned fixture, using correct procedure names rather than dbo. Existing linear/cycle report behavior remains.",
-      "Run focused tests once with queued nested request-tracing checks; run candidate/installed public acceptance as part of the three-improvement release.",
-      "Keep existing legacy report name semantics explicit; this is shared procedure parsing, not full service consolidation, schema binding or runtime execution proof."
+      "Reuse statement-analyzer table/procedure recognition for database-intelligence body aggregation; remove its duplicate read/write/EXEC regex definitions. Preserve qualified-name basename behavior, parameters, content hashes and summary shape.",
+      "Support ordinary INSERT with or without INTO through the existing shared statement analyzer, so database strategy, scaffold analysis, inline-SQL request tracing and SP summaries agree on target table names. No persisted index-parser behavior or source format change.",
+      "Focused native checks prove optional-INTO targets and summary write effects while retaining qualified names and existing parameter/call behavior. Queue source for combined verification/release; no per-feature compile loop.",
+      "Candidate and installed public database-intelligence checks on unchanged actual OciusX SQL copied into an owned fixture report the aspnet_Applications write. Preserve source/config/WIP9 and all prior deliveries."
     ],
     "limits": [
-      "No new SQL parser, graph/index/storage, CodeMap/Blast or language-support work.",
-      "Full TODO59 service consolidation and actual production request/database binding remain unfinished."
+      "Heuristic references, not schema/alias binding or SQL execution proof. No new SQL grammar, graph/index/cache, CodeMap/Blast or target-language work.",
+      "Full TODO59 consolidation and other original acceptance remain unfinished."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-procedure-chains",
-    "progress": "eval/ociusx-ai-readiness-batch-progress-20261114.json",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-body",
+    "delivery_cadence": "First implementation in the next batch; source commit may precede combined verification, with validation/deployment states explicit.",
+    "actual_source": {
+      "path": "C:\\Users\\Dennis\\source\\repos\\OciusX\\db-ociusx.sql\\dbo\\Stored Procedures\\aspnet_Applications_CreateApplication.sql",
+      "sha256": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2",
+      "line": 29
+    },
+    "progress": "eval/ociusx-shared-sql-body-progress-20261114.json",
     "implementation_complete": true,
-    "bounded_delivery_complete": true,
-    "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+    "bounded_delivery_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -854,7 +860,13 @@
     "compiled_tests_seconds": 453,
     "actual_test_execution_seconds": 9.5,
     "last_release_compile_seconds": 1059,
-    "pending": [],
+    "pending": [
+      {
+        "item": "TODO59 shared SQL body references and optional-INTO write reporting",
+        "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+        "progress": "eval/ociusx-shared-sql-body-progress-20261114.json"
+      }
+    ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-readiness-batch-20261114",
     "completed_last_batch": [
@@ -940,5 +952,29 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance the next ready original OciusX requirement; keep batched delivery and all unfinished scope explicit."
+  "next_user_visible_deliverable": "Advance the next ready original OciusX requirement; keep batched delivery and all unfinished scope explicit.",
+  "retained_previous_delivery_contract": {
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+    "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
+    "original_requirement": "Consolidate overlapping SQL analysis and give AI callers consistent database dependency evidence.",
+    "observed_missing_behavior": "detect_sp_call_chains duplicates a declaration regex that reads normal [dbo].Procedure declarations as dbo. The existing index stored-procedure parser already recognizes these declarations and called procedures. Actual selected OciusX Membership_CreateUser calls Applications_CreateApplication using this declaration form.",
+    "implementation_files": [
+      "crates/engram_server/src/services/database_intelligence_service.rs"
+    ],
+    "acceptance": [
+      "Reuse existing indexed stored-procedure definitions/call extraction for the report instead of the overlapping declaration/call regex loop.",
+      "Public analyze_database_intelligence shows the real membership-to-application call chain on unchanged OciusX SQL copied to an owned fixture, using correct procedure names rather than dbo. Existing linear/cycle report behavior remains.",
+      "Run focused tests once with queued nested request-tracing checks; run candidate/installed public acceptance as part of the three-improvement release.",
+      "Keep existing legacy report name semantics explicit; this is shared procedure parsing, not full service consolidation, schema binding or runtime execution proof."
+    ],
+    "limits": [
+      "No new SQL parser, graph/index/storage, CodeMap/Blast or language-support work.",
+      "Full TODO59 service consolidation and actual production request/database binding remain unfinished."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-procedure-chains",
+    "progress": "eval/ociusx-ai-readiness-batch-progress-20261114.json",
+    "implementation_complete": true,
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
+  }
 }

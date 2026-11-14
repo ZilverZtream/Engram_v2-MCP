@@ -1,0 +1,41 @@
+{
+  "status": "SOURCE_COMMITTED_UNVALIDATED_PENDING_BATCHED_VERIFICATION",
+  "finding": "TODO59 shared SQL body references and optional-INTO write reporting",
+  "implementation": {
+    "source_baseline": "f2185739e729a8cb6f9abfa4e4d82421d7012f48",
+    "source_commit": "e170df2f6456606569b62bc63823ca88a5bcf579",
+    "files": {
+      "crates/engram_index/src/sql_parser.rs": "84baa82f7fdeb78560a418a97b344fe236293ae75a99a2fc760d4dbd58288333",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "75f1ca02d739765480cbe897895fb57d2c2a022eafe9bcf9ae843edca1d55b5c"
+    }
+  },
+  "before": "Installed public MCP report omits the write effect of actual selected OciusX INSERT dbo.aspnet_Applications syntax.",
+  "source_change": "Shared sql_parser body aggregation reuses existing statement recognizers. The statement INSERT recognizer accepts optional INTO. SP summaries remove duplicated read/write/EXEC regexes; parameter formatting and content hashes remain.",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-body\\baseline1\\acceptance.json",
+    "sha256": "b268fab7a5356da18cbe9eaa72c1eb38db65bd441e5dce6ae381aef5d29c2049"
+  },
+  "validation": {
+    "new_native_checks_run": 0,
+    "new_native_checks_queued": 2,
+    "new_runtime_verification_run": false,
+    "compilation_started": false
+  },
+  "remaining": [
+    "Combined focused native verification and candidate/installed public acceptance before deployment.",
+    "Full TODO59 consolidation and the broader original backlog remain unfinished."
+  ],
+  "review": {
+    "kind": "Parent manual source review, not independent",
+    "notes": [
+      "Uses the existing qualified-name basename convention; reports remain heuristic, not schema/alias or execution proof.",
+      "Only on-demand SQL analysis changes. Indexed SP extraction and source formats remain unchanged; no reindex required."
+    ]
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-sql-body",
+    "baseline_owned_fixture_removed": true,
+    "preserved_wip9_unchanged": true,
+    "retained_purpose": "Contract, source copy, baseline wire/receipt and validation scripts; retain for batched verification/review. No preexisting-folder deletion."
+  }
+}

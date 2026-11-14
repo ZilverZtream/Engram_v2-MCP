@@ -169,10 +169,6 @@ pub struct SchemaWarning {
 
 // ── Regex Patterns ───────────────────────────────────────────────────────────
 
-static EXEC_SP_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)\bEXEC(?:UTE)?\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?").expect("EXEC_SP_RE")
-});
-
 static CREATE_TRIGGER_RE: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r"(?ims)CREATE\s+TRIGGER\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+ON\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(AFTER|INSTEAD\s+OF|FOR)\s+(INSERT|UPDATE|DELETE(?:\s*,\s*(?:INSERT|UPDATE|DELETE))*)",
@@ -194,37 +190,19 @@ static TABLE_REF_RE: LazyLock<Regex> = LazyLock::new(|| {
         .expect("TABLE_REF_RE")
 });
 
-static SQL_SELECT_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(&format!(r"(?im)(?:FROM|JOIN)\s+{QUALIFIED_OBJECT_NAME}")).expect("SQL_SELECT_RE")
-});
-
-static SQL_WRITE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(&format!(r"(?im)(?:INSERT\s+INTO|UPDATE|DELETE\s+FROM)\s+{QUALIFIED_OBJECT_NAME}"))
-        .expect("SQL_WRITE_RE")
-});
-
 // ── SP Business Logic (Deterministic) ────────────────────────────────────────
 
 /// Analyze stored procedure business logic using deterministic extraction.
 pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic {
     let content_hash = engram_core::ids::ContentHash::compute(sp_body.as_bytes()).0;
 
-    // Extract tables read
-    let tables_read: Vec<String> = SQL_SELECT_RE
-        .captures_iter(sp_body)
-        .map(|c| object_basename(&c[1]).to_owned())
+    let references = engram_index::sql_parser::analyze_body_references(sp_body);
+    let tables_read: Vec<String> = references.tables_read.into_iter()
         .filter(|t| !is_sql_keyword(t))
-        .collect::<HashSet<_>>()
-        .into_iter()
         .collect();
 
-    // Extract tables written
-    let tables_written: Vec<String> = SQL_WRITE_RE
-        .captures_iter(sp_body)
-        .map(|c| object_basename(&c[1]).to_owned())
+    let tables_written: Vec<String> = references.tables_written.into_iter()
         .filter(|t| !is_sql_keyword(t))
-        .collect::<HashSet<_>>()
-        .into_iter()
         .collect();
 
     let mut data_tables: Vec<String> = tables_read
@@ -253,14 +231,8 @@ pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic
         .map(|c| format!("{} {}", &c[1], &c[2]))
         .collect();
 
-    // Extract SP calls
-    let calls: Vec<String> = EXEC_SP_RE
-        .captures_iter(sp_body)
-        .map(|c| c[1].to_string())
-        .filter(|n| n.to_lowercase() != sp_name.to_lowercase())
-        .collect::<HashSet<_>>()
-        .into_iter()
-        .collect();
+    let calls: Vec<String> = references.called_procedures.into_iter()
+        .filter(|name| !name.eq_ignore_ascii_case(object_basename(sp_name))).collect();
 
     // Build side effects
     let mut side_effects = Vec::new();
@@ -1479,6 +1451,18 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
 #[allow(clippy::unwrap_used)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn shared_sql_body_summary_reports_optional_into_writes_and_preserves_parameters() {
+        let sql = "CREATE PROCEDURE dbo.SaveApplication\n @Name NVARCHAR(50)\nAS\nBEGIN\n INSERT [Warehouse].[dbo].[aspnet_Applications] (ApplicationName) VALUES (@Name);\n SELECT * FROM dbo.aspnet_Applications;\n EXEC dbo.ValidateApplication @Name;\nEND\n";
+        let summary = deterministic_sp_summary("SaveApplication", sql);
+        assert_eq!(summary.data_tables, vec!["aspnet_Applications"]);
+        assert_eq!(summary.parameters, vec!["@Name NVARCHAR(50)"]);
+        assert_eq!(summary.calls_other_sps, vec!["ValidateApplication"]);
+        assert!(summary.side_effects.iter().any(|effect| effect == "Writes to: aspnet_Applications"));
+        assert!(summary.purpose.contains("writes aspnet_Applications"));
+        assert_eq!(summary.content_hash, engram_core::ids::ContentHash::compute(sql.as_bytes()).0);
+    }
 
     #[test]
     fn test_deterministic_sp_summary_basic() {
