@@ -14439,16 +14439,19 @@
       "completed_last_batch": [
         {
           "item": "TODO28 optional model-assisted ask routing",
-          "status": "SOURCE_NATIVE_AND_OWNED_DEBUG_MCP_VERIFIED_PENDING_BATCHED_RELEASE",
-          "progress": "eval/ociusx-ask-routing-progress-20261114.json"
+          "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+          "progress": "eval/ociusx-ask-routing-progress-20261114.json",
+          "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
         },
         {
           "item": "TODO31 literal nested stored-procedure source tracing",
-          "status": "SOURCE_NATIVE_VERIFIED_PENDING_BATCHED_RELEASE"
+          "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+          "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
         },
         {
           "item": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
-          "status": "SOURCE_NATIVE_VERIFIED_PENDING_BATCHED_RELEASE"
+          "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+          "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
         }
       ],
       "last_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
