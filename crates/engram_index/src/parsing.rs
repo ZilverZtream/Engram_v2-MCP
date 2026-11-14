@@ -4,6 +4,7 @@ use streaming_iterator::StreamingIterator;
 use tree_sitter::{Parser, Query, QueryCursor};
 
 pub(crate) mod signature_types;
+mod js_ts_heritage;
 mod value_flow;
 mod typescript_modules;
 mod python_modules;
@@ -1231,6 +1232,17 @@ impl SymbolExtractor {
                 let mut meta = std::collections::HashMap::new();
                 let java_fqn = java.as_ref().and_then(|j|j.declaration_fqn(node,content));
                 let declaration_fqn = java_fqn.as_ref().or_else(||name_position.and_then(|pos| fqn_table.declaration(pos)));
+                if kind == "class" && matches!(ext, "ts" | "tsx" | "js" | "jsx") {
+                    let (relationships, unsupported) = js_ts_heritage::extract(
+                        node, content, static_ext,
+                        declaration_fqn.map(String::as_str).unwrap_or(&name), start_line,
+                    );
+                    edges.extend(relationships);
+                    if !unsupported.is_empty() {
+                        meta.insert("heritage_unresolved".into(),
+                            serde_json::to_string(&unsupported).expect("serializable source expressions"));
+                    }
+                }
                 if kind == "function" {
                     edges.extend(signature_types::extract(
                         node, content, static_ext,
