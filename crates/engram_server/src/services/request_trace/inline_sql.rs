@@ -16,6 +16,54 @@ use sqlparser::{
 };
 use std::collections::BTreeSet;
 
+fn literal_expression(tokens: &[routing::Token], start: usize) -> Option<(String, usize)> {
+    let mut cursor = start;
+    let mut sql = String::new();
+    loop {
+        let literal = tokens.get(cursor).filter(|token| token.string)?;
+        sql.push_str(&literal.text);
+        if sql.len() > 16384 { return None; }
+        cursor += 1;
+        if tokens.get(cursor).is_some_and(|token| matches!(token.text.as_str(), "&" | "+")) {
+            cursor += 1;
+        } else {
+            return (!sql.is_empty()).then_some((sql, cursor));
+        }
+    }
+}
+
+fn local_constant(tokens: &[routing::Token], call: usize, argument: usize) -> Option<(String, serde_json::Value)> {
+    let name = tokens.get(argument).filter(|token| !token.string)?.text.as_str();
+    if !tokens.get(argument + 1).is_some_and(|token| matches!(token.text.as_str(), "," | ")")) {
+        return None;
+    }
+    let declarations: Vec<_> = tokens[..call].iter().enumerate().filter(|(index, token)|
+        !token.string && token.text.eq_ignore_ascii_case("Const")
+            && tokens.get(index + 1).is_some_and(|value| !value.string && value.text.eq_ignore_ascii_case(name)))
+        .map(|(index, _)| index).collect();
+    if declarations.len() != 1 { return None; }
+    let declaration = declarations[0];
+    let mut expression = declaration + 2;
+    if tokens.get(expression)?.text.eq_ignore_ascii_case("As") {
+        if !tokens.get(expression + 1)?.text.eq_ignore_ascii_case("String") { return None; }
+        expression += 2;
+    }
+    if tokens.get(expression)?.text != "=" { return None; }
+    let (sql, end) = literal_expression(tokens, expression + 1)?;
+    if end > call || (tokens[end].line == tokens[end - 1].line && tokens[end].text != ":") {
+        return None;
+    }
+    // Do not borrow an initializer from a scope/branch that ended before this
+    // call. General name binding and propagation remain outside this reader.
+    if tokens[end..call].iter().any(|token| !token.string &&
+        ["End", "Else", "ElseIf", "Next", "Loop", "Case", "Catch", "Finally"].iter()
+            .any(|keyword| token.text.eq_ignore_ascii_case(keyword))) {
+        return None;
+    }
+    Some((sql, json!({"kind":"local_const_initializer","name":name,"declaration_kind":"Const",
+        "relative_line":tokens[declaration].line})))
+}
+
 fn argument_start(tokens: &[routing::Token], member: usize) -> Option<usize> {
     let mut open = member + 1;
     if tokens.get(open)?.text != "(" {
@@ -59,7 +107,7 @@ pub(super) fn append(
         {
             continue;
         }
-        let Some(mut cursor) = argument_start(&tokens, i + 2) else { continue; };
+        let Some(cursor) = argument_start(&tokens, i + 2) else { continue; };
         let invocation = if tokens[i + 2].text.eq_ignore_ascii_case("ExecuteQuery") {
             "ExecuteQuery"
         } else {
@@ -70,32 +118,20 @@ pub(super) fn append(
             return;
         }
         let line = method.start_line + tokens[i].line as u32 - 1;
-        let mut sql = String::new();
-        while let Some(literal) = tokens.get(cursor).filter(|token| token.string) {
-            sql.push_str(&literal.text);
-            cursor += 1;
-            if sql.len() > 16384 {
-                break;
-            }
-            if tokens
-                .get(cursor)
-                .is_some_and(|t| matches!(t.text.as_str(), "&" | "+"))
-            {
-                cursor += 1;
-            } else {
-                break;
-            }
-        }
-        if sql.is_empty()
-            || sql.len() > 16384
-            || !tokens
-                .get(cursor)
-                .is_some_and(|t| matches!(t.text.as_str(), "," | ")"))
-        {
+        let captured = literal_expression(&tokens, cursor)
+            .filter(|(_, end)| tokens.get(*end).is_some_and(|token| matches!(token.text.as_str(), "," | ")")))
+            .map(|(sql, _)| (sql, json!({"kind":"literal_argument"})))
+            .or_else(|| local_constant(&tokens, i, cursor));
+        let Some((sql, mut sql_source)) = captured else {
             if gaps.len() < 64 {
-                gaps.push(format!("{}:{line}: {invocation} SQL is dynamic or exceeds literal capture; table dependencies unresolved", source.path));
+                gaps.push(format!("{}:{line}: {invocation} SQL is dynamic or outside supported literal/local Const capture; table dependencies unresolved", source.path));
             }
             continue;
+        };
+        let local = sql_source.get("relative_line").and_then(|value| value.as_u64());
+        if let Some(relative_line) = local {
+            sql_source.as_object_mut().unwrap().remove("relative_line");
+            sql_source["line"] = json!(u64::from(method.start_line) + relative_line - 1);
         }
         let Ok(sql_tokens) = Tokenizer::new(&MsSqlDialect {}, &sql).tokenize() else {
             if gaps.len() < 64 {
@@ -157,10 +193,10 @@ pub(super) fn append(
                 from: method.node_id.clone(), to: format!("sql-table-reference:{table}"),
                 kind: kind.into(), target_name: table.into(), target_file: None, target_line: None,
                 target_source_verified: false, table_mapping: None,
-                evidence: Some(json!({"origin":if invocation == "ExecuteQuery" {"current_method_literal_execute_query"} else {"current_method_literal_execute_command"},
+                evidence: Some(json!({"origin":if local.is_some() {"current_method_local_literal_sql"} else if invocation == "ExecuteQuery" {"current_method_literal_execute_query"} else {"current_method_literal_execute_command"},
                     "file":source.path,"line":line,"source_blake3":blake3::hash(source.content.as_bytes()).to_hex().to_string(),
-                    "receiver":tokens[i].text,"invocation":invocation,"sql":sql,
-                    "interpretation":format!("Lexical table reference in literal {invocation} SQL at the cited source call. Receiver type, database/schema binding, branch reachability and execution are not proven.")})),
+                    "receiver":tokens[i].text,"invocation":invocation,"sql":sql,"sql_source":sql_source,
+                    "interpretation":format!("Lexical table reference from a literal argument or cited same-method Const initializer for {invocation}. Receiver type, database/schema binding, branch reachability and execution are not proven.")})),
             });
         }
     }
@@ -240,6 +276,30 @@ mod tests {
         assert!(paths.is_empty());
         assert_eq!(gaps.len(), 1);
         assert!(gaps[0].contains("ExecuteQuery SQL is dynamic"));
+    }
+    #[test]
+    fn same_method_constant_sql_retains_initializer_and_call_locations() {
+        let (paths, gaps) = dependencies("Const sql As String =\n\"SELECT * FROM dbo.Orders \" &\n\"WHERE Id = {0}\"\nUsing db As New WarehouseContext()\ndb.ExecuteQuery(Of OrderRow)(sql, id)\nEnd Using\n");
+        assert!(gaps.is_empty());
+        assert_eq!(paths.len(), 1);
+        assert_eq!(paths[0].target_name, "Orders");
+        let evidence = paths[0].evidence.as_ref().unwrap();
+        assert_eq!(evidence["line"], 8);
+        assert_eq!(evidence["sql_source"]["line"], 4);
+        assert_eq!(evidence["sql_source"]["name"], "sql");
+        assert_eq!(evidence["sql"], "SELECT * FROM dbo.Orders WHERE Id = {0}");
+    }
+    #[test]
+    fn constant_outside_call_scope_and_dynamic_initializers_remain_unresolved() {
+        for body in [
+            "If allowed Then\nConst sql = \"SELECT * FROM Orders\"\nEnd If\ndb.ExecuteQuery(Of Row)(sql)\n",
+            "Const sql = \"SELECT * FROM \" & tableName\ndb.ExecuteQuery(Of Row)(sql)\n",
+            "Dim sql = BuildQuery()\ndb.ExecuteCommand(sql)\n",
+        ] {
+            let (paths, gaps) = dependencies(body);
+            assert!(paths.is_empty());
+            assert_eq!(gaps.len(), 1);
+        }
     }
     #[test]
     fn dynamic_expressions_are_unresolved_and_commented_calls_do_not_count() {
