@@ -376,6 +376,13 @@ proposals that duplicate the existing surface:
   Semantic acceptance failed; this item remains unfinished. Preserve those findings
   and advance the original backlog instead of repeating planner tuning.
   Evidence: [installed partial result](eval/ociusx-feature-plan-installed-partial-20261113.json).
+  Source-dossier component installed 2026-11-14: `dossier_only: true` returns
+  bounded source/change-set/pattern context for the calling AI with zero server
+  text-generation calls, including when that backend is disabled. 15 native checks and
+  candidate/installed public checks passed; actual OciusX returned 16 independently
+  verified source excerpts. Retrieval still took 95-110 seconds. Generated-plan
+  semantic failures above remain unfinished; this mode does not close item 32.
+  Evidence: [source dossier delivery](eval/ociusx-feature-dossier-delivery-20261114.json).
 
 - [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
   `batch_read` composes 1–16 typed `get_method_info`, `resolve_id` and `get_chunk`

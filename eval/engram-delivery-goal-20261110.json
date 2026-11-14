@@ -40,35 +40,36 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DEPLOYED_BOUNDED_STEP_COMPLETE",
-    "finding": "TODO31 source-cited inline DataContext.ExecuteCommand table tracing",
-    "original_requirement": "Trace ordinary OciusX request handlers to source-supported SQL/table dependencies.",
-    "observed_missing_behavior": "Source fallback only handles local stored-procedure SqlCommand. Actual SetPwdManager uses literal-concatenated DataContext.ExecuteCommand UPDATE dbo.aspnet_Membership.",
-    "ociusx_evidence": "Site/App_Code/users-security/code/SetPwdManager.vb:309-317",
+    "status": "SOURCE_DOSSIER_COMPONENT_DEPLOYED_FULL_TODO32_UNFINISHED",
+    "finding": "TODO32 source dossier for AI-client planning without server generation",
+    "original_requirement": "Compile the pre-edit source/pattern/guidance dossier for a feature request; make Engram usable by AI in the actual OciusX VB/WebForms workflow.",
+    "observed_missing_behavior": "one_shot_feature_plan returns before source intake if server generation is disabled and always spends an intent generation call before gathering evidence. An AI client cannot request its source dossier without server-generated requirements/plan.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/feature_plan_tests.rs"
+    ],
     "acceptance": [
-      "Public installed baseline reaches authored handler but lacks inline SQL table path.",
-      "Source-bound literal ExecuteCommand SQL, including ordinary VB literal concatenation and format parameters, contributes table dependency candidates using existing SQL analysis.",
-      "Dynamic SQL is not guessed; include_db=false suppresses inline dependencies; source mismatch remains withheld by existing admission.",
-      "Native request-trace tests and candidate/installed public fixture pass; package/install and preserve config/source/WIP."
+      "Baseline disabled-provider call returns INCOMPLETE with no source dossier; dossier-only request is unavailable.",
+      "dossier_only=true gathers existing bounded source/change-set/pattern evidence with zero server generation calls, both configured and disabled provider; user request is preserved verbatim.",
+      "Returned source ranges/hashes match independent authored files and current selection. Existing generation path, source freshness and incomplete coverage protections remain.",
+      "Candidate/installed public fixtures and one read-only actual OciusX dossier demonstrate this mode with configuration/source/WIP preserved; package and deploy."
     ],
     "limits": [
-      "Source SQL/table candidates only; no database execution, deployed schema, runtime effects or general ORM translation proof.",
-      "No nested procedure/trigger/language expansion, CodeMap or Blast work."
+      "This delivers the original source dossier component, not correctness of server-generated plans. Existing OciusX semantic failures and full TODO32 remain unfinished.",
+      "No per-sample planner prompt tuning, model experiment, benchmark/pilot expansion, new source-discovery infrastructure or language support.",
+      "Zero server text-generation calls; existing retrieval/embedding behavior is unchanged."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-sql-trace",
-    "retention": "Keep scripts and receipts here; clean newly owned fixtures after exact process/handle closure.",
-    "implementation_files": [
-      "crates/engram_server/src/services/request_trace.rs",
-      "crates/engram_server/src/services/request_trace/execution.rs",
-      "crates/engram_server/src/services/request_trace/inline_sql.rs",
-      "crates/engram_server/src/services/request_trace/tests.rs"
-    ],
-    "source_commit": "9360212981ae4647fdfc58e5bb69bd93f5454fa7",
-    "native_checks": 30,
-    "receipt": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json",
-    "candidate_public_checks": 7,
-    "installed_public_checks": 7,
-    "next_action": "Advance another ready original OciusX requirement after this finite delivery; do not expand into SQL edge-case hardening."
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier",
+    "retention": "Retain scripts/receipts/package here; own and clean all newly created test fixtures.",
+    "source_commit": "414199b921153764ddd482d2dc16fe7da9579cdf",
+    "native_checks": 15,
+    "receipt": "eval/ociusx-feature-dossier-delivery-20261114.json",
+    "candidate_public_checks": 10,
+    "installed_public_checks": 10,
+    "actual_source_files": 16,
+    "next_action": "Advance another ready original OciusX requirement; retain generated-plan semantic failures and slow retrieval as unfinished work, not completed acceptance."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -811,5 +812,6 @@
   "optimized_sustained_edit_outcome": "eval/s15-optimized-edit-acceptance-20261114.json",
   "module_persistence_delivery": "eval/s15-differential-module-persistence-delivery-20261114.json",
   "sql_identifiers_delivery": "eval/ociusx-sql-identifiers-delivery-20261114.json",
-  "inline_sql_request_trace_delivery": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json"
+  "inline_sql_request_trace_delivery": "eval/ociusx-inline-sql-request-trace-delivery-20261114.json",
+  "feature_dossier_delivery": "eval/ociusx-feature-dossier-delivery-20261114.json"
 }

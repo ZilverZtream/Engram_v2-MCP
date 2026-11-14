@@ -1,0 +1,155 @@
+{
+  "status": "SOURCE_DOSSIER_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-14T10:44:02.831195+00:00",
+  "finding": "TODO32 pre-edit source dossier for AI-client planning",
+  "original_requirement": "Compile the source/pattern/guidance dossier for feature requests so the calling AI can plan ordinary OciusX changes. Full generated-planner semantic acceptance remains failed and unfinished.",
+  "before": "Disabled server generation returned INCOMPLETE before gathering source evidence; dossier_only was not accepted. Configured planning required server-generated intent before source intake.",
+  "after": "Optional dossier_only=true returns SOURCE_DOSSIER_READY with the verbatim request, bounded source hashes/ranges/declarations, existing change-set guidance/pattern context and explicit coverage/recovery. Configured and disabled text-generation providers both work with zero generation requests. Generated requirements/plan, inferred schema and edit-safety verdict are not produced in this mode.",
+  "usage": {
+    "tool": "one_shot_feature_plan",
+    "arguments": {
+      "project_id": "<project id>",
+      "feature_description": "<feature request>",
+      "target_stack": "webforms_vbnet",
+      "detail_level": "Detailed",
+      "dossier_only": true
+    }
+  },
+  "implementation": {
+    "source_baseline": "2992898e0694a46a153279571569de7f1ae30319",
+    "source_commit": "6db890157164f7ac0136b3e1e2b4ef7a4108bc33",
+    "root_source_commit": "414199b921153764ddd482d2dc16fe7da9579cdf",
+    "files": {
+      "crates/engram_server/src/models/requests.rs": "b489f50680542a75bf98f425fba552530bbe7eeaf5d397f5fa4917518257a1bd",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs": "1875633932514057d99a4249dd446277280234bee7b9a61426eefe41819d84c1",
+      "crates/engram_server/src/tools.rs": "b5fe9bab96ea043c1f7cc3e1f2eb5ef0ebbea1e8a15e1eda78bc2a5f0f0f6ffc",
+      "crates/engram_server/tests/feature_plan_tests.rs": "57fa9b2a60087627ec1675811af14ac6528c843fbd18203ec82347828efd8dc3"
+    }
+  },
+  "validation": {
+    "native_checks": 15,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\native1.json",
+      "sha256": "bb0470afc6f23d8049942f592e1643efc54a29abdd76b0ccff3863eced59327f"
+    },
+    "candidate_public_checks": 10,
+    "installed_public_checks": 10,
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\candidate1\\acceptance.json",
+      "sha256": "6890368e73dbc40b837de0e37c35effeb71cc43ad00c215f0390eed1787656fa"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\installed1\\acceptance.json",
+      "sha256": "dcc2ef69d473cb5edfb3db6732515f31988ce4d24018f648850f205a88e47a0d"
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\baseline-interpretation.json",
+      "sha256": "7d1c8f12c3b3d02474c9ebe8d05b1482e06a2bbc1681d062750a4c8ef27c6a0c"
+    },
+    "baseline_harness_failure_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\baseline1\\acceptance.json",
+      "sha256": "0e673c4a93e89d1f5672302734e9f5827015c6a88ed7db3f507a7187568100fa"
+    },
+    "baseline_unsupported_parameter": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\baseline1\\wire\\0005-response.json",
+      "sha256": "369c06760e1e3f8c07a2584e5a2b80b67c25fb480e03a5f4730025a7192b04dc"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\release1.json",
+      "sha256": "48a03ae05c54d7dffd42549615e24d9fee43cac7ad8cbb3560a62210b7205e09"
+    },
+    "manual_review": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\review1.json",
+      "sha256": "d1de3915bf4edd1bf6bdab8b406fc00e5290f788a17bf34f7b3ef0d38b48b15d"
+    },
+    "public_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\verify-public.py",
+      "sha256": "d42dcf8ef3a093da1715cb57954bf135c698dc75be0822e44f3a0f08d72488aa"
+    },
+    "actual_verifier": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\verify-actual.py",
+      "sha256": "6c30666bce3a4d184b362622e8ace027bcdbe303b701bf0f0220760cbce6726e"
+    },
+    "original_full19gates_closed": false
+  },
+  "actual_ociusx": {
+    "candidate1": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\candidate1-actual\\acceptance.json",
+        "sha256": "51b577bc70d1d3947c98acb73946daf9bc0686d2980893cd4a971f954b184c15"
+      },
+      "source_files": 16,
+      "seconds": 109.65081720007583,
+      "response_bytes": 302381,
+      "server_generation_requests": 0
+    },
+    "installed1": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\installed1-actual\\acceptance.json",
+        "sha256": "89466a233cd99e870a61b3337f8917a79fcd8a76faf6d8fb8a99a87a74863ef3"
+      },
+      "source_files": 16,
+      "seconds": 95.1156957000494,
+      "response_bytes": 302377,
+      "server_generation_requests": 0
+    }
+  },
+  "runtime": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\package1",
+    "server_sha256": "6e7d45472772f9be142d0b03bd9ca48655589ca0a40057a2bbf85a60b9a934cb",
+    "manifest_sha256": "1c1a3c495f49db2905788431feb4c15dbb22dbdb62a19678e6c9404d3c7c9f34",
+    "old_server_sha256": "88472b4052163877361a43da8fa1a7ccb9c80fad16f2da18d8469e8ce55256e8",
+    "old_manifest_sha256": "d86b4a808a5bb1494aa4227f855fe6c426f7a6baf229b95cf24c00a6faf32280",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\release1.json",
+      "sha256": "48a03ae05c54d7dffd42549615e24d9fee43cac7ad8cbb3560a62210b7205e09"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "d86b4a808a5bb1494aa4227f855fe6c426f7a6baf229b95cf24c00a6faf32280"
+    },
+    "source_commit": "6db890157164f7ac0136b3e1e2b4ef7a4108bc33"
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\Engram-win-x64-feature-dossier-20261114.zip",
+    "sha256": "257261761566403AB08235905557619EA5CB6FB7D4F45EC526E7937CF2CBEF2D",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "1C1A3C495F49DB2905788431FEB4C15DBB22DBDB62A19678E6C9404D3C7C9F34"
+  },
+  "preservation": {
+    "parked_wip_byte_pins_unchanged": true,
+    "production_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "production_registry_selection_and_other_metadata_unchanged": true,
+    "application_sources_unchanged": true,
+    "unchanged_companion_assets": 214
+  },
+  "resources": {
+    "all_owned_processes_git_provider_threads_and_handles_closed": true,
+    "new_native_public_and_actual_fixtures_removed": true,
+    "read_only_config_hold_released": true,
+    "owned_config_copy_removed": true,
+    "retained_delivery_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e94f07d76f3e4b7292ad503cb10357db",
+    "install_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\feature-dossier\\feature-dossier1-install-Upgrade.json",
+      "sha256": "4ea652a8fd4e13b35ca837ecdb5dc90eaa2f7f67d7990111a6fa1d8c16d8874b"
+    },
+    "retention": "Retain scripts/receipts, complete package and ZIP for review. Managed installer rollback pair and journals retained by existing workflow. No preexisting folder deletion."
+  },
+  "limits": [
+    "The full generated planner remains unfinished: capacity/minimum conflation and unrequested global scope in the retained OciusX generated-plan acceptance are not fixed or rerun as a new model experiment. See eval/ociusx-feature-plan-installed-partial-20261113.json.",
+    "Actual source retrieval took about 110s candidate and 95s installed. No latency or general task-productivity improvement is claimed. Record this ordinary retrieval limitation; it does not automatically displace the next original item.",
+    "Zero server text-generation calls in dossier mode; ordinary retrieval/embedding behavior remains configured and may still call its embedding provider.",
+    "Dossier source is bounded and omissions/recovery remain visible. No inferred schema, method-safety verdict, correct implementation plan or runtime application verification claimed.",
+    "No new source-discovery infrastructure, prompt-tuning experiment, target-language expansion or original19gate closure.",
+    "GitHub Actions setting remains unchanged by this work; its distribution setting choice remains held."
+  ],
+  "goal_status": "active",
+  "next_action": "Advance another ready original OciusX requirement; retain generated-plan semantic failures and slow retrieval as unfinished work, not completed acceptance."
+}
