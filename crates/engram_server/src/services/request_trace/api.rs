@@ -186,6 +186,7 @@ pub fn trace(
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<Value> {
     let expected = format!("{}Controller", route.controller);
+    let declared_dependency_registrations = super::container_registrations::in_route_source(&route.source_path, sources);
     let mut outputs = Vec::new();
     let mut gaps = vec!["Conventional source candidates only: route registration, precedence, constraints, omitted optional segments, action overload selection and dependency injection are not established.".to_string()];
     let root = routing::app_root(&route.source_path, sources);
@@ -314,14 +315,14 @@ pub fn trace(
                 "trigger_coverage":trace.trigger_coverage,"interpretation":trace.interpretation}));
             if outputs.len() >= 8 {
                 gaps.push("Controller expansion stopped at eight candidates.".into());
-                return Ok(json!({"route":route,"controllers":outputs,"gaps":gaps}));
+                return Ok(json!({"route":route,"controllers":outputs,"gaps":gaps,"declared_dependency_registrations":declared_dependency_registrations}));
             }
         }
     }
     if outputs.is_empty() {
         gaps.push("No source-verified VB ApiController matched the route controller value.".into());
     }
-    Ok(json!({"route":route,"controllers":outputs,"gaps":gaps}))
+    Ok(json!({"route":route,"controllers":outputs,"gaps":gaps,"declared_dependency_registrations":declared_dependency_registrations}))
 }
 
 #[cfg(test)]
