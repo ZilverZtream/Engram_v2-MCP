@@ -961,7 +961,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish focused standalone procedure inspection, then verify/deploy the three queued SQL components with one combined focused native/release batch.",
+  "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented procedure-analysis components.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1548,5 +1548,6 @@
     "prior_evidence": "eval/ociusx-holdout-prerequisite-20261113.json",
     "model_calls_started": 0,
     "scope": "Original EG24 remains open; no optional-question stall or replay of the inspected failed task."
-  }
+  },
+  "procedure_analysis_batch_progress": "eval/ociusx-procedure-analysis-batch-progress-20261114.json"
 }
