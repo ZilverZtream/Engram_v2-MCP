@@ -1,0 +1,139 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T08:16:58.677945+00:00",
+  "finding": "S15 update_project differential module-edge persistence",
+  "source_commit": "241e224e5c77f7520f0abac76be506086ca695d1",
+  "runtime_source_commit": "7ccdb4045ffde737b999ec51bbd17281127409a6",
+  "bounded_delivery_complete": true,
+  "full_S15_closed": false,
+  "full_S19_closed": false,
+  "before": "One changed module binding caused every existing module edge and adjacency row to be removed and reinserted. The installed optimized500-edit workload hit its1GiB logical-write protective limit after271 edits.",
+  "after": "TypeScript and the existing generic storage fixture resolver preserve byte-identical edges and adjacency, persisting only actual differences in the original atomic transaction. Resolution decisions are unchanged.",
+  "validation": {
+    "native_graph": 154,
+    "native_source_oracles": 2,
+    "candidate": {
+      "initial_changed_call": true,
+      "initial_unchanged_call": true,
+      "changed_target_replaces_previous": true,
+      "unchanged_target_survives_edit": true,
+      "deleted_caller_absent": true,
+      "unchanged_target_survives_delete": true
+    },
+    "installed": {
+      "initial_changed_call": true,
+      "initial_unchanged_call": true,
+      "changed_target_replaces_previous": true,
+      "unchanged_target_survives_edit": true,
+      "deleted_caller_absent": true,
+      "unchanged_target_survives_delete": true
+    }
+  },
+  "workload": {
+    "edits": 500,
+    "files": 51,
+    "checkpoints": 10,
+    "complete_source_checks": 11,
+    "restart_verified": true,
+    "unchanged_limits": true,
+    "baseline_completed_edits": 271,
+    "baseline_logical_write_bytes": 1074268421,
+    "candidate_logical_write_bytes": 762756497,
+    "candidate_peak_private_bytes": 159768576,
+    "matched_first250_update_write_bytes": {
+      "baseline": 802569552,
+      "candidate": 202324358
+    },
+    "matched_first250_timing": {
+      "baseline": {
+        "median_update_seconds": 0.40322355000535026,
+        "cpu_seconds": 120.984375
+      },
+      "candidate": {
+        "median_update_seconds": 0.5135521999909543,
+        "cpu_seconds": 140.625
+      }
+    }
+  },
+  "runtime": {
+    "server_sha256": "268771bc22d2b5c59c69ef710f76f7701b9b82efcef672a9f6c9b8e8b8c93f67",
+    "manifest_sha256": "99989d044311b77cf54a9d2b0a10205dd7da5ea72d69f7fa24d043d448a20c7f",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "artifact": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\Engram-win-x64.zip",
+    "sha256": "540faf7db99f1b9827f785385e5d26fe44e70a96dd332ebceb9089ec3aad7a9b",
+    "runtime_assets": 215,
+    "entries": 218
+  },
+  "evidence": {
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\implementation1.json",
+      "sha256": "593d23c493cdee0db12b6f0fd1ef3ec76d26852157283bf8e6102358ae6455ad"
+    },
+    "failed_baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\run1\\report.json",
+      "sha256": "4aad1842831ba1686e717fb431eca3180bd6751b29a7eb40abb6ebe56d1fd5c8"
+    },
+    "attribution": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\stage-write-attribution.json",
+      "sha256": "65659956632ffbcf57d80d2bbfeec04067b4c3dbbb2c3cc84480efff124972d3"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\release1.json",
+      "sha256": "bd05bd0bbce0071ceff938c4c3df7dacca0826c1e0518111e18c996d5ecd9650"
+    },
+    "native_graph": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\targeted-native1.json",
+      "sha256": "baab9e25a8f65863fb1767187cbb8159d643681e2c56c068b7e49b3f02d44323"
+    },
+    "native_typescript": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\targeted-native2b.json",
+      "sha256": "ef735f9d261388ea24646ab397596a626f80e78c9160e5baf32708289ea51f27"
+    },
+    "native_fixture": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\targeted-native3.json",
+      "sha256": "fe60951e0469bfd9831f03080f9276a8b942dcbc3d45e8588ddee6ceae057dbb"
+    },
+    "fixed_workload": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\fixed500\\report.json",
+      "sha256": "c96e161d4ade7855a044cf326841fb5385cd2f831c77b8ca41d05e357f88459c"
+    },
+    "fixed_collection": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\fixed500\\collection-report.json",
+      "sha256": "0e1f019c516b5a3111a5da2685b5ce68b34e14fc5a7acc32a024e27ea1994e1f"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\candidate1\\acceptance.json",
+      "sha256": "1d3091638d48c268376f4f23b29cc2c52921396836e3617c8d82d83e96a93768"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\installed1\\acceptance.json",
+      "sha256": "94d2c5a475aa9a9b8c1237952d70c0f85603d5b200ce3b39d9e550b2b10cf811"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\deployment1-state.json",
+      "sha256": "ad373fb78ce743eec978f0a4a6c8a884fde8c008f02e4d6f01a71faed8b0d14a"
+    }
+  },
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance",
+    "build_temp_removed": true,
+    "new_fixtures_removed": true,
+    "owned_processes_threads_handles_closed": true,
+    "configuration_hold_released": true,
+    "owned_configuration_removed": true,
+    "parked_wip9_unchanged": true,
+    "retention": "Retain failed baseline, diagnostic evidence, package/ZIP and old runtime pair for review. Diagnostic-only source changes were restored. The short corpus temp location is recorded and removed. No preexisting project directories deleted."
+  },
+  "limits": [
+    "The500-edit fixture uses existing Rust-shaped symbols and local vectors as generic storage acceptance. It does not measure OciusX VB/JS/SQL plus Ollama workload or a production memory plateau.",
+    "TypeScript call edit/deletion is separately verified through candidate and installed public MCP. No language-support expansion or new resolution rules.",
+    "Process logical writes include buffered I/O and IPC; no physical SSD-write or kernel-causality claim. Prefix update counters exclude other query/checkpoint windows.",
+    "Matching first250 updates: median0.4032s baseline versus0.5136s candidate; CPU120.98s versus140.63s. This observed write reduction has additional comparison cost, and does not establish a latency improvement. One sequential pair, not randomized causal performance evidence.",
+    "Broader S15/S19 production/configuration and all other unfinished original gates remain open. Parent manual review only; external CodeRabbit review not run."
+  ]
+}

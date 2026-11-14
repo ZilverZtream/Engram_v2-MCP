@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_GRAPH_AND_CORPORA_PASS_RELEASE_BUILD_PENDING",
+  "status": "SUPERSEDED_BY_VERIFIED_INSTALLED_DELIVERY",
   "at_utc": "2026-11-14T07:40:38.602912+00:00",
   "finding": "S15 update_project write amplification",
   "original_failed_acceptance": "eval/s15-optimized-edit-acceptance-20261114.json",
@@ -27,11 +27,9 @@
     "sha256": "baab9e25a8f65863fb1767187cbb8159d643681e2c56c068b7e49b3f02d44323"
   },
   "corpus_test_session": 50392,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "remaining": [
-    "Finish existing TypeScript and Rust source-oracle acceptance.",
-    "Build optimized candidate and repeat original500-edit protocol under unchanged limits, with complete checkpoints/restart/cleanup.",
-    "Verify owned TypeScript public edit behavior, package/install acceptance and preserve sidecar/configuration."
+    "Broader original production/Ollama resource and full storage-gate scope remains open; this finite differential-persistence delivery is complete."
   ],
   "diagnostic_build": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\diagnostic-build1.json",
@@ -56,5 +54,6 @@
     "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\targeted-native2.json",
     "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\corpus-temp-location.json",
     "short_owned_temp_removed": true
-  }
+  },
+  "delivery": "eval/s15-differential-module-persistence-delivery-20261114.json"
 }

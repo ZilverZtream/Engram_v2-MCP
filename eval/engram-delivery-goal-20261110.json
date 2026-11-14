@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "NATIVE_GRAPH_AND_CORPORA_PASS_OPTIMIZED_BUILD_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "S15 optimized sustained editing acceptance",
     "original_requirement": "Many distinct-file edits across checkpoints and restart measure correctness, selector fragmentation, query/GC latency, memory and disk growth.",
     "missing_evidence": "Existing full500-edit completion uses debug binaries; optimized50-file40-edit evidence does not cover the full500-edit/checkpoint workload.",
@@ -63,7 +63,7 @@
     ],
     "retention": "Retain reports and logs; existing runner closes exact owned processes/threads and removes its new fixture.",
     "previous_goal_turn_classification": "PROGRESS: backlog guidance corrected and published in7ac08d6.",
-    "outcome": "eval/s15-optimized-edit-acceptance-20261114.json",
+    "outcome": "TypeScript and the existing generic storage fixture resolver preserve byte-identical edges and adjacency, persisting only actual differences in the original atomic transaction. Resolution decisions are unchanged.",
     "observed_missing_behavior": {
       "phase": "primary",
       "kind": "cumulative_logical_write_limit",
@@ -79,7 +79,9 @@
     "corpus_test_session": 50392,
     "release_acceptance_progress": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\optimized-edit-acceptance\\release-acceptance-progress.json",
     "release_acceptance_session": 68079,
-    "native_tests_passed": 156
+    "native_tests_passed": 156,
+    "delivery": "eval/s15-differential-module-persistence-delivery-20261114.json",
+    "bounded_delivery_complete": true
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -819,5 +821,6 @@
   },
   "request_trace_budget_delivery": "eval/ociusx-request-trace-budget-delivery-20261114.json",
   "backlog_guidance_delivery": "eval/ociusx-backlog-guidance-delivery-20261114.json",
-  "optimized_sustained_edit_outcome": "eval/s15-optimized-edit-acceptance-20261114.json"
+  "optimized_sustained_edit_outcome": "eval/s15-optimized-edit-acceptance-20261114.json",
+  "module_persistence_delivery": "eval/s15-differential-module-persistence-delivery-20261114.json"
 }
