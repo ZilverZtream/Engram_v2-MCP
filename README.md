@@ -335,6 +335,13 @@ invalid or unavailable routing retains the deterministic plan with an explicit
 reason. This option is separate from `synthesize: true` and supplies no
 generated answer.
 
+Use `max_tokens` to budget the complete `ask_codebase` reply (default40KiB).
+Oversized JSON/Markdown/both reports include status, coverage and a
+`response_delivery.next_call` for exact original-report recovery. Follow its
+byte offsets and verify the BLAKE3 identity; recovery needs no question and
+never reruns retrieval, routing or synthesis.
+[Delivery](eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json).
+
 ### Per-method access layer
 
 Precise per-method context retrieval so an agent can touch one method
@@ -458,6 +465,10 @@ Missing nullability stays unknown; `nullable_columns` returns explicit `NULL`.
 Procedure/view references are lexical candidates, and unqualified relationships
 do not establish a default schema. Table queries also return bounded, freshly
 verified indexed code-reference leads with their qualified-binding limitation.
+Returned admitted declaration files and verified code leads also determine
+applicable authored guidance. Instruction edits refresh without reindexing;
+recheck guidance for the final edit scope. The complete reply budget includes
+policy text, qualifications and linked-reference disclosures.
 
 `detect_n_plus_one` accepts `project_id` and an optional selected VB `file_path`.
 Without a file, use `max_files` (1–16, default 8), `file_offset`, and the returned
@@ -700,6 +711,12 @@ its code-retrieval inputs:
   }
 }
 ```
+
+Collected SQL procedure snapshots also supply declaration candidates and
+exact range hashes to instruction maintenance. Changes in a named procedure
+can be reviewed separately from other procedures in the file. This retains
+the shared regex parser and basename contract; candidates prove neither
+schema binding nor absence.
 
 The response supplies complete current and committed-before instructions,
 committed-before/disk-after evidence, exact hashes and `packet_blake3`.

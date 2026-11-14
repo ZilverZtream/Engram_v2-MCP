@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "TODO4 / TODO28 complete natural-language evidence delivery",
   "original_requirement": "Give AI callers a complete response budget, explicit omissions and exact recovery instead of unbounded tool text.",
   "observed_missing_behavior": "ask_codebase rejects max_tokens/response_id and returns the entire rendered evidence and policy report without a delivery budget. Existing immutable snapshots already support this behavior for other central tools.",
@@ -30,8 +30,8 @@
     "Source implementation will be queued; no feature-specific compilation or deployment."
   ],
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\source-check1.json",
   "queued_native_cases": [
     "Exact full JSON/Markdown/both report recovery after policy changes; original status/provider conflicts and unknowns retained",
@@ -39,5 +39,8 @@
   ],
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\verify-public.py",
   "source_check_followup": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\source-check1.json",
-  "source_followup": "Use the existing crate-visible token_bytes helper directly; the planner-specific budget helper is private to its module. No build or behavioral validation claimed."
+  "source_followup": "Use the existing crate-visible token_bytes helper directly; the planner-specific budget helper is private to its module. No build or behavioral validation claimed.",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

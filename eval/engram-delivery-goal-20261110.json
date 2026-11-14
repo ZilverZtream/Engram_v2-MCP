@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "EG01 scoped authored guidance in SQL schema retrieval",
     "original_requirement": "The same applicable complete authored guidance reaches planning, editing, retrieval and review in OciusX workflows.",
     "observed_missing_behavior": "query_schema returns verified SQL declaration citations and code leads without project_policy_sources. Root and scoped instructions are absent even though the common policy resolver is already available.",
@@ -60,8 +60,8 @@
     },
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114",
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
+    "validated": true,
+    "deployed": true,
     "limits": [
       "Guidance covers returned evidence paths, not the final edit scope or a recursively established linked-policy set.",
       "No SQL parser, query/ranking, database binding, index/storage or CodeMap/Blast changes. Third component for one combined verification/build."
@@ -70,7 +70,9 @@
     "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\verify-public.py",
     "queued_native_cases": [
       "Returned SQL declaration and verified code scopes include matching live policy without changing schema evidence"
-    ]
+    ],
+    "bounded_delivery_complete": true,
+    "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -863,40 +865,24 @@
     "compiled_tests_seconds": 453,
     "actual_test_execution_seconds": 9.5,
     "last_release_compile_seconds": 1059,
-    "pending": [
-      {
-        "item": "Complete ask_codebase response budgets and exact recovery",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-ask-response-budget-progress-20261114.json"
-      },
-      {
-        "item": "SQL procedure instruction evidence",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-sql-instruction-symbols-progress-20261114.json"
-      },
-      {
-        "item": "Scoped schema-query guidance",
-        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-        "progress": "eval/ociusx-schema-policy-progress-20261114.json"
-      }
-    ],
+    "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114",
     "completed_last_batch": [
       {
-        "component": "js-ts-heritage",
-        "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+        "component": "ask-response-budget",
+        "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
       },
       {
-        "component": "policy-references",
-        "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+        "component": "sql-instruction-symbols",
+        "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
       },
       {
-        "component": "change-set-budget",
-        "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json"
+        "component": "schema-policy-20261114",
+        "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
       }
     ],
-    "last_batch_delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json",
+    "last_batch_delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks."
   },
   "retained_ask_routing_contract": {
@@ -962,7 +948,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented components.",
+  "next_user_visible_deliverable": "Select the next unfinished original OciusX requirement without reopening delivered acceptance, CodeMap or Blast.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1162,5 +1148,6 @@
       "Shared-parser basename collisions remain ambiguous without schema binding"
     ]
   },
-  "ask_sql_guidance_batch_progress": "eval/ociusx-ask-sql-guidance-batch-progress-20261114.json"
+  "ask_sql_guidance_batch_progress": "eval/ociusx-ask-sql-guidance-batch-progress-20261114.json",
+  "ask_sql_guidance_batch_delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json"
 }

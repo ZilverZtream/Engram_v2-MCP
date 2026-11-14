@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "EG01 scoped authored guidance in SQL schema retrieval",
   "original_requirement": "The same applicable complete authored guidance reaches planning, editing, retrieval and review in OciusX workflows.",
   "observed_missing_behavior": "query_schema returns verified SQL declaration citations and code leads without project_policy_sources. Root and scoped instructions are absent even though the common policy resolver is already available.",
@@ -19,8 +19,8 @@
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Guidance covers returned evidence paths, not the final edit scope or a recursively established linked-policy set.",
     "No SQL parser, query/ranking, database binding, index/storage or CodeMap/Blast changes. Third component for one combined verification/build."
@@ -29,5 +29,8 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\verify-public.py",
   "queued_native_cases": [
     "Returned SQL declaration and verified code scopes include matching live policy without changing schema evidence"
-  ]
+  ],
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

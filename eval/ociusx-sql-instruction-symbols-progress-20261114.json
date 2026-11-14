@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "EG27/EG31 SQL procedure evidence in instruction maintenance",
   "original_requirement": "Track instruction evidence dependencies, freshness and reference drift in OciusX VB.NET/JS/TS/SQL workflows.",
   "observed_missing_behavior": "The maintenance symbol manifest supports VB and tree-sitter sources but marks every SQL input unsupported. Authored references to a collected stored procedure cannot show declaration candidates or procedure-specific byte changes despite the shared stored-procedure extractor already existing.",
@@ -18,8 +18,8 @@
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Source observations do not prove database schema binding, case collation, execution, semantic policy correctness or complete SQL grammar support.",
     "No new SQL parser, target language, index/storage migration or CodeMap/Blast work. Queued for the next three-component combined build."
@@ -30,5 +30,8 @@
   "queued_native_cases": [
     "Collected SQL procedure range/hash and changed-versus-unchanged guidance observations",
     "Shared-parser basename collisions remain ambiguous without schema binding"
-  ]
+  ],
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

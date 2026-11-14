@@ -70,6 +70,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   controls the complete JSON/Markdown reply and immutable recovery pages.
   Default remains40KiB; mandatory identities survive compaction. [Delivery](eval/ociusx-navigation-policy-batch-delivery-20261114.json).
 
+  Natural-language report budgets installed 2026-11-14: `ask_codebase.max_tokens`
+  bounds JSON/Markdown/both replies and exact immutable recovery, default40KiB.
+  SQL schema retrieval now includes applicable authored guidance. [Delivery](eval/ociusx-ask-sql-guidance-batch-delivery-20261114.json).
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to

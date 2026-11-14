@@ -1,0 +1,229 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T18:05:47.883184+00:00",
+  "improvements": [
+    {
+      "finding": "TODO4/TODO28",
+      "behavior": "ask_codebase now honors a complete reply budget in JSON/Markdown/both (default40KiB), retaining status, freshness and qualifications with immutable original-report recovery. Recovery bypasses project/retrieval/model work and preserves the chosen budget."
+    },
+    {
+      "finding": "EG27/EG31",
+      "behavior": "Instruction maintenance observes collected SQL procedure declarations and exact source spans/hashes using the existing extractor. Per-instruction comparisons separate changed and unchanged procedure evidence; basename collisions remain ambiguous."
+    },
+    {
+      "finding": "EG01",
+      "behavior": "query_schema returns complete applicable root/scoped guidance for returned admitted SQL citations and verified code leads. Live instruction edits refresh without source reindexing; unrelated scanned areas do not expand scope. Existing full-reply budget and schema qualifications remain."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "cc03f3a630152ad63f9bb2c3aebe6ce3f46e942d",
+    "source_commit": "e5171653119e3e792736acf29dca600d019fca0b",
+    "root_source_commit": "d815f5fd4d3e26cf01a7437aac9abf1823225235",
+    "files": {
+      "crates/engram_server/src/handlers/ask_response_delivery.rs": "4223b8e168fee205df558210d4368d2d23cfc7e4af43261bbc9ddeb3f3e4a826",
+      "crates/engram_server/src/handlers/ask_tools.rs": "e73095d078bf0e9229bfb38ffde3f805f7d1b9a3028a7e2e2dfc48fc87910102",
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "f871d5d413806d8e110b2f924400aebd60caac55b8870a9c51e15cbf6e7d08fc",
+      "crates/engram_server/src/handlers/schema_policy.rs": "3c4c1d57a1df414e77e1b626e4ae7cd1e258ce00135824310c895d0ef0da55f6",
+      "crates/engram_server/src/handlers/schema_tools.rs": "fa3edf8dc8b4f246ebc9ccacb44069ce68ac21b7a2127014877bcd475f2aa4cd",
+      "crates/engram_server/src/models/requests.rs": "43df150b4a4f37d76e0dc95e70c239f79224435e1baf92f0ba53d2df414d5398",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "3a955f8a049f90c020c90e28023205e4fe4465565d914dc27719a00d18fc17e6",
+      "crates/engram_server/src/tool_guidance.rs": "ae7aec820d3ed0216da598dc8c32763da296742a3fc460b0bf3fc131847a0893",
+      "crates/engram_server/src/tools.rs": "9058fa8574d7ad429579cb3231be03abceabafd8dabc1e6edbb748678a9f22f7"
+    },
+    "components": [
+      "eval/ociusx-ask-response-budget-progress-20261114.json",
+      "eval/ociusx-sql-instruction-symbols-progress-20261114.json",
+      "eval/ociusx-schema-policy-progress-20261114.json"
+    ]
+  },
+  "root_source_commits": [
+    "d8538eb",
+    "379439e",
+    "d815f5f"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 15,
+      "required_component_cases": {
+        "ask_delivery_preserves_qualified_report_and_exact_recovery_in_all_formats_after_policy_changes": true,
+        "ask_delivery_rejects_invalid_controls_and_minimum_metadata_before_creating_snapshots": true,
+        "collected_sql_procedure_ranges_separate_changed_and_unchanged_instruction_evidence": true,
+        "collected_sql_basename_collisions_remain_ambiguous_without_schema_binding": true,
+        "schema_guidance_covers_returned_declarations_and_verified_code_leads_and_refreshes_without_reindex": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "e5171653119e3e792736acf29dca600d019fca0b",
+      "resources": "Owned native Job/relay/temporary fixtures closed and removed; exact logs retained. Candidate/installed behavior remains pending."
+    },
+    "public": {
+      "candidate1": {
+        "ask-response-budget": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\candidate1\\acceptance.json",
+            "sha256": "698f5c71f2f1349723aa3fabe5ce626a7a1a2aef1451a0df75fa3f1eb702e32a"
+          },
+          "checks": {
+            "ordinary_report_and_authored_policy": true,
+            "default_complete_reply_budget": true,
+            "json_bounded_with_status_and_warnings": true,
+            "json_exact_original_policy_after_edits_without_new_query": true,
+            "markdown_bounded_with_status_and_warnings": true,
+            "markdown_exact_original_policy_after_edits_without_new_query": true,
+            "both_bounded_with_status_and_warnings": true,
+            "both_exact_original_policy_after_edits_without_new_query": true,
+            "current_ociusx_source_and_guidance_available": true,
+            "actual_ociusx_inputs_unchanged": true
+          }
+        },
+        "sql-instruction-symbols": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\candidate1\\acceptance.json",
+            "sha256": "2de92e58ecb98a90b4358f6e3949d28811aeb315df86a16646f5aed8bb82f798"
+          },
+          "checks": {
+            "collected_sql_procedures_observed": true,
+            "actual_procedure_source_ranges_and_hashes": true,
+            "only_changed_procedure_guidance_requires_review": true,
+            "historical_and_current_complete_sql_preserved": true,
+            "authored_guides_not_written": true,
+            "actual_ociusx_sql_unchanged": true
+          }
+        },
+        "schema-policy-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\candidate1\\acceptance.json",
+            "sha256": "46d66656fcb0faaeec590e20a8dbbd3799475aba3f961f5295f510f0b9019fe0"
+          },
+          "checks": {
+            "actual_table_source_retained": true,
+            "actual_root_and_sql_scoped_policy": true,
+            "unreturned_scanned_area_excluded": true,
+            "linked_reference_disclosures_preserved": true,
+            "live_policy_refresh_without_reindex": true,
+            "schema_results_and_qualifications_unchanged": true,
+            "default_complete_reply_budget": true,
+            "application_and_fixture_sql_unchanged": true
+          }
+        }
+      },
+      "installed1": {
+        "ask-response-budget": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget\\installed1\\acceptance.json",
+            "sha256": "c672edf037ec97334c5d13b96ba081b95af15a4e2318a3b74472e5bd8910b754"
+          },
+          "checks": {
+            "ordinary_report_and_authored_policy": true,
+            "default_complete_reply_budget": true,
+            "json_bounded_with_status_and_warnings": true,
+            "json_exact_original_policy_after_edits_without_new_query": true,
+            "markdown_bounded_with_status_and_warnings": true,
+            "markdown_exact_original_policy_after_edits_without_new_query": true,
+            "both_bounded_with_status_and_warnings": true,
+            "both_exact_original_policy_after_edits_without_new_query": true,
+            "current_ociusx_source_and_guidance_available": true,
+            "actual_ociusx_inputs_unchanged": true
+          }
+        },
+        "sql-instruction-symbols": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\installed1\\acceptance.json",
+            "sha256": "adfbc3fe7b5a007630d88d8975e37e3d033be5b78b870f465d410581e9d16fd0"
+          },
+          "checks": {
+            "collected_sql_procedures_observed": true,
+            "actual_procedure_source_ranges_and_hashes": true,
+            "only_changed_procedure_guidance_requires_review": true,
+            "historical_and_current_complete_sql_preserved": true,
+            "authored_guides_not_written": true,
+            "actual_ociusx_sql_unchanged": true
+          }
+        },
+        "schema-policy-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\installed1\\acceptance.json",
+            "sha256": "483aa4a8dbeae1399e096e69f98da3f176018d5b6326200076f21f306f14173d"
+          },
+          "checks": {
+            "actual_table_source_retained": true,
+            "actual_root_and_sql_scoped_policy": true,
+            "unreturned_scanned_area_excluded": true,
+            "linked_reference_disclosures_preserved": true,
+            "live_policy_refresh_without_reindex": true,
+            "schema_results_and_qualifications_unchanged": true,
+            "default_complete_reply_budget": true,
+            "application_and_fixture_sql_unchanged": true
+          }
+        }
+      }
+    },
+    "baselines": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols\\baseline1\\acceptance.json",
+        "sha256": "afede40a7832096045e400623a5bf421bb1028299304be06b8a6485140223bdf"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114\\baseline1\\acceptance.json",
+        "sha256": "a6dd23528d5d1858904bdfac5d51dc29c21d24ca87aed9f49a429a45589d1a58"
+      }
+    ]
+  },
+  "runtime": {
+    "server_sha256": "5f7098e584977af44bff483026f77a3e21201433d82966131c9bae447780a9a8",
+    "manifest_sha256": "29e25356de9c891079a98d8ae027125b097de985678f62cd743ee1e8cb62f285",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114\\pair1.json",
+      "sha256": "5d10a87213fe9c5d3ff760d6ba9af64ae974535f63791a3d6a9e2d9cb9bb8f84"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114\\release1.json",
+      "sha256": "f38da4b4262812799682b161e954715b0e985170a8260dd0789e2569dbc4bd01"
+    },
+    "release_runner_seconds": 981.2428617000114,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114\\deployment1-state.json",
+      "sha256": "97f94cfa7b92d7272f5e3102c9170e688a2e7eb644563a3b2cb59c390d69edf9"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "013124b05eb5ed96394610f626afdf93fcc4d2a4a40a4282e10518dc6b309f5a"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114\\Engram-win-x64-ask-sql-guidance-20261114.zip",
+    "sha256": "F64708656809AE53F5E83BB5691AF0A7E8671903BBD08B0C19507BFE4A557CD4",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "29E25356DE9C891079A98D8AE027125B097DE985678F62CD743EE1E8CB62F285"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "application_sources_and_guidance_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "selected_generation": 3151,
+    "graph_and_index_formats_unchanged": true
+  },
+  "resources": {
+    "owned_test_build_fixture_resources_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and application-owned children in restoration receipt.",
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-response-budget",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-symbols",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-policy-20261114"
+    ],
+    "retention": "Keep logs, exact wire responses, baseline receipts, package and ZIP for review. Prior installed pair retained by installer. No preexisting-folder deletion."
+  },
+  "limits": [
+    "Report budgets estimate four UTF-8 bytes per token, not provider tokens. Exact recovery preserves the selected report, not complete project knowledge or current source freshness.",
+    "SQL declaration candidates retain the existing regex/basename/span limitations and no-absence-proof contract; they do not establish schema identity, execution, semantic correctness or automatic policy updates.",
+    "Schema guidance covers returned evidence paths, not a future final edit scope or a recursively accepted linked-policy set. Existing source/binding/coverage qualifications remain.",
+    "No full suite or productivity comparison. The original backlog, usefulness requirements and19gates remain unfinished."
+  ]
+}
