@@ -9,6 +9,8 @@ workflow. Choose a successful run for the commit you intend to install, then
 download its `Engram-win-x64-<commit>` artifact. GitHub access to the repository is
 required. These builds are retained for 30 days and are not permanent releases.
 The workflow runs for relevant changes on `master` and can also be started manually.
+Repository Actions must be enabled by an administrator before it can produce
+artifacts. If no successful run is listed, a downloadable build is not yet available.
 
 Extract the downloaded Actions artifact. It contains `Engram-win-x64.zip`, its
 SHA256 file, and build/source identity JSON. Before extracting the inner ZIP:

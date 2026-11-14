@@ -1,0 +1,51 @@
+{
+  "status": "IMPLEMENTED_PUSHED_REPOSITORY_ACTIONS_DISABLED",
+  "at_utc": "2026-11-14T08:35:27.822788+00:00",
+  "finding": "TODO53 downloadable complete Windows bundle from master",
+  "source_commit": "16b7bbe",
+  "implementation": [
+    ".github/workflows/windows-package.yml",
+    "docs/WINDOWS_BUNDLE.md"
+  ],
+  "behavior": "Master/manual packaging workflow reuses existing full server/sidecar builder and offline ZIP packager; uploads commit-named archive, SHA256 and build/source metadata with30-day retention.",
+  "validation": {
+    "workflow_yaml_parsed": true,
+    "master_trigger": true,
+    "token_permissions": "contents: read",
+    "official_actions_pinned_to_commits": true,
+    "existing_builder_packager_reused": true,
+    "workflow_id": 418144444,
+    "workflow_state": "active",
+    "workflow_runs": 0,
+    "repository_actions_enabled": false
+  },
+  "external_blocker": {
+    "source": "GET repos/ZilverZtream/Engram_v2-MCP/actions/permissions",
+    "observed": {
+      "enabled": false,
+      "allowed_actions": null
+    },
+    "required_change": "Enable repository Actions execution. This also permits existing workflows, so explicit user choice was requested asynchronously.",
+    "permission_requested": true,
+    "setting_changed": false
+  },
+  "remaining": [
+    "Enable Actions only if authorized; dispatch or observe one Windows package build.",
+    "Download its exact archive and verify checksum/source identity.",
+    "Install into an owned fixture and use the exact registered MCP command to index/retrieve VB source; close and remove owned resources."
+  ],
+  "complete": false,
+  "artifact_published": false,
+  "new_tags": false,
+  "runtime_deployed": false,
+  "scope_limits": [
+    "Actions artifacts are retained builds rather than permanent versioned releases.",
+    "macOS/Linux and permanent public release/bootstrap remain open.",
+    "The broader goal remains active while this item waits for a repository-wide execution-setting decision."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-ci-distribution",
+    "new_processes_or_fixtures_retained": false,
+    "retention": "Keep workflow/settings evidence for continuation. No CI jobs were created, no build/download fixture exists, and no production configuration changed."
+  }
+}
