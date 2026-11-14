@@ -44,6 +44,9 @@ pub(crate) mod change_set_delivery;
 #[path = "footprint_delivery.rs"]
 mod footprint_delivery;
 
+#[path = "pattern_delivery.rs"]
+mod pattern_delivery;
+
 #[cfg(test)]
 #[path = "planning_tools/source_reader_tests.rs"]
 mod source_reader_tests;
@@ -1776,6 +1779,24 @@ impl Engram {
         req: FindImplementationPatternRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if let Some(body)=pattern_delivery::recover(&self.state.cfg.data_dir,&req)? {
+            return Ok(CallToolResult::success(vec![Content::text(body)]));
+        }
+        self.implementation_pattern_response(req,true).await
+    }
+
+    /// Existing composed planners need full pattern evidence, not a public
+    /// delivery envelope. This path does not bypass their own context limits.
+    pub(crate) async fn implementation_pattern_evidence(
+        &self, req: FindImplementationPatternRequest,
+    ) -> Result<CallToolResult,McpError> {
+        self.implementation_pattern_response(req,false).await
+    }
+
+    async fn implementation_pattern_response(
+        &self, req: FindImplementationPatternRequest, public_delivery: bool,
+    ) -> Result<CallToolResult,McpError> {
+        validate_project_id(&req.project_id)?;
         if req.pattern_query.trim().is_empty() {
             return Err(McpError::invalid_params(
                 "pattern_query must not be empty",
@@ -1858,11 +1879,13 @@ impl Engram {
                 let mut value=serde_json::to_value(&result).map_err(|e| McpError::internal_error(e.to_string(),None))?;
                 value["message"]=serde_json::json!(hint);
                 let text=serde_json::to_string_pretty(&value).map_err(|e| McpError::internal_error(e.to_string(),None))?;
+                let text=pattern_delivery::finish(&self.state.cfg.data_dir,&req,text,&result,public_delivery)?;
                 return Ok(CallToolResult::success(vec![Content::text(text)]));
             }
             let mut out=hint;
             out.push_str(&result.project_policy_sources.render_markdown());
             out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+            let out=pattern_delivery::finish(&self.state.cfg.data_dir,&req,out,&result,public_delivery)?;
             return Ok(CallToolResult::success(vec![Content::text(out)]));
         }
 
@@ -2033,10 +2056,12 @@ impl Engram {
         if req.output_json {
             let text = serde_json::to_string_pretty(&result)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            let text=pattern_delivery::finish(&self.state.cfg.data_dir,&req,text,&result,public_delivery)?;
             return Ok(CallToolResult::success(vec![Content::text(text)]));
         }
         let mut out = render_pattern_markdown(&result);
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+        let out=pattern_delivery::finish(&self.state.cfg.data_dir,&req,out,&result,public_delivery)?;
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }
 }
@@ -6014,11 +6039,12 @@ impl Engram {
 
         // Pattern exemplars for the story's action.
         let sub = self
-            .handle_find_implementation_pattern(crate::models::FindImplementationPatternRequest {
+            .implementation_pattern_evidence(crate::models::FindImplementationPatternRequest {
                 project_id: req.project_id.clone(),
                 pattern_query: concepts.join(" "),
                 max_examples: 2,
                 output_json: false,
+                max_tokens:None, response_id:None, response_offset:0,
             })
             .await?;
         if let Some(text) = sub.content.first().and_then(|c| c.as_text()) {

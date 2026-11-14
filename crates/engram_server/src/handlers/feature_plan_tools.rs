@@ -429,11 +429,12 @@ impl Engram {
             .filter(|s| !s.trim().is_empty())
             .unwrap_or_else(|| retrieval_concepts.join(" "));
         let patterns = match self
-            .handle_find_implementation_pattern(FindImplementationPatternRequest {
+            .implementation_pattern_evidence(FindImplementationPatternRequest {
                 project_id: req.project_id.clone(),
                 pattern_query,
                 max_examples: 3,
                 output_json: true,
+                max_tokens:None, response_id:None, response_offset:0,
             })
             .await
             .and_then(body)

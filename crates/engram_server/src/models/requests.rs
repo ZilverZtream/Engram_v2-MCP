@@ -1091,7 +1091,16 @@ pub struct FindImplementationPatternRequest {
     pub project_id: String,
     /// What you want examples of, e.g. "admin settings page save",
     /// "dropdown bound to lookup table", "file upload validation".
+    /// May be omitted only for immutable original-response recovery.
+    #[serde(default)]
     pub pattern_query: String,
+    /// Complete reply budget, four UTF-8 bytes per estimated token. Default40KiB.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
     /// How many exemplar files to expand. Default 3.
     #[serde(default = "default_pattern_examples")]
     pub max_examples: usize,

@@ -41,44 +41,44 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "TODO4/EG01 bounded instruction-aware concept-footprint delivery",
-    "original_requirement": "Bound complete AI tool replies with explicit coverage and exact recovery, preserving applicable authored guidance across planning/retrieval.",
-    "observed_missing_behavior": "get_concept_footprint currently accepts only project_id/concept/max_per_group and returns unbudgeted Markdown. Per-group caps cannot bound the complete reply or recover its exact original, and the standalone footprint does not include authored guidance for its returned paths.",
+    "finding": "TODO4 complete implementation-pattern response budgets and exact recovery",
+    "original_requirement": "Bound complete actionable AI context with explicit coverage and exact recovery while preserving scoped authored guidance and existing planning composition.",
+    "observed_missing_behavior": "find_implementation_pattern accepts only per-example limits and output_json. Its shapes, snippets, coverage and complete guidance can exceed a caller reply budget, and there is no immutable recovery. Adding guidance without whole-reply delivery would leave this central retrieval workflow unbounded.",
     "implementation_files": [
       "crates/engram_server/src/models/requests.rs",
       "crates/engram_server/src/handlers/planning_tools.rs",
-      "crates/engram_server/src/handlers/footprint_delivery.rs",
+      "crates/engram_server/src/handlers/pattern_delivery.rs",
       "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
       "crates/engram_server/src/tools.rs",
       "crates/engram_server/src/tool_guidance.rs",
       "crates/engram_server/tests/planning_tools_test.rs"
     ],
     "acceptance": [
-      "Public max_tokens budgets the complete reply at four UTF-8 bytes per estimated token, default40KiB. Optional JSON exposes the existing footprint_markdown, returned source paths/completeness and authored policy as named fields; it does not invent a new typed graph algorithm.",
-      "Use the existing immutable snapshot mechanism for exact original UTF-8 recovery in JSON/Markdown. Each continuation carries the budget and bypasses project/runtime/graph retrieval; invalid controls and minimum metadata refusal create no snapshot.",
-      "Keep all existing graph/lexical/literal/group caps and completeness disclosures. Guide scope follows returned footprint paths, with source-cap omissions, live instruction refresh and linked-reference disclosures; summaries require full recovery before acting.",
-      "Keep internal change-set and implementation-brief composition on the original unbudgeted FootprintEvidence path so this public delivery change cannot substitute a deferred envelope for their evidence.",
-      "Focused known-input native recovery checks and candidate/installed MCP calls in the combined three-component batch preserve original evidence, source paths and guidance after policy edits. Use owned current OciusX VB/TS copies; no production global query or Site/Q reads."
+      "Public max_tokens bounds the entire JSON/Markdown reply at four UTF-8 bytes per estimated token, default40KiB. Small reports preserve their selected evidence and policy.",
+      "Oversized reports retain original query/kind, exemplar/common-shape counts, full coverage/failures and policy qualifications with exact immutable original-report recovery. Continuations preserve the budget and bypass project/runtime/source/graph retrieval.",
+      "Invalid controls and minimum metadata refusal create no snapshot. Snapshot namespaces remain isolated, and current policy edits cannot rewrite already captured reports.",
+      "Internal source-dossier and implementation-brief callers use a dedicated unbudgeted evidence path, preserving their original full pattern intake and35-line exemplar prefix instead of parsing a deferred public envelope.",
+      "Focused native original-byte recovery and internal bypass checks, followed by candidate/installed public JSON/Markdown recovery on owned current OciusX VB helper/root-guide copies. Run one combined focused native/release batch for all three queued components; no CodeMap/Blast or ranking changes."
     ],
     "configuration_observed": {
       "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
     },
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114",
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
     "limits": [
-      "Exact recovery covers the selected capped footprint, not every repository touchpoint or proven source/runtime binding.",
-      "Internal retrieval/ranking and graph algorithms are unchanged. No CodeMap/Blast work, target-language expansion or per-component build."
+      "Coverage describes the selected bounded pattern report, not exhaustive repository patterns or proof that examples match behavior.",
+      "No retrieval/ranking, parser, graph/index/storage format or model change. Internal evidence bypass is private to existing composed planning calls."
     ],
-    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\source-check1.json",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\baseline1\\acceptance.json",
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\verify-public.py",
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\source-check1.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\baseline1\\acceptance.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pattern-delivery-20261114\\verify-public.py",
     "queued_native_cases": [
-      "Exact original JSON/Markdown recovery with capped footprint qualifications, source identities and authored policy after policy edits",
-      "Small/default/large budgets and invalid/minimum metadata controls without snapshot writes"
-    ],
-    "resources": "Owned baseline fixture/MCP process closed and removed. Scripts/logs/receipts retained in this case for review; no build or native run started."
+      "Exact original JSON/Markdown report recovery preserving complete coverage after policy edits",
+      "Private composed-planner evidence bypass and invalid/minimum metadata controls without snapshot writes"
+    ]
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -881,10 +881,15 @@
         "item": "Bounded instruction-aware concept-footprint delivery",
         "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
         "progress": "eval/ociusx-footprint-delivery-progress-20261114.json"
+      },
+      {
+        "item": "Complete pattern-report budgets and exact recovery",
+        "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+        "progress": "eval/ociusx-pattern-delivery-progress-20261114.json"
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-guidance-batch-20261114",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\planning-delivery-batch-20261114",
     "completed_last_batch": [
       {
         "component": "ask-response-budget",
@@ -965,7 +970,7 @@
     "delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/ociusx-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Implement the third original OciusX component, then run one combined focused verification/release for the queued batch.",
+  "next_user_visible_deliverable": "Run one combined focused verification/release and public candidate/installed acceptance for pattern guidance and complete footprint/pattern delivery.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1240,5 +1245,46 @@
       "Returned exemplar scope and live exception hashes; root guidance on empty results",
       "Existing implementation-pattern ranking helpers and feature-plan source-dossier checks"
     ]
+  },
+  "retained_queued_footprint_delivery_contract": {
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "TODO4/EG01 bounded instruction-aware concept-footprint delivery",
+    "original_requirement": "Bound complete AI tool replies with explicit coverage and exact recovery, preserving applicable authored guidance across planning/retrieval.",
+    "observed_missing_behavior": "get_concept_footprint currently accepts only project_id/concept/max_per_group and returns unbudgeted Markdown. Per-group caps cannot bound the complete reply or recover its exact original, and the standalone footprint does not include authored guidance for its returned paths.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/footprint_delivery.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/tool_guidance.rs",
+      "crates/engram_server/tests/planning_tools_test.rs"
+    ],
+    "acceptance": [
+      "Public max_tokens budgets the complete reply at four UTF-8 bytes per estimated token, default40KiB. Optional JSON exposes the existing footprint_markdown, returned source paths/completeness and authored policy as named fields; it does not invent a new typed graph algorithm.",
+      "Use the existing immutable snapshot mechanism for exact original UTF-8 recovery in JSON/Markdown. Each continuation carries the budget and bypasses project/runtime/graph retrieval; invalid controls and minimum metadata refusal create no snapshot.",
+      "Keep all existing graph/lexical/literal/group caps and completeness disclosures. Guide scope follows returned footprint paths, with source-cap omissions, live instruction refresh and linked-reference disclosures; summaries require full recovery before acting.",
+      "Keep internal change-set and implementation-brief composition on the original unbudgeted FootprintEvidence path so this public delivery change cannot substitute a deferred envelope for their evidence.",
+      "Focused known-input native recovery checks and candidate/installed MCP calls in the combined three-component batch preserve original evidence, source paths and guidance after policy edits. Use owned current OciusX VB/TS copies; no production global query or Site/Q reads."
+    ],
+    "configuration_observed": {
+      "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+    },
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114",
+    "implementation_complete": true,
+    "validated": false,
+    "deployed": false,
+    "limits": [
+      "Exact recovery covers the selected capped footprint, not every repository touchpoint or proven source/runtime binding.",
+      "Internal retrieval/ranking and graph algorithms are unchanged. No CodeMap/Blast work, target-language expansion or per-component build."
+    ],
+    "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\source-check1.json",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\baseline1\\acceptance.json",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\footprint-delivery-20261114\\verify-public.py",
+    "queued_native_cases": [
+      "Exact original JSON/Markdown recovery with capped footprint qualifications, source identities and authored policy after policy edits",
+      "Small/default/large budgets and invalid/minimum metadata controls without snapshot writes"
+    ],
+    "resources": "Owned baseline fixture/MCP process closed and removed. Scripts/logs/receipts retained in this case for review; no build or native run started."
   }
 }
