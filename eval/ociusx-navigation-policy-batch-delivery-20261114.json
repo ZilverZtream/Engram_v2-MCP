@@ -1,0 +1,266 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T17:20:34.796117+00:00",
+  "improvements": [
+    {
+      "finding": "TODO9",
+      "behavior": "Named JS/JSX/TS/TSX classes retain declared extends; TypeScript classes retain implements and interfaces retain extends. Qualified names and declaration evidence are preserved. Computed heritage is explicitly unresolved, without invented edges."
+    },
+    {
+      "finding": "EG27",
+      "behavior": "Live and revision-pinned policy contexts disclose linked Markdown guidance, source hashes, exact ranges, fragments and incomplete coverage without silently reading or adopting linked targets. Current OciusX root-authored links were verified."
+    },
+    {
+      "finding": "EG02/TODO4",
+      "behavior": "get_change_set honors caller max_tokens for complete JSON/Markdown replies and every immutable recovery page, preserving mandatory identities. Default remains40KiB; larger budgets return full selected dossiers. Invalid/minimum budgets refuse before snapshot creation."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "922060c014f5b2c672160e0f2d188f46fa1a4e2e",
+    "source_commit": "cc03f3a630152ad63f9bb2c3aebe6ce3f46e942d",
+    "root_source_commit": "b47b93140a283534673bdeedadf6a36215560432",
+    "files": {
+      "crates/engram_index/src/parsing.rs": "52c826a97cce0eb21bbb9828f2d467d2e19c08b2e3e83116ca4a634da792800b",
+      "crates/engram_index/src/parsing/js_ts_heritage.rs": "a4db59a9bfccfb29cef50f1450bf7f9a44c7667bb52b15d7f0418ef6c2d15908",
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "fbe7d3e25cab4e005bed5475ef8683115763fda5a8a0237dc5c27334762d8b00",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs": "f828cab0a240a1f14aab143e8d0dc8e857cbb292bea0cda40eec2686f5447af2",
+      "crates/engram_server/src/handlers/planning_tools.rs": "12057bfdc7380b62365d6f886ccf827df29a5c6034f247dc13cac071ce8c4aac",
+      "crates/engram_server/src/models/requests.rs": "a0f2ca732ca4be0fd0f44838a7062a283b59d7253fb6ded8eb76e5f0cf075d49",
+      "crates/engram_server/src/services/instruction_maintenance/manifest.rs": "99f562129b2ba98d03d9a85a52cfb877bc5258129f51f96f24a2c4a723ea7822",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/markdown_links.rs": "7ff56a04e4644340753bbe77b54734a4ac9e28cbd61d10cbc931f208a62b5f44",
+      "crates/engram_server/src/services/project_policy.rs": "55e636587f7737b74f6bd9a5abaec94f132cf84990882c7ddade040e4de2dc30",
+      "crates/engram_server/src/services/project_policy/historical.rs": "446031789bde3ad1963229e6a9096fed2ab4886515003eab6a075788cb644d57",
+      "crates/engram_server/src/services/project_policy/references.rs": "15ecb010afba503c1690098d0b3f4e92926f366760448ccd7e0737ffce7010ce",
+      "crates/engram_server/src/tool_guidance.rs": "b1c8d13cb184626d1bcc4a15cd30c39615fe09dcb6e5d87cea11a4a86f3f1294"
+    }
+  },
+  "root_source_commits": [
+    "62e30e1",
+    "de2b10a",
+    "b47b931"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 33,
+      "index_checks": 4,
+      "server_first_pass_checks": 27,
+      "recovered_historical_checks": 2,
+      "unchanged_compiled_test_binary": {
+        "status": "PASS",
+        "test_binary": "C:\\ai-projects\\Engram-MCP_v2\\target\\debug\\deps\\engram_server-6aa1e091ada9fe4d.exe",
+        "test_binary_sha256": "ad112072023f220fb6701d747eae341d9effad4a33c7f14c89e49e259f4cb39c",
+        "reason": "Only the two historical fixtures failed: libgit2 rejected the runner-generated long temporary path.",
+        "retained_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\native-server1.json",
+        "source_unchanged": true,
+        "temporary_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112",
+        "purpose": "Short owned temporary root for the two compiled Git2 fixture cases; remove after executable closes.",
+        "owned_temp": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\np-history-6fs57kko",
+        "exit_code": 0,
+        "process_closed": true,
+        "remaining_fixture_entries": [],
+        "owned_temp_removed": true
+      },
+      "source_commit": "cc03f3a630152ad63f9bb2c3aebe6ce3f46e942d",
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "retained_initial_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\native-server1.json",
+      "scope": "The two historical cases alone were rerun from the identical executable with a shorter owned TEMP path. No recompile or repeat of passing cases. Public/runtime behavior remains pending.",
+      "resources": "Native Jobs/relays closed, their owned temporary directories removed, and the short historical fixture root removed. Logs/receipts retained."
+    },
+    "public": {
+      "candidate3": {
+        "js-ts-heritage": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage\\candidate3\\acceptance.json",
+            "sha256": "c599e2b4207d0273c470cc9d0ceb1572892e4f5c380ecf79edc21450d4f3c378"
+          },
+          "checks": {
+            "previous_index_lacks_declared_inheritance": true,
+            "typescript_extends_visible_after_refresh": true,
+            "incoming_subclass_visible": true,
+            "implements_visible_after_refresh": true,
+            "interface_extends_visible": true,
+            "javascript_extends_visible": true,
+            "actual_qualified_base_reference_retained": true,
+            "fixture_source_unchanged": true,
+            "actual_source_unchanged": true
+          }
+        },
+        "policy-references": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references\\candidate3\\acceptance.json",
+            "sha256": "a6a2a783cd5cf134583f99175e95f9b426f7863b4e208983f2613149884193ee"
+          },
+          "checks": {
+            "unreturned_link_disclosed_without_adoption": true,
+            "source_hash_range_and_fragment": true,
+            "linked_coverage_and_complete_source": true,
+            "changed_link_without_reindex": true,
+            "markdown_discloses_unresolved_reference": true,
+            "historical_references_are_revision_pinned": true,
+            "current_ociusx_authored_links_preserved": true,
+            "actual_authored_source_unchanged": true
+          }
+        },
+        "change-set-budget": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget\\candidate3\\acceptance.json",
+            "sha256": "9538871a37df04b9cdd624038f097d47db3f000af26bdb7ca6a882a98f998c2b"
+          },
+          "checks": {
+            "default_complete_reply_budget": true,
+            "larger_budget_returns_complete_dossier": true,
+            "json_chosen_complete_reply_budget": true,
+            "json_recovery_action_retains_budget": true,
+            "json_exact_snapshot_hash_and_size": true,
+            "json_complete_original_guides_after_live_edit": true,
+            "json_mandatory_row_identities_retained": true,
+            "markdown_chosen_complete_reply_budget": true,
+            "markdown_recovery_action_retains_budget": true,
+            "markdown_exact_snapshot_hash_and_size": true,
+            "markdown_complete_original_guides_after_live_edit": true
+          }
+        }
+      },
+      "installed1": {
+        "js-ts-heritage": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage\\installed1\\acceptance.json",
+            "sha256": "251b884a70f651acaa1e946cbcc144c9a88c2fe1d66935f7c080bbf396cb4d4c"
+          },
+          "checks": {
+            "previous_index_lacks_declared_inheritance": true,
+            "typescript_extends_visible_after_refresh": true,
+            "incoming_subclass_visible": true,
+            "implements_visible_after_refresh": true,
+            "interface_extends_visible": true,
+            "javascript_extends_visible": true,
+            "actual_qualified_base_reference_retained": true,
+            "fixture_source_unchanged": true,
+            "actual_source_unchanged": true
+          }
+        },
+        "policy-references": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references\\installed1\\acceptance.json",
+            "sha256": "3e4254680fdbfb806c8c287240ac3ac24b4418ba3db5fd66f9c3816c2abdf3a5"
+          },
+          "checks": {
+            "unreturned_link_disclosed_without_adoption": true,
+            "source_hash_range_and_fragment": true,
+            "linked_coverage_and_complete_source": true,
+            "changed_link_without_reindex": true,
+            "markdown_discloses_unresolved_reference": true,
+            "historical_references_are_revision_pinned": true,
+            "current_ociusx_authored_links_preserved": true,
+            "actual_authored_source_unchanged": true
+          }
+        },
+        "change-set-budget": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget\\installed1\\acceptance.json",
+            "sha256": "7ba53f12c4764e4d6da1a314b7c010fb6343f52cc5b8a332da502b181cd07e49"
+          },
+          "checks": {
+            "default_complete_reply_budget": true,
+            "larger_budget_returns_complete_dossier": true,
+            "json_chosen_complete_reply_budget": true,
+            "json_recovery_action_retains_budget": true,
+            "json_exact_snapshot_hash_and_size": true,
+            "json_complete_original_guides_after_live_edit": true,
+            "json_mandatory_row_identities_retained": true,
+            "markdown_chosen_complete_reply_budget": true,
+            "markdown_recovery_action_retains_budget": true,
+            "markdown_exact_snapshot_hash_and_size": true,
+            "markdown_complete_original_guides_after_live_edit": true
+          }
+        }
+      }
+    },
+    "retained_failures": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\native-server1.json",
+        "sha256": "7f2e9a8d1ce06d872aa5bb9df930afc433eb01a00c6d60497142b2e30cf99c77"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\candidate1\\acceptance.json",
+        "sha256": "134a5d993329d6a229fbc51f8d86168cad2243d0af3e92ce4354c3ab343f1700"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\candidate2\\acceptance.json",
+        "sha256": "e0a66e8014c9afa87909142468d0de3af5d1b67fb32ae920b0f2105c2d9a476e"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\deployment4-state.json",
+        "sha256": "37f58a62e47cb1cb9803e0a06c9948457c839023bf1284a40da017fa87d89c26"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\deployment5-state.json",
+        "sha256": "566ec8b8fab99af84150a16db08fc17762f3e6cd9d0ef088ecd3a875cab57930"
+      }
+    ],
+    "verifier_corrections": "ask_codebase uses output_format, not output. Historical hash/content expectations use actual Git blob bytes; Windows checkout CRLF may differ. Neither correction changed product source or required recompilation."
+  },
+  "runtime": {
+    "server_sha256": "86beb83e29ef18f58d0f1d16fc6dbb08a75d6232b6b2ee66d36f73f04e282acd",
+    "manifest_sha256": "c10b09a17d5be9157e8a066cc45be7806850dce29d0b2f330d6bebd576200fe7",
+    "unchanged_sidecar_assets": 214,
+    "compile_seconds": 937,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\pair1.json",
+      "sha256": "5b00a6b535f68c8c4b78e084f4b6b571e7cbbe4569ffed9a2a2fbf7ea8077b85"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\release1.json",
+      "sha256": "e618a074d120659ff11acf29ca98287dfe2b265782a1a01f9acb50b1d4ef89ee"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\deployment6-state.json",
+      "sha256": "b4b66d80bfb7758dcd4ab0747db032e76446c6e0909c26298779dc77e7fe5866"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "c87182c858f05e116fea7d37f0e0e5fb046f702cafa26c2229d9e4e07f384dae"
+    },
+    "actual_activation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\actual-activation\\receipt.json",
+      "sha256": "0ab1c30c5a965f067795098c3c40b2b0cfb5c21d799c05f607000507c299c672"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114\\Engram-win-x64-navigation-policy-20261114.zip",
+    "sha256": "F9FADB0D7AE3CF2FEA7A2976184A6B3E7B101285F0082FE1DF8F8850DD45C070",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "C10B09A17D5BE9157E8A066CC45BE7806850DCE29D0B2F330D6BEBD576200FE7"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "application_sources_unchanged": true,
+    "private_acceptance_preserved_generation3150": true,
+    "intentional_source_refresh": "Only the three named first-party files changed physical source revisions; all other source selections were inherited unchanged. No Site/Q source or declarations opened.",
+    "graph_and_index_formats_unchanged": true
+  },
+  "resources": {
+    "owned_test_build_fixture_resources_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and application-owned children in restoration receipt.",
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\navigation-policy-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\js-ts-heritage",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\change-set-budget"
+    ],
+    "retention": "Keep logs, exact wire responses, failure receipts, package and ZIP for review. Prior installed pair retained by installer. No preexisting-folder deletion."
+  },
+  "limits": [
+    "Declared type relationships do not prove symbol binding or runtime dispatch; other indexed files need a supported scoped refresh before new edges appear.",
+    "Linked-document disclosures are observations from supplied complete sources, not a recursive applicability or authority determination.",
+    "Token budgets estimate four UTF-8 bytes per token; exact recovery covers the selected dossier, not complete project knowledge.",
+    "No full suite or productivity comparison was run.33focused native cases passed; initial environment/verifier failures remain recorded.",
+    "Full original backlog, task-usefulness requirements and19gates remain unfinished."
+  ]
+}

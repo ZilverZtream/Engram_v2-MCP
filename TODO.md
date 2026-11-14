@@ -66,6 +66,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   honor a complete reply budget with counts, warnings and exact recovery;
   other response-budget work remains open. [Delivery](eval/ociusx-ai-context-batch-delivery-20261114.json).
 
+  Change-set caller budgets installed 2026-11-14: `get_change_set.max_tokens`
+  controls the complete JSON/Markdown reply and immutable recovery pages.
+  Default remains40KiB; mandatory identities survive compaction. [Delivery](eval/ociusx-navigation-policy-batch-delivery-20261114.json).
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to
@@ -100,7 +104,10 @@ they feed blast radius, edit safety, and the ADP gates.
 
 - [~] **9. Add inheritance/interface edges (Implements, Extends)** (M) — *partial 2026-06-12:
   InheritsFrom/Implements edge kinds + C# base-list and VB Inherits/Implements extraction;
-  overview lists most-inherited types. Remaining: tree-sitter languages (TS/Python/Rust/Java),
+  overview lists most-inherited types. JS/TS declared extends and TypeScript
+  implements/interface extends installed 2026-11-14; source refresh required for
+  older indexed revisions. Three existing OciusX first-party files refreshed.
+  [Delivery](eval/ociusx-navigation-policy-batch-delivery-20261114.json). Remaining: other target languages (outside OciusX scope),
   blast-radius polymorphism weight (#15), guard-parity inheritance awareness.*
   `engram_graph/src/store.rs`, `cs_extractor.rs`, `vb_extractor.rs`, `parsing.rs`. There
   are 33 edge kinds but no type hierarchy. An agent can't answer "who implements

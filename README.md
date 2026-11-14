@@ -275,6 +275,13 @@ to recover an oversized JSON or Markdown report without rerunning analysis.
 Request traces return applicable authored guidance with hashes and recovery;
 recheck guidance for the final edit scope. [Delivery](eval/ociusx-ai-context-batch-delivery-20261114.json).
 
+`get_change_set.max_tokens` controls the complete reply and each immutable
+recovery page (default40KiB). Live and historical policy contexts disclose
+linked-guidance references and incomplete coverage without adopting targets.
+JS/TS declared inheritance and TypeScript implements/interface extends are
+indexed after source refresh; they do not establish runtime dispatch.
+[Delivery](eval/ociusx-navigation-policy-batch-delivery-20261114.json).
+
 ### Git temporal intelligence
 
 - `index_git_history` — libgit2-backed commit-graph indexing

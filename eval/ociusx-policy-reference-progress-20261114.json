@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "EG27 linked guidance disclosure in shared policy retrieval",
   "original_requirement": "Supply required linked guidance outside normal discovery or name unresolved, conflicting, unreadable or budget-omitted dependencies without silently broadening policy authority.",
   "observed_missing_behavior": "PolicyContext supplies complete selected source text and source omissions but no structured account of Markdown references in that text. Links to guidance outside conventional discovery are neither returned nor named as unresolved. Current OciusX AGENTS.md links shared conventions and conditionally relevant UI guidance.",
@@ -23,8 +23,8 @@
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references",
   "prior_queued_item": "eval/ociusx-js-ts-heritage-progress-20261114.json",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "queued_native_cases": [
     "Out-of-discovery reference remains unadopted with source hash/range",
     "Omitted, ambiguous and broken references retain explicit states",
@@ -34,5 +34,8 @@
   "source_check_limits": "Syntax parsing and preserved-work hashes only before combined verification. Native and public behavior are not claimed yet.",
   "temporary_resources": "Only source-check/focus scripts and receipts in the recorded case. No server, fixture database, build or application source edit for this component. Retain evidence with the combined delivery.",
   "source_commit": "de2b10a",
-  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references\\source-check1.json"
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-references\\source-check1.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-navigation-policy-batch-delivery-20261114.json",
+  "remaining": "This bounded batch is delivered. Preserve its limitations and advance the unfinished original backlog without replaying its checks."
 }
