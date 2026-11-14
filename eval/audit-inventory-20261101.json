@@ -10022,30 +10022,32 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "Original TODO59 shared view/trigger table references and ordinary schema-bound views",
-      "original_requirement": "Consolidate overlapping SQL/table extraction and supply usable existing OciusX SQL analysis.",
-      "observed_missing_behavior": "Installed database intelligence omits actual rl_pris_view.sql because its ordinary WITH SCHEMABINDING declaration is not recognized. View/trigger bodies still use a separate table-reference regex; public fixture trigger misses an INSERT without INTO while retaining existing INTO targets.",
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+      "finding": "Original TODO59 shared procedure/body reference engine",
+      "original_requirement": "Consolidate overlapping SQL parsing/table extraction used by existing SQL tools and migration analysis.",
+      "observed_missing_behavior": "Procedure declarations and database-report bodies still use separate read/write/call regexes. Installed public baseline: the declaration reader reports the ordinary MERGE Ledger write while the database-report summary omits it. Actual aspnet_Applications_CreateApplication read/write source and OUTPUT parameter remain a compatibility case.",
       "implementation_files": [
         "crates/engram_index/src/sql_parser.rs",
-        "crates/engram_server/src/services/database_intelligence_service.rs"
+        "crates/engram_index/src/sp_extractor.rs"
       ],
       "acceptance": [
-        "Recognize the ordinary WITH SCHEMABINDING form in the unchanged actual OciusX rl_pris_view.sql, with all three source tables visible in JSON and Markdown. Existing plain view forms remain supported.",
-        "View and trigger table references use existing shared SQL body/statement recognizers; remove the separate service TABLE_REF_RE. Preserve existing INTO targets including MERGE INTO/SELECT INTO, include INSERT without INTO, and retain keyword/pseudo-table/self-target exclusions with stable sorted summaries.",
-        "One combined focused native/release/candidate/installed batch for registration evidence, ordinary schema keys and view/reference analysis. No per-component build or full suite; preserve WIP9/configuration/actual sources."
+        "One shared body-reference implementation supplies procedure declarations and standalone report bodies. Remove the old seven SP_BODY reference regexes and three duplicate extractor functions.",
+        "Retain procedure-specific keyword/temporary-table/dynamic-procedure filters, strict UPDATE-before-SET and EXEC name terminator rules, and established first-seen pattern ordering. Header/name/parameter, source-line, dynamic/cursor and return metadata parsing remain unchanged. No qualified-procedure lookup work.",
+        "Shared body reports recognize MERGE with or without INTO. Public declaration/report output agrees on the ordinary MERGE write; preserve actual OciusX procedure read/write source and OUTPUT parameter through current public calls on unchanged owned copies.",
+        "Focused native shared recognition/ordinary procedure behavior plus next combined candidate/installed batch. No compilation for this component and no inclusion in the already-frozen request/schema runtime build."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114",
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\baseline1\\acceptance.json",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\verify-public.py",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\baseline1\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\verify-public.py",
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
       "limits": [
-        "Existing heuristic SQL declaration/body analysis and basename conventions remain, not deployed schema binding or runtime execution. No general SQL grammar/optimizer rewrite.",
-        "Actual OciusX view behavior is verified separately from the owned trigger fixture; no claim that OciusX currently deploys that fixture trigger."
+        "Existing heuristic literal recognition and basename metadata remain; no alias/deployed-schema/runtime execution proof.",
+        "This source is later queued work. Current request/schema delivery remains pinned to its frozen source commit; do not claim this engine shipped with it."
       ],
-      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json"
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\source-check1.json",
+      "source_implementation": "Removed seven duplicate procedure-reference regexes and three extractor functions. Shared references retain procedure-specific UPDATE/EXEC and first-seen ordering; generic body reports gain the existing MERGE-without-INTO target recognition."
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10078,7 +10080,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented request/schema components.",
+    "next_user_visible_deliverable": "Finish the existing request/schema release and installed verification. This subsequent shared procedure-reference source stays queued for a later combined batch.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14450,6 +14452,11 @@
           "item": "Shared SQL view/trigger references and schema-bound views",
           "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
           "progress": "eval/ociusx-schema-view-references-progress-20261114.json"
+        },
+        {
+          "item": "Shared procedure/body reference engine",
+          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+          "progress": "eval/ociusx-procedure-reference-engine-progress-20261114.json"
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -15027,7 +15034,33 @@
       "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-foreign-keys-20261114\\source-check1.json"
     },
     "readiness_status_correction": "eval/ociusx-readiness-status-correction-20261114.json",
-    "request_schema_batch_progress": "eval/ociusx-request-schema-batch-progress-20261114.json"
+    "request_schema_batch_progress": "eval/ociusx-request-schema-batch-progress-20261114.json",
+    "retained_compiling_request_schema_contract": {
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "Original TODO59 shared view/trigger table references and ordinary schema-bound views",
+      "original_requirement": "Consolidate overlapping SQL/table extraction and supply usable existing OciusX SQL analysis.",
+      "observed_missing_behavior": "Installed database intelligence omits actual rl_pris_view.sql because its ordinary WITH SCHEMABINDING declaration is not recognized. View/trigger bodies still use a separate table-reference regex; public fixture trigger misses an INSERT without INTO while retaining existing INTO targets.",
+      "implementation_files": [
+        "crates/engram_index/src/sql_parser.rs",
+        "crates/engram_server/src/services/database_intelligence_service.rs"
+      ],
+      "acceptance": [
+        "Recognize the ordinary WITH SCHEMABINDING form in the unchanged actual OciusX rl_pris_view.sql, with all three source tables visible in JSON and Markdown. Existing plain view forms remain supported.",
+        "View and trigger table references use existing shared SQL body/statement recognizers; remove the separate service TABLE_REF_RE. Preserve existing INTO targets including MERGE INTO/SELECT INTO, include INSERT without INTO, and retain keyword/pseudo-table/self-target exclusions with stable sorted summaries.",
+        "One combined focused native/release/candidate/installed batch for registration evidence, ordinary schema keys and view/reference analysis. No per-component build or full suite; preserve WIP9/configuration/actual sources."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\baseline1\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\verify-public.py",
+      "implementation_complete": true,
+      "validated": false,
+      "deployed": false,
+      "limits": [
+        "Existing heuristic SQL declaration/body analysis and basename conventions remain, not deployed schema binding or runtime execution. No general SQL grammar/optimizer rewrite.",
+        "Actual OciusX view behavior is verified separately from the owned trigger fixture; no claim that OciusX currently deploys that fixture trigger."
+      ],
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json"
+    }
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }

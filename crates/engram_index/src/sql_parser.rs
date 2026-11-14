@@ -150,6 +150,21 @@ fn re_into_table() -> &'static Regex {
     RE.get_or_init(|| Regex::new(&format!(r"(?i)\bINTO\s+{QUALIFIED_OBJECT_NAME}")).expect("re_into"))
 }
 
+fn re_merge_table() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bMERGE\s+(?:INTO\s+)?{QUALIFIED_OBJECT_NAME}")).expect("re_merge"))
+}
+
+fn re_procedure_update_table() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bUPDATE\s+{QUALIFIED_OBJECT_NAME}\s+SET\b")).expect("re_procedure_update"))
+}
+
+fn re_procedure_exec() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bEXEC(?:UTE)?\s+{QUALIFIED_OBJECT_NAME}(?:\s|$|;|,)" )).expect("re_procedure_exec"))
+}
+
 fn re_update_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(&format!(r"(?i)\bUPDATE\s+{QUALIFIED_OBJECT_NAME}")).expect("re_update"))
@@ -206,16 +221,34 @@ pub struct SqlBodyReferences {
 }
 
 pub fn analyze_body_references(sql: &str) -> SqlBodyReferences {
+    body_references(sql, false)
+}
+
+/// Keep the declaration reader's strict UPDATE/EXEC forms and first-seen order.
+/// Context-specific keyword/dynamic-name filtering remains with that reader.
+pub(crate) fn procedure_body_references(sql: &str) -> SqlBodyReferences {
+    body_references(sql, true)
+}
+
+fn body_references(sql: &str, procedure: bool) -> SqlBodyReferences {
     let names = |patterns: &[(&Regex, usize)]| -> Vec<String> {
-        patterns.iter().flat_map(|(pattern, group)| pattern.captures_iter(sql)
+        let mut seen = std::collections::BTreeSet::new();
+        let mut names = patterns.iter().flat_map(|(pattern, group)| pattern.captures_iter(sql)
             .filter_map(move |capture| capture.get(*group)
                 .map(|name| strip_brackets(name.as_str()).to_owned())))
-            .collect::<std::collections::BTreeSet<_>>().into_iter().collect()
+            .filter(|name| seen.insert(name.clone())).collect::<Vec<_>>();
+        if !procedure {names.sort();}
+        names
+    };
+    let writes = if procedure {
+        names(&[(re_insert_table(),1),(re_procedure_update_table(),1),(re_delete_table(),1),(re_merge_table(),1)])
+    } else {
+        names(&[(re_insert_table(),1),(re_into_table(),1),(re_update_table(),1),(re_delete_table(),1),(re_merge_table(),1)])
     };
     SqlBodyReferences {
         tables_read: names(&[(re_from_table(), 1), (re_join(), 2)]),
-        tables_written: names(&[(re_insert_table(), 1), (re_into_table(), 1), (re_update_table(), 1), (re_delete_table(), 1)]),
-        called_procedures: names(&[(re_exec(), 1)]),
+        tables_written: writes,
+        called_procedures: names(&[(if procedure {re_procedure_exec()} else {re_exec()}, 1)]),
     }
 }
 
