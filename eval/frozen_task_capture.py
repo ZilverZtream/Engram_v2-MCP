@@ -351,7 +351,8 @@ def prepare_current(spec_directory, destination, pins_path, *, transport=Install
         emit('provenance/capture-complete.json', collection.encoded(state))
         manifest = dict(version=1, producer_kind='current_producer', cases=manifest_cases,
                         judge_oracle='recipe/' + spec['oracle'], frozen_files=dict(evidence),
-                        producer_provenance='provenance/capture-complete.json')
+                        producer_provenance='provenance/capture-complete.json',
+                        read_instructions=evaluation.READ_INSTRUCTIONS)
         emit('manifest.json', collection.encoded(manifest))
         emit('freeze_record.json', collection.encoded(dict(manifest_sha256=evidence['manifest.json'],
              producer_kind='current_producer', frozen_at=collection.now())))

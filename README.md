@@ -55,10 +55,13 @@ a project ID.
 
 The sections below group review, planning, context and operational capabilities.
 Their order is not a measured ranking of agent benefit. The
-[latest recorded LegacyValidation task results](eval/legacy_validation-current-task-check-outcome-20261113.json)
-are from November 13: assisted answers met 19/20 criteria versus the baseline's
-20/20, so the quality check failed. These inspected regression cases do not
-establish a productivity gain or certify binaries shipped after that run.
+[November 13 LegacyValidation check](eval/legacy_validation-current-task-check-outcome-20261113.json)
+met 19/20 criteria with assistance versus the baseline's 20/20. The
+[November 14 archive check](eval/legacy_validation-archive-task-check-outcome-20261114.json)
+met 14/20 versus 16/20, with no false guidance identified. Both quality gates
+failed. These are different task sets, so their scores do not measure a version
+change. Neither check establishes productivity gain or completed application
+validation; the archive result also retains its read-instruction ambiguity.
 
 ### Original LegacyValidation improvement shortlist — delivery evidence, November 13
 
@@ -76,7 +79,7 @@ and acceptance scope; it is not a new test of every feature on the latest binary
 | Evidence-backed area drafts | [Existing OX QA handoff](eval/eg14-evidence-pack-reconciliation-20261112.json): scoped claims, source quotations, shared-rule references, exceptions and explicit gaps. | No policy publication, completed application validation or productivity claim. |
 | Instruction ownership, scope and overflow | [Installed generator behavior](eval/eg15-eg17-generator-delivery-20261111.json) preserves authored files and qualified rules, with complete overflow recovery. | [Legacy production rule ownership](eval/eg28-installed-ownership-delivery-20261112.json) remains unresolved; adoption is not inferred. |
 | Freshness and maintenance | [Dependency-specific JS/TS observations](eval/legacy_validation-instruction-scope-delivery-20261113.json), [scope coverage warnings](eval/legacy_validation-instruction-routing-delivery-20261113.json), and [source-bound proposals with stale refusal](eval/eg31-installed-maintenance-delivery-20261111.json). | Mechanical drift does not establish policy correctness or authorize rewriting guidance. |
-| Demonstrated task usefulness | [Current-output evaluation command and completed comparison](eval/legacy_validation-current-task-check-outcome-20261113.json). | **Quality failed: assisted 19/20, baseline 20/20.** The [retained helper QA comparison](eval/legacy_validation-snapping-helper-qa-outcome-20261113.json) demonstrated no incremental benefit. [The existing QA archive](eval/legacy_validation-qa-archive-qualification-20261114.json) supplies verified source candidates despite the missing literal `qa/bench` directory. Fresh held-out verification remains open; these candidates are not yet a frozen evaluation corpus. |
+| Demonstrated task usefulness | [Current-output command and original comparison](eval/legacy_validation-current-task-check-outcome-20261113.json); [archive comparison with isolated historical sources](eval/legacy_validation-archive-task-check-outcome-20261114.json). | **Latest quality failed: assisted 14/20, baseline 16/20**, with more assisted context and no reads saved. The original 19/20 versus 20/20 failure and [helper QA comparison with no incremental benefit](eval/legacy_validation-snapping-helper-qa-outcome-20261113.json) remain recorded. The archive packets are frozen, but broader held-out/hosted verification and demonstrated implementation benefit remain open. |
 
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL

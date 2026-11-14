@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_PROTOCOL_AND_INSTALLED_CAPTURE_VALIDATED_EVALUATION_RUNNING",
+  "status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED",
   "finding": "EG24 historical source isolation in the existing current-producer evaluator",
   "missing_behavior": "The existing capture pins one project for all cases. Four archived tasks have distinct historical source states; one mixed/current project would leak later code.",
   "implementation_files": [
@@ -51,11 +51,10 @@
   },
   "frozen_inputs": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json",
   "source_preparation_failure_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\source-preparation-attempt1.json",
-  "candidate_models_started": 0,
   "builds_started": 0,
   "remaining": [
-    "Collect the same live evaluation once; retain any failed criterion or execution without retuning/replay.",
-    "Verify owned runtime cleanup and unchanged configuration/work; publish honest outcome. Hosted/held-out and implementation-benefit limitations remain separate."
+    "Preserve failed quality evidence; no replay or retuning of these inspected cases.",
+    "EG24 broader held-out/hosted regular verification and EG25 implementation usefulness remain open. Advance ready original LegacyValidation work; optional repository enablement remains held."
   ],
   "limits": [
     "Bounded archive-derived planning/diagnosis packets, not a full repository implementation trial or uninspected implementation holdout.",
@@ -87,9 +86,37 @@
     "multi_client_daemon"
   ],
   "resources": {
-    "controller_session": 95389,
-    "primary_pid": 47072,
-    "runtime_stores": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\owned-runtime-iqzy03vp\\data",
-    "cleanup": "Controller closes its primary/reader/pipes before deleting only the newly owned runtime directory. Frozen source/evaluation evidence retained; actual project stores unchanged."
-  }
+    "owned_primary_closed": true,
+    "owned_sidecar_and_console_closed": true,
+    "owned_runtime_removed": true,
+    "actual_project_registry_used": false,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
+    "retained_purpose": "Private frozen sources/packets, raw tool/model/judge evidence and failed preparation/bootstrap receipts for review.",
+    "cleanup_condition": "Retain frozen evidence until corpus/results are retired; do not delete preexisting folders.",
+    "persistent_codex_sessions": [
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-38-31-01a1dc36-55eb-7062-b776-a50a26eb7a0f.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-39-54-01a1dc37-9aed-7701-8aa6-d6e3e1f54be4.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-41-18-01a1dc38-e2d4-7610-98f0-637ab56f275e.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-43-01-01a1dc3a-7309-7741-be76-1fe01af4385e.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-44-41-01a1dc3b-f97e-7173-9c2c-6515f83c227d.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-45-49-01a1dc3d-03da-7a23-9969-d0105fd16a5d.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-47-05-01a1dc3e-3130-7882-ad3a-ebcf23891c07.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-48-14-01a1dc3f-39bd-7e71-9c82-2f558e2cdee7.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-49-58-01a1dc40-d296-7c52-9c05-0837d972e5ca.jsonl"
+    ],
+    "persistent_session_purpose": "Nine normal Codex subject/judge transcripts retained by the existing executor for review; not removed by this run.",
+    "cleanup_delay": "Owned primary retained its configured default300-second idle interval after stdio EOF; it exited naturally before stores were removed.",
+    "retained_initial_failures": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\source-preparation-attempt1.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run1\\receipt.json"
+    ]
+  },
+  "candidate_models_started_at_input_freeze": 0,
+  "candidate_models_started": 8,
+  "judge_models_started": 1,
+  "read_wording_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\capture-contract\\read-wording-tests.json",
+    "sha256": "f2f68a6b0227250d2fa8485bdefb769a502d31e30552845102515186930c511e"
+  },
+  "quality_outcome": "eval/legacy_validation-archive-task-check-outcome-20261114.json"
 }

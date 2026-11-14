@@ -174,6 +174,12 @@ four categories, eight candidates, one separate judge and the existing quality
 gates. Preparing faithful historical source/history remains the operator's job;
 the capture does not create snapshots or prove a complete repository trial.
 
+New captures freeze explicit read instructions in their manifest: up to three
+IDs per turn and eight reads across the task. Follow-up packets retain the
+available IDs and permit another request within that budget. Older sealed runs
+retain their original wording and packets; this clarification does not replay
+or regrade them, or establish an improvement in model answers.
+
 The new destination retains the recipe before any producer query, full replies,
 tools/list, freshness observations, process/build pins and selected source
 hashes. Failed captures remain there for inspection; use a new destination for

@@ -855,9 +855,10 @@
         "Regular verification runs frozen leakage-controlled tasks covering scoped policy, companions, history and diagnosis.",
         "Record correctness, false guidance, useful evidence per read, context cost and latency; do not substitute unit-test counts."
       ],
-      "closure_state": "Current installed four-case run completed: assisted19/20, baseline20/20, no false guidance; quality gate correctly failed. Known inspected cases; held-out/hosted regular verification and EG25 benefit remain open.",
+      "closure_state": "Local command and distinct historical case-source capture delivered. November14archive check completed: assisted14/20, baseline16/20, zero false guidance, no measured benefit; failed gate retained. Bounded/inspected packets with read-wording ambiguity; hosted/held-out regular verification and matched implementation benefit remain open.",
       "dependencies": [],
-      "current_check_command_outcome_20261113": "eval/legacy_validation-current-task-check-outcome-20261113.json"
+      "current_check_command_outcome_20261113": "eval/legacy_validation-current-task-check-outcome-20261113.json",
+      "archive_check_outcome_20261114": "eval/legacy_validation-archive-task-check-outcome-20261114.json"
     },
     {
       "id": "EG-25",
@@ -10022,7 +10023,7 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "ACTIVE_TASK_INPUTS_FROZEN_PRODUCER_CAPTURE_PENDING",
+      "status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED",
       "finding": "EG-24 original regular accepted-task verification",
       "original_requirement": "Frozen leakage-controlled tasks covering scoped policy, companion edits, history and diagnosis; measure correctness, false guidance, useful evidence/read cost, context cost and latency.",
       "observed_missing_behavior": "Existing regular check command is delivered but its inspected four-case quality run failed. The claimed corpus absence was based only on a missing literal qa/bench path; actual QA archives provide source candidates. Fresh qualified corpus and isolated source/history remain unfinished.",
@@ -10042,8 +10043,8 @@
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
       "qualification": "eval/legacy_validation-qa-archive-qualification-20261114.json",
       "qualification_complete": true,
-      "corpus_frozen": false,
-      "evaluation_executed": false,
+      "corpus_frozen": true,
+      "evaluation_executed": true,
       "production_source_changed": false,
       "validation_scope": "Archive/source qualification only; zero builds, suites, index updates or model calls.",
       "limits": [
@@ -10052,7 +10053,12 @@
         "Prior inspected 19/20 assisted versus20/20 baseline quality failure remains unchanged."
       ],
       "source_isolation_progress": "eval/legacy_validation-task-source-isolation-progress-20261114.json",
-      "frozen_task_inputs": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json"
+      "frozen_task_inputs": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json",
+      "bounded_delivery_complete": true,
+      "quality_passed": false,
+      "broader_eg24_complete": false,
+      "outcome": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
+      "future_read_wording_clarified": true
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10084,8 +10090,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG24 qualify and freeze existing QA archive tasks using the delivered evaluator; no rebuild",
-    "next_user_visible_deliverable": "Four original-category frozen task packets with matching source/history provenance, followed by one unchanged-evaluator run. Prior failed quality evidence stays visible.",
+    "active_original_item": "EG24 bounded source isolation/archive check delivered with quality failure retained; select next ready original LegacyValidation item without replay or optional-question stall.",
+    "next_user_visible_deliverable": "Next unfinished original LegacyValidation requirement. Keep EG24 held-out/hosted and EG25 implementation-benefit limits open; do not expand the benchmark or restart closed features.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15087,7 +15093,8 @@
     },
     "procedure_analysis_batch_progress": "eval/legacy_validation-procedure-analysis-batch-progress-20261114.json",
     "shortlist_status_update": "eval/legacy_validation-shortlist-status-update-20261114.json",
-    "procedure_analysis_batch_delivery": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json"
+    "procedure_analysis_batch_delivery": "eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json",
+    "archive_check_outcome_20261114": "eval/legacy_validation-archive-task-check-outcome-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

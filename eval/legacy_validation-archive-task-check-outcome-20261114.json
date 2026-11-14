@@ -1,0 +1,294 @@
+{
+  "status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED",
+  "at_utc": "2026-11-14T23:01:26.400671+00:00",
+  "finding": "EG24 original regular accepted-task verification",
+  "source_commit": "16b652b",
+  "original_requirement": "Frozen leakage-controlled tasks in the original scoped-policy, companion-edit, history and diagnosis categories, with correctness, false guidance, context/read cost and latency evidence.",
+  "delivered": [
+    "Existing current-producer capture supports one distinct historical project/root/generation per original case on the same pinned installed producer.",
+    "Four archive-derived cases use exact pre-change source, neighboring area files and explicit filtered-history provenance; complete criteria and both arms inputs were frozen before capture.",
+    "One installed capture and one eight-candidate/independent-judge execution completed. Original quality gates rejected incomplete/withheld criteria. No model replay, response repair or criteria revision.",
+    "Future captures freeze explicit three-IDs-per-turn/eight-reads-total instructions and retain read choices on follow-up. Older sealed run wording/results remain unchanged; no model benefit from this clarification is measured."
+  ],
+  "quality_status": "current_producer_quality_failed",
+  "totals": {
+    "baseline": {
+      "satisfied": 16,
+      "justified_withholding": 2,
+      "total_criteria": 20,
+      "false_guidance": 0,
+      "additional_reads": 12,
+      "input_bytes": 725086,
+      "observed_agent_wall_seconds": 325.675394
+    },
+    "assisted": {
+      "satisfied": 14,
+      "justified_withholding": 4,
+      "total_criteria": 20,
+      "false_guidance": 0,
+      "additional_reads": 12,
+      "input_bytes": 882169,
+      "observed_agent_wall_seconds": 345.908314
+    }
+  },
+  "metrics": [
+    {
+      "case_id": "scoped_policy",
+      "arm": "baseline",
+      "input_bytes": 149015,
+      "input_characters": 148608,
+      "output_bytes": 7486,
+      "output_characters": 7486,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 81.63156,
+      "satisfied": 4,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "diagnosis",
+      "arm": "assisted",
+      "input_bytes": 177264,
+      "input_characters": 176869,
+      "output_bytes": 6690,
+      "output_characters": 6690,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 80.580952,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "scoped_policy",
+      "arm": "assisted",
+      "input_bytes": 249373,
+      "input_characters": 249040,
+      "output_bytes": 8191,
+      "output_characters": 8191,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 100.81839,
+      "satisfied": 2,
+      "justified_withholding": 2,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "companion_edits",
+      "arm": "assisted",
+      "input_bytes": 189121,
+      "input_characters": 188656,
+      "output_bytes": 11979,
+      "output_characters": 11979,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 97.438876,
+      "satisfied": 3,
+      "justified_withholding": 2,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "diagnosis",
+      "arm": "baseline",
+      "input_bytes": 159712,
+      "input_characters": 159363,
+      "output_bytes": 6757,
+      "output_characters": 6757,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 65.821981,
+      "satisfied": 5,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "history",
+      "arm": "baseline",
+      "input_bytes": 263950,
+      "input_characters": 263581,
+      "output_bytes": 7072,
+      "output_characters": 7072,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 74.85841,
+      "satisfied": 4,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "history",
+      "arm": "assisted",
+      "input_bytes": 266411,
+      "input_characters": 266042,
+      "output_bytes": 6491,
+      "output_characters": 6491,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 67.070096,
+      "satisfied": 4,
+      "justified_withholding": 0,
+      "total_criteria": 5,
+      "false_guidance": 0
+    },
+    {
+      "case_id": "companion_edits",
+      "arm": "baseline",
+      "input_bytes": 152409,
+      "input_characters": 152088,
+      "output_bytes": 9947,
+      "output_characters": 9947,
+      "additional_reads": 3,
+      "observed_agent_wall_seconds": 103.363443,
+      "satisfied": 3,
+      "justified_withholding": 2,
+      "total_criteria": 5,
+      "false_guidance": 0
+    }
+  ],
+  "failed_cases": [
+    {
+      "case_id": "scoped_policy",
+      "reasons": [
+        "Required task criteria remain unsatisfied or withheld"
+      ]
+    },
+    {
+      "case_id": "companion_edits",
+      "reasons": [
+        "Required task criteria remain unsatisfied or withheld"
+      ]
+    },
+    {
+      "case_id": "history",
+      "reasons": [
+        "Required task criteria remain unsatisfied or withheld"
+      ]
+    }
+  ],
+  "current_check_elapsed_seconds": 783.8445290999953,
+  "comparison": {
+    "extra_assisted_input_bytes": 157083,
+    "additional_reads_saved": 0,
+    "assisted_minus_baseline_observed_wall_seconds": 20.232920000000036,
+    "interpretation": "No correctness, read-count or context-cost benefit demonstrated in these packets. The two observed arm timings do not establish a general performance result."
+  },
+  "validation": {
+    "source_isolation_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\capture-contract\\focused-tests.json",
+      "sha256": "6706e09679834492332ec96705eac46adc11cf412193116316710e0e44ee97f4"
+    },
+    "final_focused_tests": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\capture-contract\\read-wording-tests.json",
+      "sha256": "f2f68a6b0227250d2fa8485bdefb769a502d31e30552845102515186930c511e"
+    },
+    "latest_focused_test_count": 29,
+    "saved_run_integrity_verified_after_wording_change": true,
+    "engram_builds": 0,
+    "full_native_suites": 0
+  },
+  "evidence": {
+    "source_profiles": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\source-profiles.json",
+      "sha256": "97231f5dc64ebb10a252d77a37e238b6228e94bc2a52d74d0c8636a929cd1137"
+    },
+    "task_and_criteria_freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json",
+      "sha256": "a7fe087e150d4f50257b6e7d510177713369ed174ca70de42db461f1e9c8f68d"
+    },
+    "recipe": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\recipe\\spec.json",
+      "sha256": "f00ed296f281d1afaf2048edc82dfee1b10cc77d7ac7c7651c537aeb4d054e33"
+    },
+    "current_check": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\check\\current-check.json",
+      "sha256": "7995e60326a9aae5d6d07b081c02c1cf9c8e17a9a708bbff4854b5c0a2354bc8"
+    },
+    "manifest": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\check\\capture\\manifest.json",
+      "sha256": "d2a5478e2b6e0a5b965f68063960cdc5f3bd5299b102f1587521b3453b7e3ec3"
+    },
+    "judgments": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\check\\run\\judgments.json",
+      "sha256": "fddd9b1553a3b378a56f7627383303d2cc33d2a2f569cac939b62536b3103a37"
+    },
+    "execution": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\check\\run\\execution\\state.json",
+      "sha256": "f2709ab3d7937eee2d1aa104e9a476ae8d163448be712d2a4e886cb264e27c0a"
+    },
+    "runtime_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run2\\receipt.json",
+      "sha256": "15d396061df90f853830dccf78bacb0930506cd7e604dabf969cff2836c6b50f"
+    }
+  },
+  "read_budget_observation": {
+    "observed_reads_per_candidate": [
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3,
+      3
+    ],
+    "original_wording": "You may request up to three IDs from available_reads; the coordinator will supply their frozen bytes.",
+    "implemented_total_limit": 8,
+    "source_availability": "Unrequested accessctrl, helper and UI packets remained available. Withholding is not proof those sources do not exist.",
+    "inference": "Ambiguous prose may have contributed to the three-read stopping pattern; causality is not established.",
+    "future_clarification": "Only future captures receive explicitly frozen per-turn/total instructions; this run keeps its original packets and scores."
+  },
+  "runtime": {
+    "binary": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\engram_server.exe",
+    "binary_sha256": "f0b7646c97214eb21be62826438cf5b2122570c5b5855c6b5d15545442d93a38",
+    "manifest_sha256": "2643cabb58dd276a63b507e39f44360acff7d216c0ad9e4303c15a316777d55d",
+    "provider_profile": {
+      "embedding_backend": "ollama",
+      "embedding_model": "nomic-embed-text",
+      "llm_backend": "openai",
+      "llm_provider": "openrouter",
+      "llm_model": "openai/gpt-5.6-luna"
+    },
+    "isolated_store_configuration_overrides": [
+      "data_dir",
+      "allowed_roots",
+      "log_file",
+      "multi_client",
+      "multi_client_daemon"
+    ],
+    "actual_config_unchanged": true,
+    "preexisting_work_files_preserved": 9
+  },
+  "resources": {
+    "owned_primary_closed": true,
+    "owned_sidecar_and_console_closed": true,
+    "owned_runtime_removed": true,
+    "actual_project_registry_used": false,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
+    "retained_purpose": "Private frozen sources/packets, raw tool/model/judge evidence and failed preparation/bootstrap receipts for review.",
+    "cleanup_condition": "Retain frozen evidence until corpus/results are retired; do not delete preexisting folders.",
+    "persistent_codex_sessions": [
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-38-31-01a1dc36-55eb-7062-b776-a50a26eb7a0f.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-39-54-01a1dc37-9aed-7701-8aa6-d6e3e1f54be4.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-41-18-01a1dc38-e2d4-7610-98f0-637ab56f275e.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-43-01-01a1dc3a-7309-7741-be76-1fe01af4385e.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-44-41-01a1dc3b-f97e-7173-9c2c-6515f83c227d.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-45-49-01a1dc3d-03da-7a23-9969-d0105fd16a5d.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-47-05-01a1dc3e-3130-7882-ad3a-ebcf23891c07.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-48-14-01a1dc3f-39bd-7e71-9c82-2f558e2cdee7.jsonl",
+      "C:\\Users\\Dennis\\.codex\\sessions\\2026\\11\\14\\rollout-2026-11-14T23-49-58-01a1dc40-d296-7c52-9c05-0837d972e5ca.jsonl"
+    ],
+    "persistent_session_purpose": "Nine normal Codex subject/judge transcripts retained by the existing executor for review; not removed by this run.",
+    "cleanup_delay": "Owned primary retained its configured default300-second idle interval after stdio EOF; it exited naturally before stores were removed.",
+    "retained_initial_failures": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\source-preparation-attempt1.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\installed-run1\\receipt.json"
+    ]
+  },
+  "limits": [
+    "A single model judge evaluated bounded planning/diagnosis answers, not completed authenticated LegacyValidation implementation or application tests.",
+    "Archive-derived inspected source/oracles, curated equal read access and area-bounded filtered source/history; not an untouched implementation holdout or full-repository trial.",
+    "Withheld criteria count as quality failures; no false guidance was identified. The read-protocol ambiguity limits interpretation.",
+    "These tasks differ from the retained November13set. Scores cannot be compared across those sets as a version regression or improvement.",
+    "Useful evidence per read is not independently quantified by counting satisfied criteria or citations. Hosted/private regular verification and EG25 matched implementation/QA benefit remain open."
+  ]
+}

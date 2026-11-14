@@ -136,6 +136,32 @@ class CurrentProducerTests(unittest.TestCase):
         self.on_call = check
         self.run_capture()
 
+    def test_new_capture_explains_per_turn_and_total_reads_and_keeps_followup_choices_visible(self):
+        self.run_capture()
+        manifest, _ = evaluation.load(self.destination)
+        initial = evaluation.packet(self.destination, manifest, 'case0', 'baseline', [])
+        self.assertIn('three IDs from available_reads per turn', initial['instructions'])
+        self.assertIn('eight reads', initial['instructions'])
+        followup = evaluation.packet(self.destination, manifest, 'case0', 'baseline', ['body'])
+        self.assertEqual(followup['available_reads'], ['body'])
+        self.assertIn('three more', followup['instructions'])
+        self.assertIn('eight reads', followup['instructions'])
+        # Frozen wording, rather than later code, defines this sealed trial.
+        with patch.dict(evaluation.READ_INSTRUCTIONS, initial='later wording', continuation='later continuation'):
+            self.assertEqual(evaluation.packet(self.destination, manifest, 'case0', 'baseline', []), initial)
+            self.assertEqual(evaluation.packet(self.destination, manifest, 'case0', 'baseline', ['body']), followup)
+
+    def test_existing_sealed_corpus_without_new_wording_keeps_original_packets(self):
+        self.run_capture()
+        manifest, _ = evaluation.load(self.destination)
+        manifest.pop('read_instructions')
+        initial = evaluation.packet(self.destination, manifest, 'case0', 'baseline', [])
+        self.assertEqual(initial['instructions'], evaluation.INSTRUCTIONS)
+        followup = evaluation.packet(self.destination, manifest, 'case0', 'baseline', ['body'])
+        self.assertEqual(followup, dict(case_id='case0',
+            instructions='Use these frozen read results to finish the prior task; return the same JSON shape.',
+            read_results={'body': {'file': 'entry.vb', 'text': 'End Function'}}))
+
     def test_mutating_request_refused_without_connecting(self):
         self.spec['cases'][0]['tool_requests'][0]['name'] = 'update_project'
         self.assert_failed('read-only')

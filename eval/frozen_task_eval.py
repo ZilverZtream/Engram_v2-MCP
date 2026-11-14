@@ -21,6 +21,18 @@ INSTRUCTIONS = (
     'If evidence is insufficient, state exactly what is missing. Do not mention '
     'an experiment arm, system origin or treatment label; cite source paths.'
 )
+# Keep legacy wording for sealed runs that predate explicit read-budget prose.
+# New captures freeze their own wording in the manifest, like their task inputs.
+READ_INSTRUCTIONS = dict(
+    initial=INSTRUCTIONS.replace(
+        'You may request up to three IDs from available_reads; the coordinator will supply their frozen bytes. ',
+        'You may request up to three IDs from available_reads per turn, with at most eight reads '
+        'across the whole task. The coordinator will supply their frozen bytes. You may ask '
+        'for further available IDs after receiving a read result, within those limits. '),
+    continuation='Continue the prior task using these frozen read results. You may request up to '
+        'three more available IDs this turn, with at most eight reads across the whole task. '
+        'The available_reads list remains accessible; an unrequested packet has not been read. '
+        'Return the same JSON shape, with no read_requests when your answer is final.')
 
 
 def bounded(root, relative):
@@ -115,12 +127,17 @@ def load(root):
 
 def packet(root, manifest, case_id, arm, requested):
     case = next(case for case in manifest['cases'] if case['id'] == case_id)
+    instructions = manifest.get('read_instructions')
     if len(requested) > 3 or len(set(requested)) != len(requested):
         raise ValueError('Use at most three distinct read requests per turn')
     if requested:
-        return dict(case_id=case_id, instructions='Use these frozen read results to finish the prior task; return the same JSON shape.',
+        result = dict(case_id=case_id, instructions=instructions['continuation'] if instructions else
+            'Use these frozen read results to finish the prior task; return the same JSON shape.',
             read_results={key: read_json(root, case['available_reads'][key]) for key in requested})
-    return dict(case_id=case_id, instructions=INSTRUCTIONS,
+        if instructions:
+            result['available_reads'] = sorted(case['available_reads'])
+        return result
+    return dict(case_id=case_id, instructions=instructions['initial'] if instructions else INSTRUCTIONS,
         task=case['task'], source_inputs=read_json(root, case['arms'][arm]['input']),
         available_reads=sorted(case['available_reads']))
 
