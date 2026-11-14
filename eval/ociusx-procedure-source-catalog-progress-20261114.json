@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "Original TODO59 canonical procedure source selection",
   "original_requirement": "Consolidate overlapping SQL parsing and procedure/table analysis used by existing reports.",
   "observed_missing_behavior": "Installed public baseline: get_sp_details finds an ALTER PROCEDURE, but analyze_database_intelligence omits it because its separate source lookup recognizes CREATE only. Existing actual aspnet_Applications_CreateApplication fields and body hash already agree and must remain compatible.",
@@ -20,11 +20,14 @@
   },
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\verify-public.py",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Existing basename matching, heuristic parsing and report formats remain; source declarations do not bind the deployed database or establish execution.",
     "No elapsed-time speedup claim or broad indexing/storage change."
   ],
-  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json"
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\source-check1.json",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

@@ -746,6 +746,13 @@ value is accuracy, this is the biggest meta-gap.
   SQL body recognizers, retaining INTO targets and INSERT without INTO.
   Full consolidation remains open. [Delivery](eval/ociusx-request-schema-batch-delivery-20261114.json).
 
+  Procedure analysis installed 2026-11-14: declarations and reports share
+  body reference recognition and canonical CREATE/ALTER source selection;
+  summaries exclude deployment tails and retain catalog ordering.
+  get_sp_details supports an explicit SQL file and optional omission of code
+  callers with explicit coverage, using the shared SQL input loader.
+  Full consolidation/other original acceptance remains open. [Delivery](eval/ociusx-procedure-analysis-batch-delivery-20261114.json).
+
 - [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/ociusx-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.
 

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "Original TODO59 shared procedure/body reference engine",
   "original_requirement": "Consolidate overlapping SQL parsing/table extraction used by existing SQL tools and migration analysis.",
   "observed_missing_behavior": "Procedure declarations and database-report bodies still use separate read/write/call regexes. Installed public baseline: the declaration reader reports the ordinary MERGE Ledger write while the database-report summary omits it. Actual aspnet_Applications_CreateApplication read/write source and OUTPUT parameter remain a compatibility case.",
@@ -17,12 +17,15 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\baseline1\\acceptance.json",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\verify-public.py",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
+  "validated": true,
+  "deployed": true,
   "limits": [
     "Existing heuristic literal recognition and basename metadata remain; no alias/deployed-schema/runtime execution proof.",
     "This source is later queued work. Current request/schema delivery remains pinned to its frozen source commit; do not claim this engine shipped with it."
   ],
   "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\source-check1.json",
-  "source_implementation": "Removed seven duplicate procedure-reference regexes and three extractor functions. Shared references retain procedure-specific UPDATE/EXEC and first-seen ordering; generic body reports gain the existing MERGE-without-INTO target recognition."
+  "source_implementation": "Removed seven duplicate procedure-reference regexes and three extractor functions. Shared references retain procedure-specific UPDATE/EXEC and first-seen ordering; generic body reports gain the existing MERGE-without-INTO target recognition.",
+  "bounded_delivery_complete": true,
+  "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json",
+  "remaining": "This bounded component is delivered; advance the unfinished original backlog without replaying its acceptance."
 }

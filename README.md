@@ -376,6 +376,16 @@ keys, clean primary-key column names and schema-bound view/table references.
 These are source declarations, not a deployed database schema check.
 [Delivery](eval/ociusx-request-schema-batch-delivery-20261114.json).
 
+For a focused SQL inspection, call `get_sp_details` with `project_id`,
+`sp_name`, `sql_file_path` and `include_code_callers: false`. This reads the
+selected SQL file, skips application-code discovery/reads and graph caller
+lookup, and labels caller coverage `NOT_REQUESTED`. Reverse-procedure callers
+and triggers outside that SQL file are not checked. Omit these options for the
+existing bounded project SQL/code scan. Procedure declarations and report bodies
+share reference recognition; database summaries include CREATE/ALTER forms and
+exclude post-GO deployment text. These are source facts, not execution proof.
+[Delivery](eval/ociusx-procedure-analysis-batch-delivery-20261114.json).
+
 ### Per-method access layer
 
 Precise per-method context retrieval so an agent can touch one method

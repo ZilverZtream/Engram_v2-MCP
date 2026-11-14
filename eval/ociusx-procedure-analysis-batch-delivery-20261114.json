@@ -1,0 +1,229 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-14T21:47:42.234499+00:00",
+  "improvements": [
+    {
+      "finding": "TODO59",
+      "behavior": "Stored-procedure declarations and standalone reports use shared read/write/call recognizers. Seven duplicate regexes and three extractors are removed. Procedure filtering, strict UPDATE/EXEC forms and first-seen order remain; report summaries now retain MERGE targets with or without INTO."
+    },
+    {
+      "finding": "TODO59",
+      "behavior": "Database summaries use the canonical declaration source/batch reader. ALTER and CREATE OR ALTER summaries are retained, post-GO deployment text is excluded, and wanted summary selection parses each SQL file once while preserving catalog order and first basename match. Actual OciusX CREATE procedure fields/hash remain compatible."
+    },
+    {
+      "finding": "TODO59",
+      "behavior": "get_sp_details accepts sql_file_path and include_code_callers (defaulttrue). False skips application-code discovery/reads and graph caller lookup with explicit NOT_REQUESTED coverage. Exact SQL scope, reverse-caller and trigger limits are disclosed; default caller behavior and original details remain. Both SQL report handlers share their input loader."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "306b023abd93bdc27fb25c9e80f41acdad1b4834",
+    "source_commit": "a74864c2bb75163171a429ec6c22e88b76062f6c",
+    "root_source_commit": "c1be0b3ab5adf4b32065b2458c8287cb58bd6c7d",
+    "components": [
+      "eval/ociusx-procedure-reference-engine-progress-20261114.json",
+      "eval/ociusx-procedure-source-catalog-progress-20261114.json",
+      "eval/ociusx-sp-details-scope-progress-20261114.json"
+    ],
+    "files": {
+      "crates/engram_index/src/sp_extractor.rs": "851c07cc797c5b2aadd3121e7f251298251a86addaad097423cabb8904b109b8",
+      "crates/engram_index/src/sql_parser.rs": "90a56e064d6f3683b0981027ada5408449d8eb1a5daec70315c4c3793aaf7a8e",
+      "crates/engram_server/src/handlers/migration_sql_sources.rs": "ab9c8b48c7ecbd9275ca067c2b392d79884645c04a22033e7090513e593ce0f6",
+      "crates/engram_server/src/handlers/migration_tools.rs": "aaf01ad521a9951b6ac0798e42f08e1e8df61de70cf5ebaa6d926a167c435ddc",
+      "crates/engram_server/src/models/requests.rs": "48fb1b4e8001aebe5ff226bb3a685f10e3b4ed12b1e392c1410496f46f789fa4",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "86f1894a142e561b12c11f5c9233b81f3967506c6397c256eb487706ca61776f",
+      "crates/engram_server/src/tools.rs": "0cce383325dfb543e72290a2060c9ac8c279de87b5d2699f8e3adb0faabaf160",
+      "crates/engram_server/tests/phase37_wiring_test.rs": "570ea44a958b4174d2d2f9e82260777c1c75db5a1221002be4e15761b38a9dda"
+    }
+  },
+  "root_source_commits": [
+    "c0fbb67",
+    "eb9517f",
+    "c1be0b3"
+  ],
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 84,
+      "required_component_cases": {
+        "shared_procedure_references_preserve_roles_filters_order_and_output_parameters": true,
+        "canonical_procedure_sources_keep_alter_forms_catalog_order_and_batch_bound_hashes": true,
+        "explicit_sql_source_keeps_exact_content_and_excludes_other_project_sql": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "a74864c2bb75163171a429ec6c22e88b76062f6c",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 06s",
+      "native_test_seconds": 1.1600000000000001,
+      "resources": "Owned focused native Job/relay/temp fixtures closed and removed; exact logs retained. Candidate/installed verification pending. Legacy integration request literals were updated to explicit unchanged defaults; the separate phase37 integration binary is not claimed executed by this focused lib run."
+    },
+    "public": {
+      "candidate1": {
+        "procedure-reference-engine-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\candidate1\\acceptance.json",
+            "sha256": "c91ad43db75ccfa645589446f38e36d7c9ccff76050f8271c912e37f513a02b0"
+          },
+          "checks": {
+            "actual_procedure_retains_read_write_source_and_output_parameter": true,
+            "declaration_parser_supplies_merge_write": true,
+            "report_and_declaration_reader_agree_on_merge_write": true,
+            "output_parameter_and_original_report_fields_preserved": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "procedure-source-catalog-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\candidate1\\acceptance.json",
+            "sha256": "3ae3e7b3e2fdcf0d7dd315e09a377e48778bb35591d50fc57820d0afc1f10920"
+          },
+          "checks": {
+            "actual_procedure_source_fields_available": true,
+            "actual_body_hash_matches_existing_details": true,
+            "altered_procedure_supplied_with_same_batch_bound_hash": true,
+            "altered_procedure_visible_in_markdown": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "sp-details-scope-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\candidate1\\acceptance.json",
+            "sha256": "adaf74f7e9e1d175a15e503afd74d320d2e748381d501724fccff4e12d9646fe"
+          },
+          "checks": {
+            "default_retains_application_and_reverse_procedure_callers": true,
+            "explicit_file_and_no_application_callers_disclosed": true,
+            "reverse_procedure_coverage_is_scoped_not_false_empty": true,
+            "selected_source_details_and_hash_preserved": true,
+            "whole_sql_scope_can_skip_only_code_callers": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        }
+      },
+      "installed1": {
+        "procedure-reference-engine-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\installed1\\acceptance.json",
+            "sha256": "5b76952e39bffae8691fba0782aadf2acf5e1177e9916d48baf6f07e632a55d3"
+          },
+          "checks": {
+            "actual_procedure_retains_read_write_source_and_output_parameter": true,
+            "declaration_parser_supplies_merge_write": true,
+            "report_and_declaration_reader_agree_on_merge_write": true,
+            "output_parameter_and_original_report_fields_preserved": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "procedure-source-catalog-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\installed1\\acceptance.json",
+            "sha256": "bc217732c98f38efd32b2e10d4472b5466662446138bb01b2fea4fe123298850"
+          },
+          "checks": {
+            "actual_procedure_source_fields_available": true,
+            "actual_body_hash_matches_existing_details": true,
+            "altered_procedure_supplied_with_same_batch_bound_hash": true,
+            "altered_procedure_visible_in_markdown": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        },
+        "sp-details-scope-20261114": {
+          "receipt": {
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\installed1\\acceptance.json",
+            "sha256": "c301b9508b42d298454e5d5aac52c7d9bb97a9b518efb3be0f11cbe5a3576da6"
+          },
+          "checks": {
+            "default_retains_application_and_reverse_procedure_callers": true,
+            "explicit_file_and_no_application_callers_disclosed": true,
+            "reverse_procedure_coverage_is_scoped_not_false_empty": true,
+            "selected_source_details_and_hash_preserved": true,
+            "whole_sql_scope_can_skip_only_code_callers": true,
+            "actual_and_fixture_inputs_unchanged": true
+          }
+        }
+      }
+    },
+    "baselines": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114\\baseline1\\acceptance.json",
+        "sha256": "f62b1dca3247850a4addc58cc1beab104bd2d0960728f9dec3a1533482da69df"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline2\\acceptance.json",
+        "sha256": "c5afbb31a8ad48db4a539e61180114b23716e953866f7ab98d21c69887f2d42a"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\baseline1\\acceptance.json",
+        "sha256": "c736f8fbc81e54558c0a64c6d9399f1fbc0c65e98efcd283b979dd13e495ea59"
+      }
+    ],
+    "retained_baseline_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114\\baseline1\\acceptance.json",
+      "sha256": "e0539099c42c68d2796ae9a1adde6403f0586e6bc6ec07ccfdcec78beb58691c"
+    }
+  },
+  "runtime": {
+    "server_sha256": "f0b7646c97214eb21be62826438cf5b2122570c5b5855c6b5d15545442d93a38",
+    "manifest_sha256": "2643cabb58dd276a63b507e39f44360acff7d216c0ad9e4303c15a316777d55d",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114\\pair1.json",
+      "sha256": "e4ff10efefdc68ec298b2a251da80df7db508463f9d2c36d1558ff7cfaebad82"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114\\release1.json",
+      "sha256": "55f602cc98d211c4edda391610eaac5f4e0426dc8c3edf96c2da2ae822f266f7"
+    },
+    "release_runner_seconds": 924.8441224000417,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114\\deployment1-state.json",
+      "sha256": "ade221e59fbf35eb4f6cf349a9f71c0358a39bc6d970476da1a0e3698b6688eb"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114\\restored-runtime\\receipt.json",
+      "sha256": "ac6c7c8ee74a6cbcfa1557e39826bd3c70b0e6d6177dd2877d5eefdf75e15a22"
+    },
+    "selected_generation": 3151,
+    "actual_focused_sql_read": {
+      "status": "PASS",
+      "sql_file_path": "db-ociusx.sql/dbo/Stored Procedures/aspnet_Applications_CreateApplication.sql",
+      "include_code_callers": false,
+      "source_sha256_before": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2",
+      "source_sha256_after": "f8e4588007e62bdcdb6aeae62687685a3bf225e2f5bae2f8736c33dce6b058f2",
+      "body_hash": "90f3bd01f45c2d08da63b081b39514ca459f3dcfc6ab6327e74e03a30e551366",
+      "scope": "Explicit allowed SQL file only; application-code discovery/reads and graph caller lookup disabled. No source writes or database execution."
+    }
+  },
+  "bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114\\Engram-win-x64-procedure-analysis-20261114.zip",
+    "sha256": "3C8FB5BD673B5F78944AD89C1EA24D61D381B9D191572CBC1E3ED193E200CA8E",
+    "entries": 218,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "2643CABB58DD276A63B507E39F44360ACFF7D216C0AD9E4303C15A316777D55D"
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "application_sources_and_guidance_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "selected_generation": 3151,
+    "graph_and_index_formats_unchanged": true
+  },
+  "resources": {
+    "owned_test_build_fixture_resources_removed": true,
+    "owned_mcp_and_config_hold_processes_closed": true,
+    "intentional_retained_runtime": "Normal installed daemon and application-owned children in restoration receipt.",
+    "retained_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-reference-engine-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-source-catalog-20261114",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114"
+    ],
+    "retention": "Keep source/native/build/wire/baseline/package/ZIP evidence for review. Prior runtime pair retained by installer. No preexisting-folder deletion."
+  },
+  "limits": [
+    "Existing heuristic literal recognition, basename matching and source declarations remain, not alias/deployed-schema binding or runtime execution proof. No qualified-procedure lookup expansion.",
+    "Explicit SQL-file mode limits reverse procedure/trigger evidence. include_code_callers=false deliberately supplies no application-caller evidence and labels it NOT_REQUESTED; default behavior is preserved.",
+    "Private public fixtures use unchanged current OciusX SQL/root-guide copies and separate ordinary test inputs. The normal installed check reads only one explicit allowed actual SQL file with code discovery/reads and graph caller lookup disabled. No Site/Q source or production source writes.",
+    "One focused native run and one release build; no full suite, generated-plan tuning, model calls, target-language expansion, CodeMap/Blast work or measured latency/productivity claim. Original31findings/19gates, missing benchmark corpus and wider usefulness requirements remain unfinished."
+  ]
+}

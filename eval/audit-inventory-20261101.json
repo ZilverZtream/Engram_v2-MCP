@@ -10022,7 +10022,7 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO59 focused standalone procedure inspection",
       "original_requirement": "Usable SQL analysis without unnecessary application-code scans; consolidate overlapping SQL input/analysis work.",
       "observed_missing_behavior": "Installed get_sp_details has no explicit SQL-file selector or way to omit application callers: it always discovers project SQL and up to5000 VB/C# files. OciusX targeted SQL inspection needs an explicit source-only mode; baseline confirms both controls are absent and default code/reverse-SP callers are currently returned.",
@@ -10043,13 +10043,15 @@
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\baseline1\\acceptance.json",
       "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\verify-public.py",
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "limits": [
         "A focused read deliberately supplies less caller/trigger coverage and reports that scope. It is not runtime/deployed database proof.",
         "No claimed measured latency improvement, general source-permission framework or target-language expansion."
       ],
-      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\source-check1.json"
+      "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sp-details-scope-20261114\\source-check1.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
     },
     "at_utc": "2026-11-14T11:02:15.744704+00:00",
     "reason": "User corrected generic language expansion back to the original OciusX improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10082,7 +10084,7 @@
       }
     ],
     "active_original_item": "TODO59 explicit single-procedure SQL reports avoid unused project code scan",
-    "next_user_visible_deliverable": "Finish the already-running single release build, then verify candidate/installed public behavior and deploy the three implemented procedure-analysis components.",
+    "next_user_visible_deliverable": "Select the next unfinished original OciusX requirement without reopening delivered acceptance, CodeMap or Blast.",
     "following_original_items": [
       "Preserved original OciusX workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14436,46 +14438,30 @@
       "batch_size": 3,
       "implementation_concurrency": 1,
       "rule": "Implement three original OciusX components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-      "compiled_tests_seconds": 492.0,
-      "actual_test_execution_seconds": 5.41,
-      "last_release_compile_seconds": 1167.0,
-      "pending": [
-        {
-          "item": "Shared procedure/body reference engine",
-          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_LATER_BATCH",
-          "progress": "eval/ociusx-procedure-reference-engine-progress-20261114.json"
-        },
-        {
-          "item": "Canonical procedure source catalog",
-          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-          "progress": "eval/ociusx-procedure-source-catalog-progress-20261114.json"
-        },
-        {
-          "item": "Focused standalone procedure inspection",
-          "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-          "progress": "eval/ociusx-sp-details-scope-progress-20261114.json"
-        }
-      ],
+      "compiled_tests_seconds": 306.0,
+      "actual_test_execution_seconds": 1.1600000000000001,
+      "last_release_compile_seconds": 913.0,
+      "pending": [],
       "unchanged_requirements": "Original feature acceptance, actual OciusX source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-schema-batch-20261114",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-analysis-batch-20261114",
       "completed_last_batch": [
         {
-          "component": "route-registrations-20261114",
-          "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
+          "component": "procedure-reference-engine-20261114",
+          "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
         },
         {
-          "component": "schema-foreign-keys-20261114",
-          "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
+          "component": "procedure-source-catalog-20261114",
+          "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
         },
         {
-          "component": "schema-view-references-20261114",
-          "delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json"
+          "component": "sp-details-scope-20261114",
+          "delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
         }
       ],
-      "last_batch_delivery": "eval/ociusx-request-schema-batch-delivery-20261114.json",
+      "last_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json",
       "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-      "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 8m 12s",
-      "last_release_compile": "Finished `release` profile [optimized] target(s) in 19m 27s"
+      "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 5m 06s",
+      "last_release_compile": "Finished `release` profile [optimized] target(s) in 15m 13s"
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15127,7 +15113,8 @@
       "scope": "Original EG24 remains open; no optional-question stall or replay of the inspected failed task."
     },
     "procedure_analysis_batch_progress": "eval/ociusx-procedure-analysis-batch-progress-20261114.json",
-    "shortlist_status_update": "eval/ociusx-shortlist-status-update-20261114.json"
+    "shortlist_status_update": "eval/ociusx-shortlist-status-update-20261114.json",
+    "procedure_analysis_batch_delivery": "eval/ociusx-procedure-analysis-batch-delivery-20261114.json"
   },
   "latest_ai_readiness_priority": "eval/ociusx-ai-readiness-priority-20261113.json"
 }
