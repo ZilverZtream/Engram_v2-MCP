@@ -6,7 +6,7 @@
 //! - Trigger detection and cross-referencing
 //! - CREATE TABLE/VIEW schema parsing and cross-referencing
 
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
 
 use regex::Regex;
@@ -181,13 +181,8 @@ static CREATE_TABLE_RE: LazyLock<Regex> = LazyLock::new(|| {
 });
 
 static CREATE_VIEW_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?VIEW\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+AS\s+(.*?)(?:(?:\r?\n|\r)GO\b|\z)")
+    Regex::new(r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?VIEW\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(?:WITH\s+SCHEMABINDING\s+)?AS\s+(.*?)(?:(?:\r?\n|\r)GO\b|\z)")
         .expect("CREATE_VIEW_RE")
-});
-
-static TABLE_REF_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(&format!(r"(?im)(?:FROM|JOIN|INTO|UPDATE)\s+{QUALIFIED_OBJECT_NAME}"))
-        .expect("TABLE_REF_RE")
 });
 
 // ── SP Business Logic (Deterministic) ────────────────────────────────────────
@@ -294,6 +289,13 @@ pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic
         calls_other_sps: calls,
         content_hash,
     }
+}
+
+fn referenced_body_tables(body: &str) -> Vec<String> {
+    let refs = engram_index::sql_parser::analyze_body_references(body);
+    refs.tables_read.into_iter().chain(refs.tables_written)
+        .filter(|table| !is_sql_keyword(table))
+        .collect::<BTreeSet<_>>().into_iter().collect()
 }
 
 fn is_sql_keyword(s: &str) -> bool {
@@ -478,12 +480,8 @@ pub fn detect_triggers(sql_files: &[(String, String)]) -> Vec<TriggerInfo> {
                 .unwrap_or(content.len().min(trigger_start + 500));
             let body = &content[trigger_start..body_end];
 
-            let tables_touched: Vec<String> = TABLE_REF_RE
-                .captures_iter(body)
-                .map(|c| object_basename(&c[1]).to_owned())
-                .filter(|t| !is_sql_keyword(t) && t.to_lowercase() != table.to_lowercase())
-                .collect::<HashSet<_>>()
-                .into_iter()
+            let tables_touched: Vec<String> = referenced_body_tables(body)
+                .into_iter().filter(|name| !name.eq_ignore_ascii_case(&table))
                 .collect();
 
             let body_summary = if tables_touched.is_empty() {
@@ -759,13 +757,7 @@ pub fn parse_create_views(sql_files: &[(String, String)]) -> Vec<ViewInfo> {
         for cap in CREATE_VIEW_RE.captures_iter(content) {
             let name = cap[1].to_string();
             let body = &cap[2];
-            let source_tables: Vec<String> = TABLE_REF_RE
-                .captures_iter(body)
-                .map(|c| object_basename(&c[1]).to_owned())
-                .filter(|t| !is_sql_keyword(t))
-                .collect::<HashSet<_>>()
-                .into_iter()
-                .collect();
+            let source_tables = referenced_body_tables(body);
 
             views.push(ViewInfo {
                 name,
@@ -1256,6 +1248,7 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
     if intel.sp_logic.is_empty()
         && intel.triggers.is_empty()
         && intel.schema.tables.is_empty()
+        && intel.schema.views.is_empty()
         && intel.sp_call_chains.is_empty()
         && intel.sql_scripts.is_empty()
     {
@@ -1860,6 +1853,23 @@ GO"#
         assert_eq!((&key.column, &key.references_table, &key.references_column), (&"ParentId".to_string(), &"Parent".to_string(), &"Id".to_string()));
         assert_eq!(key.on_delete.as_deref(),Some("CASCADE"));
         assert_eq!(key.on_update.as_deref(),Some("NO ACTION"));
+    }
+
+    #[test]
+    fn shared_schema_bound_views_render_and_trigger_references_retain_standard_write_targets() {
+        let views = parse_create_views(&[("view.sql".into(), "CREATE VIEW [dbo].[OrderTotals] WITH SCHEMABINDING AS SELECT o.Id FROM dbo.Orders o INNER JOIN dbo.OrderLines l ON o.Id=l.OrderId\nGO\n".into())]);
+        assert_eq!(views.len(),1);
+        assert_eq!(views[0].source_tables,vec!["OrderLines","Orders"]);
+        let intel = DatabaseIntelligence { sp_logic:vec![],sp_call_chains:vec![],triggers:vec![],schema:SchemaReport{views,..Default::default()},sql_scripts:vec![],warnings:vec![] };
+        let markdown = render_database_intelligence_markdown(&intel);
+        assert!(markdown.contains("OrderTotals") && markdown.contains("OrderLines, Orders"));
+
+        let source = "CREATE TRIGGER [dbo].[AuditOrders] ON [dbo].[Orders] AFTER INSERT AS\nBEGIN\nINSERT dbo.Audit SELECT Id FROM inserted;\nMERGE INTO dbo.Ledger USING dbo.Events ON Ledger.Id=Events.Id WHEN MATCHED THEN UPDATE SET Seen=1;\nSELECT Id INTO dbo.Snapshot FROM dbo.Events;\nEND\nGO\n";
+        let triggers = detect_triggers(&[("trigger.sql".into(),source.into())]);
+        assert_eq!(triggers.len(),1);
+        assert_eq!(triggers[0].body_summary,"Trigger on Orders, also touches Audit, Events, Ledger, Snapshot");
+        assert_eq!(triggers[0].target_table,"Orders");
+        assert_eq!(triggers[0].event_types,vec!["INSERT"]);
     }
 
     #[test]

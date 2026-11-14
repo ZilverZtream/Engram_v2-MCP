@@ -1,0 +1,26 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "Original TODO59 shared view/trigger table references and ordinary schema-bound views",
+  "original_requirement": "Consolidate overlapping SQL/table extraction and supply usable existing OciusX SQL analysis.",
+  "observed_missing_behavior": "Installed database intelligence omits actual rl_pris_view.sql because its ordinary WITH SCHEMABINDING declaration is not recognized. View/trigger bodies still use a separate table-reference regex; public fixture trigger misses an INSERT without INTO while retaining existing INTO targets.",
+  "implementation_files": [
+    "crates/engram_index/src/sql_parser.rs",
+    "crates/engram_server/src/services/database_intelligence_service.rs"
+  ],
+  "acceptance": [
+    "Recognize the ordinary WITH SCHEMABINDING form in the unchanged actual OciusX rl_pris_view.sql, with all three source tables visible in JSON and Markdown. Existing plain view forms remain supported.",
+    "View and trigger table references use existing shared SQL body/statement recognizers; remove the separate service TABLE_REF_RE. Preserve existing INTO targets including MERGE INTO/SELECT INTO, include INSERT without INTO, and retain keyword/pseudo-table/self-target exclusions with stable sorted summaries.",
+    "One combined focused native/release/candidate/installed batch for registration evidence, ordinary schema keys and view/reference analysis. No per-component build or full suite; preserve WIP9/configuration/actual sources."
+  ],
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\baseline1\\acceptance.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\verify-public.py",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "limits": [
+    "Existing heuristic SQL declaration/body analysis and basename conventions remain, not deployed schema binding or runtime execution. No general SQL grammar/optimizer rewrite.",
+    "Actual OciusX view behavior is verified separately from the owned trigger fixture; no claim that OciusX currently deploys that fixture trigger."
+  ],
+  "source_check": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-view-references-20261114\\source-check1.json"
+}

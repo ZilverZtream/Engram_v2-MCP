@@ -145,6 +145,11 @@ fn re_insert_table() -> &'static Regex {
     RE.get_or_init(|| Regex::new(&format!(r"(?i)\bINSERT\s+(?:INTO\s+)?{QUALIFIED_OBJECT_NAME}")).expect("re_insert"))
 }
 
+fn re_into_table() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(&format!(r"(?i)\bINTO\s+{QUALIFIED_OBJECT_NAME}")).expect("re_into"))
+}
+
 fn re_update_table() -> &'static Regex {
     static RE: OnceLock<Regex> = OnceLock::new();
     RE.get_or_init(|| Regex::new(&format!(r"(?i)\bUPDATE\s+{QUALIFIED_OBJECT_NAME}")).expect("re_update"))
@@ -209,7 +214,7 @@ pub fn analyze_body_references(sql: &str) -> SqlBodyReferences {
     };
     SqlBodyReferences {
         tables_read: names(&[(re_from_table(), 1), (re_join(), 2)]),
-        tables_written: names(&[(re_insert_table(), 1), (re_update_table(), 1), (re_delete_table(), 1)]),
+        tables_written: names(&[(re_insert_table(), 1), (re_into_table(), 1), (re_update_table(), 1), (re_delete_table(), 1)]),
         called_procedures: names(&[(re_exec(), 1)]),
     }
 }
@@ -1071,6 +1076,15 @@ fn to_camel(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn shared_sql_body_into_targets_retain_merge_and_select_writes() {
+        let refs = analyze_body_references("MERGE INTO [dbo].[Ledger] USING dbo.Events ON Ledger.Id=Events.Id WHEN MATCHED THEN UPDATE SET Seen=1; SELECT Id INTO dbo.Snapshot FROM dbo.Events; INSERT dbo.Audit SELECT Id FROM dbo.Events;");
+        assert_eq!(refs.tables_read, vec!["Events"]);
+        assert!(refs.tables_written.contains(&"Ledger".into()));
+        assert!(refs.tables_written.contains(&"Snapshot".into()));
+        assert!(refs.tables_written.contains(&"Audit".into()));
+    }
+
     #[test]
     fn shared_sql_body_optional_into_and_qualified_targets_agree_with_statements() {
         for sql in [
