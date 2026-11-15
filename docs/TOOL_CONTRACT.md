@@ -391,6 +391,15 @@ are available through `find_references` or `traverse_graph`.
 
 ### Database analysis delivery
 
+Database intelligence column reports use the same declaration reader as
+`query_schema` for recognized type sizes, complete default expressions and
+computed columns. Values use canonical SQL formatting. Refused declarations
+remain in each table's `parsing_warnings` and the report warnings; an empty
+`parsing_warnings` field is omitted. The legacy database report uses
+`nullable=true` when the source omits a NULL clause, while `query_schema`
+retains unknown nullability explicitly. These are source declarations, not
+proof of the deployed database.
+
 `analyze_database_intelligence` defaults to a 65,536-byte complete reply budget
 and accepts positive `max_tokens` (estimated UTF-8 bytes divided by four).
 Small JSON and Markdown reports retain their existing format. Oversized reports

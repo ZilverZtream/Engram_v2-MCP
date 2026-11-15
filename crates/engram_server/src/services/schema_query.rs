@@ -220,6 +220,11 @@ fn foreign_key(t: &[TokenWithSpan], inline: Option<&str>) -> Option<ForeignKey> 
     })
 }
 
+/// Shared declaration reader for schema inventory and database intelligence.
+pub(super) fn parse_column_definition(source: &str) -> anyhow::Result<Column> {
+    column(&tokens(source)?)
+}
+
 fn column(t: &[TokenWithSpan]) -> anyhow::Result<Column> {
     let (name, after) = name_at(t, 0).ok_or_else(|| anyhow::anyhow!("Missing column name"))?;
     anyhow::ensure!(after == 1, "Column name must be unqualified");

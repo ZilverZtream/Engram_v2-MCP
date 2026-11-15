@@ -130,6 +130,9 @@ pub struct SchemaTable {
     pub foreign_keys: Vec<ForeignKey>,
     pub check_constraints: Vec<String>,
     pub indexes: Vec<String>,
+    /// Source declarations refused by the shared parser remain visible.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parsing_warnings: Vec<String>,
 }
 
 /// Column definition within a table.
@@ -560,7 +563,7 @@ pub fn cross_reference_triggers(
 pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
     let mut tables = Vec::new();
 
-    for (_path, content) in sql_files {
+    for (path, content) in sql_files {
         for cap in CREATE_TABLE_RE.captures_iter(content) {
             let name = cap[1].to_string();
             let paren_start = cap.get(0).expect("group 0 always present").end(); // position right after '('
@@ -576,6 +579,7 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
             let mut foreign_keys = Vec::new();
             let mut check_constraints = Vec::new();
             let mut indexes = Vec::new();
+            let mut parsing_warnings = Vec::new();
 
             // Split on commas that aren't inside parentheses
             for segment in split_top_level_commas(body) {
@@ -591,10 +595,13 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
                     );
                 } else if upper.starts_with("INDEX") || upper.starts_with("UNIQUE") {
                     indexes.push(trimmed.to_string());
-                } else if !trimmed.is_empty()
-                    && let Some(col) = parse_column_def(trimmed)
-                {
-                    columns.push(col);
+                } else if !trimmed.is_empty() {
+                    match parse_column_def(trimmed) {
+                        Ok(col) => columns.push(col),
+                        Err(error) => parsing_warnings.push(format!(
+                            "INCOMPLETE schema declaration in {path} ({name}): {trimmed}. {error}"
+                        )),
+                    }
                 }
             }
 
@@ -605,6 +612,7 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
                 foreign_keys,
                 check_constraints,
                 indexes,
+                parsing_warnings,
             });
         }
     }
@@ -659,48 +667,18 @@ fn split_top_level_commas(s: &str) -> Vec<&str> {
     segments
 }
 
-fn parse_column_def(line: &str) -> Option<SchemaColumn> {
-    // Matches: [ColName] NVARCHAR(100), [ColName] INT, [ColName] NVARCHAR(MAX),
-    //          [ColName] DECIMAL(10,2), [ColName] DATETIME2(7), ColName UNIQUEIDENTIFIER
-    static COL_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)^\[?(\w+)\]?\s+(\w+(?:\(\s*(?:\d+|MAX)(?:\s*,\s*\d+)?\s*\))?)(.*)$")
-            .expect("COL_RE")
-    });
-    static COMPUTED_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)^\[?(\w+)\]?\s+AS\s+(.+)$").expect("COMPUTED_RE"));
-
-    // Check for computed column first
-    if let Some(cap) = COMPUTED_RE.captures(line) {
-        return Some(SchemaColumn {
-            name: cap[1].to_string(),
-            data_type: "COMPUTED".to_string(),
-            nullable: true,
-            default_value: None,
-            is_computed: true,
-            computed_expression: Some(cap[2].trim().to_string()),
-        });
-    }
-
-    let cap = COL_RE.captures(line)?;
-    let name = cap[1].to_string();
-    let data_type = cap[2].to_string();
-    let rest = &cap[3];
-    let rest_upper = rest.to_uppercase();
-
-    let nullable = !rest_upper.contains("NOT NULL");
-
-    // Extract DEFAULT value — handle both DEFAULT (expr) and DEFAULT 'literal'
-    static DEFAULT_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)DEFAULT\s+(\([^)]*\)|'[^']*'|\S+)").expect("DEFAULT_RE"));
-    let default_value = DEFAULT_RE.captures(rest).map(|c| c[1].trim().to_string());
-
-    Some(SchemaColumn {
-        name,
-        data_type,
-        nullable,
-        default_value,
-        is_computed: false,
-        computed_expression: None,
+fn parse_column_def(line: &str) -> anyhow::Result<SchemaColumn> {
+    let column = super::schema_query::parse_column_definition(line)?;
+    let is_computed = column.computed_expression.is_some();
+    Ok(SchemaColumn {
+        name: column.name,
+        data_type: column.data_type.unwrap_or_else(|| "COMPUTED".into()),
+        // Retain the legacy report convention for an unspecified NULL clause;
+        // query_schema separately exposes that source uncertainty as None.
+        nullable: column.nullable.unwrap_or(true),
+        default_value: column.default_value,
+        is_computed,
+        computed_expression: column.computed_expression,
     })
 }
 
@@ -1206,6 +1184,7 @@ pub fn build_database_intelligence(
     let trigger_warnings = cross_reference_triggers(&triggers, code_tables);
 
     let mut warnings = trigger_warnings;
+    warnings.extend(schema_report.tables.iter().flat_map(|table| table.parsing_warnings.iter().cloned()));
 
     // Add cycle warnings from call chains
     for chain in &sp_call_chains {
@@ -1811,6 +1790,7 @@ GO"#
             foreign_keys: vec![],
             check_constraints: vec!["Price > 0".to_string()],
             indexes: vec![],
+            parsing_warnings: vec![],
         }];
         let code_tables = HashSet::new();
 
@@ -2095,3 +2075,7 @@ mod qualified_name_contract {
         assert_eq!(statement.primary_table.as_deref(), Some("aspnet_Membership"));
     }
 }
+
+#[cfg(test)]
+#[path = "database_column_tests.rs"]
+mod database_column_tests;

@@ -40,33 +40,29 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "EG20/21 composed history context",
-    "original_requirement": "Usable history evidence in complete bounded change-set planning, with honest missing/failed retrieval coverage.",
-    "observed_missing_behavior": "The typed planner history consumer discards retrieval outcome and labels any returned rows complete. It has no caller history semantic budget. New lexical fallback must retain its limits rather than becoming a complete semantic arm.",
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "Original TODO59 shared SQL schema parsing / TODO35 usable schema reports",
+    "original_requirement": "Consolidate overlapping SQL parsing so agent-facing database reports preserve ordinary source declarations consistently.",
+    "observed_missing_behavior": "Two installed tools disagree on unchanged actual atk_atakostnader DDL. query_schema returns NVARCHAR(100), NVARCHAR(5) and ((0))/((1)); analyze_database_intelligence drops lengths and returns malformed ((0)/((1). Both return the five actual columns.",
     "implementation_files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/handlers/planning_tools.rs",
-      "crates/engram_server/src/handlers/history_coverage_tests.rs",
-      "crates/engram_server/src/handlers/feature_plan_tools.rs",
-      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/services/schema_query.rs",
+      "crates/engram_server/src/services/database_intelligence_service.rs",
+      "crates/engram_server/src/services/database_column_tests.rs",
       "docs/TOOL_CONTRACT.md"
     ],
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\b1\\acceptance.json",
+    "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
     "acceptance": [
-      "get_change_set.history_semantic_timeout_ms controls only its history arm through the existing default/positive/zero semantics. Validate bad values before new retrieval; immutable response recovery stays read-only.",
-      "Retain lexical historical file candidates on timeout/provider failure and mark history coverage incomplete with the reason. Disabled vectors or explicit zero remain visible as lexical retrieval.",
-      "Add finite native coverage tests and verify public planner timeout/candidate retention on owned Git sources with a controlled provider. Freeze and verify these three related components together with one release; no full suite."
+      "Reuse the existing SQL column-declaration parser rather than a second type/default regex. Keep supported type sizes, complete nested default expressions, explicit nullability and computed columns.",
+      "Keep table/PK/FK/index selection unchanged in this component. Surface any refused column declaration in the report rather than silently dropping it during consolidation.",
+      "Verify ordinary native declaration behavior and the exact unchanged actual SQL through both public reports in the combined batch; preserve source/configuration and owned resource cleanup.",
+      "Queue source after implementation; no per-component native/release compile or full suite. Full service consolidation and broader original backlog remain unfinished."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
     "implementation_complete": true,
-    "validated": true,
-    "deployed": true,
-    "progress": "eval/legacy_validation-history-planner-budget-progress-20261115.json",
-    "native_validated": true,
-    "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\native-acceptance.json",
-    "bounded_delivery_complete": true,
-    "delivery": "eval/legacy_validation-history-budget-batch-delivery-20261115.json"
+    "validated": false,
+    "deployed": false,
+    "progress": "eval/legacy_validation-shared-schema-columns-progress-20261115.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -859,7 +855,20 @@
     "compiled_tests_seconds": 253.0,
     "actual_test_execution_seconds": 0.73,
     "last_release_compile_seconds": 746.0,
-    "pending": [],
+    "pending": [
+      {
+        "component": "shared-schema-columns-20261115",
+        "progress": "eval/legacy_validation-shared-schema-columns-progress-20261115.json",
+        "source_files": [
+          "crates/engram_server/src/services/schema_query.rs",
+          "crates/engram_server/src/services/database_intelligence_service.rs",
+          "crates/engram_server/src/services/database_column_tests.rs",
+          "docs/TOOL_CONTRACT.md"
+        ],
+        "validated": false,
+        "deployed": false
+      }
+    ],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
     "completed_last_batch": [
@@ -882,7 +891,7 @@
     "last_release_compile": "Finished `release` profile [optimized] target(s) in 12m 26s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Three history components accepted and installed; no pending source in this batch."
+    "current_step_reason": "First new SQL consolidation component implemented and queued; installed baseline only, no per-component native or release build."
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -947,7 +956,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance unfinished original LegacyValidation work. History semantic-stage controls are installed; preserve metadata/end-to-end latency limits, quality gaps and all unfinished original findings.",
+  "next_user_visible_deliverable": "Unify schema column declarations so database intelligence retains the same ordinary lengths/defaults as query_schema; no new schema parser or target-language expansion.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1549,30 +1558,32 @@
   "archive_check_outcome_20261114": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
   "previous_completed_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "TODO4 bounded edit workflow delivery",
-    "original_requirement": "TODO4 bounded complete agent-facing edit workflow reports",
-    "observed_missing_behavior": "Installed baseline lacks budget/JSON/recovery controls on all three edit tools.",
-    "implementation_files": {
-      "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
-      "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
-      "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
-      "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
-      "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84",
-      "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f"
-    },
-    "acceptance": [
-      "Bound whole public replies; recover exact full Markdown or JSON without rerunning analysis.",
-      "Preserve scoped guidance and internal full completeness evidence.",
-      "Prepare reports before lifecycle mutations; retry failed delivery without unknown or consumed sessions.",
-      "Verify both output formats through candidate and installed MCP tools; preserve actual configuration/source/registry and unrelated WIP."
+    "finding": "EG20/21 composed history context",
+    "original_requirement": "Usable history evidence in complete bounded change-set planning, with honest missing/failed retrieval coverage.",
+    "observed_missing_behavior": "The typed planner history consumer discards retrieval outcome and labels any returned rows complete. It has no caller history semantic budget. New lexical fallback must retain its limits rather than becoming a complete semantic arm.",
+    "implementation_files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/history_coverage_tests.rs",
+      "crates/engram_server/src/handlers/feature_plan_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "docs/TOOL_CONTRACT.md"
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+    "acceptance": [
+      "get_change_set.history_semantic_timeout_ms controls only its history arm through the existing default/positive/zero semantics. Validate bad values before new retrieval; immutable response recovery stays read-only.",
+      "Retain lexical historical file candidates on timeout/provider failure and mark history coverage incomplete with the reason. Disabled vectors or explicit zero remain visible as lexical retrieval.",
+      "Add finite native coverage tests and verify public planner timeout/candidate retention on owned Git sources with a controlled provider. Freeze and verify these three related components together with one release; no full suite."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
     "implementation_complete": true,
     "validated": true,
     "deployed": true,
-    "progress": "eval/legacy_validation-session-complete-delivery-progress-20261115.json",
+    "progress": "eval/legacy_validation-history-planner-budget-progress-20261115.json",
+    "native_validated": true,
+    "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\native-acceptance.json",
     "bounded_delivery_complete": true,
-    "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
+    "delivery": "eval/legacy_validation-history-budget-batch-delivery-20261115.json"
   },
   "queued_typed_query_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
