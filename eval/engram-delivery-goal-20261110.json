@@ -41,22 +41,24 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "EG-27",
-    "finding": "Referenced source changes select dependent instructions outside current applyTo scope",
-    "observed_gap": "changed_evidence::select only calls scoped project_policy resolver. References of unselected guidance are never inspected, so changed Shared helpers do not select policies scoped to Site files that reference them.",
+    "original_requirement_id": "EG-31",
+    "finding": "Retain per-edit semantic reasons and exact source/proposed ranges in maintenance proposals",
+    "observed_gap": "Maintenance validates every Edit.reason but discards it when constructing Proposal. Reviewers receive only overall rationale and diff, losing each declared edit explanation.",
+    "original_requirement": "Reviewable instruction-maintenance proposals preserve changed evidence, rationale, a source-bound proposed diff, accepted exceptions and explicit semantic-review limits.",
     "finite_acceptance": [
-      "Current conventional guidance with a supported exact reference to a caller-declared changed path is offered as a maintenance candidate even when changed source is outside applyTo. Retain full guidance, scope, exceptions and exact reference provenance; do not grant authority outside the declared scope.",
-      "Use existing Markdown path normalization/parser. Inspect before/current guidance references and bounded linked guidance; preserve changed/deleted referenced-source evidence, cycles/budget omissions and ambiguous inline paths without guessing binding. No source-tree or compiler inventory.",
-      "Unrelated guidance and unrelated body edits do not become affected instruction evidence or invalidate its packet merely because inspected. Existing explicit-path maintenance and policy retrieval behavior remain unchanged.",
-      "Source-only stage adds focused behavioral cases and public verifier for the combined batch. No Cargo until three independent original requirements are source-complete. Public baseline may reuse installed binary on owned fixtures."
+      "Returned change proposals retain each validated edit reason verbatim and identify its exact original/proposed end-exclusive UTF-8 byte ranges, bound to existing source/proposal hashes. Preserve original edit identity when presenting source-ordered edits.",
+      "Do not duplicate old/new source strings already retained in complete original/proposed content. Non-change outcomes have no edit previews. Preserve existing exact anchors, stale-packet refusal, exceptions, overlap and before/after evidence checks.",
+      "Expose caller-stated reasons as unaccepted rationale, never as verified policy intent. No automatic authored-file write or new approval flow.",
+      "Reproduce current output loss through installed owned fixture; defer native/public new-code validation to the three-independent-requirement batch."
     ],
     "implementation_files": [
       "crates/engram_server/src/services/instruction_maintenance.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs",
-      "crates/engram_server/src/services/project_policy.rs",
-      "crates/engram_server/tests/changed_instruction_workflow_tests.rs"
+      "crates/engram_server/tests/instruction_proposal_edit_tests.rs"
     ],
+    "documentation_files": [
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "native_target": "instruction_proposal_edit_tests",
     "preserved_wip9": {
       "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
       "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
@@ -68,29 +70,23 @@
       "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
       "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
     },
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115",
-    "cleanup_condition": "Close owners and remove newly owned baseline/test fixtures on completion or unwind. Retain evidence here until superseded; preexisting folders unchanged.",
-    "baseline_commit": "b4c6590",
-    "documentation_files": [
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "native_target": "changed_instruction_workflow_tests",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115",
+    "cleanup_condition": "Owned fixtures close handles then clean on completion/unwind. Retain scripts/results in this case until superseded; no preexisting deletion.",
+    "baseline_commit": "a8805b0",
     "baseline_receipt": "baseline1/receipt.json",
+    "independence": "Explicit instruction_paths proposal review works without changed_paths; distinct from EG-27 discovery. It addresses the original EG-31 rationale/reviewability requirement.",
+    "existing_legacy_validation_workflow_evidence": "eval/eg31-installed-maintenance-delivery-20261111.json",
     "source_validation": {
       "rustfmt_parse": true,
       "git_diff_check": true,
       "native_compiled": false,
-      "public_candidate_run": false,
-      "installed_acceptance_run": false
+      "new_public_behavior_run": false
     },
-    "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
+    "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
     "source_files": {
-      "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
-      "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
-      "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
-      "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
+      "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
+      "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
+      "docs/TOOL_CONTRACT.md": "ffcc878f8b89ca2f428638a7c4fee3f217904f6933c4d41ab2495be69453c041"
     }
   },
   "previous_delivery": {
@@ -902,6 +898,21 @@
           "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
           "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
         }
+      },
+      {
+        "original_requirement_id": "EG-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\contract.json",
+        "source_progress_record": "eval/eg31-edit-reasons-progress-20261115.json",
+        "focused_native_target": "instruction_proposal_edit_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\verify-public.py",
+        "user_outcome": "Reviewers retain each validated edit reason with original input identity and exact original/proposed byte ranges.",
+        "files": {
+          "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
+          "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
+          "docs/TOOL_CONTRACT.md": "ffcc878f8b89ca2f428638a7c4fee3f217904f6933c4d41ab2495be69453c041"
+        }
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -921,7 +932,7 @@
     "last_release_compile": "17m 46s",
     "validation_scope_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
     "current_step_builds_required": 0,
-    "current_step_reason": "1of3independent source requirements queued. Continue source work; combined compile remains blocked.",
+    "current_step_reason": "2of3independent source requirements queued. Continue source work; no per-feature compilation.",
     "last_native_attempts": 3,
     "last_release_attempts": 1,
     "compiled_tests_seconds_scope": "Focused16distinct cases: fixture-only E0603 fix and flattened-JSON path correction;15passes plus corrected1case. Runtime source unchanged, no full/lib suite or extra debug build.",
@@ -2584,6 +2595,21 @@
           "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
           "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
         }
+      },
+      {
+        "original_requirement_id": "EG-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\contract.json",
+        "source_progress_record": "eval/eg31-edit-reasons-progress-20261115.json",
+        "focused_native_target": "instruction_proposal_edit_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\verify-public.py",
+        "user_outcome": "Reviewers retain each validated edit reason with original input identity and exact original/proposed byte ranges.",
+        "files": {
+          "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
+          "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
+          "docs/TOOL_CONTRACT.md": "ffcc878f8b89ca2f428638a7c4fee3f217904f6933c4d41ab2495be69453c041"
+        }
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2597,6 +2623,11 @@
   },
   "eg27_reference_selection_source_progress": {
     "record": "eval/eg27-reference-selection-progress-20261115.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "deployed": false
+  },
+  "eg31_edit_reasons_source_progress": {
+    "record": "eval/eg31-edit-reasons-progress-20261115.json",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "deployed": false
   }

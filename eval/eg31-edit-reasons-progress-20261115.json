@@ -1,0 +1,42 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T17:26:33.543644+00:00",
+  "original_requirement_id": "EG-31",
+  "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
+  "original_requirement": "Reviewable instruction-maintenance proposals preserve changed evidence, rationale, a source-bound proposed diff, accepted exceptions and explicit semantic-review limits.",
+  "observed_baseline": {
+    "status": "BASELINE_EDIT_REASON_LOSS_CONFIRMED",
+    "binary_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\baseline1\\receipt.json"
+  },
+  "before": "Each Edit.reason was required and validated but dropped from returned Proposal; only aggregate rationale and diff survived.",
+  "source_after": [
+    "Retain verbatim reasons and one-based submitted edit identity in source-ordered previews.",
+    "Return end-exclusive UTF-8 byte ranges into complete current/proposed bodies; reuse existing source/proposal hashes rather than duplicating source strings.",
+    "Preserve existing no-change/conflict/needs-evidence, exception, stale-packet, anchor/overlap and review-only semantics."
+  ],
+  "implementation_files": {
+    "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
+    "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
+    "docs/TOOL_CONTRACT.md": "ffcc878f8b89ca2f428638a7c4fee3f217904f6933c4d41ab2495be69453c041"
+  },
+  "checks_completed": [
+    "Installed owned baseline confirms loss for an ordinary two-edit proposal.",
+    "Rustfmt parses implementation and focused test source; git diff --check passes.",
+    "Protected WIP9 bytes unchanged; owned baseline owner closed and fixture removed."
+  ],
+  "checks_deferred": [
+    "Compile/run instruction_proposal_edit_tests with the combined independent-requirement batch.",
+    "Run deferred public verifier on combined candidate/installed artifacts."
+  ],
+  "native_compilations_this_item": 0,
+  "release_builds_this_item": 0,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115",
+    "owned_fixtures_removed": true,
+    "cleanup_condition": "Owned fixtures close handles then clean on completion/unwind. Retain scripts/results in this case until superseded; no preexisting deletion."
+  },
+  "independence_from_EG27": "Explicit instruction_paths proposal review works without changed_paths; distinct from EG-27 discovery. It addresses the original EG-31 rationale/reviewability requirement."
+}
