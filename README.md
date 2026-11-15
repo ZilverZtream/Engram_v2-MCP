@@ -104,7 +104,7 @@ available index coverage.
 |---|---|
 | `immune` | Modifications to files flagged by prior reverts; CRITICAL when paired with destructive patterns |
 | `repo_rules` | Applicable repository rule evidence and mechanically detectable violations |
-| `blast_radius` | High-impact files where a change ripples outward |
+| `compute_blast_radius` | High-impact files where a change ripples outward |
 | `style` | Per-file convention violations (naming, `Using` blocks, `Try/Catch`, `SafeRedirect`, etc.) derived from the file's current code |
 | `temporal` | Strongly-coupled partner files missing from the diff |
 | `state` | Session / ViewState / Application / Cache keys touched by the diff, with their other readers and writers |

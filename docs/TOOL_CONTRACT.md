@@ -570,8 +570,9 @@ guidance are retained. Recovery performs no new analysis, generation, source
 read or project lookup and cannot establish current freshness. Snapshots use
 the existing8MiB ceiling and24hour/32snapshot retention per tool/project.
 
-Budgets estimate complete text plus structured-content UTF-8 bytes at4bytes per
-token, not provider tokens or transport-envelope bytes. Error results and
+Budgets estimate complete text UTF-8 bytes at 4 bytes per token, not provider
+tokens or transport-envelope bytes. The current MCP SDK exposes content and
+isError; it does not expose a structuredContent result field. Error results and
 non-text content retain their existing delivery. Tools with their own delivery
 controls retain their semantics; composed in-process engines also retain their
 complete reports. This does not change feature-plan semantic acceptance.
@@ -615,3 +616,13 @@ selection limits and uncertainty remain; complete delivery does not claim
 complete extraction, safe migration or runtime execution. State-changing tools,
 existing budget owners, closed CodeMap/Blast and unrelated language diagnostics
 retain their behavior.
+
+
+Successful update_memory_bank, import_memory_bank and record_review_decisions
+responses retain their original success receipt as the first text part. A
+second JSON text part supplies next_tools with a complete read-only tool call.
+Memory calls use the stored section identifier, including front-matter and
+explicit import overrides; review calls use the exact review_id. Only routing
+identifiers are included. Follow-ups are advisory and do not execute reads or
+authenticate imported decisions. Errors retain their original result. Memory
+deletion suggests list_memory_bank to inspect the remaining sections.

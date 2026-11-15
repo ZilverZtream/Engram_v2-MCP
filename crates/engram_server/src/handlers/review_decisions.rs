@@ -483,9 +483,13 @@ impl Engram {
         self.ensure_project_record(&req.project_id).await?;
         let count = append(&self.state, &req.project_id, &req.review_id, &req.decisions)
             .map_err(|e| McpError::invalid_params(e, None))?;
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "Stored {count} immutable review events. External attestations only; no checks were executed and no findings suppressed."
-        ))]))
+        Ok(crate::tool_guidance::stored_readback(
+            CallToolResult::success(vec![Content::text(format!(
+                "Stored {count} immutable review events. External attestations only; no checks were executed and no findings suppressed."
+            ))]),
+            "get_review_decisions",
+            serde_json::json!({"project_id":req.project_id,"review_id":req.review_id}),
+        ))
     }
 
     pub async fn handle_get_review_decisions(

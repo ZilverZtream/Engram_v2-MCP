@@ -4881,7 +4881,11 @@ impl Engram {
             }
         }
 
-        Ok(CallToolResult::success(vec![Content::text(msg)]))
+        Ok(crate::tool_guidance::stored_readback(
+            CallToolResult::success(vec![Content::text(msg)]),
+            "read_memory_bank",
+            serde_json::json!({"project_id":req.project_id,"section":section_id}),
+        ))
     }
 
     async fn validate_memory_read_project(&self, project_id: &str) -> Result<(), McpError> {
@@ -5147,9 +5151,13 @@ impl Engram {
         )
         .await?;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "✅ Imported memory_bank: {section_id}"
-        ))]))
+        Ok(crate::tool_guidance::stored_readback(
+            CallToolResult::success(vec![Content::text(format!(
+                "✅ Imported memory_bank: {section_id}"
+            ))]),
+            "read_memory_bank",
+            serde_json::json!({"project_id":req.project_id,"section":section_id}),
+        ))
     }
 
     pub async fn handle_delete_memory_bank(

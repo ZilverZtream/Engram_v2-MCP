@@ -320,3 +320,118 @@ fn tool_guidance_does_not_copy_input_blobs_and_preserves_markdown() {
     assert!(text.starts_with(original) && text.contains("next_tools:"));
     assert!(!text.contains("private"));
 }
+
+#[test]
+fn stored_readback_actions_use_registered_core_readers_and_complete_typed_arguments() {
+    let registry = Engram::tool_registry().list_all();
+    for (tool, args) in [
+        (
+            "read_memory_bank",
+            json!({"project_id":"project","section":"stored-id-not-title"}),
+        ),
+        (
+            "get_review_decisions",
+            json!({"project_id":"project","review_id":"review-id"}),
+        ),
+    ] {
+        let original =
+            CallToolResult::success(vec![Content::text("Original successful storage receipt.")]);
+        let result = tool_guidance::stored_readback(original.clone(), tool, args.clone());
+        assert_eq!(result.content[0], original.content[0]);
+        assert_eq!(result.is_error, original.is_error);
+        assert_eq!(result.content.len(), 2);
+        let action: Value =
+            serde_json::from_str(&result.content[1].as_text().unwrap().text).unwrap();
+        assert_eq!(action["next_tools"][0]["tool"], tool);
+        assert_eq!(action["next_tools"][0]["arguments"], args);
+        assert!(engram_server::tool_surface::CORE_TOOLS.contains(&tool));
+        let target = registry.iter().find(|target| target.name == tool).unwrap();
+        for required in target.input_schema["required"].as_array().unwrap() {
+            assert!(args.get(required.as_str().unwrap()).is_some());
+        }
+        if tool == "read_memory_bank" {
+            let request: engram_server::models::ReadMemoryBankRequest =
+                serde_json::from_value(args).unwrap();
+            assert_eq!(request.section, "stored-id-not-title");
+        } else {
+            let request: engram_server::handlers::review_decisions::GetReviewDecisionsRequest =
+                serde_json::from_value(args).unwrap();
+            assert_eq!(request.review_id, "review-id");
+        }
+        for full in [false, true] {
+            let mut annotated = result.clone();
+            tool_guidance::annotate("import_memory_bank", &tool_guidance::context(Some(&serde_json::from_value(json!({"project_id":"project","markdown":"PRIVATE_BODY_MUST_NOT_BECOME_ROUTING"})).unwrap())), &mut annotated, &registry, full);
+            assert_eq!(
+                annotated, result,
+                "Complete readback part must survive advisory annotation"
+            );
+        }
+    }
+}
+
+#[test]
+fn stored_readback_preserves_failed_mutation_without_suggesting_a_successful_record() {
+    let original = CallToolResult::error(vec![Content::text(
+        "Registry write failed; section not persisted.",
+    )]);
+    assert_eq!(
+        tool_guidance::stored_readback(
+            original.clone(),
+            "read_memory_bank",
+            json!({"project_id":"p","section":"unwritten"})
+        ),
+        original
+    );
+}
+
+#[test]
+fn deleted_memory_navigation_lists_remaining_sections_instead_of_reading_deleted_data() {
+    let (_, result) = run(
+        "delete_memory_bank",
+        json!({"project_id":"project","section":"deleted"}),
+        json!({"status":"deleted"}),
+        true,
+    );
+    assert_eq!(result["next_tools"][0]["tool"], "list_memory_bank");
+    assert_eq!(
+        result["next_tools"][0]["arguments"],
+        json!({"project_id":"project"})
+    );
+}
+
+#[test]
+fn advertised_action_names_resolve_to_the_registry_instead_of_legacy_aliases() {
+    let registry = Engram::tool_registry().list_all();
+    let names: std::collections::BTreeSet<&str> =
+        registry.iter().map(|tool| tool.name.as_ref()).collect();
+    let parameters: std::collections::BTreeSet<&str> = registry
+        .iter()
+        .filter_map(|tool| {
+            tool.input_schema
+                .get("properties")
+                .and_then(Value::as_object)
+        })
+        .flat_map(|properties| properties.keys().map(String::as_str))
+        .collect();
+    let action = regex::Regex::new(r"\b(?:get|find|list|read|search|compute|analyze|trace|map|describe|generate|prepare|plan|check|validate|update|index|ingest|record|export|complete|begin|detect|resolve|add|delete|watch|repair|pre|batch)_[a-z][a-z0-9_]+\b|\bblast_radius\b").unwrap();
+    for tool in &registry {
+        for found in action.find_iter(tool.description.as_deref().unwrap_or("")) {
+            let token = found.as_str();
+            // This description names the existing configuration field, not a tool.
+            let configuration = token == "watch_debounce_secs" && tool.name == "watch_project";
+            assert!(
+                names.contains(token) || parameters.contains(token) || configuration,
+                "{} suggests an unknown action: {token}",
+                tool.name
+            );
+        }
+    }
+    for (source, canonical) in [
+        ("find_connection_path", "compute_blast_radius"),
+        ("get_gis_inventory", "compute_blast_radius"),
+        ("find_dependency_cycles", "suggest_migration_order"),
+    ] {
+        let tool = registry.iter().find(|tool| tool.name == source).unwrap();
+        assert!(tool.description.as_deref().unwrap().contains(canonical));
+    }
+}

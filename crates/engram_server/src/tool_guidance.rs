@@ -5,6 +5,25 @@ use serde_json::{Map, Value, json};
 
 type Suggestions = &'static [(&'static str, &'static str)];
 
+/// Add a complete readback action after storage succeeded, preserving the
+/// original receipt. Callers supply only the stored identifiers, never bodies.
+/// A JSON text part works with the existing MCP transport and older clients.
+pub fn stored_readback(
+    mut result: CallToolResult,
+    tool: &'static str,
+    arguments: Value,
+) -> CallToolResult {
+    if result.is_error == Some(true) {
+        return result;
+    }
+    result.content.push(rmcp::model::Content::text(json!({
+        "next_tools":[{"tool":tool,"arguments":arguments,
+            "reason":"Read back the stored record using its exact identifier."}],
+        "next_tools_status":"suggested; backend and project-data requirements still apply"
+    }).to_string()));
+    result
+}
+
 #[derive(Debug)]
 pub enum Policy {
     Preserve,
@@ -174,12 +193,15 @@ pub fn policy(tool: &str) -> Policy {
         "update_memory_bank"
         | "import_memory_bank"
         | "list_memory_bank"
-        | "delete_memory_bank"
         | "produce_support_kb"
         | "produce_claude_md"
         | "generate_agent_integration" => Suggest(&[(
             "read_memory_bank",
             "Read the relevant stored guidance and its scope before applying or publishing it.",
+        )]),
+        "delete_memory_bank" => Suggest(&[(
+            "list_memory_bank",
+            "Inspect the remaining stored sections after deletion.",
         )]),
         "add_repo_rule" | "list_repo_rules" | "delete_repo_rule" => Suggest(&[(
             "get_review_decisions",

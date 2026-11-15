@@ -1,0 +1,64 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "implementation": {
+    "source_baseline": "073f4bc7f9eab527800b23db147bd59cca3535a9",
+    "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
+    "files": {
+      "crates/engram_server/src/tools.rs": "7e485014b09f5201dda8c5f669ac0ab28900ee52fffd9fac150e27740929d1eb",
+      "crates/engram_server/src/tool_guidance.rs": "e152f1a0ba563c754ae6e492661ec68f9a6d4045286931c7dfff723af6e42282",
+      "crates/engram_server/src/handlers/project_tools.rs": "63522d324c67b7b2fd1fdc0d12ccff8bf0676bf7fdad60f8007aef7e5a8b392a",
+      "crates/engram_server/src/handlers/review_decisions.rs": "e33b3edaabdbb38bbcf57241345634fa19f92906ff5f2f752eff7fc7d1cb7bcd",
+      "crates/engram_server/tests/tool_guidance_tests.rs": "81b71900f7113aa49dc899a49c04493cc868d71feeed4265cff703b46d12f196"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/tools.rs": "7e485014b09f5201dda8c5f669ac0ab28900ee52fffd9fac150e27740929d1eb",
+      "crates/engram_server/src/tool_guidance.rs": "e152f1a0ba563c754ae6e492661ec68f9a6d4045286931c7dfff723af6e42282",
+      "crates/engram_server/src/handlers/project_tools.rs": "63522d324c67b7b2fd1fdc0d12ccff8bf0676bf7fdad60f8007aef7e5a8b392a",
+      "crates/engram_server/src/handlers/review_decisions.rs": "e33b3edaabdbb38bbcf57241345634fa19f92906ff5f2f752eff7fc7d1cb7bcd",
+      "crates/engram_server/tests/tool_guidance_tests.rs": "81b71900f7113aa49dc899a49c04493cc868d71feeed4265cff703b46d12f196"
+    },
+    "preserved_wip9": true
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 13,
+    "required_component_cases": {
+      "stored_readback_actions_use_registered_core_readers_and_complete_typed_arguments": true,
+      "stored_readback_preserves_failed_mutation_without_suggesting_a_successful_record": true,
+      "deleted_memory_navigation_lists_remaining_sections_instead_of_reading_deleted_data": true,
+      "advertised_action_names_resolve_to_the_registry_instead_of_legacy_aliases": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 38s",
+    "native_test_seconds": 0.15,
+    "retained_failed_attempts": [],
+    "dedicated_target": "tool_guidance_tests",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline1\\acceptance.json",
+  "debug_public": {
+    "status": "PASS",
+    "checks": 15,
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\debug-smoke2\\acceptance.json",
+    "same_binary_after_verifier_correction": true,
+    "failed_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\debug-smoke1\\acceptance.json",
+    "failure": "Metadata check used a JavaScript-only fixture where suggest_migration_order is not advertised. Corrected the owned fixture to WebForms and compared the same prior installed binary DOTNET schema snapshot; functional readback checks had passed."
+  },
+  "schema_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline-full-dotnet-schemas.json",
+    "source": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\installed1\\schemas.json",
+    "server_sha256": "781b0eeddeae20f0ff0b8090a9adf1875dd3899dc06e7dfbe628f6a18bc63316"
+  },
+  "protocol_correction": {
+    "sdk": "rmcp0.3.2 pinned in Cargo.lock",
+    "actual": "CallToolResult exposes content and isError only. Readback uses a JSON text content part. No structuredContent capability or protocol upgrade is claimed.",
+    "source": "C:/Users/Dennis/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rmcp-0.3.2/src/model.rs:1187",
+    "prior_claim": "Earlier shared-report notes described structuredContent byte accounting. That code does not establish current public protocol support; corrected in TOOL_CONTRACT.md."
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115",
+  "remaining": "One release; exact candidate/installed write-import-review-delete readbacks, unchanged source/metadata and error preservation, restore normal runtime and push only origin/master.",
+  "limits": "Current registered-name/readback slice only; original EG26 wider semantic/tool/schema/capability reconciliation and original usefulness/full19gates remain open. Non-.NET migration-order availability is not broadened."
+}
