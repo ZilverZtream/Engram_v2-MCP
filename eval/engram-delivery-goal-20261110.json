@@ -991,7 +991,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Three distinct original source outcomes queued: inherited guards, historical-source asks, whole merged-work report delivery. Run the frozen24-case combined native batch, reuse its debug server for finite public acceptance, then one release and installed verification. Full original scope and all holds remain.",
+  "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement from concrete missing behavior. This three-outcome batch is installed; do not replay its completed finite checks. Broader usefulness, authority, historical graph/policy and all other original limits remain open.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2555,43 +2555,19 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-9",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "7af4783ff197982963084057791e3ed599032720",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115\\contract.json",
-        "progress_record": "eval/inherited-guard-review-progress-20261115.json",
-        "user_outcome": "VB guard review cites selected base-class permission conventions without suppressing local warnings or claiming protection."
-      },
-      {
-        "original_requirement_id": "TODO-28",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "b3f8c8a77ddb9f0f946a2a56ce317b97d2bd8ca4",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115\\contract.json",
-        "progress_record": "eval/ask-historical-source-progress-20261115.json",
-        "user_outcome": "Historical ask_codebase questions use revision-bound source, excluding current index/graph substitutions."
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "0a5d58bd5e03697e8f158defb674a17d3e4d9daf",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\merged-work-contract.json",
-        "progress_record": "eval/merged-work-delivery-progress-20261115.json",
-        "user_outcome": "Default and caller budgets bound whole merged-work reports with exact immutable recovery, preserving original history evidence and qualifications."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/ai-workflow-batch-delivery-20261115.json",
+      "record": "eval/revision-guard-history-batch-delivery-20261115.json",
       "source_requirements": [
-        "EG-31",
-        "EG-19",
-        "EG-27"
+        "TODO-9",
+        "TODO-28",
+        "TODO-4"
       ],
-      "native_attempts": 2,
+      "native_builds": 1,
+      "native_fixture_retries_without_recompile": 1,
       "release_attempts": 1
     }
   },
@@ -2622,22 +2598,20 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "NATIVE24_DEBUG_PUBLIC26_PASS_RELEASE_RUNNING",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
-    "requirements": [
-      "TODO-9",
-      "TODO-28",
-      "TODO-4"
-    ],
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": "eval/revision-guard-history-batch-delivery-20261115.json",
+    "independent_requirements_delivered": 3,
     "native_builds": 1,
-    "native_same_binary_fixture_retries": 1,
-    "release_builds_started": 1,
-    "installed": false,
-    "prior_installed_delivery": "eval/ai-workflow-batch-delivery-20261115.json"
+    "release_builds": 1
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_original_goal_complete": false
+  },
+  "revision_guard_history_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": "eval/revision-guard-history-batch-delivery-20261115.json",
     "full_original_goal_complete": false
   }
 }

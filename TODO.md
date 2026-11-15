@@ -82,9 +82,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   installed binary passed with one combined release; broader TODO4 remains
   partial. [Delivery](eval/legacy_validation-core-report-batch-delivery-20261115.json).
   `find_merged_work` whole-report budgets and immutable original-result recovery
-  are source-complete and queued for combined validation on November15. Native,
-  public and installed checks remain pending; broader TODO4 stays partial.
-  [Source progress](eval/merged-work-delivery-progress-20261115.json).
+  were installed on November15. Default/caller budgets preserve all selected
+  cards, source actions and qualifications through exact saved-result recovery;
+  broader TODO4 stays partial.
+  [Delivery](eval/revision-guard-history-batch-delivery-20261115.json).
   Opt-in retained query windows installed 2026-11-15 for search_memory,
   search_history and grep_project. Complete requested JSON windows recover
   exactly through saved byte continuations across source/index/Git changes and
@@ -167,13 +168,15 @@ they feed blast radius, edit safety, and the ADP gates.
   overview lists most-inherited types. JS/TS declared extends and TypeScript
   implements/interface extends installed 2026-11-14; source refresh required for
   older indexed revisions. Three existing LegacyValidation first-party files refreshed.
-  [Delivery](eval/legacy_validation-navigation-policy-batch-delivery-20261114.json). Remaining: other target languages (outside LegacyValidation scope),
-  blast-radius polymorphism weight (#15), guard-parity inheritance awareness.*
-  VB guard-parity inheritance context is source-complete and queued for combined
-  validation on November15. Base-class call citations retain source hashes;
-  they do not suppress local warnings or establish runtime authorization.
-  Native/public checks and installation remain pending; this item stays partial.
-  [Source progress](eval/inherited-guard-review-progress-20261115.json).
+  [Delivery](eval/legacy_validation-navigation-policy-batch-delivery-20261114.json). Remaining:
+  other target languages (outside LegacyValidation scope) and inheritance/guard coverage
+  beyond the explicitly delivered contracts. Polymorphism weights are already
+  delivered under closed item15.*
+  VB guard-parity inheritance context was installed on November15. Base-class
+  call citations retain source hashes without suppressing local warnings or
+  establishing runtime authorization. Unresolved inheritance is disclosed;
+  this item stays partial.
+  [Delivery](eval/revision-guard-history-batch-delivery-20261115.json).
   `engram_graph/src/store.rs`, `cs_extractor.rs`, `vb_extractor.rs`, `parsing.rs`. There
   are 33 edge kinds but no type hierarchy. An agent can't answer "who implements
   IRepository" or see that editing a base class touches 50 subclasses. This also fixes a
@@ -377,12 +380,13 @@ proposals that duplicate the existing surface:
   [Batch delivery](eval/legacy_validation-ai-readiness-batch-delivery-20261114.json).
   Evidence: [member-context delivery](eval/legacy_validation-ask-member-context-delivery-20261113.json);
   [retained earlier 3/4 result](eval/legacy_validation-ask-synthesis-delivery-20261113.json).
-  Revision-bound Git source retrieval is implemented in source and queued on
-  November15. Historical requests exclude the active index/graph and return
-  complete admitted blobs with revision/hash citations; unavailable pins refuse.
-  Six native checks, public acceptance and installation remain pending.
-  Historical graph/policy reconstruction and broader task acceptance stay open.
-  [Source progress](eval/ask-historical-source-progress-20261115.json).
+  Revision-bound Git source retrieval was installed on November15. Historical
+  requests exclude the active index/graph and return complete admitted blobs
+  with revision/hash citations, including subsequently deleted files. Saved
+  report recovery retains the original revision after branch movement;
+  unavailable pins refuse. Historical graph/policy reconstruction and broader
+  task acceptance stay open.
+  [Delivery](eval/revision-guard-history-batch-delivery-20261115.json).
   Routes a question to search + graph + access-layer internally and returns a synthesized,
   cited answer. This is the single highest-leverage *new* tool: it collapses the 114-tool
   selection problem for the 80% case and makes Engram useful to agents that never learn

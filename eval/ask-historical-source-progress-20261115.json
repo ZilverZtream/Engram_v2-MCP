@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-15T20:39:13.208452+00:00",
   "original_requirement_id": "TODO-28",
   "original_requirement": "ask_codebase approved design sections7-8: honor requested as_of branch/commit and expose truthful source revision/provenance. Preserve the full natural-language entry-point requirement and its unfinished historical graph/policy/working-memory/ACL scope.",
@@ -47,11 +47,12 @@
   },
   "checks_completed": [
     "Rust2024 syntax parsing via rustfmt for the touched files; new files formatted",
-    "Selected-path git diff --check"
+    "Selected-path git diff --check",
+    "Native24, debug-public26, candidate26 and installed26 scoped checks passed; exact215-asset package, normal configuration and selected generation3151 verified."
   ],
   "native_tests_run": true,
   "public_acceptance_run": true,
-  "deployed": false,
+  "deployed": true,
   "limits": [
     "Historical source selection is not a historical graph or semantic behavior verifier.",
     "Current policy is withheld with historical-unavailable coverage, not substituted or accepted.",
@@ -72,7 +73,7 @@
     "release": 0
   },
   "combined_validation": {
-    "status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_RUNNING",
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
     "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native-acceptance.json",
     "native_distinct_cases_passed": 24,
@@ -82,6 +83,9 @@
     "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-public-acceptance.json",
     "debug_public_requirement_cases_passed": 8,
     "release_builds_started": 1,
-    "installed": false
-  }
+    "installed": true,
+    "release_builds": 1
+  },
+  "full_requirement_complete": false,
+  "combined_delivery_record": "eval/revision-guard-history-batch-delivery-20261115.json"
 }

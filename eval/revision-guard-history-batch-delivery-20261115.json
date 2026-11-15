@@ -1,0 +1,192 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T21:40:01.702556+00:00",
+  "original_requirement_ids": [
+    "TODO-9",
+    "TODO-28",
+    "TODO-4"
+  ],
+  "original_source_commits": {
+    "TODO-9": "7af4783ff197982963084057791e3ed599032720",
+    "TODO-28": "b3f8c8a77ddb9f0f946a2a56ce317b97d2bd8ca4",
+    "TODO-4": "0a5d58bd5e03697e8f158defb674a17d3e4d9daf"
+  },
+  "runtime_source_commit": "988e9701b845cb018e80198cca12bb13de2d30c4",
+  "delivered": [
+    {
+      "requirement": "TODO-9",
+      "behavior": "VB guard review cites selected base-class permission conventions without suppressing local warnings or claiming protection."
+    },
+    {
+      "requirement": "TODO-28",
+      "behavior": "Historical ask_codebase questions use revision-bound source, excluding current index/graph substitutions."
+    },
+    {
+      "requirement": "TODO-4",
+      "behavior": "Default and caller budgets bound whole merged-work reports with exact immutable recovery, preserving original history evidence and qualifications."
+    }
+  ],
+  "validation": {
+    "native_distinct_cases": 24,
+    "native_compiler_builds": 1,
+    "native_failed_fixture_cases_retried_without_rebuild": 6,
+    "debug_public_checks": 26,
+    "candidate_public_checks": 26,
+    "installed_public_checks": 26
+  },
+  "build_cost": {
+    "native_batch_wall_seconds": 288.67639479995705,
+    "native_reported_compile_seconds": 271,
+    "native_same_binary_retry_wall_seconds": 4.329216999933124,
+    "release_builds": 1,
+    "release_wall_seconds": 859.9126389999874,
+    "no_extra_debug_build": true,
+    "no_full_or_lib_suite": true,
+    "no_default_no_vector_matrix": true
+  },
+  "installed_pair": {
+    "status": "INSTALLED_ACCEPTED_ALL215_MANIFEST_ASSETS_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\package1",
+    "server_sha256": "09f27e106ec263b21c10cc0da2c23207615f21ae5d21c2fbdbdaa0362055b120",
+    "manifest_sha256": "f79fd39c82f88f7e61c5fffc51f7a766b95b7485d4270af475466f2eb45d1ec9",
+    "old_server_sha256": "b43d3c7660b068e07fea0917d132d19e3543a85380f9611506cb6fe7339abd40",
+    "old_manifest_sha256": "0c278c0c12d6dff400318b9d256065db124fbabc04caf7f712ca7760abf72a5e",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\release1.json",
+      "sha256": "2a2626e140fdbf568feae8f71bc815c1ef2edf8d295ba9248b329054ad448e6c"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "0c278c0c12d6dff400318b9d256065db124fbabc04caf7f712ca7760abf72a5e"
+    },
+    "source_commit": "988e9701b845cb018e80198cca12bb13de2d30c4",
+    "manifest_assets_verified": 215
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 38456,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 61268,
+    "daemon_created": 1794778659.5099237,
+    "metadata": {
+      "pid": "61268",
+      "started_at_ms": "1794778659580",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "09f27e106ec263b21c10cc0da2c23207615f21ae5d21c2fbdbdaa0362055b120",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "full_original_goal_complete": false,
+  "task_productivity_demonstrated": false,
+  "limitations": [
+    "Inherited VB guard calls are source-cited conventions, never proof of runtime authorization; local warnings remain. Exclusive only_paths refresh may leave inheritance unresolved and is explicitly degraded rather than guessed.",
+    "Historical ask retrieval returns complete admitted Git blobs at the requested revision. Historical graph, policy reconstruction, runtime execution and general task usefulness remain open.",
+    "Merged-work recovery preserves the complete selected original MCP report, with existing cohort/candidate limits and qualifications. It is not whole-corpus enumeration, reviewer approval or source-object retention.",
+    "Initial native historical fixture setup hit Windows libgit2 path limits; only those six cases reran in the same binary under a shorter owned root. First public attempts retained: missing paired companion, Windows newline oracle, and a positive-binding assertion after an intentionally enrichment-free exclusive update. No product source changes or recompile followed these fixture corrections.",
+    "Original31 findings/19gates, held kernel/SSD work, unresolved ownership decisions and all other unfinished accepted requirements remain tracked. No live Q source read or manual full LegacyValidation operation occurred."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+    "protected_wip9_unchanged": true,
+    "native_jobs_closed_and_fixture_roots_removed": true,
+    "public_fixture_processes_and_resources_closed": true,
+    "normal_configuration_unchanged": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\package1",
+    "retained_package_condition": "Keep release package/ZIP, managed rollback pair, wire/source/build receipts for review and reproduction. No preexisting folders deleted.",
+    "owned_debug_pair_removed_after_verification": {
+      "status": "OWNED_DEBUG_PAIR_REMOVED_AFTER_INSTALLED_ACCEPTANCE",
+      "at_utc": "2026-11-15T21:40:07.685556+00:00",
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-paired",
+      "files_verified_before_removal": 215,
+      "active_processes": [],
+      "shared_debug_server_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\debug\\engram_server.exe",
+      "shared_debug_server_sha256": "3c459c72088d587fe4f9a6b7880e5c9f64b89013b49d99f71554421a2bef7046",
+      "same214_companion_assets_retained_in_installed_and_final_package": true,
+      "preexisting_directories_removed": false,
+      "removed": true
+    },
+    "managed_upgrade_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\revision-guard-history-batch-202611151-install-Upgrade.json",
+      "sha256": "33640920f78b3b97c5078c8c09982215c738861a3db0d4928b77e6a093b88d15"
+    },
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-c0522121ae50453291e6022183120581"
+  },
+  "evidence": {
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\implementation1.json",
+      "sha256": "043436a503c8072b6c1987b9bb60ba62a3fe77cb4adc5c523f43fca165fe11ea"
+    },
+    "native-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native-acceptance.json",
+      "sha256": "9897582fdf619a03fc736ec775dbc2b4a921bf578d8ca3866105802bc15fc8f1"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native1.json",
+      "sha256": "9cd96f71504c1553113299b1687071bb169c2a2da4f274c2e82ff175ffd6bffb"
+    },
+    "native1-fixture-correction.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native1-fixture-correction.json",
+      "sha256": "f8a39542052889d282d91a065bc4d21773c8ccb1cffe4c06add664baf4b425d8"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native2.json",
+      "sha256": "03251ff07c3a27b807f9b1bc22df883f6d412b41f3823492694d1f53440b372f"
+    },
+    "debug-public-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-public-acceptance.json",
+      "sha256": "0ee2355fccf8a47ae238478bb8264c84c9c733206b72b3ee900507a57bd20533"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\release1.json",
+      "sha256": "2a2626e140fdbf568feae8f71bc815c1ef2edf8d295ba9248b329054ad448e6c"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\pair1.json",
+      "sha256": "bcce212134f6da4ab5df717f2d89066d6613e3823e3d312618496bd0443e2cdc"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\candidate1\\acceptance.json",
+      "sha256": "621c81e8a3f7232796ed3cfaf82c517d8db37ef3835b2226575b381254e63c22"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\installed1\\acceptance.json",
+      "sha256": "e47c3edee31401a64f1f3d5a94293a6a53bc174b1a98b424b319dbdcab6ea17a"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\deployment1-state.json",
+      "sha256": "cd5fbb9775b16e69f8fe83d26d568fd8cfcbe20a2cffcf3ddc75d26909fcb763"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\restored-runtime\\receipt.json",
+      "sha256": "d8630642ad13cf4371c84df2f55698f8f42882b5f1124a7bd9f40fe7717f4f2b"
+    },
+    "release-gates1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\release-gates1.json",
+      "sha256": "c3d88d0cda27aa3b5e92fe48b4c63753564a0f47be420e271be09369a296fdb3"
+    },
+    "debug-paired-cleanup.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-paired-cleanup.json",
+      "sha256": "b2c599faac4a06480fef987c2f7f2f3487e3170677e65de6f85f81ef36943062"
+    }
+  },
+  "packaging_correction": "First package step refused before creating a package because release-plan.json was missing. Supplied it from source/native/public evidence and continued the same release artifact via pipeline2; no compiler rebuild or extra product tests."
+}
