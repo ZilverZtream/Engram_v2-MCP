@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
   "changes": [
@@ -8,16 +8,22 @@
     "Planning/edit-session/search/chunk/source/review bind recovery to their originating project; historical/unknown-hash omissions retain evidence limits."
   ],
   "limits": [
-    "No new reader or optional tool dependency. Historical policy is not recovered from current files. Coverage remains incomplete in original reports.",
-    "Not yet deployed; original backlog and task-benefit gaps remain open."
+    "The originating policy report remains incomplete. Reading a document does not establish implementation compliance or alter its scope/authority.",
+    "Hash-pinned source pages are fresh reads, not an atomic retained file snapshot. Changed source requires refreshing the originating guidance request. Existing read/response limits remain.",
+    "Historical and unknown-hash omissions retain revision/refetch guidance; no current-file read is offered as proof of historical policy.",
+    "Owned exact copy of actual non-Q LegacyValidation guide used with Core-only MCP configuration. No actual project/session/source mutation or Site/Q read. Broader task-benefit and original backlog remain open.",
+    "Updated existing integration expectation was not compiled as a separate target; the same changed-page refusal was checked through public MCP."
   ],
   "verification": {
     "native": "20 focused checks passed:19 unchanged passes in native2 plus failed JSON-order assertion corrected and alone rerun in native3;0.66s total test execution. Failures retained.",
-    "public": "Prepared Core-only real-guide-copy acceptance; pending single release."
+    "public": "Candidate and installed Core-only MCP acceptance passed; normal configured runtime restored."
   },
   "build_policy": "One focused harness with relevant existing policy/recovery tests, one canonical release; no full suite. No behavior changes during a running compile.",
   "preserved": "WIP9 hashes checked before source freeze. Preexisting folders/stashes/local work unchanged.",
   "temporary_resources": "Only current case owns new fixtures; runners close process/database handles then remove their own fixtures. Evidence retained for delivery audit.",
   "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\native-acceptance.json",
-  "integration_test_update": "Existing changed-file pagination expectation aligned with refusal. Not compiled as a separate integration target; matching public MCP behavior will be checked with the release binary."
+  "integration_test_update": "Existing changed-file pagination expectation aligned with refusal. Not compiled as a separate integration target; matching public MCP behavior will be checked with the release binary.",
+  "validated": true,
+  "deployed": true,
+  "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
 }

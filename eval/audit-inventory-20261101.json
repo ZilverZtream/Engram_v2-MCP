@@ -10023,7 +10023,7 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_FOCUSED_NATIVE_VALIDATED_RELEASE_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "EG01/EG27 scoped guidance source handoff",
       "original_requirement": "Usable scoped instruction retrieval with source freshness preserved across planning, editing, retrieval and review.",
       "observed_missing_behavior": "Oversized actual LegacyValidation guide is intentionally omitted; omission supplies only prose path/hash. Existing Core source reader has no expected-hash request or hash-bound next-page handoff.",
@@ -10046,12 +10046,14 @@
         "One combined focused native check and one release build after all three source components; no per-component build or full suite."
       ],
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
       "native_validated": true,
       "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\native-acceptance.json",
-      "progress": "eval/legacy_validation-policy-source-handoff-progress-20261115.json"
+      "progress": "eval/legacy_validation-policy-source-handoff-progress-20261115.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10083,8 +10085,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG01/EG27 current guidance source handoff; one implementation item, three related source components before compilation.",
-    "next_user_visible_deliverable": "Copy-ready hash-bound reads for omitted guidance across existing agent workflows.",
+    "active_original_item": "EG01/EG27 guidance source handoff delivered; advance remaining original requirements without replaying passed acceptance.",
+    "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements; preserve unfinished original findings and benefit gaps. Current guidance handoff is installed.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14399,33 +14401,42 @@
       "batch_size": 3,
       "implementation_concurrency": 1,
       "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-      "compiled_tests_seconds": 194.0,
-      "actual_test_execution_seconds": 0.52,
-      "last_release_compile_seconds": 745.0,
+      "compiled_tests_seconds": 369.994755599997,
+      "actual_test_execution_seconds": 0.66,
+      "last_release_compile_seconds": 754,
       "pending": [],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
       "completed_last_batch": [
         {
-          "component": "shared-schema-columns-20261115",
-          "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
+          "component": "omitted-guidance action",
+          "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
         },
         {
-          "component": "shared-schema-inventory-20261115",
-          "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
+          "component": "source hash guards and continuation",
+          "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
         },
         {
-          "component": "schema-index-evidence-20261115",
-          "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
+          "component": "agent-workflow handoff",
+          "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
         }
       ],
-      "last_batch_delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json",
+      "last_batch_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json",
       "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-      "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 14s",
-      "last_release_compile": "Finished `release` profile [optimized] target(s) in 12m 25s",
+      "last_native_compile": [
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s",
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 27s"
+      ],
+      "last_release_compile": "Finished `release` profile [optimized] target(s) in 12m 34s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
       "current_step_builds_required": 0,
-      "current_step_reason": "Three SQL components accepted and installed; no pending behavior source from this batch."
+      "current_step_reason": "Guidance handoff accepted and installed; no pending source from this batch.",
+      "last_native_attempts": 3,
+      "last_release_attempts": 1,
+      "compiled_tests_seconds_scope": "All three native runners including failed attempts and owned cleanup; actual test execution reported separately.",
+      "last_release_runner_seconds": 767.0682052000193,
+      "native_failed_attempts": 2,
+      "public_failed_verifier_attempts": 1
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15317,7 +15328,8 @@
       "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
     },
     "shared_schema_batch_delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json",
-    "deferred_source_cleanup": "Remove unused QUALIFIED_OBJECT_NAME import in database_intelligence_service in the next substantive source batch. One nonblocking compiler warning; no behavior failure or extra rebuild."
+    "deferred_source_cleanup": "Unused QUALIFIED_OBJECT_NAME import removed with the substantive guidance-handoff batch; no separate build.",
+    "policy_source_handoff_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

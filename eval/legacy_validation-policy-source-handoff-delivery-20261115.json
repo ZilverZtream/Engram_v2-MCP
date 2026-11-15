@@ -1,0 +1,224 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T03:18:19.896623+00:00",
+  "improvements": [
+    "Current omitted guidance includes copy-ready project/path/hash-bound Core reader action in JSON and Markdown.",
+    "Explicit source reads validate expected_file_blake3 before returning source; source next pages pin the complete-file raw hash.",
+    "Planning, edit-session opening/completion, source search/chunk, direct source and review carry the handoff while preserving source/policy qualifications."
+  ],
+  "implementation": {
+    "source_baseline": "8ce0613bf499a412ce58f49137e03824904e61fd",
+    "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
+    "files": {
+      "crates/engram_server/src/services/project_policy.rs": "18c2e96bbd88d71462533e56846ff1d0986d4284015ddaa4167a495b9f391f19",
+      "crates/engram_server/src/models/requests.rs": "324d6c6878c37b3c01a3eda2e527ee4e8eff04e459e178fab1ac568946698fc3",
+      "crates/engram_server/src/handlers/access_layer_tools.rs": "f984701a4412d85cdf6636dfeeb6867d5625319a27bff400ecdb45522d5cfd76",
+      "crates/engram_server/src/handlers/planning_tools.rs": "522ab8e97a63a58f7b57b493326876f40582c4e38b71e9151dd1c2dabecad73f",
+      "crates/engram_server/src/handlers/search_tools.rs": "2b35eb686045ba0f343455fb6ac73016b805ae2e0b4164ce554fe6af44676d84",
+      "crates/engram_server/src/handlers/review_tools.rs": "cc9159c346e47d326dbf6d6383d30f114f3a77ed24845334408d1ab3ac2b8800",
+      "crates/engram_server/src/handlers/method_body_policy.rs": "c508db3fa3546674137e1375148ba814df69741ae58c8ae523c3758a8a7b94b7",
+      "crates/engram_server/src/handlers/policy_source_handoff_tests.rs": "65dc87340c2230886573d74bc0ce69491ef7f591bffd75e99dc5ef5b8f3fcc82",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "f75142c04acd99e9fa9c3e910bfae75767191237712f33641dece9b69d86ea6c",
+      "crates/engram_server/src/tools.rs": "629481e9e81a3c81792302ca2eaeac358987e1130f411e4f7ee97de3d29fcebc"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/services/project_policy.rs": "18c2e96bbd88d71462533e56846ff1d0986d4284015ddaa4167a495b9f391f19",
+      "crates/engram_server/src/models/requests.rs": "324d6c6878c37b3c01a3eda2e527ee4e8eff04e459e178fab1ac568946698fc3",
+      "crates/engram_server/src/handlers/access_layer_tools.rs": "f984701a4412d85cdf6636dfeeb6867d5625319a27bff400ecdb45522d5cfd76",
+      "crates/engram_server/src/handlers/planning_tools.rs": "522ab8e97a63a58f7b57b493326876f40582c4e38b71e9151dd1c2dabecad73f",
+      "crates/engram_server/src/handlers/search_tools.rs": "2b35eb686045ba0f343455fb6ac73016b805ae2e0b4164ce554fe6af44676d84",
+      "crates/engram_server/src/handlers/review_tools.rs": "cc9159c346e47d326dbf6d6383d30f114f3a77ed24845334408d1ab3ac2b8800",
+      "crates/engram_server/src/handlers/method_body_policy.rs": "c508db3fa3546674137e1375148ba814df69741ae58c8ae523c3758a8a7b94b7",
+      "crates/engram_server/src/handlers/policy_source_handoff_tests.rs": "65dc87340c2230886573d74bc0ce69491ef7f591bffd75e99dc5ef5b8f3fcc82",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "f75142c04acd99e9fa9c3e910bfae75767191237712f33641dece9b69d86ea6c",
+      "crates/engram_server/src/tools.rs": "629481e9e81a3c81792302ca2eaeac358987e1130f411e4f7ee97de3d29fcebc"
+    },
+    "preserved_wip9": true,
+    "build_policy": "All three related components frozen before one native harness and one canonical release; no full suite."
+  },
+  "root_source": {
+    "root_commit": "9b5110a3b33ca3471831df5ad311e736ef5654e3",
+    "files": [
+      "crates/engram_server/src/services/project_policy.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/access_layer_tools.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/search_tools.rs",
+      "crates/engram_server/src/handlers/review_tools.rs",
+      "crates/engram_server/src/handlers/method_body_policy.rs",
+      "crates/engram_server/src/handlers/policy_source_handoff_tests.rs",
+      "crates/engram_server/src/services/database_intelligence_service.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/overview_selected_source_tests.rs",
+      "docs/TOOL_CONTRACT.md",
+      "eval/engram-delivery-goal-20261110.json",
+      "eval/audit-inventory-20261101.json",
+      "eval/legacy_validation-policy-source-handoff-progress-20261115.json"
+    ],
+    "root_source_files": {
+      "crates/engram_server/src/services/project_policy.rs": "18c2e96bbd88d71462533e56846ff1d0986d4284015ddaa4167a495b9f391f19",
+      "crates/engram_server/src/models/requests.rs": "324d6c6878c37b3c01a3eda2e527ee4e8eff04e459e178fab1ac568946698fc3",
+      "crates/engram_server/src/handlers/access_layer_tools.rs": "f984701a4412d85cdf6636dfeeb6867d5625319a27bff400ecdb45522d5cfd76",
+      "crates/engram_server/src/handlers/planning_tools.rs": "522ab8e97a63a58f7b57b493326876f40582c4e38b71e9151dd1c2dabecad73f",
+      "crates/engram_server/src/handlers/search_tools.rs": "2b35eb686045ba0f343455fb6ac73016b805ae2e0b4164ce554fe6af44676d84",
+      "crates/engram_server/src/handlers/review_tools.rs": "cc9159c346e47d326dbf6d6383d30f114f3a77ed24845334408d1ab3ac2b8800",
+      "crates/engram_server/src/handlers/method_body_policy.rs": "c508db3fa3546674137e1375148ba814df69741ae58c8ae523c3758a8a7b94b7",
+      "crates/engram_server/src/handlers/policy_source_handoff_tests.rs": "65dc87340c2230886573d74bc0ce69491ef7f591bffd75e99dc5ef5b8f3fcc82",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "f75142c04acd99e9fa9c3e910bfae75767191237712f33641dece9b69d86ea6c",
+      "crates/engram_server/src/tools.rs": "629481e9e81a3c81792302ca2eaeac358987e1130f411e4f7ee97de3d29fcebc"
+    },
+    "uncompiled_integration_expectation": "Updated changed-file refusal expectation; public acceptance exercises same behavior."
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 20,
+      "required_component_cases": {
+        "policy_source_handoff_reads_complete_omitted_guidance_through_executable_pinned_pages": true,
+        "policy_source_handoff_refuses_changed_page_and_refreshed_guidance_can_restart": true,
+        "policy_source_handoff_ranges_check_the_same_raw_snapshot_and_reject_invalid_guards": true,
+        "policy_source_handoff_does_not_turn_historical_or_unreadable_omissions_into_live_reads": true,
+        "policy_source_handoff_direct_source_preserves_evidence_and_emits_project_bound_recovery": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
+      "native_compile": [
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s",
+        "Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 27s"
+      ],
+      "native_test_seconds": 0.66,
+      "retained_failed_attempts": [
+        "native1.json: missing argument in second pagination call,36s compile refusal",
+        "native2.json:19 passed,1 test compared JSON key order; production unchanged,failed test corrected and alone rerun in native3"
+      ],
+      "resources": "All owned native Jobs, relays, handles and temp fixtures closed and removed. Logs retained."
+    },
+    "public": {
+      "candidate2": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\candidate2\\acceptance.json",
+          "sha256": "6c71c732b8c01bea9be992a2bc2e0a35ca13c8cd206f31c1dab6058e91d0ec11"
+        },
+        "checks": {
+          "core_reader_and_guard_advertised": true,
+          "edit_opening_copy_ready_action": true,
+          "all_actual_guide_lines_recovered": true,
+          "all_pages_preserve_source_and_policy": true,
+          "unguarded_initial_read_pins_continuation": true,
+          "planning_policy_action": true,
+          "search_policy_action": true,
+          "chunk_policy_action": true,
+          "review_policy_action": true,
+          "immutable_recovery_does_not_reread": true,
+          "changed_source_refused": true,
+          "historical_omission_has_no_live_action": true,
+          "edit_completion_policy_action": true,
+          "owned_original_sources_restored": true,
+          "actual_guide_unchanged": true
+        },
+        "source_pages": 3,
+        "recovery_pages": 4
+      },
+      "installed2": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\installed2\\acceptance.json",
+          "sha256": "7d504f1008731fe2c4515fd61ddd03aba89b1afe355eb79bf80626ed104c8303"
+        },
+        "checks": {
+          "core_reader_and_guard_advertised": true,
+          "edit_opening_copy_ready_action": true,
+          "all_actual_guide_lines_recovered": true,
+          "all_pages_preserve_source_and_policy": true,
+          "unguarded_initial_read_pins_continuation": true,
+          "planning_policy_action": true,
+          "search_policy_action": true,
+          "chunk_policy_action": true,
+          "review_policy_action": true,
+          "immutable_recovery_does_not_reread": true,
+          "changed_source_refused": true,
+          "historical_omission_has_no_live_action": true,
+          "edit_completion_policy_action": true,
+          "owned_original_sources_restored": true,
+          "actual_guide_unchanged": true
+        },
+        "source_pages": 3,
+        "recovery_pages": 4
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\baseline.json",
+      "sha256": "0886c1c345181e349073ae11f469cad2d711967098ad13e0616d20050c59fe0e"
+    },
+    "native_build_attempts": 3,
+    "release_build_attempts": 1,
+    "native_runner_seconds": 369.994755599997,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 12m 34s",
+    "failed_attempts_retained": [
+      "native1.json: missing argument in second pagination call,36s compile refusal",
+      "native2.json:19 passed,1 test compared JSON key order; production unchanged,failed test corrected and alone rerun in native3"
+    ],
+    "failed_public_verifier_attempt": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\candidate1\\acceptance.json",
+        "sha256": "5ea2a4488775e84b92b14e71c79797dd3b3dd68178129a9121eaa77dc2dd6d19"
+      },
+      "driver": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\verify-public-attempt1.py",
+        "sha256": "b273f285ac1cab2553b40e0373a300c1c9a3155d49978f4a7663280d80927ca5"
+      },
+      "reason": "Verifier used hits instead of existing results field; corrected verifier only, same release binary reused."
+    },
+    "no_full_suite": true
+  },
+  "runtime": {
+    "server_sha256": "c894c20acccbb759fb73a6218f0580381ae4b7ba3c29bbb64fe96c00dbcce251",
+    "manifest_sha256": "28867bbb38f9c95b6a06ad403695feb754542ac3c3090b68d43385b4983d2891",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\pair1.json",
+      "sha256": "0946019ed7a810d70e73f29cb1179dab5ac06e33e6481735beeb6c8f649eac5e"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\release1.json",
+      "sha256": "91a188f170e0b1a657851a54fd3705bcdfc99d10df66e2dabf1126ccb3d3216e"
+    },
+    "release_runner_seconds": 767.0682052000193,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\deployment2-state.json",
+      "sha256": "a564837b526efd35d94f4879578d8ed3ced98b3870ac7b61ddda0bdd734469c5"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\restored-runtime\\receipt.json",
+      "sha256": "07d98ed6c1d0aeee45a0cce7d38272ae768012ab4f9352abd8ec1d1b7d28d79a"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\Engram-win-x64-guidance-handoff-20261115.zip",
+    "sha256": "e8d16c3922cdaa7d25af426f85714777a59a9da044aa4793e0ede95dd2d1a8c3",
+    "files": 216
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "actual_guide_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true
+  },
+  "resources": {
+    "owned_build_and_mcp_resources_closed_and_removed": true,
+    "config_hold_closed_and_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9d352a6f2427454686fdf51c87440eab",
+    "old_pair_purpose": "Rollback under existing backup policy; no deletion authorized.",
+    "intentional_normal_daemon_pid": 86736,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
+    "cleanup_condition": "Retain scripts, receipts, package and ZIP for review; no preexisting folders removed."
+  },
+  "limits": [
+    "The originating policy report remains incomplete. Reading a document does not establish implementation compliance or alter its scope/authority.",
+    "Hash-pinned source pages are fresh reads, not an atomic retained file snapshot. Changed source requires refreshing the originating guidance request. Existing read/response limits remain.",
+    "Historical and unknown-hash omissions retain revision/refetch guidance; no current-file read is offered as proof of historical policy.",
+    "Owned exact copy of actual non-Q LegacyValidation guide used with Core-only MCP configuration. No actual project/session/source mutation or Site/Q read. Broader task-benefit and original backlog remain open.",
+    "Updated existing integration expectation was not compiled as a separate target; the same changed-page refusal was checked through public MCP."
+  ]
+}
