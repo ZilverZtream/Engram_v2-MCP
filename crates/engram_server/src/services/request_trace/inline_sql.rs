@@ -16,7 +16,10 @@ use sqlparser::{
 };
 use std::collections::BTreeSet;
 
-fn literal_expression(tokens: &[routing::Token], start: usize) -> Option<(String, usize)> {
+pub(super) fn literal_expression(
+    tokens: &[routing::Token],
+    start: usize,
+) -> Option<(String, usize)> {
     let mut cursor = start;
     let mut sql = String::new();
     loop {
@@ -25,15 +28,29 @@ fn literal_expression(tokens: &[routing::Token], start: usize) -> Option<(String
         if sql.len() > 16384 {
             return None;
         }
-        cursor += 1;
+        cursor = continuation(tokens, cursor + 1);
         if tokens
             .get(cursor)
             .is_some_and(|token| matches!(token.text.as_str(), "&" | "+"))
         {
-            cursor += 1;
+            cursor = continuation(tokens, cursor + 1);
         } else {
             return (!sql.is_empty()).then_some((sql, cursor));
         }
+    }
+}
+
+fn continuation(tokens: &[routing::Token], cursor: usize) -> usize {
+    if tokens
+        .get(cursor)
+        .is_some_and(|token| !token.string && token.text == "_")
+        && tokens
+            .get(cursor + 1)
+            .is_some_and(|next| next.line > tokens[cursor].line)
+    {
+        cursor + 1
+    } else {
+        cursor
     }
 }
 
@@ -42,23 +59,33 @@ fn local_constant(
     call: usize,
     argument: usize,
 ) -> Option<(String, serde_json::Value)> {
-    let name = tokens
-        .get(argument)
-        .filter(|token| !token.string)?
-        .text
-        .as_str();
     if !tokens
         .get(argument + 1)
         .is_some_and(|token| matches!(token.text.as_str(), "," | ")"))
     {
         return None;
     }
+    local_initializer(tokens, call, argument, false)
+}
+
+pub(super) fn local_initializer(
+    tokens: &[routing::Token],
+    call: usize,
+    argument: usize,
+    allow_static: bool,
+) -> Option<(String, serde_json::Value)> {
+    let name = tokens
+        .get(argument)
+        .filter(|token| !token.string)?
+        .text
+        .as_str();
     let declarations: Vec<_> = tokens[..call]
         .iter()
         .enumerate()
         .filter(|(index, token)| {
             !token.string
-                && token.text.eq_ignore_ascii_case("Const")
+                && (token.text.eq_ignore_ascii_case("Const")
+                    || (allow_static && token.text.eq_ignore_ascii_case("Static")))
                 && tokens
                     .get(index + 1)
                     .is_some_and(|value| !value.string && value.text.eq_ignore_ascii_case(name))
@@ -99,10 +126,24 @@ fn local_constant(
     }) {
         return None;
     }
+    let kind = if tokens[declaration].text.eq_ignore_ascii_case("Static") {
+        "Static"
+    } else {
+        "Const"
+    };
+    // Static locals persist between calls. Any source assignment in this member
+    // makes its runtime value unknown, including assignments after this command.
+    if kind == "Static"
+        && tokens[end..].windows(2).any(|pair| {
+            !pair[0].string && pair[0].text.eq_ignore_ascii_case(name) && pair[1].text == "="
+        })
+    {
+        return None;
+    }
     Some((
         sql,
-        json!({"kind":"local_const_initializer","name":name,"declaration_kind":"Const",
-        "relative_line":tokens[declaration].line}),
+        json!({"kind":if kind == "Static" {"local_static_initializer"} else {"local_const_initializer"},
+        "name":name,"declaration_kind":kind,"relative_line":tokens[declaration].line}),
     ))
 }
 
@@ -184,65 +225,98 @@ pub(super) fn append(
             sql_source.as_object_mut().unwrap().remove("relative_line");
             sql_source["line"] = json!(u64::from(method.start_line) + relative_line - 1);
         }
-        let Ok(sql_tokens) = Tokenizer::new(&MsSqlDialect {}, &sql).tokenize() else {
-            if gaps.len() < 64 {
-                gaps.push(format!("{}:{line}: {invocation} SQL tokenization unavailable; table dependencies unresolved", source.path));
-            }
-            continue;
-        };
-        // Keep identifier tokens, but remove comments and literal examples before
-        // using the existing heuristic statement analyzer.
-        let lexical = sql_tokens
-            .iter()
-            .map(|token| match token {
-                Token::Whitespace(
-                    Whitespace::SingleLineComment { .. } | Whitespace::MultiLineComment(_),
-                ) => " ".into(),
-                Token::Word(_) | Token::Whitespace(_) | Token::Number(_, _) => token.to_string(),
-                _ if token.to_string().chars().any(char::is_alphabetic) => " ".into(),
-                _ => token.to_string(),
-            })
-            .collect::<Vec<_>>()
-            .join(" ");
-        let analysis = analyze_sql(&lexical);
-        if analysis.is_multi_statement || analysis.operation == SqlOp::Exec {
-            if gaps.len() < 64 {
-                gaps.push(format!(
-                    "{}:{line}: {invocation} batch/procedure effects are not expanded",
-                    source.path
-                ));
-            }
-            continue;
+        append_sql(
+            method,
+            source,
+            &sql,
+            json!({"origin":if local.is_some() {"current_method_local_literal_sql"} else if invocation == "ExecuteQuery" {"current_method_literal_execute_query"} else {"current_method_literal_execute_command"},
+            "file":source.path,"line":line,"source_blake3":blake3::hash(source.content.as_bytes()).to_hex().to_string(),
+            "receiver":tokens[i].text,"invocation":invocation,"sql":&sql,"sql_source":sql_source,
+            "interpretation":format!("Lexical table reference from a literal argument or cited same-method Const initializer for {invocation}. Receiver type, database/schema binding, branch reachability and execution are not proven.")}),
+            paths,
+            gaps,
+            cap,
+        );
+    }
+}
+
+pub(super) fn append_sql(
+    method: &Node,
+    source: &Source<'_>,
+    sql: &str,
+    evidence: serde_json::Value,
+    paths: &mut Vec<Hop>,
+    gaps: &mut Vec<String>,
+    cap: usize,
+) {
+    let line = evidence
+        .get("line")
+        .and_then(serde_json::Value::as_u64)
+        .unwrap_or(u64::from(method.start_line));
+    let invocation = evidence
+        .get("invocation")
+        .and_then(serde_json::Value::as_str)
+        .unwrap_or("SQL command");
+    let Ok(sql_tokens) = Tokenizer::new(&MsSqlDialect {}, sql).tokenize() else {
+        if gaps.len() < 64 {
+            gaps.push(format!("{}:{line}: {invocation} SQL tokenization unavailable; table dependencies unresolved", source.path));
         }
-        let references = analyze_body_references(&lexical);
-        let mut dependencies = BTreeSet::new();
-        for table in &references.tables_written {
-            dependencies.insert(("inline_sql_writes_table", object_basename(table)));
-        }
-        for table in &references.tables_read {
-            dependencies.insert(("inline_sql_reads_table", object_basename(table)));
-        }
-        if dependencies.is_empty() && gaps.len() < 64 {
+        return;
+    };
+    // Keep identifier tokens, but remove comments and literal examples before
+    // using the existing heuristic statement analyzer.
+    let lexical = sql_tokens
+        .iter()
+        .map(|token| match token {
+            Token::Whitespace(
+                Whitespace::SingleLineComment { .. } | Whitespace::MultiLineComment(_),
+            ) => " ".into(),
+            Token::Word(_) | Token::Whitespace(_) | Token::Number(_, _) => token.to_string(),
+            _ if token.to_string().chars().any(char::is_alphabetic) => " ".into(),
+            _ => token.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(" ");
+    let analysis = analyze_sql(&lexical);
+    if analysis.is_multi_statement || analysis.operation == SqlOp::Exec {
+        if gaps.len() < 64 {
             gaps.push(format!(
-                "{}:{line}: no supported literal SQL table reference identified",
+                "{}:{line}: {invocation} batch/procedure effects are not expanded",
                 source.path
             ));
         }
-        for (kind, table) in dependencies {
-            if paths.len() >= cap {
-                gaps.push("Inline SQL dependencies truncated at complete path limit".into());
-                return;
-            }
-            paths.push(Hop {
-                from: method.node_id.clone(), to: format!("sql-table-reference:{table}"),
-                kind: kind.into(), target_name: table.into(), target_file: None, target_line: None,
-                target_source_verified: false, table_mapping: None,
-                evidence: Some(json!({"origin":if local.is_some() {"current_method_local_literal_sql"} else if invocation == "ExecuteQuery" {"current_method_literal_execute_query"} else {"current_method_literal_execute_command"},
-                    "file":source.path,"line":line,"source_blake3":blake3::hash(source.content.as_bytes()).to_hex().to_string(),
-                    "receiver":tokens[i].text,"invocation":invocation,"sql":sql,"sql_source":sql_source,
-                    "interpretation":format!("Lexical table reference from a literal argument or cited same-method Const initializer for {invocation}. Receiver type, database/schema binding, branch reachability and execution are not proven.")})),
-            });
+        return;
+    }
+    let references = analyze_body_references(&lexical);
+    let mut dependencies = BTreeSet::new();
+    for table in &references.tables_written {
+        dependencies.insert(("inline_sql_writes_table", object_basename(table)));
+    }
+    for table in &references.tables_read {
+        dependencies.insert(("inline_sql_reads_table", object_basename(table)));
+    }
+    if dependencies.is_empty() && gaps.len() < 64 {
+        gaps.push(format!(
+            "{}:{line}: no supported literal SQL table reference identified",
+            source.path
+        ));
+    }
+    for (kind, table) in dependencies {
+        if paths.len() >= cap {
+            gaps.push("Inline SQL dependencies truncated at complete path limit".into());
+            return;
         }
+        paths.push(Hop {
+            from: method.node_id.clone(),
+            to: format!("sql-table-reference:{table}"),
+            kind: kind.into(),
+            target_name: table.into(),
+            target_file: None,
+            target_line: None,
+            target_source_verified: false,
+            table_mapping: None,
+            evidence: Some(evidence.clone()),
+        });
     }
 }
 

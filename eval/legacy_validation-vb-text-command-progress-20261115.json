@@ -1,0 +1,68 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "implementation": {
+    "source_baseline": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
+    "source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
+    "files": {
+      "crates/engram_server/src/services/request_trace.rs": "728f9f7062f3a80a326ee811528ffdde73bd0b0ba045fabffbbd2bdb2fb9823b",
+      "crates/engram_server/src/services/request_trace/inline_sql.rs": "24062152b55de64589fd2b6fcb6b93cde754fc1ee63a401458311bd3ff0f7994",
+      "crates/engram_server/src/services/request_trace/sql_commands.rs": "0c4c786307a81c460e5a5ee531f349585e37972da9e1e1353866b0e329d3ad02",
+      "crates/engram_server/src/services/request_trace/execution.rs": "e90e140a55dd85415ebd226149c96f651365d3429e1f1885afa38934029867fc",
+      "crates/engram_server/src/tools.rs": "bb1fdd984226bfe8634f6524fb4d32e3c4501312ea5ebf337e35ea6fe61b3e94",
+      "crates/engram_server/tests/request_trace_sql_commands.rs": "6b9559d7b422ebcf0ba7b279c6292469180cd645cc09e3f9a42a5880c590db46"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/services/request_trace.rs": "728f9f7062f3a80a326ee811528ffdde73bd0b0ba045fabffbbd2bdb2fb9823b",
+      "crates/engram_server/src/services/request_trace/inline_sql.rs": "24062152b55de64589fd2b6fcb6b93cde754fc1ee63a401458311bd3ff0f7994",
+      "crates/engram_server/src/services/request_trace/sql_commands.rs": "0c4c786307a81c460e5a5ee531f349585e37972da9e1e1353866b0e329d3ad02",
+      "crates/engram_server/src/services/request_trace/execution.rs": "e90e140a55dd85415ebd226149c96f651365d3429e1f1885afa38934029867fc",
+      "crates/engram_server/src/tools.rs": "bb1fdd984226bfe8634f6524fb4d32e3c4501312ea5ebf337e35ea6fe61b3e94",
+      "crates/engram_server/tests/request_trace_sql_commands.rs": "6b9559d7b422ebcf0ba7b279c6292469180cd645cc09e3f9a42a5880c590db46"
+    },
+    "preserved_wip9": true
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 6,
+    "required_component_cases": {
+      "static_sql_command_keeps_insert_select_and_nested_read_evidence_with_all_source_locations": true,
+      "literal_constructor_and_command_text_assignment_are_tied_to_the_executed_receiver": true,
+      "constant_and_explicit_continuation_sql_keep_existing_execute_query_and_command_behavior": true,
+      "stored_procedure_mode_remains_owned_by_the_existing_source_procedure_reader": true,
+      "text_command_source_must_be_current_and_database_expansion_must_be_requested": true,
+      "unknown_changed_or_unexecuted_command_text_is_not_invented": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 35s",
+    "native_test_seconds": 2.31,
+    "retained_failed_attempts": [],
+    "dedicated_target": "request_trace_sql_commands",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  },
+  "actual_source": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
+    "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
+    "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
+    "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
+    "bytes": 25806,
+    "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
+    "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched."
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\baseline2\\acceptance.json",
+  "retained_baseline_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\baseline1\\acceptance.json",
+  "baseline_failure": "Owned Global.-qualified caller was unresolved; ordinary namespace-qualified caller reaches the exact unchanged actual method. No resolver implementation changed.",
+  "debug_public": {
+    "status": "PASS",
+    "checks": 13,
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\debug-smoke2\\acceptance.json",
+    "retained_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\debug-smoke1\\acceptance.json",
+    "failure": "Verifier guessed execute line80. Actual snapshot and emitted evidence both identify82. Corrected verifier derives initializer/command/execute positions from independent snapshot; same binary reused."
+  },
+  "dotnet_default_probe": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\dotnet-default-command-type.json",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115",
+  "remaining": "One release; candidate/installed actual source table/citation checks, unchanged production metadata, normal runtime restoration and push only origin/master.",
+  "limits": "Lexical source references only. No CLR/physical database/schema binding, branch reachability, triggers or execution proof. Dynamic SQL, SQL batches (including observed SyncData.ProcessEvent identity-insert batches) and general ORM/dataflow remain unfinished. Global.-qualified wrapper binding is recorded, not selected for implementation. CodeMap/Blast and protected WIP remain untouched."
+}

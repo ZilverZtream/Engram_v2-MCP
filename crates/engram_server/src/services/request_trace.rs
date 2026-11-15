@@ -4,6 +4,7 @@ mod container_registrations;
 mod database;
 mod dbml;
 mod inline_sql;
+mod sql_commands;
 pub mod execution;
 pub mod routing;
 #[cfg(test)]

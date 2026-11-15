@@ -10030,38 +10030,44 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "finding": "Original EG26 callable tool references and complete write/readback handoffs",
-      "original_requirement": "Reconcile actual schemas, tool descriptions and agent contracts; preserve original EG18 dependency-complete handoffs and EG19 decision evidence.",
-      "observed_missing_behavior": "Installed descriptions refer to nonexistent blast_radius and get_migration_order. Specialty guidance does not carry stored section/review identities into readback calls. Memory imports may derive or override IDs, so a title or request-field guess can read the wrong section. Deletion currently suggests reading a deleted section.",
+      "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+      "finding": "Original TODO31 VB SqlCommand text-command table tracing",
+      "original_requirement": "Trace a user request through authored handlers/calls to SQL and table source evidence. Deliver the remaining VB.NET/WebForms and SQL workflow instead of unrelated target-language expansion.",
+      "observed_missing_behavior": "Actual non-Q WebhookEvent.SaveEventsToDB uses a Static sqlCmd literal concatenation with explicit VB continuations, passed to SqlCommand and executed with ExecuteNonQuery. Current inline reader covers ExecuteCommand/typed ExecuteQuery with literals/local Const; stored-procedure reader requires StoredProcedure. Default/text SqlCommand and this real Static initializer are skipped.",
+      "actual_source": {
+        "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
+        "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
+        "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
+        "bytes": 25806,
+        "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
+        "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched."
+      },
+      "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115",
       "implementation_files": [
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/inline_sql.rs",
+        "crates/engram_server/src/services/request_trace/sql_commands.rs",
+        "crates/engram_server/src/services/request_trace/execution.rs",
         "crates/engram_server/src/tools.rs",
-        "crates/engram_server/src/tool_guidance.rs",
-        "crates/engram_server/src/handlers/project_tools.rs",
-        "crates/engram_server/src/handlers/review_decisions.rs",
-        "crates/engram_server/tests/tool_guidance_tests.rs",
-        "README.md",
+        "crates/engram_server/tests/request_trace_sql_commands.rs",
         "docs/TOOL_CONTRACT.md"
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115",
-      "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
       "acceptance": [
-        "Confirm installed ordinary owned memory write/import/review record/delete responses and exact registered names once.",
-        "Successful memory writes/imports and review recording return a typed readback tool/arguments using the actual stored identity. Preserve original success text and mutation semantics. Advisory hints use only handler-produced readback metadata for those operations, never user content; errors/core/closed tools remain preserved.",
-        "Delete points to remaining memory sections. Three stale tool-description names and the documented alias become canonical registered names; no CodeMap/Blast implementation change.",
-        "Use existing dedicated tool_guidance_tests target, adding real readback contracts and preserving all existing safety/budget/profile checks. One release after all source components; no library-unit build or full suite.",
-        "Actual candidate/installed MCP follows returned calls for explicit/default section IDs, front-matter/override imports and exact immutable review events; delete/list works, profile/schema availability and no copied note/review bodies are verified. No actual LegacyValidation source read, held-out replay, language expansion or ownership approval inference."
+        "Reproduce installed absence of SQL table references while the exact copied actual SaveEventsToDB method is reached through an owned WebForms caller. Independently expect write vwef_vetroWebhookEventsFeature and reads pr_projekt/vplm_vetroPlanLayerMappings/vwef_vetroWebhookEventsFeature; record exact hash/lines.",
+        "Capture source-level VB SqlCommand text candidates from literal constructors or CommandText assignments, default or explicit Text, and cited stable same-method Const/Static literal initializers with explicit line continuations. Tie candidate text to the same declared receiver and observed ExecuteReader/ExecuteScalar/ExecuteNonQuery call.",
+        "Reuse the existing SQL tokenizer/body-reference engine for reads/writes and keep existing ExecuteCommand/typed ExecuteQuery and stored-procedure behavior. Include initializer, command, execution locations and current full-source hash; table/runtime/type/database binding remains unproven. Changed/ambiguous/dynamic text stays unresolved.",
+        "Dedicated public request-trace integration target covers wanted text-command variants, original SQL compatibility and withholding when source/capture is unavailable. One release after all source work; no lib-unit build or full suite.",
+        "Actual candidate/installed MCP on owned exact non-Q source copies proves table-reference/citation recovery and unchanged original source. No actual LegacyValidation trace/source scan, Site/Q read, SQL execution, model replay, CodeMap/Blast work or general dataflow/batch/ORM expansion. SyncData multi-statement batches remain recorded, not selected."
       ],
       "implementation_complete": true,
-      "validated": true,
-      "deployed": true,
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline1\\acceptance.json",
-      "readback_format": "Separate JSON text content part with next_tools; original receipt first. Existing MCP transport has no structuredContent field; no protocol/library upgrade.",
-      "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
-      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\native-acceptance.json",
-      "bounded_delivery_complete": true,
-      "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json",
-      "broader_eg26_complete": false
+      "validated": false,
+      "deployed": false,
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\baseline2\\acceptance.json",
+      "source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
+      "retained_baseline_failure": "baseline1: Global.-qualified owned caller unresolved; corrected wrapper to the ordinary namespace-qualified call. Exact actual source unchanged, no resolver change.",
+      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\native-acceptance.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10093,8 +10099,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Selected callable-reference/readback batch complete; advance next ready original improvement. Preserve original unresolved scope and do not replay passed acceptance.",
-    "next_user_visible_deliverable": "Correct callable tool references and provide exact readback actions after memory/review writes; preserve state and advice qualifications.",
+    "active_original_item": "Original TODO31 VB SqlCommand text-command table tracing",
+    "next_user_visible_deliverable": "Source-cited SqlCommand text table paths for the actual non-Q webhook SQL source, retaining current source and unresolved semantics.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10111,7 +10117,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: complete stored-identity readbacks and canonical references installed;13dedicated tests and15candidate/15installed checks passed; no full suite.",
+    "previous_goal_turn_classification": "PROGRESS:9fd5e41 pushed; complete readbacks/canonical references installed with13native and15candidate/15installed cases. Closed slice.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15480,7 +15486,41 @@
       "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-webforms-report-delivery-20261115.json",
       "broader_todo4_complete": false
     },
-    "tool_readback_delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json"
+    "tool_readback_delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json",
+    "retained_completed_tool_readback_contract": {
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "finding": "Original EG26 callable tool references and complete write/readback handoffs",
+      "original_requirement": "Reconcile actual schemas, tool descriptions and agent contracts; preserve original EG18 dependency-complete handoffs and EG19 decision evidence.",
+      "observed_missing_behavior": "Installed descriptions refer to nonexistent blast_radius and get_migration_order. Specialty guidance does not carry stored section/review identities into readback calls. Memory imports may derive or override IDs, so a title or request-field guess can read the wrong section. Deletion currently suggests reading a deleted section.",
+      "implementation_files": [
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/src/tool_guidance.rs",
+        "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/src/handlers/review_decisions.rs",
+        "crates/engram_server/tests/tool_guidance_tests.rs",
+        "README.md",
+        "docs/TOOL_CONTRACT.md"
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115",
+      "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "acceptance": [
+        "Confirm installed ordinary owned memory write/import/review record/delete responses and exact registered names once.",
+        "Successful memory writes/imports and review recording return a typed readback tool/arguments using the actual stored identity. Preserve original success text and mutation semantics. Advisory hints use only handler-produced readback metadata for those operations, never user content; errors/core/closed tools remain preserved.",
+        "Delete points to remaining memory sections. Three stale tool-description names and the documented alias become canonical registered names; no CodeMap/Blast implementation change.",
+        "Use existing dedicated tool_guidance_tests target, adding real readback contracts and preserving all existing safety/budget/profile checks. One release after all source components; no library-unit build or full suite.",
+        "Actual candidate/installed MCP follows returned calls for explicit/default section IDs, front-matter/override imports and exact immutable review events; delete/list works, profile/schema availability and no copied note/review bodies are verified. No actual LegacyValidation source read, held-out replay, language expansion or ownership approval inference."
+      ],
+      "implementation_complete": true,
+      "validated": true,
+      "deployed": true,
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline1\\acceptance.json",
+      "readback_format": "Separate JSON text content part with next_tools; original receipt first. Existing MCP transport has no structuredContent field; no protocol/library upgrade.",
+      "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
+      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\native-acceptance.json",
+      "bounded_delivery_complete": true,
+      "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json",
+      "broader_eg26_complete": false
+    }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

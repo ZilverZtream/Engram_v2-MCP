@@ -626,3 +626,16 @@ explicit import overrides; review calls use the exact review_id. Only routing
 identifiers are included. Follow-ups are advisory and do not execute reads or
 authenticate imported decisions. Errors retain their original result. Memory
 deletion suggests list_memory_bank to inspect the remaining sections.
+
+
+VB request tracing includes source-level SqlCommand text candidates. Literal
+constructor/CommandText values and stable same-method Const/Static string
+initializers retain explicit VB continuation handling and source evidence for
+the initializer, command declaration and observed ExecuteReader/ExecuteScalar/
+ExecuteNonQuery call. Default or explicit CommandType.Text is a source
+interpretation. Existing SQL parsing supplies lexical read/write references,
+including nested queries. StoredProcedure remains with the existing procedure
+reader. Dynamic/ambiguous text and mutable Static initializers remain unresolved.
+No CLR receiver, physical database/schema, branch reachability, trigger firing
+or runtime execution is proved; SQL batches and general dataflow remain outside
+this reader. Current source/fingerprint admission is unchanged.
