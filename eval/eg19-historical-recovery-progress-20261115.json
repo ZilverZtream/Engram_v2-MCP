@@ -1,0 +1,50 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T17:49:30.497638+00:00",
+  "original_requirement_id": "EG-19",
+  "source_commit": "fd515f415e08d3c93d36f353c0bd3b1296021e23",
+  "original_requirement": "Relevant prior rulings retain provenance/revision applicability and historical cutoffs through recovery without suppressing findings or treating workflow status as authority.",
+  "baseline": {
+    "status": "BASELINE_HISTORICAL_RECOVERY_GAP_CONFIRMED",
+    "binary_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
+    "evidence": "baseline1/wire/0007-response.json",
+    "request_rejected": {
+      "code": -32602,
+      "message": "failed to deserialize parameters: unknown field `recorded_before`, expected one of `project_id`, `review_id`, `discussion`"
+    },
+    "retained_harness_failure": "baseline1/receipt.json: caught exception string did not include the RPC error; saved transport response confirms rejection without another run.",
+    "additional_runtime_calls": 0,
+    "owned_temp_removed": true
+  },
+  "source_after": [
+    "Expose recorded_before on exact-ID event history, reusing existing date filtering and latest-state reconstruction.",
+    "Retain cutoff in executable find_merged_work decision_history actions.",
+    "Preserve default full history and current-only pre_commit_review; reject invalid dates and event-cutoff/discussion combinations."
+  ],
+  "source_files": {
+    "crates/engram_server/src/handlers/review_decisions.rs": "f63a8ad4bcd3cf9e5228b50198be521045b748f7e6dffac6464d55f76dedd90f",
+    "crates/engram_server/src/handlers/pr_history_tools.rs": "3aa089b5351cf5dfb33b9d77a174cdfebb3ca4a687bed5780a37a1658e59c34b",
+    "crates/engram_server/src/tools.rs": "80e4f8df186ecba71a7a0d8159a28cb2f715c777b8869cf742c3fcfa036ebb21",
+    "crates/engram_server/tests/code_review_ingest_tests.rs": "4e90ef4298e17add64e03ff37aae56e4d4ae84be540c4c2a0b3558c668e54145",
+    "crates/engram_server/tests/review_decision_history_tests.rs": "7804a2c3b28efd2861f873426284254cba2a60e6fc87a6e48d2eb3236b45ad49",
+    "docs/TOOL_CONTRACT.md": "d0ca41388178f3a8fbd5f162e3e6f912c9701e40e7d3292a01b8986dc27aee7b"
+  },
+  "checks_completed": [
+    "Saved installed RPC confirms unsupported dated reader; baseline owner closed and fixture removed.",
+    "Rustfmt parses changed Rust sources, deferred public drivers parse and git diff --check passes.",
+    "Existing typed getter fixtures receive recorded_before=None; protected WIP9 preserved."
+  ],
+  "checks_deferred": [
+    "Run focused review_decision_history_tests with the combined batch.",
+    "Run deferred public verifier including real owned Git merged-PR ingest and copied recovery action on candidate/installed artifacts."
+  ],
+  "native_compilations_this_item": 0,
+  "release_builds_this_item": 0,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-decision-recovery-20261115",
+    "owned_fixtures_removed": true,
+    "cleanup_condition": "Close fixture handles and database owners before removing owned temporary directories; retain scripts/results here until superseded. No preexisting deletion."
+  }
+}
