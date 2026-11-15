@@ -1,5 +1,5 @@
 {
-  "status": "THREE_COMPONENTS_IMPLEMENTED_FOCUSED_NATIVE_PASS",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "implementation": {
     "source_baseline": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
     "source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
@@ -39,10 +39,13 @@
     "resources": "Owned Job/relay/temp closed and removed. Case evidence retained. Final Core discovery is pending release public acceptance."
   },
   "debug_public": {
-    "status": "PARTIAL_20_OF_22",
+    "status": "RETAINED_PARTIAL_BEFORE_FINAL_CORE_METADATA",
+    "passed": 20,
+    "total": 22,
     "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\debug-smoke1\\acceptance.json",
-    "retained_failure": "Memory row assertion excluded inherited user preference; verifier corrected. Core discovery was actually missing; corrected Core constant and description before final release. No extra debug build."
+    "explanation": "All180 project note rows and original freshness were recovered. Verifier incorrectly counted the extra indexing-report row. Core truly omitted list_memory_bank; exact metadata correction shipped in the one final release without another debug/native build."
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115",
-  "remaining": "One release; candidate/installed22checks including complete Core discovery, exact originals, state/config preservation and normal-runtime restoration."
+  "remaining": "This bounded three-component batch is complete. Advance original LegacyValidation backlog in the existing cadence. Broader TODO4 and original benefit/resource/semantic requirements remain unfinished.",
+  "delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json"
 }

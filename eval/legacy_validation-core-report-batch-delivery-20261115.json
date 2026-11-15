@@ -1,0 +1,167 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T08:35:10.056835+00:00",
+  "finding": "Original TODO4 complete graph, memory and instruction report workflows",
+  "source_commit": "ffe8727beca09741283dbb90981462f379df7d24",
+  "frozen_source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
+  "behavior": [
+    "traverse_graph now supports default40KiB and caller reply budgets with exact immutable original-result recovery. All400 authored two-hop target identities/distances and original advisory qualifications survive. Graph traversal selection/caps are unchanged.",
+    "list_memory_bank now offers bounded complete discovery of project or __user__ banks, preserving note identities/titles/sizes/ages/kinds/freshness. It is advertised in Core alongside read_memory_bank (up to33tools). The current LegacyValidation Full-mode configuration is unchanged; no preset-reduction benefit is claimed.",
+    "pre_push_audit and project_health now offer complete bounded instruction-packet/observation delivery. All policy exceptions, before/current source snapshots, hashes, authority/coverage warnings and both original health text parts survive exact recovery. Cached recovery does not recollect changed files or approve policy."
+  ],
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\package1",
+    "server_sha256": "b57edf3b6a659b4270d0aedc0c13debecf46778fff0cc0920ba3a00118a97803",
+    "manifest_sha256": "cc0a32f5f07cf197a2e78e8ace66949326afc1781565bdbeb8471c5de0325657",
+    "old_server_sha256": "bedfd91af425c9bcea353097cb6c41398b49a22de8e8d9541d1c7ff549ad512f",
+    "old_manifest_sha256": "58f3595d16d8841b717f253d3ee5cb5955fa2da02d74acc917d1fa1e02fe7802",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\release1.json",
+      "sha256": "4fb1d34e94981ccbbac4d91e127a5bc7bf9af4817c2824460cb1b9abada9d7d8"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "58f3595d16d8841b717f253d3ee5cb5955fa2da02d74acc917d1fa1e02fe7802"
+    },
+    "source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7"
+  },
+  "installed_assets_verified": 215,
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 4,
+    "required_component_cases": {
+      "webforms_invalid_budget_refuses_before_source_analysis": true,
+      "webforms_report_recovery_keeps_all_original_evidence_parts_and_tool_scope": true,
+      "webforms_reports_advertise_recovery_preserving_original_formats_and_existing_owners": true,
+      "webforms_small_reports_keep_their_format_and_original_analysis_arguments": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "ee5a251316af96fd35e46997794a8fa9a84d6950",
+    "final_source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
+    "post_native_metadata_delta": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\post-native-metadata1.json",
+    "native_compile": "1m29s",
+    "native_test_seconds": 0.8,
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned Job/relay/temp closed and removed. Case evidence retained. Final Core discovery is pending release public acceptance."
+  },
+  "native_final_source_boundary": {
+    "native_mechanism_source_unchanged": true,
+    "exact_later_metadata_delta": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\post-native-metadata1.json",
+    "final_release_public_checks_prove_core_discovery": true,
+    "full_final_lib_unit_suite_run": false
+  },
+  "baseline": {
+    "graph_bytes": 55984,
+    "memory_bytes": 46592,
+    "instruction_packet_bytes": 348744,
+    "health_bytes": 193850,
+    "evidence": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\baseline1\\acceptance.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\baseline2\\acceptance.json"
+    ]
+  },
+  "public": {
+    "candidate": {
+      "checks": 22,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\candidate2\\acceptance.json",
+      "recovery_pages": 111
+    },
+    "installed": {
+      "checks": 22,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\installed2\\acceptance.json",
+      "recovery_pages": 111
+    }
+  },
+  "retained_failed_attempts": [
+    {
+      "stage": "baseline1",
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\baseline1\\acceptance.json",
+      "reason": "Graph fixture used uppercase Calls and400direct children against the existing50-neighbor selection. Corrected lowercase calls and ten40-child groups; graph baseline2 passed. Memory/audit/health oversize observed and retained in baseline1."
+    },
+    {
+      "stage": "debug-smoke1",
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\debug-smoke1\\acceptance.json",
+      "passed": 20,
+      "total": 22,
+      "reason": "All180 project note rows and original freshness were recovered. Verifier incorrectly counted the extra indexing-report row. Core truly omitted list_memory_bank; exact metadata correction shipped in the one final release without another debug/native build."
+    },
+    {
+      "stage": "candidate1",
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\candidate1\\acceptance.json",
+      "passed": 21,
+      "total": 22,
+      "reason": "Verifier incorrectly expected the user-bank preference in the project-bank listing. Exact retained bytes prove all180 notes and engram/index_report; user preference separately verified in __user__. Corrected namespace-specific assertion; same artifact passed candidate2/installed2. Earlier description of that extra row as a user preference was incorrect."
+    }
+  ],
+  "builds": {
+    "substantive_components": 3,
+    "native_attempts": 1,
+    "native_compile": "1m29s",
+    "native_test_execution_seconds": 0.8,
+    "native_runner_seconds": 104.88767019996885,
+    "release_builds": 1,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 15m 59s",
+    "release_runner_seconds": 971.6869305999717,
+    "extra_debug_builds": 0,
+    "full_suite_runs": 0,
+    "lib_unit_suite_compiled": false,
+    "verifier_corrections_reused_binary": true
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115",
+    "native_fixture_removed": true,
+    "release_fixture_removed": true,
+    "release_job_closed": true,
+    "public_fixtures_removed": true,
+    "both_configuration_holds_released": true,
+    "owned_config_removed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-340ae8aad54641cbac6169f4b163c06a",
+    "normal_runtime": {
+      "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+      "owners": [
+        {
+          "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\restored-runtime\\wire",
+          "closed": true,
+          "pid": 69836,
+          "natural_exit": true,
+          "reader_joined": true,
+          "exit_code": 0,
+          "pending_observations": []
+        }
+      ],
+      "intentional_retained_runtime": true,
+      "daemon_pid": 80536,
+      "daemon_created": 1794731577.4685185,
+      "metadata": {
+        "pid": "80536",
+        "started_at_ms": "1794731577542",
+        "protocol_version": "1",
+        "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+        "version": "0.1.0"
+      },
+      "server_sha256": "b57edf3b6a659b4270d0aedc0c13debecf46778fff0cc0920ba3a00118a97803",
+      "normal_proxy_metrics_succeeded": true,
+      "selected_generation": 3151,
+      "owned_temp_removed": true,
+      "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+    },
+    "retention": "Case evidence/scripts/source fixtures/package and managed rollback pair retained for review/recovery. Original failed pipeline/attempts preserved. New owned runtime fixtures removed after all handles closed; normal daemon retained intentionally. Preexisting folders untouched."
+  },
+  "preserved_wip9": true,
+  "limits": [
+    "Original TODO4 remains partial across other tools, uniform envelopes and durable cursors. Recovery retention remains24hours/32newer snapshots, maximum8MiB per original report.",
+    "This proves complete evidence delivery and usable discovery, not selection completeness, semantic policy compliance, comparative task benefit, production-scale latency or product-wide readiness.",
+    "No actual LegacyValidation source scan, Site/Q read, SQL execution, model benchmark replay, CodeMap/Blast or project-language expansion. Full original findings and release gates remain open."
+  ],
+  "bounded_delivery_complete": true,
+  "broader_goal_complete": false,
+  "original_full19gates_closed": false
+}

@@ -67,6 +67,13 @@ These degrade or improve *every single interaction*. Nothing below matters until
   authored validators and 240 authorization locations. Existing internal caps and
   broader envelope/cursor work remain open; no lib-unit build or full-suite run.
   [Delivery](eval/legacy_validation-webforms-report-delivery-20261115.json).
+  Shared delivery now also covers graph traversal, memory-bank discovery and
+  instruction audit/health reports (43 eligible reports). Source-selected graph
+  identities, all memory metadata and both health text parts recover exactly
+  within default/caller budgets. Core advertises memory discovery alongside
+  section reads. Four focused checks and 22 public checks on each candidate/
+  installed binary passed with one combined release; broader TODO4 remains
+  partial. [Delivery](eval/legacy_validation-core-report-batch-delivery-20261115.json).
 
   All 13 handler files (~193 handlers). Responses are heterogeneous markdown/text with
   silent truncation (`graph_tools.rs` hardcoded limits, `access_layer_tools.rs` 30KB+

@@ -736,7 +736,12 @@
       },
       "latest_core_recovery_evidence": "execution_evidence_20261101.native_ask_and_core_recovery_coherent_followup_20261104 and no_vector_storage_ask_discussion_core_milestone_terminal_20261104",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
-      "latest_installed_delivery": "eval/eg18-installed-preset-delivery-20261111.json"
+      "latest_installed_delivery": "eval/eg18-installed-preset-delivery-20261111.json",
+      "core_memory_discovery_delivery_20261115": {
+        "delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json",
+        "behavior": "Core now advertises list_memory_bank alongside read_memory_bank; current LegacyValidation Full mode unchanged.",
+        "broader_finding_complete": false
+      }
     },
     {
       "id": "EG-19",
@@ -10027,10 +10032,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-15T07:56:43.061883+00:00",
+  "last_updated_at": "2026-11-15T08:35:10.056835+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "THREE_COMPONENTS_IMPLEMENTED_FOCUSED_NATIVE_PASS",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO4 complete report delivery across core graph, memory and instruction workflows",
       "original_requirement": "Complete agent-facing replies fit caller budgets and retain exact recoverability; scoped guidance, stored memory and selected graph evidence must remain usable when responses grow.",
       "observed_missing_behavior": "traverse_graph, list_memory_bank, pre_push_audit and project_health have no max_tokens/response_id controls; their original handlers return entire reports. Baseline must confirm representative oversized graph/memory/instruction packets before source changes.",
@@ -10041,7 +10046,7 @@
             "traverse_graph"
           ],
           "acceptance": "An owned JS call graph with400 authored targets retains every selected target and distance through exact original recovery under default40KiB and caller8KiB budgets.",
-          "status": "IMPLEMENTED_PENDING_COMBINED_VERIFICATION"
+          "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
         },
         {
           "name": "Complete memory-bank discovery",
@@ -10049,7 +10054,7 @@
             "list_memory_bank"
           ],
           "acceptance": "An owned bank with180 distinct notes retains every stored identity/title/freshness observation through recovery; project and __user__ discovery and subsequent exact section reads stay callable in Core.",
-          "status": "IMPLEMENTED_PENDING_COMBINED_VERIFICATION"
+          "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
         },
         {
           "name": "Complete instruction observation and draft packets",
@@ -10058,7 +10063,7 @@
             "project_health"
           ],
           "acceptance": "A complete authored policy/evidence maintenance packet larger than40KiB is recoverable without re-collecting changed evidence. Health preserves all original text parts, manifest/coverage/authority warnings and caller budget.",
-          "status": "IMPLEMENTED_PENDING_COMBINED_VERIFICATION"
+          "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
         }
       ],
       "implementation_files": [
@@ -10077,8 +10082,8 @@
       "limits": "Original TODO4 remains partial outside these workflows and durable cursor requirements. Delivery/recovery proves evidence availability, not semantic compliance, task benefit or product-wide readiness. No actual LegacyValidation scans or Site/Q reads; no CodeMap/Blast or language expansion.",
       "temporary_resources": "All new fixtures owned under this case. Close servers/DB handles before removing directories; case evidence and eventual package/managed rollback retained. Preexisting folders untouched.",
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
       "baseline": {
         "graph": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\baseline2\\acceptance.json",
@@ -10089,12 +10094,37 @@
       "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\native-acceptance.json",
       "post_native_metadata_delta": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\post-native-metadata1.json",
       "debug_public": {
-        "status": "PARTIAL_20_OF_22",
+        "status": "RETAINED_PARTIAL_BEFORE_FINAL_CORE_METADATA",
+        "passed": 20,
+        "total": 22,
         "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\debug-smoke1\\acceptance.json",
-        "retained_failure": "Memory row assertion excluded inherited user preference; verifier corrected. Core discovery was actually missing; corrected Core constant and description before final release. No extra debug build."
-      }
+        "explanation": "All180 project note rows and original freshness were recovered. Verifier incorrectly counted the extra indexing-report row. Core truly omitted list_memory_bank; exact metadata correction shipped in the one final release without another debug/native build."
+      },
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json",
+      "retained_failed_attempts": [
+        {
+          "stage": "baseline1",
+          "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\baseline1\\acceptance.json",
+          "reason": "Graph fixture used uppercase Calls and400direct children against the existing50-neighbor selection. Corrected lowercase calls and ten40-child groups; graph baseline2 passed. Memory/audit/health oversize observed and retained in baseline1."
+        },
+        {
+          "stage": "debug-smoke1",
+          "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\debug-smoke1\\acceptance.json",
+          "passed": 20,
+          "total": 22,
+          "reason": "All180 project note rows and original freshness were recovered. Verifier incorrectly counted the extra indexing-report row. Core truly omitted list_memory_bank; exact metadata correction shipped in the one final release without another debug/native build."
+        },
+        {
+          "stage": "candidate1",
+          "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\candidate1\\acceptance.json",
+          "passed": 21,
+          "total": 22,
+          "reason": "Verifier incorrectly expected the user-bank preference in the project-bank listing. Exact retained bytes prove all180 notes and engram/index_report; user preference separately verified in __user__. Corrected namespace-specific assertion; same artifact passed candidate2/installed2. Earlier description of that extra row as a user preference was incorrect."
+        }
+      ]
     },
-    "at_utc": "2026-11-15T07:56:43.061883+00:00",
+    "at_utc": "2026-11-15T08:35:10.056835+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/legacy_workflows messages",
     "original_tool_roi_five": [
@@ -10124,8 +10154,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original TODO4 complete report delivery across core graph, memory and instruction workflows",
-    "next_user_visible_deliverable": "Complete graph traversal, memory discovery and instruction report recovery before one combined build.",
+    "active_original_item": "Core graph/memory/instruction report batch complete; select next original LegacyValidation components before further compilation.",
+    "next_user_visible_deliverable": "Advance the remaining original LegacyValidation workflow/instruction and accepted TODO requirements. Select finite missing behavior from existing evidence, implement three substantive components sequentially, then one combined verification/release; preserve all completed deliveries and failed benefit/semantic outcomes.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15555,7 +15585,8 @@
       "current_action": "Finish the already-started release and reuse its artifact for candidate/installed acceptance. No replacement build is authorized by a verifier-only or documentation correction.",
       "next_build_entry_condition": "Implement three substantive user-facing components sequentially from the original LegacyValidation backlog and name their acceptance criteria before invoking Cargo. Run one focused combined verification and one release. A smaller batch requires an evidenced delivery-blocking regression; record that evidence before compiling.",
       "exclusions": "No build-system investigation, extra build to change test organization, full-suite default, or relabeling acceptance checks as product components."
-    }
+    },
+    "latest_core_report_batch_delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
