@@ -1,0 +1,216 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T07:56:43.061883+00:00",
+  "finding": "Original TODO31 VB SqlCommand text-command source table tracing",
+  "behavior": [
+    "Source-level VB SqlCommand text candidates now retain read/write table references from literal constructor/CommandText values and stable same-method Const/Static SQL, including explicit VB continuations.",
+    "Observed ExecuteReader/ExecuteScalar/ExecuteNonQuery candidates retain the initializer, command declaration and execution source locations and full file hash. Shared SQL reference extraction preserves existing ExecuteCommand/typed ExecuteQuery/stored-procedure behavior.",
+    "On an exact unchanged non-Q LegacyValidation WebhookEvent.vb copy reached through an owned WebForms caller, the previous installed binary returned zero inline table references; this binary returns one write and three reads, with recoverable citations."
+  ],
+  "source_commit": "8b0c6e9ca88a4017cc96ad369ddc83472750fbeb",
+  "frozen_source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\package1",
+    "server_sha256": "bedfd91af425c9bcea353097cb6c41398b49a22de8e8d9541d1c7ff549ad512f",
+    "manifest_sha256": "58f3595d16d8841b717f253d3ee5cb5955fa2da02d74acc917d1fa1e02fe7802",
+    "old_server_sha256": "1c49b14fdd22b9bf4ae867a047b673244a1b5dee81e4b0d4dcd090321b69cd9e",
+    "old_manifest_sha256": "31ab638e9c9489d4a0624a5d1f90e5086c05ebb96434f517ec5984cb4454730d",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\release1.json",
+      "sha256": "c6fbfb26c6f507dca485c1dd4d8c905b7e9ce4b198dccd54d8037a5a7478c78e"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "31ab638e9c9489d4a0624a5d1f90e5086c05ebb96434f517ec5984cb4454730d"
+    },
+    "source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e"
+  },
+  "actual_source": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
+    "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
+    "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
+    "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
+    "bytes": 25806,
+    "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
+    "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched."
+  },
+  "source_locations": {
+    "method": [
+      12,
+      87
+    ],
+    "initializer": [
+      21,
+      34
+    ],
+    "command": 41,
+    "execution": 82
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 6,
+    "required_component_cases": {
+      "static_sql_command_keeps_insert_select_and_nested_read_evidence_with_all_source_locations": true,
+      "literal_constructor_and_command_text_assignment_are_tied_to_the_executed_receiver": true,
+      "constant_and_explicit_continuation_sql_keep_existing_execute_query_and_command_behavior": true,
+      "stored_procedure_mode_remains_owned_by_the_existing_source_procedure_reader": true,
+      "text_command_source_must_be_current_and_database_expansion_must_be_requested": true,
+      "unknown_changed_or_unexecuted_command_text_is_not_invented": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 35s",
+    "native_test_seconds": 2.31,
+    "retained_failed_attempts": [],
+    "dedicated_target": "request_trace_sql_commands",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  },
+  "baseline": {
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\baseline2\\acceptance.json",
+    "old_inline_table_references": 0,
+    "new_inline_table_references": 4,
+    "retained_failed_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\baseline1\\acceptance.json",
+    "failure_reason": "Global.-qualified owned caller did not resolve; ordinary namespace-qualified owned caller used. Exact actual source unchanged; no resolver changes."
+  },
+  "debug_public": {
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\debug-smoke2\\acceptance.json",
+    "checks": 13,
+    "all_passed": true,
+    "retained_failed_attempt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\debug-smoke1\\acceptance.json",
+    "failure_reason": "Verifier guessed execution line80; actual snapshot and emitted evidence identify82. Verifier corrected using independent snapshot; same binary reused."
+  },
+  "public": {
+    "candidate": {
+      "checks": 13,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\candidate1\\acceptance.json",
+      "table_paths": [
+        {
+          "kind": "inline_sql_reads_table",
+          "target": "pr_projekt",
+          "line": 82,
+          "initializer_line": 21
+        },
+        {
+          "kind": "inline_sql_reads_table",
+          "target": "vplm_vetroPlanLayerMappings",
+          "line": 82,
+          "initializer_line": 21
+        },
+        {
+          "kind": "inline_sql_reads_table",
+          "target": "vwef_vetroWebhookEventsFeature",
+          "line": 82,
+          "initializer_line": 21
+        },
+        {
+          "kind": "inline_sql_writes_table",
+          "target": "vwef_vetroWebhookEventsFeature",
+          "line": 82,
+          "initializer_line": 21
+        }
+      ]
+    },
+    "installed": {
+      "checks": 13,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\installed1\\acceptance.json",
+      "table_paths": [
+        {
+          "kind": "inline_sql_reads_table",
+          "target": "pr_projekt",
+          "line": 82,
+          "initializer_line": 21
+        },
+        {
+          "kind": "inline_sql_reads_table",
+          "target": "vplm_vetroPlanLayerMappings",
+          "line": 82,
+          "initializer_line": 21
+        },
+        {
+          "kind": "inline_sql_reads_table",
+          "target": "vwef_vetroWebhookEventsFeature",
+          "line": 82,
+          "initializer_line": 21
+        },
+        {
+          "kind": "inline_sql_writes_table",
+          "target": "vwef_vetroWebhookEventsFeature",
+          "line": 82,
+          "initializer_line": 21
+        }
+      ]
+    }
+  },
+  "builds": {
+    "native_attempts": 1,
+    "native_compile": "2m 35s",
+    "native_test_execution_seconds": 2.31,
+    "native_runner_seconds": 170.5447752000764,
+    "release_builds": 1,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 15m 47s",
+    "release_runner_seconds": 959.1180068000685,
+    "full_suite_runs": 0,
+    "lib_unit_suite_compiled": false,
+    "cadence_deviation": "This single-feature release was already underway when the user repeated the compilation concern. Existing three-substantive-component batching rule had not been followed. Finish/reuse this artifact; next batch must satisfy that existing rule before Cargo."
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115",
+    "native_fixture_removed": true,
+    "release_fixture_removed": true,
+    "release_job_closed": true,
+    "public_fixtures_removed": true,
+    "configuration_hold_released": true,
+    "owned_config_removed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9cd1f25811c54e8bbda9657c76a5d257",
+    "normal_runtime": {
+      "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+      "owners": [
+        {
+          "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\restored-runtime\\wire",
+          "closed": true,
+          "pid": 44100,
+          "natural_exit": true,
+          "reader_joined": true,
+          "exit_code": 0,
+          "pending_observations": []
+        }
+      ],
+      "intentional_retained_runtime": true,
+      "daemon_pid": 29332,
+      "daemon_created": 1794729310.464687,
+      "metadata": {
+        "pid": "29332",
+        "started_at_ms": "1794729310541",
+        "protocol_version": "1",
+        "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+        "version": "0.1.0"
+      },
+      "server_sha256": "bedfd91af425c9bcea353097cb6c41398b49a22de8e8d9541d1c7ff549ad512f",
+      "normal_proxy_metrics_succeeded": true,
+      "selected_generation": 3151,
+      "owned_temp_removed": true,
+      "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+    },
+    "retention": "Case snapshot/evidence/scripts/package and managed rollback pair retained for review/recovery. New owned fixtures removed after handles closed. Preexisting folders untouched; normal daemon intentionally retained."
+  },
+  "limits": [
+    "Lexical source table candidates only. CLR receiver, branch reachability, physical database/schema binding, deployment identity, trigger effects and runtime execution are not proven.",
+    "Exact real file verified on owned copies; no actual LegacyValidation request trace, Site/Q source read, source application change, SQL execution or model benchmark replay.",
+    "Dynamic SQL, multi-statement batches including the observed SyncData identity-insert batches, general ORM/dataflow and broader TODO31 remain unfinished.",
+    "Original EG24/25 benefit failures and the broader original backlog remain open. No CodeMap/Blast or project-language expansion."
+  ],
+  "preserved_wip9": true,
+  "bounded_delivery_complete": true,
+  "broader_todo31_complete": false,
+  "broader_goal_complete": false,
+  "original_full19gates_closed": false
+}

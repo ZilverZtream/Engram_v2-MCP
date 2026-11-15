@@ -439,6 +439,14 @@ proposals that duplicate the existing surface:
   the unchanged security query retains six tables instead of four. Dynamic SQL,
   physical database binding and execution remain unresolved. [Delivery](eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json).
 
+  VB SqlCommand text tracing installed 2026-11-15: literal constructor/CommandText
+  values and stable same-method Const/Static SQL now retain table references,
+  explicit VB continuations and initializer/command/execution citations. An exact
+  non-Q LegacyValidation webhook source copy now yields one write and three reads instead
+  of zero. Six focused tests and thirteen checks on each candidate/installed
+  binary passed. Physical binding, execution, dynamic SQL, batches and broader
+  TODO31 remain unresolved. [Delivery](eval/legacy_validation-vb-text-command-delivery-20261115.json).
+
 - [~] **32. `one_shot_feature_plan` (spec 42-1)** (L)
   Compiles a full pre-edit dossier for a feature request (relevant files, patterns,
   safety, test plan). Build after #28/#30 exist to compose them.

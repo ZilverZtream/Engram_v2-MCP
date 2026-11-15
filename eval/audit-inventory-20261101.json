@@ -10027,10 +10027,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
+  "last_updated_at": "2026-11-15T07:56:43.061883+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO31 VB SqlCommand text-command table tracing",
       "original_requirement": "Trace a user request through authored handlers/calls to SQL and table source evidence. Deliver the remaining VB.NET/WebForms and SQL workflow instead of unrelated target-language expansion.",
       "observed_missing_behavior": "Actual non-Q WebhookEvent.SaveEventsToDB uses a Static sqlCmd literal concatenation with explicit VB continuations, passed to SqlCommand and executed with ExecuteNonQuery. Current inline reader covers ExecuteCommand/typed ExecuteQuery with literals/local Const; stored-procedure reader requires StoredProcedure. Default/text SqlCommand and this real Static initializer are skipped.",
@@ -10062,14 +10062,17 @@
         "Actual candidate/installed MCP on owned exact non-Q source copies proves table-reference/citation recovery and unchanged original source. No actual LegacyValidation trace/source scan, Site/Q read, SQL execution, model replay, CodeMap/Blast work or general dataflow/batch/ORM expansion. SyncData multi-statement batches remain recorded, not selected."
       ],
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\baseline2\\acceptance.json",
       "source_commit": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
       "retained_baseline_failure": "baseline1: Global.-qualified owned caller unresolved; corrected wrapper to the ordinary namespace-qualified call. Exact actual source unchanged, no resolver change.",
-      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\native-acceptance.json"
+      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\native-acceptance.json",
+      "bounded_delivery_complete": true,
+      "broader_todo31_complete": false,
+      "delivery": "eval/legacy_validation-vb-text-command-delivery-20261115.json"
     },
-    "at_utc": "2026-11-14T22:12:55.586031+00:00",
+    "at_utc": "2026-11-15T07:56:43.061883+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/legacy_workflows messages",
     "original_tool_roi_five": [
@@ -10099,8 +10102,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original TODO31 VB SqlCommand text-command table tracing",
-    "next_user_visible_deliverable": "Source-cited SqlCommand text table paths for the actual non-Q webhook SQL source, retaining current source and unresolved semantics.",
+    "active_original_item": "VB SqlCommand text-command bounded delivery complete; select next original LegacyValidation batch components before further compilation.",
+    "next_user_visible_deliverable": "Select and implement the next three substantive original LegacyValidation components sequentially, recording finite source contracts; then one combined focused verification/release. Preserve the completed VB text-command delivery and all unfinished acceptance.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15520,6 +15523,16 @@
       "bounded_delivery_complete": true,
       "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json",
       "broader_eg26_complete": false
+    },
+    "latest_vb_text_command_delivery": "eval/legacy_validation-vb-text-command-delivery-20261115.json",
+    "latest_build_cadence_correction": {
+      "at_utc": "2026-11-15T07:47:40.737632+00:00",
+      "user_observation": "Minutes of implementation followed by hours of compilation and full-suite work displaces useful product changes.",
+      "existing_rule": "delivery_cadence already requires three substantive original LegacyValidation components before one combined verification/release.",
+      "deviation": "Recent single-feature releases, including the already-running VB SqlCommand release, did not follow that cadence. Three parser branches or multiple checks for one feature do not constitute three substantive components.",
+      "current_action": "Finish the already-started release and reuse its artifact for candidate/installed acceptance. No replacement build is authorized by a verifier-only or documentation correction.",
+      "next_build_entry_condition": "Implement three substantive user-facing components sequentially from the original LegacyValidation backlog and name their acceptance criteria before invoking Cargo. Run one focused combined verification and one release. A smaller batch requires an evidenced delivery-blocking regression; record that evidence before compiling.",
+      "exclusions": "No build-system investigation, extra build to change test organization, full-suite default, or relabeling acceptance checks as product components."
     }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
