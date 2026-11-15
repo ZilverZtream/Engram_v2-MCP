@@ -992,7 +992,17 @@
       "scope_routing_delivery_20261113": "eval/legacy_validation-instruction-routing-delivery-20261113.json",
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
       "changed_file_entrypoint_delivery_20261115": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
-      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
+      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open.",
+      "pending_historical_linked_source_progress": {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "record": "eval/historical-linked-policy-progress-20261115.json",
+        "original_requirement_id": "EG-27",
+        "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
+        "native_tests_run": false,
+        "public_acceptance_run": false,
+        "deployed": false
+      }
     },
     {
       "id": "EG-28",
@@ -10077,11 +10087,10 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "record": "eval/retained-index-output-progress-20261115.json",
-      "original_requirement_id": "EG-13",
-      "original_gate_id": "S14",
-      "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
+      "record": "eval/historical-linked-policy-progress-20261115.json",
+      "original_requirement_id": "EG-27",
+      "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
@@ -10116,8 +10125,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-13 / S14 retained source output admission is source-complete and queued for combined validation. No implementation item active until the next distinct original requirement is selected.",
-    "next_user_visible_deliverable": "Accumulate at least two more distinct original source outcomes sequentially before combined focused validation and one release. No build for this single queued outcome.",
+    "active_original_item": "EG-27 revision-pinned shared guidance source-complete and queued with EG-13 retained indexing output. Select the next distinct original implementation item; no compile yet.",
+    "next_user_visible_deliverable": "Complete a third distinct useful original source outcome before combined focused validation and one release. EG-13 and EG-27 remain unvalidated/uninstalled; previous installed receipts remain authoritative.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15912,6 +15921,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
         "progress_record": "eval/retained-index-output-progress-20261115.json",
         "user_outcome": "Retained indexing statistics and document batches participate in shared-budget admission through their actual consumers; refusal preserves the published generation. Source complete, not yet validated or installed."
+      },
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
+        "runtime_source_commit": "e3e07cdf3400af9ea15d06a214ab33a5d63554c7",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
+        "progress_record": "eval/historical-linked-policy-progress-20261115.json",
+        "user_outcome": "Revision-pinned change sets include complete shared guidance from the requested Git tree, including deleted checkout files; preserve committed scope/exception/hash evidence. Source complete; not yet validated or installed."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -15958,9 +15976,10 @@
   "latest_source_batch_progress": {
     "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
     "independent_requirements_source_complete": [
-      "EG-13"
+      "EG-13",
+      "EG-27"
     ],
-    "pending_count": 1,
+    "pending_count": 2,
     "minimum_before_compile": 3,
     "native_builds": 0,
     "release_builds": 0,
@@ -15984,6 +16003,16 @@
     "original_gate_id": "S14",
     "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
+  },
+  "historical_linked_policy_source_progress": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/historical-linked-policy-progress-20261115.json",
+    "original_requirement_id": "EG-27",
+    "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false
