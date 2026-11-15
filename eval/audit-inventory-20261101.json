@@ -977,7 +977,8 @@
       "captured_vb_reference_delivery_20261113": "eval/legacy_validation-vb-instruction-evidence-delivery-20261113.json",
       "js_ts_instruction_scope_delivery_20261113": "eval/legacy_validation-instruction-scope-delivery-20261113.json",
       "scope_routing_delivery_20261113": "eval/legacy_validation-instruction-routing-delivery-20261113.json",
-      "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json"
+      "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
+      "changed_file_entrypoint_delivery_20261115": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json"
     },
     {
       "id": "EG-28",
@@ -1054,7 +1055,8 @@
         "limit": "Runtime delivery is complete; existing partial behavior/coverage/usefulness requirements in this finding remain open."
       },
       "current_installed_delivery": "execution_evidence_20261101.eg31_installed_maintenance_delivery_20261111",
-      "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json"
+      "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
+      "changed_file_entrypoint_delivery_20261115": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json"
     }
   ],
   "storage_release_gates": [
@@ -10059,7 +10061,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "EG27/EG31 changed-file entry point for affected instruction maintenance",
       "original_requirement": "Make affected authored guidance and dependency changes usable after ordinary LegacyValidation VB.NET/JS/TS/SQL edits; preserve complete guidance, exceptions and historical evidence.",
       "observed_gap": "Maintenance requires callers to enumerate instruction_paths and evidence_paths. Existing task-scoped guidance discovery is not composed into this workflow; changed source files alone cannot start a proposal/health/update observation.",
@@ -10097,7 +10099,12 @@
       },
       "baseline_commit": "dca2a74e13af899c6e409327d860c8cdd286e31a",
       "baseline_runtime": "73d264b28faf372eff7b1572c4c84bf68c985dd85f891ecb894e5ffb1329d679",
-      "configuration_relevance": "Existing LegacyValidation authored-guidance consumers and VB/JS/TS/SQL sources are covered by retained EG27/31 installed delivery receipts; current normal configuration remains pinned in the latest actual-source delivery."
+      "configuration_relevance": "Existing LegacyValidation authored-guidance consumers and VB/JS/TS/SQL sources are covered by retained EG27/31 installed delivery receipts; current normal configuration remains pinned in the latest actual-source delivery.",
+      "delivery_record": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
+      "source_commit": "432f4e7bbce168e39914209dbe4eff4be7547c32",
+      "runtime_source_commit": "fbb8fc4162dacd65568df43a107cb86fe09261f4",
+      "installed_server_sha256": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf",
+      "actual_full_source_operation_run": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10129,8 +10136,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Current-file settings slice delivered; advance next original requirement.",
-    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement using existing delivery evidence. Current-file settings catalog/lookup are activated on actual source; owned QA fallback passed. Preserve held actual full-QA configuration survey, negative invoice comparison and all unfinished original requirements. No replay or widening of this delivered slice.",
+    "active_original_item": "Changed-file instruction maintenance slice delivered; advance next original requirement.",
+    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement. Changed-file instruction maintenance is deployed across pre-push audit, project health and post-update observations; preserve current-discovery/historical limits, actual-Q source holds and all unfinished semantic/usefulness/full-goal requirements. Do not replay or widen passed acceptance.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10147,7 +10154,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: three current-file settings components deployed; actual catalog and lookup verified; actual full-QA survey held under protected Q boundary.",
+    "previous_goal_turn_classification": "PROGRESS: three instruction-maintenance workflows deployed and public owned exact-source acceptance completed; broader original goal active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15782,6 +15789,11 @@
   "current_settings_delivery": {
     "record": "eval/legacy_validation-current-settings-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ACTUAL_CATALOG_LOOKUP_VERIFIED",
+    "full_goal_complete": false
+  },
+  "changed_instruction_maintenance_delivery": {
+    "record": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
   }
 }

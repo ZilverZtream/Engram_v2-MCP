@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "EG27/EG31 changed-file entry point for affected instruction maintenance",
     "original_requirement": "Make affected authored guidance and dependency changes usable after ordinary LegacyValidation VB.NET/JS/TS/SQL edits; preserve complete guidance, exceptions and historical evidence.",
     "observed_gap": "Maintenance requires callers to enumerate instruction_paths and evidence_paths. Existing task-scoped guidance discovery is not composed into this workflow; changed source files alone cannot start a proposal/health/update observation.",
@@ -78,7 +78,12 @@
     },
     "baseline_commit": "dca2a74e13af899c6e409327d860c8cdd286e31a",
     "baseline_runtime": "73d264b28faf372eff7b1572c4c84bf68c985dd85f891ecb894e5ffb1329d679",
-    "configuration_relevance": "Existing LegacyValidation authored-guidance consumers and VB/JS/TS/SQL sources are covered by retained EG27/31 installed delivery receipts; current normal configuration remains pinned in the latest actual-source delivery."
+    "configuration_relevance": "Existing LegacyValidation authored-guidance consumers and VB/JS/TS/SQL sources are covered by retained EG27/31 installed delivery receipts; current normal configuration remains pinned in the latest actual-source delivery.",
+    "delivery_record": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
+    "source_commit": "432f4e7bbce168e39914209dbe4eff4be7547c32",
+    "runtime_source_commit": "fbb8fc4162dacd65568df43a107cb86fe09261f4",
+    "installed_server_sha256": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf",
+    "actual_full_source_operation_run": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -868,42 +873,42 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 324.53781510004774,
-    "actual_test_execution_seconds": 7.55,
-    "last_release_compile_seconds": 1003.0,
+    "compiled_tests_seconds": 289.1173850001069,
+    "actual_test_execution_seconds": 7.19,
+    "last_release_compile_seconds": 851.0,
     "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-settings-activation-20261115",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\changed-instruction-maintenance-20261115",
     "completed_last_batch": [
       {
-        "component": "Current-file setting catalog",
-        "delivery": "eval/legacy_validation-current-settings-delivery-20261115.json"
+        "component": "Changed-file pre-push maintenance/proposals",
+        "delivery": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json"
       },
       {
-        "component": "Current-file setting lookup",
-        "delivery": "eval/legacy_validation-current-settings-delivery-20261115.json"
+        "component": "Changed-file health observations",
+        "delivery": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json"
       },
       {
-        "component": "Current literal-setting QA fallback",
-        "delivery": "eval/legacy_validation-current-settings-delivery-20261115.json"
+        "component": "Changed-file post-update observations",
+        "delivery": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json"
       }
     ],
-    "last_batch_delivery": "eval/legacy_validation-current-settings-delivery-20261115.json",
+    "last_batch_delivery": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
     "last_native_compile": [
-      "5m 04s"
+      "26.05s"
     ],
-    "last_release_compile": "16m 43s",
+    "last_release_compile": "14m 11s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Three current-file components deployed; actual catalog/lookup verified without migration. Actual full-QA survey remains held; owned exact-source QA passed. Reuse installed binary for non-runtime work.",
-    "last_native_attempts": 1,
+    "current_step_reason": "Three changed-file instruction workflows deployed. Exact raw LegacyValidation source-copy acceptance complete; actual full-source operations remain held under Q boundary. Reuse installed artifact for non-runtime work.",
+    "last_native_attempts": 3,
     "last_release_attempts": 1,
-    "compiled_tests_seconds_scope": "One focused nine-case native batch including compile and cleanup; no library/full suite.",
-    "last_release_runner_seconds": 1016.9495226000436,
-    "native_failed_attempts": 0,
+    "compiled_tests_seconds_scope": "One focused four-case target, three attempts; two fixture corrections retained. No library/full suite and no runtime changes after the first native compile.",
+    "last_release_runner_seconds": 863.2835316000273,
+    "native_failed_attempts": 2,
     "public_failed_verifier_attempts": 1,
-    "last_native_runner_seconds": 324.53781510004774,
+    "last_native_runner_seconds": 289.1173850001069,
     "latest_cadence_deviation": {
       "at_utc": "2026-11-15T07:47:40.737632+00:00",
       "user_observation": "Minutes of implementation followed by hours of compilation and full-suite work displaces useful product changes.",
@@ -977,7 +982,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement using existing delivery evidence. Current-file settings catalog/lookup are activated on actual source; owned QA fallback passed. Preserve held actual full-QA configuration survey, negative invoice comparison and all unfinished original requirements. No replay or widening of this delivered slice.",
+  "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement. Changed-file instruction maintenance is deployed across pre-push audit, project health and post-update observations; preserve current-discovery/historical limits, actual-Q source holds and all unfinished semantic/usefulness/full-goal requirements. Do not replay or widen passed acceptance.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2487,6 +2492,11 @@
   "current_settings_delivery": {
     "record": "eval/legacy_validation-current-settings-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ACTUAL_CATALOG_LOOKUP_VERIFIED",
+    "full_goal_complete": false
+  },
+  "changed_instruction_maintenance_delivery": {
+    "record": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
   }
 }
