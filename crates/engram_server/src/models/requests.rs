@@ -1152,7 +1152,9 @@ pub struct AskCodebaseRequest {
     /// Optional current task / user story for context.
     #[serde(default)]
     pub task_context: Option<String>,
-    /// Pin the answer to a branch/commit (branch is advisory in M1).
+    /// Retrieve complete bounded source blobs at one resolved Git commit/branch.
+    /// Excludes current index, live graph and current policy evidence; historical
+    /// coverage stays partial. Unavailable revisions never fall back to current code.
     #[serde(default)]
     pub as_of: Option<AsOf>,
     /// Who is asking (role/permissions — carried for future ACL).

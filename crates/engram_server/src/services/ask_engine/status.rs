@@ -56,8 +56,8 @@ pub struct ProviderReport {
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct FreshnessSnapshot {
     pub project_generation: Option<u64>,
-    pub git_commit: Option<String>,     // registry meta "last_git_oid"
-    pub git_branch: Option<String>,     // from as_of.branch only (not indexed)
+    pub git_commit: Option<String>,     // resolved historical source, or live registry "last_git_oid"
+    pub git_branch: Option<String>,     // resolved historical branch, or advisory live metadata
     pub history_watermark: Option<u64>, // meta "pr_ingest_watermark" | "total_commits"
     pub last_index_ms: Option<u64>,     // meta "last_index_completed_ms"
     pub semantic_tier: String,          // "semantic" | "degraded_trigram" | "off"

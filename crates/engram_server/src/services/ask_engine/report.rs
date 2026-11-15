@@ -165,6 +165,7 @@ fn authority_label(a: Authority) -> &'static str {
     match a {
         Authority::RuntimeEvidence => "runtime",
         Authority::CurrentCode => "current_code",
+        Authority::HistoricalCode => "historical_code",
         Authority::ApprovedRequirement => "requirement",
         Authority::CurrentDocs => "docs",
         Authority::MergedHistory => "history",

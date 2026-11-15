@@ -82,6 +82,16 @@ impl Engram {
             ));
         }
         let rec = self.ensure_project_record(&req.project_id).await?;
+        if req.as_of.is_some() {
+            let root = std::path::PathBuf::from(&rec.directory);
+            let history_req = req.clone();
+            let plan = self.understand_ask_query(&req).await;
+            let out = tokio::task::spawn_blocking(move || {
+                crate::services::ask_engine::historical::gather(&root, &history_req, plan)
+            }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+                .map_err(|error| McpError::invalid_params(format!("Historical source retrieval unavailable: {error:#}"), None))?;
+            return self.deliver_ask_report(&req, out).await;
+        }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let generation = self.get_active_generation(&req.project_id).await?;
         let (gen_, source_selection) = match self.pin_active_source_generation(&req.project_id, &ps.search).await {
@@ -96,13 +106,7 @@ impl Engram {
         let cancel = tokio_util::sync::CancellationToken::new();
 
         // Plan, then resolve entities against the graph (sync redb → spawn_blocking).
-        let mut plan = planner::plan_query(&req.question);
-        if req.route_with_model {
-            let wait = Duration::from_millis(req.routing_timeout_ms.unwrap_or(5_000).clamp(1_000, 30_000));
-            crate::services::ask_engine::model_routing::route(
-                &self.state.dreaming, &req.question, &mut plan, wait,
-            ).await;
-        }
+        let mut plan = self.understand_ask_query(&req).await;
         let graph = self.state.graph.clone();
         let pid_for_resolve = req.project_id.clone();
         let question_for_resolve = req.question.clone();
@@ -460,12 +464,7 @@ impl Engram {
             .filter(|item| item.authority == crate::services::ask_engine::evidence::Authority::CurrentCode)
             .filter_map(|item| item.path.clone())
             .collect::<std::collections::BTreeSet<_>>().into_iter().collect();
-        let historical = req.as_of.as_ref().is_some_and(|a|
-            a.commit.as_deref().is_some_and(|v| !v.trim().is_empty())
-            || a.branch.as_deref().is_some_and(|v| !v.trim().is_empty()));
-        let project_policy_sources = if historical {
-            crate::services::project_policy::PolicyContext::historical_unavailable()
-        } else {
+        let project_policy_sources = {
             let root = std::path::PathBuf::from(&rec.directory);
             tokio::task::spawn_blocking(move || {
                 let mut policy = crate::services::project_policy::resolve(&root, &policy_paths, &[]);
@@ -474,7 +473,7 @@ impl Engram {
             }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
         };
 
-        let mut out = AskReport {
+        let out = AskReport {
             question: req.question.clone(),
             plan,
             status: st,
@@ -489,6 +488,22 @@ impl Engram {
             providers,
             answer_members,
         };
+
+        self.deliver_ask_report(&req, out).await
+    }
+
+    async fn understand_ask_query(&self, req: &crate::models::AskCodebaseRequest) -> crate::services::ask_engine::plan::QueryPlan {
+        let mut plan = planner::plan_query(&req.question);
+        if req.route_with_model {
+            let wait = Duration::from_millis(req.routing_timeout_ms.unwrap_or(5_000).clamp(1_000, 30_000));
+            crate::services::ask_engine::model_routing::route(
+                &self.state.dreaming, &req.question, &mut plan, wait,
+            ).await;
+        }
+        plan
+    }
+
+    async fn deliver_ask_report(&self, req: &crate::models::AskCodebaseRequest, mut out: AskReport) -> Result<CallToolResult, McpError> {
 
         if req.synthesize {
             let max_wait = Duration::from_millis(req.synthesis_timeout_ms.unwrap_or(30_000).clamp(1_000, 120_000));
@@ -512,7 +527,7 @@ impl Engram {
             ),
             _ => report::render_markdown(&out),
         };
-        let body = response_delivery::finish(&self.state.cfg.data_dir, &req, body, &out)?;
+        let body = response_delivery::finish(&self.state.cfg.data_dir, req, body, &out)?;
         Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 }

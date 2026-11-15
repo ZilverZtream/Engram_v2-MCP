@@ -26,6 +26,7 @@ pub enum EvidenceKind {
 pub enum Authority {
     RuntimeEvidence,      // observed runtime at the requested version
     CurrentCode,          // current executable code + tests
+    HistoricalCode,       // immutable source at the explicitly requested Git revision
     ApprovedRequirement,  // approved requirement / explicit decision (memory)
     CurrentDocs,          // current product documentation
     MergedHistory,        // merged implementation history
@@ -41,6 +42,7 @@ impl Authority {
         match self {
             Authority::RuntimeEvidence => 1.0,
             Authority::CurrentCode => 0.95,
+            Authority::HistoricalCode => 0.95,
             Authority::ApprovedRequirement => 0.9,
             Authority::CurrentDocs => 0.7,
             Authority::MergedHistory => 0.6,
