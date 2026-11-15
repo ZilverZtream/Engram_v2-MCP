@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "at_utc": "2026-11-15T18:59:51.889003+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T19:40:42.564385+00:00",
   "original_requirement_id": "EG-27",
   "source_commit": "c94f340b64f3a3048900ff3ce8a3cf91bf642d9c",
   "original_requirement": "Supply linked guidance outside normal discovery or name incomplete coverage, retaining source identity, scope and authority.",
@@ -20,15 +20,11 @@
   },
   "checks_completed": [
     "Installed owned baseline confirms ordinary context observes but does not supply a linked shared document.",
-    "Rust/Python syntax parsing and git diff --check."
+    "Rust/Python syntax parsing and git diff --check.",
+    "Combined focused native and debug/candidate/installed public acceptance passed; installed package and normal runtime verified."
   ],
-  "checks_deferred": [
-    "Run focused linked-policy tests in the combined batch.",
-    "Run ordinary-context public checks on combined debug, candidate and installed artifacts."
-  ],
-  "native_compilations_this_item": 0,
-  "release_builds_this_item": 0,
-  "deployed": false,
+  "checks_deferred": [],
+  "deployed": true,
   "full_requirement_complete": false,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115",
@@ -46,5 +42,18 @@
     "affected_native_case": "linked_guidance::prepared_context_binds_linked_recovery_to_its_project",
     "public_rerun": "Only failed EG27 public fixture. EG31 and EG19 public results retained; final candidate/installed acceptance will use the shared release.",
     "source_commit": "4161fc22b07d88b940446dc6875ef1c026b7d89a"
+  },
+  "combined_delivery_record": "eval/ai-workflow-batch-delivery-20261115.json",
+  "combined_build_accounting": {
+    "native_invocations": 2,
+    "native_case_composition": "18 initial cases passed; one added public-entrypoint regression case passed after the recovery-action binding correction. Unaffected passed cases were not rerun.",
+    "release_invocations": 1,
+    "full_suite": false,
+    "extra_debug_build": false,
+    "record": "eval/ai-workflow-batch-delivery-20261115.json"
+  },
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
   }
 }

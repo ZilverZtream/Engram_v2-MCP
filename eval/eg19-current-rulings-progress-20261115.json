@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "at_utc": "2026-11-15T18:41:50.434331+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T19:40:42.564385+00:00",
   "original_requirement_id": "EG-19",
   "source_commit": "9bbfa6d20ece514ed19d5982aa4f24f1036b1a46",
   "original_requirement": "Bounded scoped prior rulings with complete evidence and no automatic suppression; full decision history remains recoverable.",
@@ -27,15 +27,11 @@
   },
   "checks_completed": [
     "Installed owned baseline confirms default long-history deferral and absent current view.",
-    "Targeted Rust syntax parsing, Python verifier syntax parsing and git diff --check."
+    "Targeted Rust syntax parsing, Python verifier syntax parsing and git diff --check.",
+    "Combined focused native and debug/candidate/installed public acceptance passed; installed package and normal runtime verified."
   ],
-  "checks_deferred": [
-    "Run review_decision_history_tests with the next combined independent-requirement batch.",
-    "Run deferred public verifier on combined debug, candidate and installed artifacts, including exact recovery pages and dated history handoff."
-  ],
-  "native_compilations_this_item": 0,
-  "release_builds_this_item": 0,
-  "deployed": false,
+  "checks_deferred": [],
+  "deployed": true,
   "full_requirement_complete": false,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-review-rulings-20261115",
@@ -44,5 +40,18 @@
     "preserved_wip9": true,
     "cleanup_condition": "Owned native/public fixtures close database/process handles and remove their directories. Retain scripts and proof here until superseded; do not delete preexisting folders."
   },
-  "selection_notes": "TODO32 semantic failure was inspected once; TODO.md explicitly directs preserving its findings and advancing without another tuning loop. No planner code or inspected task was replayed."
+  "selection_notes": "TODO32 semantic failure was inspected once; TODO.md explicitly directs preserving its findings and advancing without another tuning loop. No planner code or inspected task was replayed.",
+  "combined_delivery_record": "eval/ai-workflow-batch-delivery-20261115.json",
+  "combined_build_accounting": {
+    "native_invocations": 2,
+    "native_case_composition": "18 initial cases passed; one added public-entrypoint regression case passed after the recovery-action binding correction. Unaffected passed cases were not rerun.",
+    "release_invocations": 1,
+    "full_suite": false,
+    "extra_debug_build": false,
+    "record": "eval/ai-workflow-batch-delivery-20261115.json"
+  },
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  }
 }

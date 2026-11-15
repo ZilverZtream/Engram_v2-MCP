@@ -763,7 +763,7 @@
       "declared_scope_delivery_20261113": "eval/legacy_validation-review-scope-delivery-20261113.json",
       "review_response_budget_delivery_20261113": "eval/legacy_validation-review-response-budget-delivery-20261113.json",
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
-      "latest_bounded_delivery_20261115": "eval/instruction-review-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
+      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
     },
     {
       "id": "EG-20",
@@ -992,7 +992,7 @@
       "scope_routing_delivery_20261113": "eval/legacy_validation-instruction-routing-delivery-20261113.json",
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
       "changed_file_entrypoint_delivery_20261115": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
-      "latest_bounded_delivery_20261115": "eval/instruction-review-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
+      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
     },
     {
       "id": "EG-28",
@@ -1071,7 +1071,7 @@
       "current_installed_delivery": "execution_evidence_20261101.eg31_installed_maintenance_delivery_20261111",
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
       "changed_file_entrypoint_delivery_20261115": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
-      "latest_bounded_delivery_20261115": "eval/instruction-review-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
+      "latest_bounded_delivery_20261115": "eval/ai-workflow-batch-delivery-20261115.json; selected workflow behavior installed, broader finding remains open."
     }
   ],
   "storage_release_gates": [
@@ -10076,29 +10076,8 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "ONE_COMBINED_RELEASE_RUNNING",
-      "original_requirement_ids": [
-        "EG-31",
-        "EG-19",
-        "EG-27"
-      ],
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-workflow-batch-20261115\\contract.json",
-      "focused_target": "ai_workflow_batch_tests",
-      "expected_native_cases": 19,
-      "native_builds_started": 2,
-      "release_builds_started": 1,
-      "delivery_correction": {
-        "cause": "First linked public check found missing read_action in prepare_implementation_context, after correct bodies/scope/Markdown passed.",
-        "changed_sources": [
-          "crates/engram_server/src/handlers/access_layer_tools.rs",
-          "crates/engram_server/tests/linked_policy_sources_tests.rs"
-        ],
-        "affected_native_case": "linked_guidance::prepared_context_binds_linked_recovery_to_its_project",
-        "public_rerun": "Only failed EG27 public fixture. EG31 and EG19 public results retained; final candidate/installed acceptance will use the shared release.",
-        "source_commit": "4161fc22b07d88b940446dc6875ef1c026b7d89a"
-      },
-      "native_distinct_cases": 19,
-      "public_debug_checks": 28
+      "status": "DELIVERED",
+      "record": "eval/ai-workflow-batch-delivery-20261115.json"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10130,8 +10109,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Combined EG31/EG19/EG27 verification; all three source changes frozen.",
-    "next_user_visible_deliverable": "One18-case native target, all three public workflow fixtures on its reused debug binary, then one release and candidate/installed acceptance.",
+    "active_original_item": "No source item selected yet after combined delivery; select the next original LegacyValidation priority from concrete unfinished behavior.",
+    "next_user_visible_deliverable": "Continue sequential source delivery on the original shortlist, accumulate independent outcomes before the next combined validation; no per-feature release.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15916,71 +15895,18 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "78409d64dd6f021aa9ff8ca0989b5d1b66ae2f96",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115\\contract.json",
-        "source_progress_record": "eval/eg31-git-change-selection-progress-20261115.json",
-        "focused_native_target": "changed_instruction_workflow_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115\\verify-public.py",
-        "user_outcome": "Opt-in Git change selection discovers affected scoped/reference guidance and exact before/current evidence without enumerating the changed files by hand.",
-        "files": {
-          "crates/engram_server/src/services/instruction_maintenance.rs": "635113cd5132cdd59462090ecf646e4e3a673ee96f5f0cd2c7e63143ea77f9cd",
-          "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "e167ead2dc9e9f11a059e28f6906271353bd127c410cd895f7459aa5d38a84a9",
-          "crates/engram_server/src/services/instruction_maintenance/changed_evidence/git_changes.rs": "c51e8131f036625c46134b92d7794fbeaccfd7e847cccce666b16fc1898a55b6",
-          "crates/engram_server/src/handlers/project_tools/instruction_observation.rs": "1c035bbccf85789e5d30caa8c7ae756ed2c53ef78a8a87083477c4e7506a7fcd",
-          "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "bc483820a454a53da9592e1a6b9c4d1231f115179ea8b2f735c2c194070eef82",
-          "docs/TOOL_CONTRACT.md": "8124b6265b21e684f51704be10a69faedc86ed8424a343bdeb6fcdd3cbc23ce6"
-        }
-      },
-      {
-        "original_requirement_id": "EG-19",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "9bbfa6d20ece514ed19d5982aa4f24f1036b1a46",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-review-rulings-20261115\\contract.json",
-        "source_progress_record": "eval/eg19-current-rulings-progress-20261115.json",
-        "focused_native_target": "review_decision_history_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-review-rulings-20261115\\verify-public.py",
-        "user_outcome": "An optional current view supplies all latest imported rulings with complete conditions/provenance and an explicit dated full-history follow-up; the default full-history view is unchanged.",
-        "files": {
-          "crates/engram_server/src/handlers/review_decisions.rs": "63e6cd2067f6b7f45df0e8fafd0ce7fe4857b722b36d3e6ba0abc65182441537",
-          "crates/engram_server/src/tools.rs": "a43960a56f389df98000eec7cff58c39372b8d5f4430b234b7d84cccc39a6150",
-          "crates/engram_server/tests/code_review_ingest_tests.rs": "46cdf5173d9b7d2b3d32410e27ae555404861c8b8656f1d5b24605ae7a74c581",
-          "crates/engram_server/tests/review_decision_history_tests.rs": "5618e3d7dc46c39d3101189bc92b4025e8ef86399763e74715aa42dace01515b",
-          "docs/TOOL_CONTRACT.md": "81409edb70671f8b54de1bddbd691fa8789ca96b61e160ff06002bfecb2f2731"
-        }
-      },
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "c94f340b64f3a3048900ff3ce8a3cf91bf642d9c",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115\\contract.json",
-        "source_progress_record": "eval/eg27-linked-guidance-progress-20261115.json",
-        "focused_native_target": "linked_policy_sources_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115\\verify-public.py",
-        "user_outcome": "Normal scoped contexts supply complete bounded first-hop linked Markdown evidence alongside direct policy, with source hashes and explicit applicability/authority separation. Missing, excluded and budget-limited targets remain named.",
-        "files": {
-          "crates/engram_server/src/services/project_policy.rs": "bd37c4691ea0074e01182bffc1504c3a3288986391eba83097628866753aad38",
-          "crates/engram_server/src/services/project_policy/references.rs": "dc23745a43aa9aa58b5428656e93c6c7ed6a746f63f01931223a8d6bca8c046c",
-          "crates/engram_server/src/services/project_policy/linked_sources.rs": "eda8194d2f283e2f28450f8c939016f0e684ef7051b7b417c1a7da90d7b91113",
-          "crates/engram_server/tests/linked_policy_sources_tests.rs": "850c31390c6bebf6eef8c5c10ab637707c335433b0986f60d07a5d692a90e9fa",
-          "docs/TOOL_CONTRACT.md": "794f8bf7c98114c0d535f91ff1bd6858e5ce1dc5bdf75b6a91854c41ca7df767"
-        }
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/instruction-review-batch-delivery-20261115.json",
+      "record": "eval/ai-workflow-batch-delivery-20261115.json",
       "source_requirements": [
-        "EG-27",
         "EG-31",
-        "EG-19"
+        "EG-19",
+        "EG-27"
       ],
-      "native_attempts": 1,
+      "native_attempts": 2,
       "release_attempts": 1
     }
   },
@@ -16011,13 +15937,14 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "records": [
-      "eval/eg31-git-change-selection-progress-20261115.json",
-      "eval/eg19-current-rulings-progress-20261115.json",
-      "eval/eg27-linked-guidance-progress-20261115.json"
-    ],
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "independent_requirements_queued": 3,
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": "eval/ai-workflow-batch-delivery-20261115.json",
+    "independent_requirements_delivered": 3,
     "builds_started": 3
+  },
+  "ai_workflow_batch_delivery": {
+    "record": "eval/ai-workflow-batch-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_original_goal_complete": false
   }
 }

@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "at_utc": "2026-11-15T18:30:29.111860+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T19:40:42.564385+00:00",
   "original_requirement_id": "EG-31",
   "source_commit": "78409d64dd6f021aa9ff8ca0989b5d1b66ae2f96",
   "original_requirement": "Evidence-driven instruction maintenance after code changes through existing health/update/audit workflows.",
@@ -21,15 +21,11 @@
   },
   "checks_completed": [
     "Installed owned baseline confirms manual selection works and Git selection is absent.",
-    "Targeted Rust syntax parsing and git diff --check."
+    "Targeted Rust syntax parsing and git diff --check.",
+    "Combined focused native and debug/candidate/installed public acceptance passed; installed package and normal runtime verified."
   ],
-  "checks_deferred": [
-    "Compile the focused native cases in the next independent-requirement batch.",
-    "Run deferred public workflow verifier on the combined debug, candidate and installed artifacts."
-  ],
-  "native_compilations_this_item": 0,
-  "release_builds_this_item": 0,
-  "deployed": false,
+  "checks_deferred": [],
+  "deployed": true,
   "full_requirement_complete": false,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115",
@@ -51,5 +47,18 @@
       "checked": "Existing normal config allows LegacyValidation, advertises full tools, uses Ollama embeddings and OpenAI-compatible LLM; owned baseline used fts_only/none only. No actual project operation.",
       "credential_handling": "A full config read accidentally displayed a credential in the tool result. Do not repeat it or persist its value in records; read only selected non-secret fields or a file digest."
     }
+  },
+  "combined_delivery_record": "eval/ai-workflow-batch-delivery-20261115.json",
+  "combined_build_accounting": {
+    "native_invocations": 2,
+    "native_case_composition": "18 initial cases passed; one added public-entrypoint regression case passed after the recovery-action binding correction. Unaffected passed cases were not rerun.",
+    "release_invocations": 1,
+    "full_suite": false,
+    "extra_debug_build": false,
+    "record": "eval/ai-workflow-batch-delivery-20261115.json"
+  },
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
   }
 }
