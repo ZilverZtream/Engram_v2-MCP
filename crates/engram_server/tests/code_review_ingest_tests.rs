@@ -122,6 +122,7 @@ async fn unavailable_or_malformed_legacy_review_history_cannot_become_verified_o
                 review_id: "PR-9".into(),
             discussion: None,
             recorded_before: None,
+            view: Default::default(),
             })
             .await
             .unwrap_err();
@@ -227,6 +228,7 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
             review_id: "PR-4".into(),
             discussion: None,
             recorded_before: None,
+            view: Default::default(),
         })
         .await
         .unwrap();
@@ -259,6 +261,7 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         review_id: "PR-4".into(),
             discussion: None,
             recorded_before: None,
+            view: Default::default(),
     };
     let response = engram.handle_get_review_decisions(read()).await.unwrap();
     let legacy_view: serde_json::Value =
@@ -395,6 +398,7 @@ async fn changed_thread_disposition_appends_a_superseding_event() {
             review_id: "PR-8".into(),
             discussion: None,
             recorded_before: None,
+            view: Default::default(),
         })
         .await
         .unwrap();

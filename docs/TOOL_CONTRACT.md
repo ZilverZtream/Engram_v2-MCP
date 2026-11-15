@@ -934,3 +934,16 @@ The cutoff applies to decision events only. Invalid calendar dates and combining
 historical discussion contents. Current-only `pre_commit_review` observations,
 raw discussion capture recovery and automatic finding-suppression behavior are
 unchanged. No full historical source/code/policy replay or authority is inferred.
+
+## Current review rulings
+
+For decision lookup, `get_review_decisions(view: "current")` retains every latest
+imported ruling, complete evidence, conditions and verification/authority warnings,
+while omitting superseded event bodies. `event_history` supplies the selected event
+count, BLAKE3 of their compact JSON array, and a full-history action with the same
+optional `recorded_before` cutoff. That action is a fresh query: compare its event
+hash and recollect if imported history changed. Source-date cutoffs do not freeze
+append time. Default `view: "history"` preserves the existing response; discussion
+capture recovery remains separate and cannot be combined with `view: "current"`.
+The shared reply budget and immutable whole-report recovery still apply to either
+view. A smaller selected view does not establish policy authority or task benefit.

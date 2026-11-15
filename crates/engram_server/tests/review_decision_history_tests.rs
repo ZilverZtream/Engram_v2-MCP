@@ -1,4 +1,4 @@
-//! Historical recovery must not turn later event appends into earlier rulings.
+//! Decision views retain dated rulings and complete evidence without repeated history.
 use engram_core::{Config, ContentHash, ProjectRecord, RelPath};
 use engram_server::{AppState, Engram};
 use serde_json::{Value, json};
@@ -91,6 +91,112 @@ async fn read(f: &Fixture, cutoff: Option<&str>) -> Value {
             .unwrap(),
     ))
     .unwrap()
+}
+
+async fn current(f: &Fixture, cutoff: Option<&str>) -> Value {
+    let mut args = json!({"project_id":PID,"review_id":"PR-17","view":"current"});
+    if let Some(cutoff) = cutoff {
+        args["recorded_before"] = json!(cutoff);
+    }
+    serde_json::from_str(&text(
+        f.e.handle_get_review_decisions(serde_json::from_value(args).unwrap())
+            .await
+            .unwrap(),
+    ))
+    .unwrap()
+}
+
+#[tokio::test]
+async fn current_view_keeps_all_latest_scope_and_provenance_with_dated_full_history_action() {
+    let f = fixture().await;
+    for cutoff in [None, Some(CUTOFF)] {
+        let full = read(&f, cutoff).await;
+        let projected = current(&f, cutoff).await;
+        assert!(projected.get("events").is_none());
+        assert_eq!(projected["view"], "current");
+        for (key, value) in full.as_object().unwrap() {
+            if key != "events" {
+                assert_eq!(&projected[key], value, "{key}");
+            }
+        }
+        assert_eq!(
+            projected["event_history"]["selected_events"],
+            full["events"].as_array().unwrap().len()
+        );
+        let hash = blake3::hash(full["events"].to_string().as_bytes())
+            .to_hex()
+            .to_string();
+        assert_eq!(projected["event_history"]["selected_events_blake3"], hash);
+        let action = &projected["event_history"]["next_call"];
+        assert_eq!(action["tool"], "get_review_decisions");
+        assert_eq!(action["arguments"]["view"], "history");
+        assert_eq!(action["arguments"]["recorded_before"].as_str(), cutoff);
+        let recovered: Value = serde_json::from_str(&text(
+            f.e.handle_get_review_decisions(
+                serde_json::from_value(action["arguments"].clone()).unwrap(),
+            )
+            .await
+            .unwrap(),
+        ))
+        .unwrap();
+        assert_eq!(recovered, full);
+        assert!(
+            projected["event_history"]["freshness"]
+                .as_str()
+                .unwrap()
+                .contains("fresh query")
+        );
+    }
+    let error =
+        f.e.handle_get_review_decisions(
+            serde_json::from_value(
+                json!({"project_id":PID,"review_id":"PR-17","view":"current","discussion":{}}),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap_err();
+    assert!(error.message.contains("view=current") && error.message.contains("discussion"));
+    assert!(
+        f.e.state.projects.is_empty(),
+        "Decision views must not open source indexes"
+    );
+}
+
+#[tokio::test]
+async fn current_view_avoids_large_superseded_history_without_changing_complete_latest_evidence() {
+    let f = fixture().await;
+    let rationale =
+        "Imported source declaration; preserve the explicit authorization exception. ".repeat(40);
+    let events = (0..30).map(|i| json!({"event_id":format!("long-{i}"),"finding_id":"long-finding","supersedes":if i==0{None}else{Some(format!("long-{}",i-1))},"kind":if i==29{"accepted_exception"}else{"open"},"source_url":"https://example.invalid/reviews/17","author":"Recorded reviewer","recorded_at":"2026-01-15T12:00:00Z","rationale":rationale,"verification":null,"scope":{"reviewed_commit":"1".repeat(40),"paths":["Site/preview.ts"],"conditions":"Only cached previews; per-action authorization still applies."}})).collect::<Vec<_>>();
+    text(
+        f.e.handle_record_review_decisions(
+            serde_json::from_value(
+                json!({"project_id":PID,"review_id":"PR-17","decisions":events}),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap(),
+    );
+    let full = read(&f, None).await;
+    let projected = current(&f, None).await;
+    assert_eq!(projected["current"], full["current"]);
+    assert_eq!(projected["automatic_finding_suppression"], false);
+    assert!(projected.to_string().len() * 4 < full.to_string().len());
+    assert_eq!(projected["event_history"]["selected_events"], 34);
+    let latest = projected["current"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["finding_id"] == "long-finding")
+        .unwrap();
+    assert_eq!(latest["evidence"]["rationale"], rationale);
+    assert_eq!(
+        latest["evidence"]["scope"]["conditions"],
+        "Only cached previews; per-action authorization still applies."
+    );
+    assert_eq!(full, read(&f, None).await);
 }
 #[tokio::test]
 async fn public_dated_history_filters_before_reconstructing_current_without_mutating_raw_history() {

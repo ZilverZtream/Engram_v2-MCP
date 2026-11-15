@@ -90,6 +90,11 @@ pub struct RecordReviewDecisionsRequest {
 pub struct GetReviewDecisionsRequest {
     pub project_id: String,
     pub review_id: String,
+    /// history (default) includes every eligible event. current retains only the
+    /// latest ruling per finding with complete evidence and a full-history action.
+    /// Both views are advisory; current cannot be combined with discussion.
+    #[serde(default)]
+    pub view: DecisionView,
     /// Exclusive YYYY-MM-DD cutoff on imported decision source dates. Filters
     /// events before reconstructing the latest state; not current fix verification.
     /// Omit for the unchanged complete event history. Cannot combine with discussion.
@@ -100,6 +105,14 @@ pub struct GetReviewDecisionsRequest {
     /// hash-bound UTF-8 pages. Captures are evidence, never authenticated policy.
     #[serde(default)]
     pub discussion: Option<DiscussionSelector>,
+}
+
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum DecisionView {
+    #[default]
+    History,
+    Current,
 }
 pub use super::review_discussion::DiscussionSelector;
 
@@ -504,6 +517,9 @@ impl Engram {
         if req.recorded_before.is_some() && req.discussion.is_some() {
             return Err(McpError::invalid_params("recorded_before filters decision events and cannot be combined with discussion capture recovery; event dates do not certify historical discussion contents",None));
         }
+        if req.view == DecisionView::Current && req.discussion.is_some() {
+            return Err(McpError::invalid_params("view=current selects latest decision events and cannot be combined with discussion capture recovery", None));
+        }
         let rec = self.ensure_project_record(&req.project_id).await?;
         if let Some(selector)=req.discussion {
             let guard=engram_core::memory::AllocationGuard::try_new(&self.state.memory_budget,
@@ -519,12 +535,30 @@ impl Engram {
                 .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
             return Ok(CallToolResult::success(vec![Content::text(recovered)]));
         }
-        let value = if let Some(cutoff)=req.recorded_before.as_deref() {
+        let mut value = if let Some(cutoff)=req.recorded_before.as_deref() {
             snapshot_before(&self.state,&req.project_id,&req.review_id,cutoff)
         } else {
             snapshot(&self.state,&req.project_id,&req.review_id,std::path::Path::new(&rec.directory))
         }
         .map_err(|e| McpError::invalid_params(e, None))?;
+        if req.view == DecisionView::Current {
+            let events = value.as_object_mut().and_then(|value| value.remove("events"))
+                .ok_or_else(|| McpError::internal_error("Decision snapshot has no event history", None))?;
+            let count = events.as_array().ok_or_else(|| McpError::internal_error("Decision history is not an array", None))?.len();
+            let hash = blake3::hash(events.to_string().as_bytes()).to_hex().to_string();
+            let mut arguments = serde_json::json!({"project_id":req.project_id,"review_id":req.review_id,"view":"history"});
+            if let Some(cutoff) = req.recorded_before {
+                arguments["recorded_before"] = serde_json::json!(cutoff);
+            }
+            value["view"] = serde_json::json!("current");
+            value["event_history"] = serde_json::json!({
+                "status":"not_included_in_current_view", "selected_events":count,
+                "selected_events_blake3":hash,
+                "hash_basis":"UTF-8 compact JSON serialization of the selected events array",
+                "next_call":{"tool":"get_review_decisions","arguments":arguments},
+                "freshness":"The history action is a fresh query, not immutable snapshot recovery. Verify its selected events hash against selected_events_blake3; recollect if events changed. Historical cutoffs constrain imported source dates, not append time."
+            });
+        }
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string()),
         )]))
