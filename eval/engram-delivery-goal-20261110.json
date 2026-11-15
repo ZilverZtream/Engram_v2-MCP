@@ -2568,6 +2568,8 @@
       "subsequent_compiles_authorized": false
     },
     "next_batch_pending": [],
-    "full_original_goal_scope_unchanged": true
+    "full_original_goal_scope_unchanged": true,
+    "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
+    "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact."
   }
 }
