@@ -1821,7 +1821,11 @@ impl ServerHandler for Engram {
         // — logging it here is what turns "the review 400s somewhere" into
         // "grep_project on <x> returned N bytes". One line per call, cheap.
         let tool_name = request.name.to_string();
-        let shared_delivery = crate::read_report_delivery::prepare(&mut request, &self.tool_router.list_all())?;
+        let registry = self.tool_router.list_all();
+        let shared_delivery = match crate::retained_results::prepare(&mut request, &registry)? {
+            Some(delivery) => Some(delivery),
+            None => crate::read_report_delivery::prepare(&mut request, &registry)?,
+        };
         if let Some(delivery) = &shared_delivery {
             if let Some(recovered) = delivery.recover(&self.state.cfg.data_dir)? {
                 tracing::info!(tool=%tool_name,"read-only original report recovery; analysis not run");

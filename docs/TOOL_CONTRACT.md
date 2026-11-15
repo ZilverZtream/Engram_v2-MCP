@@ -655,3 +655,20 @@ The limited Core surface includes list_memory_bank as the discovery dependency
 for read_memory_bank (up to 33 tools, filtered by registered capabilities). Project
 and user bank listings retain their separate stored identities and original
 freshness caveats.
+
+For stable continuation of a requested search window, search_memory,
+search_history and grep_project accept retain_response=true with
+output_json=true. The complete original bounded window is captured before
+max_tokens clips reply delivery. The response supplies response_delivery.next_call;
+follow those byte pages, concatenate their content and verify response_id as
+BLAKE3 before parsing the original MCP result. Recovery needs project_id and
+returned controls only, works across restart and changed inputs, and does not
+rerun search or ranking. Normal calls keep their current offset behavior.
+
+Retained windows expire after at most24hours or32newer captures for the same
+tool/project and may contain at most8MiB of original MCP JSON. They preserve
+original window/content limits, warnings, source identities and capture-time
+guidance/freshness. They do not retain the whole corpus or underlying citation
+objects. Original offset actions outside the saved window are fresh queries;
+request fresh evidence for current editing decisions. Retained replies default
+to40KiB or the supplied max_tokens budget, estimated at4UTF-8bytes/token.

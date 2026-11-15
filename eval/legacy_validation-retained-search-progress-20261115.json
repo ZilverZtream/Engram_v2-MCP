@@ -1,0 +1,51 @@
+{
+  "status": "THREE_COMPONENTS_NATIVE9_PUBLIC26_PASS_RELEASE_READY",
+  "implementation": {
+    "source_baseline": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
+    "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
+    "files": {
+      "crates/engram_server/src/retained_results.rs": "4cb76968c567c8fdaf98c95c0d7aecc11fee1536e97ec5475a695ea83d9c9e60",
+      "crates/engram_server/src/read_report_delivery.rs": "ba1fde794cba768c16c763f0a53a160053fe831634cafa4f3997514edd2f4ed7",
+      "crates/engram_server/src/tool_surface.rs": "9d9204b8a1d017a6b57e1c2f0711f4317ad48e2ff8e5bb26cd91f2727abe1f7e",
+      "crates/engram_server/src/tools.rs": "2b124da8c642910f8ea52f8acd211d679aca67331c2d50d891a71944ebe2e4b7",
+      "crates/engram_server/src/lib.rs": "cdf47b04ac10a0ed7d4a2fc4f2ada0ac20904eb7db81fca2c44f12b515c0d7e9",
+      "crates/engram_server/tests/retained_results_tests.rs": "6b9da9bfc32abf60739f71fb087ae2141296db4cf2f4d061fdad0f803856a49e"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/retained_results.rs": "4cb76968c567c8fdaf98c95c0d7aecc11fee1536e97ec5475a695ea83d9c9e60",
+      "crates/engram_server/src/read_report_delivery.rs": "ba1fde794cba768c16c763f0a53a160053fe831634cafa4f3997514edd2f4ed7",
+      "crates/engram_server/src/tool_surface.rs": "9d9204b8a1d017a6b57e1c2f0711f4317ad48e2ff8e5bb26cd91f2727abe1f7e",
+      "crates/engram_server/src/tools.rs": "2b124da8c642910f8ea52f8acd211d679aca67331c2d50d891a71944ebe2e4b7",
+      "crates/engram_server/src/lib.rs": "cdf47b04ac10a0ed7d4a2fc4f2ada0ac20904eb7db81fca2c44f12b515c0d7e9",
+      "crates/engram_server/tests/retained_results_tests.rs": "6b9da9bfc32abf60739f71fb087ae2141296db4cf2f4d061fdad0f803856a49e"
+    },
+    "preserved_wip9": true
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 9,
+    "required_component_cases": {
+      "even_small_windows_retain_an_identity_and_reject_other_project_or_tool": true,
+      "ordinary_search_requests_preserve_existing_budgets_filters_and_offsets": true,
+      "retained_controls_fail_before_capture_and_original_errors_are_preserved": true,
+      "retained_windows_recover_every_selected_identity_and_original_qualification": true,
+      "retention_schema_keeps_original_properties_and_core_full_contracts_equal": true
+    },
+    "existing_shared_report_cases": 4,
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
+    "native_compile": "3m09s",
+    "native_test_seconds": 1.14,
+    "dedicated_target": "retained_results_tests",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed; case evidence retained."
+  },
+  "debug_public": {
+    "status": "PASS",
+    "checks": 26,
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\debug-smoke1\\acceptance.json"
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115",
+  "remaining": "One release; candidate/installed26checks, state/config preservation, normal restoration and push only origin/master."
+}

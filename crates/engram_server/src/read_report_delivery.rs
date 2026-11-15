@@ -131,6 +131,7 @@ pub struct Report {
     budget: usize,
     response_id: Option<String>,
     offset: usize,
+    capture_window: bool,
 }
 
 pub fn prepare(
@@ -169,23 +170,8 @@ pub fn prepare(
         budget,
         response_id: controls.response_id,
         offset: controls.response_offset.unwrap_or(0),
-    };
-    if report.response_id.is_none() && report.offset != 0 {
-        return Err(McpError::invalid_params(
-            "response_offset requires response_id from read-report recovery",
-            None,
-        ));
-    }
-    let minimum = report.manifest(&"0".repeat(64), 8 * 1024 * 1024).len();
-    if budget < minimum {
-        return Err(McpError::invalid_params(
-            format!(
-                "max_tokens is too small for read-report identity and recovery metadata; increase to at least {} estimated tokens. Analysis was not run.",
-                minimum.div_ceil(4)
-            ),
-            None,
-        ));
-    }
+        capture_window: false,
+    }.checked()?;
     if let Some(args) = request.arguments.as_mut() {
         for key in CONTROLS {
             args.remove(*key);
@@ -195,15 +181,41 @@ pub fn prepare(
 }
 
 impl Report {
+    pub(crate) fn retained_window(
+        tool: &'static str, project: String, budget: usize,
+        response_id: Option<String>, offset: usize,
+    ) -> Result<Self, McpError> {
+        Self { tool, project, budget, response_id, offset, capture_window: true }.checked()
+    }
+
+    fn checked(self) -> Result<Self, McpError> {
+        crate::handlers::validate_project_id(&self.project)?;
+        if self.response_id.is_none() && self.offset != 0 {
+            return Err(McpError::invalid_params(
+                "response_offset requires response_id from read-report recovery", None));
+        }
+        let minimum = self.manifest(&"0".repeat(64), 8 * 1024 * 1024).len();
+        if self.budget < minimum {
+            return Err(McpError::invalid_params(format!(
+                "max_tokens is too small for read-report identity and recovery metadata; increase to at least {} estimated tokens. Analysis was not run.",
+                minimum.div_ceil(4)), None));
+        }
+        Ok(self)
+    }
+
     fn manifest(&self, id: &str, bytes: usize) -> String {
-        json!({"tool":self.tool,"project_id":self.project,"report_content":"DEFERRED_NOT_SUPPLIED",
+        let mut value = json!({"tool":self.tool,"project_id":self.project,"report_content":"DEFERRED_NOT_SUPPLIED",
             "response_delivery":{"status":"DEFERRED_READ_REPORT","complete":false,
                 "response_id":id,"original_bytes":bytes,"original_format":"mcp_call_tool_result_json",
                 "response_budget_bytes":self.budget,
                 "estimate":"Complete reply-text UTF-8 bytes/4; not provider tokens or transport-envelope bytes",
                 "retention":"At most24hours or32newer snapshots for this tool/project",
                 "instruction":"Recover all pages, concatenate content by byte offset and verify response_id as BLAKE3. Parse the reconstructed original MCP CallToolResult, including its original text, metadata, guidance, warnings and status. No original report evidence is supplied here. Recovery does not rerun analysis/generation or establish current freshness.",
-                "next_call":snapshots::read_report_continuation(self.tool,&self.project,id,0,self.budget)}}).to_string()
+                "next_call":snapshots::read_report_continuation(self.tool,&self.project,id,0,self.budget)}});
+        if self.capture_window {
+            value["response_delivery"]["capture_scope"] = json!("Immutable original requested result window, captured before reply-budget clipping. Existing retrieval/window/content limits still apply. This retains the report, not underlying source objects or the whole corpus. Guidance and freshness describe capture time. Follow saved next_call pages; original offset actions outside this capture are fresh queries.");
+        }
+        value.to_string()
     }
 
     pub fn recover(&self, data: &Path) -> Result<Option<CallToolResult>, McpError> {
@@ -249,7 +261,7 @@ impl Report {
             .filter(|value| !value.is_null())
             .map(|value| value.to_string().len())
             .unwrap_or(0);
-        if text_bytes.saturating_add(structured_bytes) <= self.budget {
+        if !self.capture_window && text_bytes.saturating_add(structured_bytes) <= self.budget {
             return Ok(original);
         }
         let body = serde_json::to_string(&original)

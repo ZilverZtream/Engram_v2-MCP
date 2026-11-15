@@ -208,6 +208,7 @@ pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmc
     items
         .into_iter()
         .map(crate::read_report_delivery::advertise)
+        .map(crate::retained_results::advertise)
         .filter(|t| {
             if advertise_all {
                 true
@@ -223,6 +224,7 @@ pub fn advanced(items: Vec<rmcp::model::Tool>) -> Vec<rmcp::model::Tool> {
     items
         .into_iter()
         .map(crate::read_report_delivery::advertise)
+        .map(crate::retained_results::advertise)
         .filter(|t| !CORE_TOOLS.contains(&t.name.as_ref()))
         .collect()
 }
