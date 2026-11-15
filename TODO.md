@@ -85,6 +85,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   Method metadata retains JSON arrays; batch_read keeps complete item evidence.
   [Delivery](eval/legacy_validation-method-read-batch-delivery-20261114.json).
 
+  Edit workflow delivery installed 2026-11-15: completeness checks and both
+  session bookends accept whole-reply budgets, JSON wrapping and exact recovery.
+  Delivery preparation precedes session state changes; historical recovery never
+  changes lifecycle ownership. Remaining TODO4 coverage stays open.
+  [Delivery](eval/legacy_validation-edit-workflow-batch-delivery-20261115.json).
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to

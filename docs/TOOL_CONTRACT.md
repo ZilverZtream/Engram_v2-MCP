@@ -126,8 +126,8 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `analyze_reverts(project_id, max_commits=200)` — LLM-powered descriptive anti-pattern rule generation
 
 ## Cognitive / agent
-- `begin_edit_session(project_id, planned_files, story=null, session_id=null)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
-- `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
+- `begin_edit_session(project_id, planned_files, story=null, session_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
+- `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
 - `dream_project(project_id)`
 - `trigger_rem_cycle(project_id)` (alias)
 - `analyze_file_coding_style(project_id, file_path, max_commits=200)`
@@ -262,6 +262,35 @@ arguments and applicability; a service's internal structures are not MCP schemas
   does not prove every design target, project capability or runtime dependency is
   supported; retain the explicit partial findings and delivery evidence.
 - v2 adds extra tools (e.g. `immune_check`, `ast_dependency_graph`, `dedicated_antipattern_index`) beyond v1 parity.
+
+### Edit workflow response delivery
+
+`detect_incomplete_changes`, `begin_edit_session` and `complete_edit_session`
+default to a 40 KiB complete reply-text budget. Positive `max_tokens` uses
+`ceil(UTF-8 bytes / 4)`, including escaping and Markdown wrappers, rather than
+provider tokens or the MCP envelope. Small Markdown replies retain their format.
+`output_json=true` wraps the original Markdown in `report_markdown` with advisory
+metadata and counts; opening and closing also include lifecycle metadata.
+
+An oversized reply retains a summary and `response_delivery.next_call`.
+Follow that exact same-tool call to recover the full report, concatenate content
+by byte offset, and verify BLAKE3 against `response_id`. Recovery omits
+`planned_files`, `edited_files` and lifecycle tokens; it reads the saved report
+without opening or completing a session or rerunning analysis. Recover all
+deferred findings and guidance before acting on them. A captured report does
+not certify current source or approve changes.
+
+Report delivery is prepared before claiming or consuming a session. A budget
+too small for lifecycle/recovery metadata, or a cache-write failure, leaves
+session ownership unchanged. Retrying an intended close uses the same lifecycle
+tokens. If a saved report is missing or expired, do not repeat a lifecycle
+mutation merely to retrieve its report; use tracked tokens for intended state
+changes and `detect_incomplete_changes` for a fresh advisory check.
+
+Snapshots are separate by project and tool, with an 8 MiB report limit and
+retention of at most 24 hours or 32 newer snapshots. `response_offset` requires
+`response_id`. Composed planners continue receiving the full internal
+completeness report; these controls bound the public tool response.
 
 ### Review response delivery
 

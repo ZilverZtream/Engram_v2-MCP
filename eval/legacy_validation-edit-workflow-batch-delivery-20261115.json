@@ -1,0 +1,184 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T00:53:56.809654+00:00",
+  "improvements": [
+    {
+      "tool": "detect_incomplete_changes",
+      "behavior": "Complete public reply budgets, optional JSON and exact report recovery; internal composed checks retain full evidence."
+    },
+    {
+      "tool": "begin_edit_session",
+      "behavior": "Prepare bounded report before claiming ownership; delivery failure does not leave an unknown open session. Deferred reply retains lifecycle tokens and snapshot."
+    },
+    {
+      "tool": "complete_edit_session",
+      "behavior": "Prepare bounded report before consuming the exact lifecycle; failed delivery remains retryable. Old report recovery preserves reused and other workers."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "155bc789c3be0d4fd6d20a2cbf5bb1efb255b6f6",
+    "source_commit": "2edec4a91e73414e8eddf401df32f454c76b242f",
+    "files": {
+      "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
+      "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
+      "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
+      "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
+      "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84",
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f"
+    },
+    "root_commits": [
+      "88b9cbc",
+      "a9f4f6e",
+      "c9fb69d43bd089dbb200053287c2be3cae83c9d1"
+    ]
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 14,
+      "required_component_cases": {
+        "completeness_pages_preserve_original_report_and_tool_project_identity": true,
+        "opening_delivery_failures_leave_no_session_and_recovery_does_not_open_again": true,
+        "completion_delivery_failure_is_retryable_and_old_recovery_preserves_reused_lifecycles": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "2edec4a91e73414e8eddf401df32f454c76b242f",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 59s",
+      "native_test_seconds": 1.89,
+      "retained_failed_attempts": [],
+      "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+    },
+    "public": {
+      "candidate3": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\candidate3\\acceptance.json",
+          "sha256": "c7fabf4cbc00c05d9f2a81afb80bca7cbed357e7c0b62555462e1f1886c0556c"
+        },
+        "checks": {
+          "detect_incomplete_changes_controls": true,
+          "begin_edit_session_controls": true,
+          "complete_edit_session_controls": true,
+          "markdown_opening_policy_and_omission_preserved": true,
+          "markdown_opening_lifecycle_retained": true,
+          "markdown_closing_evidence_preserved": true,
+          "markdown_closing_lifecycle_retained": true,
+          "markdown_recovery_did_not_consume_reused_session": true,
+          "json_opening_policy_and_omission_preserved": true,
+          "json_opening_lifecycle_retained": true,
+          "json_closing_evidence_preserved": true,
+          "json_closing_lifecycle_retained": true,
+          "json_recovery_did_not_consume_reused_session": true,
+          "completeness_json_preserves_original_advisory": true,
+          "legacy_markdown_preserved": true,
+          "fixture_sources_unchanged": true,
+          "actual_guide_unchanged": true
+        },
+        "recovery_pages": 30
+      },
+      "installed3": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\installed3\\acceptance.json",
+          "sha256": "3a0e608ccbef9a492fb2a2e6f653d657a8a78edcd8fa6ec89dd6ab1af2f93a63"
+        },
+        "checks": {
+          "detect_incomplete_changes_controls": true,
+          "begin_edit_session_controls": true,
+          "complete_edit_session_controls": true,
+          "markdown_opening_policy_and_omission_preserved": true,
+          "markdown_opening_lifecycle_retained": true,
+          "markdown_closing_evidence_preserved": true,
+          "markdown_closing_lifecycle_retained": true,
+          "markdown_recovery_did_not_consume_reused_session": true,
+          "json_opening_policy_and_omission_preserved": true,
+          "json_opening_lifecycle_retained": true,
+          "json_closing_evidence_preserved": true,
+          "json_closing_lifecycle_retained": true,
+          "json_recovery_did_not_consume_reused_session": true,
+          "completeness_json_preserves_original_advisory": true,
+          "legacy_markdown_preserved": true,
+          "fixture_sources_unchanged": true,
+          "actual_guide_unchanged": true
+        },
+        "recovery_pages": 30
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
+      "sha256": "be92370bc90cd63311611dda91fc3a849a86807dacb972da171d7bfc20752fd0"
+    },
+    "release_compile": "Finished `release` profile [optimized] target(s) in 14m 10s",
+    "retained_failed_attempts": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\candidate1\\acceptance.json",
+        "sha256": "fba47b17eccb1e3d8becc4c832c276dc418f2d7f270889cdafe93c3aaf5c0dfb"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\deployment1-state.json",
+        "sha256": "0c89913a64d525fb2aa5730a922831cff2c6d378ea5197f4a6ed9806ce996f3b"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\candidate2\\acceptance.json",
+        "sha256": "cce69937cab5cc2ee630c2cab04824e04c674e3bdc00bd1f45da3688e367a268"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\deployment2-state.json",
+        "sha256": "70eeeb5ef8b17aefdf400e179e3fb1382bca5280e7623d61699a7d84edffc806"
+      }
+    ],
+    "failure_disposition": "First candidate fixture failed before behavior checks because it selected properties on unrelated non-object tool schemas. The second fixture expected an over-limit actual guide inline despite the established per-source cap; its correct omission/hash/recovery warning was present and is now required, alongside the complete owned guidance. The fixture selects only the three target tools. Same binary reused; no native or release rebuild.",
+    "focused_build_invocations": 1,
+    "release_build_invocations": 1
+  },
+  "runtime": {
+    "server_sha256": "61212c4b29434a6ec2fcc2de63341968875b76ee3104cbae0d2b867ffb37add8",
+    "manifest_sha256": "8212514339eb9949d79bcafbd26581a9febd7aabc673070b7bcc54a490a47350",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\pair1.json",
+      "sha256": "bfb9597ee72b83188bc36d17a2784fefbfab136bdfbe11cc13b0332fa34d1472"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\release1.json",
+      "sha256": "dd54f58f39ea0d0496d42de5e12e116dbd76ec8405bf63ee09658d040b5a667e"
+    },
+    "release_runner_seconds": 863.3263014999684,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\deployment3-state.json",
+      "sha256": "c0c3958f1294ec0fb6356acfef58420a1bef1c1fa11397a28ce80395c16b1cfb"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\restored-runtime\\receipt.json",
+      "sha256": "b547ffb77c25ec1df230bc62d06c7f42cd4106d68dc487a8c1d30f263e132306"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\Engram-win-x64-edit-workflow-20261115.zip",
+    "sha256": "fffe1ce71724bde7c6de23685e703ad53f98b4fb8c295aaa0793fec4f7a31c36",
+    "files": 216
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "actual_guide_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true
+  },
+  "resources": {
+    "owned_build_jobs_relays_temporary_directories_closed_and_removed": true,
+    "owned_mcp_and_config_hold_closed": true,
+    "config_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-b109bb06bb914f4da6fb130a61aab5b8",
+    "old_runtime_pair_purpose": "Prior installed pair retained for rollback under existing backup policy; no deletion authorized.",
+    "intentional_normal_daemon_pid": 57920,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+    "retained_purpose": "Source/build/public evidence, scripts, package and ZIP retained for review. Reused checkout/shared build target remain in use.",
+    "cleanup_condition": "Retain delivery evidence/package for review; no preexisting folder was removed."
+  },
+  "limits": [
+    "JSON wraps the original Markdown; it does not turn findings into typed proof. Token budgets estimate UTF-8 reply text bytes/4, excluding the transport envelope.",
+    "Recovered reports are immutable historical evidence; they do not rerun analysis, certify current source, enforce guidance or approve changes.",
+    "Owned fixtures use copied actual non-Q guidance. No actual LegacyValidation session/source mutation, Site/Q read, full suite or new model/task-benefit comparison.",
+    "Original31findings/19gates and previous failed usefulness comparisons remain open. No target-language expansion, CodeMap or Blast Radius improvement."
+  ]
+}

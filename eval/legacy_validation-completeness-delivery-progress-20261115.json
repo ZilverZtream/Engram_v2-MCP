@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "component": "bounded public edit-completeness delivery",
   "original_requirement": "TODO4 complete reply budgets, JSON container and immutable recovery for existing agent tools",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
@@ -20,16 +20,32 @@
     "crates/engram_server/tests/detect_incomplete_changes_test.rs": "7f3c31a0fc81d487f8179c359e5a78f104f84ff0dcc025932f16a740e8b15121"
   },
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
-  "builds_started": 0,
+  "validated": true,
+  "deployed": true,
   "behavior": "The public stateless check budgets its final reply; the existing shared completeness engine and composed callers retain complete original evidence. Full reports are cached by project/tool for exact recovery, with advisory/coverage qualifications deferred explicitly. Recovery hints do not recommend repeating lifecycle mutations.",
   "tests_added": [
     "immutable Markdown/JSON report recovery with UTF8/quotes/qualifications and project/tool isolation",
     "legacy small report exactness and no snapshot write when a budget cannot hold metadata"
   ],
   "limits": [
-    "Queued source; native/public verification and deployment wait for three components.",
-    "No coupling completeness, rule authority, compliance or task-benefit claim."
-  ]
+    "JSON wraps the original Markdown; it does not turn findings into typed proof. Token budgets estimate UTF-8 reply text bytes/4, excluding the transport envelope.",
+    "Recovered reports are immutable historical evidence; they do not rerun analysis, certify current source, enforce guidance or approve changes.",
+    "Owned fixtures use copied actual non-Q guidance. No actual LegacyValidation session/source mutation, Site/Q read, full suite or new model/task-benefit comparison.",
+    "Original31findings/19gates and previous failed usefulness comparisons remain open. No target-language expansion, CodeMap or Blast Radius improvement."
+  ],
+  "bounded_delivery_complete": true,
+  "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json",
+  "delivered_source_files": {
+    "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
+    "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
+    "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
+    "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
+    "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84",
+    "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f"
+  },
+  "source_checkpoint_builds_started": 0,
+  "shared_batch_build_invocations": {
+    "focused_native": 1,
+    "release": 1
+  }
 }

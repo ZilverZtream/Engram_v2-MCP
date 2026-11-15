@@ -449,6 +449,15 @@ unchanged. Core replies, existing guidance, errors, non-object JSON, multipart o
 media results, and text above 1 MiB retain their existing formats. Absence of a
 hint does not establish that a task is complete or an edit is safe.
 
+`detect_incomplete_changes`, `begin_edit_session` and `complete_edit_session`
+accept `max_tokens` (default 40 KiB of reply text), `output_json`, and immutable
+`response_id`/`response_offset` recovery. Oversized replies retain a bounded
+continuation with lifecycle metadata. Recover the full report before acting on
+its deferred findings or guidance. Opening and closing prepare delivery before
+changing session state; recovery never opens or completes a session. JSON wraps
+the original Markdown; the evidence remains advisory.
+[Installed delivery](eval/legacy_validation-edit-workflow-batch-delivery-20261115.json).
+
 `complete_edit_session` distinguishes an omitted `edited_files` field from an
 explicit empty list. Omitting it checks the session's planned files. Passing `[]`
 declares no edits: every planned file is reported as unedited, and completeness

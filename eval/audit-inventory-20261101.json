@@ -10023,29 +10023,31 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "Original TODO4 bounded edit-session opening",
-      "original_requirement": "Deliver complete bounded edit-session intent and instruction evidence with safe lifecycle handles.",
-      "observed_missing_behavior": "begin_edit_session has no reply controls; on current LegacyValidation guidance its ordinary owned opening reply is2567bytes. A new budget/cache error must not create an unknown open session.",
-      "implementation_files": [
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
-        "crates/engram_server/src/tools.rs",
-        "crates/engram_server/tests/detect_incomplete_changes_test.rs"
-      ],
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+      "finding": "TODO4 bounded edit workflow delivery",
+      "original_requirement": "TODO4 bounded complete agent-facing edit workflow reports",
+      "observed_missing_behavior": "Installed baseline lacks budget/JSON/recovery controls on all three edit tools.",
+      "implementation_files": {
+        "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
+        "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
+        "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
+        "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
+        "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84",
+        "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f"
+      },
       "acceptance": [
-        "Add the same optional budget/JSON/recovery controls with default40KiB; preserve existing small Markdown opening replies.",
-        "Retain session_id, session_revision, snapshot and planned-file count in JSON/full or deferred delivery. Exact original policy/brief content remains recoverable.",
-        "Prepare the complete reply and immutable snapshot before claiming the session; delivery failure leaves all open sessions untouched. Recovery never creates or reopens a lifecycle.",
-        "Keep overlap/identity/revision admission unchanged. Verify safe failure and recovery through native/public tests in the three-component batch; no per-component compile."
+        "Bound whole public replies; recover exact full Markdown or JSON without rerunning analysis.",
+        "Preserve scoped guidance and internal full completeness evidence.",
+        "Prepare reports before lifecycle mutations; retry failed delivery without unknown or consumed sessions.",
+        "Verify both output formats through candidate and installed MCP tools; preserve actual configuration/source/registry and unrelated WIP."
       ],
       "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
-      "progress": "eval/legacy_validation-session-open-delivery-progress-20261115.json"
+      "validated": true,
+      "deployed": true,
+      "progress": "eval/legacy_validation-session-complete-delivery-progress-20261115.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10077,8 +10079,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO4 bounded edit-session opening; second component of the combined batch",
-    "next_user_visible_deliverable": "Bound the three existing edit-workflow tools without losing original evidence or session lifecycle handles.",
+    "active_original_item": "TODO4 three edit workflow components delivered; advance the next ready original LegacyValidation requirement without replaying acceptance.",
+    "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement. This edit-workflow batch is installed; preserve all other unfinished findings and failed usefulness evidence.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14391,61 +14393,33 @@
       "batch_size": 3,
       "implementation_concurrency": 1,
       "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-      "compiled_tests_seconds": 221.0,
-      "actual_test_execution_seconds": 4.33,
-      "last_release_compile_seconds": 786.0,
-      "pending": [
+      "compiled_tests_seconds": 239.0,
+      "actual_test_execution_seconds": 1.89,
+      "last_release_compile_seconds": 850.0,
+      "pending": [],
+      "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+      "completed_last_batch": [
         {
           "component": "completeness-delivery-20261115",
-          "source_files": [
-            "crates/engram_server/src/models/requests.rs",
-            "crates/engram_server/src/handlers/planning_tools.rs",
-            "crates/engram_server/src/handlers/change_set_delivery.rs",
-            "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
-            "crates/engram_server/src/tools.rs",
-            "crates/engram_server/tests/detect_incomplete_changes_test.rs"
-          ],
-          "progress": "eval/legacy_validation-completeness-delivery-progress-20261115.json",
-          "validated": false,
-          "deployed": false
+          "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
         },
         {
           "component": "session-open-delivery-20261115",
-          "source_files": [
-            "crates/engram_server/src/models/requests.rs",
-            "crates/engram_server/src/handlers/planning_tools.rs",
-            "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
-            "crates/engram_server/src/tools.rs",
-            "crates/engram_server/tests/detect_incomplete_changes_test.rs"
-          ],
-          "progress": "eval/legacy_validation-session-open-delivery-progress-20261115.json",
-          "validated": false,
-          "deployed": false
-        }
-      ],
-      "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
-      "completed_last_batch": [
-        {
-          "component": "typed-query-trace-20261115",
-          "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
+          "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
         },
         {
-          "component": "constant-sql-trace-20261115",
-          "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
-        },
-        {
-          "component": "sql-body-trace-20261115",
-          "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
+          "component": "session-complete-delivery-20261115",
+          "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
         }
       ],
-      "last_batch_delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json",
+      "last_batch_delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json",
       "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-      "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s",
-      "last_release_compile": "Finished `release` profile [optimized] target(s) in 13m 06s",
+      "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 59s",
+      "last_release_compile": "Finished `release` profile [optimized] target(s) in 14m 10s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
       "current_step_builds_required": 0,
-      "current_step_reason": "First source component selected; no per-component compile."
+      "current_step_reason": "Three components accepted and installed; no pending runtime source from this batch."
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15160,7 +15134,7 @@
     "vb_sql_trace_batch_progress": "eval/legacy_validation-vb-sql-trace-batch-progress-20261115.json",
     "vb_sql_trace_batch_delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json",
     "queued_completeness_delivery_contract": {
-      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO4 bounded edit-completeness replies",
       "original_requirement": "Bound complete agent-facing replies with token estimates, truncation/recovery metadata and JSON option, preserving all safety and instruction evidence.",
       "observed_missing_behavior": "detect_incomplete_changes and both edit-session bookends have no max_tokens/response recovery controls. Composed planners must continue receiving full evidence; adding limits must not truncate their internal completeness input or strand lifecycle state.",
@@ -15183,14 +15157,44 @@
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
       "actual_context": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\actual-context.json",
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "limits": [
         "Response delivery does not establish coupling completeness, policy compliance or approval.",
         "Broader original backlog, failed usefulness comparisons and all held items remain open."
       ],
-      "progress": "eval/legacy_validation-completeness-delivery-progress-20261115.json"
-    }
+      "progress": "eval/legacy_validation-completeness-delivery-progress-20261115.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
+    },
+    "queued_session_open_delivery_contract": {
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+      "finding": "Original TODO4 bounded edit-session opening",
+      "original_requirement": "Deliver complete bounded edit-session intent and instruction evidence with safe lifecycle handles.",
+      "observed_missing_behavior": "begin_edit_session has no reply controls; on current LegacyValidation guidance its ordinary owned opening reply is2567bytes. A new budget/cache error must not create an unknown open session.",
+      "implementation_files": [
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/detect_incomplete_changes_test.rs"
+      ],
+      "acceptance": [
+        "Add the same optional budget/JSON/recovery controls with default40KiB; preserve existing small Markdown opening replies.",
+        "Retain session_id, session_revision, snapshot and planned-file count in JSON/full or deferred delivery. Exact original policy/brief content remains recoverable.",
+        "Prepare the complete reply and immutable snapshot before claiming the session; delivery failure leaves all open sessions untouched. Recovery never creates or reopens a lifecycle.",
+        "Keep overlap/identity/revision admission unchanged. Verify safe failure and recovery through native/public tests in the three-component batch; no per-component compile."
+      ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
+      "implementation_complete": true,
+      "validated": true,
+      "deployed": true,
+      "progress": "eval/legacy_validation-session-open-delivery-progress-20261115.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
+    },
+    "edit_workflow_batch_delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
