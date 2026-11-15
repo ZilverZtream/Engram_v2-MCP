@@ -1,12 +1,11 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "component": "source index declarations and citations",
   "finding": "TODO59/35",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\index-baseline.json",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
-  "builds_started": 0,
+  "validated": true,
+  "deployed": true,
   "implementation_files": [
     "crates/engram_server/src/services/schema_query.rs",
     "crates/engram_server/src/services/database_intelligence_service.rs",
@@ -26,12 +25,28 @@
     "Public verifier checks actual IDX_atk_pr_id source evidence13-14 in JSON/Markdown alongside column, key and table evidence."
   ],
   "limits": [
-    "Native/public after-change validation and installation remain pending until the combined batch.",
-    "Exact spelling is source evidence, not unique physical binding or deployed/effective index state; inline legacy index/UNIQUE selection remains.",
-    "Full three-service SQL consolidation and other original findings remain unfinished."
+    "This is source declaration inventory, not deployed/effective schema or migration execution. Canonical SQL formatting is distinct from raw bytes; citations retain source path/range/hash.",
+    "Legacy database-report nullable=true remains when no explicit NULL clause or primary key determines nullability; query_schema preserves unknown. Exact source index spelling does not establish physical/default-schema binding.",
+    "Only the shared table/column/key and source-index portion is consolidated. Other DB services, view/trigger/report interpretation and full TODO59 remain unfinished.",
+    "Actual unchanged non-Q LegacyValidation SQL is exercised in an owned copy. No actual application source/session modification, Site/Q read, full suite, new model/task-benefit comparison or original31findings/19gates closure."
   ],
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
     "retained_purpose": "Original source hash, already retained public baseline and extended verification scripts for combined delivery review."
+  },
+  "native_validated": true,
+  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\native-acceptance.json",
+  "release_status": "Candidate/installed checks passed; normal runtime restored.",
+  "source_checkpoint_builds_started": 0,
+  "bounded_delivery_complete": true,
+  "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json",
+  "shared_batch_build_invocations": {
+    "focused_native": 1,
+    "release": 1
+  },
+  "delivered_source_files": {
+    "crates/engram_server/src/services/schema_query.rs": "ff4b78090465347f0780f43bc6473e66c86ab5018aeabda85f0b6ea840e2238d",
+    "crates/engram_server/src/services/database_intelligence_service.rs": "5331f76ef6a6fc5fdd081e63fa45e56a1f3a18bc00756540bd8325224be105d6",
+    "crates/engram_server/src/services/database_column_tests.rs": "9cb8825b7322a2a88b6103046e2e004ba1403834d21c3006e347ea5a19f74074"
   }
 }

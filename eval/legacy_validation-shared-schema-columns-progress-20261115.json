@@ -1,13 +1,12 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "component": "shared SQL column declarations",
   "finding": "TODO59 / ordinary LegacyValidation SQL schema report correctness",
   "original_requirement": "Consolidate overlapping SQL parsing so AI-facing reports preserve ordinary source declarations consistently.",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\b1\\acceptance.json",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
-  "builds_started": 0,
+  "validated": true,
+  "deployed": true,
   "implementation_files": [
     "crates/engram_server/src/services/schema_query.rs",
     "crates/engram_server/src/services/database_intelligence_service.rs",
@@ -35,9 +34,10 @@
     "Actual configuration fingerprint and preserved WIP9 hashes unchanged."
   ],
   "limits": [
-    "Native tests and new public after-change behavior have not run; no deployment or validated fix is claimed yet.",
-    "Only column declaration parsing is shared in this component. Table/PK/FK/index selection and full three-service consolidation remain unfinished.",
-    "The legacy database-report nullable boolean still defaults true without an explicit NULL clause; query_schema preserves unknown nullability. Canonical SQL values are not raw-source byte citations or deployed database proof."
+    "This is source declaration inventory, not deployed/effective schema or migration execution. Canonical SQL formatting is distinct from raw bytes; citations retain source path/range/hash.",
+    "Legacy database-report nullable=true remains when no explicit NULL clause or primary key determines nullability; query_schema preserves unknown. Exact source index spelling does not establish physical/default-schema binding.",
+    "Only the shared table/column/key and source-index portion is consolidated. Other DB services, view/trigger/report interpretation and full TODO59 remain unfinished.",
+    "Actual unchanged non-Q LegacyValidation SQL is exercised in an owned copy. No actual application source/session modification, Site/Q read, full suite, new model/task-benefit comparison or original31findings/19gates closure."
   ],
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
@@ -45,5 +45,20 @@
     "owned_fixture_removed": true,
     "retained_purpose": "Original non-Q SQL hash, exact public baseline wire output and verifier retained for combined delivery review.",
     "cleanup_condition": "Retain evidence; all owned temporary resources closed and removed. No preexisting folder was removed."
+  },
+  "native_validated": true,
+  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\native-acceptance.json",
+  "release_status": "Candidate/installed checks passed; normal runtime restored.",
+  "source_checkpoint_builds_started": 0,
+  "bounded_delivery_complete": true,
+  "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json",
+  "shared_batch_build_invocations": {
+    "focused_native": 1,
+    "release": 1
+  },
+  "delivered_source_files": {
+    "crates/engram_server/src/services/schema_query.rs": "ff4b78090465347f0780f43bc6473e66c86ab5018aeabda85f0b6ea840e2238d",
+    "crates/engram_server/src/services/database_intelligence_service.rs": "5331f76ef6a6fc5fdd081e63fa45e56a1f3a18bc00756540bd8325224be105d6",
+    "crates/engram_server/src/services/database_column_tests.rs": "9cb8825b7322a2a88b6103046e2e004ba1403834d21c3006e347ea5a19f74074"
   }
 }

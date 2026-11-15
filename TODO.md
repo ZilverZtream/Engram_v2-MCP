@@ -771,6 +771,13 @@ value is accuracy, this is the biggest meta-gap.
   callers with explicit coverage, using the shared SQL input loader.
   Full consolidation/other original acceptance remains open. [Delivery](eval/legacy_validation-procedure-analysis-batch-delivery-20261114.json).
 
+  Shared schema inventory installed 2026-11-15: column/table/key parsing reuses
+  the existing catalog, preserving ordinary type lengths, complete defaults,
+  composite keys and source citations. Standalone source indexes now carry
+  declaration evidence in JSON/Markdown, with explicit unknown binding/parse
+  gaps. Full three-service consolidation remains open.
+  [Delivery](eval/legacy_validation-shared-schema-batch-delivery-20261115.json).
+
 - [x] **60. Remove or document alias tools** (S) ? *verified 2026-11-13: the existing `trigger_rem_cycle` description directs callers to `dream_project`; both use the same request and handler. TOOL_CONTRACT and README document the alias. No new runtime change or tool-selection benefit is claimed. See `eval/legacy_validation-alias-documentation-reconciliation-20261113.json`.*
   `dream_project`/`trigger_rem_cycle` etc. Every redundant tool worsens #3.
 

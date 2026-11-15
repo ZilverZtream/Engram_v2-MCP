@@ -383,6 +383,14 @@ indexed-evidence limits; `batch_read` owns its combined budget.
 for literal VB `RegisterType(Of Contract, Implementation)` calls in the selected
 route configuration. Written type names and source citations are configuration
 evidence; they do not resolve or select the runtime container or receiver.
+Database intelligence now shares the source schema catalog with `query_schema`
+for table/column/key inventory. Ordinary type sizes and complete defaults are
+retained, with qualified source names and citations. Exact-name standalone
+`CREATE INDEX` declarations carry separate source evidence in JSON/Markdown;
+unmatched names and parse gaps remain warnings. This is source inventory, not
+a deployed-schema check.
+[Installed delivery](eval/legacy_validation-shared-schema-batch-delivery-20261115.json).
+
 `analyze_database_intelligence` retains ordinary named/bare single-column foreign
 keys, clean primary-key column names and schema-bound view/table references.
 These are source declarations, not a deployed database schema check.

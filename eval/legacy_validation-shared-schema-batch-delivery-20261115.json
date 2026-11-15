@@ -1,0 +1,172 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T02:36:09.005279+00:00",
+  "improvements": [
+    {
+      "behavior": "Database intelligence uses the same supported column declarations as query_schema, retaining ordinary lengths/precision and complete default expressions instead of separate regexes."
+    },
+    {
+      "behavior": "Table/column/key inventory reuses the existing source catalog, retaining composite key pairings/actions, qualified source names, citations and visible parser gaps; warning-only reports stay visible."
+    },
+    {
+      "behavior": "Existing catalog CREATE INDEX declarations attach to exact source table-name matches with legacy statement strings, typed index_evidence and separate citations in JSON/Markdown. Unmatched/other index operations remain explicit gaps."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "75adc16b326bc3b0867f00419b84c2c29d0f20a8",
+    "source_commit": "8ce0613bf499a412ce58f49137e03824904e61fd",
+    "files": {
+      "crates/engram_server/src/services/schema_query.rs": "ff4b78090465347f0780f43bc6473e66c86ab5018aeabda85f0b6ea840e2238d",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "5331f76ef6a6fc5fdd081e63fa45e56a1f3a18bc00756540bd8325224be105d6",
+      "crates/engram_server/src/services/database_column_tests.rs": "9cb8825b7322a2a88b6103046e2e004ba1403834d21c3006e347ea5a19f74074"
+    },
+    "root_commits": [
+      "80bf944",
+      "de25c08",
+      "f398ad817f9f75f9198da8731337f6da9085a042"
+    ]
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 48,
+      "required_component_cases": {
+        "ordinary_sql_server_column_sizes_defaults_and_computed_values_are_preserved": true,
+        "shared_table_inventory_preserves_composite_keys_and_source_citation": true,
+        "source_indexes_attach_to_exact_table_names_with_their_own_citations": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "8ce0613bf499a412ce58f49137e03824904e61fd",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 14s",
+      "native_test_seconds": 0.52,
+      "retained_failed_attempts": [],
+      "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow.",
+      "known_nonblocking_warnings": [
+        "Unused QUALIFIED_OBJECT_NAME import after removing the duplicate constraint parser; remove in the next source batch rather than rebuilding this passed behavior solely for lint cleanup."
+      ]
+    },
+    "public": {
+      "candidate1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\candidate1\\acceptance.json",
+          "sha256": "86c9efdc3957f4b243308321047e7fd11b5711e7192a61908096b92bf0e12ed0"
+        },
+        "checks": {
+          "independent_table_shape": true,
+          "existing_query_keeps_size": true,
+          "existing_query_keeps_complete_defaults": true,
+          "report_type_sizes_agree": true,
+          "complete_defaults_agree": true,
+          "nullability_agrees": true,
+          "qualified_name_retained": true,
+          "source_citation_retained": true,
+          "primary_and_foreign_keys_retained": true,
+          "actual_declaration_fully_parsed": true,
+          "standalone_source_index_retained": true,
+          "index_citation_retained": true,
+          "markdown_keeps_index_and_source": true,
+          "markdown_keeps_full_type_and_default": true,
+          "actual_source_unchanged": true
+        },
+        "actual_source": {
+          "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\db-legacy_validation.sql\\dbo\\Tables\\atk_atakostnader.sql",
+          "sha256": "0d2921d6e8c51886d0714b630ea790f10d8fba2c63cede6ef56373525869b460"
+        }
+      },
+      "installed1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\installed1\\acceptance.json",
+          "sha256": "6e71a8f2e7a4864e08febd552242cdd56a6716e8cdb263841b078b055e82cb78"
+        },
+        "checks": {
+          "independent_table_shape": true,
+          "existing_query_keeps_size": true,
+          "existing_query_keeps_complete_defaults": true,
+          "report_type_sizes_agree": true,
+          "complete_defaults_agree": true,
+          "nullability_agrees": true,
+          "qualified_name_retained": true,
+          "source_citation_retained": true,
+          "primary_and_foreign_keys_retained": true,
+          "actual_declaration_fully_parsed": true,
+          "standalone_source_index_retained": true,
+          "index_citation_retained": true,
+          "markdown_keeps_index_and_source": true,
+          "markdown_keeps_full_type_and_default": true,
+          "actual_source_unchanged": true
+        },
+        "actual_source": {
+          "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\db-legacy_validation.sql\\dbo\\Tables\\atk_atakostnader.sql",
+          "sha256": "0d2921d6e8c51886d0714b630ea790f10d8fba2c63cede6ef56373525869b460"
+        }
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\b1\\acceptance.json",
+      "sha256": "e364b15658e30284ce5a11dbc214ae9154008e2cab029fbd86bde1374de319a5"
+    },
+    "index_baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\index-baseline.json",
+      "sha256": "e5e6713665e366ff58a714127e591c5b9c01f444147f6279a756e0d2d4427348"
+    },
+    "release_compile": "Finished `release` profile [optimized] target(s) in 12m 25s",
+    "focused_build_invocations": 1,
+    "release_build_invocations": 1,
+    "known_nonblocking_warnings": [
+      "Unused QUALIFIED_OBJECT_NAME import after removing the duplicate constraint parser; remove in the next source batch rather than rebuilding this passed behavior solely for lint cleanup."
+    ]
+  },
+  "runtime": {
+    "server_sha256": "578cd55e6135d0324a2be5146e8119d73e67f972980885937f74268baf0f299c",
+    "manifest_sha256": "b73d4570a5d155ea5fb8adf701cb795ddc7c57fd743ed9e6fbede9cc0614f481",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\pair1.json",
+      "sha256": "f21b8e353d6b35f813000e52022660358a196ddd0903728f1575c871d5b37243"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\release1.json",
+      "sha256": "0d4452bf229ff671318fc5bf2fde117924e505c4242f320cc4097eb565eca3a8"
+    },
+    "release_runner_seconds": 756.6940927999094,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\deployment1-state.json",
+      "sha256": "0decc5d0c98d8803a855114ed2bec59f6374e441520f9916fd779955ffd503fa"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\restored-runtime\\receipt.json",
+      "sha256": "5ae50ad90dc065433933239985976ba7970316fa206f0b123db40d2371ce88ef"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\Engram-win-x64-shared-schema-20261115.zip",
+    "sha256": "a20fab50246e46eba813ef8fa552aea93c2db88b9e14209c0664a02586b33d34",
+    "files": 216
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "actual_sql_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "persisted_source_and_storage_formats_unchanged": true
+  },
+  "resources": {
+    "owned_build_jobs_relays_and_temporary_directories_closed_and_removed": true,
+    "owned_mcp_and_config_hold_closed": true,
+    "config_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-286edf3987f74d74bff7c3a559499d56",
+    "old_runtime_pair_purpose": "Prior installed runtime retained for rollback under existing backup policy; no deletion authorized.",
+    "intentional_normal_daemon_pid": 62364,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
+    "retained_purpose": "Scripts, exact source/build/public evidence, package and ZIP for review; reused checkout/shared target remain in use.",
+    "cleanup_condition": "Retain delivery evidence/package for review; no preexisting folder removed."
+  },
+  "limits": [
+    "This is source declaration inventory, not deployed/effective schema or migration execution. Canonical SQL formatting is distinct from raw bytes; citations retain source path/range/hash.",
+    "Legacy database-report nullable=true remains when no explicit NULL clause or primary key determines nullability; query_schema preserves unknown. Exact source index spelling does not establish physical/default-schema binding.",
+    "Only the shared table/column/key and source-index portion is consolidated. Other DB services, view/trigger/report interpretation and full TODO59 remain unfinished.",
+    "Actual unchanged non-Q LegacyValidation SQL is exercised in an owned copy. No actual application source/session modification, Site/Q read, full suite, new model/task-benefit comparison or original31findings/19gates closure."
+  ]
+}
