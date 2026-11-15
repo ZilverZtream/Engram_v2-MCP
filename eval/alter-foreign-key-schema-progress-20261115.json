@@ -1,0 +1,128 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T22:31:15.974987+00:00",
+  "original_requirement_id": "TODO-35",
+  "original_requirement": "Source-backed SQL schema queries expose declared foreign-key relationships with qualified names, column pairs and exact source citations. Preserve static evidence versus deployed state. Broader effective migration/SQL binding scope remains open.",
+  "source_baseline": "e0ef2544e4c120bf0e81087a8aa071a9e5640601",
+  "observed_missing_behavior": "Actual LegacyValidation db-legacy_validation.sql/Scripts/Post/cc_costCenter.sql:53-56 declares FK_vp_verksamperson_cc_costCenter from dbo.vp_verksamperson.cc_id to dbo.cc_costCenter.cc_id inside a conditional block. The source table definition has cc_id but no such FK. Catalog.add_source records ALTER TABLE only as a gap/operation and query_schema cannot return this relationship. Existing retained installed query-schema receipt also names the same ALTER gap.",
+  "actual_legacy_validation_source": {
+    "db-legacy_validation.sql/Scripts/Post/cc_costCenter.sql": {
+      "sha256": "22652c534f2707f29850f8fe0dc39ddd7985081c4909ec69f752dcd81d2931da",
+      "owned_copy": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\actual-source\\db-legacy_validation.sql\\Scripts\\Post\\cc_costCenter.sql"
+    },
+    "db-legacy_validation.sql/dbo/Tables/vp_verksamperson.sql": {
+      "sha256": "4c2c97ebda7b4ed5734d0d96ddbc35b874a2ee4c6269d3318222f2ec77001dc1",
+      "owned_copy": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\actual-source\\db-legacy_validation.sql\\dbo\\Tables\\vp_verksamperson.sql"
+    },
+    "db-legacy_validation.sql/dbo/Tables/cc_costCenter.sql": {
+      "sha256": "8cfe07c9fa82053fd411837c43ce8803181e8e58a2acf1b57307145e2d0e333d",
+      "owned_copy": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\actual-source\\db-legacy_validation.sql\\dbo\\Tables\\cc_costCenter.sql"
+    }
+  },
+  "wanted_behavior": [
+    "Retain supported ALTER TABLE ADD FK declarations as separate source operations, with table/column/target names, cascade actions, complete-file hash and exact statement lines.",
+    "Table summaries include alter_table_foreign_keys separately from CREATE TABLE.foreign_keys. Incoming-FK queries include these declarations with existing qualification and pagination rules.",
+    "Use the installed SQL parser for constraint boundaries, including comma-separated foreign-key constraints and optional WITH CHECK/NOCHECK prefixes. Ignore comments, string literals and procedure bodies under existing catalog rules.",
+    "Return declaration_origin=alter_table_add_foreign_key and application_status=not_established. Preserve migration/execution coverage gaps, do not apply conditional scripts or infer trust/deployed state.",
+    "Existing selected-generation/disk fingerprint checks withhold changed script evidence until index refresh."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/services/schema_query.rs",
+    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs",
+    "crates/engram_server/src/handlers/schema_tools.rs",
+    "crates/engram_server/tests/alter_foreign_key_schema_tests.rs",
+    "crates/engram_server/tests/source_history_schema_batch_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/services/schema_query.rs": "1c2fe113211591afbe5657af8d1fa9166f1a43a90a2a3e2cd31a98f838efe88a",
+    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs": "91d4f1ad1e75508623a448e97dcc63bf45721a1a106fc5bf62ae4098dee724cf",
+    "crates/engram_server/src/handlers/schema_tools.rs": "22dbfa0dcf14f9bfb4ba4f9ab52f6ef83748ccaac07754907dd75085a6aaa89c",
+    "crates/engram_server/tests/alter_foreign_key_schema_tests.rs": "339b3f150f84d91335176de370a80638f02b973c31e1ad431ff8eae1800e3a36",
+    "crates/engram_server/tests/source_history_schema_batch_tests.rs": "852af5df724098f11904426d07664d351e0a67c8e84a3dc3353cde90fe104714",
+    "docs/TOOL_CONTRACT.md": "baa4a30f0fd91e1ddc8657c0231d3a378dbe9f32dcd1c89dc7581a2029edc5ea",
+    "TODO.md": "1a3de6e7cb34f2ae7b3697ba970c02e50e4fd5861e15ac9e8f094237b65cfc2a"
+  },
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "finite_acceptance": {
+    "native_target": "alter_foreign_key_schema_tests",
+    "native_cases": 4,
+    "cases": [
+      "Independent conditional post-deployment script appears with exact relationship and citation/hash in table and incoming queries; baseline CREATE foreign_keys remains unchanged.",
+      "Composite and multiple FK constraints retain actions and qualified target identity; pagination returns all matching source declarations.",
+      "Comments, SQL strings, procedure bodies and unsupported ALTER operations do not invent source relationships.",
+      "Real public indexed handler withholds modified script until update_project refresh, then returns the new source pair/hash."
+    ],
+    "public_candidate_and_installed": "Use owned copies of the three exact non-Q LegacyValidation SQL files retained here. Verify table and incoming-FK responses recover the exact cc_id relationship and source script hash/lines; verify unknown application status, complete baseline preservation and stale/refreshed script evidence. No whole-project or live LegacyValidation/Q operation.",
+    "stop_rule": "Deliver static ALTER-ADD FK discovery and advance. Do not implement migration execution/order, live database binding, generic ALTER columns, trigger expansion or CodeMap/Blast work."
+  },
+  "checks_completed": [
+    "Rust2024 syntax parsing; new module/tests formatted",
+    "Selected-path git diff --check",
+    "Protected WIP9 byte hashes verified"
+  ],
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  },
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "embedding_backend": "ollama",
+    "relevance": "Concrete existing LegacyValidation SQL source relationship missing from schema retrieval; source parsing is independent of embedding provider. Exact3-file source reads only, outside Site/Q; normal runtime unchanged."
+  },
+  "limits": [
+    "Static operations are retained independently; no statement execution, effective migration ordering, trust, or physical database state is established.",
+    "Other ALTER operations retain existing coverage gaps. Unsupported constraint syntax is not interpreted. Existing source-admission, name-ambiguity and report-budget limits remain.",
+    "No matched agent usefulness or production latency/memory claim."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115",
+    "retained_owned_source_inputs": [
+      {
+        "sha256": "22652c534f2707f29850f8fe0dc39ddd7985081c4909ec69f752dcd81d2931da",
+        "owned_copy": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\actual-source\\db-legacy_validation.sql\\Scripts\\Post\\cc_costCenter.sql"
+      },
+      {
+        "sha256": "4c2c97ebda7b4ed5734d0d96ddbc35b874a2ee4c6269d3318222f2ec77001dc1",
+        "owned_copy": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\actual-source\\db-legacy_validation.sql\\dbo\\Tables\\vp_verksamperson.sql"
+      },
+      {
+        "sha256": "8cfe07c9fa82053fd411837c43ce8803181e8e58a2acf1b57307145e2d0e333d",
+        "owned_copy": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\actual-source\\db-legacy_validation.sql\\dbo\\Tables\\cc_costCenter.sql"
+      }
+    ],
+    "created_test_fixtures": 0,
+    "retention": "Retain exact three SQL proof inputs, contract and validation receipts through installed delivery. Native/public fixtures own engine/Git/database handles and remove new temporary directories on completion/unwind. No preexisting deletion."
+  },
+  "delivery_cadence": "Third distinct source outcome after EG-13 and EG-27; one focused combined14-case native target and one release after queue pins are committed.",
+  "source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
+  "runtime_source_commit": "ad669aae1b1c69b61b043e901dbe6443cc9be574",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/services/schema_query.rs": "1c2fe113211591afbe5657af8d1fa9166f1a43a90a2a3e2cd31a98f838efe88a",
+    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs": "91d4f1ad1e75508623a448e97dcc63bf45721a1a106fc5bf62ae4098dee724cf",
+    "crates/engram_server/src/handlers/schema_tools.rs": "22dbfa0dcf14f9bfb4ba4f9ab52f6ef83748ccaac07754907dd75085a6aaa89c",
+    "crates/engram_server/tests/alter_foreign_key_schema_tests.rs": "339b3f150f84d91335176de370a80638f02b973c31e1ad431ff8eae1800e3a36",
+    "crates/engram_server/tests/source_history_schema_batch_tests.rs": "852af5df724098f11904426d07664d351e0a67c8e84a3dc3353cde90fe104714"
+  },
+  "implementation_notes": [
+    "Committed native fixtures use invented same-shape table/column names per the repository customer-data hook. Exact LegacyValidation proof inputs remain only in the recorded owned diagnostics case.",
+    "Runtime code/test bytes match root exactly. Build-checkout TODO.md retains its prior delivery chronology; the four-line source change applied cleanly. Root TODO.md is the authoritative accumulated delivery ledger. No unrelated source was copied."
+  ],
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json"
+}

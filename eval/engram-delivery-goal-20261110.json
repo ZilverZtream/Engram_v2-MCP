@@ -40,10 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "status": "READY_FOR_COMBINED_VALIDATION",
     "pending_source_records": [
       "eval/retained-index-output-progress-20261115.json",
-      "eval/historical-linked-policy-progress-20261115.json"
+      "eval/historical-linked-policy-progress-20261115.json",
+      "eval/alter-foreign-key-schema-progress-20261115.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2573,6 +2574,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
         "progress_record": "eval/historical-linked-policy-progress-20261115.json",
         "user_outcome": "Revision-pinned change sets include complete shared guidance from the requested Git tree, including deleted checkout files; preserve committed scope/exception/hash evidence. Source complete; not yet validated or installed."
+      },
+      {
+        "original_requirement_id": "TODO-35",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
+        "runtime_source_commit": "ad669aae1b1c69b61b043e901dbe6443cc9be574",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json",
+        "progress_record": "eval/alter-foreign-key-schema-progress-20261115.json",
+        "user_outcome": "Post-deployment ALTER TABLE ADD foreign-key source evidence appears in table/incoming schema queries with script hash/lines and unknown application status; no migration execution. Source complete; not yet validated or installed."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2617,12 +2627,13 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "status": "THREE_SOURCE_OUTCOMES_READY_FOR_COMBINED_VALIDATION",
     "independent_requirements_source_complete": [
       "EG-13",
-      "EG-27"
+      "EG-27",
+      "TODO-35"
     ],
-    "pending_count": 2,
+    "pending_count": 3,
     "minimum_before_compile": 3,
     "native_builds": 0,
     "release_builds": 0,
@@ -2655,6 +2666,16 @@
     "original_requirement_id": "EG-27",
     "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
+  },
+  "alter_foreign_key_schema_source_progress": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/alter-foreign-key-schema-progress-20261115.json",
+    "original_requirement_id": "TODO-35",
+    "source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json",
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false
