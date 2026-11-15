@@ -70,10 +70,11 @@
   "checks_completed": [
     "Rust2024 syntax parsing; new module/tests formatted",
     "Selected-path git diff --check",
-    "Protected WIP9 byte hashes verified"
+    "Protected WIP9 byte hashes verified",
+    "Fourteen distinct focused native cases and eighteen owned debug-public checks passed. Initial SQL boundary failure retained; affected four-case correction passed with ten unaffected cases retained. No release/candidate/installed acceptance yet."
   ],
-  "native_tests_run": false,
-  "public_acceptance_run": false,
+  "native_tests_run": true,
+  "public_acceptance_run": true,
   "deployed": false,
   "full_requirement_complete": false,
   "builds_before_combined_batch": {
@@ -140,5 +141,23 @@
     "initial_native_seconds": 309.0796920999419,
     "initial_job_handles_and_temp_closed": true
   },
-  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json"
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json",
+  "combined_validation": {
+    "status": "NATIVE_AND_DEBUG_PUBLIC_PASSED_RELEASE_NOT_BUILT",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115",
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\native-acceptance.json",
+    "native_distinct_cases_passed": 14,
+    "native_builds": 2,
+    "initial_failed_sql_cases": 3,
+    "affected_retry_cases_passed": 4,
+    "unaffected_cases_retained": 10,
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\debug1\\receipt.json",
+    "debug_public_checks_passed": 18,
+    "debug_binary_sha256": "7403072f77b891cb0f210b2bc4ca30a4ec2ec171ed712ee9d576c6173bbc9725",
+    "release_builds_started": 0,
+    "candidate_acceptance_run": false,
+    "installed_acceptance_run": false,
+    "installed": false,
+    "all_completed_native_and_debug_fixture_owners_closed": true
+  }
 }
