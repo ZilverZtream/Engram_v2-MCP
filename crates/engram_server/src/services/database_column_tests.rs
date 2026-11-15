@@ -1,6 +1,61 @@
 use super::*;
 
 #[test]
+fn source_indexes_attach_to_exact_table_names_with_their_own_citations() {
+    let source = "CREATE TABLE [dbo].[Orders] ([Id] INT NOT NULL);\nGO\nCREATE NONCLUSTERED INDEX [IX_Orders_Id] ON [dbo].[Orders] ([Id] ASC);\nGO\nCREATE TABLE [audit].[Orders] ([Id] INT NOT NULL);";
+    let tables = parse_create_tables(&[("indexes.sql".into(), source.into())]);
+    assert_eq!(tables.len(), 2);
+    let dbo = tables
+        .iter()
+        .find(|table| table.qualified_name.as_deref() == Some("[dbo].[Orders]"))
+        .unwrap();
+    let audit = tables
+        .iter()
+        .find(|table| table.qualified_name.as_deref() == Some("[audit].[Orders]"))
+        .unwrap();
+    assert_eq!(dbo.index_evidence.len(), 1);
+    assert!(audit.indexes.is_empty());
+    assert!(audit.index_evidence.is_empty());
+    let index = &dbo.index_evidence[0];
+    assert_eq!(index.name, "[IX_Orders_Id]");
+    assert_eq!(index.binding, "exact_source_name");
+    assert_eq!(dbo.indexes, [index.declaration.clone()]);
+    assert_eq!(index.source_citation.path, "indexes.sql");
+    assert_eq!(
+        (
+            index.source_citation.start_line,
+            index.source_citation.end_line
+        ),
+        (3, 3)
+    );
+    assert_eq!(
+        index.source_citation.source_hash,
+        blake3::hash(source.as_bytes()).to_hex().to_string()
+    );
+    let intel = DatabaseIntelligence {
+        schema: SchemaReport {
+            tables,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let markdown = render_database_intelligence_markdown(&intel);
+    assert!(markdown.contains("[IX_Orders_Id]"));
+    assert!(markdown.contains("indexes.sql:3-3"));
+}
+
+#[test]
+fn unbound_index_spelling_is_a_visible_gap_without_a_guessed_default_schema() {
+    let source = "CREATE TABLE [dbo].[Orders] ([Id] INT NOT NULL);\nGO\nCREATE INDEX [IX_Unqualified] ON [Orders] ([Id]);";
+    let (tables, gaps) =
+        parse_schema_tables_with_coverage(&[("unqualified.sql".into(), source.into())]);
+    assert!(tables[0].indexes.is_empty());
+    assert_eq!(gaps.len(), 1);
+    assert!(gaps[0].contains("[IX_Unqualified]"));
+    assert!(gaps[0].contains("no exact matching table declaration"));
+}
+
+#[test]
 fn shared_table_inventory_preserves_composite_keys_and_source_citation() {
     let source = "-- Declared schema, not deployed-state evidence.\nCREATE TABLE [sales].[Lines] (\n[TenantId] INT,\n[LineId] INT,\n[ParentId] INT NULL,\nCONSTRAINT PK_Lines PRIMARY KEY CLUSTERED ([TenantId] ASC, [LineId] DESC),\nCONSTRAINT FK_Parents FOREIGN KEY ([TenantId], [ParentId]) REFERENCES [sales].[Parents] ([TenantId], [Id]) ON DELETE CASCADE ON UPDATE NO ACTION,\nCONSTRAINT CK_Parent CHECK (ParentId > 0)\n);";
     let tables = parse_create_tables(&[("lines.sql".into(), source.into())]);

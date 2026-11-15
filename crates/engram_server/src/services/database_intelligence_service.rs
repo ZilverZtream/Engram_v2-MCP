@@ -134,9 +134,20 @@ pub struct SchemaTable {
     pub foreign_keys: Vec<ForeignKey>,
     pub check_constraints: Vec<String>,
     pub indexes: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub index_evidence: Vec<SchemaIndexSource>,
     /// Source declarations refused by the shared parser remain visible.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub parsing_warnings: Vec<String>,
+}
+
+/// A matching source declaration, not proof that this index is deployed.
+#[derive(Debug, Clone, Serialize)]
+pub struct SchemaIndexSource {
+    pub name: String,
+    pub declaration: String,
+    pub binding: &'static str,
+    pub source_citation: super::schema_query::Citation,
 }
 
 /// Column definition within a table.
@@ -574,9 +585,18 @@ fn parse_schema_tables_with_coverage(
             catalog.gaps.push(format!("{path}: {error}"));
         }
     }
-    let warnings = catalog.gaps.iter()
+    let mut warnings: Vec<String> = catalog.gaps.iter()
         .map(|gap| format!("INCOMPLETE schema inventory: {gap}"))
         .collect();
+    let create_index = |object: &schema_query::Object| object.kind == "index"
+        && object.declaration.split_whitespace().next().is_some_and(|word| word.eq_ignore_ascii_case("CREATE"));
+    for index in catalog.objects.iter().filter(|object| object.kind == "index") {
+        if !create_index(index) {
+            warnings.push(format!("INCOMPLETE source index state: {} at {}:{} is a source operation, not a CREATE INDEX definition; execution/order were not interpreted", index.name, index.citation.path, index.citation.start_line));
+        } else if !catalog.tables.iter().any(|table| index.target.as_ref().is_some_and(|target| target.matches(&table.key))) {
+            warnings.push(format!("INCOMPLETE source index binding: {} at {}:{} has no exact matching table declaration in the selected SQL; default schema/deployed state were not inferred", index.name, index.citation.path, index.citation.start_line));
+        }
+    }
     let mut tables = Vec::new();
     for table in catalog.tables {
         let name = table.key.0.last().cloned().unwrap_or_else(|| table.name.clone());
@@ -603,13 +623,18 @@ fn parse_schema_tables_with_coverage(
             })
         };
         let check_constraints = table.constraints.iter().filter(|text| keyword(text, "CHECK", false)).cloned().collect();
-        // Preserve this field's inline-index/UNIQUE selection here. Source
-        // CREATE INDEX attachment is delivered separately over the same catalog.
-        let indexes = table.constraints.iter().filter(|text| keyword(text, "INDEX", true) || keyword(text, "UNIQUE", true)).cloned().collect();
+        let mut indexes: Vec<_> = table.constraints.iter().filter(|text| keyword(text, "INDEX", true) || keyword(text, "UNIQUE", true)).cloned().collect();
+        let index_evidence: Vec<_> = catalog.objects.iter().filter(|object| create_index(object))
+            .filter(|index| index.target.as_ref().is_some_and(|target| target.matches(&table.key)))
+            .map(|index| SchemaIndexSource {
+                name: index.name.clone(), declaration: index.declaration.clone(), binding: "exact_source_name",
+                source_citation: index.citation.clone(),
+            }).collect();
+        indexes.extend(index_evidence.iter().map(|index| index.declaration.clone()));
         tables.push(SchemaTable {
             name, qualified_name: Some(table.name), source_citation: Some(table.citation),
             columns: table.columns.into_iter().map(project_schema_column).collect(),
-            primary_key: table.primary_key, foreign_keys, check_constraints, indexes, parsing_warnings,
+            primary_key: table.primary_key, foreign_keys, check_constraints, indexes, index_evidence, parsing_warnings,
         });
     }
     (tables, warnings)
@@ -1234,6 +1259,18 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
                 }
             }
 
+            if !table.indexes.is_empty() {
+                md.push_str("\nSource-declared indexes (not deployed-state proof):\n");
+                for declaration in &table.indexes {
+                    md.push_str(&format!("- `{declaration}`"));
+                    if let Some(index) = table.index_evidence.iter().find(|index| &index.declaration == declaration) {
+                        let source = &index.source_citation;
+                        md.push_str(&format!(" ? `{}` at `{}:{}-{}`, BLAKE3 `{}` ({})", index.name, source.path, source.start_line, source.end_line, source.source_hash, index.binding));
+                    }
+                    md.push('\n');
+                }
+            }
+
             if !table.foreign_keys.is_empty() {
                 md.push_str(&format!(
                     "\nForeign Keys: {}\n",
@@ -1676,6 +1713,7 @@ GO"#
             foreign_keys: vec![],
             check_constraints: vec!["Price > 0".to_string()],
             indexes: vec![],
+            index_evidence: vec![],
             parsing_warnings: vec![],
         }];
         let code_tables = HashSet::new();

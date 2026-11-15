@@ -395,7 +395,11 @@ Database intelligence table/column/key reports use the same declaration
 inventory as `query_schema` for supported types, complete defaults, composite
 keys and computed columns. Rows retain their legacy basename plus
 `qualified_name` and `source_citation`; Markdown includes the source location
-and hash. Values use canonical SQL formatting. Refused declarations
+and hash. Standalone `CREATE INDEX` declarations attach only to exactly
+matching source table names; legacy `indexes` strings retain them, and
+`index_evidence` supplies each name, declaration and source citation. Unmatched
+source references and non-CREATE index operations remain warnings, without
+default-schema or deployment-state inference. Values use canonical SQL formatting. Refused declarations
 remain in each table's `parsing_warnings` and the report warnings; an empty
 `parsing_warnings` field is omitted. The legacy database report uses
 `nullable=true` when the source omits a NULL clause and no primary key implies
