@@ -917,7 +917,8 @@
         "actual": "CallToolResult exposes content and isError only. Readback uses a JSON text content part. No structuredContent capability or protocol upgrade is claimed.",
         "source": "C:/Users/Dennis/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/rmcp-0.3.2/src/model.rs:1187",
         "prior_claim": "Earlier shared-report notes described structuredContent byte accounting. That code does not establish current public protocol support; corrected in TOOL_CONTRACT.md."
-      }
+      },
+      "canonical_readback_delivery_20261115": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json"
     },
     {
       "id": "EG-27",
@@ -10029,7 +10030,7 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original EG26 callable tool references and complete write/readback handoffs",
       "original_requirement": "Reconcile actual schemas, tool descriptions and agent contracts; preserve original EG18 dependency-complete handoffs and EG19 decision evidence.",
       "observed_missing_behavior": "Installed descriptions refer to nonexistent blast_radius and get_migration_order. Specialty guidance does not carry stored section/review identities into readback calls. Memory imports may derive or override IDs, so a title or request-field guess can read the wrong section. Deletion currently suggests reading a deleted section.",
@@ -10052,12 +10053,15 @@
         "Actual candidate/installed MCP follows returned calls for explicit/default section IDs, front-matter/override imports and exact immutable review events; delete/list works, profile/schema availability and no copied note/review bodies are verified. No actual LegacyValidation source read, held-out replay, language expansion or ownership approval inference."
       ],
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline1\\acceptance.json",
       "readback_format": "Separate JSON text content part with next_tools; original receipt first. Existing MCP transport has no structuredContent field; no protocol/library upgrade.",
       "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
-      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\native-acceptance.json"
+      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\native-acceptance.json",
+      "bounded_delivery_complete": true,
+      "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json",
+      "broader_eg26_complete": false
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10089,7 +10093,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original EG26 callable tool references and complete write/readback handoffs",
+    "active_original_item": "Selected callable-reference/readback batch complete; advance next ready original improvement. Preserve original unresolved scope and do not replay passed acceptance.",
     "next_user_visible_deliverable": "Correct callable tool references and provide exact readback actions after memory/review writes; preserve state and advice qualifications.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10107,7 +10111,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS:85a29fd pushed and installed;27more report budgets/recovery, four dedicated tests and19candidate/19installed checks. Closed that slice.",
+    "previous_goal_turn_classification": "PROGRESS: complete stored-identity readbacks and canonical references installed;13dedicated tests and15candidate/15installed checks passed; no full suite.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15475,7 +15479,8 @@
       "bounded_delivery_complete": true,
       "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-webforms-report-delivery-20261115.json",
       "broader_todo4_complete": false
-    }
+    },
+    "tool_readback_delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

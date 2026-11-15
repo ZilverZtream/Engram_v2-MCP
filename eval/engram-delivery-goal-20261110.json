@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "Original EG26 callable tool references and complete write/readback handoffs",
     "original_requirement": "Reconcile actual schemas, tool descriptions and agent contracts; preserve original EG18 dependency-complete handoffs and EG19 decision evidence.",
     "observed_missing_behavior": "Installed descriptions refer to nonexistent blast_radius and get_migration_order. Specialty guidance does not carry stored section/review identities into readback calls. Memory imports may derive or override IDs, so a title or request-field guess can read the wrong section. Deletion currently suggests reading a deleted section.",
@@ -63,12 +63,15 @@
       "Actual candidate/installed MCP follows returned calls for explicit/default section IDs, front-matter/override imports and exact immutable review events; delete/list works, profile/schema availability and no copied note/review bodies are verified. No actual LegacyValidation source read, held-out replay, language expansion or ownership approval inference."
     ],
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
+    "validated": true,
+    "deployed": true,
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline1\\acceptance.json",
     "readback_format": "Separate JSON text content part with next_tools; original receipt first. Existing MCP transport has no structuredContent field; no protocol/library upgrade.",
     "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
-    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\native-acceptance.json"
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\native-acceptance.json",
+    "bounded_delivery_complete": true,
+    "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-tool-readback-delivery-20261115.json",
+    "broader_eg26_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

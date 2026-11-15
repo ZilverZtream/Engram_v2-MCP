@@ -1,0 +1,123 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T06:56:03.929897+00:00",
+  "finding": "Original EG26 callable tool references and complete write/readback handoffs",
+  "behavior": [
+    "Successful memory writes/imports and review records preserve the original receipt and append complete read-only calls using actual stored section/review identities. No bodies or rationale copied into routing arguments.",
+    "Deletion suggests the remaining-section list. Three stale references and the README alias corrected to registered tool names. Current pinned SDK structuredContent claim corrected; readbacks use a compatible JSON text part, with no protocol upgrade."
+  ],
+  "source_commit": "3c94546c9dfbf946f06dcf0818ab96936c350100",
+  "frozen_source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\package1",
+    "server_sha256": "1c49b14fdd22b9bf4ae867a047b673244a1b5dee81e4b0d4dcd090321b69cd9e",
+    "manifest_sha256": "31ab638e9c9489d4a0624a5d1f90e5086c05ebb96434f517ec5984cb4454730d",
+    "old_server_sha256": "781b0eeddeae20f0ff0b8090a9adf1875dd3899dc06e7dfbe628f6a18bc63316",
+    "old_manifest_sha256": "1b1977e4e50a3a2b86e0f58766c71f755bb609f937c3cfbc40273d92121e7329",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\release1.json",
+      "sha256": "ecf6f783372a249a711d8c9097b102daaf51d80f9f2c96155a552b5b38fa1ed0"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "1b1977e4e50a3a2b86e0f58766c71f755bb609f937c3cfbc40273d92121e7329"
+    },
+    "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce"
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 13,
+    "required_component_cases": {
+      "stored_readback_actions_use_registered_core_readers_and_complete_typed_arguments": true,
+      "stored_readback_preserves_failed_mutation_without_suggesting_a_successful_record": true,
+      "deleted_memory_navigation_lists_remaining_sections_instead_of_reading_deleted_data": true,
+      "advertised_action_names_resolve_to_the_registry_instead_of_legacy_aliases": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "394e619a48208c9eb69d5231f6c953cd9c53fdce",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 38s",
+    "native_test_seconds": 0.15,
+    "retained_failed_attempts": [],
+    "dedicated_target": "tool_guidance_tests",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\baseline1\\acceptance.json",
+  "debug_public": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\debug-smoke2\\acceptance.json",
+  "retained_debug_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\debug-smoke1\\acceptance.json",
+  "public": {
+    "candidate": {
+      "checks": 15,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\candidate1\\acceptance.json"
+    },
+    "installed": {
+      "checks": 15,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\installed1\\acceptance.json"
+    }
+  },
+  "builds": {
+    "native_attempts": 1,
+    "release_builds": 1,
+    "full_suite_runs": 0,
+    "lib_unit_suite_compiled": false,
+    "release_runner_seconds": 840.8423387000803,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 13m 49s"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115",
+    "native_fixture_removed": true,
+    "release_fixture_removed": true,
+    "release_job_closed": true,
+    "public_fixtures_removed": true,
+    "configuration_hold_released": true,
+    "owned_config_removed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ac04e41435054a8883664b135b763707",
+    "normal_runtime": {
+      "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+      "owners": [
+        {
+          "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-readback-contracts-20261115\\restored-runtime\\wire",
+          "closed": true,
+          "pid": 46316,
+          "natural_exit": true,
+          "reader_joined": true,
+          "exit_code": 0,
+          "pending_observations": []
+        }
+      ],
+      "intentional_retained_runtime": true,
+      "daemon_pid": 88512,
+      "daemon_created": 1794725662.4937532,
+      "metadata": {
+        "pid": "88512",
+        "started_at_ms": "1794725662588",
+        "protocol_version": "1",
+        "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+        "version": "0.1.0"
+      },
+      "server_sha256": "1c49b14fdd22b9bf4ae867a047b673244a1b5dee81e4b0d4dcd090321b69cd9e",
+      "normal_proxy_metrics_succeeded": true,
+      "selected_generation": 3151,
+      "owned_temp_removed": true,
+      "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+    },
+    "retention": "Case evidence/scripts/package and managed rollback pair retained for review. Only newly owned fixtures removed; preexisting folders untouched. Normal daemon intentionally restored."
+  },
+  "limits": [
+    "Original EG26 full schema/behavior/capability reconciliation and general task benefit remain unfinished. Registered names do not make .NET migration tools available on non-.NET projects.",
+    "Debug1 used a JavaScript-only fixture for a .NET migration-tool availability assertion. All functional readback checks passed. Debug2 aligned the fixture to WebForms and reused the same binary; failure/driver preserved.",
+    "Readbacks query the stored identity; they do not approve edits or authenticate imported decisions. No checks executed or findings suppressed.",
+    "No actual LegacyValidation source read/mutation, CodeMap/Blast implementation change, unrelated language support, protocol upgrade or held-out task replay."
+  ],
+  "preserved_wip9": true,
+  "broader_goal_complete": false,
+  "original_full19gates_closed": false
+}
