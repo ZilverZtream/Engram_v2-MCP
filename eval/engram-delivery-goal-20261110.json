@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "Original settings intelligence and QA workflow: literal typed settings getters",
     "original_requirement": "Existing settings catalog/lookup and QA matrix expose settings that fork ordinary LegacyValidation behavior with usable source evidence and honest applicability limits.",
     "observed_gap": "VB settings enrichment recognizes properties and framework AppSettings but skips method calls. Actual CustomerInvoiceImporter.vb:103-104 reads two configured literal keys through systemsettings.GetText; these keys are not modeled.",
@@ -91,7 +91,13 @@
       "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
     },
     "baseline_root": "1dfcb71517a3af44629c2483682a0781062ec418",
-    "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12"
+    "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+    "delivery_record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
+    "source_commit": "d91f9c79c07e62b3f37daf731e3d6e883e1681d6",
+    "runtime_source_commit": "b54306b88d30697e50c231c7c4f30744b80b1f2e",
+    "installed_server_sha256": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a",
+    "actual_legacy_validation_index_refreshed": false,
+    "activation_requirement": "Existing VB indexes need update_project. Whole actual LegacyValidation refresh was not run because it could read protected Site/Q; unchanged-source upgrade was proved on owned exact source copies."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -881,40 +887,40 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 230.07214599999133,
-    "actual_test_execution_seconds": 7.84,
-    "last_release_compile_seconds": 854.0,
+    "compiled_tests_seconds": 412.53612940001767,
+    "actual_test_execution_seconds": 16.6,
+    "last_release_compile_seconds": 917.0,
     "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115",
     "completed_last_batch": [
       {
-        "component": "query_business_logic",
-        "delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json"
+        "component": "Literal-key settings discovery",
+        "delivery": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json"
       },
       {
-        "component": "pre_push_audit quality-rule retrieval",
-        "delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json"
+        "component": "Hash-checked source lookup",
+        "delivery": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json"
       },
       {
-        "component": "get_change_set business-rule source anchors",
-        "delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json"
+        "component": "Requested-file typed settings QA axes",
+        "delivery": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json"
       }
     ],
-    "last_batch_delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
+    "last_batch_delivery": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
     "last_native_compile": "2m51s +24.91s fixture correction",
-    "last_release_compile": "14m14s; post-success wrapper flag-order assertion recovered without rebuilding",
+    "last_release_compile": "15m 17s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Documentation-only reconciliation uses installed schemas and retained outcomes; no runtime source pending.",
-    "last_native_attempts": 2,
+    "current_step_reason": "Three workflow components deployed; owned old-index upgrade and exact source-copy behavior proved. Actual project refresh remains unrun under protected Q boundary.",
+    "last_native_attempts": 5,
     "last_release_attempts": 1,
-    "compiled_tests_seconds_scope": "Sum of native1 and native2 runner durations including compile/cleanup. First fixture setup rejected; corrected dedicated target passed2tests.",
-    "last_release_runner_seconds": 867.0342754999874,
-    "native_failed_attempts": 1,
-    "public_failed_verifier_attempts": 1,
-    "last_native_runner_seconds": 230.07214599999133,
+    "compiled_tests_seconds_scope": "Five focused runner attempts including compile and cleanup: three failures retained, native4 and native5 passed six cases; no library unit suite.",
+    "last_release_runner_seconds": 929.1801867999602,
+    "native_failed_attempts": 3,
+    "public_failed_verifier_attempts": 2,
+    "last_native_runner_seconds": 412.53612940001767,
     "latest_cadence_deviation": {
       "at_utc": "2026-11-15T07:47:40.737632+00:00",
       "user_observation": "Minutes of implementation followed by hours of compilation and full-suite work displaces useful product changes.",
@@ -2429,5 +2435,10 @@
     "delivery_record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
     "new_builds": 0,
     "verification": "Retained dated outcomes, actual installed schemas, source Core ceiling, example JSON fields and changed local links; WIP/runtime/config unchanged."
+  },
+  "literal_settings_workflows_delivery": {
+    "record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
   }
 }

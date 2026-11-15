@@ -10059,7 +10059,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "Original settings intelligence and QA workflow: literal typed settings getters",
       "original_requirement": "Existing settings catalog/lookup and QA matrix expose settings that fork ordinary LegacyValidation behavior with usable source evidence and honest applicability limits.",
       "observed_gap": "VB settings enrichment recognizes properties and framework AppSettings but skips method calls. Actual CustomerInvoiceImporter.vb:103-104 reads two configured literal keys through systemsettings.GetText; these keys are not modeled.",
@@ -10110,7 +10110,13 @@
         "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
       },
       "baseline_root": "1dfcb71517a3af44629c2483682a0781062ec418",
-      "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12"
+      "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+      "delivery_record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
+      "source_commit": "d91f9c79c07e62b3f37daf731e3d6e883e1681d6",
+      "runtime_source_commit": "b54306b88d30697e50c231c7c4f30744b80b1f2e",
+      "installed_server_sha256": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a",
+      "actual_legacy_validation_index_refreshed": false,
+      "activation_requirement": "Existing VB indexes need update_project. Whole actual LegacyValidation refresh was not run because it could read protected Site/Q; unchanged-source upgrade was proved on owned exact source copies."
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -15726,5 +15732,10 @@
     "record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
     "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
     "full_EG26_closed": false
+  },
+  "literal_settings_workflows_delivery": {
+    "record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
   }
 }
