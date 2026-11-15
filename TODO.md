@@ -741,7 +741,7 @@ value is accuracy, this is the biggest meta-gap.
 
 ## P7 — Debt & cleanup
 
-- [ ] **59. Consolidate the 3 overlapping DB-analysis services** (M)
+- [x] **59. Consolidate the 3 overlapping DB-analysis services** (M) ? source-recognition consolidation installed 2026-11-15. Shared SQL statement/body/identifier and procedure parsers now back the named services; schema declarations and supported DDL targets share the catalog. Report assembly reuses parsed inputs and preserves source citations. SQL interpretation, scaffold validation and original quality/usefulness gaps remain separate. [Delivery](eval/legacy_validation-database-source-consolidation-delivery-20261115.json).
   `database_intelligence_service`, `db_strategy_service`, parts of
   `full_project_migration_service` re-implement SQL parsing/table extraction.
   Partial delivery 2026-11-14: shared qualified object-name recognition and

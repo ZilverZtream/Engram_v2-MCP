@@ -1,0 +1,206 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T03:54:59.249028+00:00",
+  "improvements": [
+    {
+      "behavior": "Database intelligence projects views and supported DML triggers from the common schema catalog; qualified names and raw-source citations survive JSON/Markdown. Independent declaration regexes removed."
+    },
+    {
+      "behavior": "Post-deployment DML write targets reuse shared SQL recognizers and DDL/index targets reuse source-catalog tokens. Service-local table recognizers removed; original report heuristics retained."
+    },
+    {
+      "behavior": "Combined database report reuses parsed declaration and procedure inputs across its sections; strategy normalization delegates to common SQL identifiers. Existing shared parser ownership in strategy and migration is preserved."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
+    "source_commit": "70bd8b85459ac5bf0d5714e8c83e00bb94ffcb5a",
+    "files": {
+      "crates/engram_index/src/sql_parser.rs": "1b2bd66325e740c843348617722c7dd3b13ed9bbbbba744327675cbbba40aef6",
+      "crates/engram_server/src/services/schema_query.rs": "861078450a5b2908faf12be95daaa4c536f147184c420018de097a585fc7d8a2",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "88cee1aa237eb2cc5ef779aa74552e25768549ae35d073853ba079aeca755124",
+      "crates/engram_server/src/services/database_column_tests.rs": "65ae62f6f6a7e808dee77849acadb1382db5b59c3f5f70425aeb8783bda71126",
+      "crates/engram_server/src/services/db_strategy_service.rs": "f8cfeb9291804ee09eaf2e1cbbe50c23d34f65f1bc760a7dab4c9c1151316686",
+      "crates/engram_server/tests/overview_selected_source_tests.rs": "a3b4e4ebe9d99bc89a3aabc6ef6ba244cfe0ed102c04e03e36c0321cbd51235b"
+    },
+    "root_source_files": {
+      "crates/engram_index/src/sql_parser.rs": "1b2bd66325e740c843348617722c7dd3b13ed9bbbbba744327675cbbba40aef6",
+      "crates/engram_server/src/services/schema_query.rs": "861078450a5b2908faf12be95daaa4c536f147184c420018de097a585fc7d8a2",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "88cee1aa237eb2cc5ef779aa74552e25768549ae35d073853ba079aeca755124",
+      "crates/engram_server/src/services/database_column_tests.rs": "65ae62f6f6a7e808dee77849acadb1382db5b59c3f5f70425aeb8783bda71126",
+      "crates/engram_server/src/services/db_strategy_service.rs": "f8cfeb9291804ee09eaf2e1cbbe50c23d34f65f1bc760a7dab4c9c1151316686",
+      "crates/engram_server/tests/overview_selected_source_tests.rs": "a3b4e4ebe9d99bc89a3aabc6ef6ba244cfe0ed102c04e03e36c0321cbd51235b"
+    },
+    "preserved_wip9": true,
+    "carried_previous_test_alignment": "overview_selected_source_tests changed-page refusal expectation was committed in9b5110a and publicly verified in prior batch; copied to reusable build checkout now, not an additional integration build."
+  },
+  "root_source": {
+    "root_commit": "1ed089366ab5860d0e094b5d5ffe39956cd7d222",
+    "files": [
+      "crates/engram_index/src/sql_parser.rs",
+      "crates/engram_server/src/services/schema_query.rs",
+      "crates/engram_server/src/services/database_intelligence_service.rs",
+      "crates/engram_server/src/services/database_column_tests.rs",
+      "crates/engram_server/src/services/db_strategy_service.rs",
+      "crates/engram_server/tests/overview_selected_source_tests.rs",
+      "docs/TOOL_CONTRACT.md",
+      "eval/engram-delivery-goal-20261110.json",
+      "eval/audit-inventory-20261101.json",
+      "eval/legacy_validation-database-source-consolidation-progress-20261115.json"
+    ]
+  },
+  "consolidation_source_evidence": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\consolidation-source-evidence.json",
+    "sha256": "a5f221a712a74dee66323a3a926fa80f8ed384385361d945fd54f08e4d5fe4b1"
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 62,
+      "required_component_cases": {
+        "shared_view_and_trigger_declarations_preserve_events_and_source_citations": true,
+        "shared_post_deploy_targets_preserve_mixed_operations_without_keyword_tables": true,
+        "combined_database_report_preserves_selected_procedures_chains_and_script_exclusion": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "70bd8b85459ac5bf0d5714e8c83e00bb94ffcb5a",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 45s",
+      "native_test_seconds": 0.47,
+      "retained_failed_attempts": [],
+      "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+    },
+    "public": {
+      "candidate1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\candidate1\\acceptance.json",
+          "sha256": "b8de6f7fa4f36bde6b18296fd4ae788582dbe381ae560e04648d595562c8451c"
+        },
+        "checks": {
+          "actual_view_shape_preserved": true,
+          "actual_view_qualified_name": true,
+          "actual_view_citation_agrees": true,
+          "actual_view_raw_hash_and_bounds": true,
+          "trigger_events_and_source_target_preserved": true,
+          "trigger_citation_agrees": true,
+          "shared_post_deploy_targets": true,
+          "shared_post_deploy_operations": true,
+          "shared_procedure_selection": true,
+          "shared_procedure_chain": true,
+          "procedure_sources_not_seed_scripts": true,
+          "markdown_view_evidence": true,
+          "markdown_trigger_evidence": true,
+          "table_inventory_retained": true,
+          "fixture_sources_unchanged": true,
+          "actual_sources_unchanged": true
+        },
+        "actual_sources": {
+          "table.sql": {
+            "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\db-legacy_validation.sql\\dbo\\Tables\\aspnet_Users.sql",
+            "sha256": "ce5cd2b3ed5db949b162dbec814de273cb9f83125f5e9984f3efdeb5cd880e61"
+          },
+          "view.sql": {
+            "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\db-legacy_validation.sql\\dbo\\Views\\vw_aspnet_Users.sql",
+            "sha256": "ce50e3af4bc0e2ce26c87f7ef304d0068fc39b96fd937f7dabfea2513ae37b73"
+          }
+        }
+      },
+      "installed1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\installed1\\acceptance.json",
+          "sha256": "c5682cbcdc8b18e6241589fb6836d78aca4daa47c1bfaa63c0f943b5db0b16b7"
+        },
+        "checks": {
+          "actual_view_shape_preserved": true,
+          "actual_view_qualified_name": true,
+          "actual_view_citation_agrees": true,
+          "actual_view_raw_hash_and_bounds": true,
+          "trigger_events_and_source_target_preserved": true,
+          "trigger_citation_agrees": true,
+          "shared_post_deploy_targets": true,
+          "shared_post_deploy_operations": true,
+          "shared_procedure_selection": true,
+          "shared_procedure_chain": true,
+          "procedure_sources_not_seed_scripts": true,
+          "markdown_view_evidence": true,
+          "markdown_trigger_evidence": true,
+          "table_inventory_retained": true,
+          "fixture_sources_unchanged": true,
+          "actual_sources_unchanged": true
+        },
+        "actual_sources": {
+          "table.sql": {
+            "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\db-legacy_validation.sql\\dbo\\Tables\\aspnet_Users.sql",
+            "sha256": "ce5cd2b3ed5db949b162dbec814de273cb9f83125f5e9984f3efdeb5cd880e61"
+          },
+          "view.sql": {
+            "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\db-legacy_validation.sql\\dbo\\Views\\vw_aspnet_Users.sql",
+            "sha256": "ce50e3af4bc0e2ce26c87f7ef304d0068fc39b96fd937f7dabfea2513ae37b73"
+          }
+        }
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\b1\\acceptance.json",
+      "sha256": "8b2f294d4b37214edfe7a6979f7e09b0912ab1ff6fa62282ebcb897a50829b0c"
+    },
+    "release_compile": "Finished `release` profile [optimized] target(s) in 13m 58s",
+    "focused_build_invocations": 1,
+    "release_build_invocations": 1,
+    "known_nonblocking_warnings": [
+      "cfg(test) summarize_catalog_procedures adapter unused; remove in next substantive source batch, no rebuild for warning."
+    ]
+  },
+  "runtime": {
+    "server_sha256": "8fb23f1616dbb693ccc50c88ab8a1f830bff00ee034d90191cacb7d5ddb4b9bf",
+    "manifest_sha256": "828adb456a41518fbafe80587dbe8fb8644e147a92aed4f93dac93c4687c29a1",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\pair1.json",
+      "sha256": "97ef68322b1af5354a012a5ae3bab37eb60989f0d073dabac556eca2efba0d43"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\release1.json",
+      "sha256": "b6e8609923c77ec073f26b7e3d9feddf4802c14a90a83037abe2281227614eb2"
+    },
+    "release_runner_seconds": 848.7643151000375,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\deployment1-state.json",
+      "sha256": "4e75ad4b6501191f57e6aedd8757ab4f50e0292d3e52f73660b219a20a647fb9"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\restored-runtime\\receipt.json",
+      "sha256": "949bc28bfca9c2de3f1874496cd0dbb0073fe542430d84fef40b80994a5dfc6e"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\Engram-win-x64-database-source-20261115.zip",
+    "sha256": "b8d76debafe30e8116b7c0a391e63f252dc38a71e88015ad8381b6bb7c6e40d8",
+    "files": 216
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "actual_sql_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "persisted_source_and_storage_formats_unchanged": true
+  },
+  "resources": {
+    "owned_build_jobs_relays_and_temporary_directories_closed_and_removed": true,
+    "owned_mcp_and_config_hold_closed": true,
+    "config_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-7e3e71984ae247bbb110f5cf469c73d3",
+    "old_runtime_pair_purpose": "Prior installed runtime retained for rollback under existing backup policy; no deletion authorized.",
+    "intentional_normal_daemon_pid": 88304,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
+    "retained_purpose": "Scripts, exact source/build/public evidence, package and ZIP for review; reused checkout/shared target remain in use.",
+    "cleanup_condition": "Retain delivery evidence/package for review; no preexisting folder removed."
+  },
+  "limits": [
+    "Consolidation covers source declaration/statement/body/name recognition across the three named services. Report classification, rough row estimates, dynamic SQL, alias/schema binding and execution remain distinct limitations.",
+    "Views and supported DML triggers retain source declaration evidence; this does not establish deployed trigger effects or effective migration state. Actual LegacyValidation table/view copies are unchanged; trigger/script/procedure fixtures are synthetic acceptance.",
+    "Strategy name normalization delegates to the common helper and its existing native cases pass. No public generated-scaffold execution or application compilation is claimed.",
+    "Full original findings,19gates, held work and matched task-benefit requirements remain unfinished. No Site/Q read, actual source modification, language expansion or full-suite run."
+  ]
+}

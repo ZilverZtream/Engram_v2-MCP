@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "finding": "Original TODO59 remaining source parsing/table extraction",
   "source_commit": "70bd8b85459ac5bf0d5714e8c83e00bb94ffcb5a",
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
@@ -17,5 +17,19 @@
   "scope": "Original service-owned SQL source-recognition consolidation; native/public acceptance pending. No universal SQL interpretation, scaffold correctness, quality-gate or task-benefit completion claim.",
   "deferred_cleanup": "Remove unused cfg(test) summarize_catalog_procedures adapter with the next substantive source batch if checks pass; a test-only dead-code warning is not a reason for a rebuild.",
   "resources": "New owned fixtures and build jobs under this case; baseline process and fixture closed/removed. Existing folders unchanged.",
-  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\native-acceptance.json"
+  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\native-acceptance.json",
+  "validated": true,
+  "deployed": true,
+  "bounded_delivery_complete": true,
+  "delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json",
+  "shared_batch_build_invocations": {
+    "focused_native": 1,
+    "release": 1
+  },
+  "limits": [
+    "Consolidation covers source declaration/statement/body/name recognition across the three named services. Report classification, rough row estimates, dynamic SQL, alias/schema binding and execution remain distinct limitations.",
+    "Views and supported DML triggers retain source declaration evidence; this does not establish deployed trigger effects or effective migration state. Actual LegacyValidation table/view copies are unchanged; trigger/script/procedure fixtures are synthetic acceptance.",
+    "Strategy name normalization delegates to the common helper and its existing native cases pass. No public generated-scaffold execution or application compilation is claimed.",
+    "Full original findings,19gates, held work and matched task-benefit requirements remain unfinished. No Site/Q read, actual source modification, language expansion or full-suite run."
+  ]
 }

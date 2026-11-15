@@ -3205,7 +3205,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -10023,7 +10023,7 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_FOCUSED_NATIVE_VALIDATED_RELEASE_RUNNING",
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO59 remaining database source parsing consolidation",
       "original_requirement": "Consolidate overlapping SQL parsing/table extraction across database_intelligence_service, db_strategy_service and full_project_migration_service.",
       "observed_missing_behavior": "Strategy already uses common statement parsing and full-project catalog uses shared SP extraction. Database intelligence still has independent view/trigger declaration regexes and post-deploy write/table recognizers, and reparses source for multiple report sections. Real LegacyValidation view report lacks qualified declaration citation.",
@@ -10045,13 +10045,15 @@
         "Close only original duplicate SQL parsing/table extraction scope if the current three-service source evidence proves it consolidated; leave original quality, usefulness and broader SQL support limits open."
       ],
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "source_commit": "70bd8b85459ac5bf0d5714e8c83e00bb94ffcb5a",
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\b1\\acceptance.json",
       "progress": "eval/legacy_validation-database-source-consolidation-progress-20261115.json",
       "native_validated": true,
-      "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\native-acceptance.json"
+      "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\native-acceptance.json",
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10083,8 +10085,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original TODO59 remaining source parser consolidation; one item with three source components before builds.",
-    "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements; preserve unfinished original findings and benefit gaps. Current guidance handoff is installed.",
+    "active_original_item": "Original TODO59 source parsing/table extraction consolidated and installed; advance remaining original requirements without replaying this acceptance.",
+    "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements, preserving quality/usefulness, held gates and SQL interpretation/scaffold limits. Original source-parser duplication is consolidated.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14399,48 +14401,32 @@
       "batch_size": 3,
       "implementation_concurrency": 1,
       "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-      "compiled_tests_seconds": 369.994755599997,
-      "actual_test_execution_seconds": 0.66,
-      "last_release_compile_seconds": 754,
-      "pending": [
-        {
-          "component": "database-source-consolidation",
-          "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
-          "status": "SOURCE_COMPLETE_NATIVE_PENDING"
-        }
-      ],
+      "compiled_tests_seconds": 225.0,
+      "actual_test_execution_seconds": 0.47,
+      "last_release_compile_seconds": 838.0,
+      "pending": [],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
       "completed_last_batch": [
         {
-          "component": "omitted-guidance action",
-          "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
-        },
-        {
-          "component": "source hash guards and continuation",
-          "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
-        },
-        {
-          "component": "agent-workflow handoff",
-          "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
+          "component": "database-source-consolidation",
+          "delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json"
         }
       ],
-      "last_batch_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json",
+      "last_batch_delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json",
       "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-      "last_native_compile": [
-        "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 41s",
-        "Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 27s"
-      ],
-      "last_release_compile": "Finished `release` profile [optimized] target(s) in 12m 34s",
+      "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 45s",
+      "last_release_compile": "Finished `release` profile [optimized] target(s) in 13m 58s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
-      "current_step_builds_required": 1,
-      "current_step_reason": "Whole database-source consolidation passed62 focused native cases; one release running, no full suite.",
-      "last_native_attempts": 3,
+      "current_step_builds_required": 0,
+      "current_step_reason": "Source-parser consolidation accepted and installed; no pending source from this batch.",
+      "last_native_attempts": 1,
       "last_release_attempts": 1,
       "compiled_tests_seconds_scope": "All three native runners including failed attempts and owned cleanup; actual test execution reported separately.",
-      "last_release_runner_seconds": 767.0682052000193,
-      "native_failed_attempts": 2,
-      "public_failed_verifier_attempts": 1
+      "last_release_runner_seconds": 848.7643151000375,
+      "native_failed_attempts": 0,
+      "public_failed_verifier_attempts": 0,
+      "last_native_runner_seconds": 238.7930985999992
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15332,8 +15318,9 @@
       "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
     },
     "shared_schema_batch_delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json",
-    "deferred_source_cleanup": "Unused QUALIFIED_OBJECT_NAME import removed with the substantive guidance-handoff batch; no separate build.",
-    "policy_source_handoff_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
+    "deferred_source_cleanup": "Remove unused cfg(test) summarize_catalog_procedures adapter in next substantive source batch; no rebuild for a test-only warning.",
+    "policy_source_handoff_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json",
+    "database_source_consolidation_delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
