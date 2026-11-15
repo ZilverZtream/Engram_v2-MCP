@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "at_utc": "2026-11-15T17:12:20.398974+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T18:19:39.673295+00:00",
   "original_requirement_id": "EG-27",
   "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
   "original_requirement": "Dependency changes select affected instruction maintenance; preserve scope/authority, bounded linked guidance and unaffected instruction stability.",
@@ -26,20 +26,20 @@
   "checks_completed": [
     "Installed baseline reproduces missing dependent policy on owned fixture; owner closed and temp removed.",
     "Rustfmt parses changed Rust files and git diff --check passes.",
-    "Protected WIP9 bytes unchanged."
+    "Protected WIP9 bytes unchanged.",
+    "Combined focused native and debug/candidate/installed public acceptance passed; installed package and normal runtime verified."
   ],
-  "checks_deferred": [
-    "Compile and run changed_instruction_workflow_tests with the next three-independent-requirement batch.",
-    "Run deferred public verifier on combined candidate and installed artifacts."
-  ],
+  "checks_deferred": [],
   "native_compilations_this_item": 0,
   "release_builds_this_item": 0,
-  "deployed": false,
+  "deployed": true,
   "full_requirement_complete": false,
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115",
     "owned_fixtures_removed": true,
     "retained_purpose": "Baseline receipt, finite source contract and deferred verifier",
     "cleanup_condition": "Close owners and remove newly owned baseline/test fixtures on completion or unwind. Retain evidence here until superseded; preexisting folders unchanged."
-  }
+  },
+  "combined_delivery_record": "eval/instruction-review-batch-delivery-20261115.json",
+  "combined_build_accounting": "One focused native invocation and one release shared by all three original requirements; no per-item compilation. See combined receipt for cost and retained verifier failure."
 }

@@ -40,123 +40,14 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "COMBINED_NATIVE_RUNNING",
+    "status": "DELIVERED",
+    "record": "eval/instruction-review-batch-delivery-20261115.json",
     "original_requirement_ids": [
       "EG-27",
       "EG-31",
       "EG-19"
     ],
-    "requirements": [
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\contract.json",
-        "source_progress_record": "eval/eg27-reference-selection-progress-20261115.json",
-        "focused_native_target": "changed_instruction_workflow_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\verify-public.py",
-        "user_outcome": "Maintenance can discover policies referencing changed helpers outside their current applyTo scope without widening authority.",
-        "files": {
-          "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
-          "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
-          "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
-          "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
-          "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
-          "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
-        }
-      },
-      {
-        "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\contract.json",
-        "source_progress_record": "eval/eg31-edit-reasons-progress-20261115.json",
-        "focused_native_target": "instruction_proposal_edit_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\verify-public.py",
-        "user_outcome": "Reviewers retain each validated edit reason with original input identity and exact original/proposed byte ranges.",
-        "files": {
-          "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
-          "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
-          "docs/TOOL_CONTRACT.md": "ffcc878f8b89ca2f428638a7c4fee3f217904f6933c4d41ab2495be69453c041"
-        }
-      },
-      {
-        "original_requirement_id": "EG-19",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "fd515f415e08d3c93d36f353c0bd3b1296021e23",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-decision-recovery-20261115\\contract.json",
-        "source_progress_record": "eval/eg19-historical-recovery-progress-20261115.json",
-        "focused_native_target": "review_decision_history_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-decision-recovery-20261115\\verify-public.py",
-        "user_outcome": "Recover event history at the same exclusive decision-date cutoff as the merged-work snapshot; future appends do not enter the dated ruling.",
-        "files": {
-          "crates/engram_server/src/handlers/review_decisions.rs": "f63a8ad4bcd3cf9e5228b50198be521045b748f7e6dffac6464d55f76dedd90f",
-          "crates/engram_server/src/handlers/pr_history_tools.rs": "3aa089b5351cf5dfb33b9d77a174cdfebb3ca4a687bed5780a37a1658e59c34b",
-          "crates/engram_server/src/tools.rs": "80e4f8df186ecba71a7a0d8159a28cb2f715c777b8869cf742c3fcfa036ebb21",
-          "crates/engram_server/tests/code_review_ingest_tests.rs": "4e90ef4298e17add64e03ff37aae56e4d4ae84be540c4c2a0b3558c668e54145",
-          "crates/engram_server/tests/review_decision_history_tests.rs": "7804a2c3b28efd2861f873426284254cba2a60e6fc87a6e48d2eb3236b45ad49",
-          "docs/TOOL_CONTRACT.md": "d0ca41388178f3a8fbd5f162e3e6f912c9701e40e7d3292a01b8986dc27aee7b"
-        }
-      }
-    ],
-    "independence": "Reference-based maintenance selection; edit-level review rationale; historical review-history recovery are separate original requirements with separate source commits and acceptance contracts.",
-    "files": [
-      "crates/engram_server/src/handlers/pr_history_tools.rs",
-      "crates/engram_server/src/handlers/review_decisions.rs",
-      "crates/engram_server/src/services/instruction_maintenance.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs",
-      "crates/engram_server/src/services/project_policy.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/changed_instruction_workflow_tests.rs",
-      "crates/engram_server/tests/code_review_ingest_tests.rs",
-      "crates/engram_server/tests/instruction_proposal_edit_tests.rs",
-      "crates/engram_server/tests/instruction_review_batch_tests.rs",
-      "crates/engram_server/tests/review_decision_history_tests.rs"
-    ],
-    "documentation_files": [
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "focused_target": "instruction_review_batch_tests",
-    "expected_native_cases": 12,
-    "cases_by_requirement": {
-      "EG-27": 7,
-      "EG-31": 2,
-      "EG-19": 3
-    },
-    "preserved_wip9": {
-      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
-      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
-      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
-      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
-      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
-      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
-      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
-      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
-      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
-    },
-    "source_baseline": "4ca63d99b871d405498b231680f2295a8cd2f38d",
-    "root_source_commit": "4fe2238db8ac10a0e5cbbc46c8f23e929b40ebe5",
-    "shared_source_resolution": "Use final accumulated source bytes for files changed by more than one queued requirement; original source commits remain ancestors and all feature cases are in the combined target.",
-    "source_files": {
-      "crates/engram_server/src/handlers/pr_history_tools.rs": "3aa089b5351cf5dfb33b9d77a174cdfebb3ca4a687bed5780a37a1658e59c34b",
-      "crates/engram_server/src/handlers/review_decisions.rs": "f63a8ad4bcd3cf9e5228b50198be521045b748f7e6dffac6464d55f76dedd90f",
-      "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
-      "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
-      "crates/engram_server/src/tools.rs": "80e4f8df186ecba71a7a0d8159a28cb2f715c777b8869cf742c3fcfa036ebb21",
-      "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
-      "crates/engram_server/tests/code_review_ingest_tests.rs": "4e90ef4298e17add64e03ff37aae56e4d4ae84be540c4c2a0b3558c668e54145",
-      "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
-      "crates/engram_server/tests/instruction_review_batch_tests.rs": "e60a52d85be310874029cc803e3e7cbb4b89dd3adc8b5cebb6b54172228d233a",
-      "crates/engram_server/tests/review_decision_history_tests.rs": "7804a2c3b28efd2861f873426284254cba2a60e6fc87a6e48d2eb3236b45ad49"
-    },
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115",
-    "cleanup_condition": "Owned native/public fixtures close owners and remove their temporary directories; retain evidence and reused target artifacts for review. No preexisting deletion.",
-    "scope_boundary": "The three selected workflow requirements have finished source work. No other implementation is selected in this batch; all remaining original requirements stay in the backlog.",
-    "native_builds_started": 1,
-    "release_builds_started": 0
+    "full_original_goal_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2664,62 +2555,20 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\contract.json",
-        "source_progress_record": "eval/eg27-reference-selection-progress-20261115.json",
-        "focused_native_target": "changed_instruction_workflow_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\verify-public.py",
-        "user_outcome": "Maintenance can discover policies referencing changed helpers outside their current applyTo scope without widening authority.",
-        "files": {
-          "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
-          "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
-          "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
-          "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
-          "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
-          "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
-        }
-      },
-      {
-        "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\contract.json",
-        "source_progress_record": "eval/eg31-edit-reasons-progress-20261115.json",
-        "focused_native_target": "instruction_proposal_edit_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115\\verify-public.py",
-        "user_outcome": "Reviewers retain each validated edit reason with original input identity and exact original/proposed byte ranges.",
-        "files": {
-          "crates/engram_server/src/services/instruction_maintenance.rs": "4bf73da0da9d369d509941c398f5eba5b665154e91e3dc09405789bfda1ce47f",
-          "crates/engram_server/tests/instruction_proposal_edit_tests.rs": "37abe93bdeefa83dc166f6df48589c45365b2889851d0a8f415db19b82715fdb",
-          "docs/TOOL_CONTRACT.md": "ffcc878f8b89ca2f428638a7c4fee3f217904f6933c4d41ab2495be69453c041"
-        }
-      },
-      {
-        "original_requirement_id": "EG-19",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "fd515f415e08d3c93d36f353c0bd3b1296021e23",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-decision-recovery-20261115\\contract.json",
-        "source_progress_record": "eval/eg19-historical-recovery-progress-20261115.json",
-        "focused_native_target": "review_decision_history_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-decision-recovery-20261115\\verify-public.py",
-        "user_outcome": "Recover event history at the same exclusive decision-date cutoff as the merged-work snapshot; future appends do not enter the dated ruling.",
-        "files": {
-          "crates/engram_server/src/handlers/review_decisions.rs": "f63a8ad4bcd3cf9e5228b50198be521045b748f7e6dffac6464d55f76dedd90f",
-          "crates/engram_server/src/handlers/pr_history_tools.rs": "3aa089b5351cf5dfb33b9d77a174cdfebb3ca4a687bed5780a37a1658e59c34b",
-          "crates/engram_server/src/tools.rs": "80e4f8df186ecba71a7a0d8159a28cb2f715c777b8869cf742c3fcfa036ebb21",
-          "crates/engram_server/tests/code_review_ingest_tests.rs": "4e90ef4298e17add64e03ff37aae56e4d4ae84be540c4c2a0b3558c668e54145",
-          "crates/engram_server/tests/review_decision_history_tests.rs": "7804a2c3b28efd2861f873426284254cba2a60e6fc87a6e48d2eb3236b45ad49",
-          "docs/TOOL_CONTRACT.md": "d0ca41388178f3a8fbd5f162e3e6f912c9701e40e7d3292a01b8986dc27aee7b"
-        }
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
-    "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact."
+    "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
+    "last_completed_batch": {
+      "record": "eval/instruction-review-batch-delivery-20261115.json",
+      "source_requirements": [
+        "EG-27",
+        "EG-31",
+        "EG-19"
+      ],
+      "native_attempts": 1,
+      "release_attempts": 1
+    }
   },
   "member_workflows_delivery": {
     "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
@@ -2728,18 +2577,23 @@
   },
   "eg27_reference_selection_source_progress": {
     "record": "eval/eg27-reference-selection-progress-20261115.json",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "deployed": false
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "deployed": true
   },
   "eg31_edit_reasons_source_progress": {
     "record": "eval/eg31-edit-reasons-progress-20261115.json",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "deployed": false
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "deployed": true
   },
   "eg19_historical_recovery_source_progress": {
     "record": "eval/eg19-historical-recovery-progress-20261115.json",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "deployed": false
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115"
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115",
+  "instruction_review_batch_delivery": {
+    "record": "eval/instruction-review-batch-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_original_goal_complete": false
+  }
 }

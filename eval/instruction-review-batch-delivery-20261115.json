@@ -1,0 +1,200 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T18:19:39.673295+00:00",
+  "original_requirement_ids": [
+    "EG-27",
+    "EG-31",
+    "EG-19"
+  ],
+  "original_source_commits": {
+    "EG-27": "f52110a5e78c016f8910dd2b885b10008a04b496",
+    "EG-31": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
+    "EG-19": "fd515f415e08d3c93d36f353c0bd3b1296021e23"
+  },
+  "runtime_source_commit": "43cacd81b870cbd553730cd30241fa6ae1cb1849",
+  "delivered": [
+    {
+      "requirement": "EG-27",
+      "behavior": "Maintenance can discover policies referencing changed helpers outside their current applyTo scope without widening authority."
+    },
+    {
+      "requirement": "EG-31",
+      "behavior": "Reviewers retain each validated edit reason with original input identity and exact original/proposed byte ranges."
+    },
+    {
+      "requirement": "EG-19",
+      "behavior": "Recover event history at the same exclusive decision-date cutoff as the merged-work snapshot; future appends do not enter the dated ruling."
+    }
+  ],
+  "validation": {
+    "native_distinct_cases": 12,
+    "native_attempts": 1,
+    "public_checks": {
+      "debug2": 26,
+      "candidate1": 26,
+      "installed1": 26
+    },
+    "installed_checks": {
+      "EG-27:out_of_scope_reference_selects_complete_policy": true,
+      "EG-27:helper_before_after_evidence_remains_exact": true,
+      "EG-27:reference_proof_matches_source_span_and_hash": true,
+      "EG-27:reference_selection_does_not_extend_authority": true,
+      "EG-27:unrelated_guidance_body_does_not_invalidate_packet": true,
+      "EG-27:existing_proposal_contract_preserves_scope_and_exception": true,
+      "EG-27:health_exposes_same_dependency_review_selection": true,
+      "EG-27:stale_dependency_rejects_prior_proposal": true,
+      "EG-27:authored_guidance_remains_unchanged": true,
+      "EG-31:ordinary_two_edit_proposal_is_accepted_for_review": true,
+      "EG-31:all_reasons_and_original_input_identity_survive": true,
+      "EG-31:utf8_byte_ranges_recover_exact_original_and_proposed_text": true,
+      "EG-31:previews_avoid_repeating_complete_source_strings": true,
+      "EG-31:proposal_preview_is_deterministic": true,
+      "EG-31:no_change_has_no_preview_or_diff": true,
+      "EG-31:stale_evidence_still_refuses_preview_proposal": true,
+      "EG-31:scope_exception_and_current_guidance_preserved": true,
+      "EG-19:default_event_history_contains_all_events": true,
+      "EG-19:historical_events_and_latest_ruling_are_reconstructed": true,
+      "EG-19:excluded_events_and_imported_authority_limits_remain": true,
+      "EG-19:complete_declared_conditions_retained": true,
+      "EG-19:cutoff_is_exclusive": true,
+      "EG-19:merged_work_recovery_action_preserves_cutoff": true,
+      "EG-19:copied_recovery_action_returns_same_dated_history": true,
+      "EG-19:invalid_and_discussion_date_combinations_refuse": true,
+      "EG-19:historical_reads_leave_complete_current_history_unchanged": true
+    },
+    "full_suite": false,
+    "extra_debug_build": false,
+    "retained_failure": "First debug public attempt passed six dependency checks then the verifier tried parsing the health text preface as JSON. Saved health contained the expected separate observation. Corrected only the verifier to select the existing observation text part; reran that failed fixture. Other two public fixtures first ran in debug2. Runtime source and native result unchanged."
+  },
+  "build_cost": {
+    "native_runner_seconds": 286.9284230999183,
+    "native_compile": "4m 24s",
+    "native_test_seconds": 8.48,
+    "release_attempts": 1,
+    "release_runner_seconds": 926.9527356999461,
+    "release_compile": [
+      "15m 15s"
+    ]
+  },
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\package1",
+    "server_sha256": "adadfb67cf8ff62d8cf3b9a1834e5b810a640271d7da29c61d586e69263ab3ad",
+    "manifest_sha256": "b6cd62326bf4bbc05de7c72e15736d02987ef59631b7029cafea8a2571622456",
+    "old_server_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
+    "old_manifest_sha256": "045590af1737a944835721af8ef5988ecd56357fe85f0aa2d22f05de71aae8c8",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\release1.json",
+      "sha256": "8334e754aa81bba7f033905d0e6edff02af703519cdda484d01955fff78d8814"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "045590af1737a944835721af8ef5988ecd56357fe85f0aa2d22f05de71aae8c8"
+    },
+    "source_commit": "43cacd81b870cbd553730cd30241fa6ae1cb1849",
+    "manifest_assets_verified": 215
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 88088,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 70840,
+    "daemon_created": 1794766769.538234,
+    "metadata": {
+      "pid": "70840",
+      "started_at_ms": "1794766769583",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "adadfb67cf8ff62d8cf3b9a1834e5b810a640271d7da29c61d586e69263ab3ad",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "limitations": [
+    "Reference discovery covers conventional guidance and bounded literal-reference chains, with omissions reported; it establishes review candidates, not policy authority or semantic impact.",
+    "Edit explanations are retained caller declarations, with exact byte coordinates; they are not accepted intent or proof that the edit is correct.",
+    "Historical decision recovery filters imported event dates before reconstructing the latest ruling. It does not authenticate authors/dates or replay historical discussion/code execution; current-only review discovery stays current-only.",
+    "Owned fixtures demonstrate the three workflow contracts. No actual LegacyValidation whole-project action, protected Q read, model/application/SQL execution, language expansion, CodeMap/Blast improvement, original full19gate closure or positive comparative productivity claim."
+  ],
+  "task_productivity_demonstrated": false,
+  "full_original_goal_complete": false,
+  "resources": {
+    "owned_fixtures_removed": true,
+    "owned_config_removed": true,
+    "preserved_wip9": true,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115",
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\package1",
+    "cleanup_condition": "Retain evidence/package until superseded; managed installer owns rollback lifecycle. Preexisting folders remain untouched. Normal installed daemon follows application lifecycle."
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\contract.json",
+      "sha256": "dacebbfc19be183b04c215f3a3b56d0fa10263efe360f61b30591ec1d80658c9"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\native1.json",
+      "sha256": "c7ce6e84dbcfc118b27b335e4e66b38e42fe36dfabf06b20b7d21f8d51dce231"
+    },
+    "native-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\native-acceptance.json",
+      "sha256": "fb5e1cb322e258ebd800a01a83562e618216655245e9d4c5e65734a371a0a3c4"
+    },
+    "debug1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\debug1\\acceptance.json",
+      "sha256": "1d50de633338ba9abcb926f5704a7eecb78f20bb9774d5cd72e7a0724ff88341"
+    },
+    "debug2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\debug2\\acceptance.json",
+      "sha256": "efac7d7018aa44944a94702d5a943c31dee70bbe42e499d21cd924d9c4493274"
+    },
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\implementation1.json",
+      "sha256": "36347fcab57cacbf9f6200ae2b8fef072699f5f8c86efd778a5bca138e474a37"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\release1.json",
+      "sha256": "8334e754aa81bba7f033905d0e6edff02af703519cdda484d01955fff78d8814"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\pair1.json",
+      "sha256": "ebaaa093d5b6bd42045e74443673c55e0bdaf5fbe9cf90bdf6ce72c45cef3540"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\candidate1\\acceptance.json",
+      "sha256": "e77efd804723be50b2f035a4b78505964f1a646578b0fd6fe05030ed00ac3aed"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\installed1\\acceptance.json",
+      "sha256": "48de075f35a656492c5641e509a629e66994dc12293cd49c9b5f7c128016761b"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\deployment1-state.json",
+      "sha256": "90d3660f2ef77c6dbb94a9100689ba87952a5d0044acee6b992d5e783b1e812e"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\restored-runtime\\receipt.json",
+      "sha256": "08e2006f26b95e9f884beddb9939b081894dd8517d13754e3c0cb5cd42a58e92"
+    },
+    "pipeline-state1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\pipeline-state1.json",
+      "sha256": "1a2c770174fe80eb183d48fed081733417634e4be1b81ecd83987c666b0ffa0c"
+    }
+  }
+}

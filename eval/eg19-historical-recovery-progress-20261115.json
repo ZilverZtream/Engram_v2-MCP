@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "at_utc": "2026-11-15T17:49:30.497638+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T18:19:39.673295+00:00",
   "original_requirement_id": "EG-19",
   "source_commit": "fd515f415e08d3c93d36f353c0bd3b1296021e23",
   "original_requirement": "Relevant prior rulings retain provenance/revision applicability and historical cutoffs through recovery without suppressing findings or treating workflow status as authority.",
@@ -32,19 +32,19 @@
   "checks_completed": [
     "Saved installed RPC confirms unsupported dated reader; baseline owner closed and fixture removed.",
     "Rustfmt parses changed Rust sources, deferred public drivers parse and git diff --check passes.",
-    "Existing typed getter fixtures receive recorded_before=None; protected WIP9 preserved."
+    "Existing typed getter fixtures receive recorded_before=None; protected WIP9 preserved.",
+    "Combined focused native and debug/candidate/installed public acceptance passed; installed package and normal runtime verified."
   ],
-  "checks_deferred": [
-    "Run focused review_decision_history_tests with the combined batch.",
-    "Run deferred public verifier including real owned Git merged-PR ingest and copied recovery action on candidate/installed artifacts."
-  ],
+  "checks_deferred": [],
   "native_compilations_this_item": 0,
   "release_builds_this_item": 0,
-  "deployed": false,
+  "deployed": true,
   "full_requirement_complete": false,
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-decision-recovery-20261115",
     "owned_fixtures_removed": true,
     "cleanup_condition": "Close fixture handles and database owners before removing owned temporary directories; retain scripts/results here until superseded. No preexisting deletion."
-  }
+  },
+  "combined_delivery_record": "eval/instruction-review-batch-delivery-20261115.json",
+  "combined_build_accounting": "One focused native invocation and one release shared by all three original requirements; no per-item compilation. See combined receipt for cost and retained verifier failure."
 }

@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-  "at_utc": "2026-11-15T17:26:33.543644+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T18:19:39.673295+00:00",
   "original_requirement_id": "EG-31",
   "source_commit": "dfd3d0df8b848c9c5e6fb940f8451f71caecef8b",
   "original_requirement": "Reviewable instruction-maintenance proposals preserve changed evidence, rationale, a source-bound proposed diff, accepted exceptions and explicit semantic-review limits.",
@@ -23,20 +23,20 @@
   "checks_completed": [
     "Installed owned baseline confirms loss for an ordinary two-edit proposal.",
     "Rustfmt parses implementation and focused test source; git diff --check passes.",
-    "Protected WIP9 bytes unchanged; owned baseline owner closed and fixture removed."
+    "Protected WIP9 bytes unchanged; owned baseline owner closed and fixture removed.",
+    "Combined focused native and debug/candidate/installed public acceptance passed; installed package and normal runtime verified."
   ],
-  "checks_deferred": [
-    "Compile/run instruction_proposal_edit_tests with the combined independent-requirement batch.",
-    "Run deferred public verifier on combined candidate/installed artifacts."
-  ],
+  "checks_deferred": [],
   "native_compilations_this_item": 0,
   "release_builds_this_item": 0,
-  "deployed": false,
+  "deployed": true,
   "full_requirement_complete": false,
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\proposal-edit-evidence-20261115",
     "owned_fixtures_removed": true,
     "cleanup_condition": "Owned fixtures close handles then clean on completion/unwind. Retain scripts/results in this case until superseded; no preexisting deletion."
   },
-  "independence_from_EG27": "Explicit instruction_paths proposal review works without changed_paths; distinct from EG-27 discovery. It addresses the original EG-31 rationale/reviewability requirement."
+  "independence_from_EG27": "Explicit instruction_paths proposal review works without changed_paths; distinct from EG-27 discovery. It addresses the original EG-31 rationale/reviewability requirement.",
+  "combined_delivery_record": "eval/instruction-review-batch-delivery-20261115.json",
+  "combined_build_accounting": "One focused native invocation and one release shared by all three original requirements; no per-item compilation. See combined receipt for cost and retained verifier failure."
 }
