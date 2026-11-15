@@ -555,7 +555,8 @@ handler-owned `max_tokens`, `response_id` or `response_offset` use a shared
 `get_review_precedents`, `get_table_schema`, `list_triggers`,
 `get_sp_details`, `check_edit_safety`,
 `find_symbol_references`, `find_similar_changes` and `resolve_id`.
-Core, Full and advanced discovery advertise the same applicable controls.
+Core and Full tools/list advertise matching controls. The advanced catalog
+directs clients to those schemas; it remains a name/description catalog.
 Original analysis inputs remain required for a fresh call and are validated
 by the original handler. Recovery needs only `project_id` and the returned
 controls. Too-small budgets fail before analysis starts.

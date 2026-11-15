@@ -1,0 +1,196 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T04:47:27.050371+00:00",
+  "improvements": [
+    "One shared MCP delivery layer provides40KiB default and caller-controlled complete reply-text budgets across12previously unbudgeted read-only reports; no per-handler wrappers.",
+    "Oversized results preserve their exact original MCP JSON, all original text parts/status/metadata/guidance and project/tool/hash-bound immutable recovery through existing bounded cache.",
+    "Core/Full/advanced schemas expose matching controls; original fresh fields remain validated, recovery bypasses analysis/generation/project lookup and small results retain their original format."
+  ],
+  "implementation": {
+    "source_baseline": "70bd8b85459ac5bf0d5714e8c83e00bb94ffcb5a",
+    "source_commit": "36891774e042480bab8c78388429763f05306584",
+    "files": {
+      "crates/engram_server/src/read_report_delivery.rs": "abe40ef120b000341d3ef2914575d89ce5bdd3a8d9d60c2b21d0ab82d76cc82a",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "0212303b76f420f5200e463e6722401ff475808efd184c49b6e4488c46231a17",
+      "crates/engram_server/src/tool_surface.rs": "2d70c824b0d69a6374dab072edd83f3e65f3874c7ddcc7d7d6e5f670c5abeda2",
+      "crates/engram_server/src/tools.rs": "6a93c02a5a7b9abf0883401ebcfb834d695b264662178418a25061b8d6f20a37",
+      "crates/engram_server/src/lib.rs": "41be04f7d5c0625d10c38e77d238a8b01540fb713842f1cc9c5009c9ec9a46bb",
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "37645983c3112af2dfcc2d8e7f553af12978412d6fea6931ea7e3af9b93436dc",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "28001bd75d54b514b9ce1d6804126b1401bee367dea30222df331d74df89a4bf"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/read_report_delivery.rs": "abe40ef120b000341d3ef2914575d89ce5bdd3a8d9d60c2b21d0ab82d76cc82a",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "0212303b76f420f5200e463e6722401ff475808efd184c49b6e4488c46231a17",
+      "crates/engram_server/src/tool_surface.rs": "2d70c824b0d69a6374dab072edd83f3e65f3874c7ddcc7d7d6e5f670c5abeda2",
+      "crates/engram_server/src/tools.rs": "6a93c02a5a7b9abf0883401ebcfb834d695b264662178418a25061b8d6f20a37",
+      "crates/engram_server/src/lib.rs": "41be04f7d5c0625d10c38e77d238a8b01540fb713842f1cc9c5009c9ec9a46bb",
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "37645983c3112af2dfcc2d8e7f553af12978412d6fea6931ea7e3af9b93436dc",
+      "crates/engram_server/src/services/database_intelligence_service.rs": "28001bd75d54b514b9ce1d6804126b1401bee367dea30222df331d74df89a4bf"
+    },
+    "preserved_wip9": true
+  },
+  "root_source": {
+    "root_commit": "d4740fe6221804a6cbae1497f95c1e72cce31abe",
+    "files": [
+      "crates/engram_server/src/read_report_delivery.rs",
+      "crates/engram_server/src/read_report_delivery_tests.rs",
+      "crates/engram_server/src/tool_surface.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/lib.rs",
+      "crates/engram_server/src/handlers/change_set_delivery.rs",
+      "crates/engram_server/src/services/database_intelligence_service.rs",
+      "docs/TOOL_CONTRACT.md",
+      "eval/engram-delivery-goal-20261110.json",
+      "eval/audit-inventory-20261101.json",
+      "eval/legacy_validation-shared-read-report-delivery-progress-20261115.json"
+    ]
+  },
+  "scope_adjustment": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\scope-adjustment.json",
+    "sha256": "d734611945df5c22620b99fed3fb878dbd309609ddaa7195769d41ef00d6460d"
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 16,
+      "raw_native_passes": 17,
+      "required_component_cases": {
+        "small_reports_preserve_the_original_result_and_analysis_arguments_without_cache_writes": true,
+        "oversized_reports_recover_exact_original_parts_status_and_unicode_with_project_and_tool_binding": true,
+        "invalid_delivery_controls_refuse_before_analysis_and_do_not_change_arguments": true,
+        "error_and_nontext_results_keep_their_original_delivery": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "36891774e042480bab8c78388429763f05306584",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 16s",
+      "native_test_seconds": 0.34,
+      "retained_failed_attempts": [],
+      "scope_adjustment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\scope-adjustment.json",
+      "scope_limit": "Delivery/cache/transport/schema mechanisms unchanged after native run. Earlier14member selection case excluded from final proof; final12member selection and exclusions require candidate/installed MCP acceptance. Updated membership unit expectation not rebuilt.",
+      "resources": "Owned native Job, relay, handles and temporary fixtures closed and removed; exact logs retained."
+    },
+    "public": {
+      "candidate2": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\candidate2\\acceptance.json",
+          "sha256": "bd7375acb5f75072e7aeb362288baf55c390a2cb3dbaeca752f2b4907e6d6834"
+        },
+        "checks": {
+          "twelve_reports_advertise_matching_controls": true,
+          "owned_budget_and_scope_exclusions_preserved": true,
+          "fresh_validation_and_budget_refusal_before_analysis": true,
+          "default_large_dossier_is_deferred": true,
+          "dossier_status_and_zero_generation_preserved": true,
+          "independent_complete_source_windows_recovered": true,
+          "coverage_and_qualifications_retained": true,
+          "caller_budget_and_original_status_preserved": true,
+          "changed_source_recovery_is_exact_and_read_only": true,
+          "tool_and_project_recovery_isolation": true,
+          "small_identity_report_stays_inline": true,
+          "markdown_report_preserved": true,
+          "json_report_preserved": true,
+          "advanced_catalog_routes_to_current_full_schema": true,
+          "core_and_full_delivery_schemas_agree": true,
+          "fixture_originals_restored": true
+        },
+        "default_reply_bytes": 1124,
+        "recovered_result_bytes": 173511,
+        "recovery_pages": 69
+      },
+      "installed2": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\installed2\\acceptance.json",
+          "sha256": "ac5417a2499a4638db7fe059d56c94f1aba814735f07b7c4176b4ff922435eff"
+        },
+        "checks": {
+          "twelve_reports_advertise_matching_controls": true,
+          "owned_budget_and_scope_exclusions_preserved": true,
+          "fresh_validation_and_budget_refusal_before_analysis": true,
+          "default_large_dossier_is_deferred": true,
+          "dossier_status_and_zero_generation_preserved": true,
+          "independent_complete_source_windows_recovered": true,
+          "coverage_and_qualifications_retained": true,
+          "caller_budget_and_original_status_preserved": true,
+          "changed_source_recovery_is_exact_and_read_only": true,
+          "tool_and_project_recovery_isolation": true,
+          "small_identity_report_stays_inline": true,
+          "markdown_report_preserved": true,
+          "json_report_preserved": true,
+          "advanced_catalog_routes_to_current_full_schema": true,
+          "core_and_full_delivery_schemas_agree": true,
+          "fixture_originals_restored": true
+        },
+        "default_reply_bytes": 1124,
+        "recovered_result_bytes": 173511,
+        "recovery_pages": 69
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\b1\\acceptance.json",
+      "sha256": "9aaf4f0529af7df58a96a2fbb2d4796c9057ff407a0cde22a057d927924e0fc7"
+    },
+    "native_build_attempts": 1,
+    "release_build_attempts": 1,
+    "native_runner_seconds": 210.69588450004812,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 12m 30s",
+    "failed_attempts_retained": [],
+    "failed_public_verifier_attempts": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\candidate1\\acceptance.json",
+        "sha256": "243cb5394962a8e0dc28fd518c5118ef70891cc1a611e492a3797f33df1599af"
+      }
+    ],
+    "no_full_suite": true
+  },
+  "runtime": {
+    "server_sha256": "b08c28fd77789ef2ead8f2fe1c543adb04b3ab456d934e2a5419ba1851f99de5",
+    "manifest_sha256": "ce84468c1b870919a40f81933940dd9d485c96bab80e054bcc79b529409acf42",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\pair1.json",
+      "sha256": "06cf43a17ddf54f77e92664eec5c2bddd93f73e2806f70e046b5b50adbcd8d6b"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\release1.json",
+      "sha256": "43c96ba5ab2f75ba7c2fa9db1e5dd73dde069a5fd9b880f4ec10d28e37f9e609"
+    },
+    "release_runner_seconds": 762.6915486999787,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\deployment2-state.json",
+      "sha256": "676c816cee0266d3b828d01d82f7c516b35aac89d172148189a6285094cb18dd"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\restored-runtime\\receipt.json",
+      "sha256": "704282261b198186768f020e166116bce63d2e1b38097e65d9d572da07d3ae8b"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\Engram-win-x64-shared-read-reports-20261115.zip",
+    "sha256": "8c2b88c31a22e72e88e593939bae982a82f512b7113200632a3b15df08082ac7",
+    "files": 216
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "fixture_originals_restored": true,
+    "registry_selection_and_other_metadata_unchanged": true
+  },
+  "resources": {
+    "owned_build_and_mcp_resources_closed_and_removed": true,
+    "config_hold_closed_and_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-063b5d3775dc4ae9ae5e1dfc60e122ec",
+    "old_pair_purpose": "Rollback under existing backup policy; no deletion authorized.",
+    "intentional_normal_daemon_pid": 24020,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115",
+    "cleanup_condition": "Retain scripts, receipts, package and ZIP for review; no preexisting folders removed."
+  },
+  "limits": [
+    "This is complete original MCP result delivery, not completion of all upstream evidence retrieval. Inner coverage, omissions, safety status and continuation requirements remain unchanged.",
+    "Twelve registered project-scoped reports without handler-owned controls use shared delivery. Stateful wiki, closed impact/CodeMap/Blast areas, existing delivery owners, error and non-text results retain their prior behavior.",
+    "Native run passed17cases on the initial selection;16unchanged mechanism/cache/schema cases count toward final proof. Exact selection-only change retained; final12tool selection verified through actual candidate/installed MCP instead of a native rebuild.",
+    "Synthetic zero-model dossier/report acceptance only. No inspected original story/model replay, semantic feature-plan acceptance, production-scale latency, provider-token savings or task-benefit claim.",
+    "Original TODO4 broader uniform surface and cursor requirements and original31findings/19gates remain unfinished. No actual application source mutation or Site/Q read."
+  ]
+}

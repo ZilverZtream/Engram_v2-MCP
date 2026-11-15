@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_MECHANISMS_VALIDATED_RELEASE_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "Original TODO4 bounded complete delivery for remaining read-only planning/review/database reports",
     "original_requirement": "Uniform response budgets, truncation disclosure and exact recovery for agent-facing reports.",
     "observed_missing_behavior": "Feature planning and several related read-only reports still lack root max_tokens/recovery controls; existing individual delivery implementations cannot bound these responses. Avoid a separate implementation/build cycle per tool.",
@@ -77,8 +77,8 @@
       "Public candidate and installed fixtures exercise independent original source/evidence through multiple eligible reports, a large dossier, JSON/Markdown reports, exact immutable recovery and own resource cleanup. No replay/tuning of the inspected photo story or claims to fix feature-plan semantic failures."
     ],
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
+    "validated": true,
+    "deployed": true,
     "source_commit": "36891774e042480bab8c78388429763f05306584",
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\b1\\acceptance.json",
     "scope_exclusions": {
@@ -87,8 +87,10 @@
     },
     "native_validated": true,
     "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\native-acceptance.json",
-    "scope_acceptance_pending": true,
-    "progress": "eval/legacy_validation-shared-read-report-delivery-progress-20261115.json"
+    "scope_acceptance_pending": false,
+    "progress": "eval/legacy_validation-shared-read-report-delivery-progress-20261115.json",
+    "bounded_delivery_complete": true,
+    "delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -878,38 +880,40 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 225.0,
-    "actual_test_execution_seconds": 0.47,
+    "compiled_tests_seconds": 210.69588450004812,
+    "actual_test_execution_seconds": 0.34,
     "last_release_compile_seconds": 838.0,
-    "pending": [
-      {
-        "component": "shared-read-report-delivery",
-        "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115",
-        "status": "SOURCE_COMPLETE_NATIVE_PENDING"
-      }
-    ],
+    "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115",
     "completed_last_batch": [
       {
-        "component": "database-source-consolidation",
-        "delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json"
+        "component": "shared read-report budgets",
+        "delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json"
+      },
+      {
+        "component": "exact original MCP recovery",
+        "delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json"
+      },
+      {
+        "component": "matching discovery schemas",
+        "delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json"
       }
     ],
-    "last_batch_delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json",
+    "last_batch_delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-    "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 45s",
-    "last_release_compile": "Finished `release` profile [optimized] target(s) in 13m 58s",
+    "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 16s",
+    "last_release_compile": "Finished `release` profile [optimized] target(s) in 12m 30s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
-    "current_step_builds_required": 1,
-    "current_step_reason": "One native harness passed; final selection-only correction checked by upcoming production MCP acceptance, no extra native rebuild. One release running.",
+    "current_step_builds_required": 0,
+    "current_step_reason": "Shared read-report delivery accepted and installed; no pending source from this batch.",
     "last_native_attempts": 1,
     "last_release_attempts": 1,
-    "compiled_tests_seconds_scope": "All three native runners including failed attempts and owned cleanup; actual test execution reported separately.",
-    "last_release_runner_seconds": 848.7643151000375,
+    "compiled_tests_seconds_scope": "Native runner including compile/cleanup;16mechanism checks retained, final selection verified through MCP",
+    "last_release_runner_seconds": 762.6915486999787,
     "native_failed_attempts": 0,
-    "public_failed_verifier_attempts": 0,
-    "last_native_runner_seconds": 238.7930985999992
+    "public_failed_verifier_attempts": 1,
+    "last_native_runner_seconds": 210.69588450004812
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -974,7 +978,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements, preserving quality/usefulness, held gates and SQL interpretation/scaffold limits. Original source-parser duplication is consolidated.",
+  "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements; preserve partial uniform-delivery, feature-plan semantics and quality/benefit gaps.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1835,7 +1839,8 @@
     "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
   },
   "shared_schema_batch_delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json",
-  "deferred_source_cleanup": "Remove unused cfg(test) summarize_catalog_procedures adapter in next substantive source batch; no rebuild for a test-only warning.",
+  "deferred_source_cleanup": "Prior unused cfg(test) summarize_catalog_procedures adapter removed with this substantive batch; no separate build.",
   "policy_source_handoff_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json",
-  "database_source_consolidation_delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json"
+  "database_source_consolidation_delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json",
+  "shared_read_report_delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json"
 }
