@@ -13,6 +13,8 @@ use engram_graph::EdgeKind;
 use regex::Regex;
 use tokio_util::sync::CancellationToken;
 
+mod inherited_guards;
+
 use engram_core::registry::RepoRule;
 
 use super::{
@@ -147,9 +149,16 @@ impl Gate for GuardParityGate {
             let disk_bytes = ctx.read_project_file(&df.path);
             let disk = String::from_utf8_lossy(&disk_bytes);
             let sibling_guards = guard_names_in(&disk);
+            let inherited = inherited_guards::collect(ctx, df).unwrap_or_else(|error| {
+                ctx.degrade(format!("{}: inherited guard evidence unavailable: {error}", df.path));
+                Vec::new()
+            });
             if sibling_guards.is_empty() {
-                // No guard convention in this file — parity can't be judged
-                // from here; the project-wide view is map_guards_and_settings.
+                if !inherited.is_empty() {
+                    findings.push(inherited_guards::review_finding(df, &inherited));
+                }
+                // Inherited calls provide review context, never proof that the
+                // new entry point executes the same authorization path.
                 continue;
             }
             let sibling_list = sibling_guards.join(", ");
@@ -175,6 +184,7 @@ impl Gate for GuardParityGate {
                 ),
             );
             finding.evidence = vec![format!("sibling guards in {}: {sibling_list}", df.path)];
+            finding.evidence.extend(inherited);
             finding.next_tool = Some(format!("map_guards_and_settings(scope=\"{}\")", df.path));
             findings.push(finding);
         }
