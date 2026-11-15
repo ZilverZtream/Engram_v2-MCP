@@ -935,7 +935,11 @@ impl Engram {
                                         current.truncate(20);
                                         decisions["total_current_decisions"] = total.into();
                                     }
-                                    out.push_str(&format!("\nReview decision evidence (at most 20; use get_review_decisions for full history):\n{}\n", decisions));
+                                    out.push_str(&format!("\nReview decision evidence (at most 20; follow decision_history for the same event-date scope):\n{}\n", decisions));
+                                    let mut arguments=serde_json::json!({"project_id":req.project_id,"review_id":review_id});
+                                    if let Some(cutoff)=merged_before.as_deref(){arguments["recorded_before"]=cutoff.into();}
+                                    let action=serde_json::json!({"tool":"get_review_decisions","arguments":arguments});
+                                    out.push_str(&format!("decision_history: {action}\n"));
                                 }
                                 Err(error) => out.push_str(&format!(
                                     "\nReview decisions unavailable: {error}\n"

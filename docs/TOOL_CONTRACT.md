@@ -900,3 +900,24 @@ preserved-fragment, citation and stale-packet checks continue to apply.
 `no_change`, `conflict` and `needs_evidence` have empty preview lists and no policy
 diff. Proposals remain read-only and require independent semantic review. Preview
 coordinates are not authorization to apply a patch after the captured source changes.
+
+### Dated review-decision recovery
+
+`get_review_decisions` optionally accepts `recorded_before: "YYYY-MM-DD"`.
+It filters imported events by source date strictly before that day, counts future
+and unparseable dates as excluded, then reconstructs the latest eligible event
+per finding. Complete declared conditions/provenance remain. Omitting the field
+retains the current immutable history and existing current-head attestation view.
+Historical attestations do not establish a fix on the current worktree, and
+imported event dates/authors are not authenticated.
+
+`find_merged_work(merged_before=...)` emits a `decision_history` JSON action with
+the same cutoff as `recorded_before`. Copying that action recovers the dated
+snapshot's full event history instead of silently switching to later outcomes.
+The existing20-decision summary and bounded stored-record limits remain.
+
+The cutoff applies to decision events only. Invalid calendar dates and combining
+`recorded_before` with `discussion` are rejected; event dates cannot establish
+historical discussion contents. Current-only `pre_commit_review` observations,
+raw discussion capture recovery and automatic finding-suppression behavior are
+unchanged. No full historical source/code/policy replay or authority is inferred.

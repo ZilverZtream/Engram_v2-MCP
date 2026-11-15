@@ -90,6 +90,11 @@ pub struct RecordReviewDecisionsRequest {
 pub struct GetReviewDecisionsRequest {
     pub project_id: String,
     pub review_id: String,
+    /// Exclusive YYYY-MM-DD cutoff on imported decision source dates. Filters
+    /// events before reconstructing the latest state; not current fix verification.
+    /// Omit for the unchanged complete event history. Cannot combine with discussion.
+    #[serde(default)]
+    pub recorded_before: Option<String>,
     /// Omit for the unchanged immutable decision-event history. discussion:{}
     /// lists retained imported discussion captures; a thread/hash selects bounded
     /// hash-bound UTF-8 pages. Captures are evidence, never authenticated policy.
@@ -496,6 +501,9 @@ impl Engram {
         &self,
         req: GetReviewDecisionsRequest,
     ) -> Result<CallToolResult, McpError> {
+        if req.recorded_before.is_some() && req.discussion.is_some() {
+            return Err(McpError::invalid_params("recorded_before filters decision events and cannot be combined with discussion capture recovery; event dates do not certify historical discussion contents",None));
+        }
         let rec = self.ensure_project_record(&req.project_id).await?;
         if let Some(selector)=req.discussion {
             let guard=engram_core::memory::AllocationGuard::try_new(&self.state.memory_budget,
@@ -511,12 +519,11 @@ impl Engram {
                 .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
             return Ok(CallToolResult::success(vec![Content::text(recovered)]));
         }
-        let value = snapshot(
-            &self.state,
-            &req.project_id,
-            &req.review_id,
-            std::path::Path::new(&rec.directory),
-        )
+        let value = if let Some(cutoff)=req.recorded_before.as_deref() {
+            snapshot_before(&self.state,&req.project_id,&req.review_id,cutoff)
+        } else {
+            snapshot(&self.state,&req.project_id,&req.review_id,std::path::Path::new(&rec.directory))
+        }
         .map_err(|e| McpError::invalid_params(e, None))?;
         Ok(CallToolResult::success(vec![Content::text(
             serde_json::to_string_pretty(&value).unwrap_or_else(|_| value.to_string()),
