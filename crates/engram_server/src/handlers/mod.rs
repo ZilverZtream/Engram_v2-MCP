@@ -32,6 +32,7 @@ pub mod review_verdict_tools;
 pub mod search_tools;
 pub mod settings_tools;
 mod literal_settings;
+mod current_settings;
 mod sql_binding;
 mod sql_scopes;
 pub mod support_kb_tools;

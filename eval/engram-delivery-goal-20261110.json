@@ -40,45 +40,37 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "Original settings intelligence and QA workflow: literal typed settings getters",
-    "original_requirement": "Existing settings catalog/lookup and QA matrix expose settings that fork ordinary LegacyValidation behavior with usable source evidence and honest applicability limits.",
-    "observed_gap": "VB settings enrichment recognizes properties and framework AppSettings but skips method calls. Actual CustomerInvoiceImporter.vb:103-104 reads two configured literal keys through systemsettings.GetText; these keys are not modeled.",
+    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "finding": "Original usable LegacyValidation settings/QA workflows: current-file evidence without full VB migration",
+    "original_requirement": "Expose usable scoped setting evidence for current AI tasks while respecting protected source and keeping stale indexed evidence incomplete.",
+    "observed_gap": "Installed literal-key support needs a VB index refresh. only_paths cannot activate it safely here: exclusive_source_changes requires compatible inherited VB metadata and supplies all admitted VB files to parsing. Whole refresh is prohibited by the actual Site/Q boundary.",
+    "evidence": [
+      "crates/engram_server/src/services/project_service.rs:1021 exclusive_source_changes",
+      "tools/vb_roslyn_sidecar/AstEmitter.cs:148-164 admitted-peer source reads"
+    ],
     "components": [
-      "list_settings: discover literal typed-getter keys as code observations, grouped by syntactic key rather than mislabeled web.config declarations.",
-      "get_setting: retrieve bounded observed call sites, getter spelling and source citations across matching files; no runtime-value or physical-store binding claim.",
-      "derive_test_matrix: include requested-file literal key/getter observations and source-bound QA axes without treating every setting as Boolean."
+      "list_settings source_files: explicit bounded current-source catalog independent of indexed literal-key availability.",
+      "get_setting source_files: exact current-source key/label lookup with file hashes and read lines.",
+      "derive_test_matrix: add independently qualified current literal-setting observations for explicit requested files when indexed axes are unavailable; keep other indexed gaps visible."
     ],
     "files": [
-      "crates/engram_index/src/vb_extractor.rs",
       "crates/engram_index/src/vb_extractor/literal_settings.rs",
+      "crates/engram_index/src/vb_extractor.rs",
+      "crates/engram_server/src/handlers/current_settings.rs",
       "crates/engram_server/src/handlers/settings_tools.rs",
-      "crates/engram_server/src/handlers/literal_settings.rs",
       "crates/engram_server/src/handlers/mod.rs",
-      "crates/engram_server/tests/literal_settings_workflow_tests.rs",
-      "crates/engram_index/src/source_contract.rs",
-      "crates/engram_server/src/services/ingest_service.rs",
-      "crates/engram_server/tests/matrix_setting_identity_tests.rs"
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/tests/current_settings_workflow_tests.rs"
     ],
     "finite_acceptance": [
-      "Installed baseline on owned representative source proves the literal key is absent from catalog and matrix.",
-      "Three workflows retain distinct literal keys, known getter spellings and actual call lines in ordinary constructor/method reads, including the exact owned customer-invoice source copy.",
-      "Quoted/commented lookalikes and non-settings method calls are not cataloged; existing property identities remain unchanged.",
-      "Source-cited lookup refuses stale current-source claims after edits and retains observations as indexed evidence; matrix retains existing freshness withholding.",
-      "One focused native batch after all three workflow components, one release; exact candidate/installed acceptance and cleanup. No full suites, model tuning, inspected invoice replay, actual LegacyValidation source edits, Q reads, CodeMap/Blast or new target-language support.",
-      "Old VB extraction metadata triggers refresh without a source edit; other language contracts remain unchanged. Actual LegacyValidation refresh is not run because it could read Site/Q."
+      "Use shared complete-literal matcher; no new compiler/project-source inventory or graph publication for explicit current-file catalog/lookup.",
+      "One owned project with no indexed literal facts supplies exact supported keys/getters/current file hashes through all three workflows; computed keys/comments remain omitted.",
+      "Current source edits replace direct observations; indexed stale axes stay incomplete rather than being reclassified as current.",
+      "Invalid/escaping/non-VB or excessive source scopes refuse before source collection; explicit scope has1..16files and2MiB/file cap.",
+      "One focused native batch and one release after three components; candidate/installed public acceptance then strictly named actual nonQ customer-invoice file calls. No full refresh, Site/Q access, model/SQL operations, fresh-agent comparison, CodeMap/Blast or target-language expansion."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115",
-    "cleanup_condition": "Owned fixtures close database/server handles and remove temporary resources; evidence/source snapshot/package/rollback retained until superseded. No preexisting directory deletion.",
-    "source": {
-      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\CustomerInvoiceImporter.vb",
-      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115\\sources\\CustomerInvoiceImporter.vb",
-      "sha256": "f3bd90ecf70f74a2fabe31bb60d4f9a10cfb3ce875af382fa41ace22ae9336da",
-      "lines": [
-        103,
-        104
-      ]
-    },
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-settings-activation-20261115",
+    "cleanup_condition": "New fixtures removed after owned server/database handles close. Evidence retained until superseded; no preexisting directory deletion.",
     "preserved_wip9": {
       "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
       "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
@@ -90,14 +82,8 @@
       "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
       "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
     },
-    "baseline_root": "1dfcb71517a3af44629c2483682a0781062ec418",
-    "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
-    "delivery_record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
-    "source_commit": "d91f9c79c07e62b3f37daf731e3d6e883e1681d6",
-    "runtime_source_commit": "b54306b88d30697e50c231c7c4f30744b80b1f2e",
-    "installed_server_sha256": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a",
-    "actual_legacy_validation_index_refreshed": false,
-    "activation_requirement": "Existing VB indexes need update_project. Whole actual LegacyValidation refresh was not run because it could read protected Site/Q; unchanged-source upgrade was proved on owned exact source copies."
+    "baseline_commit": "41de21b787ce13a193493ba15d1f4e0ffe44ca52",
+    "baseline_runtime": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2440,5 +2426,65 @@
     "record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
+  },
+  "retained_literal_settings_delivery_contract": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "Original settings intelligence and QA workflow: literal typed settings getters",
+    "original_requirement": "Existing settings catalog/lookup and QA matrix expose settings that fork ordinary LegacyValidation behavior with usable source evidence and honest applicability limits.",
+    "observed_gap": "VB settings enrichment recognizes properties and framework AppSettings but skips method calls. Actual CustomerInvoiceImporter.vb:103-104 reads two configured literal keys through systemsettings.GetText; these keys are not modeled.",
+    "components": [
+      "list_settings: discover literal typed-getter keys as code observations, grouped by syntactic key rather than mislabeled web.config declarations.",
+      "get_setting: retrieve bounded observed call sites, getter spelling and source citations across matching files; no runtime-value or physical-store binding claim.",
+      "derive_test_matrix: include requested-file literal key/getter observations and source-bound QA axes without treating every setting as Boolean."
+    ],
+    "files": [
+      "crates/engram_index/src/vb_extractor.rs",
+      "crates/engram_index/src/vb_extractor/literal_settings.rs",
+      "crates/engram_server/src/handlers/settings_tools.rs",
+      "crates/engram_server/src/handlers/literal_settings.rs",
+      "crates/engram_server/src/handlers/mod.rs",
+      "crates/engram_server/tests/literal_settings_workflow_tests.rs",
+      "crates/engram_index/src/source_contract.rs",
+      "crates/engram_server/src/services/ingest_service.rs",
+      "crates/engram_server/tests/matrix_setting_identity_tests.rs"
+    ],
+    "finite_acceptance": [
+      "Installed baseline on owned representative source proves the literal key is absent from catalog and matrix.",
+      "Three workflows retain distinct literal keys, known getter spellings and actual call lines in ordinary constructor/method reads, including the exact owned customer-invoice source copy.",
+      "Quoted/commented lookalikes and non-settings method calls are not cataloged; existing property identities remain unchanged.",
+      "Source-cited lookup refuses stale current-source claims after edits and retains observations as indexed evidence; matrix retains existing freshness withholding.",
+      "One focused native batch after all three workflow components, one release; exact candidate/installed acceptance and cleanup. No full suites, model tuning, inspected invoice replay, actual LegacyValidation source edits, Q reads, CodeMap/Blast or new target-language support.",
+      "Old VB extraction metadata triggers refresh without a source edit; other language contracts remain unchanged. Actual LegacyValidation refresh is not run because it could read Site/Q."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115",
+    "cleanup_condition": "Owned fixtures close database/server handles and remove temporary resources; evidence/source snapshot/package/rollback retained until superseded. No preexisting directory deletion.",
+    "source": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\CustomerInvoiceImporter.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115\\sources\\CustomerInvoiceImporter.vb",
+      "sha256": "f3bd90ecf70f74a2fabe31bb60d4f9a10cfb3ce875af382fa41ace22ae9336da",
+      "lines": [
+        103,
+        104
+      ]
+    },
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    },
+    "baseline_root": "1dfcb71517a3af44629c2483682a0781062ec418",
+    "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+    "delivery_record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
+    "source_commit": "d91f9c79c07e62b3f37daf731e3d6e883e1681d6",
+    "runtime_source_commit": "b54306b88d30697e50c231c7c4f30744b80b1f2e",
+    "installed_server_sha256": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a",
+    "actual_legacy_validation_index_refreshed": false,
+    "activation_requirement": "Existing VB indexes need update_project. Whole actual LegacyValidation refresh was not run because it could read protected Site/Q; unchanged-source upgrade was proved on owned exact source copies."
   }
 }

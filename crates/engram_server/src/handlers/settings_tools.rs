@@ -137,7 +137,21 @@ impl Engram {
         req: crate::models::ListSettingsRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if let Some(files) = &req.source_files {
+            super::current_settings::validate(files).map_err(|e| McpError::invalid_params(e.to_string(),None))?;
+            if req.scope.is_some() { return Err(McpError::invalid_params("source_files and indexed scope must not be mixed",None)); }
+        }
         let _rec = self.ensure_project_record(&req.project_id).await?;
+        if let Some(files) = req.source_files {
+            let root = std::path::PathBuf::from(_rec.directory);
+            let pid = req.project_id;
+            let budget = self.state.memory_budget.clone();
+            let report = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                Ok(serde_json::to_string_pretty(&super::current_settings::collect(&root,&pid,&files,None,200,&budget)?)?)
+            }).await.map_err(|e| McpError::internal_error(e.to_string(),None))?
+                .map_err(|e| McpError::invalid_params(e.to_string(),None))?;
+            return Ok(CallToolResult::success(vec![Content::text(report)]));
+        }
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
@@ -267,7 +281,22 @@ impl Engram {
         req: crate::models::GetSettingRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        if let Some(files) = &req.source_files {
+            super::current_settings::validate(files).map_err(|e| McpError::invalid_params(e.to_string(),None))?;
+            if req.name.trim().is_empty() { return Err(McpError::invalid_params("setting name must not be blank",None)); }
+        }
         let _rec = self.ensure_project_record(&req.project_id).await?;
+        if let Some(files) = req.source_files {
+            let root = std::path::PathBuf::from(_rec.directory);
+            let pid = req.project_id;
+            let name = req.name;
+            let budget = self.state.memory_budget.clone();
+            let report = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                Ok(serde_json::to_string_pretty(&super::current_settings::collect(&root,&pid,&files,Some(&name),200,&budget)?)?)
+            }).await.map_err(|e| McpError::internal_error(e.to_string(),None))?
+                .map_err(|e| McpError::invalid_params(e.to_string(),None))?;
+            return Ok(CallToolResult::success(vec![Content::text(report)]));
+        }
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
@@ -448,6 +477,8 @@ impl Engram {
             );
         let configured_risk_count = configured_risk_pack.len();
         let source_chunk_target = self.state.cfg.max_chunks_per_file;
+        let allow_current_settings = req.knowledge_before.is_none();
+        let current_settings_budget = self.state.memory_budget.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
         let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, unresolved, coverage_notes, companion_context, member_observations) =
@@ -467,6 +498,9 @@ impl Engram {
                 // A discovered code-behind may introduce VB after a markup-only
                 // request. Capture its actual parser once, only when needed.
                 let mut vb_extraction = None;
+                let explicit_files: std::collections::HashSet<_> = files.iter().cloned().collect();
+                let mut current_setting_files = 0usize;
+                let mut current_setting_rows = 0usize;
                 let extraction = engram_index::SourceExtractionExpectation::for_project(
                     &axis_root, source_chunk_target, std::iter::empty::<&str>(),
                 ).map_err(|e| e.to_string());
@@ -499,6 +533,28 @@ impl Engram {
                     );
                     if let Some(note) = note {
                         coverage_notes.push(note);
+                    }
+                    if (!usable || snapshot.is_none()) && needs_vb && explicit_files.contains(&file) {
+                        if !allow_current_settings {
+                            coverage_notes.push(format!("{file}: current literal-setting fallback withheld under knowledge_before; current bytes are not historical evidence"));
+                        } else if current_setting_files >= 16 || current_setting_rows >= 200 {
+                            coverage_notes.push(format!("{file}: current setting observations omitted at16files/200observations; coverage remains incomplete"));
+                        } else {
+                            current_setting_files += 1;
+                            match super::current_settings::collect(&axis_root,&pid,std::slice::from_ref(&file),None,200-current_setting_rows,&current_settings_budget) {
+                                Ok(report) => {
+                                    current_setting_rows += report.observations.len();
+                                    coverage_notes.extend(report.incomplete);
+                                    for site in report.observations {
+                                        let id=format!("current:{}:{}:{}:{}",site.file_path,site.observation.line,site.raw_blake3,site.observation.name);
+                                        setting_labels.insert(id.clone(),format!("{} (current file literal; getter {}; compiler/store binding and value unverified)",site.observation.name,site.observation.getter));
+                                        settings_axis.entry(id).or_default().push(format!("{}:{} | raw BLAKE3 {} | current code observation only; review task applicability",site.file_path,site.observation.line,site.raw_blake3));
+                                    }
+                                    coverage_notes.push(format!("{file}: current source setting observations were collected independently; unavailable indexed role/state/business axes remain incomplete. No compiler/project source inventory or index refresh was performed for these literal observations."));
+                                }
+                                Err(error) => coverage_notes.push(format!("{file}: current source setting observations unavailable: {error}")),
+                            }
+                        }
                     }
                     if !usable {
                         continue;

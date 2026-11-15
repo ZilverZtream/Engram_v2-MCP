@@ -1399,6 +1399,11 @@ pub struct RepairProjectRequest {
 #[serde(deny_unknown_fields)]
 pub struct ListSettingsRequest {
     pub project_id: String,
+    /// Read literal getter observations from1..16 exact current VB files,
+    /// without an index refresh or compiler/project inventory. Mutually
+    /// exclusive with scope. Indexed catalog behavior is unchanged if omitted.
+    #[serde(default)]
+    pub source_files: Option<Vec<String>>,
     /// Only settings declared in files whose path contains this substring.
     #[serde(default)]
     pub scope: Option<String>,
@@ -1473,6 +1478,10 @@ fn default_matrix_coverage_notes() -> usize {
 #[serde(deny_unknown_fields)]
 pub struct GetSettingRequest {
     pub project_id: String,
+    /// Restrict literal key/label lookup to1..16 exact current VB files.
+    /// No index refresh, graph mutation or compiler inventory is performed.
+    #[serde(default)]
+    pub source_files: Option<Vec<String>>,
     /// Setting name (web.config key, connection string, Session/Application
     /// key, or settings-store member). Exact match preferred; substring ok.
     pub name: String,

@@ -242,6 +242,30 @@ Config fields: `adp_rollout_phase` (default: `"shadow"`), `adp_kill_switch` (def
 
 ## Literal settings evidence
 
+For current tasks without a compatible VB index, pass `source_files` to
+`list_settings` or `get_setting`. This reads 1–16 exact current project-relative
+UTF-8 VB files (2 MiB per file) without a compiler/project inventory or index
+publication. `scope` cannot be mixed with `source_files`. The JSON report retains
+file hashes, read timestamps, getter spellings and lines. Use a complete literal
+key or returned catalog label for lookup. It returns at most 200 matching
+observations, names incomplete coverage, and does not claim physical setting
+values or store binding. Indexed catalog/lookup behavior remains available when
+`source_files` is omitted.
+
+```json
+{"project_id":"<project_id>","source_files":["Site/App_Code/financialdata/CustomerInvoiceImporter.vb"]}
+```
+
+Use that shape with `list_settings`; add
+`"name":"financial_data_import_cr_article_numbers"` for `get_setting`.
+`derive_test_matrix` can independently collect current literal-setting facts for
+explicit requested VB files when their indexed axes are unavailable. The fallback
+is bounded to 16 files/200 observations and preserves incomplete indexed
+role/state/business coverage. It does not read discovered companions for this
+fallback, and `knowledge_before` withholds live current-file observations.
+These paths make current setting evidence usable without a whole-project refresh;
+they do not migrate or certify the rest of an old index.
+
 VB name-shaped typed getters such as `SystemSettings.GetText("currency")` and
 `SystemSettings.GetInt("retry_count")` publish literal-key observations for the
 settings tools. The complete first argument must be a literal; computed keys,

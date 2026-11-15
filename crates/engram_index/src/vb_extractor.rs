@@ -8,7 +8,7 @@ use std::time::Duration;
 mod transport;
 mod inventory;
 mod compilation;
-mod literal_settings;
+pub mod literal_settings;
 pub use compilation::CompilationPolicy;
 
 // SQL detection for the fallback extractor. The Roslyn sidecar emits richer

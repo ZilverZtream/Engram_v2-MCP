@@ -8,6 +8,55 @@ static GETTER: LazyLock<Regex> = LazyLock::new(|| {
 ).expect("typed settings getter syntax")
 });
 
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Observation {
+    pub name: String,
+    pub key: String,
+    pub store: String,
+    pub getter: String,
+    pub line: u32,
+}
+
+fn read_line(line: &str, line_no: u32) -> impl Iterator<Item = Observation> + '_ {
+    let mask = vb_settings_code_mask(line);
+    GETTER.captures_iter(line).filter_map(move |cap| {
+        if mask.as_bytes()[cap.get(0).unwrap().start()] == b' ' {
+            return None;
+        }
+        let key = cap["key"].replace("\"\"", "\"");
+        if key.is_empty() {
+            return None;
+        }
+        let store = cap["store"].to_ascii_lowercase();
+        Some(Observation {
+            name: format!("{store}[{key:?}]"),
+            key,
+            store,
+            getter: cap["getter"].to_owned(),
+            line: line_no,
+        })
+    })
+}
+
+/// Bounded source observations without Roslyn, a project inventory or graph writes.
+/// The Boolean reports omitted matching observations, not complete VB semantics.
+pub fn source_observations(
+    source: &str,
+    limit: usize,
+    query: Option<&str>,
+) -> (Vec<Observation>, bool) {
+    let mut rows: Vec<_> = source
+        .lines()
+        .enumerate()
+        .flat_map(|(i, line)| read_line(line, i as u32 + 1))
+        .filter(|row| query.is_none_or(|query| row.name == query || row.key == query))
+        .take(limit.saturating_add(1))
+        .collect();
+    let omitted = rows.len() > limit;
+    rows.truncate(limit);
+    (rows, omitted)
+}
+
 pub(super) fn append(
     line: &str,
     line_no: u32,
@@ -15,18 +64,14 @@ pub(super) fn append(
     symbols: &mut Vec<ExtractedSymbol>,
     edges: &mut Vec<ExtractedEdge>,
 ) {
-    let mask = vb_settings_code_mask(line);
-    for cap in GETTER.captures_iter(line) {
-        if mask.as_bytes()[cap.get(0).unwrap().start()] == b' ' {
-            continue;
-        }
-        let key = cap["key"].replace("\"\"", "\"");
-        if key.is_empty() {
-            continue;
-        }
-        let store = cap["store"].to_ascii_lowercase();
-        let name = format!("{store}[{key:?}]");
-        let getter = cap["getter"].to_owned();
+    for Observation {
+        name,
+        key,
+        store,
+        getter,
+        ..
+    } in read_line(line, line_no)
+    {
         if let Some(existing) = symbols
             .iter_mut()
             .find(|s| s.kind == "setting_key" && s.name == name && s.start_line == line_no)
