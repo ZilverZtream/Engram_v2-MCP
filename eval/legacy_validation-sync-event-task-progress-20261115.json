@@ -1,0 +1,178 @@
+{
+  "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
+  "at_utc": "2026-11-15T15:06:51.334361+00:00",
+  "finding": "Original EG24/EG25 fresh sync-event QA task",
+  "task": "Prepare a focused source-backed regression QA plan for ProcessAllPendingEvents: event selection/checkpoint, ordering, dispatch, returned failures, unknown event types and repeated invocations. Include CustomerCreateV1 existing/new-path and SQL parameter/connection boundary considerations. State expected current behavior and cite source path/line ranges. Separate conditional risks from unconfirmed domain policy; retry requirements are not given. State what the supplied source cannot prove. Do not edit production code or claim SQL/API/application execution.",
+  "source_pins": {
+    "App_Code/multitenant/code/SyncData.ProcessEvent.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+      "sha256": "565dee29b05488e9e02bdd36472217c9986f9e21c4fb6c20f3ef854d34797272",
+      "bytes": 47049
+    },
+    "App_Code/multitenant/code/SyncData.Definitions.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+      "sha256": "8a337fe6dc714826652d37d0f884a656930b629ef44c798ded08fc9349a65c0c",
+      "bytes": 4713
+    }
+  },
+  "criteria": [
+    {
+      "id": "checkpoint",
+      "requires": "Maximum recorded mse_id includes all persisted statuses; zero if no record. Do not silently describe success-only checkpointing."
+    },
+    {
+      "id": "selection_order",
+      "requires": "Strictly greater than checkpoint, ascending pending IDs; duplicates/older IDs excluded by this selected method."
+    },
+    {
+      "id": "unknown_event",
+      "requires": "Unknown type retains UnknownEventType status2 and empty error, is inserted/submitted; no selected dispatch helper runs."
+    },
+    {
+      "id": "returned_failure",
+      "requires": "A returned failure status/message is recorded and does not itself stop the loop; later pending events can be recorded."
+    },
+    {
+      "id": "retry_scope",
+      "requires": "A subsequent call excludes IDs at/below the highest recorded row, including recorded failures. Identify a conditional risk if retries are required, not an accepted retry mandate or a claim that no external recovery exists."
+    },
+    {
+      "id": "sql_and_limits",
+      "requires": "CustomerCreateV1 existing/new paths differ; new path uses an IDENTITY_INSERT batch and7 AddWithValue calls. Inferred SQL types/sizes, runtime binding/null behavior, transactions/concurrency and real persistence remain unproven; do not invent app execution."
+    }
+  ],
+  "source_control_flow_cases": 6,
+  "source_proof_status": "SIX_SOURCE_CONTROL_FLOW_CASES_VERIFIED",
+  "source_proof_compiler_invocations": 1,
+  "source_proof_limits": "Exact extracted ProcessAllPendingEvents body/status/event enum against in-memory contexts and deterministic helper stubs. No real ORM, persistence, helper side effects, SQL, API or app execution. InsertOnSubmit/SubmitChanges failures and transactions are outside this proof.",
+  "capture": {
+    "status": "INSTALLED_EVIDENCE_CAPTURED_NO_GENERATION",
+    "binary_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
+    "mcp_tool_calls": 6,
+    "tool_names": [
+      "index_project",
+      "project_info",
+      "get_method_info",
+      "detect_n_plus_one",
+      "derive_test_matrix",
+      "project_info"
+    ],
+    "report_calls": [
+      {
+        "tag": "metadata",
+        "tool": "get_method_info",
+        "seconds": 0.0028506999369710684,
+        "reply_text_utf8_bytes": 2029,
+        "arguments": {
+          "project_id": "9478d64c-5be7-470a-946c-ae3fd2cf0e06",
+          "file_path": "App_Code/multitenant/code/SyncData.ProcessEvent.vb",
+          "fqn_or_name": "ProcessAllPendingEvents",
+          "output_json": true,
+          "max_tokens": 65536
+        }
+      },
+      {
+        "tag": "repeated",
+        "tool": "detect_n_plus_one",
+        "seconds": 0.06558160006534308,
+        "reply_text_utf8_bytes": 84321,
+        "arguments": {
+          "project_id": "9478d64c-5be7-470a-946c-ae3fd2cf0e06",
+          "file_path": "App_Code/multitenant/code/SyncData.ProcessEvent.vb",
+          "max_tokens": 65536
+        }
+      },
+      {
+        "tag": "matrix",
+        "tool": "derive_test_matrix",
+        "seconds": 0.010088799986988306,
+        "reply_text_utf8_bytes": 15094,
+        "arguments": {
+          "project_id": "9478d64c-5be7-470a-946c-ae3fd2cf0e06",
+          "files": [
+            "App_Code/multitenant/code/SyncData.ProcessEvent.vb"
+          ],
+          "change_intent": "Prepare regression QA for ProcessAllPendingEvents checkpoint, ordering, dispatch and recorded failure statuses, plus CustomerCreateV1 source SQL boundaries. Retry policy is unconfirmed; do not infer an accepted requirement."
+        }
+      }
+    ],
+    "owned_generation": 1,
+    "server_generation_calls": 0,
+    "actual_project_indexed": false
+  },
+  "prepared_packets": {
+    "798b8d80b7e5ebe5514a": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\packet-798b8d80b7e5ebe5514a.json",
+      "bytes": 13720,
+      "sha256": "f134887702f53d7ca2449242a7f0b3248af6729978aa1fc5c79c74cc61b7d9d8"
+    },
+    "874c85380e1406f8f1df": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\packet-874c85380e1406f8f1df.json",
+      "bytes": 122448,
+      "sha256": "49406f918752d74de271065066e831fd4e495024e8dbb90ef08844a4b85c6bbe"
+    }
+  },
+  "candidate_runs": 0,
+  "judge_runs": 0,
+  "delegation_request": {
+    "status": "PENDING_OPTIONAL_USER_REPLY",
+    "reason": "Current session delegation instruction requires explicit request for a new independent-agent run; previous request covered the completed invoice task.",
+    "requested": "Two fresh no-history candidates and one blinded source judge, one pass each on frozen packets. No outcome tuning or replay."
+  },
+  "engram_builds_started": 0,
+  "comparison_complete": false,
+  "task_benefit_established": false,
+  "broader_goal_complete": false,
+  "retained_failure": "capture1 index request used unsupported max_commits; invalid request rejected before indexing, corrected capture2 retained all three tool outputs. Criteria/source proof were unchanged.",
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115",
+    "new_fixtures_removed": true,
+    "preserved_wip9": true,
+    "actual_sources_unchanged": true,
+    "retention": "Frozen sources, packets, oracle, source-proof program and captured replies retained until superseded. All new executable/data fixtures closed and removed; preexisting inventories untouched."
+  },
+  "evidence": {
+    "freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\freeze.json",
+      "sha256": "3a1a747c0b0bf81ff683b23dfed9027f284d4f3466ab057ffa386005b6b5be5b"
+    },
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\contract.json",
+      "sha256": "3546c8057756c81d556646cfb39ef7b347b74ff55e738d7a8eff43a995aa2426"
+    },
+    "oracle.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\oracle.json",
+      "sha256": "2146fb67d043fcf47fadaf4c616d9318abd907f23e31f516504c95476eed4d91"
+    },
+    "source-proof1/program.vb": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\source-proof1\\program.vb",
+      "sha256": "e3deee3b026b32c75a3ac3656e1e605256f73b22ea7e31968e1a18bc774798af"
+    },
+    "source-proof1/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\source-proof1\\receipt.json",
+      "sha256": "bcf52c05ad2290ec959123c83f0ba321bb614e78de20b32d8bb3d9815ee56fa3"
+    },
+    "capture1/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\capture1\\receipt.json",
+      "sha256": "8a61bd6cb37afed15ca907e3c1db8d1f5d595205af206bb1302d52726f841f57"
+    },
+    "capture2/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\capture2\\receipt.json",
+      "sha256": "4d003b953f5657308297f70a6ca66c51d86fd7f75f5dd0eaa17f8dafb009378b"
+    },
+    "capture2/metadata.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\capture2\\metadata.json",
+      "sha256": "485492b47296a227221c2fb93a786b79c5af21ecf440b751b8bd4713f7d567d7"
+    },
+    "capture2/repeated.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\capture2\\repeated.json",
+      "sha256": "fade43b18e322dc1ba5264089a59204e7ad945c44eec30513bd331f698e65f2e"
+    },
+    "capture2/matrix.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\capture2\\matrix.json",
+      "sha256": "7920cdf798bd9b8c4b713f57436323bee1d1a3726261ff6a574c62509fe91a7b"
+    }
+  }
+}

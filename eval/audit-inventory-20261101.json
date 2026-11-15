@@ -10065,33 +10065,23 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "Original LegacyValidation SQL workflow evidence: SqlCommand parameter declarations and assignments",
-      "original_requirement": "Make source-backed SQL request/repetition/QA evidence actionable for AI work on actual LegacyValidation code.",
-      "actual_source": {
-        "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
-        "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
-        "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
-        "bytes": 25806,
-        "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
-        "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched."
+      "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
+      "finding": "Original EG24/EG25 fresh sync-event QA task",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115",
+      "source_pins": {
+        "App_Code/multitenant/code/SyncData.ProcessEvent.vb": {
+          "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+          "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+          "sha256": "565dee29b05488e9e02bdd36472217c9986f9e21c4fb6c20f3ef854d34797272",
+          "bytes": 47049
+        },
+        "App_Code/multitenant/code/SyncData.Definitions.vb": {
+          "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+          "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+          "sha256": "8a337fe6dc714826652d37d0f884a656930b629ef44c798ded08fc9349a65c0c",
+          "bytes": 4713
+        }
       },
-      "observed_source": "Frozen non-Q WebhookEvent.SaveEventsToDB declares14 typed parameters, length500/3000/MAX declarations and explicit DBNull assignment alternatives. Existing text-command tracing supplies table paths but no parameter observations.",
-      "components": [
-        "trace_user_request: source-cited parameter declarations and value-assignment lines attached to reached SqlCommand text paths.",
-        "detect_n_plus_one: the same parameter observations attached to repeated command findings under existing method/source admission.",
-        "derive_test_matrix: source-backed SQL parameter axes for supported explicitly requested verified VB method ranges; keep inferred runtime values/execution unknown."
-      ],
-      "finite_acceptance": [
-        "Confirm all three existing workflows reach the owned exact current LegacyValidation source, then expose its14 parameter declarations and actual assignment/DBNull lines without new file discovery.",
-        "Reuse existing comment/string-aware VB tokens; bounded same-method command receiver observations retain exact file hash, absolute declaration/assignment lines, declared types and size literals. No SQL/CLR execution or inferred physical parameter/column binding.",
-        "No comments, computed parameter-name claims or fabricated assignment values. Preserve current source/physical revision checks and caller database scope; stale source withholds these observations.",
-        "QA axes propose review of relevant lengths/nulls/types rather than claiming application tests or business rules. Existing incomplete coverage remains visible.",
-        "One focused native target for the three workflows, then one release and candidate/installed MCP acceptance on owned copies. No actual full LegacyValidation update or QA/health survey, protected Q access, target-language expansion or CodeMap/Blast work."
-      ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115",
-      "cleanup_condition": "New fixtures close owned handles before removal. Retain evidence/package until superseded; preexisting folders untouched.",
       "preserved_wip9": {
         "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
         "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
@@ -10103,24 +10093,18 @@
         "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
         "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
       },
-      "baseline": "baseline1/acceptance.json: all three existing workflows reached the owned exact source; repeated ExecuteNonQuery finding is present at82, without parameter evidence.",
-      "files": [
-        "crates/engram_server/src/services/vb_sql_parameters.rs",
-        "crates/engram_server/src/services/mod.rs",
-        "crates/engram_server/src/services/request_trace/routing.rs",
-        "crates/engram_server/src/services/request_trace/sql_commands.rs",
-        "crates/engram_server/src/services/n_plus_one.rs",
-        "crates/engram_server/src/handlers/settings_tools.rs",
-        "crates/engram_server/tests/sql_parameter_workflow_tests.rs",
-        "crates/engram_server/src/tools.rs"
+      "finite_acceptance": [
+        "Freeze exact source, six behavioral criteria, false-guidance rules and six source-control-flow cases before model candidates.",
+        "Reuse installed Engram; capture bounded source-backed task context on owned copies with no server generation, SQL/API calls, actual project indexing or protected Q reads.",
+        "Compare one source-only candidate, one assisted candidate and one blinded source judge, only after explicit delegation authorization. One pass, no outcome tuning or replay.",
+        "Retain raw outputs, source proof, bytes/calls/timings and failures. Comparative usefulness is established only by candidate/judge results; preparation and green tool checks are not benefit."
       ],
-      "baseline_commit": "9c7bbfdc6de02e7295f983fe44e3bfc7fe30a47c",
-      "baseline_runtime": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf",
-      "delivery_record": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
-      "source_commit": "394b1f361bac88abd6c5f516ced392f540131af3",
-      "runtime_source_commit": "8691887455ea5e436caffb082a849c82d5ea296a",
-      "installed_server_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
-      "actual_full_source_operation_run": false
+      "engram_builds_started": 0,
+      "cleanup_condition": "New source-proof/capture fixtures close all handles then remove owned resources. Frozen sources/packets/results retained as task evidence until superseded; preexisting inventories untouched.",
+      "progress_record": "eval/legacy_validation-sync-event-task-progress-20261115.json",
+      "source_control_flow_cases": 6,
+      "candidate_runs": 0,
+      "judge_runs": 0
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10152,8 +10136,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "SQL parameter workflow slice delivered; advance next original requirement.",
-    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement. Source SQL parameter evidence is deployed across request trace, repeated-query findings and QA axes; exact webhook declarations/assignments verified. Preserve runtime binding/execution, actual Q-source holds and all unfinished original semantic/usefulness/release requirements. Do not replay or widen passed acceptance.",
+    "active_original_item": "EG24/25 frozen sync-event QA comparison ready; independent-agent request pending.",
+    "next_user_visible_deliverable": "Run the frozen paired comparison after explicit new-task delegation request. This single pending item does not pause the full original backlog; preserve frozen inputs and all unfinished findings.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10170,7 +10154,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: three SQL parameter workflows deployed and public owned exact-source acceptance completed; broader original goal active.",
+    "previous_goal_turn_classification": "PROGRESS: fresh source/criteria/packets frozen, six exact source-control-flow cases verified, installed reports captured with zero Engram builds/server generation calls. Candidate benefit remains unmeasured.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15815,6 +15799,12 @@
   "sql_parameter_workflows_delivery": {
     "record": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
+  },
+  "sync_event_task_progress": {
+    "record": "eval/legacy_validation-sync-event-task-progress-20261115.json",
+    "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
+    "comparison_complete": false,
     "full_goal_complete": false
   }
 }
