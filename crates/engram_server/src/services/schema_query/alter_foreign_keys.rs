@@ -40,12 +40,12 @@ pub(super) fn parse(
         // The existing SQL parser identifies the exact constraint endpoint,
         // leaving surrounding IF/ELSE/END and subsequent statements untouched.
         // The shared recognizer projects the same FK names/actions as CREATE.
-        let position = origin + parser.get_current_index();
+        let position = origin + parser.index();
         let Ok(Some(TableConstraint::ForeignKey { .. })) = parser.parse_optional_table_constraint()
         else {
             break;
         };
-        let end = origin + parser.get_current_index();
+        let end = origin + parser.index();
         if end <= position || end > tokens.len() {
             break;
         }
