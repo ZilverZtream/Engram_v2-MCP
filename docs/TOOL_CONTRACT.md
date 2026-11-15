@@ -947,3 +947,16 @@ append time. Default `view: "history"` preserves the existing response; discussi
 capture recovery remains separate and cannot be combined with `view: "current"`.
 The shared reply budget and immutable whole-report recovery still apply to either
 view. A smaller selected view does not establish policy authority or task benefit.
+
+## Linked guidance in ordinary context
+
+Current scoped policy contexts supply small first-hop Markdown references outside
+normal discovery as `linked_sources`. These are complete source evidence for
+assessing link conditions and target scope; they do not enter adopted policy
+`sources`, inherit authority or establish that a heading fragment applies. Declared
+nonmatching scope is withheld. Direct policy retains priority within the same
+source/character budgets. At most8 distinct documents and256KiB plus one overflow
+sentinel byte are read, at most128KiB/file; nested links are not crawled. References
+name unavailable, scope or budget omissions and supply hash-bound read actions
+when a complete fingerprint is known. JSON and Markdown retain the same complete
+linked evidence. Historical contexts never read current linked documents.

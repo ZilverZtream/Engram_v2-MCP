@@ -10,6 +10,7 @@ use std::io::{BufRead, BufReader, Read};
 use std::path::Path;
 
 mod historical;
+mod linked_sources;
 mod references;
 pub use historical::resolve_at_revision;
 
@@ -83,6 +84,8 @@ pub struct PolicyReference {
     pub fragment: Option<String>,
     pub status: String,
     pub target_blake3: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_action: Option<PolicySourceRead>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -92,6 +95,9 @@ pub struct PolicyContext {
     pub status: String,
     pub coverage: String,
     pub sources: Vec<PolicySource>,
+    /// Complete first-hop reference evidence, not additional adopted policy.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub linked_sources: Vec<PolicySource>,
     pub sources_discovered: usize,
     pub sources_applicable: usize,
     pub sources_shown: usize,
@@ -113,6 +119,7 @@ impl PolicyContext {
             status: "absent".into(),
             coverage: "complete".into(),
             sources: vec![],
+            linked_sources: vec![],
             sources_discovered: 0,
             sources_applicable: 0,
             sources_shown: 0,
@@ -155,6 +162,18 @@ impl PolicyContext {
                 },
             });
             omitted.refetch = "Run read_action, recover any response_delivery pages, then follow file_excerpt.next_page to EOF. Each source page is checked against this complete-file BLAKE3. If the file changed, refresh the originating guidance request. Read all qualifications before claiming coverage; reading a source does not certify compliance.".into();
+        }
+        for reference in &mut self.references {
+            let (Some(path), Some(hash)) = (&reference.path, &reference.target_blake3) else { continue; };
+            if normalized_relative(path).is_none() { continue; }
+            reference.read_action = Some(PolicySourceRead {
+                tool: "get_full_method_body",
+                arguments: PolicySourceReadArguments {
+                    project_id: project_id.into(), file_path: path.clone(),
+                    line_start: 1, context_lines: 0, output_json: true,
+                    expected_file_blake3: hash.clone(),
+                },
+            });
         }
         self
     }
@@ -208,10 +227,16 @@ impl PolicyContext {
                 let _ = writeln!(text, "\n```json\n{}\n```", serde_json::to_string(action).expect("policy source action is serializable"));
             }
         }
+        for source in &self.linked_sources {
+            let _ = writeln!(text, "\n### Linked document evidence `{}`\n\nBLAKE3: `{}`. This complete first-hop document is evidence for assessing the link conditions and target scope; linking does not adopt policy or confer authority.\n\n{}", source.path, source.blake3, source.content);
+        }
         for reference in &self.references {
             let _ = writeln!(text, "\n- Linked document: `{}` bytes {}..{} (BLAKE3 `{}`) → `{}`; status: {}; normalized path: {}. Assess the source conditions and target scope before applying it.",
                 reference.source_path, reference.byte_range[0], reference.byte_range[1], reference.source_blake3,
                 reference.target, reference.status, reference.path.as_deref().unwrap_or("unresolved"));
+            if let Some(action) = &reference.read_action {
+                let _ = writeln!(text, "\n```json\n{}\n```", serde_json::to_string(action).expect("linked source action is serializable"));
+            }
         }
         for note in &self.notes {
             let _ = writeln!(text, "\n- Coverage note: {note}");
@@ -674,7 +699,9 @@ pub fn resolve_with_budget(
     indexed_paths: &[String],
     budget: PolicyBudget,
 ) -> PolicyContext {
-    resolve_observing_candidate_reads(root, target_paths, indexed_paths, budget, &mut |_: &str, _: usize| {})
+    let mut context = resolve_observing_candidate_reads(root, target_paths, indexed_paths, budget, &mut |_: &str, _: usize| {});
+    linked_sources::supply(root, target_paths, budget, &mut context);
+    context
 }
 
 /// Observe actual file reads rather than buffer consumption. Production uses

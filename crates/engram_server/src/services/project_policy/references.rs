@@ -46,6 +46,7 @@ pub(super) fn observe(context: &mut PolicyContext) {
                 source_path: source.path.clone(), source_blake3: source.blake3.clone(),
                 byte_range: [link.offset, link.end], target: link.target, path, fragment, status: status.into(),
                 target_blake3: supplied.map(|row| row.blake3.clone()).or_else(|| omitted.and_then(|row| row.blake3.clone())),
+                read_action: None,
             });
         }
     }
@@ -75,13 +76,15 @@ mod tests {
         let missing = context.references.iter().find(|row| row.target.starts_with("docs/")).unwrap();
         assert_eq!(missing.path.as_deref(), Some("docs/required.md"));
         assert_eq!(missing.fragment.as_deref(), Some("permissions"));
-        assert_eq!(missing.status, "not_supplied_applicability_unverified");
+        assert_eq!(missing.status, "supplied_linked_document_applicability_unverified");
+        assert_eq!(context.linked_sources.len(), 1);
+        assert_eq!(context.linked_sources[0].path, "docs/required.md");
         assert_eq!(missing.source_blake3, blake3::hash(root.as_bytes()).to_hex().to_string());
         assert!(root[missing.byte_range[0]..missing.byte_range[1]].contains("docs/required.md#permissions"));
         assert_eq!(context.references.iter().find(|row| row.status == "supplied").unwrap().path.as_deref(), Some(".github/instructions/vb.instructions.md"));
         assert_eq!(context.reference_coverage, "incomplete");
         assert_eq!(context.sources.iter().find(|row| row.path == "AGENTS.md").unwrap().content, root);
-        assert!(context.render_markdown().contains("not_supplied_applicability_unverified"));
+        assert!(context.render_markdown().contains("supplied_linked_document_applicability_unverified"));
     }
 
     #[test]
