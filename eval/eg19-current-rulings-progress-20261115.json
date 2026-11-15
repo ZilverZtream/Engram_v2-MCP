@@ -1,0 +1,48 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T18:41:50.434331+00:00",
+  "original_requirement_id": "EG-19",
+  "source_commit": "9bbfa6d20ece514ed19d5982aa4f24f1036b1a46",
+  "original_requirement": "Bounded scoped prior rulings with complete evidence and no automatic suppression; full decision history remains recoverable.",
+  "before": "The public decision reader always includes every imported event alongside latest rulings. A long history forces whole-report recovery before current decisions can be read, even when only latest scoped rulings are needed.",
+  "source_after": "An optional current view supplies all latest imported rulings with complete conditions/provenance and an explicit dated full-history follow-up; the default full-history view is unchanged.",
+  "finite_acceptance": [
+    "view=current returns exactly the same latest rulings, scope/conditions, verification origin and non-suppression limits as the default history response, without superseded event bodies.",
+    "Historical cutoff applies before projection; history action retains project/review/cutoff, names the complete event count/hash and explicitly warns that the follow-up is a fresh query.",
+    "Default history and discussion recovery remain compatible; current view refuses combination with discussion. Demonstrate compact reply on a normal long-history owned review without changing stored history, source or index."
+  ],
+  "source_files": {
+    "crates/engram_server/src/handlers/review_decisions.rs": "63e6cd2067f6b7f45df0e8fafd0ce7fe4857b722b36d3e6ba0abc65182441537",
+    "crates/engram_server/src/tools.rs": "a43960a56f389df98000eec7cff58c39372b8d5f4430b234b7d84cccc39a6150",
+    "crates/engram_server/tests/code_review_ingest_tests.rs": "46cdf5173d9b7d2b3d32410e27ae555404861c8b8656f1d5b24605ae7a74c581",
+    "crates/engram_server/tests/review_decision_history_tests.rs": "5618e3d7dc46c39d3101189bc92b4025e8ef86399763e74715aa42dace01515b",
+    "docs/TOOL_CONTRACT.md": "81409edb70671f8b54de1bddbd691fa8789ca96b61e160ff06002bfecb2f2731"
+  },
+  "baseline": {
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-review-rulings-20261115\\baseline1\\receipt.json",
+    "status": "BASELINE_CURRENT_RULING_PROJECTION_GAP_CONFIRMED",
+    "history_reply_bytes": 110622,
+    "latest_rulings": 1,
+    "events": 30
+  },
+  "checks_completed": [
+    "Installed owned baseline confirms default long-history deferral and absent current view.",
+    "Targeted Rust syntax parsing, Python verifier syntax parsing and git diff --check."
+  ],
+  "checks_deferred": [
+    "Run review_decision_history_tests with the next combined independent-requirement batch.",
+    "Run deferred public verifier on combined debug, candidate and installed artifacts, including exact recovery pages and dated history handoff."
+  ],
+  "native_compilations_this_item": 0,
+  "release_builds_this_item": 0,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-review-rulings-20261115",
+    "baseline_fixture_removed": true,
+    "baseline_owner_closed": true,
+    "preserved_wip9": true,
+    "cleanup_condition": "Owned native/public fixtures close database/process handles and remove their directories. Retain scripts and proof here until superseded; do not delete preexisting folders."
+  },
+  "selection_notes": "TODO32 semantic failure was inspected once; TODO.md explicitly directs preserving its findings and advancing without another tuning loop. No planner code or inspected task was replayed."
+}
