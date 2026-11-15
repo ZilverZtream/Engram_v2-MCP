@@ -2,6 +2,7 @@
 use super::*;
 use crate::services::project_policy::{self, PolicyBudget};
 use serde_json::{Value, json};
+mod references;
 
 pub(super) struct Selection {
     pub instructions: Vec<String>,
@@ -55,9 +56,32 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
             json!({"path":source.path,"blake3":source.blake3,"applicability":source.applicability}),
         );
     }
+    let mut referenced = references::discover(root, req, &changed, &instructions)?;
+    let mut complete_bytes = policy
+        .sources
+        .iter()
+        .map(|source| source.content.len())
+        .sum::<usize>();
+    for candidate in referenced.candidates {
+        if instructions.len() >= 8
+            || complete_bytes.saturating_add(candidate.current_bytes) > PACKET_LIMIT / 2
+        {
+            referenced.omissions.push(json!({"path":candidate.path,"blake3":candidate.current_blake3,"reason":"complete_instruction_selection_budget","reference_matches":candidate.matches}));
+            continue;
+        }
+        complete_bytes += candidate.current_bytes;
+        instructions.push(candidate.path.clone());
+        sources.push(json!({"path":candidate.path,"blake3":candidate.current_blake3,
+            "selection_basis":"literal_reference_to_changed_evidence",
+            "applicability":["Maintenance review candidate only; no authority over changed files outside the instruction's own scope."],
+            "reference_matches":candidate.matches}));
+    }
     instructions.sort();
-    let incomplete =
-        policy.coverage != "complete" || !policy.omissions.is_empty() || !unavailable.is_empty();
+    let incomplete = policy.coverage != "complete"
+        || !policy.omissions.is_empty()
+        || !unavailable.is_empty()
+        || !referenced.omissions.is_empty()
+        || !referenced.notes.is_empty();
     let context = json!({
         "basis":"current_guidance_discovery_for_explicit_changed_paths",
         "changed_paths":changed,
@@ -65,7 +89,11 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         "discovery_status":policy.status,"discovery_coverage":policy.coverage,
         "sources":sources,"omissions":policy.omissions,"unavailable_complete_sources":unavailable,
         "notes":policy.notes,
-        "interpretation":"Changed paths are caller-declared inputs, not an exhaustive Git diff. Discovery uses current conventional guidance locations and scope metadata; it does not inventory instructions removed or formerly applicable at the base commit, infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected instruction and evidence file retains exact base-commit and current snapshots in this packet; linked-reference coverage is reported by instruction_manifest. Explicit instruction_paths remain available for historical or otherwise undiscovered guidance. No index or authored file is changed."
+        "reference_discovery":{"coverage":if referenced.omissions.is_empty() && referenced.notes.is_empty(){"bounded_candidates_examined"}else{"incomplete"},
+            "omissions":referenced.omissions,"notes":referenced.notes,
+            "limits":{"documents":64,"complete_source_read_bytes":2097152,"links_per_snapshot":256,"reference_chain_depth":3,"matches_per_instruction":16,"reference_visits":4096},
+            "scope":"Current conventional guidance inventory and supported literal references in its before/current snapshots, following bounded Markdown guidance links only. No source-code inventory or referenced-code body scan. Reference observations have their own snapshot hashes; instruction_manifest reports captured dependency freshness. Unrelated observed body hashes are not packet inputs."},
+        "interpretation":"Changed paths are caller-declared inputs, not an exhaustive Git diff. Discovery selects current scoped guidance and literal-reference maintenance candidates, including guidance scoped elsewhere that references changed evidence. A dependency review candidate does not gain authority over files outside its scope. Discovery does not inventory removed instructions or all formerly applicable guidance, infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected instruction and evidence file retains exact base-commit and current snapshots in this packet; linked-reference coverage is reported by instruction_manifest. Explicit instruction_paths remain available for historical or otherwise undiscovered guidance. No index or authored file is changed."
     });
     Ok(Selection {
         instructions,

@@ -20,8 +20,9 @@ const PACKET_LIMIT: usize = 768 * 1024;
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MaintenanceRequest {
-    /// Discover current applicable authored guidance for 1..16 explicit changed
-    /// files and capture those files as Git-before/disk-after evidence. May not
+    /// Discover current applicable guidance and bounded literal-reference review
+    /// candidates for1..16 explicit changed files. Referencing guidance does not
+    /// gain authority outside its own scope. Capture Git-before/disk-after evidence. May not
     /// be mixed with instruction_paths, area_context or new_instruction_targets.
     /// Optional evidence_paths supplement the changed files (16 combined).
     #[serde(default)]

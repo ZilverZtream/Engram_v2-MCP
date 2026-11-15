@@ -428,6 +428,14 @@ fn discover(
     candidates
 }
 
+/// Maintenance reviews evidence dependencies independently of policy applicability.
+/// Reuse the conventional-directory inventory without widening normal retrieval.
+pub(crate) fn maintenance_candidates(root: &Path, targets: &[String]) -> (Vec<String>, Vec<String>) {
+    let mut notes = Vec::new();
+    let paths = discover(root, targets, &[], &mut notes).into_iter().collect();
+    (paths, notes)
+}
+
 fn split_patterns(text: &str) -> Result<Vec<String>, String> {
     let mut depth = 0i32;
     let mut start = 0;

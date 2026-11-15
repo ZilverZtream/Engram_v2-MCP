@@ -856,3 +856,29 @@ Markdown includes the same calls. Context retrieval does not run them, and they
 do not alter edit-safety evidence or verdicts. Limited discovery gains no new
 advanced-tool dependency. Declaration lines are revision-specific: refresh the
 index and obtain the new method identity after source edits.
+
+### Reference-driven instruction maintenance selection
+
+`instruction_maintenance.changed_paths` selects both current scope-applicable
+instructions and current conventional guidance that references the changed paths.
+Reference candidates may be scoped elsewhere: selection requests maintenance
+review and does not extend their authority to the changed files. Complete scope,
+exceptions, Git-before/current guidance and changed-source snapshots are retained.
+Explicit `instruction_paths` requests and normal policy retrieval are unchanged.
+
+Discovery reuses conventional guidance directories and changed-path ancestors,
+inspecting supported Markdown links and inline path candidates in before/current
+snapshots. It follows guidance links to depth3 with cycle deduplication; it does
+not traverse source-code bodies or run compiler/project inventories. Inline code
+paths retain both document/project-relative candidates; they do not prove binding.
+Reference rows retain source hash, version, byte span and chain. The captured
+`instruction_manifest` remains the dependency/freshness report; discovery is a
+separate bounded observation rather than an atomic source-tree snapshot.
+
+Limits are64guidance documents,2MiB complete before/current source reads,
+256links per snapshot,4096reference visits and16matches per instruction. Existing
+8instruction/complete-packet budgets remain. `change_context.reference_discovery`
+names omissions and coverage gaps; a missing candidate does not prove no impact.
+Bodies of unrelated inspected guidance are not packet inputs. Removed instruction
+files, nonconventional undiscovered guidance and unsupported references still
+require explicit selection. Proposed changes remain unaccepted and read-only.

@@ -29,20 +29,26 @@ struct Fixture {
 }
 impl Fixture {
     fn new() -> Self {
+        Self::with_guide(GUIDE)
+    }
+    fn with_guide(guide: &str) -> Self {
         // Keep libgit2's administrative paths short inside the recorded case.
         // The build runner supplies this root; ordinary runs use their temp dir.
         let fixture_root = std::env::var_os("ENGRAM_TEST_FIXTURE_ROOT")
             .map(PathBuf::from)
             .unwrap_or_else(std::env::temp_dir);
-        let temp = tempfile::Builder::new().prefix("").rand_bytes(2)
-            .tempdir_in(fixture_root).unwrap();
+        let temp = tempfile::Builder::new()
+            .prefix("")
+            .rand_bytes(2)
+            .tempdir_in(fixture_root)
+            .unwrap();
         let root = temp.path().join("r");
         std::fs::create_dir_all(root.join("Site")).unwrap();
         std::fs::create_dir_all(root.join(".github/instructions")).unwrap();
         drop(git2::Repository::init(&root).unwrap());
         std::fs::write(
             root.join(".github/instructions/saves.instructions.md"),
-            GUIDE,
+            guide,
         )
         .unwrap();
         std::fs::write(
@@ -56,7 +62,10 @@ impl Fixture {
         )
         .unwrap();
         std::fs::write(root.join("Site/worker.ts"), BEFORE).unwrap();
+        std::fs::create_dir(root.join("Shared")).unwrap();
+        std::fs::write(root.join("Shared/validator.ts"), BEFORE).unwrap();
         let base = commit(&root);
+        std::fs::write(root.join("Shared/validator.ts"), AFTER).unwrap();
         std::fs::write(root.join("Site/worker.ts"), AFTER).unwrap();
         let (state, _) = AppState::new(Config {
             data_dir: temp.path().join("data"),
@@ -107,6 +116,166 @@ fn find<'a>(rows: &'a Value, path: &str) -> &'a Value {
         .iter()
         .find(|row| row["path"] == path)
         .unwrap()
+}
+
+const EXTERNAL_GUIDE: &str = "---\napplyTo: Site/**\n---\nUse [validator](../../Shared/validator.ts) for form validation.\nException: read-only previews do not submit.\n";
+fn external_request(f: &Fixture) -> Value {
+    json!({"changed_paths":["Shared/validator.ts"],"base_commit":f.base})
+}
+
+#[tokio::test]
+async fn changed_reference_selects_other_scope_without_adopting_authority_or_unrelated_edits() {
+    let f = Fixture::with_guide(EXTERNAL_GUIDE);
+    let first = f.audit(external_request(&f)).await.unwrap();
+    let guide = find(
+        &first["packet"]["instructions"],
+        ".github/instructions/saves.instructions.md",
+    );
+    assert_eq!(guide["current"]["content"], EXTERNAL_GUIDE);
+    assert_eq!(guide["before"]["content"], EXTERNAL_GUIDE);
+    let helper = find(&first["packet"]["evidence"], "Shared/validator.ts");
+    assert_eq!(helper["before"]["content"], BEFORE);
+    assert_eq!(helper["after"]["content"], AFTER);
+    let selected = find(
+        &first["packet"]["change_context"]["sources"],
+        ".github/instructions/saves.instructions.md",
+    );
+    assert_eq!(
+        selected["selection_basis"],
+        "literal_reference_to_changed_evidence"
+    );
+    assert!(
+        selected["applicability"]
+            .to_string()
+            .contains("no authority")
+    );
+    let proof = &selected["reference_matches"][0]["reference_chain"][0];
+    assert_eq!(proof["source_blake3"], guide["current"]["blake3"]);
+    let start = proof["byte_range"][0].as_u64().unwrap() as usize;
+    let end = proof["byte_range"][1].as_u64().unwrap() as usize;
+    assert!(EXTERNAL_GUIDE[start..end].contains("../../Shared/validator.ts"));
+    assert!(
+        !first["packet"]["instructions"]
+            .to_string()
+            .contains("other.instructions.md")
+    );
+    std::fs::write(
+        f.root.join(".github/instructions/other.instructions.md"),
+        "---\napplyTo: Elsewhere/**\n---\nA different unrelated body with no changed dependency.\n",
+    )
+    .unwrap();
+    assert_eq!(
+        first["packet_blake3"],
+        f.audit(external_request(&f)).await.unwrap()["packet_blake3"]
+    );
+    assert_eq!(first["authored_files_written"], 0);
+    assert!(
+        f.e.state.projects.is_empty(),
+        "Maintenance must not open or refresh a source index"
+    );
+    std::fs::remove_file(f.root.join("Shared/validator.ts")).unwrap();
+    let deleted = f.audit(external_request(&f)).await.unwrap();
+    let removed = find(&deleted["packet"]["evidence"], "Shared/validator.ts");
+    assert_eq!(removed["before"]["content"], BEFORE);
+    assert!(removed["after"].is_null());
+    assert_eq!(
+        deleted["packet"]["instructions"].as_array().unwrap().len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn reference_selection_follows_shared_guidance_and_bounds_cycles() {
+    let guide = "---\napplyTo: Site/**\n---\nUse [shared](shared.md).\nException: previews do not submit.\n";
+    let f = Fixture::with_guide(guide);
+    std::fs::write(
+        f.root.join(".github/instructions/shared.md"),
+        "Use [validator](../../Shared/validator.ts).\nSee [root](saves.instructions.md).\n",
+    )
+    .unwrap();
+    let report = f.audit(external_request(&f)).await.unwrap();
+    let selected = find(
+        &report["packet"]["change_context"]["sources"],
+        ".github/instructions/saves.instructions.md",
+    );
+    let chain = selected["reference_matches"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find_map(|row| {
+            let chain = row["reference_chain"].as_array()?;
+            (chain.len() == 2).then_some(chain)
+        })
+        .expect("Shared-guidance dependency chain");
+    assert_eq!(
+        chain[0]["source_path"],
+        ".github/instructions/saves.instructions.md"
+    );
+    assert_eq!(chain[1]["source_path"], ".github/instructions/shared.md");
+    assert_eq!(chain[0]["version"], "after");
+    assert_eq!(chain[1]["version"], "after");
+    assert!(
+        report["packet"]["instruction_manifest"]
+            .to_string()
+            .contains("Shared/validator.ts")
+    );
+    assert_eq!(report["authored_files_written"], 0);
+}
+
+#[tokio::test]
+async fn removed_references_remain_review_candidates_and_complete_source_limits_are_explicit() {
+    let f = Fixture::with_guide(EXTERNAL_GUIDE);
+    let current = "---\napplyTo: Site/**\n---\nReview the revised validator contract.\nException: read-only previews do not submit.\n";
+    std::fs::write(
+        f.root.join(".github/instructions/saves.instructions.md"),
+        current,
+    )
+    .unwrap();
+    let report = f.audit(external_request(&f)).await.unwrap();
+    let guide = find(
+        &report["packet"]["instructions"],
+        ".github/instructions/saves.instructions.md",
+    );
+    assert_eq!(guide["before"]["content"], EXTERNAL_GUIDE);
+    assert_eq!(guide["current"]["content"], current);
+    let selected = find(
+        &report["packet"]["change_context"]["sources"],
+        ".github/instructions/saves.instructions.md",
+    );
+    assert!(
+        selected["reference_matches"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|row| row["reference_chain"][0]["version"] == "before")
+    );
+    for index in 0..10 {
+        std::fs::write(
+            f.root.join(format!(
+                ".github/instructions/review{index}.instructions.md"
+            )),
+            EXTERNAL_GUIDE,
+        )
+        .unwrap();
+    }
+    let limited = f.audit(external_request(&f)).await.unwrap();
+    assert_eq!(
+        limited["packet"]["instructions"].as_array().unwrap().len(),
+        8
+    );
+    assert_eq!(
+        limited["packet"]["change_context"]["status"],
+        "instruction_selection_incomplete"
+    );
+    assert!(
+        limited["packet"]["change_context"]["reference_discovery"]["omissions"]
+            .to_string()
+            .contains("complete_instruction_selection_budget")
+    );
+    assert_eq!(
+        std::fs::read_to_string(f.root.join(".github/instructions/saves.instructions.md")).unwrap(),
+        current
+    );
 }
 
 #[tokio::test]
