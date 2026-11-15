@@ -10076,17 +10076,17 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "EG-27",
-      "before": "Normal policy contexts observe links outside conventional discovery but do not supply their target contents. Callers must make an additional source read even for small applicable shared guidance.",
-      "user_outcome": "Normal scoped contexts supply complete bounded first-hop linked Markdown evidence alongside direct policy, with source hashes and explicit applicability/authority separation. Missing, excluded and budget-limited targets remain named.",
-      "finite_acceptance": [
-        "A selected guide links an applicable small Markdown document outside discovery; complete body/hash arrives as linked evidence while direct policy sources, qualifications and authority remain unchanged.",
-        "Declared nonmatching scope is not supplied. Linked documents share remaining direct-policy output budgets and a finite read budget; no recursive crawling or partial policy. Named omissions retain exact hash-bound recovery when a complete fingerprint was obtained.",
-        "Both JSON and Markdown expose the same supplied linked evidence; historical contexts never fetch current disk targets. File edits change linked fingerprints and exact-recovery actions. No index/authored writes or actual LegacyValidation whole-project operation."
+      "status": "COMBINED_NATIVE_RUNNING",
+      "original_requirement_ids": [
+        "EG-31",
+        "EG-19",
+        "EG-27"
       ],
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115\\contract.json",
-      "source_commit": "c94f340b64f3a3048900ff3ce8a3cf91bf642d9c"
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-workflow-batch-20261115\\contract.json",
+      "focused_target": "ai_workflow_batch_tests",
+      "expected_native_cases": 18,
+      "native_builds_started": 1,
+      "release_builds_started": 0
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10118,8 +10118,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG27 bounded linked guidance delivery in ordinary scoped context",
-    "next_user_visible_deliverable": "Normal scoped contexts supply complete bounded first-hop linked Markdown evidence alongside direct policy, with source hashes and explicit applicability/authority separation. Missing, excluded and budget-limited targets remain named.",
+    "active_original_item": "Combined EG31/EG19/EG27 verification; all three source changes frozen.",
+    "next_user_visible_deliverable": "One18-case native target, all three public workflow fixtures on its reused debug binary, then one release and candidate/installed acceptance.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10136,7 +10136,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: EG31 Git-driven maintenance source committed and queued without compiling.",
+    "previous_goal_turn_classification": "progress: current-ruling view source committed and queued; no compilation in the previous turn.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15992,7 +15992,7 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-workflow-batch-20261115",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
@@ -16006,6 +16006,6 @@
     ],
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "independent_requirements_queued": 3,
-    "builds_started": 0
+    "builds_started": 1
   }
 }
