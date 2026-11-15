@@ -165,6 +165,11 @@ they feed blast radius, edit safety, and the ADP gates.
   older indexed revisions. Three existing LegacyValidation first-party files refreshed.
   [Delivery](eval/legacy_validation-navigation-policy-batch-delivery-20261114.json). Remaining: other target languages (outside LegacyValidation scope),
   blast-radius polymorphism weight (#15), guard-parity inheritance awareness.*
+  VB guard-parity inheritance context is source-complete and queued for combined
+  validation on November15. Base-class call citations retain source hashes;
+  they do not suppress local warnings or establish runtime authorization.
+  Native/public checks and installation remain pending; this item stays partial.
+  [Source progress](eval/inherited-guard-review-progress-20261115.json).
   `engram_graph/src/store.rs`, `cs_extractor.rs`, `vb_extractor.rs`, `parsing.rs`. There
   are 33 edge kinds but no type hierarchy. An agent can't answer "who implements
   IRepository" or see that editing a base class touches 50 subclasses. This also fixes a

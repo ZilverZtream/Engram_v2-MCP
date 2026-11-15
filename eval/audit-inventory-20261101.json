@@ -10109,8 +10109,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "No source item selected yet after combined delivery; select the next original LegacyValidation priority from concrete unfinished behavior.",
-    "next_user_visible_deliverable": "Continue sequential source delivery on the original shortlist, accumulate independent outcomes before the next combined validation; no per-feature release.",
+    "active_original_item": "TODO9 VB inherited-guard review source-complete and queued for combined validation; no build authorized for this item alone.",
+    "next_user_visible_deliverable": "Continue source implementation of distinct unfinished original requirements before the guarded combined batch. Inherited guard source is not installed delivery.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10127,7 +10127,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: current-ruling view source committed and queued; no compilation in the previous turn.",
+    "previous_goal_turn_classification": "progress: committed VB inheritance-aware guard review and seven pending behavioral checks; queue1 of minimum3 independent requirements, no compilation.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15895,7 +15895,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-9",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "7af4783ff197982963084057791e3ed599032720",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115\\contract.json",
+        "progress_record": "eval/inherited-guard-review-progress-20261115.json",
+        "user_outcome": "VB guard review cites selected base-class permission conventions without suppressing local warnings or claiming protection."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",

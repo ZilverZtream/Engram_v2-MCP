@@ -991,7 +991,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "The latest three independent requirements are installed: Git-driven instruction maintenance, current review rulings and linked guidance in implementation context; see eval/ai-workflow-batch-delivery-20261115.json. Continue sequential original source work and accumulate at least three independent source-complete requirements before the next guarded compilation. Do not restart the delivered differential module-persistence fix from stale S15 summary fields. Preserve all unfinished semantic/usefulness, authority and release requirements.",
+  "next_user_visible_deliverable": "TODO9 inherited-guard review source is committed and queued; seven focused behavioral cases await combined validation. Finish distinct original source requirements before the minimum-three build gate. Latest installed delivery remains eval/ai-workflow-batch-delivery-20261115.json; all original unfinished requirements and holds remain.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2555,7 +2555,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-9",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "7af4783ff197982963084057791e3ed599032720",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115\\contract.json",
+        "progress_record": "eval/inherited-guard-review-progress-20261115.json",
+        "user_outcome": "VB guard review cites selected base-class permission conventions without suppressing local warnings or claiming protection."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",

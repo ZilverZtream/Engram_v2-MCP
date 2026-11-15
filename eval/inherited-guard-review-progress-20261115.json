@@ -1,0 +1,55 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T20:19:45.039270+00:00",
+  "original_requirement_id": "TODO-9",
+  "original_requirement": "TODO9 remaining guard-parity inheritance awareness; VB/WebForms review workflow. Other target-language expansion and closed CodeMap/Blast work are excluded.",
+  "source_commit": "7af4783ff197982963084057791e3ed599032720",
+  "runtime_source_commit": "e9aa55c28db0b7c0d5e5cdc7d017e772e40281d7",
+  "observed_missing_behavior": "GuardParityGate only consulted calls elsewhere in the changed file. A new VB handler received no review context from current indexed base-class permission conventions.",
+  "implementation_files": [
+    "crates/engram_server/src/services/pre_commit_review_service/gates.rs",
+    "crates/engram_server/src/services/pre_commit_review_service/gates/inherited_guards.rs",
+    "crates/engram_server/tests/inherited_guard_review_tests.rs"
+  ],
+  "wanted_behavior": [
+    "Cite source-verified guard calls in indexed VB base classes for the class containing an added handler, including transitive bases.",
+    "Preserve local missing-guard warnings; inherited calls never establish runtime protection or suppress a finding.",
+    "Base-only evidence is an informational review finding with source line, full-file hash and revision qualification.",
+    "Withhold stale/future/unresolved inheritance evidence and disclose missing coverage; avoid basename inference and unrelated classes.",
+    "Do not promote documentation, string examples or guard helper declarations to permission call evidence."
+  ],
+  "finite_acceptance": {
+    "native_target": "inherited_guard_review_tests",
+    "native_cases": 7,
+    "existing_affected_cases": "pre_commit_review_gate_tests guard_parity filter only",
+    "public_fixture": "Owned indexed VB WebForms fixture: base-only source citations, retained local warning and stale-base coverage disclosure. Run through pre_commit_review on combined debug/candidate/installed binaries.",
+    "acceptance_expansion": "None after finite behavior passes; original TODO9 remains partial for explicitly retained unrelated remainders."
+  },
+  "checks_completed": [
+    "Rust2024 syntax parsing of touched Rust files via rustfmt; targeted new files formatted",
+    "git diff --check on selected source paths"
+  ],
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "builds_started": 0,
+  "source_sha256": {
+    "crates/engram_server/src/services/pre_commit_review_service/gates.rs": "66fe9fde44acf80c697b317b0558f83ef81e443023beead364cabd124cdc8859",
+    "crates/engram_server/src/services/pre_commit_review_service/gates/inherited_guards.rs": "4fc3896ec3229a05d6dc97b8ddd870c6c117b1ff8babfcb02686e3d2adb373d0",
+    "crates/engram_server/tests/inherited_guard_review_tests.rs": "7b41ad19390b2befe4a9977bda1dada5b3ac2d112eaed4d510b219906a765dac"
+  },
+  "delivery_cadence": "One independent source outcome. Queue it before source work on other original requirements; do not compile until the existing minimum-three guard is satisfied.",
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115\\contract.json",
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115",
+    "created_fixtures": 0,
+    "created_processes": 0,
+    "retention": "Retain contract/source/static-check receipts until combined native/public validation and deployment are recorded; no preexisting-folder deletion."
+  },
+  "limits": [
+    "Not installed or behaviorally validated; syntax parsing is not compilation.",
+    "VB only. Source-bound base conventions do not prove runtime guard execution or applicability.",
+    "No measured LegacyValidation task benefit; unchanged installed package.",
+    "Other TODO9 language/inheritance requirements, all original31 findings/19 gates and existing holds remain tracked."
+  ]
+}
