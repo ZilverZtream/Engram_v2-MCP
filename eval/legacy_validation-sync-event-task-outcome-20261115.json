@@ -1,0 +1,185 @@
+{
+  "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+  "at_utc": "2026-11-15T15:47:33.324412+00:00",
+  "finding": "Original EG24/EG25 current LegacyValidation task usefulness",
+  "task": "Prepare a focused source-backed regression QA plan for ProcessAllPendingEvents: event selection/checkpoint, ordering, dispatch, returned failures, unknown event types and repeated invocations. Include CustomerCreateV1 existing/new-path and SQL parameter/connection boundary considerations. State expected current behavior and cite source path/line ranges. Separate conditional risks from unconfirmed domain policy; retry requirements are not given. State what the supplied source cannot prove. Do not edit production code or claim SQL/API/application execution.",
+  "scope": "One frozen sync-event QA task; two fresh no-history candidates and one fresh source judge with opaque IDs and arm mapping withheld. One pass each. No replay or outcome tuning.",
+  "producer_binary_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
+  "source_pins": {
+    "App_Code/multitenant/code/SyncData.ProcessEvent.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+      "sha256": "565dee29b05488e9e02bdd36472217c9986f9e21c4fb6c20f3ef854d34797272",
+      "bytes": 47049
+    },
+    "App_Code/multitenant/code/SyncData.Definitions.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+      "sha256": "8a337fe6dc714826652d37d0f884a656930b629ef44c798ded08fc9349a65c0c",
+      "bytes": 4713
+    }
+  },
+  "arms": {
+    "source_only": {
+      "candidate_agent": "/root/sync_qa_candidate_a",
+      "candidate_id": "d6ec10287b4f",
+      "reply": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\candidate-a.json",
+        "bytes": 13203,
+        "sha256": "d43a672aace1a75b25d7cb249b71076f4c9116bdadd2b0e6d0d5d261eefee669"
+      },
+      "input_bytes": 13720,
+      "proposed_case_count": 10,
+      "criteria_satisfied": 6,
+      "criteria_total": 6,
+      "criteria": {
+        "checkpoint": "satisfied",
+        "selection_order": "satisfied",
+        "unknown_event": "satisfied",
+        "returned_failure": "satisfied",
+        "retry_scope": "satisfied",
+        "sql_and_limits": "satisfied"
+      },
+      "rationale": {
+        "checkpoint": "Current behavior and Q1-Q2 state zero for empty history and the largest recorded ID regardless of status, explicitly including GeneralError and UnknownEventType.",
+        "selection_order": "Q1-Q3 check strict greater-than selection, exclusion of lower or equal IDs, and ascending dispatch from unsorted input.",
+        "unknown_event": "Q5 expects no listed helper, status 2 with an empty message, recording, continuation and subsequent exclusion after successful submissions.",
+        "returned_failure": "Q3 checks unchanged returned status/message persistence and later dispatch after GeneralError, ItemNotFound or ConfigurationError; Q8-Q9 distinguish returned failures from escaping exceptions.",
+        "retry_scope": "Q2 explicitly excludes both a recorded failed ID and a lower missing ID on repeated calls. Risks condition recovery concerns on unspecified requirements, and uncertainties acknowledge external recovery paths.",
+        "sql_and_limits": "Q6-Q9 distinguish existing updates from the seven AddWithValue parameters in the identity-insert batch and address connection state, disposal and exception boundaries. Provider inference, null/length outcomes, transactions, concurrency and actual persistence remain qualified. Proposed cases receive no execution credit; the supplied proof establishes stubbed driver control flow only."
+      },
+      "false_guidance": [],
+      "reply_file_written_utc": "2026-11-15T15:43:12.681499+00:00"
+    },
+    "engram_assisted": {
+      "candidate_agent": "/root/sync_qa_candidate_b",
+      "candidate_id": "40a573eae09d",
+      "reply": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\candidate-b.json",
+        "bytes": 14217,
+        "sha256": "e910959e7587b6830d67498d2e563705d0080a5cf95043fd1c538c4ef6a09c60"
+      },
+      "input_bytes": 122448,
+      "proposed_case_count": 9,
+      "criteria_satisfied": 6,
+      "criteria_total": 6,
+      "criteria": {
+        "checkpoint": "satisfied",
+        "selection_order": "satisfied",
+        "unknown_event": "satisfied",
+        "returned_failure": "satisfied",
+        "retry_scope": "satisfied",
+        "sql_and_limits": "satisfied"
+      },
+      "rationale": {
+        "checkpoint": "Current behavior and Q1 explicitly use the greatest recorded ID across all statuses, defaulting to zero, and demonstrate a failed highest checkpoint.",
+        "selection_order": "Q1 excludes IDs at or below the checkpoint, and Q2 checks ascending dispatch despite shuffled input, with source citations.",
+        "unknown_event": "Q4 expects no helper call, status 2 and an empty message, ledger submission, continuation and exclusion on the next call.",
+        "returned_failure": "Q3 checks GeneralError and its exception message are recorded without stopping the later event; other returned failure statuses are also covered.",
+        "retry_scope": "Q1, Q3 and Q4 describe subsequent exclusion after successful commits. Risks explicitly make retry concerns conditional on unspecified recovery policy and acknowledge external recovery is unknown.",
+        "sql_and_limits": "Q5-Q8 distinguish existing-row updates from the seven-parameter IDENTITY_INSERT path and cover connection, parameter and exception boundaries. SQL types/sizes, null behavior, transactions, concurrency and persistence are qualified as unproven. Proposed cases receive no execution credit; the supplied proof establishes stubbed driver control flow only."
+      },
+      "false_guidance": [],
+      "reply_file_written_utc": "2026-11-15T15:43:31.605773+00:00"
+    }
+  },
+  "judge": {
+    "agent": "/root/sync_qa_source_judge",
+    "reply": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\judge.json",
+      "bytes": 3395,
+      "sha256": "8d4e2aaa334b815131e85fa387e42515d2d84c6c8d1204b695c5314dd62f77ae"
+    },
+    "arm_mapping_withheld": true,
+    "limit": "Reply content can reveal tool observations; no claim of perfect arm blinding."
+  },
+  "comparison": {
+    "assisted_minus_source_criteria": 0,
+    "input_bytes_added": 108728,
+    "assisted_to_source_input_ratio": 8.924781341107872,
+    "input_increase_percent": 792.4781341107872,
+    "task_benefit_established": false,
+    "interpretation": "Both satisfy all six frozen criteria without identified false guidance. Additional Engram context demonstrates no incremental scored benefit on this single task; this is not a broad product verdict."
+  },
+  "source_proof": {
+    "cases": 6,
+    "status": "SIX_SOURCE_CONTROL_FLOW_CASES_VERIFIED",
+    "limits": "Exact extracted driver/status/enum with in-memory contexts and helper stubs. No real ORM, SQL, API, helper side effects or app integration. Candidate QA cases were proposed, not executed."
+  },
+  "run_accounting": {
+    "candidate_runs": 2,
+    "judge_runs": 1,
+    "engram_builds": 0,
+    "engram_server_model_generation_calls": 0,
+    "engram_tool_calls_during_agent_comparison": 0,
+    "prior_capture_mcp_tool_calls": 6,
+    "coordinator_elapsed_seconds_including_preparation_and_bookkeeping": 368.110197,
+    "elapsed_is_model_latency_comparison": false,
+    "billed_tokens_and_dollar_cost": "Not available; not inferred from packet bytes or elapsed time.",
+    "bookkeeping_correction": "Initial result recorder rejected the judge JSON UTF-8 BOM before writing outcomes; recorder now decodes UTF-8 BOM. No candidate or judge replay."
+  },
+  "preservation": {
+    "verified_utc": "2026-11-15T15:45:23.670322+00:00",
+    "actual_named_sources_unchanged": {
+      "App_Code/multitenant/code/SyncData.ProcessEvent.vb": true,
+      "App_Code/multitenant/code/SyncData.Definitions.vb": true
+    },
+    "normal_config_unchanged": true,
+    "engram_builds": 0,
+    "engram_model_generation_calls": 0,
+    "new_application_or_sql_execution": false,
+    "new_executable_fixtures_created": false,
+    "retention": "Frozen inputs, outputs, judge packet and receipts stay in this recorded case directory as evidence; no preexisting folders removed."
+  },
+  "evidence": {
+    "authorization.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\authorization.json",
+      "bytes": 345,
+      "sha256": "0b9a4435017ba912c8c71ca1d16ed824fd0d365c844e995c854930fe587dd041"
+    },
+    "candidate-a-receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\candidate-a-receipt.json",
+      "bytes": 254,
+      "sha256": "260aa3c991e62459a1e8838ee4dea2ca7523c23e4c56b5ebbdfb9139e0f12620"
+    },
+    "candidate-b-receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\candidate-b-receipt.json",
+      "bytes": 253,
+      "sha256": "dc9e2f43a46c040d8f00c64d9c45a75d3815660ba68ec592f645577cf8463b2f"
+    },
+    "candidate-launch.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\candidate-launch.json",
+      "bytes": 237,
+      "sha256": "07259111e4eccd53cc07751f1ae42389ec8846d403e735f11a93d0bbf8ca8c04"
+    },
+    "judge-launch.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\judge-launch.json",
+      "bytes": 263,
+      "sha256": "fb5351ea0c3382a49ef0cd1ad1ba5a3fd7b8de0895874c44952641418cf51690"
+    },
+    "judge-packet.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\judge-packet.json",
+      "bytes": 60423,
+      "sha256": "0e2da834c568df0ec2b063d0eaf0a226a90402cc0e9d927f777f41ce38dd9dbc"
+    },
+    "private-run-mapping.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\private-run-mapping.json",
+      "bytes": 285,
+      "sha256": "2dc7e2b31d7c5c542cb830997d43f14416a4b341862ed6f5d4f62c283ea7e372"
+    },
+    "preservation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\preservation.json",
+      "bytes": 571,
+      "sha256": "b19aea67d7ade955382429700ef9a45e8c40766cbe8bac23240f2d45658d3534"
+    }
+  },
+  "freeze": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\freeze.json",
+    "bytes": 7761,
+    "sha256": "3a1a747c0b0bf81ff683b23dfed9027f284d4f3466ab057ffa386005b6b5be5b"
+  },
+  "frozen_inputs_unchanged": true,
+  "protected_wip9_unchanged": true,
+  "broader_goal_complete": false,
+  "next_action": "No replay or tuning. Continue already selected TODO31 identity-insert source-workflow delivery under its finite contract; no recapture of these packets or claim they test unshipped changes."
+}

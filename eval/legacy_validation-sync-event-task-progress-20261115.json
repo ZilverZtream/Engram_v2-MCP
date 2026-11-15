@@ -1,6 +1,6 @@
 {
-  "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
-  "at_utc": "2026-11-15T15:06:51.334361+00:00",
+  "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+  "at_utc": "2026-11-15T15:47:33.324412+00:00",
   "finding": "Original EG24/EG25 fresh sync-event QA task",
   "task": "Prepare a focused source-backed regression QA plan for ProcessAllPendingEvents: event selection/checkpoint, ordering, dispatch, returned failures, unknown event types and repeated invocations. Include CustomerCreateV1 existing/new-path and SQL parameter/connection boundary considerations. State expected current behavior and cite source path/line ranges. Separate conditional risks from unconfirmed domain policy; retry requirements are not given. State what the supplied source cannot prove. Do not edit production code or claim SQL/API/application execution.",
   "source_pins": {
@@ -114,15 +114,16 @@
       "sha256": "49406f918752d74de271065066e831fd4e495024e8dbb90ef08844a4b85c6bbe"
     }
   },
-  "candidate_runs": 0,
-  "judge_runs": 0,
+  "candidate_runs": 2,
+  "judge_runs": 1,
   "delegation_request": {
-    "status": "PENDING_OPTIONAL_USER_REPLY",
-    "reason": "Current session delegation instruction requires explicit request for a new independent-agent run; previous request covered the completed invoice task.",
-    "requested": "Two fresh no-history candidates and one blinded source judge, one pass each on frozen packets. No outcome tuning or replay."
+    "status": "AUTHORIZED_BY_USER",
+    "answer": "Run the three agents",
+    "scope": "Two fresh candidates and one blinded judge, one pass each on frozen packets",
+    "authorization_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\agent-run1\\authorization.json"
   },
   "engram_builds_started": 0,
-  "comparison_complete": false,
+  "comparison_complete": true,
   "task_benefit_established": false,
   "broader_goal_complete": false,
   "retained_failure": "capture1 index request used unsupported max_commits; invalid request rejected before indexing, corrected capture2 retained all three tool outputs. Criteria/source proof were unchanged.",
@@ -173,6 +174,23 @@
     "capture2/matrix.json": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\capture2\\matrix.json",
       "sha256": "7920cdf798bd9b8c4b713f57436323bee1d1a3726261ff6a574c62509fe91a7b"
+    }
+  },
+  "outcome_record": "eval/legacy_validation-sync-event-task-outcome-20261115.json",
+  "comparison_summary": {
+    "source_only": {
+      "criteria_satisfied": 6,
+      "criteria_total": 6,
+      "proposed_case_count": 10,
+      "input_bytes": 13720,
+      "false_guidance": []
+    },
+    "engram_assisted": {
+      "criteria_satisfied": 6,
+      "criteria_total": 6,
+      "proposed_case_count": 9,
+      "input_bytes": 122448,
+      "false_guidance": []
     }
   }
 }
