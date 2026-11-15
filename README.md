@@ -59,11 +59,15 @@ Their order is not a measured ranking of agent benefit. The
 met 19/20 criteria with assistance versus the baseline's 20/20. The
 [November 14 archive check](eval/legacy_validation-archive-task-check-outcome-20261114.json)
 met 14/20 versus 16/20, with no false guidance identified. Both quality gates
-failed. These are different task sets, so their scores do not measure a version
-change. Neither check establishes productivity gain or completed application
+failed. The [November 15 invoice QA comparison](eval/legacy_validation-invoice-task-outcome-20261115.json)
+met 6/7 criteria with assistance versus 7/7 from source alone. Both detected the
+same defect and produced ten correct desired-behavior cases; the assisted packet
+was 25,867 bytes larger (58.03%). No incremental QA benefit was demonstrated.
+These are different task sets, so their scores do not measure a version
+change. None of these checks establishes productivity gain or completed application
 validation; the archive result also retains its read-instruction ambiguity.
 
-### Original LegacyValidation improvement shortlist — delivery evidence, November 13
+### Original LegacyValidation improvement shortlist — receipts through November 15
 
 This is the original research shortlist, scoped to LegacyValidation's VB.NET/WebForms,
 JavaScript/TypeScript and SQL workflows. Each link records the tested runtime
@@ -79,7 +83,7 @@ and acceptance scope; it is not a new test of every feature on the latest binary
 | Evidence-backed area drafts | [Existing OX QA handoff](eval/eg14-evidence-pack-reconciliation-20261112.json): scoped claims, source quotations, shared-rule references, exceptions and explicit gaps. | No policy publication, completed application validation or productivity claim. |
 | Instruction ownership, scope and overflow | [Installed generator behavior](eval/eg15-eg17-generator-delivery-20261111.json) preserves authored files and qualified rules, with complete overflow recovery. | [Legacy production rule ownership](eval/eg28-installed-ownership-delivery-20261112.json) remains unresolved; adoption is not inferred. |
 | Freshness and maintenance | [Dependency-specific JS/TS observations](eval/legacy_validation-instruction-scope-delivery-20261113.json), [scope coverage warnings](eval/legacy_validation-instruction-routing-delivery-20261113.json), and [source-bound proposals with stale refusal](eval/eg31-installed-maintenance-delivery-20261111.json). | Mechanical drift does not establish policy correctness or authorize rewriting guidance. |
-| Demonstrated task usefulness | [Current-output command and original comparison](eval/legacy_validation-current-task-check-outcome-20261113.json); [archive comparison with isolated historical sources](eval/legacy_validation-archive-task-check-outcome-20261114.json). | **Latest quality failed: assisted 14/20, baseline 16/20**, with more assisted context and no reads saved. The original 19/20 versus 20/20 failure and [helper QA comparison with no incremental benefit](eval/legacy_validation-snapping-helper-qa-outcome-20261113.json) remain recorded. The archive packets are frozen, but broader held-out/hosted verification and demonstrated implementation benefit remain open. |
+| Demonstrated task usefulness | [Current-output comparison](eval/legacy_validation-current-task-check-outcome-20261113.json), [historical archive comparison](eval/legacy_validation-archive-task-check-outcome-20261114.json), and [November 15 invoice QA](eval/legacy_validation-invoice-task-outcome-20261115.json). | **Latest invoice case: assisted 6/7, source-only 7/7; no incremental benefit.** Both detected the same defect with ten correct cases each; assisted input grew 58.03%. Earlier 19/20 versus 20/20 and 14/20 versus 16/20 failures, and the [helper QA comparison](eval/legacy_validation-snapping-helper-qa-outcome-20261113.json), remain recorded. Different task sets do not measure version gains; broader held-out/hosted verification and demonstrated implementation benefit remain open. |
 
 Later installed deliveries include [direct method/source guidance and bounded
 recovery](eval/legacy_validation-method-read-batch-delivery-20261114.json), and [ordinary SQL
@@ -1217,7 +1221,9 @@ instruction-file generation and pre-push audits. Core clients can poll and cance
 their indexing jobs with `get_job_status` and `cancel_job`. Normal review evidence
 can be recovered through Core's advertised `get_review_decisions`, including
 complete retained discussion input and immutable decision events. Core omits the
-optional advanced catalog to keep its 32-tool ceiling.
+optional advanced catalog to keep its 33-tool ceiling. Project applicability can
+reduce the advertised count; an empty registry exposes fewer tools than an
+LegacyValidation WebForms registration.
 
 `validate_generated_code` defaults to checking native code edits. Set
 `include_migration_advice: true` when you also want VB-to-C# translation and

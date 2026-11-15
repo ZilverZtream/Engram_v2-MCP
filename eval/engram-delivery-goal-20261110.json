@@ -40,45 +40,44 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "Original reliable, capability-aware business-rule and review/planning retrieval; TODO2 honest degradation and retained original workflow requirements",
-    "original_requirement": "Existing LegacyValidation workflows remain useful with honest capability/failure disclosure; retrieve qualified rule evidence and source anchors without inventing authority.",
-    "observed_source_gap": "query_business_logic and pre_push_audit propagate hybrid-search failure even though the lexical corpus is available. get_change_set drops its business-rule source-anchor arm on the same failure.",
-    "configuration_relevance": "Actual normal configuration embedding_backend=ollama, llm_backend=openai. This batch concerns embedding retrieval, not model analysis or application behavior.",
-    "components": [
-      "query_business_logic rule lookup",
-      "pre_push_audit quality-rule retrieval",
-      "get_change_set business-rule source anchors"
+    "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
+    "finding": "EG26 current evaluation claims, preset count and normal QA handoff documentation",
+    "original_requirement": "Reconcile current tool schemas, README/roadmap statuses and evaluation claims; dated capability tables must not be presented as measured readiness.",
+    "observed_gaps": [
+      "eval/README.md calls November13 latest despite November14/15 negative results.",
+      "Main README still calls the archive comparison latest and contradicts its own33tool Core count with a32tool ceiling.",
+      "Quickstart supplies discovery/search but omits the targeted business analysis prerequisite for deriving source-backed rule cases.",
+      "Roadmap EG24/25 rows omit the later failed/negative comparisons."
     ],
     "files": [
-      "crates/engram_server/src/services/rule_retrieval.rs",
-      "crates/engram_server/src/services/mod.rs",
-      "crates/engram_server/src/handlers/cognitive_tools.rs",
-      "crates/engram_server/src/handlers/quality_gate_tools.rs",
-      "crates/engram_server/src/handlers/planning_tools.rs",
-      "crates/engram_server/tests/rule_retrieval_fallback_tests.rs"
+      "eval/README.md",
+      "README.md",
+      "docs/QUICKSTART.md",
+      "docs/ROADMAP.md"
     ],
     "finite_acceptance": [
-      "Installed baseline on owned fixture records provider failure for the selected workflows.",
-      "After HTTP503, retain namespace/project query scope, useful matching identities and existing source/coverage qualifications, with explicit lexical fallback disclosure.",
-      "Healthy subsequent calls use normal ranking; lexical errors and cancellation remain errors.",
-      "One combined focused native build after all three components, one release, same candidate and installed public behavior; no whole-suite build."
+      "Each current evaluation claim matches the retained dated outcome JSON without rerunning inspected cases or inventing benefit/cost/latency.",
+      "One read-only installed tools/list capture confirms current Full/Core preset count and exact JSON request fields for the documented QA sequence.",
+      "Example JSON parses and has only actual installed schema properties. All local links in edited sections resolve.",
+      "Existing WIP9, installed binary, normal config and original unresolved requirements remain unchanged; zero builds and zero model/source/application operations."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115",
-    "cleanup_condition": "Owned test resources removed after server/database/provider handles close. Evidence and paired rollback retained until superseded; no preexisting directory deletion.",
-    "non_goals": [
-      "CodeMap/Blast changes",
-      "Provider retry/deadline platform",
-      "New benchmark comparison",
-      "Full-app or task-productivity claims"
-    ],
-    "baseline_root": "b2d3a6f6a95bed51235b9c40a7b969727de13315",
-    "baseline_runtime": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
-    "delivery_record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
-    "source_commit": "15922d3d8dddc7ad3a0c97f0e68d735a6518cef1",
-    "runtime_source_commit": "01aefd8f5fa652664ee594c0156a65c0734b7911",
-    "installed_server_sha256": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
-    "acceptance": "2 focused native tests; 11 public assertions each debug/candidate/installed. Failures and limits retained; no whole-goal closure."
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115",
+    "cleanup_condition": "Owned empty-runtime fixtures removed after server handles close. Retain schema/evidence/claim receipts until superseded; no preexisting folder deletion.",
+    "baseline_commit": "c66a42cb8cf9f736f55fa2fab6eaba93986d9477",
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    },
+    "delivery_record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
+    "new_builds": 0,
+    "verification": "Retained dated outcomes, actual installed schemas, source Core ceiling, example JSON fields and changed local links; WIP/runtime/config unchanged."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -868,40 +867,40 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 210.69588450004812,
-    "actual_test_execution_seconds": 1.14,
-    "last_release_compile_seconds": 838.0,
+    "compiled_tests_seconds": 230.07214599999133,
+    "actual_test_execution_seconds": 7.84,
+    "last_release_compile_seconds": 854.0,
     "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115",
     "completed_last_batch": [
       {
-        "component": "Retained code and knowledge search window",
-        "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
+        "component": "query_business_logic",
+        "delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json"
       },
       {
-        "component": "Retained historical result window",
-        "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
+        "component": "pre_push_audit quality-rule retrieval",
+        "delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json"
       },
       {
-        "component": "Retained verified literal-search window",
-        "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
+        "component": "get_change_set business-rule source anchors",
+        "delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json"
       }
     ],
-    "last_batch_delivery": "eval/legacy_validation-retained-search-delivery-20261115.json",
+    "last_batch_delivery": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
-    "last_native_compile": "3m09s",
-    "last_release_compile": "Finished `release` profile [optimized] target(s) in 14m 58s",
+    "last_native_compile": "2m51s +24.91s fixture correction",
+    "last_release_compile": "14m14s; post-success wrapper flag-order assertion recovered without rebuilding",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Evaluation complete with no incremental benefit; installed runtime unchanged. No pending runtime source from this task.",
-    "last_native_attempts": 1,
+    "current_step_reason": "Documentation-only reconciliation uses installed schemas and retained outcomes; no runtime source pending.",
+    "last_native_attempts": 2,
     "last_release_attempts": 1,
-    "compiled_tests_seconds_scope": "Native runner including compile/cleanup;16mechanism checks retained, final selection verified through MCP",
-    "last_release_runner_seconds": 911.2139538000338,
-    "native_failed_attempts": 0,
-    "public_failed_verifier_attempts": 0,
-    "last_native_runner_seconds": 202.2894162000157,
+    "compiled_tests_seconds_scope": "Sum of native1 and native2 runner durations including compile/cleanup. First fixture setup rejected; corrected dedicated target passed2tests.",
+    "last_release_runner_seconds": 867.0342754999874,
+    "native_failed_attempts": 1,
+    "public_failed_verifier_attempts": 1,
+    "last_native_runner_seconds": 230.07214599999133,
     "latest_cadence_deviation": {
       "at_utc": "2026-11-15T07:47:40.737632+00:00",
       "user_observation": "Minutes of implementation followed by hours of compilation and full-suite work displaces useful product changes.",
@@ -2330,5 +2329,51 @@
     "record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "next": "Advance the next ready original LegacyValidation requirement; do not reopen this passed finite delivery or inspected invoice comparison."
+  },
+  "retained_rule_retrieval_delivery_contract": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "finding": "Original reliable, capability-aware business-rule and review/planning retrieval; TODO2 honest degradation and retained original workflow requirements",
+    "original_requirement": "Existing LegacyValidation workflows remain useful with honest capability/failure disclosure; retrieve qualified rule evidence and source anchors without inventing authority.",
+    "observed_source_gap": "query_business_logic and pre_push_audit propagate hybrid-search failure even though the lexical corpus is available. get_change_set drops its business-rule source-anchor arm on the same failure.",
+    "configuration_relevance": "Actual normal configuration embedding_backend=ollama, llm_backend=openai. This batch concerns embedding retrieval, not model analysis or application behavior.",
+    "components": [
+      "query_business_logic rule lookup",
+      "pre_push_audit quality-rule retrieval",
+      "get_change_set business-rule source anchors"
+    ],
+    "files": [
+      "crates/engram_server/src/services/rule_retrieval.rs",
+      "crates/engram_server/src/services/mod.rs",
+      "crates/engram_server/src/handlers/cognitive_tools.rs",
+      "crates/engram_server/src/handlers/quality_gate_tools.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/tests/rule_retrieval_fallback_tests.rs"
+    ],
+    "finite_acceptance": [
+      "Installed baseline on owned fixture records provider failure for the selected workflows.",
+      "After HTTP503, retain namespace/project query scope, useful matching identities and existing source/coverage qualifications, with explicit lexical fallback disclosure.",
+      "Healthy subsequent calls use normal ranking; lexical errors and cancellation remain errors.",
+      "One combined focused native build after all three components, one release, same candidate and installed public behavior; no whole-suite build."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115",
+    "cleanup_condition": "Owned test resources removed after server/database/provider handles close. Evidence and paired rollback retained until superseded; no preexisting directory deletion.",
+    "non_goals": [
+      "CodeMap/Blast changes",
+      "Provider retry/deadline platform",
+      "New benchmark comparison",
+      "Full-app or task-productivity claims"
+    ],
+    "baseline_root": "b2d3a6f6a95bed51235b9c40a7b969727de13315",
+    "baseline_runtime": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+    "delivery_record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
+    "source_commit": "15922d3d8dddc7ad3a0c97f0e68d735a6518cef1",
+    "runtime_source_commit": "01aefd8f5fa652664ee594c0156a65c0734b7911",
+    "installed_server_sha256": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+    "acceptance": "2 focused native tests; 11 public assertions each debug/candidate/installed. Failures and limits retained; no whole-goal closure."
+  },
+  "readiness_documentation_delivery": {
+    "record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
+    "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
+    "full_EG26_closed": false
   }
 }

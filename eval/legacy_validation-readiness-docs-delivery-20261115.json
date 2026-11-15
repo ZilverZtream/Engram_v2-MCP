@@ -1,0 +1,142 @@
+{
+  "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
+  "at_utc": "2026-11-15T11:00:43.267472+00:00",
+  "finding": "EG26 current evaluation claims, preset ceiling and targeted QA handoff",
+  "changes": [
+    "Evaluation guide and main README lead with the latest invoice result and preserve earlier quality failures.",
+    "Roadmap EG24/25 retains negative results and unfinished usefulness; EG26 remains partial.",
+    "Core ceiling consistently says33 with applicability qualification; QA walkthrough uses installed request fields and targeted declaration-line selection."
+  ],
+  "verification": {
+    "retained_invoice_criteria": {
+      "assisted": "6/7",
+      "source_only": "7/7",
+      "correct_cases_each": 10,
+      "additional_packet_bytes": 25867,
+      "additional_packet_percent": 58.03
+    },
+    "archive_criteria": {
+      "assisted": "14/20",
+      "baseline": "16/20"
+    },
+    "example_calls_validated_against_installed_schemas": [
+      "get_method_info",
+      "analyze_business_logic",
+      "query_business_logic",
+      "derive_test_matrix"
+    ],
+    "core_source_ceiling": 33,
+    "empty_registry_core_tools": 30,
+    "empty_registry_full_tools": 125,
+    "retained_capture_failure": "schema1 expected33 incorrectly assumed a populated WebForms profile; both actual tools/list captures succeeded. Existing observations were validated against source applicability without rerun or changing the original failure receipt.",
+    "normal_legacy_validation_full_discovery": true,
+    "preserved_wip9": true,
+    "runtime_unchanged": true,
+    "changed_local_links_verified": [
+      {
+        "document": "eval/README.md",
+        "target": "legacy_validation-invoice-task-outcome-20261115.json"
+      },
+      {
+        "document": "eval/README.md",
+        "target": "legacy_validation-archive-task-check-outcome-20261114.json"
+      },
+      {
+        "document": "eval/README.md",
+        "target": "legacy_validation-current-task-check-outcome-20261113.json"
+      },
+      {
+        "document": "README.md",
+        "target": "eval/legacy_validation-invoice-task-outcome-20261115.json"
+      },
+      {
+        "document": "README.md",
+        "target": "eval/legacy_validation-current-task-check-outcome-20261113.json"
+      },
+      {
+        "document": "README.md",
+        "target": "eval/legacy_validation-archive-task-check-outcome-20261114.json"
+      },
+      {
+        "document": "README.md",
+        "target": "eval/legacy_validation-invoice-task-outcome-20261115.json"
+      },
+      {
+        "document": "README.md",
+        "target": "eval/legacy_validation-snapping-helper-qa-outcome-20261113.json"
+      },
+      {
+        "document": "docs/QUICKSTART.md",
+        "target": "test-risk-rules.md"
+      },
+      {
+        "document": "docs/ROADMAP.md",
+        "target": "../eval/legacy_validation-current-task-check-outcome-20261113.json"
+      },
+      {
+        "document": "docs/ROADMAP.md",
+        "target": "../eval/legacy_validation-archive-task-check-outcome-20261114.json"
+      },
+      {
+        "document": "docs/ROADMAP.md",
+        "target": "../eval/legacy_validation-invoice-task-outcome-20261115.json"
+      },
+      {
+        "document": "docs/ROADMAP.md",
+        "target": "../eval/legacy_validation-snapping-helper-qa-outcome-20261113.json"
+      },
+      {
+        "document": "docs/ROADMAP.md",
+        "target": "../eval/legacy_validation-invoice-task-outcome-20261115.json"
+      },
+      {
+        "document": "docs/ROADMAP.md",
+        "target": "../eval/legacy_validation-readiness-docs-delivery-20261115.json"
+      }
+    ]
+  },
+  "runtime_change": false,
+  "engram_builds": 0,
+  "new_tests": 0,
+  "model_calls": 0,
+  "actual_legacy_validation_source_operations": 0,
+  "limits": [
+    "Schema validation establishes request shape, not successful task completion or semantic correctness.",
+    "This bounded documentation reconciliation does not close EG24/25/26 or certify every tool/schema claim.",
+    "No inspected task was rerun or tuned; different task sets and pinned binaries do not measure version improvement."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115",
+    "owned_temp_removed": true,
+    "all_fixture_processes_closed": true,
+    "retention": "Schema/raw failure/evidence receipts retained until superseded; no preexisting directory deletion."
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115\\contract.json",
+      "sha256": "d8f4c033d559692e983dbe7c2bd41bf89e59cba4e3ca042270bb407f88dc8b42"
+    },
+    "schema1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115\\schema1\\acceptance.json",
+      "sha256": "160bfd5538fdecf36531cd153abfbc8d79ea37c48e7d0c8dd7ac419520f39144"
+    },
+    "schema1/qa-schemas.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115\\schema1\\qa-schemas.json",
+      "sha256": "6cc2edca9d10f96b5889568c18fc3e51568cd7012ab493c2739682ee938fa28e"
+    },
+    "schema1/core-tools.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115\\schema1\\core-tools.json",
+      "sha256": "59da2cc0a4ff5c454b451343fff756e60e9eef882320ebe7dea06ef581c9ddd5"
+    },
+    "schema1/full-tools.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115\\schema1\\full-tools.json",
+      "sha256": "4b131a944654668d3616abb8c08d2721153cee56a5408384232ba9a69ed908f7"
+    }
+  },
+  "documents": {
+    "eval/README.md": "988d0f7871effd6f66bec67fb8d06749bd439a451c0ab31292cb1df912b711c6",
+    "README.md": "b4bab6ed626dd1db6f79c362beff75ba94020de4a7b1c7cd87aaf6c7e81d75bb",
+    "docs/QUICKSTART.md": "d02d47366fbd71f35baff0c4553c92fece9e19ef356aafb34bbfc4c23594e37c",
+    "docs/ROADMAP.md": "4db550cd72d4d38dbe135d2307b70dcc5af25d19fce7c8ebe60f48b1d8354e58"
+  }
+}

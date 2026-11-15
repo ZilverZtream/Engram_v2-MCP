@@ -18,6 +18,67 @@ Use `search_memory` with that name, `semantic: false` and `include_content: true
 Check the returned path and source, then use its `doc_id` with `get_chunk` if you
 need the stored source. An empty search does not establish that a function is absent.
 
+## From a method to a QA plan
+
+Business-rule cases in `derive_test_matrix` depend on previously analyzed methods.
+An empty analyzed corpus can yield no source-backed rule cases even when the file
+contains useful behavior. Target the methods involved in the task before deriving
+the matrix. These analysis tools need Full discovery when they are absent from
+the Core preset; normal LegacyValidation configuration already uses Full discovery.
+
+The following requests illustrate the sequence. Replace the project, file,
+method and task text with your actual task. Obtain the one-based declaration
+`line` from method/source discovery; `42` is illustrative. Select the correct
+overload rather than guessing its declaration or analyzing the entire project.
+
+```json
+[
+  {
+    "name": "get_method_info",
+    "arguments": {
+      "project_id": "<project_id>",
+      "file_path": "App_Code/InvoicePolicy.vb",
+      "fqn_or_name": "InvoicePolicy.InvoiceExclusion",
+      "output_json": true
+    }
+  },
+  {
+    "name": "analyze_business_logic",
+    "arguments": {
+      "project_id": "<project_id>",
+      "file_path": "App_Code/InvoicePolicy.vb",
+      "method_name": "InvoiceExclusion",
+      "line": 42,
+      "output_json": true
+    }
+  },
+  {
+    "name": "query_business_logic",
+    "arguments": {
+      "project_id": "<project_id>",
+      "query": "InvoicePolicy InvoiceExclusion",
+      "top_k": 5
+    }
+  },
+  {
+    "name": "derive_test_matrix",
+    "arguments": {
+      "project_id": "<project_id>",
+      "files": ["App_Code/InvoicePolicy.vb"],
+      "change_intent": "Preserve row order and the task's account-exclusion behavior."
+    }
+  }
+]
+```
+
+These are sequential tool calls, not one batch request. Inspect each response
+before proceeding: unavailable analysis, omitted evidence and stale source are
+limitations, not approval to infer missing behavior. Source hashes establish
+which code was analyzed; inferred rules still need review against the actual
+task and complete source. The matrix proposes tests; it does not execute them
+or establish application sign-off. For hot-loaded authored test axes, see
+[test risk rules](test-risk-rules.md).
+
 ## Prepare a runtime
 
 If you already have a working Engram installation, use its executable. A Windows

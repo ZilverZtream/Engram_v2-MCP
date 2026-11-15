@@ -2,15 +2,28 @@
 
 ## Current task-evaluation verification
 
-The latest recorded comparison is the [November 13 current-output run](legacy_validation-current-task-check-outcome-20261113.json):
-four known LegacyValidation tasks, eight completed candidates, assisted 19/20 criteria and
-baseline 20/20. No false guidance was identified, but the assisted diagnosis
-answer omitted explicit verification of the corrected displayed style. The
-quality check correctly exited 1. This is a failed regression quality gate,
-not evidence of improved task success. The run used source generation 3149
-and the binary identity in its receipt; it does not certify later releases.
-Fresh held-out evaluation and matched implementation/QA benefit remain open.
-The dated runs below retain their original results.
+The latest recorded task comparison is the [November 15 invoice QA case](legacy_validation-invoice-task-outcome-20261115.json).
+Two fresh candidates and one blinded judge assessed frozen source/task packets.
+The source-only answer met 7/7 criteria; the assisted answer met 6/7, omitting
+the constructor setting identity. Both produced ten correct desired-behavior
+cases and detected the same bulk-exclusion discrepancy. No false guidance was
+identified. The assisted packet added 25,867 bytes (58.03%); per-arm model latency
+and token cost were not exposed. No incremental QA benefit was demonstrated.
+The cases executed copied admission methods with a collector, not LegacyValidation SQL,
+Tripletex or the complete application. Actual LegacyValidation source was unchanged.
+
+The earlier [November 14 archive comparison](legacy_validation-archive-task-check-outcome-20261114.json)
+met 14/20 criteria with assistance versus 16/20 without it, with no identified
+false guidance, more assisted input and no reads saved. Its quality gate failed;
+the receipt preserves historical-source isolation and read-instruction limits.
+The [November 13 current-output run](legacy_validation-current-task-check-outcome-20261113.json)
+also failed its quality gate: assisted 19/20 versus baseline 20/20.
+
+These are different task sets and pinned runtimes; their scores are not a
+version-improvement trend and do not certify subsequent releases. Keep their
+failures and original inputs unchanged. Do not replay or tune inspected cases
+to manufacture benefit. Fresh held-out regular verification and demonstrated
+implementation/QA benefit remain open. The dated runs below retain their results.
 
 `frozen_task_eval.py` verifies a separately recorded private corpus of scoped
 policy, companion-edit, history and diagnosis tasks. Candidate agents receive
