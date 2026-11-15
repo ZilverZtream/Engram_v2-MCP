@@ -126,7 +126,7 @@ fn identifiers(t: &[TokenWithSpan], start: usize) -> Vec<String> {
         .unwrap_or_default()
 }
 
-#[derive(Clone, Serialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct Citation {
     pub path: String,
     pub start_line: u64,
@@ -145,22 +145,22 @@ pub(super) struct Column {
     pub(super) declaration: String,
 }
 #[derive(Clone, Serialize)]
-struct ForeignKey {
-    columns: Vec<String>,
-    references_table: String,
-    referenced_columns: Vec<String>,
-    on_delete: Option<String>,
-    on_update: Option<String>,
-    declaration: String,
+pub(super) struct ForeignKey {
+    pub(super) columns: Vec<String>,
+    pub(super) references_table: String,
+    pub(super) referenced_columns: Vec<String>,
+    pub(super) on_delete: Option<String>,
+    pub(super) on_update: Option<String>,
+    pub(super) declaration: String,
     #[serde(skip)]
-    target: Name,
+    pub(super) target: Name,
 }
 #[derive(Clone, Serialize)]
 pub(super) struct Table {
     pub(super) name: String,
     pub(super) columns: Vec<Column>,
     pub(super) primary_key: Vec<String>,
-    foreign_keys: Vec<ForeignKey>,
+    pub(super) foreign_keys: Vec<ForeignKey>,
     pub(super) constraints: Vec<String>,
     pub(super) constraint_indexes: Vec<Value>,
     pub(super) citation: Citation,
@@ -218,11 +218,6 @@ fn foreign_key(t: &[TokenWithSpan], inline: Option<&str>) -> Option<ForeignKey> 
         declaration: text(t),
         target,
     })
-}
-
-/// Shared declaration reader for schema inventory and database intelligence.
-pub(super) fn parse_column_definition(source: &str) -> anyhow::Result<Column> {
-    column(&tokens(source)?)
 }
 
 fn column(t: &[TokenWithSpan]) -> anyhow::Result<Column> {

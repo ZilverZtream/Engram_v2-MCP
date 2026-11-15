@@ -125,6 +125,10 @@ pub struct SchemaReport {
 #[derive(Debug, Clone, Serialize)]
 pub struct SchemaTable {
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qualified_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_citation: Option<super::schema_query::Citation>,
     pub columns: Vec<SchemaColumn>,
     pub primary_key: Vec<String>,
     pub foreign_keys: Vec<ForeignKey>,
@@ -177,10 +181,6 @@ static CREATE_TRIGGER_RE: LazyLock<Regex> = LazyLock::new(|| {
         r"(?ims)CREATE\s+TRIGGER\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+ON\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(AFTER|INSTEAD\s+OF|FOR)\s+(INSERT|UPDATE|DELETE(?:\s*,\s*(?:INSERT|UPDATE|DELETE))*)",
     )
     .expect("CREATE_TRIGGER_RE")
-});
-
-static CREATE_TABLE_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?im)CREATE\s+TABLE\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s*\(").expect("CREATE_TABLE_RE")
 });
 
 static CREATE_VIEW_RE: LazyLock<Regex> = LazyLock::new(|| {
@@ -559,194 +559,72 @@ pub fn cross_reference_triggers(
 
 // ── Schema Parsing (Ticket 37.4) ─────────────────────────────────────────────
 
-/// Parse CREATE TABLE statements from SQL files.
+/// Legacy table projection over the shared source declaration inventory.
 pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
+    parse_schema_tables_with_coverage(sql_files).0
+}
+
+fn parse_schema_tables_with_coverage(
+    sql_files: &[(String, String)],
+) -> (Vec<SchemaTable>, Vec<String>) {
+    use super::schema_query;
+    let mut catalog = schema_query::Catalog::default();
+    for (path, source) in sql_files {
+        if let Err(error) = catalog.add_source(path, source) {
+            catalog.gaps.push(format!("{path}: {error}"));
+        }
+    }
+    let warnings = catalog.gaps.iter()
+        .map(|gap| format!("INCOMPLETE schema inventory: {gap}"))
+        .collect();
     let mut tables = Vec::new();
-
-    for (path, content) in sql_files {
-        for cap in CREATE_TABLE_RE.captures_iter(content) {
-            let name = cap[1].to_string();
-            let paren_start = cap.get(0).expect("group 0 always present").end(); // position right after '('
-
-            // Find matching closing paren using balanced counting
-            let body = match find_balanced_paren(content, paren_start) {
-                Some(b) => b,
-                None => continue,
-            };
-
-            let mut columns = Vec::new();
-            let mut primary_key = Vec::new();
-            let mut foreign_keys = Vec::new();
-            let mut check_constraints = Vec::new();
-            let mut indexes = Vec::new();
-            let mut parsing_warnings = Vec::new();
-
-            // Split on commas that aren't inside parentheses
-            for segment in split_top_level_commas(body) {
-                let trimmed = segment.trim();
-                let upper = trimmed.to_uppercase();
-
-                if upper.starts_with("CONSTRAINT") || upper.starts_with("PRIMARY KEY") || upper.starts_with("FOREIGN KEY") {
-                    parse_constraint(
-                        trimmed,
-                        &mut primary_key,
-                        &mut foreign_keys,
-                        &mut check_constraints,
-                    );
-                } else if upper.starts_with("INDEX") || upper.starts_with("UNIQUE") {
-                    indexes.push(trimmed.to_string());
-                } else if !trimmed.is_empty() {
-                    match parse_column_def(trimmed) {
-                        Ok(col) => columns.push(col),
-                        Err(error) => parsing_warnings.push(format!(
-                            "INCOMPLETE schema declaration in {path} ({name}): {trimmed}. {error}"
-                        )),
-                    }
-                }
+    for table in catalog.tables {
+        let name = table.key.0.last().cloned().unwrap_or_else(|| table.name.clone());
+        let mut parsing_warnings: Vec<_> = table.gaps.iter().map(|gap| format!(
+            "INCOMPLETE schema declaration in {} ({}): {gap}", table.citation.path, table.name,
+        )).collect();
+        let mut foreign_keys = Vec::new();
+        for key in &table.foreign_keys {
+            if key.columns.len() != key.referenced_columns.len() {
+                parsing_warnings.push(format!("INCOMPLETE foreign-key pairing in {}: {}", table.citation.path, key.declaration));
+                continue;
             }
-
-            tables.push(SchemaTable {
-                name,
-                columns,
-                primary_key,
-                foreign_keys,
-                check_constraints,
-                indexes,
-                parsing_warnings,
-            });
+            for (column, target_column) in key.columns.iter().zip(&key.referenced_columns) {
+                foreign_keys.push(ForeignKey {
+                    column: column.clone(), references_table: key.target.0.last().cloned().unwrap_or_else(|| key.references_table.clone()),
+                    references_column: target_column.clone(), on_delete: key.on_delete.clone(), on_update: key.on_update.clone(),
+                });
+            }
         }
+        let keyword = |declaration: &str, word: &str, first_only: bool| {
+            schema_query::tokens(declaration).is_ok_and(|tokens| {
+                (0..if first_only {tokens.len().min(1)} else {tokens.len()})
+                    .any(|i| schema_query::kw(&tokens, i, word))
+            })
+        };
+        let check_constraints = table.constraints.iter().filter(|text| keyword(text, "CHECK", false)).cloned().collect();
+        // Preserve this field's inline-index/UNIQUE selection here. Source
+        // CREATE INDEX attachment is delivered separately over the same catalog.
+        let indexes = table.constraints.iter().filter(|text| keyword(text, "INDEX", true) || keyword(text, "UNIQUE", true)).cloned().collect();
+        tables.push(SchemaTable {
+            name, qualified_name: Some(table.name), source_citation: Some(table.citation),
+            columns: table.columns.into_iter().map(project_schema_column).collect(),
+            primary_key: table.primary_key, foreign_keys, check_constraints, indexes, parsing_warnings,
+        });
     }
-
-    tables
+    (tables, warnings)
 }
 
-/// Find the balanced closing parenthesis and return the content inside.
-fn find_balanced_paren(s: &str, start: usize) -> Option<&str> {
-    let bytes = s.as_bytes();
-    let mut depth = 1;
-    let mut i = start;
-    while i < bytes.len() && depth > 0 {
-        match bytes[i] {
-            b'(' => depth += 1,
-            b')' => depth -= 1,
-            b'\'' => {
-                // Skip string literals
-                i += 1;
-                while i < bytes.len() && bytes[i] != b'\'' {
-                    i += 1;
-                }
-            }
-            _ => {}
-        }
-        if depth > 0 {
-            i += 1;
-        }
-    }
-    if depth == 0 { Some(&s[start..i]) } else { None }
-}
-
-/// Split a string on commas that are not inside parentheses.
-fn split_top_level_commas(s: &str) -> Vec<&str> {
-    let mut segments = Vec::new();
-    let mut depth = 0;
-    let mut start = 0;
-    for (i, ch) in s.char_indices() {
-        match ch {
-            '(' => depth += 1,
-            ')' => depth -= 1,
-            ',' if depth == 0 => {
-                segments.push(&s[start..i]);
-                start = i + 1;
-            }
-            _ => {}
-        }
-    }
-    if start < s.len() {
-        segments.push(&s[start..]);
-    }
-    segments
-}
-
-fn parse_column_def(line: &str) -> anyhow::Result<SchemaColumn> {
-    let column = super::schema_query::parse_column_definition(line)?;
+fn project_schema_column(column: super::schema_query::Column) -> SchemaColumn {
     let is_computed = column.computed_expression.is_some();
-    Ok(SchemaColumn {
+    SchemaColumn {
         name: column.name,
         data_type: column.data_type.unwrap_or_else(|| "COMPUTED".into()),
-        // Retain the legacy report convention for an unspecified NULL clause;
-        // query_schema separately exposes that source uncertainty as None.
+        // Retain the legacy report convention when NULL is unspecified.
         nullable: column.nullable.unwrap_or(true),
         default_value: column.default_value,
         is_computed,
         computed_expression: column.computed_expression,
-    })
-}
-
-fn parse_constraint(
-    line: &str,
-    primary_key: &mut Vec<String>,
-    foreign_keys: &mut Vec<ForeignKey>,
-    check_constraints: &mut Vec<String>,
-) {
-    let upper = line.to_uppercase();
-
-    // PRIMARY KEY
-    static PK_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)PRIMARY\s+KEY\s*(?:CLUSTERED|NONCLUSTERED)?\s*\(([^)]+)\)").expect("PK_RE")
-    });
-    if let Some(cap) = PK_RE.captures(line) {
-        for col in cap[1].split(',') {
-            let col = col.trim();
-            let col = col.rsplit_once(char::is_whitespace)
-                .filter(|(_, order)| order.eq_ignore_ascii_case("ASC") || order.eq_ignore_ascii_case("DESC"))
-                .map_or(col, |(name, _)| name.trim());
-            let col_name = col
-                .trim_matches('[')
-                .trim_matches(']')
-                .trim()
-                .to_string();
-            if !col_name.is_empty() {
-                primary_key.push(col_name);
-            }
-        }
-        return;
-    }
-
-    // FOREIGN KEY
-    static FK_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(&format!(r"(?i)FOREIGN\s+KEY\s*\(\s*\[?(\w+)\]?\s*\)\s*REFERENCES\s+{QUALIFIED_OBJECT_NAME}\s*\(\s*\[?(\w+)\]?\s*\)"))
-            .expect("FK_RE")
-    });
-    if let Some(cap) = FK_RE.captures(line) {
-        static ON_DELETE_RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r"(?i)ON\s+DELETE\s+(CASCADE|SET\s+NULL|SET\s+DEFAULT|NO\s+ACTION)")
-                .expect("ON_DELETE_RE")
-        });
-        static ON_UPDATE_RE: LazyLock<Regex> = LazyLock::new(|| {
-            Regex::new(r"(?i)ON\s+UPDATE\s+(CASCADE|SET\s+NULL|SET\s+DEFAULT|NO\s+ACTION)")
-                .expect("ON_UPDATE_RE")
-        });
-
-        let on_delete = ON_DELETE_RE.captures(line).map(|c| c[1].to_string());
-        let on_update = ON_UPDATE_RE.captures(line).map(|c| c[1].to_string());
-
-        foreign_keys.push(ForeignKey {
-            column: cap[1].to_string(),
-            references_table: object_basename(&cap[2]).to_owned(),
-            references_column: cap[3].to_string(),
-            on_delete,
-            on_update,
-        });
-        return;
-    }
-
-    // CHECK constraint
-    if upper.contains("CHECK") {
-        static CHECK_RE: LazyLock<Regex> =
-            LazyLock::new(|| Regex::new(r"(?i)CHECK\s*\((.+)\)").expect("CHECK_RE"));
-        if let Some(cap) = CHECK_RE.captures(line) {
-            check_constraints.push(cap[1].trim().to_string());
-        }
     }
 }
 
@@ -1173,7 +1051,7 @@ pub fn build_database_intelligence(
     let triggers = detect_triggers(sql_files);
 
     // Schema parsing + cross-reference
-    let schema_tables = parse_create_tables(sql_files);
+    let (schema_tables, schema_inventory_gaps) = parse_schema_tables_with_coverage(sql_files);
     let schema_views = parse_create_views(sql_files);
     let schema_report = cross_reference_schema(schema_tables, schema_views, code_tables);
 
@@ -1184,6 +1062,7 @@ pub fn build_database_intelligence(
     let trigger_warnings = cross_reference_triggers(&triggers, code_tables);
 
     let mut warnings = trigger_warnings;
+    warnings.extend(schema_inventory_gaps);
     warnings.extend(schema_report.tables.iter().flat_map(|table| table.parsing_warnings.iter().cloned()));
 
     // Add cycle warnings from call chains
@@ -1216,6 +1095,7 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
         && intel.schema.views.is_empty()
         && intel.sp_call_chains.is_empty()
         && intel.sql_scripts.is_empty()
+        && intel.warnings.is_empty()
     {
         return String::new();
     }
@@ -1323,6 +1203,10 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
                 md.push_str(&format!(" (PK: {})", table.primary_key.join(", ")));
             }
             md.push('\n');
+            if let Some(source) = &table.source_citation {
+                md.push_str(&format!("Source declaration: `{}` at `{}:{}-{}`, BLAKE3 `{}`. Static source, not deployed-state proof.\n",
+                    table.qualified_name.as_deref().unwrap_or(&table.name), source.path, source.start_line, source.end_line, source.source_hash));
+            }
 
             if !table.columns.is_empty() {
                 md.push_str(
@@ -1785,6 +1669,8 @@ GO"#
     fn test_schema_cross_reference_check_surfaced() {
         let tables = vec![SchemaTable {
             name: "Products".to_string(),
+            qualified_name: None,
+            source_citation: None,
             columns: vec![],
             primary_key: vec![],
             foreign_keys: vec![],

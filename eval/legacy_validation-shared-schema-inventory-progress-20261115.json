@@ -1,0 +1,36 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "component": "shared SQL table and key inventory",
+  "finding": "TODO59",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "implementation_files": [
+    "crates/engram_server/src/services/schema_query.rs",
+    "crates/engram_server/src/services/database_intelligence_service.rs",
+    "crates/engram_server/src/services/database_column_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_checkpoint_sha256": {
+    "crates/engram_server/src/services/schema_query.rs": "ff4b78090465347f0780f43bc6473e66c86ab5018aeabda85f0b6ea840e2238d",
+    "crates/engram_server/src/services/database_intelligence_service.rs": "33874a74cc0947e673a280b7d040a05be65b0928be2c60674c2b186be0bc6941",
+    "crates/engram_server/src/services/database_column_tests.rs": "b83fa7bd40122628d94ed02a57a0f3a8e4d742eac137fdaaaa78ed654e892ef0",
+    "docs/TOOL_CONTRACT.md": "433481c864c04fbb08d2da7f564fb1bbda23e5e38bce1fd3bad30743a2e719ba"
+  },
+  "behavior": "Database intelligence projects the existing schema_query source catalog instead of its own CREATE TABLE/body/comma/constraint parser. It preserves legacy basenames and adds qualified_name/source_citation; composite key pairs and referential actions follow the shared parse. Table/global gaps remain warnings, and warning-only Markdown reports remain visible.",
+  "tests_added": [
+    "Ordinary composite primary/foreign keys preserve ordering/actions and source path/line/hash; Markdown retains the same source name/location.",
+    "Warning-only report is not silently empty. Existing column/default/refusal tests remain in the combined selection."
+  ],
+  "baseline_source": "Current source duplication and the retained installed table report in C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\b1\\database-report.json",
+  "limits": [
+    "Native and public after-change checks and installation remain pending.",
+    "Legacy nullable boolean defaults true only where neither an explicit clause nor a primary key determines it. No deployed migration-state interpretation.",
+    "Standalone CREATE INDEX attachment is the next component; full three-service SQL consolidation remains unfinished."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
+    "retention": "Source scripts and installed baseline evidence retained for combined delivery review; no new native/runtime fixture was created for this source step."
+  }
+}

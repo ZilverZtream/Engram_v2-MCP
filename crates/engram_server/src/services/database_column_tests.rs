@@ -1,6 +1,65 @@
 use super::*;
 
 #[test]
+fn shared_table_inventory_preserves_composite_keys_and_source_citation() {
+    let source = "-- Declared schema, not deployed-state evidence.\nCREATE TABLE [sales].[Lines] (\n[TenantId] INT,\n[LineId] INT,\n[ParentId] INT NULL,\nCONSTRAINT PK_Lines PRIMARY KEY CLUSTERED ([TenantId] ASC, [LineId] DESC),\nCONSTRAINT FK_Parents FOREIGN KEY ([TenantId], [ParentId]) REFERENCES [sales].[Parents] ([TenantId], [Id]) ON DELETE CASCADE ON UPDATE NO ACTION,\nCONSTRAINT CK_Parent CHECK (ParentId > 0)\n);";
+    let tables = parse_create_tables(&[("lines.sql".into(), source.into())]);
+    assert_eq!(tables.len(), 1);
+    let table = &tables[0];
+    assert_eq!(table.name, "Lines");
+    assert_eq!(table.qualified_name.as_deref(), Some("[sales].[Lines]"));
+    assert_eq!(table.primary_key, ["TenantId", "LineId"]);
+    assert!(!table.columns[0].nullable);
+    assert!(!table.columns[1].nullable);
+    assert_eq!(table.foreign_keys.len(), 2);
+    let pairs: Vec<_> = table
+        .foreign_keys
+        .iter()
+        .map(|key| (key.column.as_str(), key.references_column.as_str()))
+        .collect();
+    assert_eq!(pairs, [("TenantId", "TenantId"), ("ParentId", "Id")]);
+    assert!(
+        table
+            .foreign_keys
+            .iter()
+            .all(|key| key.references_table == "Parents"
+                && key.on_delete.as_deref() == Some("CASCADE")
+                && key.on_update.as_deref() == Some("NO ACTION"))
+    );
+    assert_eq!(table.check_constraints.len(), 1);
+    assert!(table.parsing_warnings.is_empty());
+    let citation = table.source_citation.as_ref().unwrap();
+    assert_eq!(citation.path, "lines.sql");
+    assert_eq!(citation.start_line, 2);
+    assert_eq!(citation.end_line, source.lines().count() as u64);
+    assert_eq!(
+        citation.source_hash,
+        blake3::hash(source.as_bytes()).to_hex().to_string()
+    );
+    let intel = DatabaseIntelligence {
+        schema: SchemaReport {
+            tables,
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+    let markdown = render_database_intelligence_markdown(&intel);
+    assert!(markdown.contains("[sales].[Lines]"));
+    assert!(markdown.contains("lines.sql:2-9"));
+}
+
+#[test]
+fn warning_only_database_report_remains_visible_without_recognized_objects() {
+    let intel = DatabaseIntelligence {
+        warnings: vec!["INCOMPLETE schema inventory: SQL source could not be tokenized".into()],
+        ..Default::default()
+    };
+    let markdown = render_database_intelligence_markdown(&intel);
+    assert!(markdown.contains("INCOMPLETE schema inventory"));
+    assert!(markdown.contains("SQL source could not be tokenized"));
+}
+
+#[test]
 fn ordinary_sql_server_column_sizes_defaults_and_computed_values_are_preserved() {
     let sql = vec![(
         "orders.sql".into(),

@@ -10024,28 +10024,26 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "Original TODO59 shared SQL schema parsing / TODO35 usable schema reports",
-      "original_requirement": "Consolidate overlapping SQL parsing so agent-facing database reports preserve ordinary source declarations consistently.",
-      "observed_missing_behavior": "Two installed tools disagree on unchanged actual atk_atakostnader DDL. query_schema returns NVARCHAR(100), NVARCHAR(5) and ((0))/((1)); analyze_database_intelligence drops lengths and returns malformed ((0)/((1). Both return the five actual columns.",
+      "finding": "Original TODO59 shared SQL table inventory",
+      "original_requirement": "Consolidate overlapping SQL parsing and preserve source evidence in usable database reports.",
+      "observed_missing_behavior": "Database intelligence still discovers table bodies and keys with its own CREATE TABLE/parenthesis/comma/constraint recognizers while query_schema has the existing tokenized source catalog. Database-report table rows omit qualified source names and declaration citations.",
       "implementation_files": [
         "crates/engram_server/src/services/schema_query.rs",
         "crates/engram_server/src/services/database_intelligence_service.rs",
         "crates/engram_server/src/services/database_column_tests.rs",
         "docs/TOOL_CONTRACT.md"
       ],
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\b1\\acceptance.json",
-      "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
       "acceptance": [
-        "Reuse the existing SQL column-declaration parser rather than a second type/default regex. Keep supported type sizes, complete nested default expressions, explicit nullability and computed columns.",
-        "Keep table/PK/FK/index selection unchanged in this component. Surface any refused column declaration in the report rather than silently dropping it during consolidation.",
-        "Verify ordinary native declaration behavior and the exact unchanged actual SQL through both public reports in the combined batch; preserve source/configuration and owned resource cleanup.",
-        "Queue source after implementation; no per-component native/release compile or full suite. Full service consolidation and broader original backlog remain unfinished."
+        "Reuse the existing catalog for table/column/key inventory and remove the duplicate table-body/constraint parser. Preserve legacy basename rows, add qualified_name and declaration citation, and retain canonical supported columns.",
+        "Preserve composite primary/foreign-key member order and referential actions. Surface whole-source and per-table parser gaps, including warning-only reports. Do not interpret ALTER scripts as deployed migration state.",
+        "Check native ordinary declaration/key/citation behavior and unchanged actual LegacyValidation table agreement through public tools in the final combined batch. Keep standalone index attachment for the next selected component.",
+        "Queue source after implementation; no per-component build or full suite. Preserve WIP9 and earlier source components."
       ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
-      "progress": "eval/legacy_validation-shared-schema-columns-progress-20261115.json"
+      "progress": "eval/legacy_validation-shared-schema-inventory-progress-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10077,8 +10075,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO59 consistent shared SQL column declarations",
-    "next_user_visible_deliverable": "Unify schema column declarations so database intelligence retains the same ordinary lengths/defaults as query_schema; no new schema parser or target-language expansion.",
+    "active_original_item": "TODO59 shared SQL table inventory and source provenance",
+    "next_user_visible_deliverable": "Unify table/column/key parsing, then retain ordinary source index declarations; verify/install the three SQL components together.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14408,6 +14406,18 @@
           ],
           "validated": false,
           "deployed": false
+        },
+        {
+          "component": "shared-schema-inventory-20261115",
+          "progress": "eval/legacy_validation-shared-schema-inventory-progress-20261115.json",
+          "source_files": [
+            "crates/engram_server/src/services/schema_query.rs",
+            "crates/engram_server/src/services/database_intelligence_service.rs",
+            "crates/engram_server/src/services/database_column_tests.rs",
+            "docs/TOOL_CONTRACT.md"
+          ],
+          "validated": false,
+          "deployed": false
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -15270,7 +15280,32 @@
       "bounded_delivery_complete": true,
       "delivery": "eval/legacy_validation-history-budget-batch-delivery-20261115.json"
     },
-    "history_budget_batch_delivery": "eval/legacy_validation-history-budget-batch-delivery-20261115.json"
+    "history_budget_batch_delivery": "eval/legacy_validation-history-budget-batch-delivery-20261115.json",
+    "queued_shared_column_contract": {
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "Original TODO59 shared SQL schema parsing / TODO35 usable schema reports",
+      "original_requirement": "Consolidate overlapping SQL parsing so agent-facing database reports preserve ordinary source declarations consistently.",
+      "observed_missing_behavior": "Two installed tools disagree on unchanged actual atk_atakostnader DDL. query_schema returns NVARCHAR(100), NVARCHAR(5) and ((0))/((1)); analyze_database_intelligence drops lengths and returns malformed ((0)/((1). Both return the five actual columns.",
+      "implementation_files": [
+        "crates/engram_server/src/services/schema_query.rs",
+        "crates/engram_server/src/services/database_intelligence_service.rs",
+        "crates/engram_server/src/services/database_column_tests.rs",
+        "docs/TOOL_CONTRACT.md"
+      ],
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\b1\\acceptance.json",
+      "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
+      "acceptance": [
+        "Reuse the existing SQL column-declaration parser rather than a second type/default regex. Keep supported type sizes, complete nested default expressions, explicit nullability and computed columns.",
+        "Keep table/PK/FK/index selection unchanged in this component. Surface any refused column declaration in the report rather than silently dropping it during consolidation.",
+        "Verify ordinary native declaration behavior and the exact unchanged actual SQL through both public reports in the combined batch; preserve source/configuration and owned resource cleanup.",
+        "Queue source after implementation; no per-component native/release compile or full suite. Full service consolidation and broader original backlog remain unfinished."
+      ],
+      "implementation_complete": true,
+      "validated": false,
+      "deployed": false,
+      "progress": "eval/legacy_validation-shared-schema-columns-progress-20261115.json"
+    }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

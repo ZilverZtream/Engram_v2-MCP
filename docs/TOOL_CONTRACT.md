@@ -391,12 +391,15 @@ are available through `find_references` or `traverse_graph`.
 
 ### Database analysis delivery
 
-Database intelligence column reports use the same declaration reader as
-`query_schema` for recognized type sizes, complete default expressions and
-computed columns. Values use canonical SQL formatting. Refused declarations
+Database intelligence table/column/key reports use the same declaration
+inventory as `query_schema` for supported types, complete defaults, composite
+keys and computed columns. Rows retain their legacy basename plus
+`qualified_name` and `source_citation`; Markdown includes the source location
+and hash. Values use canonical SQL formatting. Refused declarations
 remain in each table's `parsing_warnings` and the report warnings; an empty
 `parsing_warnings` field is omitted. The legacy database report uses
-`nullable=true` when the source omits a NULL clause, while `query_schema`
+`nullable=true` when the source omits a NULL clause and no primary key implies
+NOT NULL, while `query_schema`
 retains unknown nullability explicitly. These are source declarations, not
 proof of the deployed database.
 
