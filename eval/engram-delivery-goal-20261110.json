@@ -41,32 +41,28 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-    "finding": "EG20/21 usable history: bounded semantic baseline",
-    "original_requirement": "Caller-controlled useful history without waiting indefinitely for optional semantic ranking; explicit capability/timeout behavior with recoverable filtered results.",
-    "observed_missing_behavior": "search_history rerank_timeout_ms does not bound document/query embeddings. Current source awaits both without a request-level provider budget; retained original installed evidence observed40.49s baseline and the later same-config cold history check4.43s. Neither is a new current timing claim.",
+    "finding": "EG20/21 text history semantic latency",
+    "original_requirement": "Usable caller-controlled history search with honest capability and latency behavior across text/precedent modes.",
+    "observed_missing_behavior": "Installed owned text-mode photo query waited0.3867912s for a350ms embedding delay; current text search has no budget and no lexical fallback on provider failure. Reachability widening repeats hybrid calls without a shared deadline.",
     "implementation_files": [
-      "crates/engram_server/src/services/change_card_service.rs",
-      "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs",
       "crates/engram_server/src/handlers/git_tools.rs",
-      "crates/engram_server/src/models/requests.rs",
       "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/services/change_card_service.rs",
       "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/integration_test.rs",
-      "crates/engram_server/tests/search_history_cutoff_test.rs",
       "docs/TOOL_CONTRACT.md"
     ],
-    "acceptance": [
-      "Positive semantic_timeout_ms covers document+query semantic retrieval together; default5000ms, maximum90000ms; zero skips embedding work. Metadata/Git and the separate LLM reranker are not claimed to share this budget.",
-      "Timeout/provider failure returns the lexical baseline from the same scoped metadata; never an invented empty success. Preserve existing author/path/date/as-of filters, ordinary semantic success and rerank controls.",
-      "JSON and Markdown disclose semantic outcome/budget and lexical fallback. Validate with a bounded controlled Ollama fixture, including healthy recovery and no provider call at zero budget.",
-      "Queue source with the combined delivery cadence; do not compile a separate server harness/release for this component alone. Preserve WIP9 and actual config/source."
-    ],
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "acceptance": [
+      "Apply semantic_timeout_ms to the whole hybrid candidate retrieval including widening rounds. Zero bypasses embeddings; timeout/provider failure recomputes lexical candidates with identical filters and reachability.",
+      "Retain explicit JSON/Markdown outcome/budget scope and typed internal outcome; metadata/local lexical fallback and formatting remain outside the budget.",
+      "Verify controlled provider timeout, zero provider calls, same expected Git commit, cutoff exclusion and healthy provider recovery. Native and release checks wait for the combined batch."
+    ],
     "implementation_complete": true,
     "validated": false,
     "deployed": false,
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b2\\acceptance.json",
-    "progress": "eval/legacy_validation-history-semantic-budget-progress-20261115.json"
+    "progress": "eval/legacy_validation-history-text-budget-progress-20261115.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -876,6 +872,20 @@
         "progress": "eval/legacy_validation-history-semantic-budget-progress-20261115.json",
         "validated": false,
         "deployed": false
+      },
+      {
+        "component": "history-text-budget-20261115",
+        "progress": "eval/legacy_validation-history-text-budget-progress-20261115.json",
+        "source_files": [
+          "crates/engram_server/src/handlers/git_tools.rs",
+          "crates/engram_server/src/handlers/planning_tools.rs",
+          "crates/engram_server/src/models/requests.rs",
+          "crates/engram_server/src/services/change_card_service.rs",
+          "crates/engram_server/src/tools.rs",
+          "docs/TOOL_CONTRACT.md"
+        ],
+        "validated": false,
+        "deployed": false
       }
     ],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
@@ -965,7 +975,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Bound optional document/query embeddings and retain a disclosed lexical history baseline on timeout; no trigger work or repeated completed source-recovery implementation.",
+  "next_user_visible_deliverable": "Complete text-history retrieval control, then carry its fallback into composed planner coverage; validate and install the three related workflow components together.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1711,5 +1721,34 @@
   "selection_notes_20261115": [
     "Existing actual-source observation excludes trigger expansion as a current LegacyValidation priority; no trigger implementation selected.",
     "The existing current-file excerpt tool can retrieve over-limit guidance; no new recovery feature selected from that warning."
-  ]
+  ],
+  "queued_precedent_semantic_contract": {
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "EG20/21 usable history: bounded semantic baseline",
+    "original_requirement": "Caller-controlled useful history without waiting indefinitely for optional semantic ranking; explicit capability/timeout behavior with recoverable filtered results.",
+    "observed_missing_behavior": "search_history rerank_timeout_ms does not bound document/query embeddings. Current source awaits both without a request-level provider budget; retained original installed evidence observed40.49s baseline and the later same-config cold history check4.43s. Neither is a new current timing claim.",
+    "implementation_files": [
+      "crates/engram_server/src/services/change_card_service.rs",
+      "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs",
+      "crates/engram_server/src/handlers/git_tools.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/integration_test.rs",
+      "crates/engram_server/tests/search_history_cutoff_test.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "acceptance": [
+      "Positive semantic_timeout_ms covers document+query semantic retrieval together; default5000ms, maximum90000ms; zero skips embedding work. Metadata/Git and the separate LLM reranker are not claimed to share this budget.",
+      "Timeout/provider failure returns the lexical baseline from the same scoped metadata; never an invented empty success. Preserve existing author/path/date/as-of filters, ordinary semantic success and rerank controls.",
+      "JSON and Markdown disclose semantic outcome/budget and lexical fallback. Validate with a bounded controlled Ollama fixture, including healthy recovery and no provider call at zero budget.",
+      "Queue source with the combined delivery cadence; do not compile a separate server harness/release for this component alone. Preserve WIP9 and actual config/source."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "implementation_complete": true,
+    "validated": false,
+    "deployed": false,
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b2\\acceptance.json",
+    "progress": "eval/legacy_validation-history-semantic-budget-progress-20261115.json"
+  }
 }

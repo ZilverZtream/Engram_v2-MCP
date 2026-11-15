@@ -2170,10 +2170,12 @@ pub struct SearchHistoryRequest {
     /// without an LLM the semantic order is returned and the output says so.
     #[serde(default)]
     pub rerank: Option<bool>,
-    /// Precedent mode: one budget for document and query embedding together,
-    /// 0..=90000 ms. Default5000. Zero skips embeddings; timeout/failure uses
-    /// the same filtered lexical baseline. Git/metadata, rendering and the
-    /// separate optional LLM reranker are outside this budget.
+    /// Optional semantic retrieval, 0..=90000 ms, default5000. In precedent
+    /// mode, document/query embeddings share one budget. Text mode bounds
+    /// all hybrid retrieval/widening rounds together. Zero skips embeddings;
+    /// timeout/failure uses lexical retrieval with the same filters/cutoff.
+    /// Git/metadata, local lexical fallback, rendering and the separate LLM
+    /// reranker are outside this budget; it is not an end-to-end deadline.
     #[serde(default)]
     #[schemars(range(min = 0, max = 90000))]
     pub semantic_timeout_ms: Option<u64>,

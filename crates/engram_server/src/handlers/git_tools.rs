@@ -368,6 +368,45 @@ fn history_doc_identity(path: &str) -> (Option<&str>, Option<&str>) {
     (None, None)
 }
 
+pub(crate) struct HistoryHits {
+    pub runtime: crate::state::ProjectState,
+    pub generation: u64,
+    pub hits: Vec<engram_index::HybridHit>,
+    pub semantic: crate::services::change_card_service::SemanticOutcome,
+    pub semantic_budget_ms: u64,
+}
+
+/// Keep predicates and reachability identical in hybrid and lexical fallback.
+/// Lexical work runs on the blocking pool and is awaited even after a semantic
+/// timeout; a budget does not claim to cancel synchronous local retrieval.
+async fn collect_text_history(
+    search: std::sync::Arc<engram_index::HybridSearchEngine>,
+    mut query: HybridQuery,
+    reachable: Option<&ReachableHistory>,
+    limit: usize,
+    lexical_only: bool,
+) -> anyhow::Result<Vec<engram_index::HybridHit>> {
+    const MAX_POOL: usize = 4096;
+    let cancel = tokio_util::sync::CancellationToken::new();
+    loop {
+        let mut hits = if lexical_only {
+            let engine = search.clone();
+            let q = query.clone();
+            tokio::task::spawn_blocking(move || engine.lexical_search(&q)).await??
+        } else {
+            search.search(&query, None, &cancel).await?
+        };
+        let Some(reachable) = reachable else { return Ok(hits); };
+        let exhausted = hits.len() < query.top_k || query.top_k >= MAX_POOL;
+        hits.retain(|hit| reachable.admits(hit.path.as_str()));
+        if hits.len() >= limit || exhausted {
+            hits.truncate(limit);
+            return Ok(hits);
+        }
+        query.top_k = (query.top_k * 4).min(MAX_POOL);
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum HistoryMode {
     Precedent,
@@ -1881,13 +1920,7 @@ impl Engram {
             (cards::SemanticOutcome::TimedOut { .. }, _) => "lexical fallback (semantic budget exhausted)",
             _ => "lexical fallback (semantic retrieval unavailable)",
         };
-        let semantic_status = match &semantic.outcome {
-            cards::SemanticOutcome::Completed => "completed".to_string(),
-            cards::SemanticOutcome::VectorsDisabled => "skipped: vectors disabled".to_string(),
-            cards::SemanticOutcome::ZeroBudget => "skipped: zero budget".to_string(),
-            cards::SemanticOutcome::TimedOut { budget_ms } => format!("timed out after {budget_ms} ms; lexical fallback"),
-            cards::SemanticOutcome::Failed { .. } => "provider unavailable; lexical fallback".to_string(),
-        };
+        let semantic_status = semantic.outcome.summary();
         let mut semantic_delivery = serde_json::to_value(&semantic.outcome)
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         semantic_delivery["budget_ms"] = json!(semantic_budget);
@@ -1975,35 +2008,25 @@ impl Engram {
             "active_generation":null}))
     }
 
-    /// Typed history results shared with planning; never recover identities from rendered prose.
+    /// Typed history results and actual retrieval outcome shared with planning.
     pub(crate) async fn search_history_hits(
         &self,
         req: SearchHistoryRequest,
-    ) -> Result<
-        (
-            crate::state::ProjectState,
-            u64,
-            Vec<engram_index::HybridHit>,
-        ),
-        McpError,
-    > {
+    ) -> Result<HistoryHits, McpError> {
+        use crate::services::change_card_service::{SemanticOutcome, checked_semantic_timeout_ms};
         validate_project_id(&req.project_id)?;
+        let budget_ms = checked_semantic_timeout_ms(req.semantic_timeout_ms)
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let gen_ = self.get_active_generation(&req.project_id).await?;
         let limit = req.sanitized_limit();
-
-        let reachable = self
-            .reachable_history(&req.project_id, req.as_of_rev.as_deref())
-            .await?;
-
-        let mut query = HybridQuery {
+        let reachable = self.reachable_history(&req.project_id, req.as_of_rev.as_deref()).await?;
+        let query = HybridQuery {
             project_id: req.project_id,
             namespace: "history".into(),
             generation: gen_,
             text: req.query,
             top_k: limit,
-            // fts_mode is a validated enum — invalid values are rejected by
-            // serde at the request boundary before this handler runs.
             fts_mode: req.fts_mode.as_str().to_owned(),
             include_path_prefixes: req.file_filter.map(|f| vec![f]),
             exclude_path_prefixes: req.exclude_paths,
@@ -2014,29 +2037,29 @@ impl Engram {
             date_before: req.date_before,
             use_mmr: req.use_mmr,
         };
-        // Reachability is not an index field, so filter after retrieval and
-        // widen the pool until `limit` survive or the corpus is exhausted —
-        // unreachable commits must not eat result slots.
-        const MAX_POOL: usize = 4096;
-        let hits = loop {
-            let mut hits = ps
-                .search
-                .search(&query, None, &tokio_util::sync::CancellationToken::new())
-                .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            let Some(reachable) = &reachable else {
-                break hits;
-            };
-            let exhausted = hits.len() < query.top_k || query.top_k >= MAX_POOL;
-            hits.retain(|h| reachable.admits(h.path.as_str()));
-            if hits.len() >= limit || exhausted {
-                hits.truncate(limit);
-                break hits;
+        let retrieve = |lexical_only| collect_text_history(
+            ps.search.clone(), query.clone(), reachable.as_deref(), limit, lexical_only,
+        );
+        let quality = ps.search.semantic_quality();
+        let skipped = if quality == engram_index::hybrid::SemanticQuality::Off {
+            Some(SemanticOutcome::VectorsDisabled)
+        } else if budget_ms == 0 {
+            Some(SemanticOutcome::ZeroBudget)
+        } else if quality == engram_index::hybrid::SemanticQuality::DegradedTrigram {
+            Some(SemanticOutcome::ProjectionLexicalOnly)
+        } else { None };
+        let (hits, semantic) = if let Some(outcome) = skipped {
+            (retrieve(true).await, outcome)
+        } else {
+            // One deadline covers every widened hybrid pool, not one per pool.
+            match tokio::time::timeout(std::time::Duration::from_millis(budget_ms), retrieve(false)).await {
+                Ok(Ok(hits)) => (Ok(hits), SemanticOutcome::Completed),
+                Ok(Err(error)) => (retrieve(true).await, SemanticOutcome::Failed { reason: error.to_string().chars().take(240).collect() }),
+                Err(_) => (retrieve(true).await, SemanticOutcome::TimedOut { budget_ms }),
             }
-            query.top_k = (query.top_k * 4).min(MAX_POOL);
         };
-
-        Ok((ps, gen_, hits))
+        let hits = hits.map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        Ok(HistoryHits { runtime: ps, generation: gen_, hits, semantic, semantic_budget_ms: budget_ms })
     }
 
     pub async fn handle_search_history(
@@ -2068,7 +2091,15 @@ impl Engram {
         req.limit = limit
             .saturating_mul(6)
             .min(crate::models::MAX_SEARCH_RESULTS);
-        let (ps, gen_, hits) = self.search_history_hits(req).await?;
+        let retrieved = self.search_history_hits(req).await?;
+        let semantic_status = retrieved.semantic.summary();
+        let mut semantic_delivery = serde_json::to_value(&retrieved.semantic)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        semantic_delivery["budget_ms"] = json!(retrieved.semantic_budget_ms);
+        semantic_delivery["scope"] = json!("One budget covers all hybrid candidate retrieval rounds after project/revision resolution. Local lexical fallback, Git/metadata and formatting are not bounded. Dropping a request does not guarantee remote computation stops.");
+        let ps = retrieved.runtime;
+        let gen_ = retrieved.generation;
+        let hits = retrieved.hits;
 
         let mut groups: Vec<HistoryGroup> = Vec::new();
         for hit in &hits {
@@ -2128,12 +2159,13 @@ impl Engram {
                 "retrieval capability: lexical + semantic vectors"
             }
         };
-        let header = if groups.is_empty() { format!("No history hits found{scope}; {retrieval}.\n") } else { format!(
+        let mut header = if groups.is_empty() { format!("No history hits found{scope}; {retrieval}.\n") } else { format!(
             "History search results ({} commits from {} matching documents, gen {gen_}{scope}; \
              {retrieval}):\n",
             groups.len(),
             hits.len(),
         ) };
+        header.push_str(&format!("Semantic retrieval: {semantic_status}; budget {} ms. Local lexical fallback, Git/metadata and formatting are outside this budget.\n", retrieved.semantic_budget_ms));
         let mut blocks=Vec::new();
         let mut rows=Vec::new();
         for (i, group) in groups.iter().enumerate() {
@@ -2255,7 +2287,7 @@ impl Engram {
 
         history_response::finish(&response_req,header,&blocks,&rows,json!({"mode":"text",
             "scope":scope,"active_generation":gen_,"retrieval_capability":retrieval,
-            "matching_documents_in_retrieved_pool":hits.len(),"rerank":null}))
+            "matching_documents_in_retrieved_pool":hits.len(),"semantic_retrieval":semantic_delivery,"rerank":null}))
     }
 
     pub async fn handle_analyze_temporal_couplings(

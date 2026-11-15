@@ -55,10 +55,24 @@ pub fn checked_semantic_timeout_ms(value: Option<u64>) -> anyhow::Result<u64> {
 #[serde(tag = "status", rename_all = "snake_case")]
 pub enum SemanticOutcome {
     VectorsDisabled,
+    ProjectionLexicalOnly,
     ZeroBudget,
     Completed,
     Failed { reason: String },
     TimedOut { budget_ms: u64 },
+}
+
+impl SemanticOutcome {
+    pub fn summary(&self) -> String {
+        match self {
+            Self::Completed => "completed".into(),
+            Self::VectorsDisabled => "skipped: vectors disabled".into(),
+            Self::ProjectionLexicalOnly => "skipped: projection hybrid search preserves lexical ranking".into(),
+            Self::ZeroBudget => "skipped: zero budget; lexical fallback".into(),
+            Self::TimedOut { budget_ms } => format!("timed out after {budget_ms} ms; lexical fallback"),
+            Self::Failed { .. } => "provider unavailable; lexical fallback".into(),
+        }
+    }
 }
 
 pub struct SemanticResult {

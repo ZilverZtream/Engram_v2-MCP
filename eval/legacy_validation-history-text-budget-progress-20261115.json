@@ -1,0 +1,43 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "component": "bounded text-history hybrid retrieval",
+  "finding": "EG20/21",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "implementation_files": [
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/services/change_card_service.rs",
+    "crates/engram_server/src/tools.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_checkpoint_sha256": {
+    "crates/engram_server/src/handlers/git_tools.rs": "e07a7a59906c697a344b79e02cec507926c962e06942b23210a45c162d0751f0",
+    "crates/engram_server/src/handlers/planning_tools.rs": "3dda4aaca39782dadb8c9587b7675bdbcc61ae850c2136fdbea14f88ca1fb698",
+    "crates/engram_server/src/models/requests.rs": "959f36166ce356e198bf42fe2770a509f3a3839f8a4b596ecba69a21538c7d66",
+    "crates/engram_server/src/services/change_card_service.rs": "3996cf6c8dfcc4cbfc62e19ef14b747cd0f2ce638c7c9147df85118865ab5339",
+    "crates/engram_server/src/tools.rs": "487528f5fb0197b685c9b426fc39ce82181757865d45a467af9f168079ffac39",
+    "docs/TOOL_CONTRACT.md": "fce50ba71acc49081aae9c1db90b0af9c5b1cd73db4aa782cade66721bec8792"
+  },
+  "behavior": "The same semantic_timeout_ms now covers all text-mode hybrid candidate-retrieval/widening rounds together. Zero, timeout or provider error uses local lexical retrieval with identical predicates/reachability. Typed outcomes reach public JSON/Markdown and the planner; planner coverage disclosure is the next component.",
+  "tests_prepared": [
+    "Controlled public text query reproduces350ms provider wait on installed baseline.",
+    "After-change driver checks timeout fallback, exact expected Git commit, zero provider calls, cutoff and healthy recovery; currently unrun.",
+    "Existing cutoff integration tests exercise the shared widening/filter path in the combined native batch."
+  ],
+  "limits": [
+    "Source implemented only; native/public after-change validation and deployment pending.",
+    "Semantic retrieval is bounded; local lexical work, Git/metadata, rendering and independent LLM reranking are outside the budget.",
+    "No equivalence of lexical/semantic ranking quality or total request latency claim."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "owned_baseline_server_and_provider_closed": true,
+    "owned_fixture_removed": true,
+    "retention": "Retain baseline wire evidence and source scripts for combined delivery review."
+  }
+}

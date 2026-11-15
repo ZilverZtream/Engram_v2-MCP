@@ -10356,7 +10356,8 @@ impl Engram {
             })
             .await
         {
-            Ok((_, _, hits)) => {
+            Ok(retrieved) => {
+                let hits = retrieved.hits;
                 let mut seen = HashSet::new();
                 let mut n = 0usize;
                 let mut ignored = 0usize;
