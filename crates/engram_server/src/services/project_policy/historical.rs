@@ -72,6 +72,26 @@ fn read_source(repo: &Repository, tree: &Tree<'_>, path: &str) -> anyhow::Result
     Ok(String::from_utf8(repo.find_blob(entry.id())?.content().to_vec())?)
 }
 
+fn read_linked_source(
+    repo: &Repository, tree: &Tree<'_>, path: &str, remaining: &mut usize,
+) -> anyhow::Result<PolicySource> {
+    let entry = tree.get_path(Path::new(path))?;
+    anyhow::ensure!(matches!(entry.filemode(), 0o100644 | 0o100755), "linked policy is not a regular Git file");
+    let (size, kind) = repo.odb()?.read_header(entry.id())?;
+    anyhow::ensure!(kind == ObjectType::Blob && size <= (*remaining).min(linked_sources::FILE_BYTES),
+        "complete linked Git source exceeds the remaining read limit");
+    // Inspect the immutable blob header before materializing its complete body.
+    *remaining -= size;
+    let blob = repo.find_blob(entry.id())?;
+    let content = String::from_utf8(blob.content().to_vec())?;
+    let characters_total = content.chars().count();
+    Ok(PolicySource {
+        path: path.into(), blake3: blake3::hash(content.as_bytes()).to_hex().to_string(),
+        characters_total, characters_shown: characters_total, truncated: false, content,
+        applicability: vec!["Linked document evidence at source_revision only; assess the linking conditions and target scope. No authority is inherited from the link.".into()],
+    })
+}
+
 pub fn resolve_at_revision(
     root: &Path, revision: Oid, target_paths: &[String], indexed_paths: &[String],
 ) -> anyhow::Result<PolicyContext> {
@@ -120,6 +140,10 @@ fn resolve_with_budget(
         });
     }
     let mut context = select_sources(context, applicable, budget, |source| read_source(&repo, &tree, &source.path));
+    linked_sources::supply_with_reader(&targets, budget, &mut context, |path, remaining| {
+        read_linked_source(&repo, &tree, path, remaining)
+    });
+    context.instruction.push_str(&format!(" Linked source bodies, scope and hashes come exclusively from Git revision {revision}, with project repository prefix `{prefix}`. A missing or unavailable blob never falls back to disk. Historical references offer no current-file read_action; recover omitted evidence from that exact revision and repository-relative path."));
     for omission in &mut context.omissions {
         let path = if prefix.is_empty() { omission.path.clone() } else { format!("{prefix}/{}",omission.path) };
         omission.refetch = format!("Read the complete Git blob `{revision}:{path}` (for example with git show); verify its BLAKE3 when supplied. Do not substitute checkout contents.");

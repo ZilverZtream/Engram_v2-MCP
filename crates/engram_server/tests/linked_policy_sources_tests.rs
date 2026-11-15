@@ -212,7 +212,8 @@ fn historical_guidance_never_substitutes_current_linked_source_bytes() {
     let historical = project_policy::resolve_at_revision(&root, base, &targets(), &[])
         .unwrap()
         .with_source_recovery("owned-project");
-    assert!(historical.linked_sources.is_empty());
+    assert_eq!(historical.linked_sources.len(), 1);
+    assert_eq!(historical.linked_sources[0].content, SHARED);
     assert_eq!(historical.sources[0].content, ROOT);
     assert!(
         historical
@@ -229,6 +230,6 @@ fn historical_guidance_never_substitutes_current_linked_source_bytes() {
         historical
             .references
             .iter()
-            .any(|r| r.status == "not_supplied_applicability_unverified")
+            .any(|r| r.status == "supplied_linked_document_applicability_unverified")
     );
 }

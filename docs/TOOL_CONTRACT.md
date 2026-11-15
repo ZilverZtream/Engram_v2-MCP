@@ -960,3 +960,11 @@ sentinel byte are read, at most128KiB/file; nested links are not crawled. Refere
 name unavailable, scope or budget omissions and supply hash-bound read actions
 when a complete fingerprint is known. JSON and Markdown retain the same complete
 linked evidence. Historical contexts never read current linked documents.
+
+Revision-pinned planning also supplies first-hop `linked_sources` from the same
+Git tree as its direct guidance, with the same scope and selection budgets.
+`source_revision` pins both kinds of evidence; edited or deleted checkout files
+do not change the returned committed bodies or hashes. Missing/oversized Git
+targets remain named and never fall back to disk. Historical references do not
+offer current-file read actions. Recover omitted bodies at the stated commit
+and repository-relative path (including the stated project prefix).
