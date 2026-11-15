@@ -1,0 +1,246 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T10:51:16.747542+00:00",
+  "finding": "Original reliable/capability-aware rule retrieval; honest degradation in three existing LegacyValidation workflows",
+  "source_commit": "15922d3d8dddc7ad3a0c97f0e68d735a6518cef1",
+  "runtime_source_commit": "01aefd8f5fa652664ee594c0156a65c0734b7911",
+  "before": "Installed owned-fixture HTTP503 made business-rule and pre-push retrieval error, and failed the business-rule arm of get_change_set.",
+  "after": "Failed hybrid retrieval returns locally matching rule evidence through lexical search. Both rule tools disclose missing semantic matches; planning retains source anchors and marks that arm partial. Existing source/applicability/citation checks and query scope remain. Healthy requests use normal hybrid retrieval.",
+  "workflows": [
+    "query_business_logic",
+    "pre_push_audit quality-rule retrieval",
+    "get_change_set business-rule source anchors"
+  ],
+  "configuration_relevance": "Normal LegacyValidation configuration uses Ollama embeddings. Acceptance used an owned local embedding/text fixture, not actual provider or production corpus ranking.",
+  "validation": {
+    "native_tests": 2,
+    "public_assertions_per_runtime": 11,
+    "baseline": {
+      "business_lookup_fails": true,
+      "prepush_fails": true,
+      "planning_business_arm_failed": true,
+      "outage_exercised_actual_embedding_http503": true
+    },
+    "debug": {
+      "business_lookup_recovers_matching_analysis": true,
+      "business_discloses_lexical_and_retains_qualification": true,
+      "prepush_recovers_rule_and_full_rule_action": true,
+      "prepush_keeps_retrieved_not_verified_qualification": true,
+      "planning_keeps_business_source_anchor": true,
+      "planning_discloses_lexical_incomplete_coverage": true,
+      "query_business_logic_healthy_provider_recovers": true,
+      "pre_push_audit_healthy_provider_recovers": true,
+      "get_change_set_healthy_provider_recovers": true,
+      "empty_lexical_result_is_not_semantic_absence_proof": true,
+      "outage_exercised_actual_embedding_http503": true
+    },
+    "candidate": {
+      "business_lookup_recovers_matching_analysis": true,
+      "business_discloses_lexical_and_retains_qualification": true,
+      "prepush_recovers_rule_and_full_rule_action": true,
+      "prepush_keeps_retrieved_not_verified_qualification": true,
+      "planning_keeps_business_source_anchor": true,
+      "planning_discloses_lexical_incomplete_coverage": true,
+      "query_business_logic_healthy_provider_recovers": true,
+      "pre_push_audit_healthy_provider_recovers": true,
+      "get_change_set_healthy_provider_recovers": true,
+      "empty_lexical_result_is_not_semantic_absence_proof": true,
+      "outage_exercised_actual_embedding_http503": true
+    },
+    "installed": {
+      "business_lookup_recovers_matching_analysis": true,
+      "business_discloses_lexical_and_retains_qualification": true,
+      "prepush_recovers_rule_and_full_rule_action": true,
+      "prepush_keeps_retrieved_not_verified_qualification": true,
+      "planning_keeps_business_source_anchor": true,
+      "planning_discloses_lexical_incomplete_coverage": true,
+      "query_business_logic_healthy_provider_recovers": true,
+      "pre_push_audit_healthy_provider_recovers": true,
+      "get_change_set_healthy_provider_recovers": true,
+      "empty_lexical_result_is_not_semantic_absence_proof": true,
+      "outage_exercised_actual_embedding_http503": true
+    },
+    "retained_failures": [
+      "baseline1: invalid fake-model data_flow schema, corrected before exercising the selected failure",
+      "native1: fixture mixed namespaces in a batch; only test fixture changed",
+      "debug1: recovery assertion included intentionally lexical zero-budget history arm; verifier narrowed to selected business-rule arm, same binary",
+      "release1: successful Cargo compile followed by wrapper flag-order assertion; original failure retained, stable artifact recovered without rebuilding"
+    ],
+    "full_suite": false,
+    "extra_debug_build": false,
+    "runtime_code_changed_after_native": false
+  },
+  "build_cost": {
+    "native_attempts": 2,
+    "first_compile": "2m51s",
+    "fixture_correction_compile": "24.91s",
+    "native_test_seconds": 7.13,
+    "release_attempts": 1,
+    "release_compile": "14m 14s",
+    "release_runner_seconds": 867.0342754999874
+  },
+  "installed_pair": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\package1",
+    "server_sha256": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+    "manifest_sha256": "181f8ac1848c54c3694259e7caf741a7905aeb2750ced6e0e685d671a415b9ee",
+    "old_server_sha256": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+    "old_manifest_sha256": "da15658c1867379ba57ab85dbe7fffbfde51463a5d2c61f3427515ad6fbf864f",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\release1-artifact-recovery.json",
+      "sha256": "829634f846030ea46e1ea6234738c875a655cc3961871eba92e180df05e00e60"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "da15658c1867379ba57ab85dbe7fffbfde51463a5d2c61f3427515ad6fbf864f"
+    },
+    "source_commit": "01aefd8f5fa652664ee594c0156a65c0734b7911",
+    "manifest_assets_verified": 215
+  },
+  "observed_installed_seconds": {
+    "index": 0.8977231999160722,
+    "analysis": 0.07772539998404682,
+    "ingestion": 0.05254499998409301,
+    "outage-query_business_logic": 3.032416000030935,
+    "outage-pre_push_audit": 3.0408516000024974,
+    "outage-get_change_set": 6.087658999953419,
+    "healthy-query_business_logic": 0.029939599917270243,
+    "healthy-pre_push_audit": 0.024888299987651408,
+    "healthy-get_change_set": 0.07660799997393042,
+    "empty-business": 3.015768700046465
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 21468,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 38856,
+    "daemon_created": 1794739867.3244011,
+    "metadata": {
+      "pid": "38856",
+      "started_at_ms": "1794739867370",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "task_productivity_demonstrated": false,
+  "full_original_goal_complete": false,
+  "limitations": [
+    "Fallback occurs after the existing provider failure/retries; no overall request latency bound or speedup is claimed.",
+    "Lexical matches may omit semantic evidence and are not equivalent ranking.",
+    "Source-current status and retrieved rule text do not prove semantic correctness, rule applicability or application execution.",
+    "No actual LegacyValidation source read/change, Q access, SQL/API execution, CodeMap/Blast change, new target-language support or full19gate closure.",
+    "Invoice QA comparison remains negative; no replay or tuning of that inspected case."
+  ],
+  "resources": {
+    "owned_fixtures_removed": true,
+    "provider_threads_closed": true,
+    "owned_config_removed": true,
+    "preserved_wip9": true,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115",
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\package1",
+    "retained_rollback": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-542b2739834d4e598df9355172f3f083",
+    "removal_condition": "Evidence/package retained until superseded; rollback follows managed installer lifecycle. Existing copy/temp inventory remains read-only. Normal daemon intentionally left running."
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\contract.json",
+      "sha256": "0ed66ab3531dc8e75ca02b0096d184740227ae92d227ee64537a4fe62d1d92fb"
+    },
+    "baseline1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\baseline1\\acceptance.json",
+      "sha256": "fd4a06247be417af58fc13d57ec3f699fab992c383e74fe8a09ccc5ed35b0a14"
+    },
+    "baseline2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\baseline2\\acceptance.json",
+      "sha256": "5e166f65f499ccafa40e5f792730664a92fdafc45d8278aaaad9704337b3d256"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\native1.json",
+      "sha256": "ceb0703cd14afc16375aa734f6b5b2560d2230edd67b621e07ccf7fffe11ca72"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\native2.json",
+      "sha256": "21d1c22690281f49bed1dc6e2ce674c4c70ee6340f6a676605adcc68ec8e0374"
+    },
+    "native-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\native-acceptance.json",
+      "sha256": "1118a387a753a8d91b617f80c37c9dd5495c50712a3edaac9e048e490bf6841b"
+    },
+    "debug1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\debug1\\acceptance.json",
+      "sha256": "125f0a45f1e2151bc42591ad71792fb26275ed7a720d4bf56578b9e4e35b42c7"
+    },
+    "debug2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\debug2\\acceptance.json",
+      "sha256": "c457de0c02d3ba144fb21827f8121fc1f4bf71631d2ac745a5d696374b3bc478"
+    },
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\implementation1.json",
+      "sha256": "70b576de6ae5a8d708c52e028c1b383dd3f6ccc70528376683174be14679f21a"
+    },
+    "source-validation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\source-validation1.json",
+      "sha256": "19be3f2ec387abc99b1177884d24ac3657111ab5ef34ac682799bb6e43d3a947"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\release1.json",
+      "sha256": "02a79430bc2e49c6310b38eb4b63f22636a4dc9f0c8a74b0de1d9287e01165b0"
+    },
+    "release1-artifact-recovery.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\release1-artifact-recovery.json",
+      "sha256": "829634f846030ea46e1ea6234738c875a655cc3961871eba92e180df05e00e60"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\pair1.json",
+      "sha256": "09cc4ac6576141f939d3d057ac87e80798c6a625270103dd43d9915aa912a9ce"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\candidate1\\acceptance.json",
+      "sha256": "5b8985cdf7fad8b6c536c842baeae026ae7524dc6829005bdb8b489d867ec4a6"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\installed1\\acceptance.json",
+      "sha256": "f9afc406a803bcd31acc68a9df9d6619d4df71a5e7711793b37631256acba547"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\deployment1-state.json",
+      "sha256": "eee7d5104a1797975d39c122c09cbe91f8208533c9ceb5726157aae1f5dfcb22"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\restored-runtime\\receipt.json",
+      "sha256": "dc0ecb2c42beb586c418542f4d297575686fff46d12eb0e165f0786ad527f38f"
+    },
+    "pipeline-state1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\pipeline-state1.json",
+      "sha256": "f22ff3e78c988c0655ccf68819f263077923a3b091bc635db0770e4b52118ae7"
+    },
+    "pipeline-state2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\pipeline-state2.json",
+      "sha256": "9283c9bf481f83e6919a8dfca154ab40282ac744753cb1f46dd577d90a95375d"
+    },
+    "rule-retrieval-fallback-202611151-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\rule-retrieval-fallback-20261115\\rule-retrieval-fallback-202611151-install-Upgrade.json",
+      "sha256": "ae468fea6e95a970f95105905593a3b82974257e590010d6b26d0214b44115a1"
+    }
+  }
+}

@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SELECTED_IMPLEMENTATION",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "Original reliable, capability-aware business-rule and review/planning retrieval; TODO2 honest degradation and retained original workflow requirements",
     "original_requirement": "Existing LegacyValidation workflows remain useful with honest capability/failure disclosure; retrieve qualified rule evidence and source anchors without inventing authority.",
     "observed_source_gap": "query_business_logic and pre_push_audit propagate hybrid-search failure even though the lexical corpus is available. get_change_set drops its business-rule source-anchor arm on the same failure.",
@@ -73,7 +73,12 @@
       "Full-app or task-productivity claims"
     ],
     "baseline_root": "b2d3a6f6a95bed51235b9c40a7b969727de13315",
-    "baseline_runtime": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf"
+    "baseline_runtime": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+    "delivery_record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
+    "source_commit": "15922d3d8dddc7ad3a0c97f0e68d735a6518cef1",
+    "runtime_source_commit": "01aefd8f5fa652664ee594c0156a65c0734b7911",
+    "installed_server_sha256": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+    "acceptance": "2 focused native tests; 11 public assertions each debug/candidate/installed. Failures and limits retained; no whole-goal closure."
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2320,5 +2325,10 @@
     "outcome": "eval/legacy_validation-invoice-task-outcome-20261115.json",
     "runtime_change": false,
     "deploy_required": false
+  },
+  "rule_retrieval_fallback_delivery": {
+    "record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "next": "Advance the next ready original LegacyValidation requirement; do not reopen this passed finite delivery or inspected invoice comparison."
   }
 }

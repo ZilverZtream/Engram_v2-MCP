@@ -30,6 +30,13 @@ These degrade or improve *every single interaction*. Nothing below matters until
   (or an explicit `truncated: true` + a handle to fetch the rest).
 
 - [x] **2. Ship real semantic embeddings by default — or degrade honestly** (M) — *done 2026-06-12 (degrade-honestly branch): SemanticQuality labeling in search/vector/project_health + startup warning; also fixed embedding_backend=ollama being rejected at engine construction. Bundling a real local model remains open (see P2).*
+  November 15: business-rule lookup, pre-push rule retrieval and the business-rule
+  source-anchor arm of `get_change_set` also retain scoped lexical evidence after
+  hybrid-search failures. Replies disclose potentially missing semantic matches;
+  planning marks that arm partial, existing source/applicability checks remain,
+  and healthy requests recover. Installed owned-provider acceptance is recorded
+  in `eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json`; this supplies
+  neither an overall latency bound nor a ranking/productivity improvement claim.
   November 13: the original lexical-ranking fallback was still missing despite
   the disclosure delivery. Source now bypasses projection fusion/MMR; public
   debug, candidate and installed checks pass, including absent identifiers and

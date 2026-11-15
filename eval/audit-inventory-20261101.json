@@ -10059,7 +10059,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "SELECTED_IMPLEMENTATION",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "Original reliable, capability-aware business-rule and review/planning retrieval; TODO2 honest degradation and retained original workflow requirements",
       "original_requirement": "Existing LegacyValidation workflows remain useful with honest capability/failure disclosure; retrieve qualified rule evidence and source anchors without inventing authority.",
       "observed_source_gap": "query_business_logic and pre_push_audit propagate hybrid-search failure even though the lexical corpus is available. get_change_set drops its business-rule source-anchor arm on the same failure.",
@@ -10092,7 +10092,12 @@
         "Full-app or task-productivity claims"
       ],
       "baseline_root": "b2d3a6f6a95bed51235b9c40a7b969727de13315",
-      "baseline_runtime": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf"
+      "baseline_runtime": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+      "delivery_record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
+      "source_commit": "15922d3d8dddc7ad3a0c97f0e68d735a6518cef1",
+      "runtime_source_commit": "01aefd8f5fa652664ee594c0156a65c0734b7911",
+      "installed_server_sha256": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12",
+      "acceptance": "2 focused native tests; 11 public assertions each debug/candidate/installed. Failures and limits retained; no whole-goal closure."
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -15617,5 +15622,10 @@
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
     "qa_archive_qualification_20261114": "eval/legacy_validation-qa-archive-qualification-20261114.json"
+  },
+  "rule_retrieval_fallback_delivery": {
+    "record": "eval/legacy_validation-rule-retrieval-fallback-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "next": "Advance the next ready original LegacyValidation requirement; do not reopen this passed finite delivery or inspected invoice comparison."
   }
 }
