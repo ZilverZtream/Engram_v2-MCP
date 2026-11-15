@@ -1,12 +1,11 @@
 {
-  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
   "component": "bounded text-history hybrid retrieval",
   "finding": "EG20/21",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
   "implementation_complete": true,
-  "validated": false,
-  "deployed": false,
-  "builds_started": 0,
+  "validated": true,
+  "deployed": true,
   "implementation_files": [
     "crates/engram_server/src/handlers/git_tools.rs",
     "crates/engram_server/src/handlers/planning_tools.rs",
@@ -30,14 +29,37 @@
     "Existing cutoff tests remain in source. The combined acceptance uses native budget/coverage/service checks and public positive/negative cutoffs, avoiding an additional integration-harness compile."
   ],
   "limits": [
-    "Source implemented only; native/public after-change validation and deployment pending.",
-    "Semantic retrieval is bounded; local lexical work, Git/metadata, rendering and independent LLM reranking are outside the budget.",
-    "No equivalence of lexical/semantic ranking quality or total request latency claim."
+    "Semantic budgets are not end-to-end deadlines: Git/revision/metadata, local lexical fallback, formatting, other planner arms and optional LLM reranking remain outside them. Remote computation may continue after the local future is dropped.",
+    "Lexical fallback does not establish equivalent semantic ranking or complete task scope. Existing first-parent/card/file/description and response-window limits remain.",
+    "Timing observations use an owned controlled Ollama endpoint. Actual LegacyValidation configuration/backend identity is checked, but no fresh production latency or task-benefit comparison is claimed.",
+    "No actual application source/session modification, Site/Q read, full suite, extra integration-harness build or new model comparison. Original31findings/19gates and previous failed usefulness evidence remain open."
   ],
   "resources": {
     "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
     "owned_baseline_server_and_provider_closed": true,
     "owned_fixture_removed": true,
     "retention": "Retain baseline wire evidence and source scripts for combined delivery review."
+  },
+  "native_validated": true,
+  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\native-acceptance.json",
+  "release_status": "Candidate and installed public checks passed; normal runtime restored.",
+  "source_checkpoint_builds_started": 0,
+  "bounded_delivery_complete": true,
+  "delivery": "eval/legacy_validation-history-budget-batch-delivery-20261115.json",
+  "shared_batch_build_invocations": {
+    "focused_native": 1,
+    "release": 1
+  },
+  "delivered_source_files": {
+    "crates/engram_server/src/handlers/feature_plan_tools.rs": "077363256da2da273e057b5a26f99988e641d9e5a075a025d8765a312f919980",
+    "crates/engram_server/src/handlers/git_tools.rs": "e07a7a59906c697a344b79e02cec507926c962e06942b23210a45c162d0751f0",
+    "crates/engram_server/src/handlers/history_coverage_tests.rs": "42bd50c8e6e98dc34060903e94810d2a732d6f1ab135dceaba471ff9078cda17",
+    "crates/engram_server/src/handlers/planning_tools.rs": "668d0c70b57a5fba0da6c0b4177159d09229a430dec8bc2a7228157ccef73447",
+    "crates/engram_server/src/models/requests.rs": "8d0eb284c21c2294985e4a66e1d8714ccdf9ed364305b612ecd669f5bff1a8e1",
+    "crates/engram_server/src/services/change_card_service.rs": "3996cf6c8dfcc4cbfc62e19ef14b747cd0f2ce638c7c9147df85118865ab5339",
+    "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs": "62a36258e4098350dad79e90bb910d688d98318e2218fa3c192b8e54b4674b9d",
+    "crates/engram_server/src/tools.rs": "f17c84e9a745f05fddefe0cb863d1f26b6dca6128869facb46bb8d4a55d1c9db",
+    "crates/engram_server/tests/integration_test.rs": "fe6b8df9a8dd767ec14be768eb233ab5396c900bdc3432fd23dd209f898c4d03",
+    "crates/engram_server/tests/search_history_cutoff_test.rs": "fafbe0a1c08199751b99471db16c6249d3dd4a2a30618fadf8202e5b262e5423"
   }
 }

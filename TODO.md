@@ -343,6 +343,12 @@ proposals that duplicate the existing surface:
   state keys at end. Turns Engram from advisor into a loop-closing safety harness — and
   it composes the already-built check_edit_safety/pre_commit_review machinery.
 
+  History latency controls installed 2026-11-15: precedent embeddings and text
+  hybrid retrieval honor a shared caller budget, with scoped lexical fallback.
+  Change-set history retains fallback candidates with incomplete coverage.
+  These are semantic-stage budgets, not overall request deadlines or ranking
+  quality claims. [Delivery](eval/legacy_validation-history-budget-batch-delivery-20261115.json).
+
 - [x] **30. `find_implementation_pattern` (spec 42-2)** (M) — *done 2026-06-12: top exemplar
   files for a pattern query with symbols, SQL/state edges, co-change partners, snippet, and
   cross-exemplar common ingredients.*

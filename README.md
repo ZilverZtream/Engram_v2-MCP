@@ -309,6 +309,15 @@ trigram, or lexical fallback when vectors are disabled or absent from the build.
 Text-mode history search reports the configured retrieval capability, including
 lexical-only and degraded trigram modes; it does not claim that both lexical
 and vector results contributed to each response.
+`semantic_timeout_ms` bounds optional semantic retrieval (default 5000 ms;
+zero requests lexical retrieval). It covers document/query embeddings together
+for precedents and all hybrid candidate rounds for text history. Timeout or
+provider failure retains lexical matches with the same filters and cutoff.
+`get_change_set.history_semantic_timeout_ms` controls its history arm and keeps
+fallback candidates with incomplete coverage. Git/metadata, local lexical work,
+other planner arms and LLM reranking remain outside these budgets.
+[Installed delivery](eval/legacy_validation-history-budget-batch-delivery-20261115.json).
+
 The optional `rerank_timeout_ms` sets the LLM ordering budget (0 skips it;
 default and maximum 90000 ms). It does not bound baseline retrieval. Unavailable,
 failed or timed-out reranking preserves the baseline and historical scope.

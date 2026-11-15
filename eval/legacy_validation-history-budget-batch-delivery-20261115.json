@@ -1,0 +1,182 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T01:42:53.149702+00:00",
+  "improvements": [
+    {
+      "tool": "search_history mode=precedent",
+      "behavior": "Document/query embeddings share semantic_timeout_ms, default5000ms and maximum90000. Zero skips provider work; timeout/failure preserves the scoped lexical baseline. Loaded card metadata is reused with the existing profile-keyed vector cache."
+    },
+    {
+      "tool": "search_history mode=text",
+      "behavior": "All hybrid retrieval/widening rounds share one budget. Timeout/provider failure repeats lexical retrieval with the same predicates/reachability; JSON/Markdown disclose actual outcome and budget."
+    },
+    {
+      "tool": "get_change_set",
+      "behavior": "history_semantic_timeout_ms controls only the history arm. Semantic timeout/failure retains lexical historical file candidates with incomplete coverage and unassessed semantic-only matches; intentional lexical mode is disclosed."
+    }
+  ],
+  "implementation": {
+    "source_baseline": "2edec4a91e73414e8eddf401df32f454c76b242f",
+    "source_commit": "75adc16b326bc3b0867f00419b84c2c29d0f20a8",
+    "files": {
+      "crates/engram_server/src/handlers/feature_plan_tools.rs": "077363256da2da273e057b5a26f99988e641d9e5a075a025d8765a312f919980",
+      "crates/engram_server/src/handlers/git_tools.rs": "e07a7a59906c697a344b79e02cec507926c962e06942b23210a45c162d0751f0",
+      "crates/engram_server/src/handlers/history_coverage_tests.rs": "42bd50c8e6e98dc34060903e94810d2a732d6f1ab135dceaba471ff9078cda17",
+      "crates/engram_server/src/handlers/planning_tools.rs": "668d0c70b57a5fba0da6c0b4177159d09229a430dec8bc2a7228157ccef73447",
+      "crates/engram_server/src/models/requests.rs": "8d0eb284c21c2294985e4a66e1d8714ccdf9ed364305b612ecd669f5bff1a8e1",
+      "crates/engram_server/src/services/change_card_service.rs": "3996cf6c8dfcc4cbfc62e19ef14b747cd0f2ce638c7c9147df85118865ab5339",
+      "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs": "62a36258e4098350dad79e90bb910d688d98318e2218fa3c192b8e54b4674b9d",
+      "crates/engram_server/src/tools.rs": "f17c84e9a745f05fddefe0cb863d1f26b6dca6128869facb46bb8d4a55d1c9db",
+      "crates/engram_server/tests/integration_test.rs": "fe6b8df9a8dd767ec14be768eb233ab5396c900bdc3432fd23dd209f898c4d03",
+      "crates/engram_server/tests/search_history_cutoff_test.rs": "fafbe0a1c08199751b99471db16c6249d3dd4a2a30618fadf8202e5b262e5423"
+    },
+    "root_commits": [
+      "06a799e",
+      "5546d50",
+      "a4da744da72862b34a5cdbb39487ad068f1ca7e8"
+    ]
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 11,
+      "required_component_cases": {
+        "document_and_query_embeddings_share_one_deadline_and_preserve_baseline": true,
+        "cached_history_vectors_follow_each_configuration_during_switching_and_concurrent_requests": true,
+        "fallback_keeps_history_hits_and_prior_limits_without_a_complete_semantic_arm": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "75adc16b326bc3b0867f00419b84c2c29d0f20a8",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 13s",
+      "native_test_seconds": 0.73,
+      "retained_failed_attempts": [],
+      "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+    },
+    "public": {
+      "candidate2": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\candidate2\\acceptance.json",
+          "sha256": "c3052e7b07b30be686e282fefa99e3413b6d271f9e58c83e66eb220b51421f96"
+        },
+        "checks": {
+          "semantic_control_advertised": true,
+          "cold_timeout_disclosed": true,
+          "lexical_match_retained": true,
+          "zero_budget_skips_provider": true,
+          "zero_budget_retains_same_scoped_commit": true,
+          "fallback_preserves_author_filter": true,
+          "fallback_preserves_ancestor_cutoff": true,
+          "healthy_semantic_ranking_retained": true,
+          "text_timeout_retains_filtered_history": true,
+          "text_zero_skips_provider": true,
+          "text_zero_retains_same_commit": true,
+          "text_fallback_preserves_cutoff": true,
+          "text_semantic_recovers": true,
+          "planner_timeout_is_incomplete": true,
+          "planner_retains_history_file_candidates": true,
+          "planner_semantic_gap_visible": true
+        },
+        "controlled_precedent_seconds": 0.06210640002973378,
+        "controlled_text_seconds": 0.06489889998920262
+      },
+      "installed2": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\installed2\\acceptance.json",
+          "sha256": "2b661a3187ac6158fac11c8410ea9aab007aca9e8723e851b6579595018e785b"
+        },
+        "checks": {
+          "semantic_control_advertised": true,
+          "cold_timeout_disclosed": true,
+          "lexical_match_retained": true,
+          "zero_budget_skips_provider": true,
+          "zero_budget_retains_same_scoped_commit": true,
+          "fallback_preserves_author_filter": true,
+          "fallback_preserves_ancestor_cutoff": true,
+          "healthy_semantic_ranking_retained": true,
+          "text_timeout_retains_filtered_history": true,
+          "text_zero_skips_provider": true,
+          "text_zero_retains_same_commit": true,
+          "text_fallback_preserves_cutoff": true,
+          "text_semantic_recovers": true,
+          "planner_timeout_is_incomplete": true,
+          "planner_retains_history_file_candidates": true,
+          "planner_semantic_gap_visible": true
+        },
+        "controlled_precedent_seconds": 0.06977860000915825,
+        "controlled_text_seconds": 0.07006960001308471
+      }
+    },
+    "baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
+      "sha256": "6ca22f65f38d02d0e0425c1f7dd77ca1ecab8b18febd2231063a483f5183f28c"
+    },
+    "planner_baseline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\planner-baseline.json",
+      "sha256": "66e95b72c35718e5096e439f325493ada20962ee41aa99cdfdfe77693478eb39"
+    },
+    "release_compile": "Finished `release` profile [optimized] target(s) in 12m 26s",
+    "focused_build_invocations": 1,
+    "release_build_invocations": 1,
+    "retained_failed_fixture": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\baseline1\\acceptance.json",
+      "sha256": "40676f1a15f3e6cd485d24e453724eabae3805fc259df4e8452192b623cb63b9"
+    },
+    "retained_candidate_fixture_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\candidate1\\acceptance.json",
+      "sha256": "93a504d5bd07d1fa7cef9a505ebc06ceff83903574d2efe4410140ed415d9ba7"
+    },
+    "failure_disposition": "Initial owned Git fixture path was too long before any history query. Shorter fixture names in the same case fixed preparation. Original failure and resource closure retained; no product or native-build change was required. First candidate expected an empty text result at the initial commit, but that source already contained matching text. Saved wire evidence returned only that allowed commit. The corrected assertion requires the exact independently authored initial Git identity, excluding later commits. Same binary reused without recompilation."
+  },
+  "runtime": {
+    "server_sha256": "5aa4acc72c93710d12af767440a0649e62844bab3b1306a4a297dfa6a5a8bdff",
+    "manifest_sha256": "9f4be815eeeee346a1db0f16b81818f59abbc6229bdb6a0ae5dbca481938e2db",
+    "unchanged_sidecar_assets": 214,
+    "pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\pair1.json",
+      "sha256": "ff850f8b1582139c3b70556849321aa245c4ea6e3f802a3b2566012628263067"
+    },
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\release1.json",
+      "sha256": "fe94527c9bd0cb397cc1480a316c33f2385e0dcdb8dd54d98e46317a3626752e"
+    },
+    "release_runner_seconds": 758.7071432999801,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\deployment2-state.json",
+      "sha256": "fbd498f32d7553dfa8639c5e2c92707a450355db1e172b56baab5ae0c770439d"
+    },
+    "restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\restored-runtime\\receipt.json",
+      "sha256": "49803a1751106a95f04dbd4d04ebcc5d4b4738824121b1db98154beedeecbd8c"
+    },
+    "selected_generation": 3151
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\Engram-win-x64-history-budget-20261115.zip",
+    "sha256": "2da7293fbe4970331ec8d7b4e3ace25e9d41b8eebd04cbe55e14e065da12eca7",
+    "files": 216
+  },
+  "preservation": {
+    "wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "registry_selection_and_other_metadata_unchanged": true,
+    "source_and_storage_formats_unchanged": true
+  },
+  "resources": {
+    "owned_build_jobs_relays_and_temporary_directories_closed_and_removed": true,
+    "owned_mcp_and_HTTP_handlers_closed": true,
+    "config_hold_closed_and_copy_removed": true,
+    "retained_old_runtime_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e337bb42975a4a82be8e407f373cfccf",
+    "old_runtime_pair_purpose": "Prior installed runtime retained for rollback under existing backup policy; no deletion authorized.",
+    "intentional_normal_daemon_pid": 27848,
+    "retained_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "retained_purpose": "Scripts, exact source/build/public evidence, failed preparation, package and ZIP for review. Reused checkout/shared target remain in use.",
+    "cleanup_condition": "Retain delivery evidence/package for review; no preexisting folder removed."
+  },
+  "limits": [
+    "Semantic budgets are not end-to-end deadlines: Git/revision/metadata, local lexical fallback, formatting, other planner arms and optional LLM reranking remain outside them. Remote computation may continue after the local future is dropped.",
+    "Lexical fallback does not establish equivalent semantic ranking or complete task scope. Existing first-parent/card/file/description and response-window limits remain.",
+    "Timing observations use an owned controlled Ollama endpoint. Actual LegacyValidation configuration/backend identity is checked, but no fresh production latency or task-benefit comparison is claimed.",
+    "No actual application source/session modification, Site/Q read, full suite, extra integration-harness build or new model comparison. Original31findings/19gates and previous failed usefulness evidence remain open."
+  ]
+}
