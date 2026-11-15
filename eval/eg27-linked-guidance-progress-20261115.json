@@ -36,5 +36,15 @@
     "baseline_owner_closed": true,
     "preserved_wip9": true,
     "cleanup_condition": "Owned native/public fixtures close process/database handles and remove their directories; retain evidence here until superseded. No preexisting deletion."
+  },
+  "delivery_correction": {
+    "cause": "First linked public check found missing read_action in prepare_implementation_context, after correct bodies/scope/Markdown passed.",
+    "changed_sources": [
+      "crates/engram_server/src/handlers/access_layer_tools.rs",
+      "crates/engram_server/tests/linked_policy_sources_tests.rs"
+    ],
+    "affected_native_case": "linked_guidance::prepared_context_binds_linked_recovery_to_its_project",
+    "public_rerun": "Only failed EG27 public fixture. EG31 and EG19 public results retained; final candidate/installed acceptance will use the shared release.",
+    "source_commit": "4161fc22b07d88b940446dc6875ef1c026b7d89a"
   }
 }
