@@ -20,6 +20,12 @@ const PACKET_LIMIT: usize = 768 * 1024;
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MaintenanceRequest {
+    /// Discover changed files from the exact base_commit to current disk, including
+    /// staged, unstaged, committed-since-base and nonignored untracked changes.
+    /// Opt-in alternative to changed_paths; the existing16-file evidence limit
+    /// applies. A clean comparison selects no instructions and proves no policy intent.
+    #[serde(default)]
+    pub use_git_changes: bool,
     /// Discover current applicable guidance and bounded literal-reference review
     /// candidates for1..16 explicit changed files. Referencing guidance does not
     /// gain authority outside its own scope. Capture Git-before/disk-after evidence. May not
@@ -359,7 +365,7 @@ pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
         req.draft.is_none(),
         "Submit instruction drafts through pre_push_audit; this operation only observes references"
     );
-    if req.changed_paths.is_empty() {
+    if req.changed_paths.is_empty() && !req.use_git_changes {
         paths(&req.instruction_paths, 8)?;
         paths(&req.evidence_paths, 16)?;
     } else {
@@ -386,7 +392,11 @@ fn capture_with_area(
     req: &MaintenanceRequest,
     area: Option<&area_evidence::AreaEvidence>,
 ) -> Result<Packet> {
-    let changed = if req.changed_paths.is_empty() {
+    ensure!(
+        req.base_commit.len() == 40 && req.base_commit.bytes().all(|b| b.is_ascii_hexdigit()),
+        "base_commit must be an exact full commit ID"
+    );
+    let changed = if req.changed_paths.is_empty() && !req.use_git_changes {
         None
     } else {
         Some(changed_evidence::select(root, req)?)

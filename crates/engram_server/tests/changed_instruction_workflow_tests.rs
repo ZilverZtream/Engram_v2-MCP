@@ -16,9 +16,18 @@ fn commit(root: &Path) -> String {
     index.write().unwrap();
     let tree = repo.find_tree(index.write_tree().unwrap()).unwrap();
     let signature = git2::Signature::now("Fixture", "fixture@example.invalid").unwrap();
-    repo.commit(Some("HEAD"), &signature, &signature, "fixture", &tree, &[])
-        .unwrap()
-        .to_string()
+    let parent = repo.head().ok().and_then(|head| head.peel_to_commit().ok());
+    let parents = parent.iter().collect::<Vec<_>>();
+    repo.commit(
+        Some("HEAD"),
+        &signature,
+        &signature,
+        "fixture",
+        &tree,
+        &parents,
+    )
+    .unwrap()
+    .to_string()
 }
 struct Fixture {
     e: Engram,
@@ -121,6 +130,180 @@ fn find<'a>(rows: &'a Value, path: &str) -> &'a Value {
 const EXTERNAL_GUIDE: &str = "---\napplyTo: Site/**\n---\nUse [validator](../../Shared/validator.ts) for form validation.\nException: read-only previews do not submit.\n";
 fn external_request(f: &Fixture) -> Value {
     json!({"changed_paths":["Shared/validator.ts"],"base_commit":f.base})
+}
+
+#[tokio::test]
+async fn git_selection_collects_committed_staged_deleted_and_untracked_evidence_without_path_lists()
+{
+    let f = Fixture::with_guide(EXTERNAL_GUIDE);
+    std::fs::write(f.root.join("Site/worker.ts"), BEFORE).unwrap();
+    let head = commit(&f.root);
+    assert_ne!(head, f.base);
+    std::fs::remove_file(f.root.join("Site/worker.ts")).unwrap();
+    std::fs::write(f.root.join("Site/staged.sql"), "SELECT 2;\n").unwrap();
+    {
+        let repo = git2::Repository::open(&f.root).unwrap();
+        let mut index = repo.index().unwrap();
+        index.add_path(Path::new("Site/staged.sql")).unwrap();
+        index.write().unwrap();
+    }
+    std::fs::write(
+        f.root.join("Site/new.vb"),
+        "Public Class NewClass\nEnd Class\n",
+    )
+    .unwrap();
+    std::fs::write(f.root.join(".git/info/exclude"), "ignored.tmp\n").unwrap();
+    std::fs::write(f.root.join("Site/ignored.tmp"), "not selected\n").unwrap();
+    let request = json!({"use_git_changes":true,"base_commit":f.base});
+    let report = f.audit(request.clone()).await.unwrap();
+    assert_eq!(
+        report["packet"]["change_context"]["basis"],
+        "git_base_to_current_worktree"
+    );
+    assert_eq!(
+        report["packet"]["change_context"]["changed_paths"],
+        json!([
+            "Shared/validator.ts",
+            "Site/new.vb",
+            "Site/staged.sql",
+            "Site/worker.ts"
+        ])
+    );
+    assert_eq!(
+        find(&report["packet"]["evidence"], "Shared/validator.ts")["before"]["content"],
+        BEFORE
+    );
+    assert_eq!(
+        find(&report["packet"]["evidence"], "Shared/validator.ts")["after"]["content"],
+        AFTER
+    );
+    let deleted = find(&report["packet"]["evidence"], "Site/worker.ts");
+    assert_eq!(deleted["before"]["content"], BEFORE);
+    assert!(deleted["after"].is_null());
+    for path in ["Site/new.vb", "Site/staged.sql"] {
+        let file = find(&report["packet"]["evidence"], path);
+        assert!(file["before"].is_null());
+        assert!(file["after"]["content"].as_str().unwrap().len() > 0);
+    }
+    assert_eq!(
+        find(
+            &report["packet"]["instructions"],
+            ".github/instructions/saves.instructions.md"
+        )["current"]["content"],
+        EXTERNAL_GUIDE
+    );
+    assert_eq!(report["authored_files_written"], 0);
+    assert_eq!(
+        report["packet_blake3"],
+        f.audit(request).await.unwrap()["packet_blake3"]
+    );
+    let explicit = f.audit(json!({"base_commit":f.base,"changed_paths":report["packet"]["change_context"]["changed_paths"]})).await.unwrap();
+    assert_eq!(
+        explicit["packet"]["instructions"],
+        report["packet"]["instructions"]
+    );
+    assert_eq!(explicit["packet"]["evidence"], report["packet"]["evidence"]);
+    assert_eq!(
+        std::fs::read_to_string(f.root.join(".github/instructions/saves.instructions.md")).unwrap(),
+        EXTERNAL_GUIDE
+    );
+}
+
+#[tokio::test]
+async fn git_selection_reports_clean_comparisons_and_refuses_oversized_or_mixed_selections() {
+    let f = Fixture::new();
+    std::fs::write(f.root.join("Site/worker.ts"), BEFORE).unwrap();
+    std::fs::write(f.root.join("Shared/validator.ts"), BEFORE).unwrap();
+    let request = json!({"use_git_changes":true,"base_commit":f.base});
+    let clean = f.audit(request.clone()).await.unwrap();
+    assert_eq!(
+        clean["packet"]["change_context"]["status"],
+        "no_git_changes_observed"
+    );
+    assert_eq!(clean["packet"]["evidence"], json!([]));
+    assert_eq!(clean["packet"]["instructions"], json!([]));
+    assert!(
+        clean["packet"]["change_context"]["interpretation"]
+            .as_str()
+            .unwrap()
+            .contains("does not establish")
+    );
+    let mut mixed = request.clone();
+    mixed["changed_paths"] = json!(["Site/worker.ts"]);
+    assert!(
+        f.audit(mixed)
+            .await
+            .unwrap_err()
+            .message
+            .contains("alternatives")
+    );
+    for n in 0..17 {
+        std::fs::write(
+            f.root.join(format!("Site/new{n}.ts")),
+            "export const n = 1;\n",
+        )
+        .unwrap();
+    }
+    let error = f.audit(request).await.unwrap_err();
+    assert!(
+        error.message.contains("exceeds16") && error.message.contains("explicit changed_paths")
+    );
+    assert_eq!(
+        std::fs::read_to_string(f.root.join(".github/instructions/saves.instructions.md")).unwrap(),
+        GUIDE
+    );
+}
+
+#[tokio::test]
+async fn git_change_selection_reaches_health_and_completed_update_without_rewriting_guidance() {
+    let f = Fixture::with_guide(EXTERNAL_GUIDE);
+    let repaired = f.e.handle_repair_project(serde_json::from_value(json!({"project_id":"changed-guidance","scope":"full","max_commits":0,"index_antipatterns":false})).unwrap()).await.unwrap();
+    assert_ne!(repaired.is_error, Some(true));
+    let request = json!({"use_git_changes":true,"base_commit":f.base});
+    let collected = f.audit(request.clone()).await.unwrap();
+    let health =
+        f.e.handle_project_health_with_instructions(
+            serde_json::from_value(
+                json!({"project_id":"changed-guidance","instruction_maintenance":request}),
+            )
+            .unwrap(),
+        )
+        .await
+        .unwrap();
+    let health: Value =
+        serde_json::from_str(&health.content.last().unwrap().as_text().unwrap().text).unwrap();
+    assert_eq!(
+        health["instruction_reference_observation"]["packet_blake3"],
+        collected["packet_blake3"]
+    );
+    assert_eq!(
+        health["instruction_reference_observation"]["routing_coverage"]["basis"],
+        "git_base_to_current_worktree"
+    );
+    std::fs::write(
+        f.root.join("Site/worker.ts"),
+        "export function save() { return 3; }\n",
+    )
+    .unwrap();
+    let updated = f.e.handle_update_project(serde_json::from_value(json!({"project_id":"changed-guidance","wait":true,"max_commits":0,"index_antipatterns":false,"instruction_maintenance":request})).unwrap()).await.unwrap();
+    assert_ne!(updated.is_error, Some(true));
+    let updated: Value =
+        serde_json::from_str(&updated.content.last().unwrap().as_text().unwrap().text).unwrap();
+    let observation = &updated["instruction_reference_observation"];
+    assert_eq!(observation["status"], "observed");
+    assert_eq!(
+        observation["change_context"]["changed_paths"],
+        json!(["Shared/validator.ts", "Site/worker.ts"])
+    );
+    assert_eq!(
+        observation["routing_coverage"]["basis"],
+        "git_base_to_current_worktree"
+    );
+    assert_eq!(observation["authored_files_written"], 0);
+    assert_eq!(
+        std::fs::read_to_string(f.root.join(".github/instructions/saves.instructions.md")).unwrap(),
+        EXTERNAL_GUIDE
+    );
 }
 
 #[tokio::test]

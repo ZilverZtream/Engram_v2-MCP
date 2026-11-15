@@ -92,8 +92,12 @@ impl Engram {
         let reviewed = tokio::task::spawn_blocking(move || {
             let root = PathBuf::from(root);
             execute(root.clone(), pid, request).map(|(confirmed, report)| {
-                let routing = confirmed.then(|| if report.packet.change_context.is_some() {
-                    json!({"basis":"explicit_changed_paths", "detail":"Guidance selection and omissions for the declared changed paths are in change_context; this observation does not inventory whole-worktree routing."})
+                let routing = confirmed.then(|| if let Some(context) = &report.packet.change_context {
+                    if context["basis"] == "git_base_to_current_worktree" {
+                        json!({"basis":"git_base_to_current_worktree", "detail":"Guidance selection and omissions for Git-derived changed paths are in change_context; the comparison is not an inventory of whole-worktree instruction routing."})
+                    } else {
+                        json!({"basis":"explicit_changed_paths", "detail":"Guidance selection and omissions for the declared changed paths are in change_context; this observation does not inventory whole-worktree routing."})
+                    }
                 } else {
                     instruction_maintenance::routing::observe(&root, &report.packet.instructions)
                 });
@@ -204,6 +208,7 @@ mod tests {
             let registry = state.registry.clone();
             let engram = Engram::new(state);
             let request = MaintenanceRequest {
+                use_git_changes: false,
                 changed_paths: Vec::new(),
                 area_context: None,
                 new_instruction_targets: Vec::new(),

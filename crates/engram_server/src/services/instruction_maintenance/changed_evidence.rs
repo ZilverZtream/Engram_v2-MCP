@@ -2,6 +2,7 @@
 use super::*;
 use crate::services::project_policy::{self, PolicyBudget};
 use serde_json::{Value, json};
+mod git_changes;
 mod references;
 
 pub(super) struct Selection {
@@ -15,9 +16,17 @@ pub(super) fn validate(req: &MaintenanceRequest) -> Result<Vec<String>> {
         req.instruction_paths.is_empty()
             && req.area_context.is_none()
             && req.new_instruction_targets.is_empty(),
-        "changed_paths discovers existing instructions; do not mix it with instruction_paths, area_context or new_instruction_targets"
+        "Changed-file selection discovers existing instructions; do not mix it with instruction_paths, area_context or new_instruction_targets"
     );
-    let changed = paths(&req.changed_paths, 16)?;
+    ensure!(
+        !req.use_git_changes || req.changed_paths.is_empty(),
+        "use_git_changes and explicit changed_paths are alternatives; select one"
+    );
+    let changed = if req.use_git_changes {
+        Vec::new()
+    } else {
+        paths(&req.changed_paths, 16)?
+    };
     let mut evidence: BTreeSet<_> = changed.into_iter().collect();
     if !req.evidence_paths.is_empty() {
         evidence.extend(paths(&req.evidence_paths, 16)?);
@@ -30,8 +39,36 @@ pub(super) fn validate(req: &MaintenanceRequest) -> Result<Vec<String>> {
 }
 
 pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection> {
-    let evidence = validate(req)?;
-    let changed = paths(&req.changed_paths, 16)?;
+    let mut evidence: BTreeSet<_> = validate(req)?.into_iter().collect();
+    let changed = if req.use_git_changes {
+        git_changes::paths_since(root, &req.base_commit)?
+    } else {
+        paths(&req.changed_paths, 16)?
+    };
+    evidence.extend(changed.iter().cloned());
+    ensure!(
+        evidence.len() <= 16,
+        "Git changes and evidence_paths exceed16 distinct files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
+    );
+    let evidence: Vec<_> = evidence.into_iter().collect();
+    let basis = if req.use_git_changes {
+        "git_base_to_current_worktree"
+    } else {
+        "current_guidance_discovery_for_explicit_changed_paths"
+    };
+    let interpretation = if req.use_git_changes {
+        "Changed paths are Git's net comparison from the exact base commit to current disk, including committed-since-base, staged/unstaged and nonignored untracked files. Staged contents are not a separate after snapshot; after evidence is current disk. Renames may appear as removal/addition; no semantic rename is inferred. Git ignores exclude untracked files, not tracked changes. The listing and subsequent captures are separate observations, not an atomic worktree snapshot or proof of exhaustive semantic impact."
+    } else {
+        "Changed paths are caller-declared inputs, not an exhaustive Git diff."
+    };
+    if changed.is_empty() {
+        return Ok(Selection {
+            instructions: Vec::new(),
+            evidence,
+            context: json!({"basis":basis,"changed_paths":[],"status":"no_git_changes_observed",
+                "sources":[],"omissions":[],"notes":[],"interpretation":format!("{interpretation} No current instruction candidates were selected. This does not establish that guidance is semantically correct or needs no maintenance. No index or authored file is changed.")}),
+        });
+    }
     let policy = project_policy::resolve_with_budget(
         root,
         &changed,
@@ -83,7 +120,7 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         || !referenced.omissions.is_empty()
         || !referenced.notes.is_empty();
     let context = json!({
-        "basis":"current_guidance_discovery_for_explicit_changed_paths",
+        "basis":basis,
         "changed_paths":changed,
         "status":if incomplete {"instruction_selection_incomplete"} else if instructions.is_empty() {"no_current_instruction_candidates_observed"} else {"current_instruction_candidates_collected"},
         "discovery_status":policy.status,"discovery_coverage":policy.coverage,
@@ -93,7 +130,7 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
             "omissions":referenced.omissions,"notes":referenced.notes,
             "limits":{"documents":64,"complete_source_read_bytes":2097152,"links_per_snapshot":256,"reference_chain_depth":3,"matches_per_instruction":16,"reference_visits":4096},
             "scope":"Current conventional guidance inventory and supported literal references in its before/current snapshots, following bounded Markdown guidance links only. No source-code inventory or referenced-code body scan. Reference observations have their own snapshot hashes; instruction_manifest reports captured dependency freshness. Unrelated observed body hashes are not packet inputs."},
-        "interpretation":"Changed paths are caller-declared inputs, not an exhaustive Git diff. Discovery selects current scoped guidance and literal-reference maintenance candidates, including guidance scoped elsewhere that references changed evidence. A dependency review candidate does not gain authority over files outside its scope. Discovery does not inventory removed instructions or all formerly applicable guidance, infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected instruction and evidence file retains exact base-commit and current snapshots in this packet; linked-reference coverage is reported by instruction_manifest. Explicit instruction_paths remain available for historical or otherwise undiscovered guidance. No index or authored file is changed."
+        "interpretation":format!("{interpretation} Discovery selects current scoped guidance and literal-reference maintenance candidates, including guidance scoped elsewhere that references changed evidence. A dependency review candidate does not gain authority over files outside its scope. Discovery does not inventory removed instructions or all formerly applicable guidance, infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected instruction and evidence file retains exact base-commit and current snapshots in this packet; linked-reference coverage is reported by instruction_manifest. Explicit instruction_paths remain available for historical or otherwise undiscovered guidance. No index or authored file is changed.")
     });
     Ok(Selection {
         instructions,

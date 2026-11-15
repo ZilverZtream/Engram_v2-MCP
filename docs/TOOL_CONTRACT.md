@@ -10,6 +10,19 @@ semantic acceptance and installed delivery are separate states; see the
 
 ## Area instruction evidence and drafting
 
+Instruction maintenance also accepts `use_git_changes: true` with the exact
+`base_commit`. This selects Git's net base-to-current-disk changed paths and
+uses the existing applicable-guidance/reference discovery, before/after snapshots,
+draft validation and health/completed-update observations. It includes changes
+committed after the base, staged/unstaged changes and nonignored untracked files;
+the after snapshot is current disk, not a separate staged view. A clean comparison
+returns `no_git_changes_observed`, which establishes no semantic policy conclusion.
+Explicit `changed_paths` remains available and cannot be mixed with this option.
+The existing16-file combined evidence bound is unchanged: an oversized comparison
+refuses with an explicit-slice alternative instead of silently omitting files.
+Git listing and source capture are separate observations; collection does not
+write authored guidance or index state, infer rename semantics or accept policy.
+
 Instruction reference manifests use exact declaration spelling for unformatted prose. They do not case-fold an ordinary phrase such as "resolved style" into a VB `Resolved` dependency. Explicit inline-code VB references retain case-insensitive candidate lookup, including ambiguous matches and unverified qualified suffixes. Exact-spelling prose matches remain navigation candidates; neither their presence nor their absence establishes semantic intent or exhaustive reference coverage.
 
 Use `pre_push_audit` with `instruction_maintenance` to collect an evidence pack and then check a drafting agent's proposal. Collection needs `base_commit` and `new_instruction_targets` (each names an absent Markdown path, separate provenance path and exact `area_scope`). Supply `area_context` for bounded indexed discovery, or explicit `evidence_paths`. Omit `draft` on the first request. Existing authored instructions can be reviewed through `instruction_paths`; they are not implicitly replaced by a new area draft.
