@@ -41,16 +41,16 @@
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "EG-19",
-    "before": "The public decision reader always includes every imported event alongside latest rulings. A long history forces whole-report recovery before current decisions can be read, even when only latest scoped rulings are needed.",
-    "user_outcome": "An optional current view supplies all latest imported rulings with complete conditions/provenance and an explicit dated full-history follow-up; the default full-history view is unchanged.",
+    "original_requirement_id": "EG-27",
+    "before": "Normal policy contexts observe links outside conventional discovery but do not supply their target contents. Callers must make an additional source read even for small applicable shared guidance.",
+    "user_outcome": "Normal scoped contexts supply complete bounded first-hop linked Markdown evidence alongside direct policy, with source hashes and explicit applicability/authority separation. Missing, excluded and budget-limited targets remain named.",
     "finite_acceptance": [
-      "view=current returns exactly the same latest rulings, scope/conditions, verification origin and non-suppression limits as the default history response, without superseded event bodies.",
-      "Historical cutoff applies before projection; history action retains project/review/cutoff, names the complete event count/hash and explicitly warns that the follow-up is a fresh query.",
-      "Default history and discussion recovery remain compatible; current view refuses combination with discussion. Demonstrate compact reply on a normal long-history owned review without changing stored history, source or index."
+      "A selected guide links an applicable small Markdown document outside discovery; complete body/hash arrives as linked evidence while direct policy sources, qualifications and authority remain unchanged.",
+      "Declared nonmatching scope is not supplied. Linked documents share remaining direct-policy output budgets and a finite read budget; no recursive crawling or partial policy. Named omissions retain exact hash-bound recovery when a complete fingerprint was obtained.",
+      "Both JSON and Markdown expose the same supplied linked evidence; historical contexts never fetch current disk targets. File edits change linked fingerprints and exact-recovery actions. No index/authored writes or actual LegacyValidation whole-project operation."
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\current-review-rulings-20261115\\contract.json",
-    "source_commit": "9bbfa6d20ece514ed19d5982aa4f24f1036b1a46"
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115\\contract.json",
+    "source_commit": "c94f340b64f3a3048900ff3ce8a3cf91bf642d9c"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2593,6 +2593,23 @@
           "crates/engram_server/tests/review_decision_history_tests.rs": "5618e3d7dc46c39d3101189bc92b4025e8ef86399763e74715aa42dace01515b",
           "docs/TOOL_CONTRACT.md": "81409edb70671f8b54de1bddbd691fa8789ca96b61e160ff06002bfecb2f2731"
         }
+      },
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "c94f340b64f3a3048900ff3ce8a3cf91bf642d9c",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115\\contract.json",
+        "source_progress_record": "eval/eg27-linked-guidance-progress-20261115.json",
+        "focused_native_target": "linked_policy_sources_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115\\verify-public.py",
+        "user_outcome": "Normal scoped contexts supply complete bounded first-hop linked Markdown evidence alongside direct policy, with source hashes and explicit applicability/authority separation. Missing, excluded and budget-limited targets remain named.",
+        "files": {
+          "crates/engram_server/src/services/project_policy.rs": "bd37c4691ea0074e01182bffc1504c3a3288986391eba83097628866753aad38",
+          "crates/engram_server/src/services/project_policy/references.rs": "dc23745a43aa9aa58b5428656e93c6c7ed6a746f63f01931223a8d6bca8c046c",
+          "crates/engram_server/src/services/project_policy/linked_sources.rs": "eda8194d2f283e2f28450f8c939016f0e684ef7051b7b417c1a7da90d7b91113",
+          "crates/engram_server/tests/linked_policy_sources_tests.rs": "850c31390c6bebf6eef8c5c10ab637707c335433b0986f60d07a5d692a90e9fa",
+          "docs/TOOL_CONTRACT.md": "794f8bf7c98114c0d535f91ff1bd6858e5ce1dc5bdf75b6a91854c41ca7df767"
+        }
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2638,10 +2655,11 @@
   "latest_source_batch_progress": {
     "records": [
       "eval/eg31-git-change-selection-progress-20261115.json",
-      "eval/eg19-current-rulings-progress-20261115.json"
+      "eval/eg19-current-rulings-progress-20261115.json",
+      "eval/eg27-linked-guidance-progress-20261115.json"
     ],
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "independent_requirements_queued": 2,
+    "independent_requirements_queued": 3,
     "builds_started": 0
   }
 }

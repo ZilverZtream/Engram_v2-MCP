@@ -1,0 +1,40 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T18:59:51.889003+00:00",
+  "original_requirement_id": "EG-27",
+  "source_commit": "c94f340b64f3a3048900ff3ce8a3cf91bf642d9c",
+  "original_requirement": "Supply linked guidance outside normal discovery or name incomplete coverage, retaining source identity, scope and authority.",
+  "before": "Normal policy contexts observe links outside conventional discovery but do not supply their target contents. Callers must make an additional source read even for small applicable shared guidance.",
+  "source_after": "Normal scoped contexts supply complete bounded first-hop linked Markdown evidence alongside direct policy, with source hashes and explicit applicability/authority separation. Missing, excluded and budget-limited targets remain named.",
+  "finite_acceptance": [
+    "A selected guide links an applicable small Markdown document outside discovery; complete body/hash arrives as linked evidence while direct policy sources, qualifications and authority remain unchanged.",
+    "Declared nonmatching scope is not supplied. Linked documents share remaining direct-policy output budgets and a finite read budget; no recursive crawling or partial policy. Named omissions retain exact hash-bound recovery when a complete fingerprint was obtained.",
+    "Both JSON and Markdown expose the same supplied linked evidence; historical contexts never fetch current disk targets. File edits change linked fingerprints and exact-recovery actions. No index/authored writes or actual LegacyValidation whole-project operation."
+  ],
+  "source_files": {
+    "crates/engram_server/src/services/project_policy.rs": "bd37c4691ea0074e01182bffc1504c3a3288986391eba83097628866753aad38",
+    "crates/engram_server/src/services/project_policy/references.rs": "dc23745a43aa9aa58b5428656e93c6c7ed6a746f63f01931223a8d6bca8c046c",
+    "crates/engram_server/src/services/project_policy/linked_sources.rs": "eda8194d2f283e2f28450f8c939016f0e684ef7051b7b417c1a7da90d7b91113",
+    "crates/engram_server/tests/linked_policy_sources_tests.rs": "850c31390c6bebf6eef8c5c10ab637707c335433b0986f60d07a5d692a90e9fa",
+    "docs/TOOL_CONTRACT.md": "794f8bf7c98114c0d535f91ff1bd6858e5ce1dc5bdf75b6a91854c41ca7df767"
+  },
+  "checks_completed": [
+    "Installed owned baseline confirms ordinary context observes but does not supply a linked shared document.",
+    "Rust/Python syntax parsing and git diff --check."
+  ],
+  "checks_deferred": [
+    "Run focused linked-policy tests in the combined batch.",
+    "Run ordinary-context public checks on combined debug, candidate and installed artifacts."
+  ],
+  "native_compilations_this_item": 0,
+  "release_builds_this_item": 0,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\linked-guidance-delivery-20261115",
+    "baseline_fixture_removed": true,
+    "baseline_owner_closed": true,
+    "preserved_wip9": true,
+    "cleanup_condition": "Owned native/public fixtures close process/database handles and remove their directories; retain evidence here until superseded. No preexisting deletion."
+  }
+}
