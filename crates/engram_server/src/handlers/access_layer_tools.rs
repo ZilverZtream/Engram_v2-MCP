@@ -33,6 +33,9 @@ mod method_source_delivery;
 #[path = "method_info_delivery.rs"]
 mod method_info_delivery;
 
+#[path = "method_callee_evidence.rs"]
+mod method_callee_evidence;
+
 /// Resolve application-relative directives from hosting evidence, never a
 /// repository-specific folder name. Nested web.config files can configure a
 /// subdirectory, so prefer an explicit application marker or the outermost
@@ -109,6 +112,9 @@ impl AccessFreshness {
 /// Comprehensive method metadata assembled from graph + disk.
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodInfoResult {
+    pub node_id: String,
+    /// Revision of this indexed node, not a claim of current disk freshness.
+    pub indexed_generation: u64,
     pub fqn: String,
     pub file_path: String,
     pub class_name: String,
@@ -123,6 +129,8 @@ pub struct MethodInfoResult {
     pub method_kind: String,
     pub effects: Vec<String>,
     pub calls_methods: Vec<String>,
+    pub callee_evidence: method_callee_evidence::Inventory,
+    pub indexed_coverage: Option<MethodInfoCoverage>,
     pub called_by: Vec<CallerLocation>,
     pub handles_clause: Vec<String>,
     pub db_tables_accessed: Vec<String>,
@@ -1369,8 +1377,8 @@ fn outgoing_targets(
     }
 }
 
-/// Build MethodInfoResult from a graph Node + edge lookups (coverage dropped —
-/// for callers that only need the facts).
+/// Retain indexed lookup coverage in the metadata record. Edit-context callers
+/// also receive the same coverage independently for their existing assessment.
 fn build_method_info_from_node(
     node: &Node,
     graph: &Arc<GraphStore>,
@@ -1472,9 +1480,14 @@ fn build_method_info_with_coverage(
         }
     }
 
-    // Calls-methods: extract from metadata (populated during extraction).
-    // We don't have a direct find_outgoing_edges API; metadata is the authoritative source.
-    let calls_from_meta = meta_csv(node, "calls_methods");
+    // Real callees belong to the graph; extraction metadata is an optional hint.
+    let callee_evidence = method_callee_evidence::collect(
+        graph, project_id, &node.node_id, meta_csv(node, "calls_methods"),
+    );
+    let mut calls_methods = callee_evidence.metadata_hints.clone();
+    calls_methods.extend(callee_evidence.targets.iter().map(|target| target.fqn.clone()));
+    calls_methods.sort();
+    calls_methods.dedup();
 
     // Data/state edges: exact per-node adjacency seeks (row-2 audit D5 —
     // the previous project-wide first-5000-edges scans were silently
@@ -1503,7 +1516,9 @@ fn build_method_info_with_coverage(
         .and_then(|v| v.as_str())
         .map(|s| s.to_string());
 
-    let info = MethodInfoResult {
+    let mut info = MethodInfoResult {
+        node_id: node.node_id.clone(),
+        indexed_generation: node.generation,
         fqn,
         file_path: node.file_path.as_str().to_string(),
         class_name: class_of_node(node),
@@ -1528,7 +1543,9 @@ fn build_method_info_with_coverage(
         language: node.language.clone(),
         method_kind: kind.to_string(),
         effects,
-        calls_methods: calls_from_meta,
+        calls_methods,
+        callee_evidence,
+        indexed_coverage: None,
         called_by,
         handles_clause,
         db_tables_accessed: db_tables,
@@ -1547,6 +1564,7 @@ fn build_method_info_with_coverage(
         session_reads: session_reads_status,
         session_writes: session_writes_status,
     };
+    info.indexed_coverage = Some(coverage.clone());
     (info, coverage)
 }
 
@@ -2528,6 +2546,7 @@ fn render_method_info_markdown(info: &MethodInfoResult) -> String {
         }
         md.push('\n');
     }
+    method_callee_evidence::render_markdown(&info.callee_evidence, &mut md);
 
     if !info.db_tables_accessed.is_empty() {
         md.push_str("## Database Tables\n\n");
@@ -7196,6 +7215,8 @@ mod edit_safety_tests {
 
     fn info(callers: usize, complexity: u32, session_writes: usize) -> MethodInfoResult {
         MethodInfoResult {
+            node_id: "function:ns.cls.M".into(),
+            indexed_generation: 1,
             fqn: "ns.cls.M".into(),
             file_path: "Site/App_Code/x.vb".into(),
             class_name: "cls".into(),
@@ -7210,6 +7231,8 @@ mod edit_safety_tests {
             method_kind: "Helper".into(),
             effects: vec![],
             calls_methods: vec![],
+            callee_evidence: Default::default(),
+            indexed_coverage: None,
             called_by: (0..callers)
                 .map(|i| CallerLocation {
                     fqn: format!("ns.c{i}.F"),

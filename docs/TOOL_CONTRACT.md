@@ -984,3 +984,20 @@ superseded or run in another order; their appearance does not establish deployed
 state or constraint trust. Unsupported ALTER operations retain coverage gaps.
 Changed script bytes are withheld until source refresh under the existing
 selected-generation and fingerprint checks. No migration is executed.
+
+## Canonical callees in method metadata
+
+`get_method_info` retains the method's `node_id` and `indexed_generation`, and
+supplies `callee_evidence.targets` from indexed Calls/heuristic Dependency edges.
+Targets carry canonical node ID, FQN, file, declaration lines, indexed revision,
+edge kinds and an executable `resolve_id` action. Duplicate edge kinds share one
+target identity; overload identities remain distinct. `calls_methods` also
+includes these FQNs while retaining existing unverified metadata hints.
+
+The inventory retains up to200 targets per edge kind and resolves up to50 unique
+target nodes, each through a bounded256KiB node read. It reports missing,
+non-method, failed and uninspected targets and unknown totals when capped.
+`indexed_coverage` preserves the existing caller/data/state lookup qualifications.
+JSON and Markdown retain these identities and limits; whole-report budgets and
+immutable recovery still apply. Completed indexed lookups do not establish
+exhaustive source calls, current disk freshness, an atomic snapshot or execution.

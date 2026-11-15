@@ -156,6 +156,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   directly valid input to tool B: include `node_id` + `fqn` in search hits where resolvable,
   accept any of the three ID kinds in graph/access-layer tools, add a `resolve_id` helper.
 
+  Source-complete November16, awaiting combined validation: method metadata now
+  projects indexed callee identities and exact `resolve_id` actions instead of
+  depending solely on optional call-name metadata. Node revisions, lookup
+  qualifications and bounded omissions accompany the JSON/Markdown report.
+  [Pending source change](eval/method-callee-identities-progress-20261116.json).
+
 ---
 
 ## P1 — Graph accuracy & trust
