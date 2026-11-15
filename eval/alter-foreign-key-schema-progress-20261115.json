@@ -37,7 +37,7 @@
   ],
   "source_sha256": {
     "crates/engram_server/src/services/schema_query.rs": "1c2fe113211591afbe5657af8d1fa9166f1a43a90a2a3e2cd31a98f838efe88a",
-    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs": "91d4f1ad1e75508623a448e97dcc63bf45721a1a106fc5bf62ae4098dee724cf",
+    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs": "c41be018725db7311457a00211c83d7def0680761512625429ccb25a49c506f3",
     "crates/engram_server/src/handlers/schema_tools.rs": "22dbfa0dcf14f9bfb4ba4f9ab52f6ef83748ccaac07754907dd75085a6aaa89c",
     "crates/engram_server/tests/alter_foreign_key_schema_tests.rs": "339b3f150f84d91335176de370a80638f02b973c31e1ad431ff8eae1800e3a36",
     "crates/engram_server/tests/source_history_schema_batch_tests.rs": "852af5df724098f11904426d07664d351e0a67c8e84a3dc3353cde90fe104714",
@@ -110,12 +110,12 @@
     "retention": "Retain exact three SQL proof inputs, contract and validation receipts through installed delivery. Native/public fixtures own engine/Git/database handles and remove new temporary directories on completion/unwind. No preexisting deletion."
   },
   "delivery_cadence": "Third distinct source outcome after EG-13 and EG-27; one focused combined14-case native target and one release after queue pins are committed.",
-  "source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
-  "runtime_source_commit": "ad669aae1b1c69b61b043e901dbe6443cc9be574",
+  "source_commit": "c3a1628c715c667e83510b4a32bafdcad7063e2a",
+  "runtime_source_commit": "1e18e563591322fa1fc844ecd81759c449f43998",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/services/schema_query.rs": "1c2fe113211591afbe5657af8d1fa9166f1a43a90a2a3e2cd31a98f838efe88a",
-    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs": "91d4f1ad1e75508623a448e97dcc63bf45721a1a106fc5bf62ae4098dee724cf",
+    "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs": "c41be018725db7311457a00211c83d7def0680761512625429ccb25a49c506f3",
     "crates/engram_server/src/handlers/schema_tools.rs": "22dbfa0dcf14f9bfb4ba4f9ab52f6ef83748ccaac07754907dd75085a6aaa89c",
     "crates/engram_server/tests/alter_foreign_key_schema_tests.rs": "339b3f150f84d91335176de370a80638f02b973c31e1ad431ff8eae1800e3a36",
     "crates/engram_server/tests/source_history_schema_batch_tests.rs": "852af5df724098f11904426d07664d351e0a67c8e84a3dc3353cde90fe104714"
@@ -124,5 +124,21 @@
     "Committed native fixtures use invented same-shape table/column names per the repository customer-data hook. Exact LegacyValidation proof inputs remain only in the recorded owned diagnostics case.",
     "Runtime code/test bytes match root exactly. Build-checkout TODO.md retains its prior delivery chronology; the four-line source change applied cleanly. Root TODO.md is the authoritative accumulated delivery ledger. No unrelated source was copied."
   ],
+  "initial_source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
+  "native_failure_correction": {
+    "cause": "SQL parser get_current_index identifies last-consumed token, not exclusive cursor. Initial14-case run passed11 and failed3SQL assertions; library compiled successfully.",
+    "changed_files": [
+      "crates/engram_server/src/services/schema_query/alter_foreign_keys.rs"
+    ],
+    "source_commit": "c3a1628c715c667e83510b4a32bafdcad7063e2a",
+    "runtime_source_commit": "1e18e563591322fa1fc844ecd81759c449f43998",
+    "retry_filter": "post_deployment_schema::",
+    "retry_expected_cases": 4,
+    "unaffected_native_cases_retained": 10,
+    "unchanged_original_tests": true,
+    "initial_native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\native1.json",
+    "initial_native_seconds": 309.0796920999419,
+    "initial_job_handles_and_temp_closed": true
+  },
   "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json"
 }

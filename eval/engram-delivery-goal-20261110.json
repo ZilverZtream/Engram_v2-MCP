@@ -2578,11 +2578,12 @@
       {
         "original_requirement_id": "TODO-35",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
-        "runtime_source_commit": "ad669aae1b1c69b61b043e901dbe6443cc9be574",
+        "source_commit": "c3a1628c715c667e83510b4a32bafdcad7063e2a",
+        "runtime_source_commit": "1e18e563591322fa1fc844ecd81759c449f43998",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json",
         "progress_record": "eval/alter-foreign-key-schema-progress-20261115.json",
-        "user_outcome": "Post-deployment ALTER TABLE ADD foreign-key source evidence appears in table/incoming schema queries with script hash/lines and unknown application status; no migration execution. Source complete; not yet validated or installed."
+        "user_outcome": "Post-deployment ALTER TABLE ADD foreign-key source evidence appears in table/incoming schema queries with script hash/lines and unknown application status; no migration execution. Source complete; not yet validated or installed.",
+        "initial_source_commit": "85dd20a902f211f854919c32d5886862148e8bc9"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2627,7 +2628,7 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "THREE_SOURCE_OUTCOMES_READY_FOR_COMBINED_VALIDATION",
+    "status": "VALIDATING_AFFECTED_SQL_CORRECTION",
     "independent_requirements_source_complete": [
       "EG-13",
       "EG-27",
@@ -2635,9 +2636,11 @@
     ],
     "pending_count": 3,
     "minimum_before_compile": 3,
-    "native_builds": 0,
+    "native_builds": 1,
     "release_builds": 0,
-    "last_installed_record": "eval/revision-guard-history-batch-delivery-20261115.json"
+    "last_installed_record": "eval/revision-guard-history-batch-delivery-20261115.json",
+    "initial_native_passed": 11,
+    "initial_native_failed": 3
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
