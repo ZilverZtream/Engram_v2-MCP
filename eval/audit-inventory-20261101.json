@@ -10109,8 +10109,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO28 revision-bound historical source retrieval source-complete; TODO9 and TODO28 await combined validation. No compiler started.",
-    "next_user_visible_deliverable": "Finish a third distinct original source requirement before the guarded combined validation. The two queued implementations are not installed deliveries.",
+    "active_original_item": "TODO9 inherited guards, TODO28 historical source asks and TODO4 merged-work report delivery are source-complete; selected batch awaits one combined focused native validation.",
+    "next_user_visible_deliverable": "Validate the three committed original outcomes in24 focused native cases, reuse the integration debug server for finite public acceptance, then one release/candidate/installed delivery. No full/lib/no-vector suite or separate debug build.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10127,7 +10127,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: committed revision-bound historical ask retrieval and six pending behavioral checks, including the public entry point. Queue2 of minimum3 independent requirements; builds0.",
+    "previous_goal_turn_classification": "progress: third independent source outcome committed with three behavioral checks; all3original requirements now queued. Compiler not started before source completion.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15911,6 +15911,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115\\contract.json",
         "progress_record": "eval/ask-historical-source-progress-20261115.json",
         "user_outcome": "Historical ask_codebase questions use revision-bound source, excluding current index/graph substitutions."
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "0a5d58bd5e03697e8f158defb674a17d3e4d9daf",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\merged-work-contract.json",
+        "progress_record": "eval/merged-work-delivery-progress-20261115.json",
+        "user_outcome": "Default and caller budgets bound whole merged-work reports with exact immutable recovery, preserving original history evidence and qualifications."
       }
     ],
     "full_original_goal_scope_unchanged": true,

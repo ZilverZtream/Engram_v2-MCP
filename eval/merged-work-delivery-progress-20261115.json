@@ -1,0 +1,59 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T20:55:22.375117+00:00",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform complete-response budgets with exact recovery, applied to original history-driven AI workflow find_merged_work. Existing handler analysis/selection/filter semantics remain.",
+  "source_commit": "0a5d58bd5e03697e8f158defb674a17d3e4d9daf",
+  "runtime_source_commit": "988e9701b845cb018e80198cca12bb13de2d30c4",
+  "observed_missing_behavior": "find_merged_work has no root reply budget or saved-report recovery and was absent from the shared delivery allowlist. Ten ordinary selected PR cards can exceed40KiB even though the renderer limits each cohort to60paths.",
+  "wanted_behavior": [
+    "Bound the entire selected history report by default40KiB or caller max_tokens, including guidance, freshness and qualification text.",
+    "Recover the exact original MCP result without story fields or history reretrieval; preserve all selected cards, IDs, cohorts, current qualifications, source actions and status.",
+    "Preserve original small results byte-for-byte and expose controls on every surface where the tool is advertised. Existing query filters/ranking and internal cohort/candidate caps remain explicit and unchanged."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs",
+    "crates/engram_server/tests/merged_work_delivery_tests.rs",
+    "crates/engram_server/tests/revision_guard_history_batch_tests.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "f879ebc66cf642389c6d1bad7389ebda1af7755dd0c7e79a5b3e783fc8df302c",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "47d793e6719a3cf279867c1f54c2617a0b59fe81bc57047fa128117cef228da0",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs": "f293a9633fd2253567ab044384071eb3d8745a1b2b1bf576d0b8aaf40b7da580",
+    "crates/engram_server/tests/merged_work_delivery_tests.rs": "f98c289eb56c58f0bae6bc8f1145368a460e943609b474930e44a85f335a9c8c",
+    "crates/engram_server/tests/revision_guard_history_batch_tests.rs": "f3b19c7d085e7b1f09331a04c237ffbf417845aa01d3140e92141b05c2452b06"
+  },
+  "finite_acceptance": {
+    "native_target": "merged_work_delivery_tests",
+    "native_cases": 3,
+    "existing_affected_cases": "webforms_report_delivery_tests (4 cases, including changed registry-size assertion)",
+    "public_candidate_and_installed": [
+      "One owned10-PR history corpus with40shipped paths per PR: exact original current report exceeds default40KiB; default and caller budgets defer and recover it exactly.",
+      "Recover the original after deleting/replacing the historical source corpus; no story argument or query rerun required.",
+      "Retain original small/no-match report content and expose budget/recovery in actual advertised metadata."
+    ],
+    "stop_rule": "Deliver this report-owner gap; no history ranking retuning or new task benchmark. Original TODO4 broader coverage remains partial."
+  },
+  "checks_completed": [
+    "Rust2024 syntax parsing via rustfmt; new integration files formatted",
+    "Selected-path git diff --check"
+  ],
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "builds_started": 0,
+  "limits": [
+    "Complete selected original report recovery, not complete history corpus enumeration or source-object retention.",
+    "Existing merged-report rendering limits, candidate limits, filters and ranking are unchanged.",
+    "No measured model-token, task-productivity or review-approval claim."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+    "created_test_fixtures": 0,
+    "retention": "Retain contracts, source/test/build logs, public wire/proof and installed identity; runtime/test fixture teardown must close all owned handles before directory cleanup. No preexisting-folder deletion."
+  },
+  "delivery_cadence": "Third distinct source outcome after TODO9 and TODO28; source commits/contracts must be queued before the first guarded combined build.",
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\merged-work-contract.json"
+}

@@ -81,6 +81,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   section reads. Four focused checks and 22 public checks on each candidate/
   installed binary passed with one combined release; broader TODO4 remains
   partial. [Delivery](eval/legacy_validation-core-report-batch-delivery-20261115.json).
+  `find_merged_work` whole-report budgets and immutable original-result recovery
+  are source-complete and queued for combined validation on November15. Native,
+  public and installed checks remain pending; broader TODO4 stays partial.
+  [Source progress](eval/merged-work-delivery-progress-20261115.json).
   Opt-in retained query windows installed 2026-11-15 for search_memory,
   search_history and grep_project. Complete requested JSON windows recover
   exactly through saved byte continuations across source/index/Git changes and
