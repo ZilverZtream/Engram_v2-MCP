@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "Original TODO31 normal identity-insert batch source effects",
     "original_requirement": "Provide source-cited SQL/procedure/table paths for ordinary LegacyValidation request workflows; retain execution/binding uncertainty.",
     "priority_evidence": "eval/legacy_validation-vb-text-command-progress-20261115.json records SyncData.ProcessEvent identity-insert batches as unfinished before the new frozen QA case. This implements that existing remainder; no recapture, scoring change or tuning of the frozen comparison.",
@@ -99,7 +99,12 @@
       "crates/engram_server/tests/request_trace_sql_commands.rs",
       "crates/engram_server/tests/identity_batch_workflow_tests.rs"
     ],
-    "native_target": "identity_batch_workflow_tests"
+    "native_target": "identity_batch_workflow_tests",
+    "delivery_record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
+    "source_commit": "9d16a68bed6a866e59be48d023a91cd5a20d727b",
+    "runtime_source_commit": "d82dc97336a6a9e2cb802deefd02a4fa5f37b20f",
+    "installed_server_sha256": "9989bd47f56effc433e9ce3419c8167d1c2a7c42cbab0a6a72109f8a24e72ee9",
+    "actual_full_source_operation_run": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -889,42 +894,42 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
-    "compiled_tests_seconds": 268.69394339993596,
-    "actual_test_execution_seconds": 10.350000000000001,
-    "last_release_compile_seconds": 777.0,
+    "compiled_tests_seconds": 221.37486210011411,
+    "actual_test_execution_seconds": 8.91,
+    "last_release_compile_seconds": 813.0,
     "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115",
     "completed_last_batch": [
       {
-        "component": "Request trace parameter evidence",
-        "delivery": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json"
+        "component": "Identity-insert request paths",
+        "delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json"
       },
       {
-        "component": "Repeated-query parameter evidence",
-        "delivery": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json"
+        "component": "Identity-insert repetition context",
+        "delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json"
       },
       {
-        "component": "SQL parameter QA axes",
-        "delivery": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json"
+        "component": "Identity-insert QA axes",
+        "delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json"
       }
     ],
-    "last_batch_delivery": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
+    "last_batch_delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
     "last_native_compile": [
-      "4m 04s"
+      "2m 56s"
     ],
-    "last_release_compile": "12m 57s",
+    "last_release_compile": "13m 33s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Evaluation uses installed binary; source proof uses one tiny owned VB harness. No Engram/native/full-suite build needed for this case.",
+    "current_step_reason": "Three identity source workflows deployed; advance next original requirement without repeating passed acceptance.",
     "last_native_attempts": 2,
     "last_release_attempts": 1,
-    "compiled_tests_seconds_scope": "One focused nine-case target; first run lacked sidecar. Cached second attempt passes with paired sidecar. One native compiler invocation; no library/full suite or runtime/test source changes.",
-    "last_release_runner_seconds": 788.7840570999542,
+    "compiled_tests_seconds_scope": "One focused thirteen-case target. First compile failed E0502; corrected native2 passed. No full/lib suite or extra debug build.",
+    "last_release_runner_seconds": 824.8348124000477,
     "native_failed_attempts": 1,
-    "public_failed_verifier_attempts": 2,
-    "last_native_runner_seconds": 268.69394339993596,
+    "public_failed_verifier_attempts": 0,
+    "last_native_runner_seconds": 221.37486210011411,
     "latest_cadence_deviation": {
       "at_utc": "2026-11-15T07:47:40.737632+00:00",
       "user_observation": "Minutes of implementation followed by hours of compilation and full-suite work displaces useful product changes.",
@@ -998,7 +1003,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Frozen sync-event QA comparison ready; run only after explicit new-task agent request. Keep broader original backlog active while the optional response is pending.",
+  "next_user_visible_deliverable": "Identity-insert source-workflow slice delivered across three tools; advance a ready original LegacyValidation requirement without widening or replaying this acceptance. Preserve unknown general SQL/procedure/runtime binding and unfinished original semantic/usefulness/release requirements.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2534,5 +2539,10 @@
     "assisted_criteria": "6/6",
     "task_benefit_established": false,
     "replay_or_tuning_planned": false
+  },
+  "identity_batch_workflows_delivery": {
+    "record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
   }
 }

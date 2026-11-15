@@ -898,6 +898,10 @@
       "sql_parameter_workflows_delivery_20261115": {
         "record": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
         "task_benefit_established": false
+      },
+      "identity_batch_workflows_delivery_20261115": {
+        "record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
+        "task_benefit_established": false
       }
     },
     {
@@ -10065,7 +10069,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "Original TODO31 normal identity-insert batch source effects",
       "original_requirement": "Provide source-cited SQL/procedure/table paths for ordinary LegacyValidation request workflows; retain execution/binding uncertainty.",
       "priority_evidence": "eval/legacy_validation-vb-text-command-progress-20261115.json records SyncData.ProcessEvent identity-insert batches as unfinished before the new frozen QA case. This implements that existing remainder; no recapture, scoring change or tuning of the frozen comparison.",
@@ -10124,7 +10128,12 @@
         "crates/engram_server/tests/request_trace_sql_commands.rs",
         "crates/engram_server/tests/identity_batch_workflow_tests.rs"
       ],
-      "native_target": "identity_batch_workflow_tests"
+      "native_target": "identity_batch_workflow_tests",
+      "delivery_record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
+      "source_commit": "9d16a68bed6a866e59be48d023a91cd5a20d727b",
+      "runtime_source_commit": "d82dc97336a6a9e2cb802deefd02a4fa5f37b20f",
+      "installed_server_sha256": "9989bd47f56effc433e9ce3419c8167d1c2a7c42cbab0a6a72109f8a24e72ee9",
+      "actual_full_source_operation_run": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10156,8 +10165,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG24/25 frozen sync-event QA comparison ready; independent-agent request pending.",
-    "next_user_visible_deliverable": "Run the frozen paired comparison after explicit new-task delegation request. This single pending item does not pause the full original backlog; preserve frozen inputs and all unfinished findings.",
+    "active_original_item": "Identity-insert workflow slice delivered; advance next original requirement.",
+    "next_user_visible_deliverable": "Identity-insert source-workflow slice delivered across three tools; advance a ready original LegacyValidation requirement without widening or replaying this acceptance. Preserve unknown general SQL/procedure/runtime binding and unfinished original semantic/usefulness/release requirements.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10174,7 +10183,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: fresh source/criteria/packets frozen, six exact source-control-flow cases verified, installed reports captured with zero Engram builds/server generation calls. Candidate benefit remains unmeasured.",
+    "previous_goal_turn_classification": "PROGRESS: three source-workflow components deployed and exact-source public acceptance completed. Broader original goal remains active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15835,5 +15844,10 @@
     "assisted_criteria": "6/6",
     "task_benefit_established": false,
     "replay_or_tuning_planned": false
+  },
+  "identity_batch_workflows_delivery": {
+    "record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
   }
 }

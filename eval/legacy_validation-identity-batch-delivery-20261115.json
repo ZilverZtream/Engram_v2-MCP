@@ -1,0 +1,249 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T16:08:45.139618+00:00",
+  "finding": "Original TODO31 normal identity-insert batch source effects",
+  "source_commit": "9d16a68bed6a866e59be48d023a91cd5a20d727b",
+  "runtime_source_commit": "d82dc97336a6a9e2cb802deefd02a4fa5f37b20f",
+  "before": "Installed tracing reached CustomerCreateV1 but did not expand its local literal ON/INSERT/OFF batch. Repeated-query reports had no identity-batch source context and QA had no identity-insert axis.",
+  "after": [
+    "trace_user_request recognizes the supported literal identity wrapper, emits INSERT read/write table candidates and retains full source SQL, initializer/constructor/execute locations, source hash and existing parameters.",
+    "detect_n_plus_one adds matching constructor-only identity-batch source observations to existing repeated execute findings.",
+    "derive_test_matrix adds an identity-insert review axis from verified explicitly requested VB functions, citing target/table spellings and source/hash locations. Historical/stale/include_db controls continue to withhold inappropriate evidence."
+  ],
+  "configuration_relevance": "The unchanged current non-Q LegacyValidation CustomerCreateV1 uses a local Dim literal batch with kd_kunder ON/INSERT/OFF, followed by connection-state setup, a qualified SqlCommand constructor and seven AddWithValue calls. Exact owned copies verify initializer127, constructor137, execute145 and parameter lines138–144 through the three public workflows.",
+  "source_pins": {
+    "App_Code/multitenant/code/SyncData.ProcessEvent.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
+      "sha256": "565dee29b05488e9e02bdd36472217c9986f9e21c4fb6c20f3ef854d34797272",
+      "bytes": 47049
+    },
+    "App_Code/multitenant/code/SyncData.Definitions.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
+      "sha256": "8a337fe6dc714826652d37d0f884a656930b629ef44c798ded08fc9349a65c0c",
+      "bytes": 4713
+    }
+  },
+  "actual_legacy_validation_operations": {
+    "full_update_run": false,
+    "qa_or_trace_run": false,
+    "repetition_run": false,
+    "named_source_hashes_unchanged": true,
+    "reason": "Owned exact-source copies only. No actual whole-project operation or helper/configuration survey that could enter protected Site/Q."
+  },
+  "validation": {
+    "native_tests": 13,
+    "debug_public_assertions": 16,
+    "candidate_public_assertions": 16,
+    "installed_public_assertions": 16,
+    "installed": {
+      "independent_source_sites_match": true,
+      "request_trace_reaches_customer_identity_insert": true,
+      "trace_retains_initializer_constructor_and_execute_lines": true,
+      "trace_batch_names_target_insert_and_statement_positions": true,
+      "trace_source_revision_and_binding_limits": true,
+      "existing_seven_parameter_source_observations_preserved": true,
+      "existing_repeated_execute_finding_preserved": true,
+      "repetition_batch_source_sites_and_hash_match": true,
+      "repetition_keeps_constructor_and_runtime_limits": true,
+      "qa_identity_axis_cites_hash_and_source_sites": true,
+      "qa_does_not_promise_session_cleanup_or_executed_tests": true,
+      "historical_cutoff_withholds_current_batch_axes": true,
+      "include_db_false_has_no_batch_table_expansion": true,
+      "stale_source_withholds_all_three_batch_observations": true,
+      "actual_sources_and_owned_copies_unchanged": true,
+      "frozen_comparison_unchanged": true
+    },
+    "retained_failure": "Native1 stopped at E0502: invocation label borrowed evidence while adding batch facts. Fixed by owning label; native2 thirteen cases and debug1 sixteen assertions pass. No test/app execution claimed beyond these owned checks.",
+    "full_suite": false,
+    "extra_debug_build": false
+  },
+  "build_cost": {
+    "native_attempts": 2,
+    "native_runner_seconds": 221.37486210011411,
+    "native_compile_summaries": [
+      [],
+      [
+        "2m 56s"
+      ]
+    ],
+    "native_test_execution_seconds": 8.91,
+    "native_first_attempt": "Type-check failure E0502 after24.68 runner seconds; no tests executed.",
+    "release_attempts": 1,
+    "release_compile": "13m 33s",
+    "release_compile_seconds": 813.0,
+    "release_runner_seconds": 824.8348124000477
+  },
+  "installed_pair": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\package1",
+    "server_sha256": "9989bd47f56effc433e9ce3419c8167d1c2a7c42cbab0a6a72109f8a24e72ee9",
+    "manifest_sha256": "a47889dd01fec7a2d19d456703b9b1a0e4112c2f0b976e60e17c973238c24a8b",
+    "old_server_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
+    "old_manifest_sha256": "4883f8ae3e1e33e6900ded880a93498d6f51b655ad6e143d8645f305de340fbc",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\release1.json",
+      "sha256": "e90d8f789f0bddb26a2b607dcf580cd5e88d4384d565f27de0bc13c155e3f0d9"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "4883f8ae3e1e33e6900ded880a93498d6f51b655ad6e143d8645f305de340fbc"
+    },
+    "source_commit": "d82dc97336a6a9e2cb802deefd02a4fa5f37b20f",
+    "manifest_assets_verified": 215
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 56436,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 59132,
+    "daemon_created": 1794758915.3922715,
+    "metadata": {
+      "pid": "59132",
+      "started_at_ms": "1794758915461",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "9989bd47f56effc433e9ce3419c8167d1c2a7c42cbab0a6a72109f8a24e72ee9",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "limitations": [
+    "Source-only candidates: no proof of CLR receiver identity, physical table/parameter binding, runtime command state, reachable branches, insertion success, transaction atomicity, session identity or error cleanup. ON/INSERT/OFF string order does not guarantee OFF executes.",
+    "Exactly the bounded three nonempty-statement literal identity wrapper with matching ON/OFF source spellings is supported; general multi-statement/procedure/dynamic SQL remains unresolved. Conservative local Dim association requires one literal declaration, supported lexical block ancestry and no intervening reference/direct reassignment. This is not general dataflow.",
+    "Additional identity observations are constructor-only and withhold receiver reuse and CommandText/CommandType setters. Per-method bounds remain128KiB,32constructors,32execute sites per receiver and64KiB serialized observations with explicit truncation.",
+    "Existing request-trace, repeated-query and QA admission/coverage limits remain. QA requires verified explicitly requested VB methods. Draft review cases are not executed application tests or accepted policy.",
+    "No actual LegacyValidation source edits/full-source operation, protected Q read, SQL/API/application/model execution, CodeMap/Blast work, target-language expansion or original full19gate closure. No comparative-productivity benefit established. The separate frozen sync-event comparison used the previous producer and is unchanged."
+  ],
+  "reply_cost": {
+    "scope": "Saved public replies on fresh owned copies of the same pinned raw source. Byte counts only; not matched model performance, latency or productivity.",
+    "reports": {
+      "trace": {
+        "baseline1": 99088,
+        "debug1": 112724,
+        "added_bytes": 13636
+      },
+      "repeated": {
+        "baseline1": 84321,
+        "debug1": 90121,
+        "added_bytes": 5800
+      },
+      "matrix": {
+        "baseline1": 15094,
+        "debug1": 17251,
+        "added_bytes": 2157
+      }
+    }
+  },
+  "task_productivity_demonstrated": false,
+  "full_original_goal_complete": false,
+  "resources": {
+    "owned_fixtures_removed": true,
+    "owned_config_removed": true,
+    "preserved_wip9": true,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115",
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\package1",
+    "retained_rollback": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-03358a0b771a4c699df64db7e4b89920",
+    "cleanup_condition": "Owned fixtures removed after handles close. Evidence/package retained until superseded; managed installer owns rollback lifecycle. Preexisting inventories remain read-only. Normal daemon follows ordinary lifecycle."
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\contract.json",
+      "sha256": "835f82d536838a8affbb2600c8401d09c528e78126e448a42775ff38ca0d55a7"
+    },
+    "baseline1/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\baseline1\\receipt.json",
+      "sha256": "726ba32995eac7c94ecdb48d5a7a5bb2bbb3cdccdaca9d89a5c5f3f113e34751"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\native1.json",
+      "sha256": "65a6b1f679132360876ba4afe3b8cd4fdb25af85699e0bbc868abf5151bd8a52"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\native2.json",
+      "sha256": "6687a82f7aa1b1ba37f93d998f557f59048011d99c5fcc085481284c28f4c1d2"
+    },
+    "native-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\native-acceptance.json",
+      "sha256": "3a95259c3e6ad78eec347b51bd709398ee8a802437808fb44abc60fa7a6a9a06"
+    },
+    "debug1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\debug1\\acceptance.json",
+      "sha256": "57b6e072ffff5ef7304654bc98a8411834f195571c1b13992a850d3050313986"
+    },
+    "reply-cost-observation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\reply-cost-observation.json",
+      "sha256": "ae64602607331358b29e681035626395f2ed8982acb0afc007dbb18246ade449"
+    },
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\implementation1.json",
+      "sha256": "1699123901b006049a1db952f73ba5520939f1d6ad046084dee34435fd819f3e"
+    },
+    "release-plan.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\release-plan.json",
+      "sha256": "b6c9fd1cedf2e2ff1d6a7b3751490359b73bf8ab16dd1b53d499b10171823fc2"
+    },
+    "source-validation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\source-validation1.json",
+      "sha256": "b6c9fd1cedf2e2ff1d6a7b3751490359b73bf8ab16dd1b53d499b10171823fc2"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\release1.json",
+      "sha256": "e90d8f789f0bddb26a2b607dcf580cd5e88d4384d565f27de0bc13c155e3f0d9"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\pair1.json",
+      "sha256": "43cc1a5909479d93dafd2cd5e5a7ea5e8670f0a316756b0fddae963f51814a52"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\candidate1\\acceptance.json",
+      "sha256": "577ddb3fed1b54109cccb394a2191c21298db34ee739a9e238e118506f9f15b5"
+    },
+    "candidate1/data-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\candidate1\\data-state.json",
+      "sha256": "03e59b9e1611c3ba4fb3eb9e845f97a5a0fb3ca54b4b731be86a4a8f2e1e7ed8"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\installed1\\acceptance.json",
+      "sha256": "c539c77adf632a2e75fb0d0db07ae2886f20291ddb1d1d4ff38687730aaecbac"
+    },
+    "installed1/data-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\installed1\\data-state.json",
+      "sha256": "03e59b9e1611c3ba4fb3eb9e845f97a5a0fb3ca54b4b731be86a4a8f2e1e7ed8"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\deployment1-state.json",
+      "sha256": "c5b60803c744be3e14f44aed580aacac9da93908234d112c8fb418144fbfb9e3"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\restored-runtime\\receipt.json",
+      "sha256": "e378eac7e59cb4ac824224385b0e63ce375327b4972c1036c1bd56c5056331ec"
+    },
+    "pipeline-state1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\pipeline-state1.json",
+      "sha256": "e96827f994f09b265d61befd0a50a3144c679971bb9345926e977dedf73b8fb0"
+    },
+    "identity-batch-202611151-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115\\identity-batch-202611151-install-Upgrade.json",
+      "sha256": "5efa9467f6c14325fad3d03a0adc22d7187f136e2ede771c6e13b5d6ce113000"
+    }
+  }
+}
