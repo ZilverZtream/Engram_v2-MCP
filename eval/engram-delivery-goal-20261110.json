@@ -40,13 +40,13 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "READY_FOR_COMBINED_VALIDATION",
-    "pending_source_records": [
-      "eval/retained-index-output-progress-20261115.json",
-      "eval/historical-linked-policy-progress-20261115.json",
-      "eval/alter-foreign-key-schema-progress-20261115.json"
+    "status": "DELIVERED",
+    "record": "eval/source-history-schema-batch-delivery-20261115.json",
+    "original_requirement_ids": [
+      "EG-13",
+      "EG-27",
+      "TODO-35"
     ],
-    "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
   "previous_delivery": {
@@ -991,7 +991,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement from concrete missing behavior. This three-outcome batch is installed; do not replay its completed finite checks. Broader usefulness, authority, historical graph/policy and all other original limits remain open.",
+  "next_user_visible_deliverable": "Select the next concrete unfinished original LegacyValidation requirement. This three-outcome batch is installed and its finite checks are complete; preserve all broader scope/authority/usefulness/resource limits and resume sequential source batching.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2555,49 +2555,19 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-13",
-        "original_gate_id": "S14",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
-        "runtime_source_commit": "5d90b87223cdd51884e8a5d43e86b018a8270667",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
-        "progress_record": "eval/retained-index-output-progress-20261115.json",
-        "user_outcome": "Retained indexing statistics and document batches participate in shared-budget admission through their actual consumers; refusal preserves the published generation. Source complete, not yet validated or installed."
-      },
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
-        "runtime_source_commit": "e3e07cdf3400af9ea15d06a214ab33a5d63554c7",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
-        "progress_record": "eval/historical-linked-policy-progress-20261115.json",
-        "user_outcome": "Revision-pinned change sets include complete shared guidance from the requested Git tree, including deleted checkout files; preserve committed scope/exception/hash evidence. Source complete; not yet validated or installed."
-      },
-      {
-        "original_requirement_id": "TODO-35",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "c3a1628c715c667e83510b4a32bafdcad7063e2a",
-        "runtime_source_commit": "1e18e563591322fa1fc844ecd81759c449f43998",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json",
-        "progress_record": "eval/alter-foreign-key-schema-progress-20261115.json",
-        "user_outcome": "Post-deployment ALTER TABLE ADD foreign-key source evidence appears in table/incoming schema queries with script hash/lines and unknown application status; no migration execution. Source complete; not yet validated or installed.",
-        "initial_source_commit": "85dd20a902f211f854919c32d5886862148e8bc9"
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/revision-guard-history-batch-delivery-20261115.json",
+      "record": "eval/source-history-schema-batch-delivery-20261115.json",
       "source_requirements": [
-        "TODO-9",
-        "TODO-28",
-        "TODO-4"
+        "EG-13",
+        "EG-27",
+        "TODO-35"
       ],
-      "native_builds": 1,
-      "native_fixture_retries_without_recompile": 1,
+      "native_builds": 2,
+      "native_affected_retry_cases": 4,
       "release_attempts": 1
     }
   },
@@ -2621,28 +2591,18 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "ONE_SHARED_RELEASE_RUNNING",
-    "independent_requirements_source_complete": [
-      "EG-13",
-      "EG-27",
-      "TODO-35"
-    ],
-    "pending_count": 3,
-    "minimum_before_compile": 3,
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": "eval/source-history-schema-batch-delivery-20261115.json",
+    "independent_requirements_delivered": 3,
     "native_builds": 2,
-    "release_builds": 1,
-    "last_installed_record": "eval/revision-guard-history-batch-delivery-20261115.json",
-    "initial_native_passed": 11,
-    "initial_native_failed": 3,
-    "native_distinct_cases_passed": 14,
-    "debug_public_checks_passed": 18
+    "release_builds": 1
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -2655,55 +2615,48 @@
     "full_original_goal_complete": false
   },
   "retained_index_output_source_progress": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/retained-index-output-progress-20261115.json",
     "original_requirement_id": "EG-13",
     "original_gate_id": "S14",
     "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
-    "native_tests_run": false,
-    "public_acceptance_run": false,
-    "deployed": false
+    "native_tests_run": true,
+    "public_acceptance_run": true,
+    "deployed": true,
+    "combined_delivery_record": "eval/source-history-schema-batch-delivery-20261115.json"
   },
   "historical_linked_policy_source_progress": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/historical-linked-policy-progress-20261115.json",
     "original_requirement_id": "EG-27",
     "source_commit": "075635971357680b4cf7e185a99e4037a0cb41d7",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-linked-policy-20261115\\contract.json",
-    "native_tests_run": false,
-    "public_acceptance_run": false,
-    "deployed": false
+    "native_tests_run": true,
+    "public_acceptance_run": true,
+    "deployed": true,
+    "combined_delivery_record": "eval/source-history-schema-batch-delivery-20261115.json"
   },
   "alter_foreign_key_schema_source_progress": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/alter-foreign-key-schema-progress-20261115.json",
     "original_requirement_id": "TODO-35",
-    "source_commit": "85dd20a902f211f854919c32d5886862148e8bc9",
+    "source_commit": "c3a1628c715c667e83510b4a32bafdcad7063e2a",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\alter-foreign-key-schema-20261115\\contract.json",
-    "native_tests_run": false,
-    "public_acceptance_run": false,
-    "deployed": false
+    "native_tests_run": true,
+    "public_acceptance_run": true,
+    "deployed": true,
+    "combined_delivery_record": "eval/source-history-schema-batch-delivery-20261115.json"
   },
   "source_history_schema_batch_progress": {
-    "status": "ONE_SHARED_RELEASE_RUNNING",
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "record": "eval/source-history-schema-batch-delivery-20261115.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115",
-    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\native-acceptance.json",
-    "native_distinct_cases_passed": 14,
-    "native_builds": 2,
-    "initial_failed_sql_cases": 3,
-    "affected_retry_cases_passed": 4,
-    "unaffected_cases_retained": 10,
-    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\debug1\\receipt.json",
-    "debug_public_checks_passed": 18,
-    "debug_binary_sha256": "7403072f77b891cb0f210b2bc4ca30a4ec2ec171ed712ee9d576c6173bbc9725",
-    "release_builds_started": 1,
-    "candidate_acceptance_run": false,
-    "installed_acceptance_run": false,
-    "installed": false,
-    "all_completed_native_and_debug_fixture_owners_closed": true,
-    "release_exec_session_id": 86931,
-    "pipeline_exec_session_id": 17400,
-    "continuation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\continuation.json"
+    "release_builds": 1
+  },
+  "source_history_schema_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": "eval/source-history-schema-batch-delivery-20261115.json",
+    "full_original_goal_complete": false
   }
 }
