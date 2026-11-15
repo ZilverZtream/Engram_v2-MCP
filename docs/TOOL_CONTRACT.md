@@ -240,6 +240,34 @@ Config fields: `adp_rollout_phase` (default: `"shadow"`), `adp_kill_switch` (def
 - `RuntimeEvidenceBatch` — collection of events with `validate_batch()` schema validation
 - `ReconciliationResult` — per-path reconciliation with `Confirmed`/`Contradicted`/`Unmatched` statuses
 
+## Literal settings evidence
+
+VB name-shaped typed getters such as `SystemSettings.GetText("currency")` and
+`SystemSettings.GetInt("retry_count")` publish literal-key observations for the
+settings tools. The complete first argument must be a literal; computed keys,
+comments and quoted examples are not treated as known keys. This supplements
+existing property and framework-setting references.
+
+`list_settings` groups these observations by catalog label in a separate code
+category. Its count is observed call sites, not physical stores or live values.
+Pass the returned label, or an unambiguous literal key, to `get_setting`; lookup
+returns up to 50 indexed sites with getter spellings, source generations and raw
+file hashes. Current call excerpts require a matching file hash and a source file
+within the 2 MiB lookup bound. Changed or unavailable source withholds the current
+excerpt while retaining the indexed observation. Equal labels do not prove the
+same backing store, and getter names do not prove compiler binding or return types.
+
+`derive_test_matrix` includes these requested-file observations, including reads
+in constructors, after its existing source-compatibility and freshness checks.
+Whether a setting governs the proposed change still requires source review;
+neither every key nor every getter is a Boolean switch. These are QA axes, not
+inferred expected outcomes or executed tests.
+
+The per-VB enrichment receipt makes `update_project` refresh older extraction
+metadata even when source bytes are unchanged. Refresh an existing VB index after
+upgrading; old extraction metadata does not contain these observations. Other
+language extraction contracts are unchanged.
+
 ## LLM-Powered Business Logic (Phase 36)
 - `analyze_business_logic(project_id, file_path=null, method_name=null, line=null, max_concurrent=2, output_json=false)` — analyzes methods or executable VB properties using the configured provider. Produces PURPOSE, STEPS, RULES, DATA, ERRORS and EFFECTS; inspect returned availability and coverage. Select an overloaded method with its one-based declaration `line`. Each call re-analyzes: no analysis cache exists, and `force_refresh` is a reserved no-op. Operates at method, file or project scope.
 - `query_business_logic(project_id, query, top_k=5)` — semantic search over previously analyzed business logic summaries stored in the DocStore `business_logic` namespace. Returns matching method summaries ranked by relevance

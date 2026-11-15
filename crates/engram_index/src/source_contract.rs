@@ -4,6 +4,8 @@
 /// Earlier version-7 files may contain same-name bindings from the old parser.
 /// Keep this per-file so unrelated source and VB parser receipts stay reusable.
 pub const SCRIPT_CALL_CONTRACT: u64 = 1;
+/// VB enrichment now publishes source-bound literal typed-getter observations.
+pub const VB_LITERAL_SETTINGS_CONTRACT: u64 = 1;
 pub const MODERN_STATE_KEY: &str = engram_core::modern_state::KEY;
 
 pub fn requires_modern_state(path: &std::path::Path) -> bool {
@@ -121,7 +123,9 @@ impl SourceExtractionExpectation {
         if requires_modern_state(std::path::Path::new(path))
             && !metadata.get(MODERN_STATE_KEY).and_then(|v|v.as_str()).is_some_and(|raw|current_modern_state(raw, path)) { return false; }
         if !crate::vb_extractor::requires_parser_provenance(path) { return true; }
-        self.vb_parser.as_ref().is_some_and(|expected| metadata.get("vb_parser_provenance")
+        metadata.get("vb_literal_settings_contract").and_then(serde_json::Value::as_u64)
+            == Some(VB_LITERAL_SETTINGS_CONTRACT)
+            && self.vb_parser.as_ref().is_some_and(|expected| metadata.get("vb_parser_provenance")
             .is_some_and(|actual| expected.matches_metadata(actual)))
     }
 

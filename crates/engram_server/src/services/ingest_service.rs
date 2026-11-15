@@ -214,6 +214,8 @@ pub(crate) async fn prepare_ingest_graph(
                 "source_index_version": stats.source_extraction_identity.map(|identity| identity.source_index_version),
                 "source_extraction_identity": stats.source_extraction_identity,
                 "vb_parser_provenance": stats.vb_parser_provenance.get(rel_path.as_str()),
+                "vb_literal_settings_contract": stats.vb_parser_provenance.contains_key(rel_path.as_str())
+                    .then_some(engram_index::source_contract::VB_LITERAL_SETTINGS_CONTRACT),
                 "webforms_position_contract": stats.webforms_position_contracts.get(rel_path.as_str()),
                 "script_call_contract": stats.script_call_contracts.get(rel_path.as_str()),
             }));

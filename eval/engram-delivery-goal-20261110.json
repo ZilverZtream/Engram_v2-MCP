@@ -40,30 +40,45 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
-    "finding": "EG26 current evaluation claims, preset count and normal QA handoff documentation",
-    "original_requirement": "Reconcile current tool schemas, README/roadmap statuses and evaluation claims; dated capability tables must not be presented as measured readiness.",
-    "observed_gaps": [
-      "eval/README.md calls November13 latest despite November14/15 negative results.",
-      "Main README still calls the archive comparison latest and contradicts its own33tool Core count with a32tool ceiling.",
-      "Quickstart supplies discovery/search but omits the targeted business analysis prerequisite for deriving source-backed rule cases.",
-      "Roadmap EG24/25 rows omit the later failed/negative comparisons."
+    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "finding": "Original settings intelligence and QA workflow: literal typed settings getters",
+    "original_requirement": "Existing settings catalog/lookup and QA matrix expose settings that fork ordinary LegacyValidation behavior with usable source evidence and honest applicability limits.",
+    "observed_gap": "VB settings enrichment recognizes properties and framework AppSettings but skips method calls. Actual CustomerInvoiceImporter.vb:103-104 reads two configured literal keys through systemsettings.GetText; these keys are not modeled.",
+    "components": [
+      "list_settings: discover literal typed-getter keys as code observations, grouped by syntactic key rather than mislabeled web.config declarations.",
+      "get_setting: retrieve bounded observed call sites, getter spelling and source citations across matching files; no runtime-value or physical-store binding claim.",
+      "derive_test_matrix: include requested-file literal key/getter observations and source-bound QA axes without treating every setting as Boolean."
     ],
     "files": [
-      "eval/README.md",
-      "README.md",
-      "docs/QUICKSTART.md",
-      "docs/ROADMAP.md"
+      "crates/engram_index/src/vb_extractor.rs",
+      "crates/engram_index/src/vb_extractor/literal_settings.rs",
+      "crates/engram_server/src/handlers/settings_tools.rs",
+      "crates/engram_server/src/handlers/literal_settings.rs",
+      "crates/engram_server/src/handlers/mod.rs",
+      "crates/engram_server/tests/literal_settings_workflow_tests.rs",
+      "crates/engram_index/src/source_contract.rs",
+      "crates/engram_server/src/services/ingest_service.rs",
+      "crates/engram_server/tests/matrix_setting_identity_tests.rs"
     ],
     "finite_acceptance": [
-      "Each current evaluation claim matches the retained dated outcome JSON without rerunning inspected cases or inventing benefit/cost/latency.",
-      "One read-only installed tools/list capture confirms current Full/Core preset count and exact JSON request fields for the documented QA sequence.",
-      "Example JSON parses and has only actual installed schema properties. All local links in edited sections resolve.",
-      "Existing WIP9, installed binary, normal config and original unresolved requirements remain unchanged; zero builds and zero model/source/application operations."
+      "Installed baseline on owned representative source proves the literal key is absent from catalog and matrix.",
+      "Three workflows retain distinct literal keys, known getter spellings and actual call lines in ordinary constructor/method reads, including the exact owned customer-invoice source copy.",
+      "Quoted/commented lookalikes and non-settings method calls are not cataloged; existing property identities remain unchanged.",
+      "Source-cited lookup refuses stale current-source claims after edits and retains observations as indexed evidence; matrix retains existing freshness withholding.",
+      "One focused native batch after all three workflow components, one release; exact candidate/installed acceptance and cleanup. No full suites, model tuning, inspected invoice replay, actual LegacyValidation source edits, Q reads, CodeMap/Blast or new target-language support.",
+      "Old VB extraction metadata triggers refresh without a source edit; other language contracts remain unchanged. Actual LegacyValidation refresh is not run because it could read Site/Q."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115",
-    "cleanup_condition": "Owned empty-runtime fixtures removed after server handles close. Retain schema/evidence/claim receipts until superseded; no preexisting folder deletion.",
-    "baseline_commit": "c66a42cb8cf9f736f55fa2fab6eaba93986d9477",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115",
+    "cleanup_condition": "Owned fixtures close database/server handles and remove temporary resources; evidence/source snapshot/package/rollback retained until superseded. No preexisting directory deletion.",
+    "source": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\CustomerInvoiceImporter.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\literal-settings-workflows-20261115\\sources\\CustomerInvoiceImporter.vb",
+      "sha256": "f3bd90ecf70f74a2fabe31bb60d4f9a10cfb3ce875af382fa41ace22ae9336da",
+      "lines": [
+        103,
+        104
+      ]
+    },
     "preserved_wip9": {
       "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
       "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
@@ -75,9 +90,8 @@
       "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
       "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
     },
-    "delivery_record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
-    "new_builds": 0,
-    "verification": "Retained dated outcomes, actual installed schemas, source Core ceiling, example JSON fields and changed local links; WIP/runtime/config unchanged."
+    "baseline_root": "1dfcb71517a3af44629c2483682a0781062ec418",
+    "baseline_runtime": "0df622b13e0cf40503e3016d13cce03718c76c2be2e47569b6ac42998392bd12"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2375,5 +2389,45 @@
     "record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
     "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
     "full_EG26_closed": false
+  },
+  "retained_readiness_docs_contract": {
+    "status": "DOCUMENTATION_CORRECTED_INSTALLED_SCHEMA_VERIFIED",
+    "finding": "EG26 current evaluation claims, preset count and normal QA handoff documentation",
+    "original_requirement": "Reconcile current tool schemas, README/roadmap statuses and evaluation claims; dated capability tables must not be presented as measured readiness.",
+    "observed_gaps": [
+      "eval/README.md calls November13 latest despite November14/15 negative results.",
+      "Main README still calls the archive comparison latest and contradicts its own33tool Core count with a32tool ceiling.",
+      "Quickstart supplies discovery/search but omits the targeted business analysis prerequisite for deriving source-backed rule cases.",
+      "Roadmap EG24/25 rows omit the later failed/negative comparisons."
+    ],
+    "files": [
+      "eval/README.md",
+      "README.md",
+      "docs/QUICKSTART.md",
+      "docs/ROADMAP.md"
+    ],
+    "finite_acceptance": [
+      "Each current evaluation claim matches the retained dated outcome JSON without rerunning inspected cases or inventing benefit/cost/latency.",
+      "One read-only installed tools/list capture confirms current Full/Core preset count and exact JSON request fields for the documented QA sequence.",
+      "Example JSON parses and has only actual installed schema properties. All local links in edited sections resolve.",
+      "Existing WIP9, installed binary, normal config and original unresolved requirements remain unchanged; zero builds and zero model/source/application operations."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\readiness-docs-20261115",
+    "cleanup_condition": "Owned empty-runtime fixtures removed after server handles close. Retain schema/evidence/claim receipts until superseded; no preexisting folder deletion.",
+    "baseline_commit": "c66a42cb8cf9f736f55fa2fab6eaba93986d9477",
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    },
+    "delivery_record": "eval/legacy_validation-readiness-docs-delivery-20261115.json",
+    "new_builds": 0,
+    "verification": "Retained dated outcomes, actual installed schemas, source Core ceiling, example JSON fields and changed local links; WIP/runtime/config unchanged."
   }
 }

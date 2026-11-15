@@ -33,7 +33,20 @@ fn fixture() -> (tempfile::TempDir, AppState, Engram) {
     }).unwrap();
     state.registry.set_meta(PID,"active_generation","1").unwrap();
     let mut file = node("file:Reader.vb","Reader.vb","file","memory","Reader.vb");
-    file.metadata = Some(json!({"file_hash":blake3::hash(source.as_bytes()).to_hex().to_string()}));
+    // These tests author graph topology; provide a current extraction receipt
+    // so the source-compatibility gate can admit the identity test fixture.
+    let context=engram_index::vb_extractor::current_parser_context_for_project(&root).unwrap();
+    let provenance=if context.roslyn.is_some() {
+        engram_index::vb_extractor::VbParserProvenance::Roslyn{context}
+    } else {
+        engram_index::vb_extractor::VbParserProvenance::RustFallback{context,
+            reason:engram_index::vb_extractor::VbFallbackReason::Unavailable}
+    };
+    file.metadata = Some(json!({"file_hash":blake3::hash(source.as_bytes()).to_hex().to_string(),
+        "source_index_version":engram_index::SOURCE_INDEX_VERSION,
+        "source_extraction_identity":engram_index::SourceExtractionIdentity::for_chunk_target(state.cfg.max_chunks_per_file),
+        "vb_parser_provenance":provenance,
+        "vb_literal_settings_contract":engram_index::source_contract::VB_LITERAL_SETTINGS_CONTRACT}));
     state.graph.upsert_nodes(PID,&[file,node("reader","ReadSettings","function","Reader","Reader.vb")]).unwrap();
     let engram = Engram::new(state.clone());
     (temp,state,engram)
@@ -108,6 +121,6 @@ async fn matching_source_hash_does_not_validate_obsolete_dependency_extraction()
     file.metadata.as_mut().unwrap()["source_index_version"] = json!(engram_index::SOURCE_INDEX_VERSION - 1);
     state.graph.upsert_nodes(PID, &[file]).unwrap();
     let text = matrix(&engram).await;
-    assert!(text.contains("obsolete source format") && text.contains("update_project"), "{text}");
+    assert!(text.contains("incompatible source extraction settings") && text.contains("update_project"), "{text}");
     assert!(!text.contains("setting:obsolete") && !text.contains("Session:Obsolete"), "{text}");
 }

@@ -8,6 +8,7 @@ use std::time::Duration;
 mod transport;
 mod inventory;
 mod compilation;
+mod literal_settings;
 pub use compilation::CompilationPolicy;
 
 // SQL detection for the fallback extractor. The Roslyn sidecar emits richer
@@ -1623,7 +1624,7 @@ mod provenance_tests;
 /// directly with synthetic real-ranged symbols.
 pub fn enrich_vb_source_for_test(
     source: &str,
-    symbols: &mut [ExtractedSymbol],
+    symbols: &mut Vec<ExtractedSymbol>,
     edges: &mut Vec<ExtractedEdge>,
 ) {
     enrich_vb_source(source, symbols, edges)
@@ -1723,7 +1724,7 @@ fn fallback_fn_ranges(symbols: &[ExtractedSymbol]) -> Vec<(u32, u32, String)> {
     out
 }
 
-fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut Vec<ExtractedEdge>) {
+fn enrich_vb_source(source: &str, symbols: &mut Vec<ExtractedSymbol>, edges: &mut Vec<ExtractedEdge>) {
     // (start, end, name) for functions and classes, for range association.
     let fn_ranges: Vec<(u32, u32, String)> = symbols
         .iter()
@@ -1881,6 +1882,9 @@ fn enrich_vb_source(source: &str, symbols: &mut [ExtractedSymbol], edges: &mut V
                 nav_accesses.insert((func, table_l));
             }
         }
+
+        literal_settings::append(line, line_no,
+            enclosing(&fn_ranges, line_no).unwrap_or_else(|| "file".into()), symbols, edges);
 
         // Settings reads → edges from the enclosing function (or file).
         let settings_code = vb_settings_code_mask(line);
@@ -2125,6 +2129,7 @@ fn detect_vb_type_decl(line: &str) -> Option<(&'static str, String)> {
 fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec<ExtractedEdge>) {
     // Lightweight fallback if sidecar isn't available.
     let mut symbols = Vec::new();
+    let mut literal_symbols = Vec::new();
     let mut edges = Vec::new();
     let mut ns = String::new();
     let mut ty = String::new();
@@ -2220,6 +2225,9 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
                 metadata: Some(meta),
             });
         }
+
+        literal_settings::append(line, line_no,
+            current_method.clone().unwrap_or_else(|| "file".into()), &mut literal_symbols, &mut edges);
 
         // Settings reads (web.config appSettings + My.Settings members).
         let settings_code = vb_settings_code_mask(line);
@@ -2578,6 +2586,8 @@ fn fallback_extract_vb(_path: &Path, source: &str) -> (Vec<ExtractedSymbol>, Vec
         }
         sym.metadata = Some(meta);
     }
+
+    symbols.extend(literal_symbols);
 
     // Backfill end_line for Sub/Function bodies. The line-scan emits each method
     // with end_line == start_line (it can't know the end at the declaration

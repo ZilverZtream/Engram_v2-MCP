@@ -51,6 +51,7 @@ fn is_store_accessor(node: &engram_graph::Node) -> bool {
 /// Category of a catalog entry, in render order.
 fn category(node: &engram_graph::Node) -> Option<&'static str> {
     match node.node_type.as_str() {
+        "setting_key" => Some("literal-key settings getter observations (code)"),
         "app_setting" => Some("web.config appSettings"),
         "connection_string" => Some("connection strings"),
         "global_state" => Some("shared state keys (Session/Application/Cache)"),
@@ -60,6 +61,9 @@ fn category(node: &engram_graph::Node) -> Option<&'static str> {
 }
 
 fn setting_label(node: &engram_graph::Node) -> String {
+    if node.node_type == "setting_key" {
+        return super::literal_settings::axis_label(node);
+    }
     if is_store_accessor(node) && !node.namespace.is_empty() && !node.name.contains('.') {
         format!("{}.{}", node.namespace, node.name)
     } else {
@@ -160,11 +164,21 @@ impl Engram {
                 .collect();
 
             let mut groups: BTreeMap<&'static str, Vec<Entry>> = BTreeMap::new();
+            let mut literal_rows: BTreeMap<String, (usize, Vec<String>)> = BTreeMap::new();
             for n in &nodes {
                 let Some(cat) = category(n) else { continue };
                 if let Some(sc) = &scope
                     && !n.file_path.as_str().to_lowercase().contains(sc.as_str())
                 {
+                    continue;
+                }
+                if n.node_type == "setting_key" {
+                    let entry = literal_rows.entry(n.name.clone()).or_default();
+                    entry.0 += 1;
+                    if entry.1.len() < 2 {
+                        entry.1.push(format!("{}:{} ({})", n.file_path, n.start_line,
+                            super::literal_settings::field(n,"literal_setting_getters")));
+                    }
                     continue;
                 }
                 let readers = graph
@@ -191,6 +205,10 @@ impl Engram {
                     top,
                 ));
             }
+            for (name, (count, sites)) in literal_rows {
+                groups.entry("literal-key settings getter observations (code)").or_default()
+                    .push((name, String::new(), count, sites));
+            }
             // Most-read settings first inside each category — those are the
             // minefield the PO worries about.
             for list in groups.values_mut() {
@@ -212,6 +230,9 @@ impl Engram {
         );
         if truncated {
             out.push_str("⚠ node scan hit the node-scan cap — catalog may be incomplete.\n");
+        }
+        if groups.contains_key("literal-key settings getter observations (code)") {
+            out.push_str("\nLiteral-key rows count indexed call observations; repeated labels do not prove a common physical store. Locations/getter spellings are indexed evidence, not current source or runtime values.\n");
         }
         if total == 0 {
             out.push_str(
@@ -251,6 +272,19 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let name_q = req.name.clone();
+
+        let literal_graph = graph.clone();
+        let literal_pid = pid.clone();
+        let literal_query = name_q.clone();
+        let root = std::path::PathBuf::from(&_rec.directory);
+        let literal = tokio::task::spawn_blocking(move ||
+            super::literal_settings::lookup(&literal_graph, &literal_pid, &root, &literal_query))
+            .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::invalid_params(e, None))?;
+        if let Some(mut text) = literal {
+            text.push_str(&self.freshness_footer(&req.project_id, gen_).await);
+            return Ok(CallToolResult::success(vec![Content::text(text)]));
+        }
 
         let result = tokio::task::spawn_blocking(move || {
             let node = resolve_setting(&graph, &pid, &name_q)?;
@@ -545,6 +579,13 @@ impl Engram {
                         .map(|source| crate::services::business_outcome_dependencies::executable_lines(source.trim_start_matches('\u{feff}'), true));
                     let mut nullable_observations = BTreeMap::new();
                     for n in &symbols {
+                        if n.node_type == "setting_key" {
+                            setting_labels.insert(n.node_id.clone(), setting_label(n));
+                            settings_axis.entry(n.node_id.clone()).or_default().push(format!(
+                                "{}:{} (literal-key read in requested source; whether it governs this task requires source review)",
+                                n.file_path, n.start_line));
+                            continue;
+                        }
                         if !matches!(
                             n.node_type.as_str(),
                             "function" | "property" | "field" | "file"
