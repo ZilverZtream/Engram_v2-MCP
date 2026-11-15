@@ -3437,23 +3437,24 @@ impl Engram {
             use_mmr: false,
         };
 
-        let hits = ps
-            .search
-            .search(&query, None, &tokio_util::sync::CancellationToken::new())
+        let retrieved = crate::services::rule_retrieval::search(
+            &ps.search, &query, &tokio_util::sync::CancellationToken::new(),
+        )
             .await
             .map_err(|e| {
                 McpError::internal_error(format!("business-logic search failed: {e}"), None)
             })?;
+        let hits = retrieved.hits;
 
         // Render the actual rules — the original implementation returned the
         // literal string "Hits: N" and threw the content away, which made
         // this tool useless to the agent regardless of extraction quality.
         if hits.is_empty() {
             return Ok(CallToolResult::success(vec![Content::text(
-                "result: no_hits in the business_logic namespace.\n\
+                format!("{}result: no_hits in the business_logic namespace.\n\
                  hints: this namespace is only populated by analyze_business_logic — run it \
                  first (file mode for one page, project mode for everything). If analysis was \
-                 already run, retry with broader domain terms.",
+                 already run, retry with broader domain terms.", retrieved.note),
             )]));
         }
 
@@ -3484,7 +3485,7 @@ impl Engram {
         let footer = if footer.len() > 4096 {
             format!("{}\nINCOMPLETE: freshness footer truncated; call get_index_freshness.\n", super::business_source::utf8_prefix(&footer, 4000))
         } else { footer };
-        let budget = 48 * 1024 - footer.len();
+        let budget = 48 * 1024 - footer.len() - retrieved.note.len();
         let mut out = tokio::task::spawn_blocking(move || {
             super::business_source::render_matches_window(
                 &project_id,
@@ -3500,6 +3501,7 @@ impl Engram {
         .map_err(|error| {
             McpError::internal_error(format!("source verification failed: {error}"), None)
         })?;
+        out.insert_str(0, retrieved.note);
         out.push_str(&footer);
         Ok(CallToolResult::success(vec![Content::text(out)]))
     }

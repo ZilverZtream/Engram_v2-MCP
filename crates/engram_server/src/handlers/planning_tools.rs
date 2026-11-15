@@ -10041,12 +10041,13 @@ impl Engram {
                     date_before: None,
                     use_mmr: false,
                 };
-                match ps
-                    .search
-                    .search(&query, None, &tokio_util::sync::CancellationToken::new())
+                match crate::services::rule_retrieval::search(
+                    &ps.search, &query, &tokio_util::sync::CancellationToken::new(),
+                )
                     .await
                 {
-                    Ok(hits) => {
+                    Ok(retrieved) => {
+                        let hits = retrieved.hits;
                         let mut current_paths = HashMap::<String, String>::new();
                         for path in &index_paths {
                             current_paths
@@ -10095,6 +10096,11 @@ impl Engram {
                             business_started.elapsed().as_millis(),
                         );
                         cov.business_logic.note = "source-path anchors only; use query_business_logic for qualified rule claims and current method bodies".into();
+                        if !retrieved.note.is_empty() {
+                            cov.business_logic.note.push_str(". ");
+                            cov.business_logic.note.push_str(retrieved.note.trim());
+                            cov.business_logic.status = "partial".into();
+                        }
                     }
                     Err(error) => {
                         cov.business_logic = ArmCoverage::failed(

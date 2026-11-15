@@ -67,6 +67,7 @@ pub(crate) mod rule_authority;
 pub mod safety_service;
 pub mod scaffold_service;
 pub mod search_service;
+pub mod rule_retrieval;
 pub mod session_workflow_service;
 pub mod slice_service;
 pub mod state_migration_service;

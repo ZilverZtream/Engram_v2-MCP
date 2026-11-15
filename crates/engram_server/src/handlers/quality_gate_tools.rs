@@ -426,7 +426,7 @@ impl Engram {
             ))]));
         }
         let sampled = crate::utils::text::audit_code_query(&code);
-        let sampling = input_binding + &sampled.coverage();
+        let mut sampling = input_binding + &sampled.coverage();
         if sampled.query.is_empty() {
             let count = match &count_failure {
                 Some(failure) => format!("Rule count unavailable. FAILURE: {failure}"),
@@ -436,9 +436,8 @@ impl Engram {
         }
         let query = sampled.query;
         let cancel = tokio_util::sync::CancellationToken::new();
-        let hits = ps
-            .search
-            .search(
+        let retrieved = crate::services::rule_retrieval::search(
+                &ps.search,
                 &HybridQuery {
                     project_id: req.project_id.clone(),
                     namespace: QG_NAMESPACE.to_string(),
@@ -455,11 +454,12 @@ impl Engram {
                     date_before: None,
                     use_mmr: true,
                 },
-                None,
                 &cancel,
             )
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        sampling.push_str(retrieved.note);
+        let hits = retrieved.hits;
 
         if hits.is_empty() {
             let mut msg = format!(
