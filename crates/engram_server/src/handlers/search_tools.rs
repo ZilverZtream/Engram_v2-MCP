@@ -475,6 +475,7 @@ impl Engram {
         if req.include_content {
             selected_source_tests::after_selection(&req.project_id).await;
         }
+        let source_policy = source_policy.map(|policy| policy.with_source_recovery(&req.project_id));
         let symbols_by_path = self.symbols_for_hits(&req.project_id, &hit_refs).await;
         let mut hit_blocks = Vec::with_capacity(hits.len());
         let mut json_hits = Vec::new();
@@ -1000,7 +1001,7 @@ impl Engram {
                     .is_ok_and(|path| path.is_file());
                 is_source.then(|| crate::services::project_policy::resolve(root, &[target], &[]))
             }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            if let Some(policy) = policy.filter(|policy| policy.status != "absent") {
+            if let Some(policy) = policy.filter(|policy| policy.status != "absent").map(|policy| policy.with_source_recovery(&req.project_id)) {
                 suffix.push_str(&policy.render_markdown());
                 guidance = serde_json::to_value(&policy).map_err(|e| McpError::internal_error(e.to_string(), None))?;
             }

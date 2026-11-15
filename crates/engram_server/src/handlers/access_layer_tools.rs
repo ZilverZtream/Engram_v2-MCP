@@ -203,6 +203,30 @@ struct CurrentSourceRanges {
     response_limit_bytes: usize,
 }
 
+#[cfg(test)]
+#[path = "policy_source_handoff_tests.rs"]
+mod policy_source_handoff_tests;
+
+fn validate_source_hash_request(request: &GetFullMethodBodyRequest) -> Result<(), String> {
+    if let Some(hash) = &request.expected_file_blake3 {
+        if request.fqn.is_some() || request.file_path.is_none() {
+            return Err("expected_file_blake3 requires an explicit file target, not an indexed FQN".into());
+        }
+        if hash.len() != 64 || !hash.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+            return Err("expected_file_blake3 must be a64-digit hexadecimal BLAKE3".into());
+        }
+    }
+    Ok(())
+}
+
+fn verify_expected_source_hash(request: &GetFullMethodBodyRequest, actual: &str) -> Result<(), String> {
+    validate_source_hash_request(request)?;
+    if request.expected_file_blake3.as_deref().is_some_and(|expected| !expected.eq_ignore_ascii_case(actual)) {
+        return Err("Source file changed: expected_file_blake3 does not match the loaded complete file. No source returned. Refresh the originating guidance request before combining source pages.".into());
+    }
+    Ok(())
+}
+
 fn validate_source_ranges(request: &GetFullMethodBodyRequest) -> Result<(), String> {
     let Some(ranges) = &request.source_ranges else { return Ok(()); };
     if request.fqn.is_some() || request.line_start.is_some() || request.line_end.is_some() {
@@ -242,6 +266,7 @@ fn current_source_ranges(directory: &Path, request: &GetFullMethodBodyRequest) -
     let file = request.file_path.as_deref().ok_or("source_ranges requires file_path")?;
     // One bounded raw snapshot supplies every window and the complete-file hash.
     let (source, hash) = read_current_source_snapshot(directory, file)?;
+    verify_expected_source_hash(request, &hash)?;
     let lines: Vec<_> = source.lines().collect();
     for range in ranges {
         if range.line_end as usize > lines.len() {
@@ -261,7 +286,7 @@ fn current_source_ranges(directory: &Path, request: &GetFullMethodBodyRequest) -
         retrieval_scope: "current_source_ranges",
         boundary_guidance: "Separate requested windows from one current file snapshot. Gaps are intentionally omitted, not contiguous source. These ranges do not resolve method boundaries, indexed freshness, call binding, value flow or runtime execution.",
         source_verification: "explicit_ranges_current_file_snapshot",
-        source_file_hash: hash,
+        source_file_hash: hash.clone(),
         source_file_hash_algorithm: "blake3",
         file_path: file.into(),
         language: engram_core::types::guess_language(Path::new(file)).into(),
@@ -294,9 +319,10 @@ fn excerpt_next_page(
     start: u32,
     output_json: bool,
     max_tokens: Option<usize>,
+    hash: &str,
 ) -> serde_json::Value {
     let mut next=serde_json::json!({"tool":"get_full_method_body","arguments":{
-        "project_id":project,"file_path":file,"line_start":start,"context_lines":0,"output_json":output_json}});
+        "project_id":project,"file_path":file,"line_start":start,"context_lines":0,"output_json":output_json,"expected_file_blake3":hash}});
     if let Some(tokens)=max_tokens {next["arguments"]["max_tokens"]=serde_json::json!(tokens.min(EXCERPT_RESPONSE_BYTES/4));}
     next
 }
@@ -321,6 +347,7 @@ fn current_file_excerpt(
         return Err("Invalid excerpt start: use1-based source lines".into());
     }
     let (source, hash) = read_current_source_snapshot(directory, file)?;
+    verify_expected_source_hash(request, &hash)?;
     let total = source.lines().count() as u32;
     if (total == 0 && start != 1) || (total > 0 && start > total) {
         return Err(format!(
@@ -364,7 +391,7 @@ fn current_file_excerpt(
         retrieval_scope: "current_file_excerpt",
         boundary_guidance: "These are bounded current-file lines, not a resolved method. Surrounding context is omitted. The hash binds the returned lines to the loaded complete-file bytes; it does not verify indexed-generation freshness, method boundaries or invocation locations.",
         source_verification: "current_file_snapshot_not_index_verified",
-        source_file_hash: hash,
+        source_file_hash: hash.clone(),
         source_file_hash_algorithm: "blake3",
         fqn: "(file excerpt)".into(),
         file_path: file.into(),
@@ -380,11 +407,11 @@ fn current_file_excerpt(
             returned_lines: returned,
             reaches_eof: end == total,
             next_page: (end < total)
-                .then(|| excerpt_next_page(project, file, end + 1, request.output_json,request.max_tokens)),
+                .then(|| excerpt_next_page(project, file, end + 1, request.output_json,request.max_tokens,&hash)),
             read_limit_bytes: EXCERPT_FILE_BYTES,
             response_limit_bytes: EXCERPT_RESPONSE_BYTES,
             max_lines: EXCERPT_LINES,
-            page_semantics: "Each page is a fresh current-file read, not atomic pagination. Compare source_file_hash before combining pages. Complete lines are preserved; an oversized first line fails explicitly.",
+            page_semantics: "Each page is a fresh current-file read. next_page pins the loaded complete-file BLAKE3 and refuses changed source; it is not an atomic retained snapshot. Complete lines are preserved; an oversized first line fails explicitly.",
         }),
     })
 }
@@ -4014,8 +4041,8 @@ impl Engram {
         let root=std::path::PathBuf::from(self.ensure_project_record(&req.project_id).await?.directory);
         let body=original.content.first().and_then(|content| content.as_text())
             .ok_or_else(||McpError::internal_error("Method/source evidence returned no text",None))?.text.clone();
-        let policy_paths=paths.clone();let output_json=req.output_json;
-        let (body,policy)=tokio::task::spawn_blocking(move || method_body_policy::attach(&root,&policy_paths,body,output_json,None))
+        let policy_paths=paths.clone();let output_json=req.output_json;let policy_project=req.project_id.clone();
+        let (body,policy)=tokio::task::spawn_blocking(move || method_body_policy::attach(&policy_project,&root,&policy_paths,body,output_json,None))
             .await.map_err(|error|McpError::internal_error(error.to_string(),None))?
             .map_err(|error|McpError::invalid_params(error.to_string(),None))?;
         let body=method_source_delivery::finish(&self.state.cfg.data_dir,&req,body,&paths,&policy)?;
@@ -4025,6 +4052,7 @@ impl Engram {
     async fn full_method_body_evidence(
         &self,req: GetFullMethodBodyRequest,
     ) -> Result<(CallToolResult,Vec<String>),McpError> {
+        validate_source_hash_request(&req).map_err(|e| McpError::invalid_params(e, None))?;
         validate_source_ranges(&req).map_err(|e| McpError::invalid_params(e, None))?;
         if req.fqn.is_some()
             && (req.file_path.is_some() || req.line_start.is_some() || req.line_end.is_some())
@@ -4114,6 +4142,7 @@ impl Engram {
             let source = std::fs::read_to_string(&full_path)
                 .map_err(|e| format!("Cannot read '{}': {e}", resolved_file))?;
             let source_file_hash = blake3::hash(source.as_bytes()).to_hex().to_string();
+            verify_expected_source_hash(&excerpt_request, &source_file_hash)?;
             let source_verification = if target_node.is_some() {
                 verify_indexed_source_bytes(&graph, &project_id, &resolved_file, source.as_bytes())?
             } else {
@@ -4191,7 +4220,7 @@ impl Engram {
             body_result.line_end-=1;
             page.returned_lines-=1;
             page.reaches_eof=false;
-            page.next_page=Some(excerpt_next_page(&req.project_id,&body_result.file_path,body_result.line_end+1,output_json,req.max_tokens));
+            page.next_page=Some(excerpt_next_page(&req.project_id,&body_result.file_path,body_result.line_end+1,output_json,req.max_tokens,&body_result.source_file_hash));
         }
     }
 

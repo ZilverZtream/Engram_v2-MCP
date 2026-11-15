@@ -131,7 +131,7 @@ impl Engram {
         let policy_paths = parsed.iter().map(|file| file.path.clone()).collect::<Vec<_>>();
         let project_policy_sources = tokio::task::spawn_blocking(move || {
             crate::services::project_policy::resolve(&policy_root, &policy_paths, &[])
-        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?.with_source_recovery(&req.project_id);
 
         // Evidence is collected after gate findings have been produced. It
         // cannot suppress, downgrade or silently reconcile those findings.

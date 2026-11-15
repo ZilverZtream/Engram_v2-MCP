@@ -40,31 +40,35 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "Original TODO59/35 source index declarations in schema reports",
-    "original_requirement": "Consolidated SQL schema analysis preserving useful source declarations and evidence for AI workflows.",
-    "observed_missing_behavior": "Actual atk_atakostnader.sql declares CREATE NONCLUSTERED INDEX IDX_atk_pr_id at13-14. Existing query_schema reports it with a source citation; installed database intelligence returns indexes=[].",
+    "status": "IMPLEMENTED_FOCUSED_NATIVE_VALIDATED_RELEASE_RUNNING",
+    "finding": "EG01/EG27 scoped guidance source handoff",
+    "original_requirement": "Usable scoped instruction retrieval with source freshness preserved across planning, editing, retrieval and review.",
+    "observed_missing_behavior": "Oversized actual LegacyValidation guide is intentionally omitted; omission supplies only prose path/hash. Existing Core source reader has no expected-hash request or hash-bound next-page handoff.",
     "implementation_files": [
-      "crates/engram_server/src/services/schema_query.rs",
-      "crates/engram_server/src/services/database_intelligence_service.rs",
-      "crates/engram_server/src/services/database_column_tests.rs",
+      "crates/engram_server/src/services/project_policy.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/access_layer_tools.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/search_tools.rs",
+      "crates/engram_server/src/handlers/review_tools.rs",
+      "crates/engram_server/src/handlers/method_body_policy.rs",
       "docs/TOOL_CONTRACT.md"
     ],
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\index-baseline.json",
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
+    "baseline": "Retained edit-workflow-delivery-20261115 candidate/installed omission acceptance; current source project_policy::PolicyOmission and excerpt reader.",
     "acceptance": [
-      "Attach existing catalog CREATE INDEX declarations to exact source table-name matches, preserving legacy index strings plus typed declaration/source citation evidence. Keep existing inline index selection.",
-      "Unmatched source indexes remain explicit warnings; do not guess default schemas or claim deployed/effective index state. Markdown must retain source index evidence.",
-      "Verify ordinary source index matching/citation and no basename-only cross-schema attachment, plus unchanged actual source IDX_atk_pr_id in public reports. Then one combined focused native/release and candidate/installed acceptance for all three SQL components."
+      "Emit executable project-bound get_full_method_body action for hash-known omitted current guidance in planning/editing/retrieval/review; keep coverage incomplete and all qualifications.",
+      "Check expected_file_blake3 against the same complete-file raw snapshot before returning explicit source; automatically pin next pages. Changed source refuses with policy refresh advice. Immutable response recovery performs no new source read.",
+      "Do not emit current-file recovery for historical or unknown-hash omissions. Reader remains in Core. Verify oversized owned copy of actual nonQ LegacyValidation guide end-to-end, changed source refusal, historical withholding, and cleanup.",
+      "One combined focused native check and one release build after all three source components; no per-component build or full suite."
     ],
     "implementation_complete": true,
-    "validated": true,
-    "deployed": true,
-    "progress": "eval/legacy_validation-schema-index-evidence-progress-20261115.json",
+    "validated": false,
+    "deployed": false,
+    "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
     "native_validated": true,
-    "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-column-unification-20261115\\native-acceptance.json",
-    "bounded_delivery_complete": true,
-    "delivery": "eval/legacy_validation-shared-schema-batch-delivery-20261115.json"
+    "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\native-acceptance.json",
+    "progress": "eval/legacy_validation-policy-source-handoff-progress-20261115.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

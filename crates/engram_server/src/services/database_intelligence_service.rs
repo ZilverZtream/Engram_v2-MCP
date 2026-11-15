@@ -10,7 +10,7 @@ use std::collections::{BTreeSet, HashMap, HashSet};
 use std::sync::LazyLock;
 
 use regex::Regex;
-use engram_index::sql_names::{QUALIFIED_OBJECT_NAME, object_basename};
+use engram_index::sql_names::object_basename;
 use serde::Serialize;
 
 use super::full_project_migration_service::StoredProcedureCatalog;

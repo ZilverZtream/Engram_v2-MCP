@@ -53,6 +53,24 @@ pub struct PolicyOmission {
     pub reason: String,
     pub blake3: Option<String>,
     pub refetch: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub read_action: Option<PolicySourceRead>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PolicySourceRead {
+    pub tool: &'static str,
+    pub arguments: PolicySourceReadArguments,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct PolicySourceReadArguments {
+    pub project_id: String,
+    pub file_path: String,
+    pub line_start: u32,
+    pub context_lines: u32,
+    pub output_json: bool,
+    pub expected_file_blake3: String,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -119,9 +137,32 @@ impl PolicyContext {
         context
     }
 
+    /// Bind executable recovery only to current, fingerprinted source evidence.
+    /// A current disk read cannot recover historical policy at a Git revision.
+    pub fn with_source_recovery(mut self, project_id: &str) -> Self {
+        if self.source_revision.is_some() || self.status == "historical_unavailable" {
+            return self;
+        }
+        for omitted in &mut self.omissions {
+            let Some(hash) = &omitted.blake3 else { continue; };
+            if normalized_relative(&omitted.path).is_none() { continue; }
+            omitted.read_action = Some(PolicySourceRead {
+                tool: "get_full_method_body",
+                arguments: PolicySourceReadArguments {
+                    project_id: project_id.into(), file_path: omitted.path.clone(),
+                    line_start: 1, context_lines: 0, output_json: true,
+                    expected_file_blake3: hash.clone(),
+                },
+            });
+            omitted.refetch = "Run read_action, recover any response_delivery pages, then follow file_excerpt.next_page to EOF. Each source page is checked against this complete-file BLAKE3. If the file changed, refresh the originating guidance request. Read all qualifications before claiming coverage; reading a source does not certify compliance.".into();
+        }
+        self
+    }
+
     fn omit(&mut self, path: &str, reason: impl Into<String>, hash: Option<String>) {
         self.omissions.push(PolicyOmission {
             path: path.into(), reason: reason.into(), blake3: hash,
+            read_action: None,
             refetch: format!("Read the complete project-relative file `{path}` from the checkout; verify its BLAKE3 when supplied. No excerpt establishes its full qualifications."),
         });
     }
@@ -163,6 +204,9 @@ impl PolicyContext {
                     .map(|hash| format!(" BLAKE3: `{hash}`."))
                     .unwrap_or_default()
             );
+            if let Some(action) = &omitted.read_action {
+                let _ = writeln!(text, "\n```json\n{}\n```", serde_json::to_string(action).expect("policy source action is serializable"));
+            }
         }
         for reference in &self.references {
             let _ = writeln!(text, "\n- Linked document: `{}` bytes {}..{} (BLAKE3 `{}`) → `{}`; status: {}; normalized path: {}. Assess the source conditions and target scope before applying it.",

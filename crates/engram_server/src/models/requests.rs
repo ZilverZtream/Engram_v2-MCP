@@ -3809,6 +3809,12 @@ pub struct GetFullMethodBodyRequest {
     /// returned next_page and compare hashes before combining fresh reads.
     #[serde(default)]
     pub file_path: Option<String>,
+    /// Optional complete raw-file BLAKE3 guard for explicit file reads only.
+    /// A mismatch fails before returning source; refresh the originating guidance
+    /// request. Source next_page automatically carries the loaded file hash.
+    /// Immutable response_id recovery does not reread the current file.
+    #[serde(default)]
+    pub expected_file_blake3: Option<String>,
     /// Start line (1-based). Defaults to1 only in file-excerpt mode.
     #[serde(default)]
     pub line_start: Option<u32>,

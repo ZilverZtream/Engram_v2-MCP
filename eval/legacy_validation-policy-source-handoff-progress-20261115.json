@@ -1,0 +1,23 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
+  "changes": [
+    "Omitted current guidance includes executable project/path/hash-bound reader action in JSON and Markdown.",
+    "Explicit current source accepts expected_file_blake3, checked against loaded complete-file bytes; all source next pages pin it.",
+    "Planning/edit-session/search/chunk/source/review bind recovery to their originating project; historical/unknown-hash omissions retain evidence limits."
+  ],
+  "limits": [
+    "No new reader or optional tool dependency. Historical policy is not recovered from current files. Coverage remains incomplete in original reports.",
+    "Not yet deployed; original backlog and task-benefit gaps remain open."
+  ],
+  "verification": {
+    "native": "20 focused checks passed:19 unchanged passes in native2 plus failed JSON-order assertion corrected and alone rerun in native3;0.66s total test execution. Failures retained.",
+    "public": "Prepared Core-only real-guide-copy acceptance; pending single release."
+  },
+  "build_policy": "One focused harness with relevant existing policy/recovery tests, one canonical release; no full suite. No behavior changes during a running compile.",
+  "preserved": "WIP9 hashes checked before source freeze. Preexisting folders/stashes/local work unchanged.",
+  "temporary_resources": "Only current case owns new fixtures; runners close process/database handles then remove their own fixtures. Evidence retained for delivery audit.",
+  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\native-acceptance.json",
+  "integration_test_update": "Existing changed-file pagination expectation aligned with refusal. Not compiled as a separate integration target; matching public MCP behavior will be checked with the release binary."
+}

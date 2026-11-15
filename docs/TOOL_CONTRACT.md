@@ -487,6 +487,28 @@ remain unproven. Unsupported or missing controller/handler evidence is disclosed
 multiple candidates are retained. This does not execute HTTP or database calls.
 
 
+### Omitted repository guidance: executable source handoff
+
+Current policy omissions with a known complete-file BLAKE3 include `read_action`
+in planning, edit-session, source search/chunk, direct source and review guidance.
+The action calls the existing Core `get_full_method_body` tool with the originating
+project, relative path and `expected_file_blake3`. Read its complete response
+(including any `response_delivery` recovery), then follow `file_excerpt.next_page`
+to EOF before claiming the omitted source was read. Coverage remains incomplete
+in the originating report; a read does not establish implementation compliance.
+
+`expected_file_blake3` is optional for explicit current-file excerpts, ranges and
+`source_ranges`; it is invalid for indexed FQN lookup. Engram checks the loaded
+complete raw-file bytes before returning source. Every excerpt `next_page` pins
+that file hash, even if the initial request did not supply one. A changed file
+refuses the read and requires refreshing the originating guidance request.
+Pagination remains fresh reads, not an atomic retained file snapshot. Existing
+read/output limits and complete-line semantics still apply. Immutable
+`response_id` recovery returns the original report without reading current files.
+
+Historical policy and unknown-hash omissions do not offer current-file recovery
+as proof of their missing evidence. Follow their stated revision/refetch guidance.
+
 ### Browser storage readers and writers
 
 `trace_state_usage(project_id, state_type="LocalStorage"|"SessionStorage", state_key="literal-key")`

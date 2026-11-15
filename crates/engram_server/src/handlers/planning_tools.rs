@@ -11723,7 +11723,7 @@ impl Engram {
             crate::services::project_policy::PolicyContext::historical_unavailable()
         } else {
             crate::services::project_policy::resolve(&project_root, &policy_paths, &index_paths)
-        };
+        }.with_source_recovery(&req.project_id);
         out.push_str(&format!(
             "\n## Reconciliation receipt\n\nreceipt_id: `{}`  \nrequired rows: primary={} asset={} caller={} total={}  \nCopy this receipt ID and all P/A/C row IDs into the feature contract. Every row needs INCLUDE, CONDITIONAL, or EXCLUDE plus evidence. The row totals must match this receipt; selecting only rows already judged relevant is not reconciliation.\n\n",
             reconciliation.receipt_id, reconciliation.primary_rows, reconciliation.asset_rows,
@@ -13436,10 +13436,10 @@ fn update_edit_sessions(
     Err(McpError::invalid_params("edit session contention; retry with the same session_id", None))
 }
 
-async fn edit_session_policy(root: PathBuf, paths: Vec<String>) -> Result<String, McpError> {
+async fn edit_session_policy(project_id: &str, root: PathBuf, paths: Vec<String>) -> Result<String, McpError> {
     let mut policy = tokio::task::spawn_blocking(move || {
         crate::services::project_policy::resolve(&root, &paths, &[])
-    }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?;
+    }).await.map_err(|error| McpError::internal_error(error.to_string(), None))?.with_source_recovery(project_id);
     policy.notes.push("Guidance is selected for the paths declared in this call. It does not certify the edit set, enforce policy prose, or establish that the implementation complies. Completion resolves current guidance again for the declared edited paths.".into());
     Ok(policy.render_markdown())
 }
@@ -13465,7 +13465,7 @@ impl Engram {
             return Err(McpError::invalid_params("session_id must contain 1 to 128 bytes", None));
         }
         let record = self.ensure_project_record(&req.project_id).await?;
-        let policy = edit_session_policy(PathBuf::from(&record.directory), planned_files.clone()).await?;
+        let policy = edit_session_policy(&req.project_id, PathBuf::from(&record.directory), planned_files.clone()).await?;
         let generation = self.get_active_generation(&req.project_id).await?;
         let head = git2::Repository::discover(&record.directory).ok().and_then(|r| r.head().ok().and_then(|h| h.target())).map(|id| id.to_string());
         let revision = uuid::Uuid::new_v4().to_string();
@@ -13610,7 +13610,7 @@ impl Engram {
             String::new()
         } else {
             let record = self.ensure_project_record(&req.project_id).await?;
-            edit_session_policy(PathBuf::from(record.directory), edited.clone()).await?
+            edit_session_policy(&req.project_id, PathBuf::from(record.directory), edited.clone()).await?
         };
 
         let unedited_plan_count=unedited_plan.len();

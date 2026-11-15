@@ -3887,19 +3887,15 @@ fn current_file_excerpt_pages_preserve_lines_and_hashes_without_claiming_indexed
         );
         let changed = format!("-- inserted after the first observation\r\n{source}");
         std::fs::write(root.join("procedure.sql"), &changed).unwrap();
-        let (_, fresh) = excerpt(&engram, first_next.unwrap()).await;
-        assert_ne!(
-            fresh["source_file_hash"], hash,
-            "A fresh page must not silently reuse an earlier file snapshot"
-        );
-        assert_eq!(
-            fresh["source_file_hash"],
-            blake3::hash(changed.as_bytes()).to_hex().to_string()
-        );
-        assert_eq!(
-            fresh["source_verification"],
-            "current_file_snapshot_not_index_verified"
-        );
+        let guarded = engram.handle_get_full_method_body(
+            serde_json::from_value(first_next.unwrap()).unwrap(),
+        ).await.unwrap_err();
+        assert!(guarded.message.contains("Source file changed"));
+        assert!(guarded.message.contains("Refresh the originating guidance"));
+        // An intentional fresh request can inspect the changed file and start a new chain.
+        let (_, fresh) = excerpt(&engram, json!({"project_id":PID,"file_path":"procedure.sql","output_json":true})).await;
+        assert_eq!(fresh["source_file_hash"], blake3::hash(changed.as_bytes()).to_hex().to_string());
+        assert_eq!(fresh["source_verification"], "current_file_snapshot_not_index_verified");
     });
 }
 
