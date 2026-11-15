@@ -10076,8 +10076,11 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED",
-      "record": "eval/ai-workflow-batch-delivery-20261115.json"
+      "status": "NATIVE_AND_DEBUG_PUBLIC_VERIFIED_RELEASE_RUNNING",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+      "native_cases": 24,
+      "debug_public_checks": 26,
+      "original_full_goal_complete": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -15955,17 +15958,25 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ai-workflow-batch-20261115",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "record": "eval/ai-workflow-batch-delivery-20261115.json",
-    "independent_requirements_delivered": 3,
-    "builds_started": 3
+    "status": "NATIVE24_DEBUG_PUBLIC26_PASS_RELEASE_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+    "requirements": [
+      "TODO-9",
+      "TODO-28",
+      "TODO-4"
+    ],
+    "native_builds": 1,
+    "native_same_binary_fixture_retries": 1,
+    "release_builds_started": 1,
+    "installed": false,
+    "prior_installed_delivery": "eval/ai-workflow-batch-delivery-20261115.json"
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",

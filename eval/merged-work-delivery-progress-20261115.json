@@ -40,10 +40,9 @@
     "Rust2024 syntax parsing via rustfmt; new integration files formatted",
     "Selected-path git diff --check"
   ],
-  "native_tests_run": false,
-  "public_acceptance_run": false,
+  "native_tests_run": true,
+  "public_acceptance_run": true,
   "deployed": false,
-  "builds_started": 0,
   "limits": [
     "Complete selected original report recovery, not complete history corpus enumeration or source-object retention.",
     "Existing merged-report rendering limits, candidate limits, filters and ranking are unchanged.",
@@ -55,5 +54,22 @@
     "retention": "Retain contracts, source/test/build logs, public wire/proof and installed identity; runtime/test fixture teardown must close all owned handles before directory cleanup. No preexisting-folder deletion."
   },
   "delivery_cadence": "Third distinct source outcome after TODO9 and TODO28; source commits/contracts must be queued before the first guarded combined build.",
-  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\merged-work-contract.json"
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\merged-work-contract.json",
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  },
+  "combined_validation": {
+    "status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native-acceptance.json",
+    "native_distinct_cases_passed": 24,
+    "native_builds": 1,
+    "native_fixture_retry_builds": 0,
+    "native_fixture_retry_cases": 6,
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-public-acceptance.json",
+    "debug_public_requirement_cases_passed": 11,
+    "release_builds_started": 1,
+    "installed": false
+  }
 }

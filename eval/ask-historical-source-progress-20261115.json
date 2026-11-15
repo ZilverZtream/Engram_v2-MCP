@@ -49,10 +49,9 @@
     "Rust2024 syntax parsing via rustfmt for the touched files; new files formatted",
     "Selected-path git diff --check"
   ],
-  "native_tests_run": false,
-  "public_acceptance_run": false,
+  "native_tests_run": true,
+  "public_acceptance_run": true,
   "deployed": false,
-  "builds_started": 0,
   "limits": [
     "Historical source selection is not a historical graph or semantic behavior verifier.",
     "Current policy is withheld with historical-unavailable coverage, not substituted or accepted.",
@@ -67,5 +66,22 @@
   },
   "delivery_cadence": "Second independent source outcome after TODO9. No build until a third distinct original requirement is source-complete and the existing guard passes.",
   "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115\\contract.json",
-  "legacy_validation_relevance": "Original Git/history and source-understanding workflow for the existing VB.NET/WebForms, JS/TS and SQL project. Independent owned fixtures only; no current LegacyValidation runtime or productivity benefit claimed. No live Q source or full-project operation executed."
+  "legacy_validation_relevance": "Original Git/history and source-understanding workflow for the existing VB.NET/WebForms, JS/TS and SQL project. Independent owned fixtures only; no current LegacyValidation runtime or productivity benefit claimed. No live Q source or full-project operation executed.",
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  },
+  "combined_validation": {
+    "status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native-acceptance.json",
+    "native_distinct_cases_passed": 24,
+    "native_builds": 1,
+    "native_fixture_retry_builds": 0,
+    "native_fixture_retry_cases": 6,
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-public-acceptance.json",
+    "debug_public_requirement_cases_passed": 8,
+    "release_builds_started": 1,
+    "installed": false
+  }
 }

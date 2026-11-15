@@ -29,10 +29,9 @@
     "Rust2024 syntax parsing of touched Rust files via rustfmt; targeted new files formatted",
     "git diff --check on selected source paths"
   ],
-  "native_tests_run": false,
-  "public_acceptance_run": false,
+  "native_tests_run": true,
+  "public_acceptance_run": true,
   "deployed": false,
-  "builds_started": 0,
   "source_sha256": {
     "crates/engram_server/src/services/pre_commit_review_service/gates.rs": "66fe9fde44acf80c697b317b0558f83ef81e443023beead364cabd124cdc8859",
     "crates/engram_server/src/services/pre_commit_review_service/gates/inherited_guards.rs": "4fc3896ec3229a05d6dc97b8ddd870c6c117b1ff8babfcb02686e3d2adb373d0",
@@ -51,5 +50,22 @@
     "VB only. Source-bound base conventions do not prove runtime guard execution or applicability.",
     "No measured LegacyValidation task benefit; unchanged installed package.",
     "Other TODO9 language/inheritance requirements, all original31 findings/19 gates and existing holds remain tracked."
-  ]
+  ],
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  },
+  "combined_validation": {
+    "status": "NATIVE_AND_DEBUG_PUBLIC_PASS_RELEASE_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115",
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\native-acceptance.json",
+    "native_distinct_cases_passed": 24,
+    "native_builds": 1,
+    "native_fixture_retry_builds": 0,
+    "native_fixture_retry_cases": 6,
+    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revision-guard-history-batch-20261115\\debug-public-acceptance.json",
+    "debug_public_requirement_cases_passed": 7,
+    "release_builds_started": 1,
+    "installed": false
+  }
 }
