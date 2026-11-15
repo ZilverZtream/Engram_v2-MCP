@@ -33,6 +33,56 @@ fn targets() -> Vec<String> {
     vec!["Site/Form.aspx.vb".into()]
 }
 
+#[tokio::test]
+async fn prepared_context_binds_linked_recovery_to_its_project() {
+    use engram_core::Config;
+    use engram_server::{AppState, Engram};
+    use serde_json::{Value, json};
+    let (temp, root) = fixture();
+    write(
+        &root,
+        "Site/Form.ts",
+        "export function linkedPolicyTarget() { return true; }\n",
+    );
+    drop(git2::Repository::init(&root).unwrap());
+    let (state, _) = AppState::new(Config {
+        data_dir: temp.path().join("data"),
+        allowed_roots: vec![root.clone()],
+        embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
+        ..Default::default()
+    })
+    .unwrap();
+    let e = Engram::new(state);
+    let indexed = e.handle_index_project(serde_json::from_value(json!({"directory":root,"project_name":"Linked context","project_type":"general","wait":true})).unwrap()).await.unwrap();
+    let indexed = &indexed.content[0].as_text().unwrap().text;
+    let pid = indexed
+        .split("project_id: ")
+        .nth(1)
+        .unwrap()
+        .lines()
+        .next()
+        .unwrap()
+        .trim();
+    let prepared = e.handle_prepare_implementation_context(serde_json::from_value(json!({"project_id":pid,"file_path":"Site/Form.ts","method_name":"linkedPolicyTarget","include_style_profile":false,"output_json":true})).unwrap()).await.unwrap();
+    let prepared: Value =
+        serde_json::from_str(&prepared.content[0].as_text().unwrap().text).unwrap();
+    let policy = &prepared["project_policy_sources"];
+    let linked = policy["references"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|r| r["path"] == "docs/shared.md")
+        .unwrap();
+    assert_eq!(policy["linked_sources"][0]["content"], SHARED);
+    assert_eq!(linked["read_action"]["tool"], "get_full_method_body");
+    assert_eq!(linked["read_action"]["arguments"]["project_id"], pid);
+    assert_eq!(
+        linked["read_action"]["arguments"]["expected_file_blake3"],
+        blake3::hash(SHARED.as_bytes()).to_hex().to_string()
+    );
+}
+
 #[test]
 fn ordinary_context_supplies_first_hop_guidance_without_adopting_scope_or_reading_nested_links() {
     let (_temp, root) = fixture();

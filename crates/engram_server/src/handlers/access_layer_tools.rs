@@ -5620,6 +5620,7 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
+        ctx.project_policy_sources = ctx.project_policy_sources.with_source_recovery(&req.project_id);
         if req.include_style_profile {
             let style = crate::services::cognitive_service::analyze_file_style_deterministic(
                 &self.state,
