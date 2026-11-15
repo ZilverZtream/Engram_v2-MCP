@@ -1762,7 +1762,7 @@ impl Engram {
 
 impl ServerHandler for Engram {
     fn get_info(&self) -> ServerInfo {
-        let core_instructions = "Engram's limited profile advertises up to 32 tools, filtered by registered project capabilities. Start with \
+        let core_instructions = "Engram's limited profile advertises up to 33 tools, filtered by registered project capabilities. Start with \
             `list_projects` and `project_info` to select the project. Use `search_memory` \
             or `grep_project` to find indexed code, then pass returned citation arguments \
             to `get_chunk` for exact stored evidence. Discover stored project memory with \

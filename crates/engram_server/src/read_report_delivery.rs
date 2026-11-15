@@ -9,6 +9,10 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "traverse_graph",
+    "list_memory_bank",
+    "pre_push_audit",
+    "project_health",
     "one_shot_feature_plan",
     "map_guards_and_settings",
     "immune_check",

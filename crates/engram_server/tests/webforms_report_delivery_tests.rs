@@ -4,6 +4,10 @@ use rmcp::model::{CallToolRequestParam, CallToolResult, Content, Tool};
 use serde_json::{Value, json};
 
 const REPORTS: &[&str] = &[
+    "traverse_graph",
+    "list_memory_bank",
+    "pre_push_audit",
+    "project_health",
     "get_ui_conformance",
     "get_gis_inventory",
     "list_settings",
@@ -50,7 +54,7 @@ fn body(result: &CallToolResult) -> &str {
 #[test]
 fn webforms_reports_advertise_recovery_preserving_original_formats_and_existing_owners() {
     let tools = registry();
-    assert_eq!(tools.iter().filter_map(delivery::eligible).count(), 39);
+    assert_eq!(tools.iter().filter_map(delivery::eligible).count(), 43);
     for name in REPORTS {
         let original = tools
             .iter()

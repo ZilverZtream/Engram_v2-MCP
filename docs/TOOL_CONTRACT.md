@@ -639,3 +639,18 @@ reader. Dynamic/ambiguous text and mutable Static initializers remain unresolved
 No CLR receiver, physical database/schema, branch reachability, trigger firing
 or runtime execution is proved; SQL batches and general dataflow remain outside
 this reader. Current source/fingerprint admission is unchanged.
+
+Core report delivery also covers traverse_graph, list_memory_bank, pre_push_audit
+and project_health. Their original analysis inputs and evidence semantics remain
+unchanged. Optional max_tokens budgets complete reply text (default40KiB); an
+oversized result supplies response_delivery.next_call for exact immutable
+recovery of the original MCP result, including every original text part. Memory
+discovery supports both project banks and __user__. Instruction packet recovery
+is retained evidence: it does not recollect changed files, validate a proposal
+against new source, or approve policy. Use a fresh audit/health request for current
+evidence. Traversal recovery preserves the selected result; existing traversal
+limits still apply and do not imply an exhaustive graph.
+
+The limited Core surface includes list_memory_bank as the discovery dependency
+for read_memory_bank (up to33tools, filtered by registered capabilities). Project
+listings retain inherited user preferences and their original freshness caveats.

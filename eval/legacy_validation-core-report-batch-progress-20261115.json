@@ -1,0 +1,48 @@
+{
+  "status": "THREE_COMPONENTS_IMPLEMENTED_FOCUSED_NATIVE_PASS",
+  "implementation": {
+    "source_baseline": "a99e07ae3b8e236def2f7140f6d5e5bfdad6ea8e",
+    "source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
+    "files": {
+      "crates/engram_server/src/read_report_delivery.rs": "34089d098375b6c4badac7833f2f1c507326ab2ab3b90efaeb56ee78b837b9c7",
+      "crates/engram_server/tests/webforms_report_delivery_tests.rs": "2dc42f5ba06b9494564265283ef48dc093ad57a0c7ebe6c04464d122dc91bf74",
+      "crates/engram_server/src/tool_surface.rs": "10c1eae8dc8fce04202b9fcc9092b9ea8d9d71b014d4197e597152d16ea78e72",
+      "crates/engram_server/src/tools.rs": "5195d57a3f3196e64adc4023a24a849ba64bc94e3ad6a898885b05fcd68b467c",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "161b1ba154beaec2bae3ed31b145d50238ffcc4eaf586dfe9db8e1c4c9e4523d"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/read_report_delivery.rs": "34089d098375b6c4badac7833f2f1c507326ab2ab3b90efaeb56ee78b837b9c7",
+      "crates/engram_server/tests/webforms_report_delivery_tests.rs": "2dc42f5ba06b9494564265283ef48dc093ad57a0c7ebe6c04464d122dc91bf74",
+      "crates/engram_server/src/tool_surface.rs": "10c1eae8dc8fce04202b9fcc9092b9ea8d9d71b014d4197e597152d16ea78e72",
+      "crates/engram_server/src/tools.rs": "5195d57a3f3196e64adc4023a24a849ba64bc94e3ad6a898885b05fcd68b467c",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "161b1ba154beaec2bae3ed31b145d50238ffcc4eaf586dfe9db8e1c4c9e4523d"
+    },
+    "preserved_wip9": true
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 4,
+    "required_component_cases": {
+      "webforms_invalid_budget_refuses_before_source_analysis": true,
+      "webforms_report_recovery_keeps_all_original_evidence_parts_and_tool_scope": true,
+      "webforms_reports_advertise_recovery_preserving_original_formats_and_existing_owners": true,
+      "webforms_small_reports_keep_their_format_and_original_analysis_arguments": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "ee5a251316af96fd35e46997794a8fa9a84d6950",
+    "final_source_commit": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
+    "post_native_metadata_delta": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\post-native-metadata1.json",
+    "native_compile": "1m29s",
+    "native_test_seconds": 0.8,
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned Job/relay/temp closed and removed. Case evidence retained. Final Core discovery is pending release public acceptance."
+  },
+  "debug_public": {
+    "status": "PARTIAL_20_OF_22",
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115\\debug-smoke1\\acceptance.json",
+    "retained_failure": "Memory row assertion excluded inherited user preference; verifier corrected. Core discovery was actually missing; corrected Core constant and description before final release. No extra debug build."
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-report-completion-batch-20261115",
+  "remaining": "One release; candidate/installed22checks including complete Core discovery, exact originals, state/config preservation and normal-runtime restoration."
+}

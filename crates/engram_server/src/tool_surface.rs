@@ -197,6 +197,7 @@ pub const CORE_TOOLS: &[&str] = &[
     "search_memory",
     "get_chunk",
     "get_full_method_body",
+    "list_memory_bank",
     "read_memory_bank",
     "get_review_decisions",
 ];

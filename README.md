@@ -1207,7 +1207,7 @@ tool list. Tools omitted from `tools/list` may be unavailable to client agents;
 The full profile includes `list_advanced_tools` as a catalog; it is not a
 substitute for protocol discovery.
 Restart the daemon and reconnect clients after changing this setting.
-The core tier has up to 32 tools and includes `list_projects`, `project_info`, `get_chunk`,
+The core tier has up to 33 tools and includes `list_projects`, `project_info`, `get_chunk`,
 `get_full_method_body` and `read_memory_bank` for project discovery, stored
 citations and current-source recovery. Detailed `project_health` diagnostics
 remain in the full profile; Core retains `get_index_freshness` for index freshness. Dedicated blast
