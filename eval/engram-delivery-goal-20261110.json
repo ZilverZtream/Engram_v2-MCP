@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "Original TODO4 bounded complete WebForms analysis reports",
     "original_requirement": "Uniform caller reply budgets, visible omission and exact continuation across the existing agent tool surface. Apply the original LegacyValidation VB.NET/WebForms and JS/TS priority filter.",
     "observed_missing_behavior": "Installed owned WebForms source produced218634-byte validation JSON and85916-byte authorization JSON, without caller budgets or recovery. The240validators and240authorization locations are independently authored. All27candidate report schemas lack controls and require project_id; all are selected.",
@@ -89,8 +89,8 @@
       "Keep original TODO4 broader envelope/cursor requirements open where not delivered. Preserve failed planning/usefulness results and all protected WIP. Close/remove current owned fixtures; retain review evidence/package/installer rollback pair in this case."
     ],
     "implementation_complete": true,
-    "validated": false,
-    "deployed": false,
+    "validated": true,
+    "deployed": true,
     "selected_tools": [
       "get_ui_conformance",
       "get_gis_inventory",
@@ -122,7 +122,10 @@
     ],
     "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\baseline2\\acceptance.json",
     "source_commit": "073f4bc7f9eab527800b23db147bd59cca3535a9",
-    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\native-acceptance.json"
+    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\native-acceptance.json",
+    "bounded_delivery_complete": true,
+    "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-webforms-report-delivery-20261115.json",
+    "broader_todo4_complete": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

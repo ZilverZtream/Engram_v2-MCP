@@ -1,0 +1,167 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T06:13:24.144399+00:00",
+  "finding": "Original TODO4 bounded complete WebForms analysis reports",
+  "selected_tools": [
+    "get_ui_conformance",
+    "get_gis_inventory",
+    "list_settings",
+    "get_setting",
+    "analyze_temporal_couplings",
+    "analyze_error_stack",
+    "analyze_file_coding_style",
+    "get_extraction_confidence",
+    "map_validation_controls",
+    "map_auth_config",
+    "map_page_lifecycle",
+    "analyze_viewstate_deps",
+    "map_ajax_regions",
+    "trace_data_flow",
+    "get_migration_dossier",
+    "check_migration_coverage",
+    "get_migration_progress",
+    "analyze_full_project_migration",
+    "analyze_sync_hazards",
+    "get_jquery_inventory",
+    "get_session_workflows",
+    "get_vb_translation_traps",
+    "find_tests_for_method",
+    "find_dead_methods",
+    "trace_ui_event",
+    "trace_ui_action",
+    "get_ui_blueprint"
+  ],
+  "reports_added": 27,
+  "shared_reports_total": 39,
+  "source_commit": "c867cca1af3859d8ae4d3bc1ed61083e1a979dbf",
+  "frozen_source_commit": "073f4bc7f9eab527800b23db147bd59cca3535a9",
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\package1",
+    "server_sha256": "781b0eeddeae20f0ff0b8090a9adf1875dd3899dc06e7dfbe628f6a18bc63316",
+    "manifest_sha256": "1b1977e4e50a3a2b86e0f58766c71f755bb609f937c3cfbc40273d92121e7329",
+    "old_server_sha256": "833fe61d9ae857560752f0936aee77b1de31384f16eba2a86812156292f24b95",
+    "old_manifest_sha256": "97d43f1b793e3c261631c4603f1ffc43cdd0b453f03b35f173d7c8690775fda8",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\release1.json",
+      "sha256": "bd69d3bfd219909b25b916688390ddf6a8f15a1b64ed9e63adc60f829c1accb9"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "97d43f1b793e3c261631c4603f1ffc43cdd0b453f03b35f173d7c8690775fda8"
+    },
+    "source_commit": "073f4bc7f9eab527800b23db147bd59cca3535a9"
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 4,
+    "required_component_cases": {
+      "webforms_reports_advertise_recovery_preserving_original_formats_and_existing_owners": true,
+      "webforms_report_recovery_keeps_all_original_evidence_parts_and_tool_scope": true,
+      "webforms_small_reports_keep_their_format_and_original_analysis_arguments": true,
+      "webforms_invalid_budget_refuses_before_source_analysis": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "073f4bc7f9eab527800b23db147bd59cca3535a9",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 21.32s",
+    "native_test_seconds": 0.61,
+    "retained_failed_attempts": [
+      "native1.json: test-only Map.pointer compile error; server library compiled and reused by native2"
+    ],
+    "dedicated_target": "webforms_report_delivery_tests",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  },
+  "native_reuse": {
+    "changed_inputs": [
+      "crates/engram_server/tests/webforms_report_delivery_tests.rs"
+    ],
+    "server_sources_identical": true,
+    "native1_seconds": 248.73210500006098,
+    "native2_seconds": 34.46881089999806,
+    "failed_compile_preserved": true,
+    "final_test_target": "webforms_report_delivery_tests",
+    "four_passes": true,
+    "unit_suite_not_compiled": true
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\baseline2\\acceptance.json",
+  "debug_verifier_smoke": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\debug-smoke1\\acceptance.json",
+  "public": {
+    "candidate": {
+      "checks": 19,
+      "manifest_bytes": 1126,
+      "full_validation_bytes": 218634,
+      "recovery_pages": 164,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\candidate1\\acceptance.json"
+    },
+    "installed": {
+      "checks": 19,
+      "manifest_bytes": 1126,
+      "full_validation_bytes": 218634,
+      "recovery_pages": 164,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\installed1\\acceptance.json"
+    }
+  },
+  "builds": {
+    "native_attempts": 2,
+    "release_builds": 1,
+    "full_suite_runs": 0,
+    "lib_unit_suite_compiled": false,
+    "release_runner_seconds": 907.6196786001092,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 14m 55s"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115",
+    "native_fixtures_removed": true,
+    "release_fixture_removed": true,
+    "release_job_closed": true,
+    "public_fixtures_removed": true,
+    "configuration_hold_released": true,
+    "owned_config_removed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-d1c7aad5ce1b4a56a6ac6626c8d16170",
+    "normal_runtime": {
+      "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+      "owners": [
+        {
+          "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\restored-runtime\\wire",
+          "closed": true,
+          "pid": 28888,
+          "natural_exit": true,
+          "reader_joined": true,
+          "exit_code": 0,
+          "pending_observations": []
+        }
+      ],
+      "intentional_retained_runtime": true,
+      "daemon_pid": 83180,
+      "daemon_created": 1794723141.3085725,
+      "metadata": {
+        "pid": "83180",
+        "started_at_ms": "1794723142288",
+        "protocol_version": "1",
+        "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+        "version": "0.1.0"
+      },
+      "server_sha256": "781b0eeddeae20f0ff0b8090a9adf1875dd3899dc06e7dfbe628f6a18bc63316",
+      "normal_proxy_metrics_succeeded": true,
+      "selected_generation": 3151,
+      "owned_temp_removed": true,
+      "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+    },
+    "retention": "Case evidence/scripts/package and managed rollback pair retained for review. Only new owned fixtures removed; preexisting folders untouched. Normal installed daemon intentionally restored."
+  },
+  "limits": [
+    "Complete original MCP result delivery; existing analysis/output flags and internal caps retained. No universal extraction, runtime-binding, migration safety or task-benefit claim.",
+    "Inherited8MiB/24hour/32snapshot cache limits; broader TODO4 envelope/durable-cursor work remains partial.",
+    "Native1 failed on test-only Map.pointer calls. Native2 reused the server library and passed after correcting only the dedicated test file. Failed compile and unindexed-schema baseline1 retained.",
+    "No actual LegacyValidation source analysis/mutation, CodeMap/Blast change, unrelated language support or held-out task replay."
+  ],
+  "preserved_wip9": true,
+  "broader_goal_complete": false,
+  "original_full19gates_closed": false
+}

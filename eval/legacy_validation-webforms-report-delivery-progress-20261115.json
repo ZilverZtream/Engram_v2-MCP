@@ -1,5 +1,5 @@
 {
-  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "selected_tools": [
     "get_ui_conformance",
     "get_gis_inventory",
@@ -69,6 +69,20 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\baseline2\\acceptance.json",
   "native_reuse": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\native-library-reuse.json",
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115",
-  "remaining": "One release; candidate/installed whole-report recovery and source oracles; install and restore normal runtime; push only origin/master.",
-  "limits": "Adds existing shared delivery only. Original internal report caps, analysis/binding/semantic limits and wider TODO4/cursor work remain. No CodeMap/Blast, unrelated language support or held-out task replay."
+  "remaining": "Selected27-report batch complete. Broader original backlog and recorded limits remain open.",
+  "limits": "Adds existing shared delivery only. Original internal report caps, analysis/binding/semantic limits and wider TODO4/cursor work remain. No CodeMap/Blast, unrelated language support or held-out task replay.",
+  "debug_public_verifier_smoke": {
+    "status": "PASS",
+    "checks": 19,
+    "manifest_bytes": 1126,
+    "full_validation_bytes": 218634,
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\debug-smoke1\\acceptance.json",
+    "release_acceptance": false,
+    "additional_builds": 0
+  },
+  "related_unselected_observations": [
+    "Existing report-internal caps remain, including50-character Markdown validation-table error-message display; exact JSON evidence and other Markdown sections retain their original behavior.",
+    "Existing descriptions outside this selected delivery refer to blast_radius although the registered tool is compute_blast_radius; retain under original EG26 contract drift, do not change closed tool behavior or start another build for this observation."
+  ],
+  "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-webforms-report-delivery-20261115.json"
 }

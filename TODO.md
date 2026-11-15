@@ -61,6 +61,12 @@ These degrade or improve *every single interaction*. Nothing below matters until
   agree; recovery does not rerun analysis or generation. Existing owners and
   scope exclusions remain unchanged. Broader uniformity/cursor work stays open.
   [Delivery](eval/legacy_validation-shared-read-report-delivery-20261115.json).
+  Shared delivery also covers 27 existing WebForms/UI/settings/diagnostic reports
+  (39 total), retaining original formats and exact complete report recovery.
+  Dedicated integration and candidate/installed public checks recovered all 240
+  authored validators and 240 authorization locations. Existing internal caps and
+  broader envelope/cursor work remain open; no lib-unit build or full-suite run.
+  [Delivery](eval/legacy_validation-webforms-report-delivery-20261115.json).
 
   All 13 handler files (~193 handlers). Responses are heterogeneous markdown/text with
   silent truncation (`graph_tools.rs` hardcoded limits, `access_layer_tools.rs` 30KB+

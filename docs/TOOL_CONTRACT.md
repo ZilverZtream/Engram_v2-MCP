@@ -607,7 +607,7 @@ coupling, stack and file-style diagnostics; extraction confidence; validation,
 authorization, lifecycle, ViewState, AJAX and data-flow maps; page and project
 migration dossiers/coverage/progress; sync hazards, jQuery/session workflows,
 VB translation diagnostics, test discovery and candidate dead-method reports.
-These27reports retain their original JSON/Markdown options and fresh-analysis
+These 27 reports retain their original JSON/Markdown options and fresh-analysis
 requirements. Small results retain their original format. Oversized results
 use the same complete original MCP result recovery described above; no analysis,
 source reading or generation is repeated by recovery. Existing report-internal
