@@ -28,11 +28,36 @@ pub struct IntegrityCheckResult {
     pub vector_doc_count: u64,
     /// Exact source selection, separate from the legacy whole-project totals.
     pub source_generation: SourceGenerationIntegrity,
+    pub retained_namespaces: super::namespace_integrity::NamespaceIntegrity,
+    pub post_repair: Option<PostRepairIntegrity>,
     pub graph_node_count: u64,
     pub graph_edge_count: u64,
     pub mismatches: Vec<IntegrityMismatch>,
     pub repairs_attempted: Vec<RepairOutcome>,
     pub overall_healthy: bool,
+}
+
+/// Before-repair observations stay intact; successful repair is checked again.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PostRepairIntegrity {
+    pub generation: u64,
+    pub source_generation: SourceGenerationIntegrity,
+    pub retained_namespaces: super::namespace_integrity::NamespaceIntegrity,
+    pub mismatches: Vec<IntegrityMismatch>,
+}
+
+/// The public check and locked repair recheck share exact namespace detection.
+pub fn observed_mismatches(
+    source: &SourceGenerationIntegrity,
+    namespaces: &super::namespace_integrity::NamespaceIntegrity,
+    embeddings_expected: bool,
+) -> Vec<IntegrityMismatch> {
+    let mut mismatches = build_integrity_mismatches(
+        namespaces.tantivy_doc_count, namespaces.vector_doc_count.unwrap_or(0), embeddings_expected,
+    );
+    include_source_mismatch(&mut mismatches, source);
+    super::namespace_integrity::include_mismatches(&mut mismatches, namespaces);
+    mismatches
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -191,27 +216,11 @@ pub async fn check_project_integrity_with_policy(
     })
     .await??;
 
-    // Collect counts and lightweight doc metadata from each store
     let search = ps.search.clone();
-    let pid2 = project_id.to_string();
-
-    // A Count collector, not a full listing. The docstore comparison that
-    // needed every doc summary is gone, and materialising the whole corpus's
-    // stored fields on every integrity tick was never cheap.
-    let search_t = search.clone();
-    let pid_tantivy = pid2.clone();
-    let tantivy_count =
-        tokio::task::spawn_blocking(move || search_t.count_docs(&pid_tantivy).map(|c| c as u64))
-            .await??;
-
-    // Vector count (async).
-    // count_vectors returns Ok(0) when the vector feature is disabled or the
-    // project table does not yet exist; Err only on real store failures.
-    let vector_count: u64 = search
-        .count_vectors(&pid2)
-        .await
-        .map_err(|e| anyhow::anyhow!("vector store unreachable during integrity check: {e}"))?
-        as u64;
+    let embeddings_expected = !matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "");
+    let retained_namespaces = super::namespace_integrity::observe(&search, project_id, embeddings_expected).await?;
+    let tantivy_count = retained_namespaces.tantivy_doc_count;
+    let vector_count = retained_namespaces.vector_doc_count.unwrap_or(0);
 
     let graph = state.graph.clone();
     let pid3 = project_id.to_string();
@@ -233,13 +242,8 @@ pub async fn check_project_integrity_with_policy(
     metrics::metrics().graph_node_count.set(node_count as i64);
     metrics::metrics().graph_edge_count.set(edge_count as i64);
 
-    // Detect mismatches
-    // fts_only / empty backend legitimately has no vectors; everything else
-    // (local/ollama/openai/...) is expected to embed every doc.
-    let embeddings_expected = !matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "");
     let source_generation = observe_source_generation(&search, project_id, active_gen, embeddings_expected).await?;
-    let mut mismatches = build_integrity_mismatches(tantivy_count, vector_count, embeddings_expected);
-    include_source_mismatch(&mut mismatches, &source_generation);
+    let mismatches = observed_mismatches(&source_generation, &retained_namespaces, embeddings_expected);
 
     if !mismatches.is_empty() {
         metrics::metrics()
@@ -295,9 +299,22 @@ pub async fn check_project_integrity_with_policy(
     let recovery_pending = tokio::task::spawn_blocking(move || {
         registry.get_project(&project).map(|record| record.is_none_or(|record| record.reindex_required_since_ms.is_some()))
     }).await??;
-    let source_observed = !embeddings_expected || source_generation.counts_match.is_some();
+    let post_repair = if repairs.iter().any(|repair| repair.success) {
+        let generation = super::project_service::get_active_generation(state, project_id).await?;
+        let source_generation = observe_source_generation(&search, project_id, generation, embeddings_expected).await?;
+        let retained_namespaces = super::namespace_integrity::observe(&search, project_id, embeddings_expected).await?;
+        let mismatches = observed_mismatches(&source_generation, &retained_namespaces, embeddings_expected);
+        Some(PostRepairIntegrity { generation, source_generation, retained_namespaces, mismatches })
+    } else { None };
+    let (current_source, current_namespaces, current_mismatches) = match &post_repair {
+        Some(after) => (&after.source_generation, &after.retained_namespaces, &after.mismatches),
+        None => (&source_generation, &retained_namespaces, &mismatches),
+    };
+    let counts_observed = !embeddings_expected || (
+        current_source.counts_match == Some(true) && current_namespaces.counts_match == Some(true)
+    );
     let overall_healthy = compute_overall_healthy(mismatches.len(), &repairs)
-        && !recovery_pending && source_observed;
+        && current_mismatches.is_empty() && !recovery_pending && counts_observed;
 
     Ok(IntegrityCheckResult {
         project_id: project_id.to_string(),
@@ -306,6 +323,8 @@ pub async fn check_project_integrity_with_policy(
         tantivy_doc_count: tantivy_count,
         vector_doc_count: vector_count,
         source_generation,
+        retained_namespaces,
+        post_repair,
         graph_node_count: node_count,
         graph_edge_count: edge_count,
         mismatches,

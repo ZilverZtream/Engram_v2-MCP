@@ -180,7 +180,7 @@ async fn published_source_detects_masked_shortage_and_surplus_and_repairs_both()
             expected_vector_count
         );
         assert_eq!(observed["mismatches"][0]["kind"], kind);
-        assert_eq!(observed["mismatches"].as_array().unwrap().len(), 1);
+        assert_eq!(observed["mismatches"].as_array().unwrap().len(), 2);
         assert_eq!(observed["overall_healthy"], false);
         let repaired = fixture.check(true).await;
         assert_eq!(

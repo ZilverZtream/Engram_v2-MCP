@@ -3308,7 +3308,7 @@ impl Engram {
             }
         };
 
-        let (ns_counts, namespace_counts_available) = match ps.search.count_docs_by_namespace(&pid)
+        let (ns_counts, namespace_counts_available) = match ps.search.count_all_namespace_docs(&pid)
         {
             Ok(m) => (m, true),
             Err(e) => {
@@ -3316,9 +3316,7 @@ impl Engram {
                 (Default::default(), false)
             }
         };
-        // Doc-11 P1e: the TOTAL is the project-wide count — the namespace
-        // map enumerates a fixed subset and understated the label (live:
-        // 421,293 printed vs 422,249 held).
+        // Keep the independent project total when bounded namespace discovery is unavailable.
         let total_docs: usize = match ps.search.count_docs(&pid) {
             Ok(n) => n,
             Err(e) => {

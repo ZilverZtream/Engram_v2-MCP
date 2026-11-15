@@ -37,6 +37,9 @@ pub(crate) mod interface_bindings;
 pub(crate) mod source_call_bindings;
 pub mod instrumentation_service;
 pub mod integrity_service;
+pub mod namespace_integrity;
+#[cfg(test)]
+mod namespace_integrity_tests;
 pub mod instruction_maintenance;
 pub mod legacy_rule_ownership;
 pub(crate) mod legacy_rule_adoption;

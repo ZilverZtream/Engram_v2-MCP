@@ -575,3 +575,27 @@ token, not provider tokens or transport-envelope bytes. Error results and
 non-text content retain their existing delivery. Tools with their own delivery
 controls retain their semantics; composed in-process engines also retain their
 complete reports. This does not change feature-plan semantic acceptance.
+
+
+### Namespace integrity after partial ingestion
+
+`check_integrity` returns `retained_namespaces` alongside the existing published
+`source_generation` observation. Non-memory namespaces compare all retained
+lexical and vector row counts independently, including knowledge and review
+namespaces. A deficit below the former project tolerance, or one compensated
+by surplus rows elsewhere, remains a mismatch. Physical memory counts are
+shown but use the separate selected-source comparison. Vector rows outside
+known and lexical namespaces are disclosed as unattributed, without guessing
+their namespace identity.
+
+Automatic repair uses the existing serialized recovery worker and rechecks
+these same counts under the project update lock. Signals are grouped by vector
+direction; a successful all-namespace recovery makes a second signal a no-op.
+`post_repair` records fresh observations separately from the original evidence;
+healthy output requires agreement after repair. Disabled embeddings and
+uncompiled vector support report unknown vector comparisons explicitly.
+
+These are count checks, not proof of correct row identities, embedding quality,
+complete historical source coverage or improved task outcomes. Equal-count
+wrong-row corruption remains outside this delivery. Namespace discovery reads
+bounded metadata dictionaries and Count collectors, not every stored document.

@@ -804,13 +804,9 @@ async fn run_scoped_repair(
                     if matches!(state.cfg.embedding_backend.as_str(), "fts_only" | "") {
                         return Ok(ScopedRepairReport { message: "Automatic vector recovery skipped: embeddings are disabled.".into(), vector_outcome: Some(VectorRepairOutcome::Disabled) });
                     }
-                    let search = ps.search.clone();
-                    let project = project_id.clone();
-                    let lexical_count = tokio::task::spawn_blocking(move || search.count_docs(&project)).await?? as u64;
-                    let vector_count = ps.search.count_vectors(&project_id).await? as u64;
+                    let namespaces = super::namespace_integrity::observe(&ps.search, &project_id, true).await?;
                     let source = super::integrity_service::observe_source_generation(&ps.search, &project_id, generation, true).await?;
-                    let mut mismatches = super::integrity_service::build_integrity_mismatches(lexical_count, vector_count, true);
-                    super::integrity_service::include_source_mismatch(&mut mismatches, &source);
+                    let mismatches = super::integrity_service::observed_mismatches(&source, &namespaces, true);
                     if mismatches.is_empty() {
                         return Ok(ScopedRepairReport { message: "No current vector count mismatch; no documents were re-embedded.".into(), vector_outcome: Some(VectorRepairOutcome::NoCurrentCountMismatch) });
                     }

@@ -33,6 +33,8 @@ mod graph_extraction_tests;
 #[cfg(test)]
 mod embedding_failure_tests;
 mod selected_source_membership;
+mod namespace_counts;
+pub use namespace_counts::NamespaceVectorCounts;
 pub use selected_source_membership::{SelectedSourceNavigation, SelectedSourceRevisionLookup, SelectedSourceSummary};
 #[cfg(all(test, feature = "vector"))]
 mod retention_observation_tests;

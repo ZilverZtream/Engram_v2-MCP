@@ -1,0 +1,59 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "implementation": {
+    "source_baseline": "36891774e042480bab8c78388429763f05306584",
+    "source_commit": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b",
+    "files": {
+      "crates/engram_index/src/hybrid.rs": "5aed2d699fd4fdf993b7287d0e107ef6406369bf92f493c03b5087e219902ae1",
+      "crates/engram_index/src/hybrid/namespace_counts.rs": "86fae31947ae6c717b7bfcd475ce099f2441ebf4f45fe6d47693e322e27f0603",
+      "crates/engram_server/src/services/integrity_service.rs": "8b7b39952165eef36465ab08b3fc5a46a7a1b321d6eaf466d6d9c78ceebaca8b",
+      "crates/engram_server/src/services/namespace_integrity.rs": "b63629eff5396bf75103888ebfc91aef5e40a70344e7557efdffe658ac947ae3",
+      "crates/engram_server/src/services/namespace_integrity_tests.rs": "cc136c18a68c935384dd7c0d3222172eb7f2afa2a62ca009564ae34c34ce903a",
+      "crates/engram_server/src/services/mod.rs": "5bb7315339337982046fc58eac0e7bd96a167f5b55658860f12a7d0c1332d9e2",
+      "crates/engram_server/src/services/project_service.rs": "26416c51c38890f23e3d92ac7e42a7402001c271146312db0f2eb3fe8cb32947",
+      "crates/engram_server/src/handlers/project_tools.rs": "2c127268648938c84be1e1aac9bc5d1ca549423c07403a6394f71cebe8c3f533",
+      "crates/engram_server/tests/integrity_service_tests.rs": "93acdfb522c4f0ecffd83c91451ace51faddb6c0a3fdef8d2d2f0f2cea1b3e3a"
+    },
+    "root_source_files": {
+      "crates/engram_index/src/hybrid.rs": "5aed2d699fd4fdf993b7287d0e107ef6406369bf92f493c03b5087e219902ae1",
+      "crates/engram_index/src/hybrid/namespace_counts.rs": "86fae31947ae6c717b7bfcd475ce099f2441ebf4f45fe6d47693e322e27f0603",
+      "crates/engram_server/src/services/integrity_service.rs": "8b7b39952165eef36465ab08b3fc5a46a7a1b321d6eaf466d6d9c78ceebaca8b",
+      "crates/engram_server/src/services/namespace_integrity.rs": "b63629eff5396bf75103888ebfc91aef5e40a70344e7557efdffe658ac947ae3",
+      "crates/engram_server/src/services/namespace_integrity_tests.rs": "cc136c18a68c935384dd7c0d3222172eb7f2afa2a62ca009564ae34c34ce903a",
+      "crates/engram_server/src/services/mod.rs": "5bb7315339337982046fc58eac0e7bd96a167f5b55658860f12a7d0c1332d9e2",
+      "crates/engram_server/src/services/project_service.rs": "26416c51c38890f23e3d92ac7e42a7402001c271146312db0f2eb3fe8cb32947",
+      "crates/engram_server/src/handlers/project_tools.rs": "2c127268648938c84be1e1aac9bc5d1ca549423c07403a6394f71cebe8c3f533",
+      "crates/engram_server/tests/integrity_service_tests.rs": "93acdfb522c4f0ecffd83c91451ace51faddb6c0a3fdef8d2d2f0f2cea1b3e3a"
+    },
+    "preserved_wip9": true
+  },
+  "baseline": {
+    "status": "BASELINE_GAP_CONFIRMED",
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\baseline2\\acceptance.json",
+    "checks": 3
+  },
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115",
+  "verification_policy": "One selected lib harness and one release, no full suite",
+  "retained_failed_verifier": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\baseline1\\acceptance.json",
+    "reason": "Expected RPC provider failure surfaced as AssertionError by the existing transport wrapper; corrected the driver catch and reran without rebuilding."
+  },
+  "remaining": "Native result, one release, public candidate/installed acceptance, deployment and committed receipt. Original TODO39 broader identity requirements remain open.",
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 4,
+    "required_component_cases": {
+      "namespace_integrity_balanced_totals_repair_once_preserving_source_and_foreign_rows": true,
+      "namespace_integrity_vector_only_unknown_namespace_is_reported_and_recovered": true,
+      "namespace_integrity_disabled_embeddings_keep_complete_lexical_inventory_without_claiming_vectors": true,
+      "namespace_integrity_no_duplicate_repairs_and_unavailable_is_not_empty": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 22s",
+    "native_test_seconds": 6.42,
+    "retained_failed_attempts": [],
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  }
+}
