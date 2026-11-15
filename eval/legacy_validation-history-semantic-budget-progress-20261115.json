@@ -1,0 +1,69 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "finding": "EG20/21 usable precedent history",
+  "original_requirement": "Caller-controlled useful history and honest capability/latency behavior",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b2\\acceptance.json",
+  "retained_failed_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\baseline1\\acceptance.json",
+  "failed_fixture_disposition": "Owned Git fixture exceeded libgit2 path length before the history query. Fixture directory names were shortened inside the same recorded case; original failure and closed-resource evidence retained. No product change, new scratch root or compile was used.",
+  "actual_context": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "actual_embedding_backend": "ollama",
+    "actual_llm_backend": "openai",
+    "source": "eval/legacy_validation-history-restart-acceptance-20261113.json",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "cleanup": "Owned servers, HTTP handlers and Git fixtures close before their temporary directory is removed; evidence retained for review."
+  },
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "implementation_files": [
+    "crates/engram_server/src/services/change_card_service.rs",
+    "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs",
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/integration_test.rs",
+    "crates/engram_server/tests/search_history_cutoff_test.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_checkpoint_sha256": {
+    "crates/engram_server/src/services/change_card_service.rs": "760c105a2e91b83f4fe3096f3ad488028800713f60c5e65002b5a3055e4f49a1",
+    "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs": "62a36258e4098350dad79e90bb910d688d98318e2218fa3c192b8e54b4674b9d",
+    "crates/engram_server/src/handlers/git_tools.rs": "00c168a85e924c130623e66c5948bc1f2c3effa8e75ab48fa10804664bc42fb7",
+    "crates/engram_server/src/models/requests.rs": "c2a08a0d0d2f8e93381bc65b60e23cf46b9606547272206649ca35d0c3f316af",
+    "crates/engram_server/src/handlers/planning_tools.rs": "290eedfcda816ad677b1669e6bd9d8a41189b5dc901b3800262d447377c431fe",
+    "crates/engram_server/src/tools.rs": "73c929bb47a67a8bc345c8c78c2867d8f41562cd4872a700d3fe757a2b9d83ca",
+    "crates/engram_server/tests/integration_test.rs": "fe6b8df9a8dd767ec14be768eb233ab5396c900bdc3432fd23dd209f898c4d03",
+    "crates/engram_server/tests/search_history_cutoff_test.rs": "fafbe0a1c08199751b99471db16c6249d3dd4a2a30618fadf8202e5b262e5423",
+    "docs/TOOL_CONTRACT.md": "c77da5ff025e88447f6f1f58410d07d12c7bcc8a720076b9dfe3dd783cd4460e"
+  },
+  "behavior": [
+    "Optional semantic_timeout_ms: shared document/query budget, default5000ms, maximum90000; zero skips provider work.",
+    "Load and filter metadata once, then reuse the existing profile-keyed vector cache. Semantic timeout/provider error preserves that lexical baseline.",
+    "JSON/Markdown disclose timeout/fallback and budget scope. Existing separate LLM rerank budget, ordinary filters, revision cutoff and complete history-response recovery remain."
+  ],
+  "tests_added": [
+    "Virtual-time test makes document/query phases exceed one combined budget; full lexical baseline retained and pending future dropped.",
+    "Zero/disabled/invalid budget never starts semantic factory; provider failure retains matches and semantic success may return a lexical miss.",
+    "Invalid semantic and rerank budgets reject before project runtime creation; public controlled-provider driver checks fallback, zero provider calls, author/cutoff filters and healthy recovery."
+  ],
+  "checks_completed": [
+    "Installed-binary controlled baseline:0.7200591s with two350ms delayed provider calls; semantic control absent.",
+    "Whitespace and new-test formatting checks; public-driver Python syntax.",
+    "Preserved unrelated WIP9 hashes."
+  ],
+  "limits": [
+    "New native tests and new public after-change behavior are unrun; no performance improvement or deployment is claimed.",
+    "Budget excludes Git/metadata discovery, rendering and optional LLM reranking. Remote computation may continue after the local future is dropped.",
+    "Lexical fallback is not equivalent semantic ranking quality. Original backlog and failed task-benefit evidence remain open."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "owned_baseline_process_and_http_handlers_closed": true,
+    "owned_fixture_removed": true,
+    "retained_purpose": "Scripts, baseline wire evidence and failed preparation retained for review.",
+    "cleanup_condition": "Retain evidence for the combined delivery; no preexisting directory removed."
+  }
+}

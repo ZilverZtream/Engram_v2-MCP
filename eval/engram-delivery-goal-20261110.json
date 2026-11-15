@@ -40,31 +40,33 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "TODO4 bounded edit workflow delivery",
-    "original_requirement": "TODO4 bounded complete agent-facing edit workflow reports",
-    "observed_missing_behavior": "Installed baseline lacks budget/JSON/recovery controls on all three edit tools.",
-    "implementation_files": {
-      "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
-      "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
-      "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
-      "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
-      "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84",
-      "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f"
-    },
-    "acceptance": [
-      "Bound whole public replies; recover exact full Markdown or JSON without rerunning analysis.",
-      "Preserve scoped guidance and internal full completeness evidence.",
-      "Prepare reports before lifecycle mutations; retry failed delivery without unknown or consumed sessions.",
-      "Verify both output formats through candidate and installed MCP tools; preserve actual configuration/source/registry and unrelated WIP."
+    "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+    "finding": "EG20/21 usable history: bounded semantic baseline",
+    "original_requirement": "Caller-controlled useful history without waiting indefinitely for optional semantic ranking; explicit capability/timeout behavior with recoverable filtered results.",
+    "observed_missing_behavior": "search_history rerank_timeout_ms does not bound document/query embeddings. Current source awaits both without a request-level provider budget; retained original installed evidence observed40.49s baseline and the later same-config cold history check4.43s. Neither is a new current timing claim.",
+    "implementation_files": [
+      "crates/engram_server/src/services/change_card_service.rs",
+      "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs",
+      "crates/engram_server/src/handlers/git_tools.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/integration_test.rs",
+      "crates/engram_server/tests/search_history_cutoff_test.rs",
+      "docs/TOOL_CONTRACT.md"
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+    "acceptance": [
+      "Positive semantic_timeout_ms covers document+query semantic retrieval together; default5000ms, maximum90000ms; zero skips embedding work. Metadata/Git and the separate LLM reranker are not claimed to share this budget.",
+      "Timeout/provider failure returns the lexical baseline from the same scoped metadata; never an invented empty success. Preserve existing author/path/date/as-of filters, ordinary semantic success and rerank controls.",
+      "JSON and Markdown disclose semantic outcome/budget and lexical fallback. Validate with a bounded controlled Ollama fixture, including healthy recovery and no provider call at zero budget.",
+      "Queue source with the combined delivery cadence; do not compile a separate server harness/release for this component alone. Preserve WIP9 and actual config/source."
+    ],
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
     "implementation_complete": true,
-    "validated": true,
-    "deployed": true,
-    "progress": "eval/legacy_validation-session-complete-delivery-progress-20261115.json",
-    "bounded_delivery_complete": true,
-    "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
+    "validated": false,
+    "deployed": false,
+    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b2\\acceptance.json",
+    "progress": "eval/legacy_validation-history-semantic-budget-progress-20261115.json"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -857,7 +859,25 @@
     "compiled_tests_seconds": 239.0,
     "actual_test_execution_seconds": 1.89,
     "last_release_compile_seconds": 850.0,
-    "pending": [],
+    "pending": [
+      {
+        "component": "history-semantic-budget-20261115",
+        "source_files": [
+          "crates/engram_server/src/services/change_card_service.rs",
+          "crates/engram_server/src/services/change_card_service/semantic_budget_tests.rs",
+          "crates/engram_server/src/handlers/git_tools.rs",
+          "crates/engram_server/src/models/requests.rs",
+          "crates/engram_server/src/handlers/planning_tools.rs",
+          "crates/engram_server/src/tools.rs",
+          "crates/engram_server/tests/integration_test.rs",
+          "crates/engram_server/tests/search_history_cutoff_test.rs",
+          "docs/TOOL_CONTRACT.md"
+        ],
+        "progress": "eval/legacy_validation-history-semantic-budget-progress-20261115.json",
+        "validated": false,
+        "deployed": false
+      }
+    ],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
     "completed_last_batch": [
@@ -880,7 +900,7 @@
     "last_release_compile": "Finished `release` profile [optimized] target(s) in 14m 10s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Three components accepted and installed; no pending runtime source from this batch."
+    "current_step_reason": "First new component implemented; native/public after-change checks and deployment remain queued for the combined batch."
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -945,7 +965,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement. This edit-workflow batch is installed; preserve all other unfinished findings and failed usefulness evidence.",
+  "next_user_visible_deliverable": "Bound optional document/query embeddings and retain a disclosed lexical history baseline on timeout; no trigger work or repeated completed source-recovery implementation.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -1547,30 +1567,30 @@
   "archive_check_outcome_20261114": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
   "previous_completed_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "Original TODO31/59 complete literal SQL body references in request traces",
-    "original_requirement": "Source-cited request-to-database navigation and consolidation of overlapping SQL reference analysis.",
-    "observed_missing_behavior": "Installed public trace on the unchanged LegacyValidation security SQL returns four tables, omitting outer aspnet_Users and second nested us_useraccess. The inline reader uses one primary FROM plus joins, unlike the shared SQL body reference engine already used by reports.",
-    "implementation_files": [
-      "crates/engram_server/src/services/request_trace/inline_sql.rs",
-      "crates/engram_server/src/tools.rs"
-    ],
+    "finding": "TODO4 bounded edit workflow delivery",
+    "original_requirement": "TODO4 bounded complete agent-facing edit workflow reports",
+    "observed_missing_behavior": "Installed baseline lacks budget/JSON/recovery controls on all three edit tools.",
+    "implementation_files": {
+      "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
+      "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
+      "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
+      "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
+      "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84",
+      "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f"
+    },
     "acceptance": [
-      "Reuse analyze_body_references on the already comment/string-masked literal SQL, retaining all ordinary FROM/JOIN reads and declared write references. Remove the inline primary-plus-joins reference selection.",
-      "Retain the existing literal size, batch/procedure exclusion, current-source admission and complete-path limits. SQL identifiers remain lexical candidates; do not add schema/alias/database binding or execution claims.",
-      "Independent wanted behavior: the unchanged actual security SELECT yields all six named source tables in public JSON traces. SELECT/DML, literal examples/comments and existing ExecuteCommand behavior remain supported.",
-      "Freeze the three queued components together; run one focused request-trace native batch, one release and candidate/installed checks, preserve unrelated work/configuration and account for all owned resources. No per-component compile."
+      "Bound whole public replies; recover exact full Markdown or JSON without rerunning analysis.",
+      "Preserve scoped guidance and internal full completeness evidence.",
+      "Prepare reports before lifecycle mutations; retry failed delivery without unknown or consumed sessions.",
+      "Verify both output formats through candidate and installed MCP tools; preserve actual configuration/source/registry and unrelated WIP."
     ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
     "implementation_complete": true,
     "validated": true,
     "deployed": true,
-    "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json",
-    "native_validated": true,
-    "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\native-acceptance.json",
+    "progress": "eval/legacy_validation-session-complete-delivery-progress-20261115.json",
     "bounded_delivery_complete": true,
-    "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
+    "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
   },
   "queued_typed_query_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -1687,5 +1707,9 @@
     "bounded_delivery_complete": true,
     "delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
   },
-  "edit_workflow_batch_delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json"
+  "edit_workflow_batch_delivery": "eval/legacy_validation-edit-workflow-batch-delivery-20261115.json",
+  "selection_notes_20261115": [
+    "Existing actual-source observation excludes trigger expansion as a current LegacyValidation priority; no trigger implementation selected.",
+    "The existing current-file excerpt tool can retrieve over-limit guidance; no new recovery feature selected from that warning."
+  ]
 }

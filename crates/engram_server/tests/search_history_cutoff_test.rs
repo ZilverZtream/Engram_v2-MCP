@@ -45,7 +45,7 @@ fn request(project_id: &str, query: &str) -> engram_server::SearchHistoryRequest
 }
 
 #[tokio::test]
-async fn invalid_rerank_budget_refuses_before_project_lookup_or_runtime_creation() {
+async fn invalid_history_budgets_refuse_before_project_lookup_or_runtime_creation() {
     let temporary = tempdir().unwrap();
     let data_dir = temporary.path().join("data");
     std::fs::create_dir(&data_dir).unwrap();
@@ -55,12 +55,15 @@ async fn invalid_rerank_budget_refuses_before_project_lookup_or_runtime_creation
     }).unwrap();
     let engram = Engram::new(state);
     for mode in ["text", "precedent", "auto"] {
-        let mut req = request("unknown-project", "How did we implement the earlier report parameter filtering behavior?");
-        req.mode = Some(mode.into());
-        req.rerank_timeout_ms = Some(90_001);
-        let error = engram.handle_search_history(req).await.unwrap_err();
-        assert!(error.message.contains("rerank_timeout_ms"), "{error:?}");
-        assert!(!data_dir.join("projects/unknown-project").exists());
+        for field in ["rerank_timeout_ms", "semantic_timeout_ms"] {
+            let mut req = request("unknown-project", "How did we implement the earlier report parameter filtering behavior?");
+            req.mode = Some(mode.into());
+            if field == "rerank_timeout_ms" { req.rerank_timeout_ms = Some(90_001); }
+            else { req.semantic_timeout_ms = Some(90_001); }
+            let error = engram.handle_search_history(req).await.unwrap_err();
+            assert!(error.message.contains(field), "{error:?}");
+            assert!(!data_dir.join("projects/unknown-project").exists());
+        }
     }
     drop(engram);
     temporary.close().unwrap();

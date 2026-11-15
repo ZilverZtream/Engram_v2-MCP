@@ -2170,8 +2170,15 @@ pub struct SearchHistoryRequest {
     /// without an LLM the semantic order is returned and the output says so.
     #[serde(default)]
     pub rerank: Option<bool>,
+    /// Precedent mode: one budget for document and query embedding together,
+    /// 0..=90000 ms. Default5000. Zero skips embeddings; timeout/failure uses
+    /// the same filtered lexical baseline. Git/metadata, rendering and the
+    /// separate optional LLM reranker are outside this budget.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 90000))]
+    pub semantic_timeout_ms: Option<u64>,
     /// Optional LLM reranking budget, 0..=90000 milliseconds. Zero skips the
-    /// LLM. This does not bound semantic baseline retrieval. Default: 90000.
+    /// LLM. semantic_timeout_ms separately bounds semantic retrieval. Default: 90000.
     #[serde(default)]
     #[schemars(range(min = 0, max = 90000))]
     pub rerank_timeout_ms: Option<u64>,
@@ -2709,6 +2716,10 @@ impl AnalyzeRevertsRequest {
 }
 
 impl SearchHistoryRequest {
+    pub fn validated_semantic_timeout_ms(&self) -> anyhow::Result<u64> {
+        crate::services::change_card_service::checked_semantic_timeout_ms(self.semantic_timeout_ms)
+    }
+
     pub fn validated_rerank_timeout_ms(&self) -> anyhow::Result<u64> {
         crate::services::change_card_service::checked_rerank_timeout_ms(self.rerank_timeout_ms)
     }

@@ -10348,6 +10348,7 @@ impl Engram {
                 mode: Some("text".into()),
                 rerank: None,
                 rerank_timeout_ms: None,
+                semantic_timeout_ms: None,
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,

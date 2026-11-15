@@ -1849,40 +1849,50 @@ impl Engram {
                 author: req.author_filter.clone(), date_after: req.date_after,
                 date_before: req.date_before,
             };
-        let (eligible, semantic_unavailable) = match cards::cards_for_line_filtered_cached(
-            &dir, tip, &ps.search, prefixes, &self.state.registry, filter.clone(),
-        ).await {
-            Ok(cards) => (cards, false),
-            Err(_) => {
-                // Git metadata remains useful when configured embeddings fail.
-                // A metadata failure still propagates; it is never an empty hit set.
-                let metadata = cards::metadata_for_line_filtered_cached(
-                    &dir, tip, &self.state.registry, filter,
-                ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
-                (metadata, true)
-            }
-        };
+        let canonical_dir = dir.clone();
+        let canonical_dir = tokio::task::spawn_blocking(move || std::fs::canonicalize(canonical_dir))
+            .await.map_err(|e| McpError::internal_error(e.to_string(), None))?
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        // Load/filter metadata independently of optional provider work. A timed
+        // out embedder must not turn known matching history into an empty success.
+        let eligible = cards::metadata_for_line_filtered_cached(
+            &dir, tip, &self.state.registry, filter.clone(),
+        ).await.map_err(|e| McpError::internal_error(format!("change metadata: {e}"), None))?;
         let total = eligible.len();
         let quality = ps.search.semantic_quality();
-        let mut baseline_tier = match quality {
-            engram_index::hybrid::SemanticQuality::Off => "lexical fallback (vectors disabled)",
-            engram_index::hybrid::SemanticQuality::DegradedTrigram => "degraded trigram",
-            engram_index::hybrid::SemanticQuality::Semantic => "semantic",
+        let semantic_budget = req.validated_semantic_timeout_ms()
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let semantic = cards::rank_with_semantic_budget(
+            cards::lexical_rank(&req.query, &eligible),
+            quality != engram_index::hybrid::SemanticQuality::Off,
+            semantic_budget,
+            || async {
+                let semantic_cards = cards::vectors_for_metadata_cached(
+                    &canonical_dir, &eligible, &ps.search, prefixes,
+                ).await?;
+                cards::semantic_rank(&req.query, &semantic_cards, &ps.search, prefixes).await
+            },
+        ).await.map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        let baseline_tier = match (&semantic.outcome, quality) {
+            (cards::SemanticOutcome::Completed, engram_index::hybrid::SemanticQuality::Semantic) => "semantic",
+            (cards::SemanticOutcome::Completed, engram_index::hybrid::SemanticQuality::DegradedTrigram) => "degraded trigram",
+            (cards::SemanticOutcome::VectorsDisabled, _) => "lexical fallback (vectors disabled)",
+            (cards::SemanticOutcome::ZeroBudget, _) => "lexical fallback (semantic budget zero)",
+            (cards::SemanticOutcome::TimedOut { .. }, _) => "lexical fallback (semantic budget exhausted)",
+            _ => "lexical fallback (semantic retrieval unavailable)",
         };
-        let ranked = if semantic_unavailable {
-            baseline_tier = "lexical fallback (semantic retrieval unavailable)";
-            cards::lexical_rank(&req.query, &eligible)
-        } else if quality == engram_index::hybrid::SemanticQuality::Off {
-            cards::lexical_rank(&req.query, &eligible)
-        } else {
-            match cards::semantic_rank(&req.query, &eligible, &ps.search, prefixes).await {
-                Ok(ranked) => ranked,
-                Err(_) => {
-                    baseline_tier = "lexical fallback (semantic retrieval unavailable)";
-                    cards::lexical_rank(&req.query, &eligible)
-                }
-            }
+        let semantic_status = match &semantic.outcome {
+            cards::SemanticOutcome::Completed => "completed".to_string(),
+            cards::SemanticOutcome::VectorsDisabled => "skipped: vectors disabled".to_string(),
+            cards::SemanticOutcome::ZeroBudget => "skipped: zero budget".to_string(),
+            cards::SemanticOutcome::TimedOut { budget_ms } => format!("timed out after {budget_ms} ms; lexical fallback"),
+            cards::SemanticOutcome::Failed { .. } => "provider unavailable; lexical fallback".to_string(),
         };
+        let mut semantic_delivery = serde_json::to_value(&semantic.outcome)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+        semantic_delivery["budget_ms"] = json!(semantic_budget);
+        semantic_delivery["scope"] = json!("Document and query embeddings share one budget after scoped Git metadata is available. Git/metadata, rendering and the separate LLM reranker are not bounded here. Remote computation may continue after the request future is dropped.");
+        let ranked = semantic.ranked;
 
         let budget = req.validated_rerank_timeout_ms()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
@@ -1903,7 +1913,7 @@ impl Engram {
 
         let header = format!(
             "Precedents: {} of {total} published changes ({label}); ranked by whole-change \
-             {baseline_tier} cards, {how}. Bulk changes of over {} files are excluded.\n",
+             {baseline_tier} cards, {how}. Semantic retrieval: {semantic_status} (budget {semantic_budget} ms; excludes Git/metadata and LLM reranking). Bulk changes of over {} files are excluded.\n",
             order.len().min(limit),
             cards::BULK_FILES,
         );
@@ -1959,7 +1969,7 @@ impl Engram {
         }
         history_response::finish(&req,header,&blocks,&rows,json!({"mode":"precedent",
             "scope":label,"resolved_revision":tip.to_string(),"retrieval_capability":baseline_tier,
-            "rerank":how,"eligible_changes_before_bulk_exclusion":total,
+            "rerank":how,"semantic_retrieval":semantic_delivery,"eligible_changes_before_bulk_exclusion":total,
             "ranked_matches_before_limit":order.len(),
             "bulk_changes_excluded_over_files":cards::BULK_FILES,
             "active_generation":null}))
@@ -2035,6 +2045,8 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         history_response::validate(&req)?;
         req.validated_rerank_timeout_ms()
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        req.validated_semantic_timeout_ms()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         if history_mode(req.mode.as_deref(), &req.query)? == HistoryMode::Precedent {
             return self.handle_precedents(req).await;

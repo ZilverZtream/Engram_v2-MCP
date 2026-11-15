@@ -29,6 +29,9 @@ use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex};
 mod cache;
 mod metadata_cache;
+#[cfg(test)]
+#[path = "change_card_service/semantic_budget_tests.rs"]
+mod semantic_budget_tests;
 #[cfg(all(test, feature = "vector"))]
 #[path = "change_card_service/restart_measurement.rs"]
 mod restart_measurement;
@@ -40,6 +43,62 @@ pub const DEFAULT_RERANK_MODEL: &str = "openai/gpt-oss-120b";
 pub const RERANK_POOL: usize = 30;
 pub const DEFAULT_RERANK_TIMEOUT_MS: u64 = 90_000;
 pub const MAX_RERANK_TIMEOUT_MS: u64 = 90_000;
+pub const DEFAULT_SEMANTIC_TIMEOUT_MS: u64 = 5_000;
+
+pub fn checked_semantic_timeout_ms(value: Option<u64>) -> anyhow::Result<u64> {
+    let ms = value.unwrap_or(DEFAULT_SEMANTIC_TIMEOUT_MS);
+    anyhow::ensure!(ms <= 90_000, "semantic_timeout_ms must be between 0 and 90000");
+    Ok(ms)
+}
+
+#[derive(Debug, PartialEq, Eq, serde::Serialize)]
+#[serde(tag = "status", rename_all = "snake_case")]
+pub enum SemanticOutcome {
+    VectorsDisabled,
+    ZeroBudget,
+    Completed,
+    Failed { reason: String },
+    TimedOut { budget_ms: u64 },
+}
+
+pub struct SemanticResult {
+    pub ranked: Vec<Arc<ChangeCard>>,
+    pub outcome: SemanticOutcome,
+}
+
+/// Metadata/filtering and the lexical baseline are already available. One
+/// deadline covers both document and query embedding, not one per request.
+/// Dropping a pending future stops waiting; it cannot stop remote computation.
+pub async fn rank_with_semantic_budget<F, Fut>(
+    baseline: Vec<Arc<ChangeCard>>,
+    vectors_enabled: bool,
+    timeout_ms: u64,
+    semantic: F,
+) -> anyhow::Result<SemanticResult>
+where
+    F: FnOnce() -> Fut,
+    Fut: std::future::Future<Output = anyhow::Result<Vec<Arc<ChangeCard>>>>,
+{
+    checked_semantic_timeout_ms(Some(timeout_ms))?;
+    let skipped = if !vectors_enabled {
+        Some(SemanticOutcome::VectorsDisabled)
+    } else if timeout_ms == 0 {
+        Some(SemanticOutcome::ZeroBudget)
+    } else {
+        None
+    };
+    if let Some(outcome) = skipped {
+        return Ok(SemanticResult { ranked: baseline, outcome });
+    }
+    let outcome = match tokio::time::timeout(
+        std::time::Duration::from_millis(timeout_ms), semantic(),
+    ).await {
+        Ok(Ok(ranked)) => return Ok(SemanticResult { ranked, outcome: SemanticOutcome::Completed }),
+        Ok(Err(error)) => SemanticOutcome::Failed { reason: error.to_string().chars().take(240).collect() },
+        Err(_) => SemanticOutcome::TimedOut { budget_ms: timeout_ms },
+    };
+    Ok(SemanticResult { ranked: baseline, outcome })
+}
 
 pub fn checked_rerank_timeout_ms(value: Option<u64>) -> anyhow::Result<u64> {
     let ms = value.unwrap_or(DEFAULT_RERANK_TIMEOUT_MS);
@@ -342,6 +401,62 @@ pub async fn metadata_for_line_filtered_cached(
     }).await?
 }
 
+fn embedding_cache_key(
+    canonical_repo: std::path::PathBuf,
+    search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes,
+) -> anyhow::Result<(cache::Key, usize)> {
+    let (identity, dimension) = search.document_embedding_identity()
+        .ok_or_else(|| anyhow::anyhow!("document embedding capability is unavailable"))?;
+    let mut profile = blake3::Hasher::new();
+    for part in [identity.as_str(), prefixes.document] {
+        profile.update(&(part.len() as u64).to_le_bytes());
+        profile.update(part.as_bytes());
+    }
+    Ok((cache::Key { repository: canonical_repo, profile: profile.finalize().to_hex().to_string() }, dimension))
+}
+
+async fn embed_missing_cards(
+    cards: &mut cache::Cards,
+    fresh: Vec<Arc<ChangeCard>>,
+    search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes,
+    dimension: usize,
+) -> anyhow::Result<usize> {
+    if fresh.is_empty() { return Ok(0); }
+    let texts: Vec<_> = fresh.iter().map(|card| format!("{}{}", prefixes.document, card.text())).collect();
+    let vectors = search.embed_texts(&texts).await?;
+    anyhow::ensure!(vectors.len() == fresh.len(), "change card provider returned an incomplete batch");
+    anyhow::ensure!(vectors.iter().all(|vector| vector.len() == dimension && vector.iter().all(|v| v.is_finite())),
+        "change card provider returned incompatible vectors");
+    for (card, vector) in fresh.into_iter().zip(vectors) {
+        let mut card = (*card).clone();
+        card.vector = vector;
+        cards.insert(card.oid.clone(), Arc::new(card));
+    }
+    Ok(texts.len())
+}
+
+/// Vectorize the already scoped metadata without another Git walk. The caller
+/// canonicalizes the repository before starting its semantic-stage deadline.
+/// Reuses the same provider/profile cache and complete-batch admission.
+pub async fn vectors_for_metadata_cached(
+    canonical_repo: &Path,
+    metadata: &[Arc<ChangeCard>],
+    search: &engram_index::HybridSearchEngine,
+    prefixes: EmbedPrefixes,
+) -> anyhow::Result<Vec<Arc<ChangeCard>>> {
+    let (key, dimension) = embedding_cache_key(canonical_repo.to_path_buf(), search, prefixes)?;
+    let mut cards = CARDS.lock().unwrap_or_else(|e| e.into_inner()).snapshot(&key);
+    let fresh = metadata.iter().filter(|card| !cards.contains_key(&card.oid)).cloned().collect();
+    embed_missing_cards(&mut cards, fresh, search, prefixes, dimension).await?;
+    let selected = metadata.iter().map(|card| {
+        cards.get(&card.oid).cloned().ok_or_else(|| anyhow::anyhow!("change card missing for requested commit {}", card.oid))
+    }).collect::<anyhow::Result<Vec<_>>>()?;
+    CARDS.lock().unwrap_or_else(|e| e.into_inner()).retain(key, cards);
+    Ok(selected)
+}
+
 async fn cards_for_line_observed(
     repo_dir: &Path, tip: Oid, search: &engram_index::HybridSearchEngine,
     prefixes: EmbedPrefixes, registry: Option<engram_core::Registry>,
@@ -359,18 +474,7 @@ async fn cards_for_line_observed(
     }
     let root = repo_dir.to_path_buf();
     let dir = tokio::task::spawn_blocking(move || std::fs::canonicalize(root)).await??;
-    let (identity, dimension) = search
-        .document_embedding_identity()
-        .ok_or_else(|| anyhow::anyhow!("document embedding capability is unavailable"))?;
-    let mut profile = blake3::Hasher::new();
-    for part in [identity.as_str(), prefixes.document] {
-        profile.update(&(part.len() as u64).to_le_bytes());
-        profile.update(part.as_bytes());
-    }
-    let key = cache::Key {
-        repository: dir.clone(),
-        profile: profile.finalize().to_hex().to_string(),
-    };
+    let (key, dimension) = embedding_cache_key(dir.clone(), search, prefixes)?;
     // This request owns its cards through Git/provider awaits and eviction.
     let mut cards = CARDS
         .lock()
@@ -389,28 +493,9 @@ async fn cards_for_line_observed(
     let selected: std::collections::HashSet<_> = fresh.iter().map(|card| card.oid.clone())
         .chain(cards.values().filter(|card| filter.admits(card)).map(|card| card.oid.clone()))
         .collect();
-    if !fresh.is_empty() {
-        let texts: Vec<String> = fresh
-            .iter()
-            .map(|c| format!("{}{}", prefixes.document, c.text()))
-            .collect();
-        let vectors = search.embed_texts(&texts).await?;
-        stats.fresh_embedding_texts = texts.len();
-        anyhow::ensure!(
-            vectors.len() == fresh.len(),
-            "change card provider returned an incomplete batch"
-        );
-        anyhow::ensure!(
-            vectors
-                .iter()
-                .all(|vector| vector.len() == dimension && vector.iter().all(|v| v.is_finite())),
-            "change card provider returned incompatible vectors"
-        );
-        for (mut card, vector) in fresh.into_iter().zip(vectors) {
-            card.vector = vector;
-            cards.insert(card.oid.clone(), Arc::new(card));
-        }
-    }
+    stats.fresh_embedding_texts = embed_missing_cards(
+        &mut cards, fresh.into_iter().map(Arc::new).collect(), search, prefixes, dimension,
+    ).await?;
     let result =
         line.iter()
             .filter(|oid| selected.contains(&oid.to_string()))
