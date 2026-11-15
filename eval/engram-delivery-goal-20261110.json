@@ -40,14 +40,17 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DELIVERED",
-    "record": "eval/instruction-review-batch-delivery-20261115.json",
-    "original_requirement_ids": [
-      "EG-27",
-      "EG-31",
-      "EG-19"
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-31",
+    "before": "Instruction maintenance requires caller-enumerated changed_paths or explicit instruction/evidence lists; it cannot collect changes from its existing exact base_commit itself.",
+    "user_outcome": "Opt-in Git change selection discovers affected scoped/reference guidance and exact before/current evidence without enumerating the changed files by hand.",
+    "finite_acceptance": [
+      "use_git_changes=true selects changes from exact base commit to current worktree, including committed-since-base, staged, unstaged, deleted and nonignored untracked files; existing explicit selection is unchanged.",
+      "Git-derived paths feed existing scoped and reference-based instruction selection, proposal hash checks and health/update observations. Clean worktree reports no changes without asserting semantic policy correctness.",
+      "Selection retains the existing16-file evidence bound and fails with an actionable explicit-scope alternative rather than silently dropping changes. No authored/index writes, model calls or actual LegacyValidation whole-project operation."
     ],
-    "full_original_goal_complete": false
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115\\contract.json",
+    "source_commit": "78409d64dd6f021aa9ff8ca0989b5d1b66ae2f96"
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2555,7 +2558,26 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "78409d64dd6f021aa9ff8ca0989b5d1b66ae2f96",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115\\contract.json",
+        "source_progress_record": "eval/eg31-git-change-selection-progress-20261115.json",
+        "focused_native_target": "changed_instruction_workflow_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115\\verify-public.py",
+        "user_outcome": "Opt-in Git change selection discovers affected scoped/reference guidance and exact before/current evidence without enumerating the changed files by hand.",
+        "files": {
+          "crates/engram_server/src/services/instruction_maintenance.rs": "635113cd5132cdd59462090ecf646e4e3a673ee96f5f0cd2c7e63143ea77f9cd",
+          "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "e167ead2dc9e9f11a059e28f6906271353bd127c410cd895f7459aa5d38a84a9",
+          "crates/engram_server/src/services/instruction_maintenance/changed_evidence/git_changes.rs": "c51e8131f036625c46134b92d7794fbeaccfd7e847cccce666b16fc1898a55b6",
+          "crates/engram_server/src/handlers/project_tools/instruction_observation.rs": "1c035bbccf85789e5d30caa8c7ae756ed2c53ef78a8a87083477c4e7506a7fcd",
+          "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "bc483820a454a53da9592e1a6b9c4d1231f115179ea8b2f735c2c194070eef82",
+          "docs/TOOL_CONTRACT.md": "8124b6265b21e684f51704be10a69faedc86ed8424a343bdeb6fcdd3cbc23ce6"
+        }
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2595,5 +2617,11 @@
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
+  },
+  "latest_source_batch_progress": {
+    "record": "eval/eg31-git-change-selection-progress-20261115.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "independent_requirements_queued": 1,
+    "builds_started": 0
   }
 }

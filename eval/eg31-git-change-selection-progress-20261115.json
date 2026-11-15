@@ -1,0 +1,55 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T18:30:29.111860+00:00",
+  "original_requirement_id": "EG-31",
+  "source_commit": "78409d64dd6f021aa9ff8ca0989b5d1b66ae2f96",
+  "original_requirement": "Evidence-driven instruction maintenance after code changes through existing health/update/audit workflows.",
+  "before": "Instruction maintenance requires caller-enumerated changed_paths or explicit instruction/evidence lists; it cannot collect changes from its existing exact base_commit itself.",
+  "source_after": "Opt-in Git change selection discovers affected scoped/reference guidance and exact before/current evidence without enumerating the changed files by hand.",
+  "finite_acceptance": [
+    "use_git_changes=true selects changes from exact base commit to current worktree, including committed-since-base, staged, unstaged, deleted and nonignored untracked files; existing explicit selection is unchanged.",
+    "Git-derived paths feed existing scoped and reference-based instruction selection, proposal hash checks and health/update observations. Clean worktree reports no changes without asserting semantic policy correctness.",
+    "Selection retains the existing16-file evidence bound and fails with an actionable explicit-scope alternative rather than silently dropping changes. No authored/index writes, model calls or actual LegacyValidation whole-project operation."
+  ],
+  "source_files": {
+    "crates/engram_server/src/services/instruction_maintenance.rs": "635113cd5132cdd59462090ecf646e4e3a673ee96f5f0cd2c7e63143ea77f9cd",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "e167ead2dc9e9f11a059e28f6906271353bd127c410cd895f7459aa5d38a84a9",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/git_changes.rs": "c51e8131f036625c46134b92d7794fbeaccfd7e847cccce666b16fc1898a55b6",
+    "crates/engram_server/src/handlers/project_tools/instruction_observation.rs": "1c035bbccf85789e5d30caa8c7ae756ed2c53ef78a8a87083477c4e7506a7fcd",
+    "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "bc483820a454a53da9592e1a6b9c4d1231f115179ea8b2f735c2c194070eef82",
+    "docs/TOOL_CONTRACT.md": "8124b6265b21e684f51704be10a69faedc86ed8424a343bdeb6fcdd3cbc23ce6"
+  },
+  "checks_completed": [
+    "Installed owned baseline confirms manual selection works and Git selection is absent.",
+    "Targeted Rust syntax parsing and git diff --check."
+  ],
+  "checks_deferred": [
+    "Compile the focused native cases in the next independent-requirement batch.",
+    "Run deferred public workflow verifier on the combined debug, candidate and installed artifacts."
+  ],
+  "native_compilations_this_item": 0,
+  "release_builds_this_item": 0,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-instruction-maintenance-20261115",
+    "baseline_fixture_removed": true,
+    "baseline_owner_closed": true,
+    "preserved_wip9": true,
+    "cleanup_condition": "New owned native/public fixtures close all owners and remove their temporary directories; retain scripts and proof here until superseded. No preexisting deletion."
+  },
+  "selection_notes": {
+    "at": "2026-11-15",
+    "previous_goal_turn": "progress: three original workflow changes installed and verified in eval/instruction-review-batch-delivery-20261115.json",
+    "new_progress": "EG31 Git-derived change selection source committed; pending combined validation only.",
+    "selection_evidence": {
+      "review_history_reply_budget": "Already implemented: read_report_delivery.rs TOOLS includes get_review_decisions. No new budgeting implementation selected.",
+      "regular_task_verification": "Existing check-current command and original four-case run remain in eval/legacy_validation-current-task-check-outcome-20261113.json. Quality failed. Hosted private CI unavailable; do not build a replacement runner or replay/tune inspected cases.",
+      "next_selection": "Select another concrete unfinished original requirement from accepted LegacyValidation work; do not compile one-item queue or reopen closed CodeMap/Blast work."
+    },
+    "runtime_configuration_relevance": {
+      "checked": "Existing normal config allows LegacyValidation, advertises full tools, uses Ollama embeddings and OpenAI-compatible LLM; owned baseline used fts_only/none only. No actual project operation.",
+      "credential_handling": "A full config read accidentally displayed a credential in the tool result. Do not repeat it or persist its value in records; read only selected non-secret fields or a file digest."
+    }
+  }
+}
