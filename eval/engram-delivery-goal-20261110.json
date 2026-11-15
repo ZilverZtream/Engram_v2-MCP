@@ -893,7 +893,7 @@
     "reason": "User objected to repeated compilation dominating delivery. Reduce build frequency while preserving all final acceptance requirements.",
     "batch_size": 3,
     "implementation_concurrency": 1,
-    "rule": "Implement three original LegacyValidation components sequentially, then one combined focused verification/release and candidate/installed acceptance. Do not compile separately for each component.",
+    "rule": "Finish independent deliverables sequentially in the existing checkout, retain each finite contract and source commit, and accumulate a pending validation queue. Only one implementation item is active. Pending validation is not installed delivery or full acceptance. Do not stop source progress to release each small feature.",
     "compiled_tests_seconds": 221.37486210011411,
     "actual_test_execution_seconds": 8.91,
     "last_release_compile_seconds": 813.0,
@@ -920,9 +920,9 @@
       "2m 56s"
     ],
     "last_release_compile": "13m 33s",
-    "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
+    "validation_scope_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Three identity source workflows deployed; advance next original requirement without repeating passed acceptance.",
+    "current_step_reason": "Existing release1 only; no new compile for this feature. Accumulate independent source-complete original deliverables before the next combined validation.",
     "last_native_attempts": 2,
     "last_release_attempts": 1,
     "compiled_tests_seconds_scope": "One focused thirteen-case target. First compile failed E0502; corrected native2 passed. No full/lib suite or extra debug build.",
@@ -931,14 +931,14 @@
     "public_failed_verifier_attempts": 0,
     "last_native_runner_seconds": 221.37486210011411,
     "latest_cadence_deviation": {
-      "at_utc": "2026-11-15T07:47:40.737632+00:00",
-      "user_observation": "Minutes of implementation followed by hours of compilation and full-suite work displaces useful product changes.",
-      "existing_rule": "delivery_cadence already requires three substantive original LegacyValidation components before one combined verification/release.",
-      "deviation": "Recent single-feature releases, including the already-running VB SqlCommand release, did not follow that cadence. Three parser branches or multiple checks for one feature do not constitute three substantive components.",
-      "current_action": "Finish the already-started release and reuse its artifact for candidate/installed acceptance. No replacement build is authorized by a verifier-only or documentation correction.",
-      "next_build_entry_condition": "Implement three substantive user-facing components sequentially from the original LegacyValidation backlog and name their acceptance criteria before invoking Cargo. Run one focused combined verification and one release. A smaller batch requires an evidenced delivery-blocking regression; record that evidence before compiling.",
-      "exclusions": "No build-system investigation, extra build to change test organization, full-suite default, or relabeling acceptance checks as product components."
-    }
+      "at_utc": "2026-11-15T16:50:25.278957+00:00",
+      "user_observation": "Small edits followed by repeated compilation cannot scale toward v1.",
+      "deviation": "Counted a method-scoping feature across three tools as three components, triggering another small-feature release. Two avoidable fixture mistakes also caused native retries.",
+      "current_action": "Replace counting with independent backlog outcomes. Finish existing release, keep all failure/cost evidence, then accumulate source deliverables without per-feature compilation.",
+      "next_build_entry_condition": "No new Cargo build/test or optimized release until at least three independent original backlog deliverables are source-complete and named in the validation queue, and no ready source change belongs in that batch. A concrete regression preventing delivery is the only smaller-batch exception; record its evidence before compiling."
+    },
+    "batch_unit": "independent original backlog deliverables; same feature across tools counts once",
+    "next_build_entry_condition": "No new Cargo build/test or optimized release until at least three independent original backlog deliverables are source-complete and named in the validation queue, and no ready source change belongs in that batch. A concrete regression preventing delivery is the only smaller-batch exception; record its evidence before compiling."
   },
   "retained_ask_routing_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2544,5 +2544,30 @@
     "record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
+  },
+  "delivery_cadence_correction_20261115": {
+    "status": "ACTIVE_USER_CORRECTION",
+    "at_utc": "2026-11-15T16:50:25.278957+00:00",
+    "implementation_concurrency": 1,
+    "minimum_independent_deliverables_before_next_compile": 3,
+    "counting_rule": "An independent deliverable must satisfy a distinct original backlog requirement and have a separately useful user outcome. Variants, parser branches, fields, checks, or multiple tool outputs for the same feature count as one deliverable. The current method-scoping feature counts as one.",
+    "source_work_rule": "Finish independent deliverables sequentially in the existing checkout, retain each finite contract and source commit, and accumulate a pending validation queue. Only one implementation item is active. Pending validation is not installed delivery or full acceptance. Do not stop source progress to release each small feature.",
+    "compile_entry_condition": "No new Cargo build/test or optimized release until at least three independent original backlog deliverables are source-complete and named in the validation queue, and no ready source change belongs in that batch. A concrete regression preventing delivery is the only smaller-batch exception; record its evidence before compiling.",
+    "verification_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
+    "prohibited_reasons_for_compile": [
+      "one small feature is finished",
+      "the same feature appears in three tools",
+      "documentation or verifier-only changes",
+      "warning cleanup or test organization",
+      "status reporting or freshness ritual"
+    ],
+    "current_build_exception": {
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
+      "release_label": "release1",
+      "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
+      "subsequent_compiles_authorized": false
+    },
+    "next_batch_pending": [],
+    "full_original_goal_scope_unchanged": true
   }
 }

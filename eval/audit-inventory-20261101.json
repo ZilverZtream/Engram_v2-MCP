@@ -3251,7 +3251,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -15794,6 +15794,31 @@
       "installed_server_sha256": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a",
       "actual_legacy_validation_index_refreshed": false,
       "activation_requirement": "Existing VB indexes need update_project. Whole actual LegacyValidation refresh was not run because it could read protected Site/Q; unchanged-source upgrade was proved on owned exact source copies."
+    },
+    "cadence_correction": {
+      "status": "ACTIVE_USER_CORRECTION",
+      "at_utc": "2026-11-15T16:50:25.278957+00:00",
+      "implementation_concurrency": 1,
+      "minimum_independent_deliverables_before_next_compile": 3,
+      "counting_rule": "An independent deliverable must satisfy a distinct original backlog requirement and have a separately useful user outcome. Variants, parser branches, fields, checks, or multiple tool outputs for the same feature count as one deliverable. The current method-scoping feature counts as one.",
+      "source_work_rule": "Finish independent deliverables sequentially in the existing checkout, retain each finite contract and source commit, and accumulate a pending validation queue. Only one implementation item is active. Pending validation is not installed delivery or full acceptance. Do not stop source progress to release each small feature.",
+      "compile_entry_condition": "No new Cargo build/test or optimized release until at least three independent original backlog deliverables are source-complete and named in the validation queue, and no ready source change belongs in that batch. A concrete regression preventing delivery is the only smaller-batch exception; record its evidence before compiling.",
+      "verification_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
+      "prohibited_reasons_for_compile": [
+        "one small feature is finished",
+        "the same feature appears in three tools",
+        "documentation or verifier-only changes",
+        "warning cleanup or test organization",
+        "status reporting or freshness ritual"
+      ],
+      "current_build_exception": {
+        "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
+        "release_label": "release1",
+        "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
+        "subsequent_compiles_authorized": false
+      },
+      "next_batch_pending": [],
+      "full_original_goal_scope_unchanged": true
     }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
@@ -15849,5 +15874,30 @@
     "record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
+  },
+  "delivery_cadence_correction_20261115": {
+    "status": "ACTIVE_USER_CORRECTION",
+    "at_utc": "2026-11-15T16:50:25.278957+00:00",
+    "implementation_concurrency": 1,
+    "minimum_independent_deliverables_before_next_compile": 3,
+    "counting_rule": "An independent deliverable must satisfy a distinct original backlog requirement and have a separately useful user outcome. Variants, parser branches, fields, checks, or multiple tool outputs for the same feature count as one deliverable. The current method-scoping feature counts as one.",
+    "source_work_rule": "Finish independent deliverables sequentially in the existing checkout, retain each finite contract and source commit, and accumulate a pending validation queue. Only one implementation item is active. Pending validation is not installed delivery or full acceptance. Do not stop source progress to release each small feature.",
+    "compile_entry_condition": "No new Cargo build/test or optimized release until at least three independent original backlog deliverables are source-complete and named in the validation queue, and no ready source change belongs in that batch. A concrete regression preventing delivery is the only smaller-batch exception; record its evidence before compiling.",
+    "verification_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
+    "prohibited_reasons_for_compile": [
+      "one small feature is finished",
+      "the same feature appears in three tools",
+      "documentation or verifier-only changes",
+      "warning cleanup or test organization",
+      "status reporting or freshness ritual"
+    ],
+    "current_build_exception": {
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
+      "release_label": "release1",
+      "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
+      "subsequent_compiles_authorized": false
+    },
+    "next_batch_pending": [],
+    "full_original_goal_scope_unchanged": true
   }
 }
