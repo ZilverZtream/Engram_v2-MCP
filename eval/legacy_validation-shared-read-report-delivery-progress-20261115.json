@@ -1,0 +1,46 @@
+{
+  "status": "IMPLEMENTED_NATIVE_MECHANISMS_PASS_RELEASE_RUNNING",
+  "finding": "Original TODO4 complete bounded delivery for12 existing read-only reports",
+  "source_commit": "36891774e042480bab8c78388429763f05306584",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\b1\\acceptance.json",
+  "baseline_dossier_reply_bytes": 169216,
+  "provider_calls_in_baseline": 0,
+  "covered_reports": [
+    "one_shot_feature_plan",
+    "map_guards_and_settings",
+    "immune_check",
+    "get_review_decisions",
+    "get_review_precedents",
+    "get_table_schema",
+    "list_triggers",
+    "get_sp_details",
+    "check_edit_safety",
+    "find_symbol_references",
+    "find_similar_changes",
+    "resolve_id"
+  ],
+  "scope_exclusions": {
+    "describe_table": "Persisted wiki generation; kept unchanged.",
+    "impact_analysis": "Closed impact area; kept unchanged.",
+    "query_schema": "Existing handler-owned delivery; kept unchanged."
+  },
+  "components": [
+    "Shared complete transport budget and pre-dispatch validation",
+    "Exact project/tool/hash-bound immutable original MCP result recovery through existing bounded cache",
+    "Core/Full/advanced matching schemas; original fresh validation and composed reports retained"
+  ],
+  "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\native-acceptance.json",
+  "scope_adjustment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-read-report-delivery-20261115\\scope-adjustment.json",
+  "validation": {
+    "native": "17 passes on initial scope;16 unchanged mechanism/cache/schema cases retained as final proof. Selection-only refinement not recompiled; final12tool selection will be verified through public candidate/installed MCP.",
+    "public": "Prepared zero-model synthetic large dossier plus independent source window/hash checks, JSON/Markdown reports, small report preservation, recovery/source-change/isolation, fresh argument validation and preset schemas."
+  },
+  "limits": [
+    "Original TODO4 broader remaining surface and cursor requirements remain open.",
+    "No fix/closure claim for feature-plan semantic failures or task-benefit gates. No inspected original story/model replay.",
+    "Error/non-text content and stateful operations retain their existing delivery."
+  ],
+  "resources": "Owned baseline server/fixture and native Job/relay/temp closed/removed. Release owns the one current build; evidence/package retained under this case.",
+  "cleanup": "Previous unused cfg(test) adapter removed with this batch; no rebuild for lint cleanup."
+}

@@ -12,6 +12,7 @@ pub mod services;
 pub mod state;
 pub mod tool_surface;
 pub mod tool_guidance;
+pub mod read_report_delivery;
 pub mod tools;
 pub mod utils;
 

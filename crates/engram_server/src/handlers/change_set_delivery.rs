@@ -16,7 +16,7 @@ pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
 }
 
 #[derive(Clone, Copy)]
-enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint, PatternReport, MethodSource, MethodInfo, EditCompleteness, EditBegin, EditComplete }
+enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint, PatternReport, MethodSource, MethodInfo, EditCompleteness, EditBegin, EditComplete, ReadReport(&'static str) }
 
 #[derive(Clone, Copy)]
 pub(crate) enum EditReport { Completeness, Begin, Complete }
@@ -40,7 +40,7 @@ fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
 }
 
 fn directory_for(data_dir: &Path, project_id: &str, family: Family) -> Result<PathBuf, McpError> {
-    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint", Family::PatternReport => "pattern-report", Family::MethodSource => "method-source", Family::MethodInfo => "method-info", Family::EditCompleteness=>"edit-completeness",Family::EditBegin=>"edit-begin",Family::EditComplete=>"edit-complete" };
+    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint", Family::PatternReport => "pattern-report", Family::MethodSource => "method-source", Family::MethodInfo => "method-info", Family::EditCompleteness=>"edit-completeness",Family::EditBegin=>"edit-begin",Family::EditComplete=>"edit-complete", Family::ReadReport(tool)=>tool };
     super::super::validate_project_id(project_id)?;
     engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
@@ -380,6 +380,18 @@ pub(crate) fn recover_method_info(data_dir: &Path,project_id: &str,id: &str,offs
     recover_for(data_dir,project_id,id,offset,budget,Family::MethodInfo)
 }
 
+pub(crate) fn read_report_continuation(tool: &'static str,project: &str,id: &str,offset: usize,budget: usize) -> Value {
+    json!({"tool":tool,"arguments":{"project_id":project,"response_id":id,"response_offset":offset,"max_tokens":budget/4}})
+}
+
+pub(crate) fn save_read_report(data: &Path,project: &str,body: &str,tool: &'static str) -> Result<String,McpError> {
+    save_for(data,project,body,Family::ReadReport(tool))
+}
+
+pub(crate) fn recover_read_report(data: &Path,project: &str,id: &str,offset: usize,budget: usize,tool: &'static str) -> Result<String,McpError> {
+    recover_for(data,project,id,offset,budget,Family::ReadReport(tool))
+}
+
 fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budget: usize, family: Family) -> Result<String, McpError> {
     let directory = directory_for(data_dir, project_id, family)?;
     let path = checked_path(&directory, id)?;
@@ -446,6 +458,7 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
                 Family::EditCompleteness => edit_report_continuation(EditReport::Completeness,project_id,id,end,budget),
                 Family::EditBegin => edit_report_continuation(EditReport::Begin,project_id,id,end,budget),
                 Family::EditComplete => edit_report_continuation(EditReport::Complete,project_id,id,end,budget),
+                Family::ReadReport(tool) => read_report_continuation(tool,project_id,id,end,budget),
             }},
         });
         let rendered = serde_json::to_string(&page)

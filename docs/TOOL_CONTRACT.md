@@ -545,3 +545,32 @@ state. Procedure/default-schema/alias binding and dynamic SQL remain unresolved.
 Source definitions, unsupported headers and parser gaps remain visible. Script
 classification and row estimates remain heuristics; generated migration
 scaffolds still require application-specific review and validation.
+
+### Shared delivery for read-only reports
+
+At the MCP transport boundary, registered project-scoped read reports without
+handler-owned `max_tokens`, `response_id` or `response_offset` use a shared
+40KiB default reply-text budget. This covers `one_shot_feature_plan`,
+`map_guards_and_settings`, `immune_check`, `get_review_decisions`,
+`get_review_precedents`, `get_table_schema`, `list_triggers`,
+`get_sp_details`, `check_edit_safety`,
+`find_symbol_references`, `find_similar_changes` and `resolve_id`.
+Core, Full and advanced discovery advertise the same applicable controls.
+Original analysis inputs remain required for a fresh call and are validated
+by the original handler. Recovery needs only `project_id` and the returned
+controls. Too-small budgets fail before analysis starts.
+
+Small reports retain their original MCP result. Oversized text reports return
+`report_content=DEFERRED_NOT_SUPPLIED` and `response_delivery.next_call`.
+Follow each page, concatenate `content` by UTF-8 byte offset, verify the complete
+BLAKE3 `response_id`, then parse the reconstructed **MCP CallToolResult JSON**.
+Its original text parts, structured content, metadata, status, warnings and
+guidance are retained. Recovery performs no new analysis, generation, source
+read or project lookup and cannot establish current freshness. Snapshots use
+the existing8MiB ceiling and24hour/32snapshot retention per tool/project.
+
+Budgets estimate complete text plus structured-content UTF-8 bytes at4bytes per
+token, not provider tokens or transport-envelope bytes. Error results and
+non-text content retain their existing delivery. Tools with their own delivery
+controls retain their semantics; composed in-process engines also retain their
+complete reports. This does not change feature-plan semantic acceptance.

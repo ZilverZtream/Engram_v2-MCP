@@ -1805,14 +1805,15 @@ impl ServerHandler for Engram {
         }
     }
 
-    // Manual replacement for `#[tool_handler]`. `call_tool` still delegates to
-    // the full router, so every tool stays callable; only `list_tools` is
-    // curated + schema-sanitized (see crate::tool_surface) so a large or
+    // The full router executes original operations. Selected read-only reports
+    // additionally share transport budgets and immutable recovery; handlers
+    // with their own controls retain them. `list_tools` is curated and
+    // schema-sanitized (see crate::tool_surface) so a large or
     // `$ref`-laden advertised surface can't make a strict client (GitHub
     // Copilot) reject the whole request with HTTP 400.
     async fn call_tool(
         &self,
-        request: CallToolRequestParam,
+        mut request: CallToolRequestParam,
         context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<CallToolResult, McpError> {
         // Per-call observability at INFO: tool name, RESPONSE SIZE, latency. The
@@ -1820,6 +1821,13 @@ impl ServerHandler for Engram {
         // — logging it here is what turns "the review 400s somewhere" into
         // "grep_project on <x> returned N bytes". One line per call, cheap.
         let tool_name = request.name.to_string();
+        let shared_delivery = crate::read_report_delivery::prepare(&mut request, &self.tool_router.list_all())?;
+        if let Some(delivery) = &shared_delivery {
+            if let Some(recovered) = delivery.recover(&self.state.cfg.data_dir)? {
+                tracing::info!(tool=%tool_name,"read-only original report recovery; analysis not run");
+                return Ok(recovered);
+            }
+        }
         let guidance_input = if matches!(crate::tool_guidance::policy(&tool_name), crate::tool_guidance::Policy::Preserve) {
             None
         } else {
@@ -1835,6 +1843,9 @@ impl ServerHandler for Engram {
                 self.state.cfg.advertise_all_tools,
             );
             tracing::debug!(tool = %tool_name, guidance, "specialty tool navigation");
+        }
+        if let Some(delivery) = &shared_delivery {
+            result = result.and_then(|response| delivery.finish(&self.state.cfg.data_dir, response));
         }
         if matches!(tool_name.as_str(), "index_project" | "update_project" | "delete_project" | "repair_project" | "get_job_status") && result.is_ok() {
             // Async writers can finish later; clients can always re-list after

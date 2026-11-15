@@ -10,7 +10,8 @@
 //! self-contained draft-07 object schema: refs inlined, `T | null` collapsed to
 //! a nullable `T`, definition tables dropped. Tool *behavior* is untouched — the
 //! request structs still deserialize the same JSON; only the advertised shape
-//! changes.
+//! changes. Shared read-report controls are added separately by `advertised`
+//! and `advanced`; their transport handling lives in `read_report_delivery`.
 
 use serde_json::{Map, Value};
 
@@ -205,6 +206,7 @@ pub const CORE_TOOLS: &[&str] = &[
 pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmcp::model::Tool> {
     items
         .into_iter()
+        .map(crate::read_report_delivery::advertise)
         .filter(|t| {
             if advertise_all {
                 true
@@ -219,6 +221,7 @@ pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmc
 pub fn advanced(items: Vec<rmcp::model::Tool>) -> Vec<rmcp::model::Tool> {
     items
         .into_iter()
+        .map(crate::read_report_delivery::advertise)
         .filter(|t| !CORE_TOOLS.contains(&t.name.as_ref()))
         .collect()
 }

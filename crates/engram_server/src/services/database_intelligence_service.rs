@@ -397,11 +397,6 @@ fn procedure_sources(sql_files: &[(String, String)]) -> Vec<ProcedureSource<'_>>
     }).collect()
 }
 
-#[cfg(test)]
-fn summarize_catalog_procedures(catalog: &StoredProcedureCatalog, sql_files: &[(String, String)]) -> Vec<SpBusinessLogic> {
-    summarize_parsed_procedures(catalog, &procedure_sources(sql_files))
-}
-
 fn summarize_parsed_procedures(catalog: &StoredProcedureCatalog, sources: &[ProcedureSource<'_>]) -> Vec<SpBusinessLogic> {
     let mut wanted: HashMap<String,Vec<usize>> = HashMap::new();
     for (index, procedure) in catalog.procedures.iter().enumerate() {
