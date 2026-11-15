@@ -261,6 +261,7 @@ async fn session_bookends_track_scope_drift() {
     // Open: plan both files — the brief should be CLEAN (plan covers the pair).
     let open = engram
         .begin_edit_session(Parameters(engram_server::models::BeginEditSessionRequest {
+            max_tokens: None, response_id: None, response_offset: 0, output_json: false,
             project_id: pid.clone(),
             session_id: None,
             planned_files: vec!["a.aspx".into(), "a.aspx.vb".into()],

@@ -328,7 +328,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Open an edit session BEFORE changing code: persists your planned file set and returns the expectation brief — co-change partners and shared state the plan must account for. Bookend with complete_edit_session. Related: plan_user_story for the planning stage."
+        description = "Open an edit session BEFORE changing code: persists your planned files and returns co-change/shared-state expectations and applicable authored guidance. max_tokens bounds the complete reply, default40KiB; oversized replies retain the session identity/revision and exact immutable recovery. output_json wraps the original Markdown and lifecycle metadata. Recovery never opens another session. Bookend with complete_edit_session using the returned lifecycle tokens. Related: plan_user_story."
     )]
     pub async fn begin_edit_session(
         &self,

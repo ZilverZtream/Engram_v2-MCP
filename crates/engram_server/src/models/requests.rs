@@ -1216,11 +1216,23 @@ fn default_ask_output() -> String {
 #[serde(deny_unknown_fields)]
 pub struct BeginEditSessionRequest {
     pub project_id: String,
+    /// Complete reply budget estimated as ceil(UTF-8 bytes/4); default40KiB.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover the original opening report without creating/reopening a session.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
+    /// Wrap the original Markdown report and lifecycle metadata in JSON.
+    #[serde(default)]
+    pub output_json: bool,
     /// Optional worker/session identity. Generated when omitted; returned by begin.
     /// Caller-supplied identities require the returned session_revision on explicit completion.
     #[serde(default)]
     pub session_id: Option<String>,
-    /// Files you INTEND to edit.
+    /// Files you INTEND to edit. Required except during response recovery.
+    #[serde(default)]
     pub planned_files: Vec<String>,
     /// Optional one-line description of the change.
     #[serde(default)]

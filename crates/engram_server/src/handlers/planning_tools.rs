@@ -13425,6 +13425,11 @@ impl Engram {
         req: crate::models::BeginEditSessionRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let budget=change_set_delivery::budget(req.max_tokens)?;
+        if let Some(reply)=edit_workflow_delivery::recover(&self.state.cfg.data_dir,&req.project_id,
+            change_set_delivery::EditReport::Begin,req.response_id.as_deref(),req.response_offset,budget)? {
+            return Ok(CallToolResult::success(vec![Content::text(reply)]));
+        }
         let planned_files = normalize_edit_files(&req.planned_files)?;
         let session_id = req.session_id.clone().unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
         if session_id.trim().is_empty() || session_id.len() > 128 {
@@ -13460,6 +13465,15 @@ impl Engram {
             .collect::<Vec<_>>()
             .join("\n");
 
+        let body=format!(
+            "# Edit session OPEN\nsession_id: {session_id}\nsession_revision: {revision}\nsnapshot: {}\nSnapshot metadata records context only; it is not approval or source certification.\nplanned files: {}\n{policy}\n## Expectation brief \
+             (couplings of your planned set — plan for these now)\n{}\n\
+             next: edit; then complete_edit_session(session_id=\"{session_id}\", session_revision=\"{revision}\", edited_files=[...]) before committing.\n",
+            session["snapshot"],planned_files.join(", "),brief_text);
+        let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&req.project_id,change_set_delivery::EditReport::Begin,body,
+            serde_json::json!({"tool":"begin_edit_session","session_id":session_id,"session_revision":revision,
+                "snapshot":session["snapshot"],"planned_file_count":planned_files.len(),"session_state":"OPEN"}),req.output_json,budget)?;
+
         let reg = self.state.registry.clone();
         let pid = req.project_id.clone();
         let claim_id = session_id.clone();
@@ -13478,14 +13492,7 @@ impl Engram {
             Ok(())
         })).await.map_err(|e| McpError::internal_error(e.to_string(), None))??;
 
-        Ok(CallToolResult::success(vec![Content::text(format!(
-            "# Edit session OPEN\nsession_id: {session_id}\nsession_revision: {revision}\nsnapshot: {}\nSnapshot metadata records context only; it is not approval or source certification.\nplanned files: {}\n{policy}\n## Expectation brief \
-             (couplings of your planned set — plan for these now)\n{}\n\
-             next: edit; then complete_edit_session(session_id=\"{session_id}\", session_revision=\"{revision}\", edited_files=[...]) before committing.\n",
-            session["snapshot"],
-            planned_files.join(", "),
-            brief_text
-        ))]))
+        Ok(CallToolResult::success(vec![Content::text(reply)]))
     }
 
     /// TODO-29: close the bookend — completeness check against the actual

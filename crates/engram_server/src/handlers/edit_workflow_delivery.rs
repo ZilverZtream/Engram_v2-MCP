@@ -82,6 +82,67 @@ pub(super) fn finish(
 mod tests {
     use super::*;
 
+    const PROJECT: &str = "edit-delivery-test";
+    const SESSIONS: &str = "edit_session_v1";
+
+    fn fixture() -> (
+        tempfile::TempDir,
+        crate::state::AppState,
+        crate::tools::Engram,
+    ) {
+        let owned = tempfile::tempdir().unwrap();
+        let root = owned.path().join("project");
+        std::fs::create_dir_all(&root).unwrap();
+        std::fs::write(
+            root.join("AGENTS.md"),
+            "Preserve the manual approval exception for this source scope.\n".repeat(100),
+        )
+        .unwrap();
+        let (state, _) = crate::state::AppState::new(engram_core::config::Config {
+            data_dir: owned.path().join("data"),
+            allowed_roots: vec![root.clone()],
+            embedding_backend: "fts_only".into(),
+            llm_backend: "none".into(),
+            ..Default::default()
+        })
+        .unwrap();
+        state
+            .registry
+            .put_project(&engram_core::ProjectRecord {
+                project_id: PROJECT.into(),
+                project_name: PROJECT.into(),
+                directory: root.to_string_lossy().into_owned(),
+                project_type: "general".into(),
+                created_at_ms: 0,
+                updated_at_ms: 0,
+                reindex_required_since_ms: None,
+            })
+            .unwrap();
+        state
+            .registry
+            .set_meta(PROJECT, "active_generation", "1")
+            .unwrap();
+        let app = crate::tools::Engram::new(state.clone());
+        (owned, state, app)
+    }
+
+    fn text(result: rmcp::model::CallToolResult) -> String {
+        result
+            .content
+            .iter()
+            .filter_map(|c| c.as_text().map(|t| t.text.as_str()))
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    fn opening(tokens: usize) -> crate::models::BeginEditSessionRequest {
+        serde_json::from_value(
+            json!({"project_id":PROJECT,"session_id":"worker","planned_files":["Site/Feature.vb"],
+            "max_tokens":tokens,"output_json":true}),
+        )
+        .unwrap()
+    }
+
     fn manifest(raw: &str, output_json: bool) -> Value {
         serde_json::from_str(if output_json {
             raw
@@ -207,5 +268,70 @@ mod tests {
             .is_err()
         );
         assert!(!owned.path().join("responses").exists());
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn opening_delivery_failures_leave_no_session_and_recovery_does_not_open_again() {
+        let (_owned, state, app) = fixture();
+        assert!(app.handle_begin_edit_session(opening(1)).await.is_err());
+        assert!(
+            state
+                .registry
+                .get_meta(PROJECT, SESSIONS)
+                .unwrap()
+                .is_none()
+        );
+        let blocked = state.cfg.data_dir.join("responses/edit-begin");
+        std::fs::create_dir_all(blocked.parent().unwrap()).unwrap();
+        std::fs::write(&blocked, b"owned cache blocker").unwrap();
+        assert!(app.handle_begin_edit_session(opening(1024)).await.is_err());
+        assert!(
+            state
+                .registry
+                .get_meta(PROJECT, SESSIONS)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(std::fs::read(&blocked).unwrap(), b"owned cache blocker");
+        std::fs::remove_file(blocked).unwrap();
+        let reply = text(app.handle_begin_edit_session(opening(1024)).await.unwrap());
+        assert!(reply.len() <= 4096);
+        let packet: Value = serde_json::from_str(&reply).unwrap();
+        assert_eq!(packet["summary"]["session_id"], "worker");
+        assert_eq!(packet["report_content"], "DEFERRED_NOT_SUPPLIED");
+        let before = state.registry.get_meta(PROJECT, SESSIONS).unwrap();
+        let mut next = packet["response_delivery"]["next_call"].clone();
+        let mut original = String::new();
+        loop {
+            assert_eq!(next["tool"], "begin_edit_session");
+            let req: crate::models::BeginEditSessionRequest =
+                serde_json::from_value(next["arguments"].clone()).unwrap();
+            assert!(req.planned_files.is_empty());
+            let page = text(app.handle_begin_edit_session(req).await.unwrap());
+            assert!(page.len() <= 4096);
+            let page: Value = serde_json::from_str(&page).unwrap();
+            original.push_str(page["content"].as_str().unwrap());
+            if page["complete"] == true {
+                break;
+            }
+            next = page["next_call"].clone();
+        }
+        assert_eq!(state.registry.get_meta(PROJECT, SESSIONS).unwrap(), before);
+        let full: Value = serde_json::from_str(&original).unwrap();
+        assert_eq!(
+            full["summary"]["session_revision"],
+            packet["summary"]["session_revision"]
+        );
+        assert!(
+            full["report_markdown"]
+                .as_str()
+                .unwrap()
+                .contains("manual approval exception")
+        );
+        let request=serde_json::from_value(json!({"project_id":PROJECT,"session_id":"worker", "session_revision":packet["summary"]["session_revision"],"edited_files":[]})).unwrap();
+        assert!(
+            text(app.handle_complete_edit_session(request).await.unwrap())
+                .contains("Edit session COMPLETE")
+        );
     }
 }
