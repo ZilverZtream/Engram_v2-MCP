@@ -10023,7 +10023,7 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTING",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO39 namespace-aware partial-ingest detection and recovery",
       "original_requirement": "Detect and repair lexical/vector inconsistency after partial ingestion failures; preserve correct project/source/namespace boundaries.",
       "observed_missing_behavior": "Published memory source has an exact selected comparison, but other namespaces only affect project-wide tolerance thresholds. count_docs_by_namespace enumerates a fixed subset excluding memory_bank/review_verdict/business_logic/insights/wontfix. The owned vector repair recheck repeats aggregate/source logic although its recovery engine already rebuilds every retained namespace.",
@@ -10031,9 +10031,12 @@
         "crates/engram_index/src/hybrid.rs",
         "crates/engram_index/src/hybrid/namespace_counts.rs",
         "crates/engram_server/src/services/integrity_service.rs",
-        "crates/engram_server/src/services/project_service.rs",
+        "crates/engram_server/src/services/namespace_integrity.rs",
         "crates/engram_server/src/services/namespace_integrity_tests.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/services/project_service.rs",
         "crates/engram_server/src/handlers/project_tools.rs",
+        "crates/engram_server/tests/integrity_service_tests.rs",
         "docs/TOOL_CONTRACT.md"
       ],
       "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
@@ -10046,12 +10049,23 @@
         "One focused native harness and one release after all components. Original TODO39 equal-count wrong-row identity and broader original gates remain open; CodeMap/Blast behavior and protected WIP remain untouched."
       ],
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "source_commit": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b",
       "baseline_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\baseline2\\acceptance.json",
       "build_policy": "One focused native batch, one release. No full suite or language/pilot expansion.",
-      "related_unselected_observation": "evidence_orchestration runtime presence uses legacy subset namespace counts; retained separately, not implemented in this change."
+      "related_unselected_observation": "evidence_orchestration runtime presence uses legacy subset namespace counts; retained separately, not implemented in this change.",
+      "focused_native_validation": {
+        "passed": 4,
+        "compile": "4m22s",
+        "execution_seconds": 6.42,
+        "full_suite": false,
+        "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\native-acceptance.json"
+      },
+      "no_vector_feature_build": "Not run in this delivery; cfg fallback returns unknown. Default-feature disabled-provider behavior and unavailable observation handling tested; no separate compilation.",
+      "bounded_delivery_complete": true,
+      "delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-namespace-integrity-delivery-20261115.json",
+      "broader_todo39_complete": false
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10083,8 +10097,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original TODO39 namespace-aware partial-ingest detection/recovery; existing owned recovery engine, one implementation item.",
-    "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements; preserve partial uniform-delivery, feature-plan semantics and quality/benefit gaps.",
+    "active_original_item": "Selected TODO39 namespace count slice delivered; advance next ready original improvement. Same-count row identity remains open, not the automatic next task.",
+    "next_user_visible_deliverable": "Continue original LegacyValidation tool/workflow improvements. Preserve completed deliveries, failed semantic acceptance and usefulness results; no namespace/row-identity expansion without a delivery-blocking regression.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10101,7 +10115,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: shared delivery installed across12read reports; candidate/installed16checks passed, source ff160e2. Preserve semantic planning failure without more tuning.",
+    "previous_goal_turn_classification": "PROGRESS: namespace-count detection and recovery recheck shipped; four native cases and candidate/installed public recovery checks passed.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15327,7 +15341,15 @@
     "deferred_source_cleanup": "Prior unused cfg(test) summarize_catalog_procedures adapter removed with this substantive batch; no separate build.",
     "policy_source_handoff_delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json",
     "database_source_consolidation_delivery": "eval/legacy_validation-database-source-consolidation-delivery-20261115.json",
-    "shared_read_report_delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json"
+    "shared_read_report_delivery": "eval/legacy_validation-shared-read-report-delivery-20261115.json",
+    "build_delivery_policy": {
+      "user_correction": "Compilation and broad verification have displaced product improvements. Avoid repeated compile/test cycles for small changes.",
+      "execution": "Finish all components of the selected bounded change before the focused native build. Reuse shared target and existing checkout. Then build one release and reuse the same binary for candidate/installed acceptance. No full suite by default; repeat only for a code failure or concrete unresolved risk from this change. Verifier-only corrections reuse the binary.",
+      "reporting": "Report source behavior, test execution and compilation durations separately. Build artifacts and records are not product improvements.",
+      "focused_target_selection": "Prefer a dedicated integration-test target for behavior accessible through public APIs. A Rust test-name filter limits execution, not compilation of the entire lib-test target. Use --lib when private internals require it; do not compile all lib tests merely to run a handful of public API checks.",
+      "observed_cost": "Namespace integrity native1 compiled the lib target containing1918tests to execute4 (4m22s compile /6.42s run). This target choice was avoidable overhead; no extra build is being run merely to relocate already-passing tests."
+    },
+    "namespace_integrity_delivery": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\legacy_validation-namespace-integrity-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

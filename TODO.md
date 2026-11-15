@@ -553,8 +553,14 @@ specs already written.
   shortage and surplus even when project-wide totals cancel; recheck under the
   existing owned scoped-repair lock before recovery. Unavailable evidence stays
   explicit. Candidate and installed MCP checks plus owned corruption/recovery
-  tests passed. Other namespaces retain aggregate thresholds; their generation
+  tests passed. Retained non-memory namespace count comparisons and the same
+  locked repair recheck delivered 2026-11-15: deficits below project tolerance
+  and compensating cross-namespace surplus are detected; existing recovery is
+  reobserved before healthy output. Four focused native checks plus candidate
+  and installed public failed-knowledge-ingest/recovery checks passed, with one
+  native build and one release and no full-suite execution. Historical generation
   completeness and equal-count wrong-row corruption remain unverified.
+  Evidence: [namespace count recovery](eval/legacy_validation-namespace-integrity-delivery-20261115.json).
   Evidence: [installed source consistency](eval/legacy_validation-source-integrity-delivery-20261112.json).
 
 - [x] **40. Trigger generation GC after crash recovery** (S) - *done 2026-06-13:

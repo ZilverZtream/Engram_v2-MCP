@@ -1,0 +1,168 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T05:38:51.198895+00:00",
+  "improvement": "Integrity checks and serialized recovery rechecks compare each retained non-memory namespace independently; knowledge deficits cannot be hidden by other namespaces or project tolerance. Reuse existing recovery; separate post-repair evidence gates healthy output.",
+  "source": {
+    "root_commit": "58392cd766e5db1d32fdb266a5aa69484387c059",
+    "files": [
+      "crates/engram_index/src/hybrid.rs",
+      "crates/engram_index/src/hybrid/namespace_counts.rs",
+      "crates/engram_server/src/services/integrity_service.rs",
+      "crates/engram_server/src/services/namespace_integrity.rs",
+      "crates/engram_server/src/services/namespace_integrity_tests.rs",
+      "crates/engram_server/src/services/mod.rs",
+      "crates/engram_server/src/services/project_service.rs",
+      "crates/engram_server/src/handlers/project_tools.rs",
+      "crates/engram_server/tests/integrity_service_tests.rs",
+      "docs/TOOL_CONTRACT.md",
+      "eval/engram-delivery-goal-20261110.json",
+      "eval/audit-inventory-20261101.json",
+      "eval/legacy_validation-namespace-integrity-progress-20261115.json"
+    ],
+    "validated": "Four focused native behavior checks",
+    "deployed": false
+  },
+  "implementation": {
+    "source_baseline": "36891774e042480bab8c78388429763f05306584",
+    "source_commit": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b",
+    "files": {
+      "crates/engram_index/src/hybrid.rs": "5aed2d699fd4fdf993b7287d0e107ef6406369bf92f493c03b5087e219902ae1",
+      "crates/engram_index/src/hybrid/namespace_counts.rs": "86fae31947ae6c717b7bfcd475ce099f2441ebf4f45fe6d47693e322e27f0603",
+      "crates/engram_server/src/services/integrity_service.rs": "8b7b39952165eef36465ab08b3fc5a46a7a1b321d6eaf466d6d9c78ceebaca8b",
+      "crates/engram_server/src/services/namespace_integrity.rs": "b63629eff5396bf75103888ebfc91aef5e40a70344e7557efdffe658ac947ae3",
+      "crates/engram_server/src/services/namespace_integrity_tests.rs": "cc136c18a68c935384dd7c0d3222172eb7f2afa2a62ca009564ae34c34ce903a",
+      "crates/engram_server/src/services/mod.rs": "5bb7315339337982046fc58eac0e7bd96a167f5b55658860f12a7d0c1332d9e2",
+      "crates/engram_server/src/services/project_service.rs": "26416c51c38890f23e3d92ac7e42a7402001c271146312db0f2eb3fe8cb32947",
+      "crates/engram_server/src/handlers/project_tools.rs": "2c127268648938c84be1e1aac9bc5d1ca549423c07403a6394f71cebe8c3f533",
+      "crates/engram_server/tests/integrity_service_tests.rs": "93acdfb522c4f0ecffd83c91451ace51faddb6c0a3fdef8d2d2f0f2cea1b3e3a"
+    },
+    "root_source_files": {
+      "crates/engram_index/src/hybrid.rs": "5aed2d699fd4fdf993b7287d0e107ef6406369bf92f493c03b5087e219902ae1",
+      "crates/engram_index/src/hybrid/namespace_counts.rs": "86fae31947ae6c717b7bfcd475ce099f2441ebf4f45fe6d47693e322e27f0603",
+      "crates/engram_server/src/services/integrity_service.rs": "8b7b39952165eef36465ab08b3fc5a46a7a1b321d6eaf466d6d9c78ceebaca8b",
+      "crates/engram_server/src/services/namespace_integrity.rs": "b63629eff5396bf75103888ebfc91aef5e40a70344e7557efdffe658ac947ae3",
+      "crates/engram_server/src/services/namespace_integrity_tests.rs": "cc136c18a68c935384dd7c0d3222172eb7f2afa2a62ca009564ae34c34ce903a",
+      "crates/engram_server/src/services/mod.rs": "5bb7315339337982046fc58eac0e7bd96a167f5b55658860f12a7d0c1332d9e2",
+      "crates/engram_server/src/services/project_service.rs": "26416c51c38890f23e3d92ac7e42a7402001c271146312db0f2eb3fe8cb32947",
+      "crates/engram_server/src/handlers/project_tools.rs": "2c127268648938c84be1e1aac9bc5d1ca549423c07403a6394f71cebe8c3f533",
+      "crates/engram_server/tests/integrity_service_tests.rs": "93acdfb522c4f0ecffd83c91451ace51faddb6c0a3fdef8d2d2f0f2cea1b3e3a"
+    },
+    "preserved_wip9": true
+  },
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\package1",
+    "server_sha256": "833fe61d9ae857560752f0936aee77b1de31384f16eba2a86812156292f24b95",
+    "manifest_sha256": "97d43f1b793e3c261631c4603f1ffc43cdd0b453f03b35f173d7c8690775fda8",
+    "old_server_sha256": "b08c28fd77789ef2ead8f2fe1c543adb04b3ab456d934e2a5419ba1851f99de5",
+    "old_manifest_sha256": "ce84468c1b870919a40f81933940dd9d485c96bab80e054bcc79b529409acf42",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\release1.json",
+      "sha256": "035d3a3380cf0cc4ebfac9e2c4b18c83cbfcac16ef0019b3b7fd1133df2b44b3"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "ce84468c1b870919a40f81933940dd9d485c96bab80e054bcc79b529409acf42"
+    },
+    "source_commit": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b"
+  },
+  "baseline": {
+    "status": "BASELINE_GAP_CONFIRMED",
+    "checks": 3,
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\baseline2\\acceptance.json",
+    "behavior": "One rejected knowledge embedding persisted a lexical note while installed check_integrity reported healthy; source selection remained healthy."
+  },
+  "validation": {
+    "native": {
+      "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+      "total_checks": 4,
+      "required_component_cases": {
+        "namespace_integrity_balanced_totals_repair_once_preserving_source_and_foreign_rows": true,
+        "namespace_integrity_vector_only_unknown_namespace_is_reported_and_recovered": true,
+        "namespace_integrity_disabled_embeddings_keep_complete_lexical_inventory_without_claiming_vectors": true,
+        "namespace_integrity_no_duplicate_repairs_and_unavailable_is_not_empty": true
+      },
+      "source_inputs_unchanged": true,
+      "preserved_wip9": true,
+      "source_commit": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b",
+      "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 4m 22s",
+      "native_test_seconds": 6.42,
+      "retained_failed_attempts": [],
+      "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+    },
+    "public": {
+      "candidate": {
+        "checks": 13,
+        "all_passed": true,
+        "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\candidate2\\acceptance.json"
+      },
+      "installed": {
+        "checks": 13,
+        "all_passed": true,
+        "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\installed2\\acceptance.json"
+      }
+    },
+    "native_builds": 1,
+    "release_builds": 1,
+    "full_suite_runs": 0,
+    "no_vector_feature_build_run": false,
+    "retained_failed_candidate": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\candidate1\\acceptance.json",
+    "candidate_failure_reason": "Verifier assumed no initial memory-bank note and used section_id instead of the read_memory_bank section field. Candidate detected and recovered the deficit correctly. Final verifier compares the observed initial counts and uses the advertised field; same binary reused.",
+    "release_runner_seconds": 910.809247200028,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 14m 58s"
+  },
+  "limits": [
+    "Counts do not prove equal-count row identities, correct embeddings, complete historical selection coverage or task benefit. Original TODO39 remains partial.",
+    "Vector-not-compiled cfg fallback is explicit unknown; no separate feature-configuration build was run. Default-feature disabled embeddings and unavailable count handling were tested.",
+    "No actual LegacyValidation source or corruption fixture; its config identity and selected generation3151 preserved.",
+    "No CodeMap/Blast expansion, model calls, planner tuning or language expansion."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115",
+    "native_job_closed": true,
+    "native_temp_removed": true,
+    "release_job_closed": true,
+    "release_temp_removed": true,
+    "public_fixtures_removed": true,
+    "configuration_hold_released": true,
+    "owned_config_removed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-d8c4f4b71b334e1fb24d1376e662b677",
+    "retention": "Case evidence/scripts/package and installer rollback pair retained for review and rollback; no preexisting folder deletion. Normal installed daemon intentionally restored to application lifecycle.",
+    "normal_runtime": {
+      "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+      "owners": [
+        {
+          "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\namespace-integrity-20261115\\restored-runtime\\wire",
+          "closed": true,
+          "pid": 33572,
+          "natural_exit": true,
+          "reader_joined": true,
+          "exit_code": 0,
+          "pending_observations": []
+        }
+      ],
+      "intentional_retained_runtime": true,
+      "daemon_pid": 40308,
+      "daemon_created": 1794721089.603289,
+      "metadata": {
+        "pid": "40308",
+        "started_at_ms": "1794721089651",
+        "protocol_version": "1",
+        "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+        "version": "0.1.0"
+      },
+      "server_sha256": "833fe61d9ae857560752f0936aee77b1de31384f16eba2a86812156292f24b95",
+      "normal_proxy_metrics_succeeded": true,
+      "selected_generation": 3151,
+      "owned_temp_removed": true,
+      "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+    }
+  },
+  "preserved_wip9": true,
+  "broader_goal_complete": false,
+  "original_full19gates_closed": false
+}
