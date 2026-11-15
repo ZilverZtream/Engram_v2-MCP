@@ -164,6 +164,17 @@ pub struct Reference {
 }
 
 #[derive(Debug, Serialize)]
+pub struct ProposalEdit {
+    /// One-based identity in the submitted decision.edits list; previews use source order.
+    pub edit_index: usize,
+    /// End-exclusive UTF-8 bytes in the current instruction / proposed_content.
+    pub original_byte_range: [usize; 2],
+    pub proposed_byte_range: [usize; 2],
+    /// Caller-stated explanation retained verbatim, not accepted policy intent.
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize)]
 pub struct Proposal {
     pub instruction_path: String,
     pub outcome: Outcome,
@@ -172,6 +183,7 @@ pub struct Proposal {
     pub proposed_blake3: String,
     pub proposed_content: String,
     pub unified_diff: String,
+    pub edit_previews: Vec<ProposalEdit>,
     pub evidence: Vec<Citation>,
     pub preserved_fragments: Vec<String>,
     pub unresolved_decisions: Vec<String>,
@@ -660,7 +672,7 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
         );
         let original = &input.current.content;
         let mut ranges = Vec::new();
-        for edit in &decision.edits {
+        for (edit_index,edit) in decision.edits.iter().enumerate() {
             ensure!(
                 !edit.old_text.is_empty()
                     && !edit.reason.trim().is_empty()
@@ -683,7 +695,7 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
                 !original[next..].contains(&edit.old_text),
                 "Edit anchor must occur exactly once in original guidance"
             );
-            ranges.push((start, start + edit.old_text.len(), &edit.new_text));
+            ranges.push((start, start + edit.old_text.len(), &edit.new_text, edit_index));
         }
         ranges.sort_by_key(|r| r.0);
         ensure!(
@@ -692,7 +704,7 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
         );
         let size = ranges
             .iter()
-            .try_fold(original.len(), |size, (start, end, new)| {
+            .try_fold(original.len(), |size, (start, end, new, _)| {
                 size.checked_sub(end - start)
                     .and_then(|n| n.checked_add(new.len()))
             })
@@ -701,8 +713,19 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
             size <= FILE_LIMIT,
             "Complete proposed instruction exceeds byte budget"
         );
+        let mut edit_previews=Vec::with_capacity(ranges.len());
+        let (mut original_cursor,mut proposed_cursor)=(0usize,0usize);
+        for (start,end,new,index) in &ranges {
+            proposed_cursor+=start-original_cursor;
+            let proposed_start=proposed_cursor;
+            proposed_cursor+=new.len();
+            edit_previews.push(ProposalEdit{edit_index:index+1,
+                original_byte_range:[*start,*end],proposed_byte_range:[proposed_start,proposed_cursor],
+                reason:decision.edits[*index].reason.clone()});
+            original_cursor=*end;
+        }
         let mut proposed = original.clone();
-        for (start, end, new) in ranges.into_iter().rev() {
+        for (start, end, new, _) in ranges.into_iter().rev() {
             proposed.replace_range(start..end, new);
         }
         for fragment in &decision.preserved_fragments {
@@ -729,6 +752,7 @@ fn validate(packet: &Packet, draft: &MaintenanceDraft) -> Result<Vec<Proposal>> 
             proposed_blake3: blake3::hash(proposed.as_bytes()).to_hex().to_string(),
             proposed_content: proposed,
             unified_diff,
+            edit_previews,
             evidence: decision.evidence.clone(),
             preserved_fragments: decision.preserved_fragments.clone(),
             unresolved_decisions: decision.unresolved_decisions.clone(),

@@ -882,3 +882,21 @@ names omissions and coverage gaps; a missing candidate does not prove no impact.
 Bodies of unrelated inspected guidance are not packet inputs. Removed instruction
 files, nonconventional undiscovered guidance and unsupported references still
 require explicit selection. Proposed changes remain unaccepted and read-only.
+
+### Maintenance edit explanations and coordinates
+
+Every instruction-maintenance `Proposal` includes `edit_previews`, in original
+source order. `edit_index` is1-based in the submitted `decision.edits` array;
+`reason` retains the caller's explanation verbatim. It remains a declared rationale,
+not a verified business ruling or accepted policy change.
+
+`original_byte_range` and `proposed_byte_range` are end-exclusive UTF-8 byte ranges
+into the complete current instruction and `proposed_content`. They are bound to
+`expected_source_blake3` and `proposed_blake3`, respectively. Replacement strings
+are recovered from those bodies instead of copied into preview metadata. A
+removal has an empty proposed range. Existing exact-anchor, overlap, file-size,
+preserved-fragment, citation and stale-packet checks continue to apply.
+
+`no_change`, `conflict` and `needs_evidence` have empty preview lists and no policy
+diff. Proposals remain read-only and require independent semantic review. Preview
+coordinates are not authorization to apply a patch after the captured source changes.
