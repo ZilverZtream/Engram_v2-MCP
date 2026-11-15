@@ -144,7 +144,7 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 ## Memory bank + repo rules
 - `update_memory_bank(project_id, section_id?, title, content)`
 - `list_memory_bank(project_id)`
-- `read_memory_bank(project_id, section_id)`
+- `read_memory_bank(project_id, section)`
 - `delete_memory_bank(project_id, section_id)`
 - `add_repo_rule(project_id, file_pattern, rule_text)`
 - `list_repo_rules(project_id)`
@@ -599,3 +599,19 @@ These are count checks, not proof of correct row identities, embedding quality,
 complete historical source coverage or improved task outcomes. Equal-count
 wrong-row corruption remains outside this delivery. Namespace discovery reads
 bounded metadata dictionaries and Count collectors, not every stored document.
+
+
+The same shared read-report delivery also covers existing WebForms analysis:
+UI conformance/blueprints/events/actions; GIS and settings inventories; temporal
+coupling, stack and file-style diagnostics; extraction confidence; validation,
+authorization, lifecycle, ViewState, AJAX and data-flow maps; page and project
+migration dossiers/coverage/progress; sync hazards, jQuery/session workflows,
+VB translation diagnostics, test discovery and candidate dead-method reports.
+These27reports retain their original JSON/Markdown options and fresh-analysis
+requirements. Small results retain their original format. Oversized results
+use the same complete original MCP result recovery described above; no analysis,
+source reading or generation is repeated by recovery. Existing report-internal
+selection limits and uncertainty remain; complete delivery does not claim
+complete extraction, safe migration or runtime execution. State-changing tools,
+existing budget owners, closed CodeMap/Blast and unrelated language diagnostics
+retain their behavior.

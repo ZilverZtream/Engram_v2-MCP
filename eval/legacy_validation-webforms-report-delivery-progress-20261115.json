@@ -1,0 +1,74 @@
+{
+  "status": "IMPLEMENTED_FOCUSED_NATIVE_PASS_RELEASE_RUNNING",
+  "selected_tools": [
+    "get_ui_conformance",
+    "get_gis_inventory",
+    "list_settings",
+    "get_setting",
+    "analyze_temporal_couplings",
+    "analyze_error_stack",
+    "analyze_file_coding_style",
+    "get_extraction_confidence",
+    "map_validation_controls",
+    "map_auth_config",
+    "map_page_lifecycle",
+    "analyze_viewstate_deps",
+    "map_ajax_regions",
+    "trace_data_flow",
+    "get_migration_dossier",
+    "check_migration_coverage",
+    "get_migration_progress",
+    "analyze_full_project_migration",
+    "analyze_sync_hazards",
+    "get_jquery_inventory",
+    "get_session_workflows",
+    "get_vb_translation_traps",
+    "find_tests_for_method",
+    "find_dead_methods",
+    "trace_ui_event",
+    "trace_ui_action",
+    "get_ui_blueprint"
+  ],
+  "implementation": {
+    "source_baseline": "8a9d9e8858be08e1f2f88cde13572a2dfe1fb74b",
+    "source_commit": "073f4bc7f9eab527800b23db147bd59cca3535a9",
+    "files": {
+      "crates/engram_server/src/read_report_delivery.rs": "b8c80f1d7e273201015980c53743490f74eb0e933b8806907e2e352faf68b46e",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "f9a261cefd7e5bdc2729e024cc08b29c2128584b2d843c825b41eb025ae9833e",
+      "crates/engram_server/tests/webforms_report_delivery_tests.rs": "553931b434638a56d45081310f2a6deedb7435ce1faabd8ce0deb78b73b31156"
+    },
+    "root_source_files": {
+      "crates/engram_server/src/read_report_delivery.rs": "b8c80f1d7e273201015980c53743490f74eb0e933b8806907e2e352faf68b46e",
+      "crates/engram_server/src/read_report_delivery_tests.rs": "f9a261cefd7e5bdc2729e024cc08b29c2128584b2d843c825b41eb025ae9833e",
+      "crates/engram_server/tests/webforms_report_delivery_tests.rs": "553931b434638a56d45081310f2a6deedb7435ce1faabd8ce0deb78b73b31156"
+    },
+    "preserved_wip9": true,
+    "retained_failed_native": "native1.json"
+  },
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 4,
+    "required_component_cases": {
+      "webforms_reports_advertise_recovery_preserving_original_formats_and_existing_owners": true,
+      "webforms_report_recovery_keeps_all_original_evidence_parts_and_tool_scope": true,
+      "webforms_small_reports_keep_their_format_and_original_analysis_arguments": true,
+      "webforms_invalid_budget_refuses_before_source_analysis": true
+    },
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "073f4bc7f9eab527800b23db147bd59cca3535a9",
+    "native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 21.32s",
+    "native_test_seconds": 0.61,
+    "retained_failed_attempts": [
+      "native1.json: test-only Map.pointer compile error; server library compiled and reused by native2"
+    ],
+    "dedicated_target": "webforms_report_delivery_tests",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed. Logs retained; public candidate/installed checks follow."
+  },
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\baseline2\\acceptance.json",
+  "native_reuse": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115\\native-library-reuse.json",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-report-delivery-20261115",
+  "remaining": "One release; candidate/installed whole-report recovery and source oracles; install and restore normal runtime; push only origin/master.",
+  "limits": "Adds existing shared delivery only. Original internal report caps, analysis/binding/semantic limits and wider TODO4/cursor work remain. No CodeMap/Blast, unrelated language support or held-out task replay."
+}
