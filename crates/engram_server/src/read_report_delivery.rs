@@ -25,6 +25,7 @@ const TOOLS: &[&str] = &[
     "check_edit_safety",
     "find_symbol_references",
     "find_similar_changes",
+    "find_merged_work",
     "resolve_id",
     "get_ui_conformance",
     "get_gis_inventory",

@@ -19,7 +19,7 @@ fn text(result: &CallToolResult) -> &str {
 fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_owners() {
     let original = registry();
     let eligible_names = original.iter().filter_map(eligible).collect::<Vec<_>>();
-    assert_eq!(eligible_names.len(), 43);
+    assert_eq!(eligible_names.len(), 44);
     assert!(eligible_names.contains(&"one_shot_feature_plan"));
     for tool in original {
         let before = serde_json::to_value(&tool).unwrap();

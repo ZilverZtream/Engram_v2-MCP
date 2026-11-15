@@ -54,7 +54,7 @@ fn body(result: &CallToolResult) -> &str {
 #[test]
 fn webforms_reports_advertise_recovery_preserving_original_formats_and_existing_owners() {
     let tools = registry();
-    assert_eq!(tools.iter().filter_map(delivery::eligible).count(), 43);
+    assert_eq!(tools.iter().filter_map(delivery::eligible).count(), 44);
     for name in REPORTS {
         let original = tools
             .iter()
