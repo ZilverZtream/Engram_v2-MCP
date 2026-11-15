@@ -10125,7 +10125,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Accumulated three-outcome source batch passed native14 and owned debug-public18 checks. Ready for one shared release and finite same-artifact candidate/installed acceptance; no further implementation item active.",
+    "active_original_item": "Native14 and debug-public18 passed. One release is actively building under session86931; pipeline17400 waits on its confirmed live owner then handles package/candidate/install/restore. Poll these same handles; no new compile, implementation or full-suite run.",
     "next_user_visible_deliverable": "Validate the accumulated three-outcome source batch with one focused native target, reuse its debug artifact, then one shared release and finite candidate/installed public checks. No full suite or per-item release.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -15984,7 +15984,7 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "NATIVE_AND_DEBUG_PUBLIC_PASSED_RELEASE_NOT_BUILT",
+    "status": "ONE_SHARED_RELEASE_RUNNING",
     "independent_requirements_source_complete": [
       "EG-13",
       "EG-27",
@@ -15993,7 +15993,7 @@
     "pending_count": 3,
     "minimum_before_compile": 3,
     "native_builds": 2,
-    "release_builds": 0,
+    "release_builds": 1,
     "last_installed_record": "eval/revision-guard-history-batch-delivery-20261115.json",
     "initial_native_passed": 11,
     "initial_native_failed": 3,
@@ -16043,7 +16043,7 @@
     "deployed": false
   },
   "source_history_schema_batch_progress": {
-    "status": "NATIVE_AND_DEBUG_PUBLIC_PASSED_RELEASE_NOT_BUILT",
+    "status": "ONE_SHARED_RELEASE_RUNNING",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115",
     "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\native-acceptance.json",
     "native_distinct_cases_passed": 14,
@@ -16054,10 +16054,13 @@
     "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\debug1\\receipt.json",
     "debug_public_checks_passed": 18,
     "debug_binary_sha256": "7403072f77b891cb0f210b2bc4ca30a4ec2ec171ed712ee9d576c6173bbc9725",
-    "release_builds_started": 0,
+    "release_builds_started": 1,
     "candidate_acceptance_run": false,
     "installed_acceptance_run": false,
     "installed": false,
-    "all_completed_native_and_debug_fixture_owners_closed": true
+    "all_completed_native_and_debug_fixture_owners_closed": true,
+    "release_exec_session_id": 86931,
+    "pipeline_exec_session_id": 17400,
+    "continuation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-history-schema-batch-20261115\\continuation.json"
   }
 }
