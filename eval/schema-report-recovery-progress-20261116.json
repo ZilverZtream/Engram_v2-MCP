@@ -1,0 +1,108 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T23:48:57.373560+00:00",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Complete bounded AI responses with explicit truncation and exact recovery. Apply the remaining handler-owned gap to query_schema without changing its source analysis,64KiB default or composed-planning evidence limits. Broader TODO4 remains partial.",
+  "source_baseline": "421a92a6dc9921570355a48124cd6da03d983a16",
+  "observed_missing_behavior": "Installed26bc282d owned500-statement SQL procedure returns102447 public UTF8 bytes with max_tokens65536, but the default request fails with -32602 and no recovery. The retained default error reports102149 pre-navigation bytes requiring25538 tokens. Existing query_schema is listed in shared delivery but ineligible because it owns max_tokens; its handler used all-or-error bounded_message.",
+  "baseline_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\baseline1\\receipt.json",
+    "sha256": "89a8cc09ec8a060cb92339293c24c3348814e01c8604606e72c8868073afe299"
+  },
+  "wanted_behavior": [
+    "Preserve default16384token/64KiB and range1..65536. Return oversized complete results through the existing immutable per-tool/project MCP-result snapshots and bounded continuation actions.",
+    "Recovery accepts only project_id plus returned response_id/response_offset/max_tokens controls, before project/source lookup. Fresh query_type remains required; original source row offset/limit pagination remains a fresh fingerprint-checked query.",
+    "Preserve complete selected declarations, source citations/hash, generation, coverage, authored guidance, pagination and existing advisory actions in the captured original MCP result. Small public results remain unchanged.",
+    "Capture advisory navigation before delivery, preserving normal available-budget handling for fitting reports and using the supported ample schema budget for already-oversized originals. Transport skips duplicate annotation of schema results/recovery.",
+    "Keep feature-plan schema composition on the original complete4096-token context gate; it receives raw complete schema or its existing unavailable disposition, never a deferred public manifest as schema facts."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/handlers/schema_tools.rs",
+    "crates/engram_server/src/services/schema_query.rs",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/schema_report_recovery_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/models/requests.rs": "70419c6dd0aec7db02e3e1baec9ca155bc7da3942320148f202c7baaa3183d88",
+    "crates/engram_server/src/read_report_delivery.rs": "33d9b717af20a65bf1ad5dfaa3fdd59606a0af13319a7690176f4a4a18e32504",
+    "crates/engram_server/src/handlers/schema_tools.rs": "49315fe1ae061667676a7dc5e98b3c69d07005db0b0418a1b85d77ea12558fb0",
+    "crates/engram_server/src/services/schema_query.rs": "9db0147a662f169d187ace09e0161c51880ed44ba87be1a677d458ef63fd586f",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs": "64e9ad3515c9291ec40afb5e3481973f273647fee9c3734df358ce7ca4996d02",
+    "crates/engram_server/src/tools.rs": "364d9f8d1a64a2d8ee0d139de1748079f939b379b3e37cca3d89930d3c8ee08b",
+    "crates/engram_server/tests/schema_report_recovery_tests.rs": "30f8115a9a32315db735c0020d6fc13ca3a7a19250091b50920e5377b8ba7e18",
+    "docs/TOOL_CONTRACT.md": "99a69f06234426f292f34a640a0e9430b78d8fcff45bd173ad3e170dd2e3ee5e",
+    "TODO.md": "f6905cedd0c2002c3b3fabb936ea064a468b047b6de84dfe4f1080e52f6e7c0c"
+  },
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "finite_acceptance": {
+    "native_target": "schema_report_recovery_tests",
+    "native_cases": 3,
+    "cases": [
+      "Default/caller budgets defer a complete large procedure report; recover exact original MCP/schema JSON after source deletion and changed authored guidance, without query_type. Verify all source/coverage/policy/advisory evidence and hash.",
+      "Small table/column replies remain complete/equal under ample and small fitting budgets; original row-pagination actions retain query_type and fetch the next source row without saved-report controls.",
+      "Fresh requests still require query_type; response offsets, minimal/maximum budgets and invalid recovery IDs reject before irrelevant project lookup. Actual tool metadata advertises recoverable optional query_type and response controls."
+    ],
+    "existing_affected_checks": "Retained alter_foreign_key_schema_tests4 cases cover existing source admission, table/incoming query behavior and refresh under the new public delivery owner; existing shared-read eligibility count must remain unchanged. Include selected checks in the combined target, no full/lib suite.",
+    "public_candidate_and_installed": "One owned large SQL declaration and small table fixture: verify default64KiB and caller delivery budgets, complete exact original result including advisory actions/source hashes, recovery after source/guidance changes with query_type omitted, normal small reports, tools/list controls and fresh-query validation. No normal LegacyValidation/Q source action or agent replay.",
+    "stop_rule": "Deliver query_schema whole-report recovery and advance. Do not expand schema interpretation, migration execution, source storage, tool catalog audit or planner semantic tuning."
+  },
+  "checks_completed": [
+    "Installed public owned baseline reproduced102447-byte report and exact budget refusal; server/fixture closed and removed.",
+    "Rust2024 syntax parsed; new native file formatted and selected-path git diff --check.",
+    "Source inspection preserves transport eligibility for existing handler-owned tools and the planner complete-context gate; no new generic report family/store/limits.",
+    "Protected WIP9 bytes unchanged."
+  ],
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  },
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "embedding_backend": "ollama (normal configuration unchanged)",
+    "relevance": "Existing LegacyValidation SQL schema/procedure workflows and their source-backed AI context; provider-independent delivery. Baseline uses invented owned SQL only; no target-language or live database work."
+  },
+  "limits": [
+    "Whole original selected result recovery, not whole schema corpus enumeration or source-object retention. Existing8MiB/24hour/32snapshot per tool/project limits remain.",
+    "A saved result retains capture-time generation/guidance/qualifications; it does not prove current source or deployed state. Source bounds, internal selection caps, lookup ambiguity and migration limits remain.",
+    "No comparative model-token, task-productivity or production latency claim. Source changes and three native checks are uncompiled/unrun until combined validation."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116",
+    "baseline_fixture_removed": true,
+    "baseline_owners_closed": true,
+    "retention": "Retain synthetic baseline, finite source/check receipts and later candidate/installed evidence here until superseded. New native fixtures close Engram/state/database owners before TempDir removal on success and unwind. No preexisting deletion."
+  },
+  "delivery_cadence": "Second distinct original source outcome after TODO-8 canonical method identities. No Cargo/test/release invocation before at least a third distinct original outcome is source-complete.",
+  "source_commit": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
+  "runtime_source_commit": "08621c996d6f2b070ed7331e807b2c2e06b4688f",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/models/requests.rs": "70419c6dd0aec7db02e3e1baec9ca155bc7da3942320148f202c7baaa3183d88",
+    "crates/engram_server/src/read_report_delivery.rs": "33d9b717af20a65bf1ad5dfaa3fdd59606a0af13319a7690176f4a4a18e32504",
+    "crates/engram_server/src/handlers/schema_tools.rs": "49315fe1ae061667676a7dc5e98b3c69d07005db0b0418a1b85d77ea12558fb0",
+    "crates/engram_server/src/services/schema_query.rs": "9db0147a662f169d187ace09e0161c51880ed44ba87be1a677d458ef63fd586f",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs": "64e9ad3515c9291ec40afb5e3481973f273647fee9c3734df358ce7ca4996d02",
+    "crates/engram_server/src/tools.rs": "364d9f8d1a64a2d8ee0d139de1748079f939b379b3e37cca3d89930d3c8ee08b",
+    "crates/engram_server/tests/schema_report_recovery_tests.rs": "30f8115a9a32315db735c0020d6fc13ca3a7a19250091b50920e5377b8ba7e18"
+  },
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json"
+}

@@ -10085,10 +10085,10 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "record": "eval/method-callee-identities-progress-20261116.json",
-      "original_requirement_id": "TODO-8",
-      "source_commit": "2217204f28e06cb359edcac5950a963ca851e369",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json",
+      "record": "eval/schema-report-recovery-progress-20261116.json",
+      "original_requirement_id": "TODO-4",
+      "source_commit": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
@@ -10123,8 +10123,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO-8 canonical method callee identities source-complete and queued as first outcome. No implementation item active until the next distinct original requirement is selected; no compilation yet.",
-    "next_user_visible_deliverable": "Complete at least two more distinct useful original source outcomes sequentially before combined focused validation and one release. Method callee identities are committed but unvalidated/uninstalled; previous installed batch is complete and must not be replayed.",
+    "active_original_item": "TODO-4 complete query_schema report recovery source-complete and queued with TODO-8 canonical method callees. No implementation item active until a third distinct original requirement is selected; no compile yet.",
+    "next_user_visible_deliverable": "Finish a third distinct useful original source outcome before one focused combined native target and one release. Canonical method callees and complete schema-report recovery are source-complete but remain unvalidated/uninstalled. Prior installed batch remains delivered.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15923,6 +15923,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json",
         "progress_record": "eval/method-callee-identities-progress-20261116.json",
         "user_outcome": "Method metadata exposes canonical indexed callee IDs/FQNs/source locations and executable resolve_id actions, with missing/capped lookup qualifications instead of metadata-only empty calls. Source complete; native/public validation and installation pending."
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
+        "runtime_source_commit": "08621c996d6f2b070ed7331e807b2c2e06b4688f",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
+        "progress_record": "eval/schema-report-recovery-progress-20261116.json",
+        "user_outcome": "Oversized SQL schema/procedure reports preserve exact complete original MCP results, citations, guidance and advisory actions through existing bounded recovery; query arguments/source are unnecessary for recovery. Source complete; validation and installation pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -15969,9 +15978,10 @@
   "latest_source_batch_progress": {
     "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
     "independent_requirements_source_complete": [
-      "TODO-8"
+      "TODO-8",
+      "TODO-4"
     ],
-    "pending_count": 1,
+    "pending_count": 2,
     "minimum_before_compile": 3,
     "native_builds": 0,
     "release_builds": 0,
@@ -15987,7 +15997,7 @@
     "record": "eval/revision-guard-history-batch-delivery-20261115.json",
     "full_original_goal_complete": false
   },
-  "next_user_visible_deliverable": "Complete at least two more distinct useful original source outcomes sequentially before combined focused validation and one release. Method callee identities are committed but unvalidated/uninstalled; previous installed batch is complete and must not be replayed.",
+  "next_user_visible_deliverable": "Finish a third distinct useful original source outcome before one focused combined native target and one release. Canonical method callees and complete schema-report recovery are source-complete but remain unvalidated/uninstalled. Prior installed batch remains delivered.",
   "retained_index_output_source_progress": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/retained-index-output-progress-20261115.json",
@@ -16036,7 +16046,8 @@
   "immediate_next_delivery": {
     "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
     "pending_source_records": [
-      "eval/method-callee-identities-progress-20261116.json"
+      "eval/method-callee-identities-progress-20261116.json",
+      "eval/schema-report-recovery-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -16047,6 +16058,16 @@
     "original_requirement_id": "TODO-8",
     "source_commit": "2217204f28e06cb359edcac5950a963ca851e369",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
+  },
+  "schema_report_recovery_source_progress": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/schema-report-recovery-progress-20261116.json",
+    "original_requirement_id": "TODO-4",
+    "source_commit": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false
