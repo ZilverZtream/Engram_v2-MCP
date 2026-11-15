@@ -74,6 +74,14 @@ These degrade or improve *every single interaction*. Nothing below matters until
   section reads. Four focused checks and 22 public checks on each candidate/
   installed binary passed with one combined release; broader TODO4 remains
   partial. [Delivery](eval/legacy_validation-core-report-batch-delivery-20261115.json).
+  Opt-in retained query windows installed 2026-11-15 for search_memory,
+  search_history and grep_project. Complete requested JSON windows recover
+  exactly through saved byte continuations across source/index/Git changes and
+  process restart; ordinary calls retain live offset behavior. Nine focused
+  tests and 26 checks on each candidate/installed binary passed with one release.
+  Existing result/content limits and bounded retention remain; this does not
+  retain the whole corpus or underlying source objects. Broader uniformity and
+  cursor work stays partial. [Delivery](eval/legacy_validation-retained-search-delivery-20261115.json).
 
   All 13 handler files (~193 handlers). Responses are heterogeneous markdown/text with
   silent truncation (`graph_tools.rs` hardcoded limits, `access_layer_tools.rs` 30KB+

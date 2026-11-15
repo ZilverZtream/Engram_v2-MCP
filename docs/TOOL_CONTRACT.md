@@ -665,10 +665,32 @@ BLAKE3 before parsing the original MCP result. Recovery needs project_id and
 returned controls only, works across restart and changed inputs, and does not
 rerun search or ranking. Normal calls keep their current offset behavior.
 
-Retained windows expire after at most24hours or32newer captures for the same
-tool/project and may contain at most8MiB of original MCP JSON. They preserve
+Retained windows expire after at most 24 hours or 32 newer captures for the same
+tool/project and may contain at most 8 MiB of original MCP JSON. They preserve
 original window/content limits, warnings, source identities and capture-time
 guidance/freshness. They do not retain the whole corpus or underlying citation
 objects. Original offset actions outside the saved window are fresh queries;
 request fresh evidence for current editing decisions. Retained replies default
-to40KiB or the supplied max_tokens budget, estimated at4UTF-8bytes/token.
+to 40 KiB or the supplied max_tokens budget, estimated at 4 UTF-8 bytes per token.
+
+For example, call search_memory with:
+
+```json
+{
+  "project_id": "your-project-id",
+  "query": "customer save",
+  "semantic": false,
+  "include_content": true,
+  "max_results": 100,
+  "output_json": true,
+  "retain_response": true,
+  "max_tokens": 2048
+}
+```
+
+The first reply identifies the saved window and provides an exact
+response_delivery.next_call. Follow that action without adding the original
+query or live offset. Each page supplies content and a next_call until complete;
+concatenate the content in byte order, verify the hash, then parse the original
+MCP result. Use the same opt-in controls for search_history or grep_project with
+that tool's normal query/pattern, filters and result limits.

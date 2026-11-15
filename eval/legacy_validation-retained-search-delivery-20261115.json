@@ -1,0 +1,162 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-15T09:14:35.200173+00:00",
+  "finding": "Original TODO4 durable selected result windows for code/knowledge search, history and grep",
+  "source_commit": "7adaf3b5a6bb2c430088ad0b678011cc7d2967c1",
+  "frozen_source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\package1",
+    "server_sha256": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+    "manifest_sha256": "da15658c1867379ba57ab85dbe7fffbfde51463a5d2c61f3427515ad6fbf864f",
+    "old_server_sha256": "b57edf3b6a659b4270d0aedc0c13debecf46778fff0cc0920ba3a00118a97803",
+    "old_manifest_sha256": "cc0a32f5f07cf197a2e78e8ace66949326afc1781565bdbeb8471c5de0325657",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\release1.json",
+      "sha256": "6a9f52e867d9862dea6fe81478297a31be365adcc70f6413f25c97fc7009912b"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "cc0a32f5f07cf197a2e78e8ace66949326afc1781565bdbeb8471c5de0325657"
+    },
+    "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c"
+  },
+  "installed_assets_verified": 215,
+  "behavior": [
+    "search_memory, search_history and grep_project now accept opt-in retain_response=true with output_json=true. The original requested bounded JSON result window is captured before max_tokens reply clipping. Ordinary calls retain their existing live offsets, budgets and filters.",
+    "response_delivery.next_call recovers the immutable original MCP result by tool/project, response_id and byte offset, across process restart and source/index/Git changes. Recovery does not rerun retrieval, ranking, providers, Git resolution or freshness scans.",
+    "Capture-time guidance, exceptions, source identities, ranks, content limits, warnings and coverage remain intact. Every page fits default40KiB or caller budgets; full-result hash/byte length are checked. Saved evidence remains historical; live queries independently reflect current source/guidance/Git."
+  ],
+  "native": {
+    "status": "FOCUSED_NATIVE_COMPONENTS_PASS",
+    "total_checks": 9,
+    "required_component_cases": {
+      "even_small_windows_retain_an_identity_and_reject_other_project_or_tool": true,
+      "ordinary_search_requests_preserve_existing_budgets_filters_and_offsets": true,
+      "retained_controls_fail_before_capture_and_original_errors_are_preserved": true,
+      "retained_windows_recover_every_selected_identity_and_original_qualification": true,
+      "retention_schema_keeps_original_properties_and_core_full_contracts_equal": true
+    },
+    "existing_shared_report_cases": 4,
+    "source_inputs_unchanged": true,
+    "preserved_wip9": true,
+    "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
+    "native_compile": "3m09s",
+    "native_test_seconds": 1.14,
+    "dedicated_target": "retained_results_tests",
+    "lib_unit_suite_compiled": false,
+    "resources": "Owned native Job, relay and temporary fixtures closed and removed; case evidence retained."
+  },
+  "baseline": {
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\baseline1\\acceptance.json",
+    "search_memory_bytes": 41931,
+    "search_history_bytes": 10017,
+    "grep_project_bytes": 40182,
+    "missing": "All three lacked retained-window controls and disclosed mutable non-snapshot offsets."
+  },
+  "debug_public": {
+    "checks": 26,
+    "all_passed": true,
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\debug-smoke1\\acceptance.json"
+  },
+  "public": {
+    "candidate": {
+      "checks": 26,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\candidate1\\acceptance.json",
+      "original_result_bytes": {
+        "search_memory": 44911,
+        "search_history": 10838,
+        "grep_project": 42949
+      },
+      "recovery_pages": 100
+    },
+    "installed": {
+      "checks": 26,
+      "all_passed": true,
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\installed1\\acceptance.json",
+      "original_result_bytes": {
+        "search_memory": 44911,
+        "search_history": 10838,
+        "grep_project": 42949
+      },
+      "recovery_pages": 100
+    }
+  },
+  "demonstrated_fixture_facts": [
+    "All24 independently authored JS paths, complete requested source bodies, unique document identities and displayed ranks retained.",
+    "All six independently authored Git commit IDs and the original resolved history root retained.",
+    "All24 verified grep locations/source lines retained.",
+    "Owned source and authored guidance changed and were reindexed; new Git commit added. Fresh queries reflect those changes; every saved original remains byte-identical before and after a process restart.",
+    "Core and Full agree for the available code-search/grep tools; their retained continuation actions remain callable in Core."
+  ],
+  "builds": {
+    "substantive_components": 3,
+    "native_attempts": 1,
+    "native_compile": "3m09s",
+    "native_test_execution_seconds": 1.14,
+    "native_runner_seconds": 202.2894162000157,
+    "release_builds": 1,
+    "release_compile": "Finished `release` profile [optimized] target(s) in 14m 58s",
+    "release_runner_seconds": 911.2139538000338,
+    "extra_debug_builds": 0,
+    "full_suite_runs": 0,
+    "lib_unit_suite_compiled": false,
+    "failed_test_or_verifier_attempts": 0
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115",
+    "native_fixture_removed": true,
+    "release_fixture_removed": true,
+    "release_job_closed": true,
+    "public_fixtures_removed": true,
+    "configuration_hold_released": true,
+    "owned_config_removed": true,
+    "pipeline_children_closed": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a300c0fae00e4ce8b024254027aeca7b",
+    "normal_runtime": {
+      "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+      "owners": [
+        {
+          "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\restored-runtime\\wire",
+          "closed": true,
+          "pid": 48060,
+          "natural_exit": true,
+          "reader_joined": true,
+          "exit_code": 0,
+          "pending_observations": []
+        }
+      ],
+      "intentional_retained_runtime": true,
+      "daemon_pid": 67724,
+      "daemon_created": 1794733912.3731472,
+      "metadata": {
+        "pid": "67724",
+        "started_at_ms": "1794733912457",
+        "protocol_version": "1",
+        "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+        "version": "0.1.0"
+      },
+      "server_sha256": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+      "normal_proxy_metrics_succeeded": true,
+      "selected_generation": 3151,
+      "owned_temp_removed": true,
+      "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+    },
+    "retention": "Case evidence/scripts/package and managed rollback pair retained for review/recovery. New owned fixtures removed after all handles closed; normal daemon intentionally retained. Preexisting folders untouched."
+  },
+  "preserved_wip9": true,
+  "limits": [
+    "Opt-in selected request windows only. Existing result/window/content limits remain; this is not an exhaustive corpus snapshot, retained underlying citation objects or whole-record streaming. Reassemble and verify the original MCP result before interpretation.",
+    "Captured guidance/freshness is historical. Fresh evidence is required for current editing decisions; original offset actions beyond the capture are new queries.",
+    "Retention is at most24hours/32newer snapshots per tool/project and8MiB per original result. Byte estimates are complete reply text, not provider-token or transport-envelope accounting.",
+    "No actual LegacyValidation source scan, Site/Q read, SQL execution, model benchmark replay, CodeMap/Blast or project-language expansion. Original TODO4 remains partial beyond these selected windows; semantic compliance, task usefulness and full original release gates remain open."
+  ],
+  "bounded_delivery_complete": true,
+  "broader_goal_complete": false,
+  "original_full19gates_closed": false
+}

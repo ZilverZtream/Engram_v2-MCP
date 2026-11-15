@@ -10032,10 +10032,10 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-15T08:35:10.056835+00:00",
+  "last_updated_at": "2026-11-15T09:14:35.200173+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "THREE_COMPONENTS_NATIVE9_PUBLIC26_PASS_RELEASE_READY",
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "finding": "Original TODO4 durable continuation for bounded search windows",
       "original_requirement": "Agent pagination preserves complete selected results with stable identities and recovery; existing mutable offsets do not satisfy durable continuation.",
       "observed_missing_behavior": "search_memory, search_history and grep_project explicitly expose mutable offsets. They do not offer a retained query-result window that survives restart or changed index/source/ranking inputs.",
@@ -10043,17 +10043,17 @@
         {
           "name": "Retained code and knowledge search window",
           "tool": "search_memory",
-          "status": "IMPLEMENTED_PENDING_COMBINED_VERIFICATION"
+          "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
         },
         {
           "name": "Retained historical result window",
           "tool": "search_history",
-          "status": "IMPLEMENTED_PENDING_COMBINED_VERIFICATION"
+          "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
         },
         {
           "name": "Retained verified literal-search window",
           "tool": "grep_project",
-          "status": "IMPLEMENTED_PENDING_COMBINED_VERIFICATION"
+          "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
         }
       ],
       "acceptance": [
@@ -10079,8 +10079,8 @@
       "history_selection_correction": "Retained40.49s observation is historical and later4.3188s result superseded reopening it; existing semantic-stage budgets are delivered. No new latency investigation selected.",
       "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
       "implementation_complete": true,
-      "validated": false,
-      "deployed": false,
+      "validated": true,
+      "deployed": true,
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\baseline1\\acceptance.json",
       "native_target": "retained_results_tests",
       "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\native-acceptance.json",
@@ -10088,9 +10088,11 @@
         "status": "PASS",
         "checks": 26,
         "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\debug-smoke1\\acceptance.json"
-      }
+      },
+      "bounded_delivery_complete": true,
+      "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
     },
-    "at_utc": "2026-11-15T08:35:10.056835+00:00",
+    "at_utc": "2026-11-15T09:14:35.200173+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
     "original_source": "C:/ai-projects/Engram-MCP_v2/target/diagnostics/original-agent-findings-20261101.json; initial tool_roi/instruction_capabilities/legacy_workflows messages",
     "original_tool_roi_five": [
@@ -10120,8 +10122,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original TODO4 durable continuation for bounded search windows",
-    "next_user_visible_deliverable": "Stable retained result windows for code/knowledge, history and grep before one combined build.",
+    "active_original_item": "Retained query-window batch complete; next original EG24/25 task-usefulness contract uses installed runtime.",
+    "next_user_visible_deliverable": "Advance original EG24/25 task-usefulness acceptance using the installed runtime and existing workflow/harness. Select one previously uninspected allowed non-Q task with finite source-grounded criteria before execution. Preserve failed outcomes; do not replay/tune inspected cases or build new benchmark infrastructure. No compilation is needed for evaluation alone. Other original unfinished requirements remain preserved.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15552,7 +15554,8 @@
       "next_build_entry_condition": "Implement three substantive user-facing components sequentially from the original LegacyValidation backlog and name their acceptance criteria before invoking Cargo. Run one focused combined verification and one release. A smaller batch requires an evidenced delivery-blocking regression; record that evidence before compiling.",
       "exclusions": "No build-system investigation, extra build to change test organization, full-suite default, or relabeling acceptance checks as product components."
     },
-    "latest_core_report_batch_delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json"
+    "latest_core_report_batch_delivery": "eval/legacy_validation-core-report-batch-delivery-20261115.json",
+    "latest_retained_search_delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {

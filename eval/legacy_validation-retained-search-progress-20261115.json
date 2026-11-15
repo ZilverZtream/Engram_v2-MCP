@@ -1,5 +1,5 @@
 {
-  "status": "THREE_COMPONENTS_NATIVE9_PUBLIC26_PASS_RELEASE_READY",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "implementation": {
     "source_baseline": "f3e41e4643c9adfb54ea669e20cb7403914685e7",
     "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
@@ -47,5 +47,6 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\debug-smoke1\\acceptance.json"
   },
   "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115",
-  "remaining": "One release; candidate/installed26checks, state/config preservation, normal restoration and push only origin/master."
+  "remaining": "This bounded retained-window batch is complete. Use the installed runtime to advance original task-usefulness evidence with the existing workflow and leakage controls; broader TODO4 and semantic/benefit/resource requirements remain unfinished.",
+  "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
 }
