@@ -1,0 +1,96 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T23:22:51.309250+00:00",
+  "original_requirement_id": "TODO-8",
+  "original_requirement": "One identity system across tools: method evidence supplies canonical node IDs/FQNs/locations and actions usable by existing graph/source read tools, with ambiguity/coverage preserved. Broader original work stays in scope.",
+  "source_baseline": "a38f7bdbd4f33751e8c42c590555e5cfda308d61",
+  "observed_missing_behavior": "Installed26bc282d on an independent owned two-function TypeScript project: callee called_by contains saveOrder, but caller calls_methods is empty and no callee/own canonical node identities are supplied. Source confirms the builder uses only optional calls_methods metadata while indexed Calls/Dependency edges exist. This is independent of the already-inspected sync QA task; no task replay or agent run.",
+  "baseline_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\baseline1\\receipt.json",
+    "sha256": "ffecc1b143f3ce0c27a841c43a9afa62438cd037657bb98cb7a69bb9966a4ecf"
+  },
+  "wanted_behavior": [
+    "Return the owner node ID/indexed revision and canonical function-target node IDs, FQNs, file/declaration positions and indexed revisions from existing Calls and heuristic Dependency edges.",
+    "Deduplicate targets across edge kinds, preserving kinds and overload node identities; emit an exact existing resolve_id action per supplied target.",
+    "Merge canonical target FQNs into legacy calls_methods while retaining original unverified metadata hints explicitly. Surface existing caller/data/state lookup coverage instead of discarding it in public metadata.",
+    "Retain up to200 edge targets/kind and perform at most50 bounded256KiB node resolutions. Name missing, non-method, failed and uninspected targets; capped totals stay unknown. No graph-wide scan, new extraction or binding.",
+    "Render equivalent identity/qualification evidence in JSON and Markdown and retain existing complete immutable report recovery within caller/default reply budgets. Indexed observations do not certify current disk freshness or execution."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/access_layer_tools.rs",
+    "crates/engram_server/src/handlers/method_callee_evidence.rs",
+    "crates/engram_server/tests/method_callee_identity_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "20e6a61845d7eb793098e127d70604e9c19aa40588908ab88ae5dfb59d2d5f9c",
+    "crates/engram_server/src/handlers/method_callee_evidence.rs": "4456d0c098cb4d4d1e6dfbe30b583894809d44d9ea6aa9b1d5da5e7a12b3d56d",
+    "crates/engram_server/tests/method_callee_identity_tests.rs": "7aa653626be51028c97a475541fcdc66f53602b2fbd5e365b938e1536c798574",
+    "docs/TOOL_CONTRACT.md": "6f99b99c17fedb4ebd8a68a596fb199836da19008779eda5efcfa60c14de26bf",
+    "TODO.md": "1be4c37a5f11807c1b28c4781abb88eaf718e3ce134a03d231e26cedbde2dade"
+  },
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "finite_acceptance": {
+    "native_target": "method_callee_identity_tests",
+    "native_cases": 3,
+    "cases": [
+      "Public metadata without call-name metadata recovers one canonical callee from duplicate Calls/Dependency edges and executes its resolve_id action; JSON/Markdown preserve scope and existing coverage.",
+      "An ordinary capped multi-callee result counts missing/non-method/uninspected targets, retains legacy hints separately and never invents a canonical node for them.",
+      "Complete oversized method metadata recovers exact original canonical identities and qualifications after its graph data is removed."
+    ],
+    "existing_affected_checks": "Existing batch_read mixed individual/read equality and method report recovery; include only relevant cases in next combined target. No full/lib suite.",
+    "public_candidate_and_installed": "Owned two-function JS/TS and small VB fixture with existing full sidecar: get_method_info caller includes the independently authored callee identity; emitted resolve_id action resolves the exact node/file. JSON/Markdown and complete saved-result recovery retain qualifications and source identity. No live LegacyValidation/Q operation or agent-task replay.",
+    "stop_rule": "Deliver existing-edge metadata projection and advance. Do not alter graph extraction/resolution, CodeMap/Blast, downstream traversals, source snapshot architecture or inspected task outcomes."
+  },
+  "checks_completed": [
+    "Installed owned baseline confirms positive reverse call and empty caller calls_methods; owner/fixture closed and removed.",
+    "Rust2024 syntax parsed; new module/test files formatted; selected-path git diff --check.",
+    "Protected WIP9 and normal configuration digest unchanged."
+  ],
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "builds_before_combined_batch": {
+    "native": 0,
+    "release": 0
+  },
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "embedding_backend": "ollama (unchanged installed configuration previously verified)",
+    "relevance": "Existing method understanding/QA workflow for LegacyValidation VB.NET/WebForms and JS/TS; projection is provider-independent and reuses existing call edges. Installed baseline used only independent invented TS source. No target-language expansion or production/agent productivity claim."
+  },
+  "limits": [
+    "Canonical identities describe indexed function targets, not current-source hash admission, exhaustive source calls or runtime dispatch. Existing method metadata/generation/source limitations remain.",
+    "Graph adjacency lookup uses existing per-node neighbors API; returned candidates and decoded target nodes are bounded, not a new hard bound on the store internal adjacency scan/RSS.",
+    "New fields add indexed evidence to composed method contexts without changing their existing safety/impact assessments. Closed CodeMap/Blast code is untouched.",
+    "No frozen QA replay/tuning and no measured task benefit. Three focused tests remain uncompiled/unrun until the next at-least-three-requirement batch."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116",
+    "baseline_owned_fixture_removed": true,
+    "baseline_owners_closed": true,
+    "retention": "Retain baseline/finite source contract and later build/public receipts through installed delivery. Each new native fixture declares Engram before TempDir and explicitly closes owners before removing its owned directory on success; field order preserves teardown during unwinding. No preexisting deletion."
+  },
+  "delivery_cadence": "First distinct original source outcome in new batch. No compile or optimized release until at least three distinct original requirements are source-complete.",
+  "source_commit": "2217204f28e06cb359edcac5950a963ca851e369",
+  "runtime_source_commit": "32515be53bfe0aed16caafc977d0669f99f9cb4f",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "20e6a61845d7eb793098e127d70604e9c19aa40588908ab88ae5dfb59d2d5f9c",
+    "crates/engram_server/src/handlers/method_callee_evidence.rs": "4456d0c098cb4d4d1e6dfbe30b583894809d44d9ea6aa9b1d5da5e7a12b3d56d",
+    "crates/engram_server/tests/method_callee_identity_tests.rs": "7aa653626be51028c97a475541fcdc66f53602b2fbd5e365b938e1536c798574"
+  },
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json"
+}

@@ -40,13 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "DELIVERED",
-    "record": "eval/source-history-schema-batch-delivery-20261115.json",
-    "original_requirement_ids": [
-      "EG-13",
-      "EG-27",
-      "TODO-35"
+    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "pending_source_records": [
+      "eval/method-callee-identities-progress-20261116.json"
     ],
+    "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
   "previous_delivery": {
@@ -991,7 +989,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Select the next concrete unfinished original LegacyValidation requirement. This three-outcome batch is installed and its finite checks are complete; preserve all broader scope/authority/usefulness/resource limits and resume sequential source batching.",
+  "next_user_visible_deliverable": "Complete at least two more distinct useful original source outcomes sequentially before combined focused validation and one release. Method callee identities are committed but unvalidated/uninstalled; previous installed batch is complete and must not be replayed.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2515,8 +2513,13 @@
   },
   "sync_event_task_progress": {
     "record": "eval/legacy_validation-sync-event-task-progress-20261115.json",
-    "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
-    "comparison_complete": false,
+    "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+    "comparison_complete": true,
+    "task_benefit_established": false,
+    "source_criteria": "6/6",
+    "assisted_criteria": "6/6",
+    "outcome_record": "eval/legacy_validation-sync-event-task-outcome-20261115.json",
+    "reconciliation": "Top-level stale awaiting-agent snapshot corrected from existing completed progress/outcome and completed agent results. No new agent or replay; not counted as a source deliverable.",
     "full_goal_complete": false
   },
   "held_sync_event_task": {
@@ -2555,7 +2558,17 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-8",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "2217204f28e06cb359edcac5950a963ca851e369",
+        "runtime_source_commit": "32515be53bfe0aed16caafc977d0669f99f9cb4f",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json",
+        "progress_record": "eval/method-callee-identities-progress-20261116.json",
+        "user_outcome": "Method metadata exposes canonical indexed callee IDs/FQNs/source locations and executable resolve_id actions, with missing/capped lookup qualifications instead of metadata-only empty calls. Source complete; native/public validation and installation pending."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2598,11 +2611,15 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "record": "eval/source-history-schema-batch-delivery-20261115.json",
-    "independent_requirements_delivered": 3,
-    "native_builds": 2,
-    "release_builds": 1
+    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "independent_requirements_source_complete": [
+      "TODO-8"
+    ],
+    "pending_count": 1,
+    "minimum_before_compile": 3,
+    "native_builds": 0,
+    "release_builds": 0,
+    "last_installed_record": "eval/source-history-schema-batch-delivery-20261115.json"
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -2658,5 +2675,15 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/source-history-schema-batch-delivery-20261115.json",
     "full_original_goal_complete": false
+  },
+  "method_callee_identities_source_progress": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/method-callee-identities-progress-20261116.json",
+    "original_requirement_id": "TODO-8",
+    "source_commit": "2217204f28e06cb359edcac5950a963ca851e369",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
   }
 }
