@@ -751,3 +751,31 @@ query or live offset. Each page supplies content and a next_call until complete;
 concatenate the content in byte order, verify the hash, then parse the original
 MCP result. Use the same opt-in controls for search_history or grep_project with
 that tool's normal query/pattern, filters and result limits.
+
+### Maintenance from changed files
+
+An AI can start existing-guidance maintenance without knowing instruction paths:
+
+```json
+{"project_id":"<project_id>","instruction_maintenance":{"base_commit":"<full_40_hex_commit>","changed_paths":["Site/App_Code/financialdata/CustomerInvoiceImporter.vb"]}}
+```
+
+Use this with `pre_push_audit` to collect complete applicable current guidance and
+exact Git-before/disk-after source, then submit an evidence-bound draft through
+the existing proposal workflow. `changed_paths` accepts 1?16 normalized relative
+files; optional `evidence_paths` supplement them, up to 16 distinct source files.
+Do not mix it with `instruction_paths`, `area_context` or new instruction targets.
+
+`project_health` accepts the same maintenance request. `update_project` accepts
+it with `wait=true` after its normal update. The changed paths select maintenance
+evidence; they do not restrict the source refresh. Changed-path observations
+report `change_context` selection, omissions and the dependency manifest, rather
+than running the separate whole-worktree routing inventory described above.
+
+Discovery uses current conventional guidance locations and existing scope rules.
+It does not enumerate removed or formerly applicable instructions at the base
+commit; select those explicitly with `instruction_paths`. An empty candidate set
+is not a semantic conclusion that no guidance change is needed. Complete selected
+guidance preserves exceptions and shared references. Existing source-size and
+packet limits remain, omissions are explicit, new matching guidance invalidates
+the old proposal packet, and no authored policy or ownership is changed.

@@ -9,6 +9,7 @@ use std::{collections::BTreeSet, io::Read, path::Path};
 
 pub mod area_draft;
 pub mod area_evidence;
+mod changed_evidence;
 pub mod manifest;
 pub(crate) mod routing;
 
@@ -19,6 +20,12 @@ const PACKET_LIMIT: usize = 768 * 1024;
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct MaintenanceRequest {
+    /// Discover current applicable authored guidance for 1..16 explicit changed
+    /// files and capture those files as Git-before/disk-after evidence. May not
+    /// be mixed with instruction_paths, area_context or new_instruction_targets.
+    /// Optional evidence_paths supplement the changed files (16 combined).
+    #[serde(default)]
+    pub changed_paths: Vec<String>,
     /// Assemble indexed area files, consumers and applicable shared guidance
     /// before drafting. Available through pre_push_audit; explicit-path offline
     /// maintenance remains unchanged when this is omitted.
@@ -144,6 +151,8 @@ pub struct Packet {
     pub instruction_manifest: manifest::Manifest,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub area_evidence: Option<area_evidence::AreaEvidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub change_context: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
@@ -337,8 +346,12 @@ pub fn validate_observation_request(req: &MaintenanceRequest) -> Result<()> {
         req.draft.is_none(),
         "Submit instruction drafts through pre_push_audit; this operation only observes references"
     );
-    paths(&req.instruction_paths, 8)?;
-    paths(&req.evidence_paths, 16)?;
+    if req.changed_paths.is_empty() {
+        paths(&req.instruction_paths, 8)?;
+        paths(&req.evidence_paths, 16)?;
+    } else {
+        changed_evidence::validate(req)?;
+    }
     ensure!(
         req.base_commit.len() == 40 && req.base_commit.bytes().all(|b| b.is_ascii_hexdigit()),
         "base_commit must be an exact full commit ID"
@@ -360,13 +373,21 @@ fn capture_with_area(
     req: &MaintenanceRequest,
     area: Option<&area_evidence::AreaEvidence>,
 ) -> Result<Packet> {
-    let instruction_paths =
-        if req.instruction_paths.is_empty() && !req.new_instruction_targets.is_empty() {
+    let changed = if req.changed_paths.is_empty() {
+        None
+    } else {
+        Some(changed_evidence::select(root, req)?)
+    };
+    let instruction_paths = if let Some(selection) = &changed {
+        selection.instructions.clone()
+    } else if req.instruction_paths.is_empty() && !req.new_instruction_targets.is_empty() {
             Vec::new()
         } else {
             paths(&req.instruction_paths, 8)?
         };
-    let mut evidence_paths = if req.evidence_paths.is_empty() && area.is_some() {
+    let mut evidence_paths = if let Some(selection) = &changed {
+        selection.evidence.clone()
+    } else if req.evidence_paths.is_empty() && area.is_some() {
         Vec::new()
     } else {
         paths(&req.evidence_paths, 16)?
@@ -482,7 +503,7 @@ fn capture_with_area(
         area_evidence::bind(area, &evidence, &instructions);
     }
     Ok(Packet {
-        version: if area.is_some() { 5 } else { 4 },
+        version: if changed.is_some() { 6 } else if area.is_some() { 5 } else { 4 },
         project_id: project_id.into(),
         project_root_blake3: blake3::hash(root.to_string_lossy().as_bytes())
             .to_hex()
@@ -494,6 +515,7 @@ fn capture_with_area(
         references,
         instruction_manifest,
         area_evidence,
+        change_context: changed.map(|selection| selection.context),
     })
 }
 

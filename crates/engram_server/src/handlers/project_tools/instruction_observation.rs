@@ -92,7 +92,11 @@ impl Engram {
         let reviewed = tokio::task::spawn_blocking(move || {
             let root = PathBuf::from(root);
             execute(root.clone(), pid, request).map(|(confirmed, report)| {
-                let routing = confirmed.then(|| instruction_maintenance::routing::observe(&root, &report.packet.instructions));
+                let routing = confirmed.then(|| if report.packet.change_context.is_some() {
+                    json!({"basis":"explicit_changed_paths", "detail":"Guidance selection and omissions for the declared changed paths are in change_context; this observation does not inventory whole-worktree routing."})
+                } else {
+                    instruction_maintenance::routing::observe(&root, &report.packet.instructions)
+                });
                 (confirmed, report, routing)
             })
         }).await;
@@ -129,6 +133,9 @@ impl Engram {
                 observation["status"] = json!("observed");
                 observation["packet_blake3"] = json!(report.packet_blake3);
                 observation["manifest"] = json!(report.packet.instruction_manifest);
+                if let Some(context) = report.packet.change_context {
+                    observation["change_context"] = context;
+                }
                 observation["routing_coverage"] = json!(routing);
                 observation["coverage"] = json!(report.coverage);
                 observation["proposal_tool"] = json!("pre_push_audit");
@@ -197,6 +204,7 @@ mod tests {
             let registry = state.registry.clone();
             let engram = Engram::new(state);
             let request = MaintenanceRequest {
+                changed_paths: Vec::new(),
                 area_context: None,
                 new_instruction_targets: Vec::new(),
                 instruction_paths: vec!["area.md".into()],

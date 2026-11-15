@@ -63,7 +63,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Incrementally re-index changed files and refresh git intelligence. Optional only_paths (1..4096 exact eligible paths, wait=true) exclusively re-extracts those files and inherits outside revisions without checking current outside bytes; it skips Git/global enrichment and requires an already verified source identity with no foreign unpublished attempt. Extractors may read referenced companion files. only_paths cannot combine with reindex_paths, anti-pattern refresh or instruction maintenance. Otherwise reindex_paths adds forced paths to the normal whole-project change scan. Optional instruction_maintenance with wait=true observes guidance after the normal update; it does not write policy."
+        description = "Incrementally re-index changed files and refresh git intelligence. Optional only_paths (1..4096 exact eligible paths, wait=true) exclusively re-extracts those files and inherits outside revisions without checking current outside bytes; it skips Git/global enrichment and requires an already verified source identity with no foreign unpublished attempt. Extractors may read referenced companion files. only_paths cannot combine with reindex_paths, anti-pattern refresh or instruction maintenance. Otherwise reindex_paths adds forced paths to the normal whole-project change scan. Optional instruction_maintenance with wait=true observes guidance after the normal update; changed_paths discovers current applicable guidance for explicit changed files and does not restrict the source update. It does not write policy."
     )]
     pub async fn update_project(
         &self,
@@ -164,7 +164,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Index health snapshot: generation, graph node/edge counts, doc/vector counts, and semantic-search tier. Optional instruction_maintenance observes bounded selected guidance and linked references against an exact base commit, reporting dependent changes and incomplete coverage separately from index health. No authored guidance or ownership is changed."
+        description = "Index health snapshot: generation, graph node/edge counts, doc/vector counts, and semantic-search tier. Optional instruction_maintenance accepts changed_paths to discover current applicable guidance for explicit changed files, or instruction_paths for known guidance. It observes bounded complete guidance and linked references against an exact base commit, reporting dependent changes and incomplete coverage separately from index health. No authored guidance or ownership is changed."
     )]
     pub async fn project_health(
         &self,
@@ -498,7 +498,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Pre-push audit: given inline code or a project-relative diff_file with exact diff_file_blake3, retrieve relevant quality-gate rules/findings. Rules scoped to file_path rank first; retrieval is not compliance proof. Alternatively, instruction_maintenance collects complete authored instructions and Git-before/disk-after evidence. For new_instruction_targets, optional area_context (scope, max_files, exclude_paths) automatically assembles bounded indexed area files, direct consumers, examples and applicable shared guidance; evidence_paths become optional seeds. Discovery gaps and advisory review dispositions remain explicit. A drafting agent submits grounded exact edits or explained no_change/conflict outcomes bound to packet_blake3; Engram rejects stale dependencies, false citations and invalid anchors and returns proposed instruction/provenance files. Independent semantic review and human approval remain required. Never writes authored policy or guesses legacy ownership."
+        description = "Pre-push audit: given inline code or a project-relative diff_file with exact diff_file_blake3, retrieve relevant quality-gate rules/findings. Rules scoped to file_path rank first; retrieval is not compliance proof. Alternatively, instruction_maintenance collects complete authored instructions and Git-before/disk-after evidence. Supply changed_paths (1..16 exact files) to discover current applicable guidance without knowing instruction paths; evidence_paths optionally supplement those files. Removed/formerly applicable guidance requires explicit instruction_paths. For new_instruction_targets, optional area_context (scope, max_files, exclude_paths) automatically assembles bounded indexed area files, direct consumers, examples and applicable shared guidance; evidence_paths become optional seeds. Discovery gaps and advisory review dispositions remain explicit. A drafting agent submits grounded exact edits or explained no_change/conflict outcomes bound to packet_blake3; Engram rejects stale dependencies, false citations and invalid anchors and returns proposed instruction/provenance files. Independent semantic review and human approval remain required. Never writes authored policy or guesses legacy ownership."
     )]
     pub async fn pre_push_audit(
         &self,
