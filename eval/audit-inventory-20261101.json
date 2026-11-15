@@ -10059,7 +10059,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ACTUAL_CATALOG_LOOKUP_VERIFIED",
       "finding": "Original usable LegacyValidation settings/QA workflows: current-file evidence without full VB migration",
       "original_requirement": "Expose usable scoped setting evidence for current AI tasks while respecting protected source and keeping stale indexed evidence incomplete.",
       "observed_gap": "Installed literal-key support needs a VB index refresh. only_paths cannot activate it safely here: exclusive_source_changes requires compatible inherited VB metadata and supplies all admitted VB files to parsing. Whole refresh is prohibited by the actual Site/Q boundary.",
@@ -10102,7 +10102,14 @@
         "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
       },
       "baseline_commit": "41de21b787ce13a193493ba15d1f4e0ffe44ca52",
-      "baseline_runtime": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a"
+      "baseline_runtime": "3e1ba4f164773bfc0c2a11d0a1c3c756bc1a94a46df60e2977a66544462ec23a",
+      "delivery_record": "eval/legacy_validation-current-settings-delivery-20261115.json",
+      "source_commit": "c2931563a16a698b29c4f687d8590fde2cacb370",
+      "runtime_source_commit": "53c22a5fe05b97c9955529fda1069532054f617f",
+      "installed_server_sha256": "73d264b28faf372eff7b1572c4c84bf68c985dd85f891ecb894e5ffb1329d679",
+      "actual_catalog_lookup_verified": true,
+      "actual_full_qa_status": "NOT_RUN_PROTECTED_Q_CONFIGURATION_SURVEY",
+      "actual_index_refresh_run": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10134,8 +10141,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Invoice task comparison complete; no benefit demonstrated. Advance next ready original LegacyValidation requirement.",
-    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement from concrete existing gaps. Preserve this completed negative comparison; no invoice-task model replay or outcome tuning. Keep original EG24/25 benefit and all other unfinished requirements open. Select a finite original implementation contract before code; batch three substantive components before any combined runtime build.",
+    "active_original_item": "Current-file settings slice delivered; advance next original requirement.",
+    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement using existing delivery evidence. Current-file settings catalog/lookup are activated on actual source; owned QA fallback passed. Preserve held actual full-QA configuration survey, negative invoice comparison and all unfinished original requirements. No replay or widening of this delivered slice.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10152,7 +10159,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: retained query windows installed and pushed9b7b23b; original scope remains active.",
+    "previous_goal_turn_classification": "PROGRESS: three current-file settings components deployed; actual catalog and lookup verified; actual full-QA survey held under protected Q boundary.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15782,6 +15789,11 @@
   "literal_settings_workflows_delivery": {
     "record": "eval/legacy_validation-literal-settings-workflows-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
+  },
+  "current_settings_delivery": {
+    "record": "eval/legacy_validation-current-settings-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED_ACTUAL_CATALOG_LOOKUP_VERIFIED",
     "full_goal_complete": false
   }
 }

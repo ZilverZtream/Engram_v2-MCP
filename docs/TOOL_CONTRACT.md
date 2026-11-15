@@ -263,6 +263,8 @@ explicit requested VB files when their indexed axes are unavailable. The fallbac
 is bounded to 16 files/200 observations and preserves incomplete indexed
 role/state/business coverage. It does not read discovered companions for this
 fallback, and `knowledge_before` withholds live current-file observations.
+The full matrix workflow still runs its other providers, including a compiler
+configuration survey; the fallback's file bound does not restrict those providers.
 These paths make current setting evidence usable without a whole-project refresh;
 they do not migrate or certify the rest of an old index.
 
