@@ -481,13 +481,14 @@ impl Engram {
         let current_settings_budget = self.state.memory_budget.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, unresolved, coverage_notes, companion_context, member_observations) =
+        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, sql_parameter_axes, unresolved, coverage_notes, companion_context, member_observations) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
                 let mut roles_axis: Axis = BTreeMap::new();
                 let mut state_axis: Axis = BTreeMap::new();
                 let mut runtime_axes: Axis = BTreeMap::new();
+                let mut sql_parameter_axes: Axis = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
                 let mut coverage_notes = configured_risk_notes;
                 let mut source_bytes = 0;
@@ -654,6 +655,28 @@ impl Engram {
                             format!("{} ({}:{})", n.name, n.file_path.as_str(), n.start_line)
                         };
 
+                        if needs_vb && explicit_files.contains(&file) && allow_current_settings
+                            && n.node_type == "function"
+                        {
+                            if let Some(source) = snapshot.as_deref().and_then(|bytes| std::str::from_utf8(bytes).ok()) {
+                                if let Some(parameters) = crate::services::vb_sql_parameters::method_observations(source,n.start_line,n.end_line) {
+                                    if parameters.truncated {
+                                        coverage_notes.push(format!("{label}: SQL parameter observation limit reached; omitted parameter facts remain unknown."));
+                                    }
+                                    let hash=blake3::hash(source.as_bytes()).to_hex().to_string();
+                                    for command in parameters.commands {
+                                        if command.receiver_ambiguous || command.execution_sites.is_empty() {continue;}
+                                        for parameter in command.parameters {
+                                            let declared:Vec<_>=parameter.declarations.iter().map(|d|format!("{}:{} SqlDbType.{}{}",file,d.site.line,d.sql_type_spelling.as_deref().unwrap_or("unknown"),d.size_literal.as_ref().map(|size|format!(" size literal {size}")).unwrap_or_default())).collect();
+                                            let assignments:Vec<_>=parameter.assignments.iter().map(|site|format!("{}:{} `{}`{}",file,site.line,site.source_line,if site.excerpt_truncated{" [line excerpt clipped]"}else{""})).collect();
+                                            let key=format!("SQL parameter {} on {}",parameter.name,command.receiver);
+                                            sql_parameter_axes.entry(key).or_default().push(format!("{label}; declarations [{}]; assignment source [{}]; file BLAKE3 {hash}. Type/size spellings and assignments are source observations; runtime values, branch reachability, nullability and physical database binding are unproven.",declared.join("; "),assignments.join("; ")));
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
                         // Settings axis: what this method reads.
                         match graph.neighbors(
                             &pid,
@@ -758,7 +781,7 @@ impl Engram {
                         }
                     }
                 }
-                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis, &mut runtime_axes] {
+                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis, &mut runtime_axes, &mut sql_parameter_axes] {
                     for v in axis.values_mut() {
                         v.sort();
                         v.dedup();
@@ -770,6 +793,7 @@ impl Engram {
                     roles_axis,
                     state_axis,
                     runtime_axes,
+                    sql_parameter_axes,
                     unresolved,
                     coverage_notes,
                     companion_context,
@@ -963,6 +987,13 @@ impl Engram {
             None,
             &mut out,
         );
+        render_axis(
+            "Database parameter axis",
+            "Review the declared SQL type/size and assignment source before choosing applicable length, null and domain-boundary cases. A DBNull source assignment is a review lead, not proof of reachable null values. Only verified explicitly requested VB method ranges contribute; no application or database tests were executed:",
+            &sql_parameter_axes,
+            None,
+            &mut out,
+        );
         if canonical_sweep.attempted && !canonical_sweep.summary.is_empty() {
             out.push_str(&format!(
                 "\n## Canonical-call residual sweep — {}\n{}\n",
@@ -984,7 +1015,7 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && sql_parameter_axes.is_empty() {
             out.push_str(
                 "\nNo usable setting/role/state/configured-risk axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \

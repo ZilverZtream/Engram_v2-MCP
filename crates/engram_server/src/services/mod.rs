@@ -79,3 +79,4 @@ pub mod viewstate_service;
 pub mod stored_citation;
 pub mod document_response;
 pub mod extraction_evidence;
+pub mod vb_sql_parameters;

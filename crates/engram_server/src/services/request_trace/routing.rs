@@ -47,7 +47,7 @@ impl Routing {
 }
 
 #[derive(Debug)]
-pub(super) struct Token {
+pub(crate) struct Token {
     pub text: String,
     pub string: bool,
     pub line: usize,
@@ -55,7 +55,7 @@ pub(super) struct Token {
 
 /// A deliberately small lexical reader: quoted examples and commented calls cannot
 /// become registrations. Values stay strings; this does not execute routing code.
-pub(super) fn tokens(source: &str, vb: bool) -> Vec<Token> {
+pub(crate) fn tokens(source: &str, vb: bool) -> Vec<Token> {
     let bytes = source.as_bytes();
     let (mut i, mut line) = (0, 1);
     let mut out = Vec::new();

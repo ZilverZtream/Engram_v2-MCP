@@ -333,6 +333,21 @@ impl<'a> Analyzer<'a> {
                     "estimated_iterations":null,"estimated_database_calls":null,
                     "suggested_fix":if write{"Batch the writes where semantics permit; preserve transaction boundaries, validation and per-row side effects."}else{"JOIN the needed data into the initial query, or batch-fetch it before the loop/row binding and look up each row locally; preserve filtering, ordering and access rules."},
                     "limits":"Static possible call path. Guards, caching, dispatch, exceptions, dataset size and actual database execution are not proved."}));
+                let source = &self.sources[&file];
+                if let Some(mut parameters) = crate::services::vb_sql_parameters::method_observations(
+                    &source.text, repetition.method_start_line, repetition.method_end_line,
+                ) {
+                    parameters.commands.retain(|command| command.execution_sites.iter().any(|site|
+                        site.line == inv.start_line && site.method.eq_ignore_ascii_case(&db.method)));
+                    if !parameters.commands.is_empty() {
+                        self.findings.last_mut().expect("inserted finding")["parameter_observations"] = json!({
+                            "file":file,"source_hash":source.hash,
+                            "method_start_line":repetition.method_start_line,"method_end_line":repetition.method_end_line,
+                            "observations":parameters,
+                            "binding":"Command candidates with an execute site at the repeated call line; multiple candidates remain ambiguous, not a chosen runtime receiver."
+                        });
+                    }
+                }
                 continue;
             }
             if depth >= 6 {

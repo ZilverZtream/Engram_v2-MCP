@@ -10061,31 +10061,33 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-      "finding": "EG27/EG31 changed-file entry point for affected instruction maintenance",
-      "original_requirement": "Make affected authored guidance and dependency changes usable after ordinary LegacyValidation VB.NET/JS/TS/SQL edits; preserve complete guidance, exceptions and historical evidence.",
-      "observed_gap": "Maintenance requires callers to enumerate instruction_paths and evidence_paths. Existing task-scoped guidance discovery is not composed into this workflow; changed source files alone cannot start a proposal/health/update observation.",
+      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "finding": "Original LegacyValidation SQL workflow evidence: SqlCommand parameter declarations and assignments",
+      "original_requirement": "Make source-backed SQL request/repetition/QA evidence actionable for AI work on actual LegacyValidation code.",
+      "actual_source": {
+        "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
+        "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
+        "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
+        "bytes": 25806,
+        "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
+        "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched."
+      },
+      "observed_source": "Frozen non-Q WebhookEvent.SaveEventsToDB declares14 typed parameters, length500/3000/MAX declarations and explicit DBNull assignment alternatives. Existing text-command tracing supplies table paths but no parameter observations.",
       "components": [
-        "pre_push_audit: discover applicable current authored guidance from explicit changed_paths, collect complete guidance plus exact Git-before/disk-after evidence and accept grounded proposals through the existing packet contract.",
-        "project_health: accept the same changed-file entry point and report dependency-specific observations without requiring callers to know instruction file paths.",
-        "update_project: accept the same entry point for optional post-update instruction observations, preserving completed update outcomes and zero authored-file writes."
+        "trace_user_request: source-cited parameter declarations and value-assignment lines attached to reached SqlCommand text paths.",
+        "detect_n_plus_one: the same parameter observations attached to repeated command findings under existing method/source admission.",
+        "derive_test_matrix: source-backed SQL parameter axes for supported explicitly requested verified VB method ranges; keep inferred runtime values/execution unknown."
       ],
       "finite_acceptance": [
-        "Use existing bounded policy discovery and complete maintenance capture; no project inventory or model calls. Declared changed paths are explicit input, not a claim that Git diff was exhaustively discovered.",
-        "Preserve scoped exclusions, complete authored exceptions and linked references; identify any omitted/unavailable guidance and current-discovery historical limits.",
-        "Changed code appears as exact before/after evidence; unrelated guidance is excluded by existing scope. Empty candidates do not establish no guidance change warranted.",
-        "Existing exact-citation, stale-packet and no-write proposal contract remains. New matching guidance changes the packet; unrelated source bytes outside selected dependencies do not.",
-        "Three public workflows pass one focused native batch and one release, then candidate/installed acceptance on owned fixtures. No actual whole LegacyValidation update or full health workflow that could survey protected Q."
+        "Confirm all three existing workflows reach the owned exact current LegacyValidation source, then expose its14 parameter declarations and actual assignment/DBNull lines without new file discovery.",
+        "Reuse existing comment/string-aware VB tokens; bounded same-method command receiver observations retain exact file hash, absolute declaration/assignment lines, declared types and size literals. No SQL/CLR execution or inferred physical parameter/column binding.",
+        "No comments, computed parameter-name claims or fabricated assignment values. Preserve current source/physical revision checks and caller database scope; stale source withholds these observations.",
+        "QA axes propose review of relevant lengths/nulls/types rather than claiming application tests or business rules. Existing incomplete coverage remains visible.",
+        "One focused native target for the three workflows, then one release and candidate/installed MCP acceptance on owned copies. No actual full LegacyValidation update or QA/health survey, protected Q access, target-language expansion or CodeMap/Blast work."
       ],
-      "files": [
-        "crates/engram_server/src/services/instruction_maintenance.rs",
-        "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
-        "crates/engram_server/src/handlers/project_tools/instruction_observation.rs",
-        "crates/engram_server/tests/changed_instruction_workflow_tests.rs",
-        "crates/engram_server/src/tools.rs"
-      ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\changed-instruction-maintenance-20261115",
-      "cleanup_condition": "New owned fixtures removed after all handles close; retain evidence and managed package until superseded. Preexisting folders untouched.",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115",
+      "cleanup_condition": "New fixtures close owned handles before removal. Retain evidence/package until superseded; preexisting folders untouched.",
       "preserved_wip9": {
         "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
         "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
@@ -10097,14 +10099,19 @@
         "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
         "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
       },
-      "baseline_commit": "dca2a74e13af899c6e409327d860c8cdd286e31a",
-      "baseline_runtime": "73d264b28faf372eff7b1572c4c84bf68c985dd85f891ecb894e5ffb1329d679",
-      "configuration_relevance": "Existing LegacyValidation authored-guidance consumers and VB/JS/TS/SQL sources are covered by retained EG27/31 installed delivery receipts; current normal configuration remains pinned in the latest actual-source delivery.",
-      "delivery_record": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
-      "source_commit": "432f4e7bbce168e39914209dbe4eff4be7547c32",
-      "runtime_source_commit": "fbb8fc4162dacd65568df43a107cb86fe09261f4",
-      "installed_server_sha256": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf",
-      "actual_full_source_operation_run": false
+      "baseline": "baseline1/acceptance.json: all three existing workflows reached the owned exact source; repeated ExecuteNonQuery finding is present at82, without parameter evidence.",
+      "files": [
+        "crates/engram_server/src/services/vb_sql_parameters.rs",
+        "crates/engram_server/src/services/mod.rs",
+        "crates/engram_server/src/services/request_trace/routing.rs",
+        "crates/engram_server/src/services/request_trace/sql_commands.rs",
+        "crates/engram_server/src/services/n_plus_one.rs",
+        "crates/engram_server/src/handlers/settings_tools.rs",
+        "crates/engram_server/tests/sql_parameter_workflow_tests.rs",
+        "crates/engram_server/src/tools.rs"
+      ],
+      "baseline_commit": "9c7bbfdc6de02e7295f983fe44e3bfc7fe30a47c",
+      "baseline_runtime": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",

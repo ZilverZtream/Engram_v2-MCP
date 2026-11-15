@@ -779,3 +779,30 @@ is not a semantic conclusion that no guidance change is needed. Complete selecte
 guidance preserves exceptions and shared references. Existing source-size and
 packet limits remain, omissions are explicit, new matching guidance invalidates
 the old proposal packet, and no authored policy or ownership is changed.
+
+### VB SQL parameter evidence
+
+`trace_user_request` attaches `parameter_observations` to supported reached
+SqlCommand text paths. `detect_n_plus_one` attaches the same observations to
+command candidates with an execute site at the repeated call line. Multiple
+candidates remain ambiguous. Both retain their existing source/physical-revision
+admission and full-file hash provenance.
+
+Observations name literal parameters, declared SqlDbType spellings and size
+literals, and declaration/assignment lines with bounded source excerpts.
+`AddWithValue` retains source without inventing a declared SQL type. Computed
+names, aliases, helper mutations and unsupported syntax remain unknown.
+
+`derive_test_matrix` adds a Database parameter axis from verified explicitly
+requested VB method ranges. Review the actual types, sizes and assignments when
+choosing relevant length/null/domain cases. DBNull assignment syntax does not
+prove runtime nullability or reachability; no application/database tests run.
+Historical cutoffs withhold these current observations; stale source does not
+receive this axis.
+
+The collector reads no files itself: its callers provide admitted method source.
+It accepts128KiB per method,32commands,64parameters per command,4declaration and
+8assignment sites per parameter,32execute sites and512-byte line excerpts. Its
+serialized report is bounded to64KiB with explicit truncation/omission counts.
+These are source observations, not CLR/SQL binding, inferred parameter-to-column
+mappings, evaluated values or database execution.

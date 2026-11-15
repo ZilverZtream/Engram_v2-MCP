@@ -71,6 +71,7 @@ pub(super) fn append(
         return;
     }
     let tokens = routing::tokens(body, true);
+    let parameter_report = crate::services::vb_sql_parameters::observe(body, method.start_line);
     let mut receivers: BTreeMap<String, Receiver> = BTreeMap::new();
     for i in 2..tokens.len() {
         if !word(&tokens, i, "New") {
@@ -201,6 +202,11 @@ pub(super) fn append(
                     "invocation":invocation,"command_declaration_line":line,"command_type":"Text",
                     "command_type_basis":if receiver.types.is_empty() {"SqlCommand source/default Text candidate"} else {"explicit CommandType.Text source"},
                     "sql":sql.text,"sql_source":sql_source,
+                    "parameter_observations":{
+                        "commands":parameter_report.commands.iter().filter(|command| command.receiver.eq_ignore_ascii_case(&receiver.name)).collect::<Vec<_>>(),
+                        "truncated":parameter_report.truncated,
+                        "interpretation":parameter_report.interpretation
+                    },
                     "interpretation":"Lexical table references from a source SqlCommand text candidate and an observed source execute call. CLR receiver type, physical database/schema binding, branch reachability and runtime execution are not proven."
                 }),
                 paths,
