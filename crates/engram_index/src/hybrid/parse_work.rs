@@ -1,6 +1,6 @@
 //! Parse admission follows blocking work and unconsumed results, not its waiter.
-//! Retained aggregate statistics and cross-iteration document batches need
-//! separate output accounting; this reservation keeps its existing batch scope.
+//! Retained output has separate admission which follows statistics and document
+//! owners beyond this worker's original parse reservation.
 use super::*;
 
 mod source_read;
@@ -25,7 +25,7 @@ pub(super) fn contain_extraction_panic<T>(
 }
 
 pub(super) struct ParsedBatch {
-    pub docs: Vec<IndexDoc>,
+    pub docs: super::retained_output::DocumentBatch,
     pub stats: IngestStats,
     // Output fields must be disposed before their admission and reservation.
     pub _work: ParseWork,

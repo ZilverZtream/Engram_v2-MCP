@@ -19,6 +19,8 @@ pub use vector_initialization::VectorInitializationRejection;
 mod commit;
 mod mutation;
 mod parse_work;
+mod retained_output;
+pub use retained_output::RetainedIngestOutput;
 mod vector_compaction;
 mod vector_history;
 pub use vector_history::{NativeHistoryPruneOutcome, NativeSessionRotationOutcome};
@@ -234,7 +236,7 @@ pub struct IndexOperationGuard {
     _admission: Option<IndexMutationGuard>,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct IngestStats {
     /// Captured with the produced source output, never inferred at publication.
     pub source_extraction_identity: Option<crate::SourceExtractionIdentity>,
@@ -262,6 +264,10 @@ pub struct IngestStats {
     pub skipped_files: Vec<(RelPath, String)>,
     pub languages: std::collections::HashMap<String, usize>,
     pub warnings: Vec<String>,
+    /// Admission follows these owned outputs through their consumer. Deliberately
+    /// not Clone: a deep copy would need a separate fallible admission.
+    #[doc(hidden)]
+    pub retained_output: RetainedIngestOutput,
 }
 
 impl IngestStats {
@@ -2934,7 +2940,7 @@ impl HybridSearchEngine {
 
         let fields = scoped.fields();
 
-        let mut batch: Vec<IndexDoc> = Vec::with_capacity(512);
+        let mut batch = retained_output::DocumentBatch::default();
         let mut processed_count = 0;
 
         for file_chunk in files.chunks(50) {
@@ -2966,6 +2972,7 @@ impl HybridSearchEngine {
 
             let chunk_paths: Vec<_> = file_chunk.iter().cloned().zip(admitted_lengths).collect();
             let extractor = scoped.extractor.clone();
+            let output_budget = scoped.memory_budget.clone();
             let root_buf = root.to_path_buf();
             let namespace_str = namespace.to_string();
             let work = parse_work::ParseWork {
@@ -2986,7 +2993,7 @@ impl HybridSearchEngine {
                 // The returned envelope retains it if the waiter disappears.
                 let work = work;
                 let vb_compilation = work.vb_compilation.as_ref();
-                let (chunk_stats, chunk_docs) = chunk_paths
+                let (mut chunk_stats, chunk_docs) = chunk_paths
                     .par_iter()
                     .map(|(p, admitted_len)| parse_work::contain_extraction_panic(p, || -> anyhow::Result<_> {
                         let mut local_stats = IngestStats::default();
@@ -3364,7 +3371,11 @@ impl HybridSearchEngine {
                             Ok(a)
                         },
                     )?;
-                Ok::<_, anyhow::Error>(parse_work::ParsedBatch { docs: chunk_docs, stats: chunk_stats, _work: work })
+                // Reserve retained output while its original parse work still
+                // owns the worker/result, before growing cross-iteration buffers.
+                chunk_stats.retained_output = retained_output::admit_stats(&chunk_stats, output_budget.as_deref())?;
+                let docs = retained_output::DocumentBatch::admit(chunk_docs, output_budget.as_deref())?;
+                Ok::<_, anyhow::Error>(parse_work::ParsedBatch { docs, stats: chunk_stats, _work: work })
             })
             .await??;
 
@@ -3387,14 +3398,15 @@ impl HybridSearchEngine {
                 *stats.languages.entry(lang).or_insert(0) += count;
             }
             stats.warnings.extend(chunk_stats.warnings);
+            stats.retained_output.append(chunk_stats.retained_output);
 
-            batch.extend(chunk_docs);
-            if batch.len() >= 512 {
+            batch.append(chunk_docs);
+            if batch.docs.len() >= 512 {
                 let guard = guard.as_mut().expect("document batches require a search writer");
-                Self::write_docs_to_writer(&fields, guard, project_id, &batch)?;
+                Self::write_docs_to_writer(&fields, guard, project_id, &batch.docs)?;
                 guard.maybe_commit(1000)?;
                 scoped
-                    .embed_source_batch(guard, project_id, &batch, cancel, &mut stats)
+                    .embed_source_batch(guard, project_id, &batch.docs, cancel, &mut stats)
                     .await?;
                 batch.clear();
             }
@@ -3403,11 +3415,11 @@ impl HybridSearchEngine {
             progress_cb(processed_count, total_files);
         }
 
-        if !batch.is_empty() && !cancel.is_cancelled() {
+        if !batch.docs.is_empty() && !cancel.is_cancelled() {
             let guard = guard.as_mut().expect("document batches require a search writer");
-            Self::write_docs_to_writer(&fields, guard, project_id, &batch)?;
+            Self::write_docs_to_writer(&fields, guard, project_id, &batch.docs)?;
             scoped
-                .embed_source_batch(guard, project_id, &batch, cancel, &mut stats)
+                .embed_source_batch(guard, project_id, &batch.docs, cancel, &mut stats)
                 .await?;
         }
 
