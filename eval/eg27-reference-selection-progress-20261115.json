@@ -1,0 +1,45 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T17:12:20.398974+00:00",
+  "original_requirement_id": "EG-27",
+  "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
+  "original_requirement": "Dependency changes select affected instruction maintenance; preserve scope/authority, bounded linked guidance and unaffected instruction stability.",
+  "observed_baseline": {
+    "status": "BASELINE_REFERENCED_POLICY_SELECTION_GAP_CONFIRMED",
+    "binary_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\baseline1\\receipt.json"
+  },
+  "source_change": [
+    "Reuse conventional guidance candidate discovery for maintenance only.",
+    "Find supported before/current literal-reference chains to declared changed paths, including guidance scoped elsewhere.",
+    "Retain complete instructions and scope/exception text; expose independent reference provenance and counted gaps.",
+    "Exclude unrelated inspected body hashes from packet identity; retain original scope-based retrieval and explicit maintenance."
+  ],
+  "implementation_files": {
+    "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
+    "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
+    "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
+    "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
+  },
+  "checks_completed": [
+    "Installed baseline reproduces missing dependent policy on owned fixture; owner closed and temp removed.",
+    "Rustfmt parses changed Rust files and git diff --check passes.",
+    "Protected WIP9 bytes unchanged."
+  ],
+  "checks_deferred": [
+    "Compile and run changed_instruction_workflow_tests with the next three-independent-requirement batch.",
+    "Run deferred public verifier on combined candidate and installed artifacts."
+  ],
+  "native_compilations_this_item": 0,
+  "release_builds_this_item": 0,
+  "deployed": false,
+  "full_requirement_complete": false,
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115",
+    "owned_fixtures_removed": true,
+    "retained_purpose": "Baseline receipt, finite source contract and deferred verifier",
+    "cleanup_condition": "Close owners and remove newly owned baseline/test fixtures on completion or unwind. Retain evidence here until superseded; preexisting folders unchanged."
+  }
+}

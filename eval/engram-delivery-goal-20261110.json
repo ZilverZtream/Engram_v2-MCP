@@ -40,25 +40,22 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "Original scoped task evidence and EG24/25 relevance: method-scoped workflow inputs",
-    "original_requirement": "Consolidate workflow presentation/evidence identity and supply current task-relevant evidence to existing OX AI workflows without unrelated file-wide analysis. Retain guidance and explicit coverage.",
-    "priority_evidence": {
-      "original_research": "original-agent-findings-20261101.json/tool_roi: consolidate workflow presentation and evidence identity; usefulness and noisy advice",
-      "observed_api_gap": "Current request schemas expose file scope only for detect_n_plus_one and derive_test_matrix. Retained source-backed file report has35 findings; methods are not scope selectors. Frozen comparisons remain unchanged and will not be replayed.",
-      "legacy_validation_configuration": "Prior installed receipt verifies actual VB/WebForms LegacyValidation configuration and non-Q source patterns; advertise_all_tools true. This adds optional method targeting to those supported workflows, not a language expansion."
-    },
-    "components": [
-      "detect_n_plus_one exact declaration-line root scope retaining reachable helper database paths and default file analysis.",
-      "derive_test_matrix exact requested-method scope for inferred axes/rule documents; preserve file-applicable authored guidance, disclose broader coverage exclusions and retain default file/companion behavior.",
-      "get_method_edit_context executable QA/diagnostic follow-ups bound to the selected method declaration, in JSON and Markdown; does not run analyses or change safety verdicts."
-    ],
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "EG-27",
+    "finding": "Referenced source changes select dependent instructions outside current applyTo scope",
+    "observed_gap": "changed_evidence::select only calls scoped project_policy resolver. References of unselected guidance are never inspected, so changed Shared helpers do not select policies scoped to Site files that reference them.",
     "finite_acceptance": [
-      "Opt-in positive declaration lines plus selected file identities resolve exact methods; unknown/missing/ambiguous method identities do not silently widen to a file or become a clean bill of health.",
-      "Two-method fixture proves scoped requests exclude unrelated sibling findings/axes/rule cases but retain selected-method source and reached helper evidence. Default requests retain existing results.",
-      "Authored file guidance remains complete and source-bound. Stale/historical controls remain and scoped QA does not imply helper/companion or whole-file coverage.",
-      "Method-context follow-ups execute with their original selected identity. One focused native batch and public owned checks cover all three components, then one release and candidate/installed acceptance.",
-      "No frozen task replay, model/SQL/application execution, actual whole-project operation or protected Q read. No CodeMap/Blast improvements, language expansion, broad audits or extra debug build."
+      "Current conventional guidance with a supported exact reference to a caller-declared changed path is offered as a maintenance candidate even when changed source is outside applyTo. Retain full guidance, scope, exceptions and exact reference provenance; do not grant authority outside the declared scope.",
+      "Use existing Markdown path normalization/parser. Inspect before/current guidance references and bounded linked guidance; preserve changed/deleted referenced-source evidence, cycles/budget omissions and ambiguous inline paths without guessing binding. No source-tree or compiler inventory.",
+      "Unrelated guidance and unrelated body edits do not become affected instruction evidence or invalidate its packet merely because inspected. Existing explicit-path maintenance and policy retrieval behavior remain unchanged.",
+      "Source-only stage adds focused behavioral cases and public verifier for the combined batch. No Cargo until three independent original requirements are source-complete. Public baseline may reuse installed binary on owned fixtures."
+    ],
+    "implementation_files": [
+      "crates/engram_server/src/services/instruction_maintenance.rs",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs",
+      "crates/engram_server/src/services/project_policy.rs",
+      "crates/engram_server/tests/changed_instruction_workflow_tests.rs"
     ],
     "preserved_wip9": {
       "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
@@ -71,45 +68,30 @@
       "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
       "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
     },
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
-    "cleanup_condition": "All newly owned fixtures close handles then clean; retained scripts/outputs/package in this single case until superseded. Preexisting directories untouched.",
-    "baseline_commit": "704ff6d851319ff82913a8627f9f586ad279c16a",
-    "files": [
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/services/method_scope.rs",
-      "crates/engram_server/src/services/mod.rs",
-      "crates/engram_server/src/services/n_plus_one.rs",
-      "crates/engram_server/src/handlers/n_plus_one_tools.rs",
-      "crates/engram_server/src/handlers/settings_tools.rs",
-      "crates/engram_server/src/handlers/business_source.rs",
-      "crates/engram_server/src/handlers/test_derivation.rs",
-      "crates/engram_server/src/handlers/access_layer_tools.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/member_workflow_tests.rs",
-      "crates/engram_server/tests/fixtures/member-workflows/Hook.aspx.vb"
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115",
+    "cleanup_condition": "Close owners and remove newly owned baseline/test fixtures on completion or unwind. Retain evidence here until superseded; preexisting folders unchanged.",
+    "baseline_commit": "b4c6590",
+    "documentation_files": [
+      "docs/TOOL_CONTRACT.md"
     ],
-    "native_target": "member_workflow_tests",
-    "baseline_receipt": "baseline2/receipt.json",
-    "retained_baseline_adapter_failure": "baseline1 tools/list parser assumed all tools had schema properties; rejected before indexing. Corrected adapter only reads the two requested schemas; baseline2 passes.",
-    "frozen_comparison": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\freeze.json",
-      "sha256": "3a1a747c0b0bf81ff683b23dfed9027f284d4f3466ab057ffa386005b6b5be5b"
+    "native_target": "changed_instruction_workflow_tests",
+    "baseline_receipt": "baseline1/receipt.json",
+    "source_validation": {
+      "rustfmt_parse": true,
+      "git_diff_check": true,
+      "native_compiled": false,
+      "public_candidate_run": false,
+      "installed_acceptance_run": false
     },
-    "actual_source": {
-      "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
-      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
-      "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
-      "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
-      "bytes": 25806,
-      "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
-      "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched.",
-      "proof_scope": "Exact unchanged raw webhook source copied into an owned project;14 declarations and16 assignment lines independently matched through all three public workflows."
-    },
-    "delivery_record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
-    "source_commit": "9783e29724b0ddd0f0caf089e552a944d01ea965",
-    "runtime_source_commit": "4ca63d99b871d405498b231680f2295a8cd2f38d",
-    "installed_server_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
-    "actual_full_source_operation_run": false
+    "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
+    "source_files": {
+      "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
+      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
+      "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
+      "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
+      "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
+    }
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -902,7 +884,26 @@
     "compiled_tests_seconds": 345.24190690007526,
     "actual_test_execution_seconds": 18.2,
     "last_release_compile_seconds": 1066.0,
-    "pending": [],
+    "pending": [
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\contract.json",
+        "source_progress_record": "eval/eg27-reference-selection-progress-20261115.json",
+        "focused_native_target": "changed_instruction_workflow_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\verify-public.py",
+        "user_outcome": "Maintenance can discover policies referencing changed helpers outside their current applyTo scope without widening authority.",
+        "files": {
+          "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
+          "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
+          "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
+          "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
+          "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
+          "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
+        }
+      }
+    ],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
     "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
     "completed_last_batch": [
@@ -920,7 +921,7 @@
     "last_release_compile": "17m 46s",
     "validation_scope_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
     "current_step_builds_required": 0,
-    "current_step_reason": "One method-scoping feature deployed. No new compile until three independent original source deliveries pass the batch gate.",
+    "current_step_reason": "1of3independent source requirements queued. Continue source work; combined compile remains blocked.",
     "last_native_attempts": 3,
     "last_release_attempts": 1,
     "compiled_tests_seconds_scope": "Focused16distinct cases: fixture-only E0603 fix and flattened-JSON path correction;15passes plus corrected1case. Runtime source unchanged, no full/lib suite or extra debug build.",
@@ -2565,7 +2566,26 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "f52110a5e78c016f8910dd2b885b10008a04b496",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\contract.json",
+        "source_progress_record": "eval/eg27-reference-selection-progress-20261115.json",
+        "focused_native_target": "changed_instruction_workflow_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-reference-selection-20261115\\verify-public.py",
+        "user_outcome": "Maintenance can discover policies referencing changed helpers outside their current applyTo scope without widening authority.",
+        "files": {
+          "crates/engram_server/src/services/instruction_maintenance.rs": "b00a13581721e6d7c4cfceee06a798ad90f0430f9a4e8f93d2edbbc17d505400",
+          "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "65181ca5d55c2f92739b7c45f58740b4408fc7f6ac861b8075e6dd36bd3cc480",
+          "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "98b3dad2773841d8ca897849646de1695de517fde05cac94d50bacddaebcedd7",
+          "crates/engram_server/src/services/project_policy.rs": "ac608492f08a814e61df3c68eff3297ebb334cc0fe4ff133295419016bef99fa",
+          "crates/engram_server/tests/changed_instruction_workflow_tests.rs": "78f73f96f2840e8876fcd386d26545e8d59df470ff4334557a0ddfd551f66171",
+          "docs/TOOL_CONTRACT.md": "2517ee05cb9cffcf6365591b393e520004edbda9adf7dc4eb573d51732d3e6be"
+        }
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact."
@@ -2574,5 +2594,10 @@
     "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
+  },
+  "eg27_reference_selection_source_progress": {
+    "record": "eval/eg27-reference-selection-progress-20261115.json",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "deployed": false
   }
 }
