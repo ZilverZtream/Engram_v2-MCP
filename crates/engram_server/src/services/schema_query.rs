@@ -173,6 +173,8 @@ pub(super) struct Object {
     pub(super) kind: &'static str,
     pub(super) name: String,
     pub(super) target_table: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(super) trigger_header: Option<TriggerHeader>,
     pub(super) references: Vec<String>,
     pub(super) declaration: String,
     pub(super) citation: Citation,
@@ -184,10 +186,42 @@ pub(super) struct Object {
     pub(super) refs: Vec<Name>,
 }
 
+#[derive(Clone, Serialize)]
+pub(super) struct TriggerHeader {
+    pub(super) timing: String,
+    pub(super) events: Vec<String>,
+}
+
+fn trigger_header(t: &[TokenWithSpan], after: usize, end: usize) -> Option<TriggerHeader> {
+    let on = (after..end).find(|&i| kw(t, i, "ON"))?;
+    let (_, mut i) = name_at(t, on + 1)?;
+    while i < end && !["AFTER", "INSTEAD", "FOR"].iter().any(|word| kw(t, i, word)) { i += 1; }
+    let timing = if kw(t, i, "INSTEAD") && kw(t, i + 1, "OF") {
+        i += 2; "INSTEAD OF"
+    } else if kw(t, i, "AFTER") { i += 1; "AFTER" }
+    else if kw(t, i, "FOR") { i += 1; "FOR" }
+    else { return None; };
+    let mut events = Vec::new();
+    while i < end {
+        let event = ["INSERT", "UPDATE", "DELETE"].into_iter().find(|word| kw(t, i, word))?;
+        events.push(event.to_string()); i += 1;
+        if !t.get(i).is_some_and(|token| token.token == Token::Comma) { break; }
+        i += 1;
+    }
+    (!events.is_empty()).then(|| TriggerHeader { timing: timing.into(), events })
+}
+
+pub(super) struct DdlTableOperation {
+    pub(super) operation: &'static str,
+    pub(super) table: Name,
+    pub(super) source_path: String,
+}
+
 #[derive(Default)]
 pub struct Catalog {
     pub(super) tables: Vec<Table>,
     pub(super) objects: Vec<Object>,
+    pub(super) ddl_operations: Vec<DdlTableOperation>,
     pub gaps: Vec<String>,
 }
 
@@ -321,9 +355,20 @@ impl Catalog {
         let mut i = 0;
         while i < t.len() {
             anyhow::ensure!(
-                self.tables.len() + self.objects.len() < 20_000,
+                self.tables.len() + self.objects.len() + self.ddl_operations.len() < 20_000,
                 "Schema declaration inventory exceeds 20000 objects"
             );
+            // Preserve supported DROP INDEX targets as source operations, not
+            // effective schema inventory. Shared with post-deployment reports.
+            if kw(&t, i, "DROP") && kw(&t, i + 1, "INDEX") {
+                if let Some((_, after)) = name_at(&t, i + 2) {
+                    if kw(&t, after, "ON") {
+                        if let Some((table, _)) = name_at(&t, after + 1) {
+                            self.ddl_operations.push(DdlTableOperation { operation: "INDEX", table, source_path: path.into() });
+                        }
+                    }
+                }
+            }
             if !kw(&t, i, "CREATE") && !kw(&t, i, "ALTER") {
                 i += 1;
                 continue;
@@ -335,6 +380,9 @@ impl Catalog {
                 i += 2;
             }
             if alter && kw(&t, i, "TABLE") {
+                if let Some((table, _)) = name_at(&t, i + 1) {
+                    self.ddl_operations.push(DdlTableOperation { operation: "ALTER", table, source_path: path.into() });
+                }
                 self.gaps.push(format!("{path}:{}: ALTER TABLE is retained as a coverage gap; source declarations are not an executed migration state",t[start].span.start.line));
                 i += 1;
                 continue;
@@ -468,11 +516,21 @@ impl Catalog {
             } else {
                 None
             };
+            if kind == "index" && kw(&t, start, "CREATE") {
+                if let Some(table) = &target {
+                    self.ddl_operations.push(DdlTableOperation { operation: "INDEX", table: table.clone(), source_path: path.into() });
+                }
+            }
             let refs = references(&t[after..end]);
+            let trigger_header = if kind == "trigger" { trigger_header(&t, after, end) } else { None };
+            if kind == "trigger" && trigger_header.is_none() {
+                self.gaps.push(format!("{path}:{}: unsupported DML trigger header; declaration retained without event/timing interpretation", t[start].span.start.line));
+            }
             self.objects.push(Object {
                 kind,
                 name: key.display(),
                 target_table: target.as_ref().map(Name::display),
+                trigger_header,
                 references: refs.iter().map(Name::display).collect(),
                 declaration: text(&t[start..end]),
                 citation: citation(start, end),

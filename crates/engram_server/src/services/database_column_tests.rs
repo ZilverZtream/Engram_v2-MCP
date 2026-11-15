@@ -1,6 +1,122 @@
 use super::*;
 
 #[test]
+fn shared_view_and_trigger_declarations_preserve_events_and_source_citations() {
+    let source = "CREATE TABLE [dbo].[Orders] ([Id] INT NOT NULL);\nGO\nCREATE VIEW [dbo].[OrderTotals] ([Id]) AS SELECT o.Id FROM [dbo].[Orders] o;\nGO\nCREATE TRIGGER [dbo].[AuditOrders] ON [dbo].[Orders] AFTER INSERT, UPDATE, DELETE AS BEGIN INSERT [dbo].[Audit] (Id) SELECT Id FROM inserted; END;\nGO\nGRANT SELECT ON [dbo].[OrderTotals] TO [reader];\n";
+    let files = vec![("schema.sql".into(), source.into())];
+    let catalog = source_catalog(&files);
+    let views = project_catalog_views(&catalog);
+    assert_eq!(views.len(), 1);
+    assert_eq!(views[0].name, "OrderTotals");
+    assert_eq!(views[0].qualified_name, "[dbo].[OrderTotals]");
+    assert_eq!(views[0].source_tables, ["Orders"]);
+    assert_eq!(
+        (
+            views[0].source_citation.start_line,
+            views[0].source_citation.end_line
+        ),
+        (3, 3)
+    );
+    let triggers = project_catalog_triggers(&catalog);
+    assert_eq!(triggers.len(), 1);
+    assert_eq!(triggers[0].event_types, ["INSERT", "UPDATE", "DELETE"]);
+    assert_eq!(triggers[0].trigger_type, "AFTER");
+    assert_eq!(
+        triggers[0].qualified_target_table.as_deref(),
+        Some("[dbo].[Orders]")
+    );
+    assert!(triggers[0].body_summary.contains("Audit"));
+    for (kind, expected) in [
+        (
+            "views_sourced_from",
+            serde_json::to_value(&views[0].source_citation).unwrap(),
+        ),
+        (
+            "triggers_on_table",
+            serde_json::to_value(&triggers[0].source_citation).unwrap(),
+        ),
+    ] {
+        let request = serde_json::from_value(
+            serde_json::json!({"project_id":"p","query_type":{"kind":kind,"table":"dbo.Orders"}}),
+        )
+        .unwrap();
+        let result = catalog.query(&request).unwrap();
+        assert_eq!(result["results"][0]["object"]["citation"], expected);
+        assert_eq!(
+            expected["source_hash"],
+            blake3::hash(source.as_bytes()).to_hex().to_string()
+        );
+    }
+    let empty =
+        super::super::full_project_migration_service::build_sp_catalog_public(&files, &[], 1);
+    let report = build_database_intelligence(&empty, &files, &HashSet::new());
+    let markdown = render_database_intelligence_markdown(&report);
+    assert!(markdown.contains("[dbo].[OrderTotals]") && markdown.contains("schema.sql:3-3"));
+    assert!(markdown.contains("[dbo].[AuditOrders]") && markdown.contains("schema.sql:5-5"));
+    assert!(!markdown.contains("GRANT SELECT"));
+}
+
+#[test]
+fn shared_post_deploy_targets_preserve_mixed_operations_without_keyword_tables() {
+    let source = "INSERT [dbo].[Settings] (Id) VALUES (1), (2);\nMERGE [dbo].[Settings] AS target USING [dbo].[Defaults] AS incoming ON target.Id=incoming.Id WHEN MATCHED THEN UPDATE SET Id=incoming.Id WHEN NOT MATCHED THEN INSERT (Id) VALUES (incoming.Id);\nALTER TABLE [dbo].[Settings] ADD [Active] bit NULL;\nCREATE NONCLUSTERED INDEX [IX_Settings] ON [dbo].[Settings] ([Id]);\nDROP INDEX [IX_Settings] ON [dbo].[Settings];\n";
+    let analysis = analyze_sql_script("deployment.sql", source).unwrap();
+    assert_eq!(analysis.script_type, ScriptType::Mixed);
+    assert_eq!(analysis.tables_affected, ["Settings"]);
+    for operation in ["INSERT", "MERGE", "UPDATE", "ALTER", "INDEX"] {
+        assert!(analysis.operations.iter().any(|value| value == operation));
+    }
+    assert!(analysis.row_count_estimate.is_some());
+    let canonical = engram_index::sql_parser::analyze_write_operations(source);
+    assert!(
+        canonical
+            .iter()
+            .any(|reference| reference.operation == "INSERT" && reference.table == "Settings")
+    );
+    let deleted = analyze_sql_script("delete.sql", "DELETE [dbo].[Settings] WHERE Id=1;").unwrap();
+    assert_eq!(deleted.tables_affected, ["Settings"]);
+    assert_eq!(deleted.operations, ["DELETE"]);
+}
+
+#[test]
+fn combined_database_report_preserves_selected_procedures_chains_and_script_exclusion() {
+    let files = vec![
+        ("read.sql".into(), "CREATE PROCEDURE [dbo].[ReadOrders] AS BEGIN SELECT Id FROM dbo.Orders; EXEC dbo.SaveOrders; END\nGO\nGRANT EXECUTE ON dbo.ReadOrders TO reader;".into()),
+        ("save.sql".into(), "CREATE PROCEDURE [dbo].[SaveOrders] @Id INT AS BEGIN INSERT dbo.Orders (Id) VALUES (@Id); END\nGO\n".into()),
+        ("seed.sql".into(), "INSERT dbo.Settings (Id) VALUES (1);".into()),
+    ];
+    let selected =
+        super::super::full_project_migration_service::build_sp_catalog_public(&files, &[], 10);
+    let report = build_database_intelligence(&selected, &files, &HashSet::new());
+    assert_eq!(
+        report
+            .sp_logic
+            .iter()
+            .map(|row| row.sp_name.as_str())
+            .collect::<Vec<_>>(),
+        selected
+            .procedures
+            .iter()
+            .map(|row| row.name.as_str())
+            .collect::<Vec<_>>()
+    );
+    assert!(
+        report
+            .sp_call_chains
+            .iter()
+            .any(|row| row.chain == ["ReadOrders", "SaveOrders"])
+    );
+    assert_eq!(report.sql_scripts.len(), 1);
+    assert_eq!(report.sql_scripts[0].file_path, "seed.sql");
+    assert_eq!(report.sql_scripts[0].tables_affected, ["Settings"]);
+    assert!(
+        report
+            .sp_logic
+            .iter()
+            .all(|row| !row.parameters.iter().any(|value| value.contains("GRANT")))
+    );
+}
+
+#[test]
 fn source_indexes_attach_to_exact_table_names_with_their_own_citations() {
     let source = "CREATE TABLE [dbo].[Orders] ([Id] INT NOT NULL);\nGO\nCREATE NONCLUSTERED INDEX [IX_Orders_Id] ON [dbo].[Orders] ([Id] ASC);\nGO\nCREATE TABLE [audit].[Orders] ([Id] INT NOT NULL);";
     let tables = parse_create_tables(&[("indexes.sql".into(), source.into())]);

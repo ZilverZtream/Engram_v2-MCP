@@ -110,6 +110,12 @@ pub struct TriggerInfo {
     pub event_types: Vec<String>,
     pub trigger_type: String, // AFTER, INSTEAD OF, FOR
     pub body_summary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qualified_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub qualified_target_table: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_citation: Option<super::schema_query::Citation>,
 }
 
 /// Schema report from parsed CREATE TABLE/VIEW statements.
@@ -176,6 +182,8 @@ pub struct ForeignKey {
 pub struct ViewInfo {
     pub name: String,
     pub source_tables: Vec<String>,
+    pub qualified_name: String,
+    pub source_citation: super::schema_query::Citation,
 }
 
 /// Cross-reference warning between schema and code.
@@ -186,20 +194,6 @@ pub struct SchemaWarning {
 }
 
 // ── Regex Patterns ───────────────────────────────────────────────────────────
-
-static CREATE_TRIGGER_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(
-        r"(?ims)CREATE\s+TRIGGER\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+ON\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(AFTER|INSTEAD\s+OF|FOR)\s+(INSERT|UPDATE|DELETE(?:\s*,\s*(?:INSERT|UPDATE|DELETE))*)",
-    )
-    .expect("CREATE_TRIGGER_RE")
-});
-
-static CREATE_VIEW_RE: LazyLock<Regex> = LazyLock::new(|| {
-    Regex::new(r"(?ims)CREATE\s+(?:OR\s+ALTER\s+)?VIEW\s+(?:\[?dbo\]?\.)?\[?(\w+)\]?\s+(?:WITH\s+SCHEMABINDING\s+)?AS\s+(.*?)(?:(?:\r?\n|\r)GO\b|\z)")
-        .expect("CREATE_VIEW_RE")
-});
-
-// ── SP Business Logic (Deterministic) ────────────────────────────────────────
 
 /// Analyze stored procedure business logic using deterministic extraction.
 pub fn deterministic_sp_summary(sp_name: &str, sp_body: &str) -> SpBusinessLogic {
@@ -391,17 +385,34 @@ fn procedure_source_text(source: &str, definition: &engram_index::sp_extractor::
         .collect::<String>().trim_end().to_owned()
 }
 
+struct ProcedureSource<'a> {
+    path: &'a str,
+    source: &'a str,
+    definitions: Vec<engram_index::sp_extractor::StoredProcedureDefinition>,
+}
+
+fn procedure_sources(sql_files: &[(String, String)]) -> Vec<ProcedureSource<'_>> {
+    sql_files.iter().map(|(path, source)| ProcedureSource {
+        path, source, definitions: engram_index::sp_extractor::parse_sp_definitions(source),
+    }).collect()
+}
+
+#[cfg(test)]
 fn summarize_catalog_procedures(catalog: &StoredProcedureCatalog, sql_files: &[(String, String)]) -> Vec<SpBusinessLogic> {
+    summarize_parsed_procedures(catalog, &procedure_sources(sql_files))
+}
+
+fn summarize_parsed_procedures(catalog: &StoredProcedureCatalog, sources: &[ProcedureSource<'_>]) -> Vec<SpBusinessLogic> {
     let mut wanted: HashMap<String,Vec<usize>> = HashMap::new();
     for (index, procedure) in catalog.procedures.iter().enumerate() {
         wanted.entry(procedure.name.to_ascii_lowercase()).or_default().push(index);
     }
     let mut summaries: Vec<Option<SpBusinessLogic>> = vec![None;catalog.procedures.len()];
-    for (_, source) in sql_files {
+    for source in sources {
         if wanted.is_empty() {break;}
-        for definition in engram_index::sp_extractor::parse_sp_definitions(source) {
+        for definition in &source.definitions {
             let Some(indices) = wanted.remove(&definition.name.to_ascii_lowercase()) else {continue;};
-            let body = procedure_source_text(source,&definition);
+            let body = procedure_source_text(source.source,definition);
             for index in indices {
                 summaries[index] = Some(deterministic_sp_summary(&catalog.procedures[index].name,&body));
             }
@@ -412,19 +423,16 @@ fn summarize_catalog_procedures(catalog: &StoredProcedureCatalog, sql_files: &[(
 
 /// Build linear procedure call paths and cycles using the shared parser.
 pub fn detect_sp_call_chains(sql_files: &[(String, String)]) -> Vec<SpCallChain> {
-    let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
-    let mut all_sps: HashSet<String> = HashSet::new();
+    chains_from_parsed_procedures(&procedure_sources(sql_files))
+}
 
-    for (_path, content) in sql_files {
-        // Share the indexer's declaration/call recognition. This legacy report
-        // uses procedure basenames; it does not establish database/schema binding.
-        for definition in engram_index::sp_extractor::parse_sp_definitions(content) {
-            all_sps.insert(definition.name.clone());
-            let callees: Vec<_> = definition.called_procedures.into_iter()
-                .filter(|name| !name.eq_ignore_ascii_case(&definition.name)).collect();
-            if !callees.is_empty() {
-                adjacency.insert(definition.name, callees);
-            }
+fn chains_from_parsed_procedures(sources: &[ProcedureSource<'_>]) -> Vec<SpCallChain> {
+    let mut adjacency: HashMap<String, Vec<String>> = HashMap::new();
+    for source in sources {
+        for definition in &source.definitions {
+            let callees: Vec<_> = definition.called_procedures.iter()
+                .filter(|name| !name.eq_ignore_ascii_case(&definition.name)).cloned().collect();
+            if !callees.is_empty() { adjacency.insert(definition.name.clone(), callees); }
         }
     }
 
@@ -493,54 +501,25 @@ fn build_chains(
 
 /// Detect triggers from SQL file contents.
 pub fn detect_triggers(sql_files: &[(String, String)]) -> Vec<TriggerInfo> {
-    let mut triggers = Vec::new();
+    project_catalog_triggers(&source_catalog(sql_files))
+}
 
-    for (_path, content) in sql_files {
-        for cap in CREATE_TRIGGER_RE.captures_iter(content) {
-            let name = cap[1].to_string();
-            let table = cap[2].to_string();
-            let trigger_type = cap[3].to_string().replace("  ", " ");
-            let events_str = &cap[4];
-
-            let event_types: Vec<String> = events_str
-                .split(',')
-                .map(|s| s.trim().to_uppercase())
-                .filter(|s| !s.is_empty())
-                .collect();
-
-            // Extract a short summary of what the trigger does
-            let trigger_start = cap.get(0).expect("group 0 always present").end();
-            let body_end = content[trigger_start..]
-                .find("\nGO")
-                .or_else(|| content[trigger_start..].find("\nCREATE"))
-                .map(|p| trigger_start + p)
-                .unwrap_or(content.len().min(trigger_start + 500));
-            let body = &content[trigger_start..body_end];
-
-            let tables_touched: Vec<String> = referenced_body_tables(body)
-                .into_iter().filter(|name| !name.eq_ignore_ascii_case(&table))
-                .collect();
-
-            let body_summary = if tables_touched.is_empty() {
-                format!("Trigger on {table}")
-            } else {
-                format!(
-                    "Trigger on {table}, also touches {}",
-                    tables_touched.join(", ")
-                )
-            };
-
-            triggers.push(TriggerInfo {
-                name,
-                target_table: table,
-                event_types,
-                trigger_type,
-                body_summary,
-            });
-        }
-    }
-
-    triggers
+fn project_catalog_triggers(catalog: &super::schema_query::Catalog) -> Vec<TriggerInfo> {
+    catalog.objects.iter().filter(|object| object.kind == "trigger").filter_map(|object| {
+        let header = object.trigger_header.as_ref()?;
+        let target = object.target.as_ref()?;
+        let table = target.0.last()?.clone();
+        let tables_touched: Vec<_> = referenced_body_tables(&object.declaration).into_iter()
+            .filter(|name| !name.eq_ignore_ascii_case(&table)).collect();
+        let body_summary = if tables_touched.is_empty() { format!("Trigger on {table}") }
+            else { format!("Trigger on {table}, also touches {}", tables_touched.join(", ")) };
+        Some(TriggerInfo {
+            name: object.key.0.last()?.clone(), target_table: table,
+            event_types: header.events.clone(), trigger_type: header.timing.clone(), body_summary,
+            qualified_name: Some(object.name.clone()), qualified_target_table: object.target_table.clone(),
+            source_citation: Some(object.citation.clone()),
+        })
+    }).collect()
 }
 
 /// Cross-reference triggers with code-level SQL operations.
@@ -575,16 +554,20 @@ pub fn parse_create_tables(sql_files: &[(String, String)]) -> Vec<SchemaTable> {
     parse_schema_tables_with_coverage(sql_files).0
 }
 
-fn parse_schema_tables_with_coverage(
-    sql_files: &[(String, String)],
-) -> (Vec<SchemaTable>, Vec<String>) {
-    use super::schema_query;
-    let mut catalog = schema_query::Catalog::default();
+fn source_catalog(sql_files: &[(String, String)]) -> super::schema_query::Catalog {
+    let mut catalog = super::schema_query::Catalog::default();
     for (path, source) in sql_files {
-        if let Err(error) = catalog.add_source(path, source) {
-            catalog.gaps.push(format!("{path}: {error}"));
-        }
+        if let Err(error) = catalog.add_source(path, source) { catalog.gaps.push(format!("{path}: {error}")); }
     }
+    catalog
+}
+
+fn parse_schema_tables_with_coverage(sql_files: &[(String, String)]) -> (Vec<SchemaTable>, Vec<String>) {
+    project_catalog_tables(&source_catalog(sql_files))
+}
+
+fn project_catalog_tables(catalog: &super::schema_query::Catalog) -> (Vec<SchemaTable>, Vec<String>) {
+    use super::schema_query;
     let mut warnings: Vec<String> = catalog.gaps.iter()
         .map(|gap| format!("INCOMPLETE schema inventory: {gap}"))
         .collect();
@@ -598,7 +581,7 @@ fn parse_schema_tables_with_coverage(
         }
     }
     let mut tables = Vec::new();
-    for table in catalog.tables {
+    for table in catalog.tables.iter().cloned() {
         let name = table.key.0.last().cloned().unwrap_or_else(|| table.name.clone());
         let mut parsing_warnings: Vec<_> = table.gaps.iter().map(|gap| format!(
             "INCOMPLETE schema declaration in {} ({}): {gap}", table.citation.path, table.name,
@@ -655,22 +638,15 @@ fn project_schema_column(column: super::schema_query::Column) -> SchemaColumn {
 
 /// Parse CREATE VIEW statements.
 pub fn parse_create_views(sql_files: &[(String, String)]) -> Vec<ViewInfo> {
-    let mut views = Vec::new();
+    project_catalog_views(&source_catalog(sql_files))
+}
 
-    for (_path, content) in sql_files {
-        for cap in CREATE_VIEW_RE.captures_iter(content) {
-            let name = cap[1].to_string();
-            let body = &cap[2];
-            let source_tables = referenced_body_tables(body);
-
-            views.push(ViewInfo {
-                name,
-                source_tables,
-            });
-        }
-    }
-
-    views
+fn project_catalog_views(catalog: &super::schema_query::Catalog) -> Vec<ViewInfo> {
+    catalog.objects.iter().filter(|object| object.kind == "view").map(|object| ViewInfo {
+        name: object.key.0.last().cloned().unwrap_or_else(|| object.name.clone()),
+        source_tables: referenced_body_tables(&object.declaration),
+        qualified_name: object.name.clone(), source_citation: object.citation.clone(),
+    }).collect()
 }
 
 /// Cross-reference schema against code-level table references and build warnings.
@@ -825,26 +801,6 @@ fn strip_sql_comments(src: &str) -> String {
 
 /// Extract the bare table name from an optional `[schema].[name]` form,
 /// dropping brackets and quotes so downstream renders are clean.
-fn clean_table_name(raw: &str) -> String {
-    let last = raw
-        .rsplit('.')
-        .next()
-        .unwrap_or(raw)
-        .trim()
-        .trim_matches(|c| matches!(c, '[' | ']' | '"' | '`'));
-    last.to_string()
-}
-
-fn contains_create_procedure(content: &str) -> bool {
-    static CREATE_PROC_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)\bCREATE\s+(?:OR\s+ALTER\s+)?PROC(?:EDURE)?\b").expect("CREATE_PROC_RE")
-    });
-    // Strip comments first — a `-- CREATE PROCEDURE …` line in a seed
-    // script is not an SP definition and must not exclude the file.
-    let stripped = strip_sql_comments(content);
-    CREATE_PROC_RE.is_match(&stripped)
-}
-
 /// Tokens that sometimes follow `UPDATE` or `INSERT INTO` in real SQL but
 /// are not table names — e.g. `UPDATE SET …` inside a `MERGE … WHEN MATCHED
 /// THEN UPDATE SET …` clause. Filter these out so they don't leak into
@@ -856,27 +812,12 @@ fn is_sql_reserved_table_like(token: &str) -> bool {
     )
 }
 
+#[cfg(test)]
 fn analyze_sql_script(path: &str, content: &str) -> Option<SqlScriptAnalysis> {
-    static INSERT_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)\bINSERT\s+INTO\s+([\[\]\w.\-]+)").expect("INSERT_RE"));
-    static MERGE_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)\bMERGE\s+(?:INTO\s+)?([\[\]\w.\-]+)").expect("MERGE_RE")
-    });
-    static UPDATE_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)\bUPDATE\s+([\[\]\w.\-]+)").expect("UPDATE_RE"));
-    static DELETE_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)\bDELETE\s+FROM\s+([\[\]\w.\-]+)").expect("DELETE_RE"));
-    static ALTER_RE: LazyLock<Regex> =
-        LazyLock::new(|| Regex::new(r"(?i)\bALTER\s+TABLE\s+([\[\]\w.\-]+)").expect("ALTER_RE"));
-    static CREATE_INDEX_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)\bCREATE\s+(?:UNIQUE\s+)?(?:CLUSTERED\s+|NONCLUSTERED\s+)?INDEX\s+[\[\]\w.\-]+\s+ON\s+([\[\]\w.\-]+)")
-            .expect("CREATE_INDEX_RE")
-    });
-    static DROP_INDEX_RE: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(r"(?i)\bDROP\s+INDEX\s+[\[\]\w.\-]+\s+ON\s+([\[\]\w.\-]+)")
-            .expect("DROP_INDEX_RE")
-    });
-    // `(…),` tuple boundaries inside a VALUES list → approximate row count.
+    analyze_sql_script_with_catalog(path, content, &source_catalog(&[(path.into(), content.into())]))
+}
+
+fn analyze_sql_script_with_catalog(path: &str, content: &str, catalog: &super::schema_query::Catalog) -> Option<SqlScriptAnalysis> {
     static ROW_TUPLE_RE: LazyLock<Regex> =
         LazyLock::new(|| Regex::new(r"\)\s*,\s*\(").expect("ROW_TUPLE_RE"));
     // `WHEN MATCHED THEN UPDATE` / `WHEN NOT MATCHED THEN INSERT` branches.
@@ -892,7 +833,7 @@ fn analyze_sql_script(path: &str, content: &str) -> Option<SqlScriptAnalysis> {
     let mut tables: Vec<String> = Vec::new();
     let mut seen: HashSet<String> = HashSet::new();
     let push_table = |t: &str, tables: &mut Vec<String>, seen: &mut HashSet<String>| {
-        let name = clean_table_name(t);
+        let name = object_basename(t).to_string();
         if name.is_empty() || is_sql_reserved_table_like(&name) {
             return;
         }
@@ -910,52 +851,24 @@ fn analyze_sql_script(path: &str, content: &str) -> Option<SqlScriptAnalysis> {
     };
 
     let mut insert_count = 0usize;
-    for cap in INSERT_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        insert_count += 1;
-    }
-    if insert_count > 0 {
-        add_op("INSERT", &mut operations);
-    }
-
     let mut merge_count = 0usize;
-    for cap in MERGE_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        merge_count += 1;
+    for reference in engram_index::sql_parser::analyze_write_operations(&stripped) {
+        add_op(reference.operation, &mut operations);
+        let valid_target = !reference.table.is_empty() && !is_sql_reserved_table_like(&reference.table);
+        if valid_target {
+            push_table(&reference.table, &mut tables, &mut seen);
+            if reference.operation == "INSERT" { insert_count += 1; }
+            if reference.operation == "MERGE" { merge_count += 1; }
+        }
     }
-    if merge_count > 0 {
-        add_op("MERGE", &mut operations);
-    }
-
-    for cap in UPDATE_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        add_op("UPDATE", &mut operations);
-    }
-    for cap in DELETE_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        add_op("DELETE", &mut operations);
-    }
-
     let mut alter_count = 0usize;
-    for cap in ALTER_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        alter_count += 1;
-    }
-    if alter_count > 0 {
-        add_op("ALTER", &mut operations);
-    }
-
     let mut index_count = 0usize;
-    for cap in CREATE_INDEX_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        index_count += 1;
-    }
-    for cap in DROP_INDEX_RE.captures_iter(&stripped) {
-        push_table(&cap[1], &mut tables, &mut seen);
-        index_count += 1;
-    }
-    if index_count > 0 {
-        add_op("INDEX", &mut operations);
+    for reference in catalog.ddl_operations.iter().filter(|reference| reference.source_path == path) {
+        let table = reference.table.0.last().map(String::as_str).unwrap_or("");
+        push_table(table, &mut tables, &mut seen);
+        add_op(reference.operation, &mut operations);
+        if reference.operation == "ALTER" { alter_count += 1; }
+        if reference.operation == "INDEX" { index_count += 1; }
     }
 
     if operations.is_empty() {
@@ -1033,13 +946,18 @@ fn analyze_sql_script(path: &str, content: &str) -> Option<SqlScriptAnalysis> {
 /// Analyse every non-SP SQL file in `sql_files` — those are the post-deploy
 /// seed/merge/DDL scripts that carry real business logic on top of the
 /// stored-procedure catalog.
+#[cfg(test)]
 fn analyze_post_deploy_scripts(sql_files: &[(String, String)]) -> Vec<SqlScriptAnalysis> {
+    analyze_post_deploy_scripts_with_catalog(sql_files, &source_catalog(sql_files), &procedure_sources(sql_files))
+}
+
+fn analyze_post_deploy_scripts_with_catalog(sql_files: &[(String, String)], catalog: &super::schema_query::Catalog, procedures: &[ProcedureSource<'_>]) -> Vec<SqlScriptAnalysis> {
     let mut out = Vec::new();
     for (path, content) in sql_files {
-        if contains_create_procedure(content) {
+        if procedures.iter().any(|source| source.path == path && !source.definitions.is_empty()) {
             continue;
         }
-        if let Some(analysis) = analyze_sql_script(path, content) {
+        if let Some(analysis) = analyze_sql_script_with_catalog(path, content, catalog) {
             out.push(analysis);
         }
     }
@@ -1067,21 +985,19 @@ pub fn build_database_intelligence(
     }
 
     // SP business logic (deterministic)
-    let sp_logic = summarize_catalog_procedures(sp_catalog, sql_files);
+    let procedures = procedure_sources(sql_files);
+    let sp_logic = summarize_parsed_procedures(sp_catalog, &procedures);
+    let sp_call_chains = chains_from_parsed_procedures(&procedures);
 
-    // SP call chains
-    let sp_call_chains = detect_sp_call_chains(sql_files);
-
-    // Triggers
-    let triggers = detect_triggers(sql_files);
-
-    // Schema parsing + cross-reference
-    let (schema_tables, schema_inventory_gaps) = parse_schema_tables_with_coverage(sql_files);
-    let schema_views = parse_create_views(sql_files);
+    // One declaration inventory supplies all schema projections and source citations.
+    let catalog = source_catalog(sql_files);
+    let triggers = project_catalog_triggers(&catalog);
+    let (schema_tables, schema_inventory_gaps) = project_catalog_tables(&catalog);
+    let schema_views = project_catalog_views(&catalog);
     let schema_report = cross_reference_schema(schema_tables, schema_views, code_tables);
 
     // Post-deployment scripts (seed/merge/DDL files that are NOT SP defs)
-    let sql_scripts = analyze_post_deploy_scripts(sql_files);
+    let sql_scripts = analyze_post_deploy_scripts_with_catalog(sql_files, &catalog, &procedures);
 
     // Cross-reference triggers with code
     let trigger_warnings = cross_reference_triggers(&triggers, code_tables);
@@ -1182,6 +1098,12 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
                 t.trigger_type,
                 t.body_summary.replace('|', "\\|"),
             ));
+        }
+        for trigger in &intel.triggers {
+            if let Some(source) = &trigger.source_citation {
+                md.push_str(&format!("Source declaration: `{}` on `{}` at `{}:{}-{}`, BLAKE3 `{}`. Static source, not execution proof.\n",
+                    trigger.qualified_name.as_deref().unwrap_or(&trigger.name), trigger.qualified_target_table.as_deref().unwrap_or(&trigger.target_table), source.path, source.start_line, source.end_line, source.source_hash));
+            }
         }
         md.push('\n');
     }
@@ -1302,6 +1224,9 @@ pub fn render_database_intelligence_markdown(intel: &DatabaseIntelligence) -> St
                     view.source_tables.join(", ")
                 }
             ));
+            let source = &view.source_citation;
+            md.push_str(&format!("  Source declaration: `{}` at `{}:{}-{}`, BLAKE3 `{}`. Static source, not execution proof.\n",
+                view.qualified_name, source.path, source.start_line, source.end_line, source.source_hash));
         }
         md.push('\n');
     }
@@ -1569,6 +1494,7 @@ GO"#
             event_types: vec!["INSERT".to_string()],
             trigger_type: "AFTER".to_string(),
             body_summary: "Trigger on Orders".to_string(),
+                qualified_name: None, qualified_target_table: None, source_citation: None,
         }];
 
         let mut code_tables = HashSet::new();
@@ -1832,6 +1758,7 @@ GO"#
                 event_types: vec!["INSERT".to_string()],
                 trigger_type: "AFTER".to_string(),
                 body_summary: "Logs to AuditLog".to_string(),
+                qualified_name: None, qualified_target_table: None, source_citation: None,
             }],
             schema: SchemaReport::default(),
             sql_scripts: vec![],
@@ -1844,33 +1771,6 @@ GO"#
     }
 
     // ── Post-deployment script analysis ─────────────────────────────────────
-
-    #[test]
-    fn contains_create_procedure_detects_ddl_keyword() {
-        assert!(contains_create_procedure(
-            "CREATE PROCEDURE [dbo].[usp_Get] AS SELECT 1"
-        ));
-        assert!(contains_create_procedure(
-            "create or alter proc dbo.usp_Foo as select 1"
-        ));
-        assert!(!contains_create_procedure(
-            "INSERT INTO dbo.Settings VALUES (1, 'x')"
-        ));
-        assert!(!contains_create_procedure(
-            "-- CREATE PROCEDURE usp_fake\nINSERT INTO T VALUES (1)"
-        ));
-    }
-
-    #[test]
-    fn clean_table_name_strips_schema_and_brackets() {
-        assert_eq!(
-            clean_table_name("[dbo].[ss_systemSettings]"),
-            "ss_systemSettings"
-        );
-        assert_eq!(clean_table_name("dbo.Orders"), "Orders");
-        assert_eq!(clean_table_name("Orders"), "Orders");
-        assert_eq!(clean_table_name("\"dbo\".\"t\""), "t");
-    }
 
     #[test]
     fn analyze_sql_script_classifies_seed_insert() {

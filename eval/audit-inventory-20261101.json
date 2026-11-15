@@ -10023,37 +10023,35 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "finding": "EG01/EG27 scoped guidance source handoff",
-      "original_requirement": "Usable scoped instruction retrieval with source freshness preserved across planning, editing, retrieval and review.",
-      "observed_missing_behavior": "Oversized actual LegacyValidation guide is intentionally omitted; omission supplies only prose path/hash. Existing Core source reader has no expected-hash request or hash-bound next-page handoff.",
+      "status": "IMPLEMENTED_FOCUSED_NATIVE_VALIDATED_RELEASE_RUNNING",
+      "finding": "Original TODO59 remaining database source parsing consolidation",
+      "original_requirement": "Consolidate overlapping SQL parsing/table extraction across database_intelligence_service, db_strategy_service and full_project_migration_service.",
+      "observed_missing_behavior": "Strategy already uses common statement parsing and full-project catalog uses shared SP extraction. Database intelligence still has independent view/trigger declaration regexes and post-deploy write/table recognizers, and reparses source for multiple report sections. Real LegacyValidation view report lacks qualified declaration citation.",
       "implementation_files": [
-        "crates/engram_server/src/services/project_policy.rs",
-        "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/handlers/access_layer_tools.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs",
-        "crates/engram_server/src/handlers/search_tools.rs",
-        "crates/engram_server/src/handlers/review_tools.rs",
-        "crates/engram_server/src/handlers/method_body_policy.rs",
-        "docs/TOOL_CONTRACT.md"
+        "crates/engram_index/src/sql_parser.rs",
+        "crates/engram_server/src/services/schema_query.rs",
+        "crates/engram_server/src/services/database_intelligence_service.rs",
+        "crates/engram_server/src/services/database_column_tests.rs",
+        "docs/TOOL_CONTRACT.md",
+        "crates/engram_server/src/services/db_strategy_service.rs"
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
-      "baseline": "Retained edit-workflow-delivery-20261115 candidate/installed omission acceptance; current source project_policy::PolicyOmission and excerpt reader.",
+      "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
       "acceptance": [
-        "Emit executable project-bound get_full_method_body action for hash-known omitted current guidance in planning/editing/retrieval/review; keep coverage incomplete and all qualifications.",
-        "Check expected_file_blake3 against the same complete-file raw snapshot before returning explicit source; automatically pin next pages. Changed source refuses with policy refresh advice. Immutable response recovery performs no new source read.",
-        "Do not emit current-file recovery for historical or unknown-hash omissions. Reader remains in Core. Verify oversized owned copy of actual nonQ LegacyValidation guide end-to-end, changed source refusal, historical withholding, and cleanup.",
-        "One combined focused native check and one release build after all three source components; no per-component build or full suite."
+        "Project views and existing DML triggers from the shared declaration catalog; preserve legacy names/summary fields and supply qualified source names and citations in JSON/Markdown. Remove duplicate declaration regexes.",
+        "Reuse canonical write-reference recognizers for post-deploy INSERT/MERGE/UPDATE/DELETE table extraction and shared tokenized qualified-name parsing for supported DDL/index targets. Retain explicitly heuristic row estimates and report classification; no migration execution inference.",
+        "Reuse the common catalog in full database report assembly; preserve shared SP parser selection/order and current table/key/index evidence. Verify common declaration, report and strategy/call-catalog behavior in one focused harness after all components are implemented.",
+        "Verify unchanged exact non-Q LegacyValidation table/view copies through public query_schema and database reports, seed/mixed-script fixture behavior, and resource cleanup. One canonical release; no per-component Cargo or full suite.",
+        "Close only original duplicate SQL parsing/table extraction scope if the current three-service source evidence proves it consolidated; leave original quality, usefulness and broader SQL support limits open."
       ],
       "implementation_complete": true,
-      "validated": true,
-      "deployed": true,
-      "source_commit": "74b20ac25523da4806f4ccf2cd1c610d6b08c7a1",
+      "validated": false,
+      "deployed": false,
+      "source_commit": "70bd8b85459ac5bf0d5714e8c83e00bb94ffcb5a",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\b1\\acceptance.json",
+      "progress": "eval/legacy_validation-database-source-consolidation-progress-20261115.json",
       "native_validated": true,
-      "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115\\native-acceptance.json",
-      "progress": "eval/legacy_validation-policy-source-handoff-progress-20261115.json",
-      "bounded_delivery_complete": true,
-      "delivery": "eval/legacy_validation-policy-source-handoff-delivery-20261115.json"
+      "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115\\native-acceptance.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10085,7 +10083,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG01/EG27 guidance source handoff delivered; advance remaining original requirements without replaying passed acceptance.",
+    "active_original_item": "Original TODO59 remaining source parser consolidation; one item with three source components before builds.",
     "next_user_visible_deliverable": "Advance remaining original LegacyValidation requirements; preserve unfinished original findings and benefit gaps. Current guidance handoff is installed.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -10103,7 +10101,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: Windows packaging workflow implemented and pushed; authoritative repository API reports Actions disabled, explaining zero runs. Explicit repository-wide enablement choice requested; no setting changed.",
+    "previous_goal_turn_classification": "PROGRESS: guidance handoff implemented, installed, public15/15 and native20 PASS; receipt eval/legacy_validation-policy-source-handoff-delivery-20261115.json.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -14404,7 +14402,13 @@
       "compiled_tests_seconds": 369.994755599997,
       "actual_test_execution_seconds": 0.66,
       "last_release_compile_seconds": 754,
-      "pending": [],
+      "pending": [
+        {
+          "component": "database-source-consolidation",
+          "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\database-source-consolidation-20261115",
+          "status": "SOURCE_COMPLETE_NATIVE_PENDING"
+        }
+      ],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
       "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-source-handoff-20261115",
       "completed_last_batch": [
@@ -14429,8 +14433,8 @@
       ],
       "last_release_compile": "Finished `release` profile [optimized] target(s) in 12m 34s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
-      "current_step_builds_required": 0,
-      "current_step_reason": "Guidance handoff accepted and installed; no pending source from this batch.",
+      "current_step_builds_required": 1,
+      "current_step_reason": "Whole database-source consolidation passed62 focused native cases; one release running, no full suite.",
       "last_native_attempts": 3,
       "last_release_attempts": 1,
       "compiled_tests_seconds_scope": "All three native runners including failed attempts and owned cleanup; actual test execution reported separately.",

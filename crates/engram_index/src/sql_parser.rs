@@ -220,6 +220,23 @@ pub struct SqlBodyReferences {
     pub called_procedures: Vec<String>,
 }
 
+/// Apparent write targets from the shared SQL body recognizers. These retain
+/// the legacy basename convention; aliases, strings and execution are unresolved.
+#[derive(Debug, Clone)]
+pub struct SqlWriteOperation {
+    pub operation: &'static str,
+    pub table: String,
+}
+
+pub fn analyze_write_operations(sql: &str) -> Vec<SqlWriteOperation> {
+    [("INSERT", re_insert_table()), ("MERGE", re_merge_table()),
+     ("UPDATE", re_update_table()), ("DELETE", re_delete_table())]
+        .into_iter().flat_map(|(operation, pattern)| pattern.captures_iter(sql)
+            .filter_map(move |capture| capture.get(1).map(|name| SqlWriteOperation {
+                operation, table: strip_brackets(name.as_str()).to_owned(),
+            }))).collect()
+}
+
 pub fn analyze_body_references(sql: &str) -> SqlBodyReferences {
     body_references(sql, false)
 }

@@ -524,3 +524,24 @@ their source coverage observations are reported alongside admitted accesses.
 Aliases and property-style access are outside this extraction. Missing keys do
 not establish absence of runtime access. Run `update_project` after upgrading to
 acquire the browser-storage facts for previously indexed JS/TS files.
+
+### Shared database source analysis
+
+The database strategy, migration procedure catalog and database intelligence
+report use the existing shared SQL statement/body/name and stored-procedure
+recognizers. Database intelligence projects table, key, index, view and supported
+DML-trigger declarations from the same source catalog used by `query_schema`.
+Views and triggers retain qualified declaration names and raw-source citations
+in JSON and Markdown. Existing legacy basename fields remain available.
+
+A combined database report reuses one declaration catalog and one set of parsed
+procedure definitions for its schema projections, procedure summaries, call
+chains and procedure-file exclusion. Post-deployment write targets reuse the
+shared INSERT/MERGE/UPDATE/DELETE recognizers; supported ALTER TABLE and
+CREATE/DROP INDEX targets come from the tokenized source catalog.
+
+This consolidates source recognition, not SQL execution or effective migration
+state. Procedure/default-schema/alias binding and dynamic SQL remain unresolved.
+Source definitions, unsupported headers and parser gaps remain visible. Script
+classification and row estimates remain heuristics; generated migration
+scaffolds still require application-specific review and validation.

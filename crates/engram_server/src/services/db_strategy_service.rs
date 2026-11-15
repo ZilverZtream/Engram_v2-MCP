@@ -748,7 +748,7 @@ fn severity_order(s: &str) -> u8 {
 }
 
 fn strip_brackets(s: &str) -> &str {
-    s.trim_start_matches('[').trim_end_matches(']')
+    engram_index::sql_names::object_basename(s)
 }
 
 fn to_pascal_case(s: &str) -> String {
