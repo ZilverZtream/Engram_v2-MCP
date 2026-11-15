@@ -281,6 +281,7 @@ async fn session_bookends_track_scope_drift() {
     let close = engram
         .complete_edit_session(Parameters(
             engram_server::models::CompleteEditSessionRequest {
+                max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: pid.clone(),
                 session_id: None,
                 session_revision: None,
@@ -306,6 +307,7 @@ async fn session_bookends_track_scope_drift() {
     let again = engram
         .complete_edit_session(Parameters(
             engram_server::models::CompleteEditSessionRequest {
+                max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: pid.clone(),
                 session_id: None,
                 session_revision: None,

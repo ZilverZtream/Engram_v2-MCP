@@ -1,0 +1,33 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "component": "bounded retryable edit-session completion",
+  "original_requirement": "TODO4 bounded complete agent-facing edit workflow reports",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/detect_incomplete_changes_test.rs"
+  ],
+  "implementation_checkpoint_files": {
+    "crates/engram_server/src/models/requests.rs": "e64a8d5274e538084499aaed33a16697dabaf730c5fb71937bf572501c685c76",
+    "crates/engram_server/src/handlers/planning_tools.rs": "78bb56142cc899bb9952c42c64ae9dfdec8c048678b4c2b47095f3e2ed425aac",
+    "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "9de7e984d024ee5aa44c6e33961938763a96f8de7727822d0ad4cc7780689188",
+    "crates/engram_server/src/tools.rs": "aee537b0e23d44fddde44288adfb96be603bea1531006aa7dd5fd521f377bd32",
+    "crates/engram_server/tests/detect_incomplete_changes_test.rs": "52341548c7641567b1a7c8374c2cdd9d43f0d0f5f23344003906cbce59553c84"
+  },
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "behavior": "Prepare full or deferred closing report before exact lifecycle consumption. Delivery failures preserve the session for retry; immutable recovery cannot complete a reused lifecycle.",
+  "tests_added": [
+    "closing delivery budget/cache failures leave all workers intact",
+    "old closing recovery preserves other workers and a reused session identity"
+  ],
+  "limits": [
+    "Native and public verification pending in the combined batch",
+    "Advisory report; no approval, source freshness or task-benefit claim"
+  ]
+}

@@ -338,7 +338,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Close the edit session: reports scope drift (planned-but-unedited files) plus the full completeness check on what you actually edited. Run before pre_commit_review."
+        description = "Close the exact edit-session lifecycle: reports planned-but-unedited scope drift, dossier references, authored guidance and completeness evidence for actual edited files. max_tokens bounds the complete reply, default40KiB; output_json wraps the original Markdown and lifecycle metadata. Oversized reports retain exact immutable recovery. Delivery preparation failure leaves the session retryable; recovery never completes it again. Advisory evidence, not approval. Run before pre_commit_review."
     )]
     pub async fn complete_edit_session(
         &self,

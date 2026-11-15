@@ -1244,6 +1244,17 @@ pub struct BeginEditSessionRequest {
 #[serde(deny_unknown_fields)]
 pub struct CompleteEditSessionRequest {
     pub project_id: String,
+    /// Complete reply budget estimated as ceil(UTF-8 bytes/4); default40KiB.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Recover a captured closing report without completing a lifecycle again.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
+    /// Wrap the original Markdown report and lifecycle metadata in JSON.
+    #[serde(default)]
+    pub output_json: bool,
     /// Session returned by begin. May be omitted only when exactly one is open.
     #[serde(default)]
     pub session_id: Option<String>,

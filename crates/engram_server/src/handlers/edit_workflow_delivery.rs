@@ -334,4 +334,92 @@ mod tests {
                 .contains("Edit session COMPLETE")
         );
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn completion_delivery_failure_is_retryable_and_old_recovery_preserves_reused_lifecycles()
+    {
+        let (_owned, state, app) = fixture();
+        let opened: Value = serde_json::from_str(&text(
+            app.handle_begin_edit_session(opening(10240)).await.unwrap(),
+        ))
+        .unwrap();
+        let revision = opened["summary"]["session_revision"].clone();
+        let other = serde_json::from_value(
+            json!({"project_id":PROJECT,"session_id":"other","planned_files":["Site/Other.vb"]}),
+        )
+        .unwrap();
+        app.handle_begin_edit_session(other).await.unwrap();
+        let before = state.registry.get_meta(PROJECT, SESSIONS).unwrap();
+        let request = |tokens| {
+            serde_json::from_value(
+                json!({"project_id":PROJECT,"session_id":"worker","session_revision":revision,
+            "edited_files":["Site/Feature.vb"],"max_tokens":tokens,"output_json":true}),
+            )
+            .unwrap()
+        };
+        assert!(app.handle_complete_edit_session(request(1)).await.is_err());
+        assert_eq!(state.registry.get_meta(PROJECT, SESSIONS).unwrap(), before);
+        let blocked = state.cfg.data_dir.join("responses/edit-complete");
+        std::fs::create_dir_all(blocked.parent().unwrap()).unwrap();
+        std::fs::write(&blocked, b"owned cache blocker").unwrap();
+        assert!(
+            app.handle_complete_edit_session(request(1024))
+                .await
+                .is_err()
+        );
+        assert_eq!(state.registry.get_meta(PROJECT, SESSIONS).unwrap(), before);
+        std::fs::remove_file(blocked).unwrap();
+        let packet: Value = serde_json::from_str(&text(
+            app.handle_complete_edit_session(request(1024))
+                .await
+                .unwrap(),
+        ))
+        .unwrap();
+        assert_eq!(packet["report_content"], "DEFERRED_NOT_SUPPLIED");
+        let remaining: Value =
+            serde_json::from_str(&state.registry.get_meta(PROJECT, SESSIONS).unwrap().unwrap())
+                .unwrap();
+        assert!(remaining["sessions"].get("worker").is_none());
+        assert!(remaining["sessions"].get("other").is_some());
+        let reused = serde_json::from_value(
+            json!({"project_id":PROJECT,"session_id":"worker","planned_files":["Site/New.vb"]}),
+        )
+        .unwrap();
+        app.handle_begin_edit_session(reused).await.unwrap();
+        let after_reuse = state.registry.get_meta(PROJECT, SESSIONS).unwrap();
+        let mut next = packet["response_delivery"]["next_call"].clone();
+        let mut original = String::new();
+        loop {
+            assert_eq!(next["tool"], "complete_edit_session");
+            let req: crate::models::CompleteEditSessionRequest =
+                serde_json::from_value(next["arguments"].clone()).unwrap();
+            let page = text(app.handle_complete_edit_session(req).await.unwrap());
+            assert!(page.len() <= 4096);
+            let page: Value = serde_json::from_str(&page).unwrap();
+            original.push_str(page["content"].as_str().unwrap());
+            if page["complete"] == true {
+                break;
+            }
+            next = page["next_call"].clone();
+        }
+        assert_eq!(
+            state.registry.get_meta(PROJECT, SESSIONS).unwrap(),
+            after_reuse
+        );
+        let full: Value = serde_json::from_str(&original).unwrap();
+        assert_eq!(full["summary"]["session_revision"], revision);
+        assert!(
+            full["report_markdown"]
+                .as_str()
+                .unwrap()
+                .contains("Advisory completeness check")
+        );
+        for id in ["worker", "other"] {
+            let sessions: Value =
+                serde_json::from_str(&state.registry.get_meta(PROJECT, SESSIONS).unwrap().unwrap())
+                    .unwrap();
+            let req=serde_json::from_value(json!({"project_id":PROJECT,"session_id":id,"session_revision":sessions["sessions"][id]["revision"],"edited_files":[]})).unwrap();
+            app.handle_complete_edit_session(req).await.unwrap();
+        }
+    }
 }

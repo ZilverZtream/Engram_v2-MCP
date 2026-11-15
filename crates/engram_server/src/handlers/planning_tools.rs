@@ -13502,6 +13502,11 @@ impl Engram {
         req: crate::models::CompleteEditSessionRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
+        let budget=change_set_delivery::budget(req.max_tokens)?;
+        if let Some(reply)=edit_workflow_delivery::recover(&self.state.cfg.data_dir,&req.project_id,
+            change_set_delivery::EditReport::Complete,req.response_id.as_deref(),req.response_offset,budget)? {
+            return Ok(CallToolResult::success(vec![Content::text(reply)]));
+        }
         let reg = self.state.registry.clone();
         let pid = req.project_id.clone();
         let stored = tokio::task::spawn_blocking(move || reg.get_meta(&pid, EDIT_SESSION_META_KEY))
@@ -13579,21 +13584,7 @@ impl Engram {
             edit_session_policy(PathBuf::from(record.directory), edited.clone()).await?
         };
 
-        // Consume only the exact session checked. Concurrent workers retain
-        // their sessions, and any failure above leaves this one retryable.
-        let reg2 = self.state.registry.clone();
-        let pid2 = req.project_id.clone();
-        let consume_id = session_id.clone();
-        let expected = session.clone();
-        let legacy_selection = req.session_id.is_none();
-        tokio::task::spawn_blocking(move || update_edit_sessions(&reg2, &pid2, |sessions| {
-            if (legacy_selection && sessions.len() != 1) || sessions.get(&consume_id) != Some(&expected) {
-                return Err(McpError::invalid_params("session changed, completed, or became ambiguous during validation; retry using session_id", None));
-            }
-            sessions.remove(&consume_id);
-            Ok(())
-        })).await.map_err(|e| McpError::internal_error(e.to_string(), None))??;
-
+        let unedited_plan_count=unedited_plan.len();
         let mut out = format!("# Edit session COMPLETE\nsession_id: {session_id}\nsession_revision: {}\nstarted snapshot: {}\nAdvisory completeness check; not approval or certification of the current diff.\n", session["revision"], session["snapshot"]);
         if !unedited_plan.is_empty() {
             out.push_str("\n## Planned but NOT edited (scope drift — confirm intentional)\n");
@@ -13642,7 +13633,27 @@ impl Engram {
         out.push_str("\n");
         out.push_str(&policy);
         out.push_str(&check_text);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&req.project_id,change_set_delivery::EditReport::Complete,out,
+            serde_json::json!({"tool":"complete_edit_session","session_id":session_id,"session_revision":session["revision"],
+                "started_snapshot":session["snapshot"],"planned_file_count":planned.len(),"edited_file_count":edited.len(),
+                "unedited_plan_count":unedited_plan_count,"session_state":"COMPLETE",
+                "completeness_analysis":if edited.is_empty() {"NOT_REQUESTED_NO_EDITS"} else {"IN_ORIGINAL_REPORT"}}),req.output_json,budget)?;
+
+        // Prepare delivery before consuming the exact lifecycle checked above.
+        // Any budget/cache failure leaves this session and other workers intact.
+        let reg2 = self.state.registry.clone();
+        let pid2 = req.project_id.clone();
+        let consume_id = session_id.clone();
+        let expected = session.clone();
+        let legacy_selection = req.session_id.is_none();
+        tokio::task::spawn_blocking(move || update_edit_sessions(&reg2, &pid2, |sessions| {
+            if (legacy_selection && sessions.len() != 1) || sessions.get(&consume_id) != Some(&expected) {
+                return Err(McpError::invalid_params("session changed, completed, or became ambiguous during validation; retry using session_id", None));
+            }
+            sessions.remove(&consume_id);
+            Ok(())
+        })).await.map_err(|e| McpError::internal_error(e.to_string(), None))??;
+        Ok(CallToolResult::success(vec![Content::text(reply)]))
     }
 }
 
