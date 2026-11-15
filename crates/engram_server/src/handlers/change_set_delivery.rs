@@ -16,7 +16,19 @@ pub(super) fn budget(tokens: Option<usize>) -> Result<usize, McpError> {
 }
 
 #[derive(Clone, Copy)]
-enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint, PatternReport, MethodSource, MethodInfo }
+enum Family { ChangeSet, Review, RequestTrace, DatabaseReport, AskReport, ConceptFootprint, PatternReport, MethodSource, MethodInfo, EditCompleteness, EditBegin, EditComplete }
+
+#[derive(Clone, Copy)]
+pub(crate) enum EditReport { Completeness, Begin, Complete }
+
+impl EditReport {
+    fn family(self) -> Family {
+        match self {Self::Completeness=>Family::EditCompleteness,Self::Begin=>Family::EditBegin,Self::Complete=>Family::EditComplete}
+    }
+    pub(crate) fn tool(self) -> &'static str {
+        match self {Self::Completeness=>"detect_incomplete_changes",Self::Begin=>"begin_edit_session",Self::Complete=>"complete_edit_session"}
+    }
+}
 
 fn failure(message: impl Into<String>) -> McpError {
     McpError::internal_error(message.into(), None)
@@ -28,7 +40,7 @@ fn directory(data_dir: &Path, project_id: &str) -> Result<PathBuf, McpError> {
 }
 
 fn directory_for(data_dir: &Path, project_id: &str, family: Family) -> Result<PathBuf, McpError> {
-    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint", Family::PatternReport => "pattern-report", Family::MethodSource => "method-source", Family::MethodInfo => "method-info" };
+    let family = match family { Family::ChangeSet => "change-set", Family::Review => "review", Family::RequestTrace => "request-trace", Family::DatabaseReport => "database-report", Family::AskReport => "ask-report", Family::ConceptFootprint => "concept-footprint", Family::PatternReport => "pattern-report", Family::MethodSource => "method-source", Family::MethodInfo => "method-info", Family::EditCompleteness=>"edit-completeness",Family::EditBegin=>"edit-begin",Family::EditComplete=>"edit-complete" };
     super::super::validate_project_id(project_id)?;
     engram_core::safe_join(data_dir, &format!("responses/{family}/{project_id}"))
         .map_err(|_| failure("Cannot safely access the project-scoped change-set response cache"))
@@ -344,6 +356,19 @@ pub(crate) fn save_method_info(data_dir: &Path, project_id: &str, body: &str) ->
     save_for(data_dir,project_id,body,Family::MethodInfo)
 }
 
+pub(crate) fn save_edit_report(data: &Path,project: &str,body: &str,kind: EditReport) -> Result<String,McpError> {
+    save_for(data,project,body,kind.family())
+}
+
+pub(crate) fn edit_report_continuation(kind: EditReport,project: &str,id: &str,offset: usize,budget: usize) -> Value {
+    json!({"tool":kind.tool(),"arguments":{"project_id":project,"response_id":id,
+        "response_offset":offset,"max_tokens":budget/4,"output_json":true}})
+}
+
+pub(crate) fn recover_edit_report(data: &Path,project: &str,id: &str,offset: usize,budget: usize,kind: EditReport) -> Result<String,McpError> {
+    recover_for(data,project,id,offset,budget,kind.family())
+}
+
 pub(crate) fn method_info_continuation(project_id: &str,id: &str,offset: usize,budget: usize) -> Value {
     json!({"tool":"get_method_info","arguments":{
         "project_id":project_id,"response_id":id,"response_offset":offset,
@@ -418,6 +443,9 @@ fn recover_for(data_dir: &Path, project_id: &str, id: &str, offset: usize, budge
                 Family::PatternReport => pattern_report_continuation(project_id,id,end,budget),
                 Family::MethodSource => method_source_continuation(project_id,id,end,budget),
                 Family::MethodInfo => method_info_continuation(project_id,id,end,budget),
+                Family::EditCompleteness => edit_report_continuation(EditReport::Completeness,project_id,id,end,budget),
+                Family::EditBegin => edit_report_continuation(EditReport::Begin,project_id,id,end,budget),
+                Family::EditComplete => edit_report_continuation(EditReport::Complete,project_id,id,end,budget),
             }},
         });
         let rendered = serde_json::to_string(&page)

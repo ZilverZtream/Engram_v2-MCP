@@ -1,0 +1,35 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "component": "bounded public edit-completeness delivery",
+  "original_requirement": "TODO4 complete reply budgets, JSON container and immutable recovery for existing agent tools",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/handlers/change_set_delivery.rs",
+    "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/detect_incomplete_changes_test.rs"
+  ],
+  "implementation_checkpoint_files": {
+    "crates/engram_server/src/models/requests.rs": "9f152789761b227c65ae9c6b9be4e9fa3c9e8f1e6f28a6ccf150f077a07653c6",
+    "crates/engram_server/src/handlers/planning_tools.rs": "d28c6a386f989efd37a783a02ac8355e2bdc04e0728b978e5e4e52462c9b605a",
+    "crates/engram_server/src/handlers/change_set_delivery.rs": "2128dfc1dd5508d24d3023a455153dea65b10fa69bcff19688b1f571f81ca92f",
+    "crates/engram_server/src/handlers/edit_workflow_delivery.rs": "0bebabfee6109e63e07fb89cb1daef864cb54d091bebd1bdf2e9d6ad6f27996b",
+    "crates/engram_server/src/tools.rs": "dbfd50dc80aa7f7fcabe75c545cfa8617dc03b4ffa14193b75d1b2fc597f0f90",
+    "crates/engram_server/tests/detect_incomplete_changes_test.rs": "7f3c31a0fc81d487f8179c359e5a78f104f84ff0dcc025932f16a740e8b15121"
+  },
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "behavior": "The public stateless check budgets its final reply; the existing shared completeness engine and composed callers retain complete original evidence. Full reports are cached by project/tool for exact recovery, with advisory/coverage qualifications deferred explicitly. Recovery hints do not recommend repeating lifecycle mutations.",
+  "tests_added": [
+    "immutable Markdown/JSON report recovery with UTF8/quotes/qualifications and project/tool isolation",
+    "legacy small report exactness and no snapshot write when a budget cannot hold metadata"
+  ],
+  "limits": [
+    "Queued source; native/public verification and deployment wait for three components.",
+    "No coupling completeness, rule authority, compliance or task-benefit claim."
+  ]
+}

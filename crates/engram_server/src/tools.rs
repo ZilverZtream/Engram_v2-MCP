@@ -348,7 +348,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Edit-completeness check: given the files you edited, reports the strong co-change partners you did NOT touch (with historical evidence) and state keys shared with untouched files. Run before committing any multi-file change — it is the 'you forgot the other side' detector. Related: pre_commit_review."
+        description = "Edit-completeness check: given the files you edited, reports strong untouched co-change partners and state-key users with evidence and coverage limits. max_tokens bounds the complete reply, default40KiB; response_delivery.next_call recovers an immutable oversized original without rerunning analysis. output_json wraps the original Markdown and advisory metadata, not a typed completeness proof. Run before committing multi-file changes. Related: pre_commit_review."
     )]
     pub async fn detect_incomplete_changes(
         &self,

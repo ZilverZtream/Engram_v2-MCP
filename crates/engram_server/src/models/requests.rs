@@ -1257,7 +1257,19 @@ pub struct CompleteEditSessionRequest {
 #[serde(deny_unknown_fields)]
 pub struct DetectIncompleteChangesRequest {
     pub project_id: String,
-    /// Project-relative paths the agent has edited (or plans to commit).
+    /// Complete reply budget estimated as ceil(UTF-8 bytes/4); default40KiB.
+    #[serde(default)]
+    pub max_tokens: Option<usize>,
+    /// Immutable original-report recovery; does not rerun completeness analysis.
+    #[serde(default)]
+    pub response_id: Option<String>,
+    #[serde(default)]
+    pub response_offset: usize,
+    /// Wrap the original Markdown report and advisory metadata in JSON.
+    #[serde(default)]
+    pub output_json: bool,
+    /// Project-relative edited/planned paths. Required except during recovery.
+    #[serde(default)]
     pub edited_files: Vec<String>,
     /// Max co-change partners to inspect per file. Default 5.
     #[serde(default = "default_partner_limit")]

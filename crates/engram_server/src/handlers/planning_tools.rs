@@ -41,6 +41,9 @@ struct FootprintEvidence {
 #[path = "change_set_delivery.rs"]
 pub(crate) mod change_set_delivery;
 
+#[path = "edit_workflow_delivery.rs"]
+mod edit_workflow_delivery;
+
 #[path = "footprint_delivery.rs"]
 mod footprint_delivery;
 
@@ -10455,6 +10458,7 @@ impl Engram {
             match self
                 .detect_incomplete_changes_with(
                     crate::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                         project_id: req.project_id.clone(),
                         edited_files: dic_seed,
                         max_partners: 12,
@@ -10616,6 +10620,7 @@ impl Engram {
             match self
                 .detect_incomplete_changes_with(
                     crate::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                         project_id: req.project_id.clone(),
                         // Wider than the per-file default: this seeds the WHOLE
                         // presentation anchor set in one call, so a small cap would let
@@ -12978,7 +12983,18 @@ impl Engram {
         &self,
         req: crate::models::DetectIncompleteChangesRequest,
     ) -> Result<CallToolResult, McpError> {
-        self.detect_incomplete_changes_with(req, None).await
+        validate_project_id(&req.project_id)?;
+        let budget=change_set_delivery::budget(req.max_tokens)?;
+        if let Some(reply)=edit_workflow_delivery::recover(&self.state.cfg.data_dir,&req.project_id,
+            change_set_delivery::EditReport::Completeness,req.response_id.as_deref(),req.response_offset,budget)? {
+            return Ok(CallToolResult::success(vec![Content::text(reply)]));
+        }
+        let project=req.project_id.clone();let output_json=req.output_json;
+        let summary=serde_json::json!({"tool":"detect_incomplete_changes","requested_file_count":req.edited_files.len(),"analysis":"IN_ORIGINAL_REPORT"});
+        let full=self.detect_incomplete_changes_with(req,None).await?;
+        let body=full.content.iter().filter_map(|c|c.as_text().map(|t|t.text.as_str())).collect::<Vec<_>>().join("\n");
+        let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&project,change_set_delivery::EditReport::Completeness,body,summary,output_json,budget)?;
+        Ok(CallToolResult::success(vec![Content::text(reply)]))
     }
 
     /// `detect_incomplete_changes` with an optional shared node snapshot so a
@@ -13430,11 +13446,12 @@ impl Engram {
         // The expectation brief is the same engine, run on the PLANNED set:
         // anything it reports now is coupling the agent should plan for.
         let brief = self
-            .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
+            .detect_incomplete_changes_with(crate::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: req.project_id.clone(),
                 edited_files: planned_files.clone(),
                 max_partners: 5,
-            })
+            }, None)
             .await?;
         let brief_text = brief
             .content
@@ -13533,11 +13550,12 @@ impl Engram {
             "No edited files declared; completeness analysis was not run.".to_owned()
         } else {
             let check = self
-            .handle_detect_incomplete_changes(crate::models::DetectIncompleteChangesRequest {
+            .detect_incomplete_changes_with(crate::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: req.project_id.clone(),
                 edited_files: edited.clone(),
                 max_partners: 5,
-            })
+            }, None)
             .await?;
             check
             .content

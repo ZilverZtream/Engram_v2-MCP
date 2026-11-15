@@ -10023,31 +10023,36 @@
   "last_updated_at": "2026-11-14T06:49:08.767649+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
-      "finding": "Original TODO31/59 complete literal SQL body references in request traces",
-      "original_requirement": "Source-cited request-to-database navigation and consolidation of overlapping SQL reference analysis.",
-      "observed_missing_behavior": "Installed public trace on the unchanged LegacyValidation security SQL returns four tables, omitting outer aspnet_Users and second nested us_useraccess. The inline reader uses one primary FROM plus joins, unlike the shared SQL body reference engine already used by reports.",
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "Original TODO4 bounded edit-completeness replies",
+      "original_requirement": "Bound complete agent-facing replies with token estimates, truncation/recovery metadata and JSON option, preserving all safety and instruction evidence.",
+      "observed_missing_behavior": "detect_incomplete_changes and both edit-session bookends have no max_tokens/response recovery controls. Composed planners must continue receiving full evidence; adding limits must not truncate their internal completeness input or strand lifecycle state.",
       "implementation_files": [
-        "crates/engram_server/src/services/request_trace/inline_sql.rs",
-        "crates/engram_server/src/tools.rs"
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/src/handlers/change_set_delivery.rs",
+        "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/detect_incomplete_changes_test.rs"
       ],
       "acceptance": [
-        "Reuse analyze_body_references on the already comment/string-masked literal SQL, retaining all ordinary FROM/JOIN reads and declared write references. Remove the inline primary-plus-joins reference selection.",
-        "Retain the existing literal size, batch/procedure exclusion, current-source admission and complete-path limits. SQL identifiers remain lexical candidates; do not add schema/alias/database binding or execution claims.",
-        "Independent wanted behavior: the unchanged actual security SELECT yields all six named source tables in public JSON traces. SELECT/DML, literal examples/comments and existing ExecuteCommand behavior remain supported.",
-        "Freeze the three queued components together; run one focused request-trace native batch, one release and candidate/installed checks, preserve unrelated work/configuration and account for all owned resources. No per-component compile."
+        "First component: add optional max_tokens, output_json and immutable response_id/response_offset delivery to detect_incomplete_changes. Default complete-reply budget40KiB; JSON wraps the full original Markdown with honest format/advisory metadata.",
+        "Recover exact original report without rerunning analysis or checking current source. Preserve project/tool isolation, warnings, original completeness limits and scoped rules.",
+        "Existing detect_incomplete_changes_with and composed get_change_set/edit-session calls keep full original evidence; public budgeting is applied only at the outer response.",
+        "Following components add the same delivery to begin and complete: prepare full/compact reply and any immutable snapshot before creating/consuming the exact lifecycle. Delivery failure leaves state unchanged.",
+        "Implement three components sequentially, then one combined focused native/release/candidate/installed batch. Preserve configuration, existing work, authored guidance and all owned resources."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\baseline1\\acceptance.json",
+      "actual_context": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115\\actual-context.json",
       "implementation_complete": true,
-      "validated": true,
-      "deployed": true,
-      "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json",
-      "native_validated": true,
-      "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\native-acceptance.json",
-      "bounded_delivery_complete": true,
-      "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
+      "validated": false,
+      "deployed": false,
+      "limits": [
+        "Response delivery does not establish coupling completeness, policy compliance or approval.",
+        "Broader original backlog, failed usefulness comparisons and all held items remain open."
+      ],
+      "progress": "eval/legacy_validation-completeness-delivery-progress-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10079,8 +10084,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO31/59 three VB SQL trace components delivered; select the next ready original LegacyValidation requirement without replaying completed acceptance.",
-    "next_user_visible_deliverable": "Select the next unfinished original LegacyValidation requirement; these three SQL trace components are delivered. Preserve dynamic/runtime limits and failed task-usefulness evidence; no replay of closed acceptance.",
+    "active_original_item": "TODO4 bounded edit-completeness report; first of three edit-workflow delivery components",
+    "next_user_visible_deliverable": "Bound the three existing edit-workflow tools without losing original evidence or session lifecycle handles.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -12822,42 +12827,31 @@
     "historical_checkpoint_scope": "Earlier named checkpoint entries retain historical/partial evidence. Current active selection is selected_delivery_contract; completed delivery receipts supersede their stale next-step text without discarding unfinished findings.",
     "historical_next_core_task_rationale": "The previous evaluator could only inspect manually recorded runs and accepted changed judge facts. The implementation supplies concrete collection and integrity gates without a provider platform or source publication. Current session disallows new subagents without explicit user request, so do not silently launch the nine required model contexts or call this prepared run a fresh success.",
     "previous_completed_delivery_contract": {
-      "status": "BOUNDED_SOURCE_ISOLATION_DELIVERED_ARCHIVE_COMPARISON_COMPLETED_QUALITY_FAILED",
-      "finding": "EG-24 original regular accepted-task verification",
-      "original_requirement": "Frozen leakage-controlled tasks covering scoped policy, companion edits, history and diagnosis; measure correctness, false guidance, useful evidence/read cost, context cost and latency.",
-      "observed_missing_behavior": "Existing regular check command is delivered but its inspected four-case quality run failed. The claimed corpus absence was based only on a missing literal qa/bench path; actual QA archives provide source candidates. Fresh qualified corpus and isolated source/history remain unfinished.",
+      "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
+      "finding": "Original TODO31/59 complete literal SQL body references in request traces",
+      "original_requirement": "Source-cited request-to-database navigation and consolidation of overlapping SQL reference analysis.",
+      "observed_missing_behavior": "Installed public trace on the unchanged LegacyValidation security SQL returns four tables, omitting outer aspnet_Users and second nested us_useraccess. The inline reader uses one primary FROM plus joins, unlike the shared SQL body reference engine already used by reports.",
       "implementation_files": [
-        "eval/frozen_task_capture.py",
-        "eval/frozen_task_check.py",
-        "eval/test_frozen_task_capture.py",
-        "eval/test_frozen_task_check.py",
-        "eval/legacy_validation-task-source-isolation-progress-20261114.json"
+        "crates/engram_server/src/services/request_trace/inline_sql.rs",
+        "crates/engram_server/src/tools.rs"
       ],
       "acceptance": [
-        "Verify existing archive metadata, local merge commits and first-parent before/after blobs for four non-Q source candidates; retain hashes and exact private provenance. COMPLETE: 29 eligible records, four source candidates, 46 verified blob copies.",
-        "Freeze exactly four complete tasks in the original four categories, authored intent/policy evidence, independent criteria and blind packets before model output. Candidate categories alone do not satisfy this requirement.",
-        "Use matching isolated source/history with the existing installed producer and existing evaluator; do not mix revisions, borrow current policy for historical tasks, read actual Site/Q, create another platform or expand to extra cases.",
-        "Run the existing check once after freeze, retain failures without retuning/replay, record original quality/cost/latency measures and resource cleanup. A completed evaluation may fail quality and does not itself establish productivity."
+        "Reuse analyze_body_references on the already comment/string-masked literal SQL, retaining all ordinary FROM/JOIN reads and declared write references. Remove the inline primary-plus-joins reference selection.",
+        "Retain the existing literal size, batch/procedure exclusion, current-source admission and complete-path limits. SQL identifiers remain lexical candidates; do not add schema/alias/database binding or execution claims.",
+        "Independent wanted behavior: the unchanged actual security SELECT yields all six named source tables in public JSON traces. SELECT/DML, literal examples/comments and existing ExecuteCommand behavior remain supported.",
+        "Freeze the three queued components together; run one focused request-trace native batch, one release and candidate/installed checks, preserve unrelated work/configuration and account for all owned resources. No per-component compile."
       ],
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114",
-      "qualification": "eval/legacy_validation-qa-archive-qualification-20261114.json",
-      "qualification_complete": true,
-      "corpus_frozen": true,
-      "evaluation_executed": true,
-      "production_source_changed": false,
-      "validation_scope": "Archive/source qualification only; zero builds, suites, index updates or model calls.",
-      "limits": [
-        "This archive admission resolves the false corpus-path blocker; it does not close EG24 or establish task usefulness.",
-        "Four category assignments are candidates; no frozen accepted corpus or model performance result is claimed.",
-        "Prior inspected 19/20 assisted versus20/20 baseline quality failure remains unchanged."
-      ],
-      "source_isolation_progress": "eval/legacy_validation-task-source-isolation-progress-20261114.json",
-      "frozen_task_inputs": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-archive-qualification-20261114\\pre-producer-freeze.json",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\baseline2\\acceptance.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\verify-public.py",
+      "implementation_complete": true,
+      "validated": true,
+      "deployed": true,
+      "progress": "eval/legacy_validation-sql-body-trace-progress-20261115.json",
+      "native_validated": true,
+      "native_proof": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115\\native-acceptance.json",
       "bounded_delivery_complete": true,
-      "quality_passed": false,
-      "broader_eg24_complete": false,
-      "outcome": "eval/legacy_validation-archive-task-check-outcome-20261114.json",
-      "future_read_wording_clarified": true
+      "delivery": "eval/legacy_validation-vb-sql-trace-batch-delivery-20261115.json"
     },
     "retained_todo27_contract_at_legacy_validation_correction": {
       "status": "SELECTED_INSTALLED_BASELINE_CONFIRMED",
@@ -14407,7 +14401,22 @@
       "compiled_tests_seconds": 221.0,
       "actual_test_execution_seconds": 4.33,
       "last_release_compile_seconds": 786.0,
-      "pending": [],
+      "pending": [
+        {
+          "component": "completeness-delivery-20261115",
+          "source_files": [
+            "crates/engram_server/src/models/requests.rs",
+            "crates/engram_server/src/handlers/planning_tools.rs",
+            "crates/engram_server/src/handlers/change_set_delivery.rs",
+            "crates/engram_server/src/handlers/edit_workflow_delivery.rs",
+            "crates/engram_server/src/tools.rs",
+            "crates/engram_server/tests/detect_incomplete_changes_test.rs"
+          ],
+          "progress": "eval/legacy_validation-completeness-delivery-progress-20261115.json",
+          "validated": false,
+          "deployed": false
+        }
+      ],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
       "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-sql-request-trace-20261115",
       "completed_last_batch": [
@@ -14430,7 +14439,7 @@
       "last_release_compile": "Finished `release` profile [optimized] target(s) in 13m 06s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
       "current_step_builds_required": 0,
-      "current_step_reason": "Three queued source components are validated and installed; no pending runtime source from this batch."
+      "current_step_reason": "First source component selected; no per-component compile."
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",

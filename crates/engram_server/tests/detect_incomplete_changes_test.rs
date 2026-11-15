@@ -178,6 +178,7 @@ async fn untouched_partner_and_state_key_surface() {
     let r = engram
         .detect_incomplete_changes(Parameters(
             engram_server::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: pid.clone(),
                 edited_files: vec!["pages/edit.aspx".into()],
                 max_partners: 5,
@@ -195,6 +196,7 @@ async fn untouched_partner_and_state_key_surface() {
     let r2 = engram
         .detect_incomplete_changes(Parameters(
             engram_server::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: pid.clone(),
                 edited_files: vec!["pages/edit.aspx.vb".into(), "pages/edit.aspx".into()],
                 max_partners: 5,
@@ -212,6 +214,7 @@ async fn untouched_partner_and_state_key_surface() {
     let r3 = engram
         .detect_incomplete_changes(Parameters(
             engram_server::models::DetectIncompleteChangesRequest {
+                        max_tokens: None, response_id: None, response_offset: 0, output_json: false,
                 project_id: pid.clone(),
                 edited_files: vec![
                     "pages/edit.aspx".into(),
