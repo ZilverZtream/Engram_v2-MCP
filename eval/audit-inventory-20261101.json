@@ -894,6 +894,10 @@
         "distinct_frozen_defects_detected_each": 1,
         "incremental_benefit_demonstrated": false,
         "broader_finding_closed": false
+      },
+      "sql_parameter_workflows_delivery_20261115": {
+        "record": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
+        "task_benefit_established": false
       }
     },
     {
@@ -10061,7 +10065,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "Original LegacyValidation SQL workflow evidence: SqlCommand parameter declarations and assignments",
       "original_requirement": "Make source-backed SQL request/repetition/QA evidence actionable for AI work on actual LegacyValidation code.",
       "actual_source": {
@@ -10111,7 +10115,12 @@
         "crates/engram_server/src/tools.rs"
       ],
       "baseline_commit": "9c7bbfdc6de02e7295f983fe44e3bfc7fe30a47c",
-      "baseline_runtime": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf"
+      "baseline_runtime": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf",
+      "delivery_record": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
+      "source_commit": "394b1f361bac88abd6c5f516ced392f540131af3",
+      "runtime_source_commit": "8691887455ea5e436caffb082a849c82d5ea296a",
+      "installed_server_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
+      "actual_full_source_operation_run": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10143,8 +10152,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Changed-file instruction maintenance slice delivered; advance next original requirement.",
-    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement. Changed-file instruction maintenance is deployed across pre-push audit, project health and post-update observations; preserve current-discovery/historical limits, actual-Q source holds and all unfinished semantic/usefulness/full-goal requirements. Do not replay or widen passed acceptance.",
+    "active_original_item": "SQL parameter workflow slice delivered; advance next original requirement.",
+    "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement. Source SQL parameter evidence is deployed across request trace, repeated-query findings and QA axes; exact webhook declarations/assignments verified. Preserve runtime binding/execution, actual Q-source holds and all unfinished original semantic/usefulness/release requirements. Do not replay or widen passed acceptance.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10161,7 +10170,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: three instruction-maintenance workflows deployed and public owned exact-source acceptance completed; broader original goal active.",
+    "previous_goal_turn_classification": "PROGRESS: three SQL parameter workflows deployed and public owned exact-source acceptance completed; broader original goal active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15800,6 +15809,11 @@
   },
   "changed_instruction_maintenance_delivery": {
     "record": "eval/legacy_validation-changed-instruction-maintenance-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
+  },
+  "sql_parameter_workflows_delivery": {
+    "record": "eval/legacy_validation-sql-parameter-workflows-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_goal_complete": false
   }

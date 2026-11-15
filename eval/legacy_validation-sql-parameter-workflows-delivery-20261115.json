@@ -1,0 +1,292 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-15T14:32:14.512453+00:00",
+  "finding": "Original LegacyValidation SQL workflow evidence: SqlCommand parameter declarations and assignments",
+  "source_commit": "394b1f361bac88abd6c5f516ced392f540131af3",
+  "runtime_source_commit": "8691887455ea5e436caffb082a849c82d5ea296a",
+  "before": "Installed traces reached the exact webhook source and four table paths; repeated-query detection reported ExecuteNonQuery at82. Neither supplied parameter observations, and QA had no SQL parameter axis.",
+  "after": [
+    "trace_user_request retains same-method literal parameter declarations, SQL type/size spellings and assignment source lines on supported source SqlCommand text paths.",
+    "detect_n_plus_one keeps the existing repeated execute finding and adds the same source parameter observations for command candidates with an execute site at that line. Multiple candidates remain ambiguous.",
+    "derive_test_matrix adds Database parameter axes from verified explicitly requested VB function ranges, retaining declaration/assignment source and raw file hashes. Historical cutoffs withhold these current facts and stale source is rejected."
+  ],
+  "configuration_relevance": "Actual non-Q LegacyValidation WebhookEvent.SaveEventsToDB uses14 typed parameter declarations and16 assignment lines, including500/3000/-1 size literals and two DBNull source alternatives. Exact raw source was verified in an owned WebForms/SQL request fixture. No application/database/model execution.",
+  "actual_source": {
+    "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
+    "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
+    "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
+    "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
+    "bytes": 25806,
+    "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
+    "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched.",
+    "proof_scope": "Exact unchanged raw webhook source copied into an owned project;14 declarations and16 assignment lines independently matched through all three public workflows."
+  },
+  "actual_legacy_validation_operations": {
+    "full_update_run": false,
+    "qa_or_trace_run": false,
+    "repetition_run": false,
+    "named_source_hash_unchanged": true,
+    "reason": "The named source hash was checked read-only; runtime workflows use owned exact-source copies. No manual actual whole-project operation or helper/configuration survey that could enter protected Site/Q."
+  },
+  "validation": {
+    "native_tests": 9,
+    "debug_public_assertions": 14,
+    "candidate_public_assertions": 14,
+    "installed_public_assertions": 14,
+    "candidate": {
+      "independent_exact_source_oracle_is_14_declarations_16_assignments": true,
+      "four_existing_table_paths_preserved": true,
+      "trace_all_typed_parameters_sizes_and_assignment_lines_match": true,
+      "trace_parameter_facts_share_admitted_source_hash": true,
+      "trace_keeps_binding_and_branch_limits": true,
+      "existing_repeated_execute_finding_preserved": true,
+      "repetition_retains_same_14_parameters_and_16_assignments": true,
+      "repetition_hash_and_enclosing_method_bound": true,
+      "qa_exposes_all_14_parameter_axes": true,
+      "qa_retains_sizes_and_dbnull_source_alternatives": true,
+      "historical_cutoff_withholds_current_sql_axes": true,
+      "include_db_false_has_no_parameter_expansion": true,
+      "stale_source_withholds_parameter_observations": true,
+      "actual_source_and_owned_copy_unchanged": true
+    },
+    "installed": {
+      "independent_exact_source_oracle_is_14_declarations_16_assignments": true,
+      "four_existing_table_paths_preserved": true,
+      "trace_all_typed_parameters_sizes_and_assignment_lines_match": true,
+      "trace_parameter_facts_share_admitted_source_hash": true,
+      "trace_keeps_binding_and_branch_limits": true,
+      "existing_repeated_execute_finding_preserved": true,
+      "repetition_retains_same_14_parameters_and_16_assignments": true,
+      "repetition_hash_and_enclosing_method_bound": true,
+      "qa_exposes_all_14_parameter_axes": true,
+      "qa_retains_sizes_and_dbnull_source_alternatives": true,
+      "historical_cutoff_withholds_current_sql_axes": true,
+      "include_db_false_has_no_parameter_expansion": true,
+      "stale_source_withholds_parameter_observations": true,
+      "actual_source_and_owned_copy_unchanged": true
+    },
+    "retained_failures": [
+      "native1: unpackaged test binary had no paired sidecar;8/9 passed, trace helper edge missing under fallback. Runtime/test source unchanged; native2 cached run with exact existing sidecar passed9/9.",
+      "debug1: unpackaged binary could not find sidecar, so repeated-query evidence was unavailable.",
+      "debug2: existing transport strips ENGRAM environment overrides; correcting the owned child launch, debug3 passes14 checks on the same binary."
+    ],
+    "full_suite": false,
+    "extra_debug_build": false,
+    "runtime_code_changed_after_first_native": false
+  },
+  "build_cost": {
+    "native_attempts": 2,
+    "native_runner_seconds": 268.69394339993596,
+    "native_compile_summaries": [
+      [
+        "4m 04s"
+      ],
+      [
+        "0.75s"
+      ]
+    ],
+    "native_test_execution_seconds": [
+      5.15,
+      5.2
+    ],
+    "native_compiler_invocations": 1,
+    "native_second_attempt_cached": true,
+    "release_attempts": 1,
+    "release_compile": "12m 57s",
+    "release_compile_seconds": 777.0,
+    "release_runner_seconds": 788.7840570999542
+  },
+  "installed_pair": {
+    "status": "INSTALLED_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\package1",
+    "server_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
+    "manifest_sha256": "4883f8ae3e1e33e6900ded880a93498d6f51b655ad6e143d8645f305de340fbc",
+    "old_server_sha256": "40de9c998b975bcaea6126864bc94a5d1f8b9d682892617c758d0ab03da756cf",
+    "old_manifest_sha256": "e3fbfb8a09ef3abb0eca44beb0c4df07d9e1822bd46f3586cd79d1d62101d5ef",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\release1.json",
+      "sha256": "80daf3584d2975a4d649da00ff0a0fa059e11eafcd947dce97eb33d86c6def18"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "e3fbfb8a09ef3abb0eca44beb0c4df07d9e1822bd46f3586cd79d1d62101d5ef"
+    },
+    "source_commit": "8691887455ea5e436caffb082a849c82d5ea296a",
+    "manifest_assets_verified": 215
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 36152,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 72708,
+    "daemon_created": 1794753050.646826,
+    "metadata": {
+      "pid": "72708",
+      "started_at_ms": "1794753051087",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "0f3c721f8eb93490e57f7fae2c6fbf2106304b6d4412f9e76320568d94f50309",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "limitations": [
+    "Source observations do not prove CLR receiver identity, physical parameter/column binding, evaluated parameter values, nullability, branch reachability, database execution or executed application tests. They do not reinterpret constructor SQL text as effective mutable command state.",
+    "Collector consumes one supplied method body only, up to128KiB,32commands,64parameters per command,4declarations and8assignments per parameter,32execute sites and512-byte source-line excerpts. Its serialized report is bounded to64KiB with explicit truncation/omission counts. Computed names, parameter objects, aliases/helper mutations and unsupported syntax remain unknown.",
+    "Request tracing, repeated-query detection and QA retain their existing source/membership/revision admission and coverage limits. The QA axis requires a verified explicitly requested VB method range; it is not a live fallback for old incompatible indexed evidence.",
+    "QA cases require task/applicability review. A DBNull source assignment or declared type/size is a review lead, not a guaranteed reachable runtime input or proven defect.",
+    "No actual source changes, full LegacyValidation update/trace/QA/repetition call, protected Q read, SQL/model execution, CodeMap/Blast work, target-language expansion, original full19gate closure or positive comparative productivity claim."
+  ],
+  "reply_cost": {
+    "status": "OBSERVED_SAVED_REPLY_SIZES",
+    "rows": [
+      {
+        "tool": "trace_user_request",
+        "baseline_reply_text_utf8_bytes": 25964,
+        "new_debug_reply_text_utf8_bytes": 51516,
+        "added_bytes": 25552,
+        "percent_change": 98.41
+      },
+      {
+        "tool": "detect_n_plus_one",
+        "baseline_reply_text_utf8_bytes": 3677,
+        "new_debug_reply_text_utf8_bytes": 10433,
+        "added_bytes": 6756,
+        "percent_change": 183.74
+      },
+      {
+        "tool": "derive_test_matrix",
+        "baseline_reply_text_utf8_bytes": 1968,
+        "new_debug_reply_text_utf8_bytes": 10953,
+        "added_bytes": 8985,
+        "percent_change": 456.55
+      }
+    ],
+    "scope": "Saved public calls on separate owned projects with the same frozen source and paired Roslyn binary. UUIDs/index instances differ; no replay or model calls. Sizes include rendered JSON/text escaping. Not provider tokens, billed currency, a task-benefit judgment or a latency benchmark.",
+    "trace_default_reply_limit_bytes": 65536,
+    "saved_new_trace_fits_default_limit": true,
+    "default_limit_basis": "request_trace_delivery::budget(None) is16384*4 bytes; this is a size comparison on the saved reply, not another runtime replay."
+  },
+  "task_productivity_demonstrated": false,
+  "full_original_goal_complete": false,
+  "resources": {
+    "owned_fixtures_removed": true,
+    "owned_config_removed": true,
+    "preserved_wip9": true,
+    "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115",
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\package1",
+    "retained_rollback": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-913de922c4524ee7b4554a240b47d416",
+    "cleanup_condition": "New owned fixtures removed after all handles close. Evidence/package retained until superseded; rollback follows managed installer lifecycle. Preexisting inventories remain read-only. Normal installed daemon follows its ordinary lifecycle."
+  },
+  "evidence": {
+    "contract.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\contract.json",
+      "sha256": "aa869b72bb97b8a35b4324fdce31295eeda728534145920f1d61a4d89b2ea5ba"
+    },
+    "baseline1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\baseline1\\acceptance.json",
+      "sha256": "d45894bd1f5d8587e8c50413ee6542c246d4d7bfd8b6172b2146b544203341c3"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\native1.json",
+      "sha256": "7f909a2253527919eb81cb1960419af4999b6b9e33164d340b80f3591e92de27"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\native2.json",
+      "sha256": "f3e01349fa62f1f2b6234f923d4c09ee812a57a6445b7b9f523baf377a73680f"
+    },
+    "native-acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\native-acceptance.json",
+      "sha256": "6512054e32ae1624a6b5076915bfd3468d72e2d041966fa1ef864ea6f681c4e6"
+    },
+    "debug1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\debug1\\acceptance.json",
+      "sha256": "84f5687238afc9d9a1b1a4d0afd53eebc64ebd7ec7553f2e3175fb52b6d528ba"
+    },
+    "debug2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\debug2\\acceptance.json",
+      "sha256": "273c10109e20cf0708fd8b817227b107f94dec76e3edc8acc44dd6cd2de021c1"
+    },
+    "debug3/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\debug3\\acceptance.json",
+      "sha256": "1b41ca16ac079f371b476baa8ae1de4827f792ca5412058915ba1f1892615e7d"
+    },
+    "native-sidecar.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\native-sidecar.json",
+      "sha256": "48ee5b8494c9b9b0e58d67629c48386002e61e0a4a819587768677868cee5cfd"
+    },
+    "reply-cost-observation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\reply-cost-observation.json",
+      "sha256": "50571d68d6f3cd45247d6a2e14ded5b179b9469d1c9c3441d8c192bbcd7597ac"
+    },
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\implementation1.json",
+      "sha256": "287080d91032c5ca76797cba6c7c6f0f046c93fad401fb40df8f7de6eeb6e519"
+    },
+    "release-plan.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\release-plan.json",
+      "sha256": "813c8a4590fcb72974f5ebbd147a08c5b8dc98f81bc9056e0f934b5669bad73e"
+    },
+    "source-validation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\source-validation1.json",
+      "sha256": "813c8a4590fcb72974f5ebbd147a08c5b8dc98f81bc9056e0f934b5669bad73e"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\release1.json",
+      "sha256": "80daf3584d2975a4d649da00ff0a0fa059e11eafcd947dce97eb33d86c6def18"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\pair1.json",
+      "sha256": "5418d20fac640a63d1a17714593c015edc23f0e0a3c153075024fc6ba7cb472b"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\candidate1\\acceptance.json",
+      "sha256": "fc234ad713390da31ec83d7c03af9931303dcd7fcdc1fb64d3e8102b5426c9b6"
+    },
+    "candidate1/data-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\candidate1\\data-state.json",
+      "sha256": "03e59b9e1611c3ba4fb3eb9e845f97a5a0fb3ca54b4b731be86a4a8f2e1e7ed8"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\installed1\\acceptance.json",
+      "sha256": "8014e2c176f99c95962014c1122c2845a8338f78f1159b99e080b3dc61db4abc"
+    },
+    "installed1/data-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\installed1\\data-state.json",
+      "sha256": "03e59b9e1611c3ba4fb3eb9e845f97a5a0fb3ca54b4b731be86a4a8f2e1e7ed8"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\deployment1-state.json",
+      "sha256": "cfdd22056544e24315b92429b7335101d0b22131fe61a86c2e56ab0d9b9e7bcf"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\restored-runtime\\receipt.json",
+      "sha256": "118797ee6e616e330c37ac68551f88b786b89de2b7229f1172781630ce5d7edd"
+    },
+    "pipeline-state1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\pipeline-state1.json",
+      "sha256": "a901ad8d404867f5fa836129ee400af35effcbdba3464a558a589fc6f1041787"
+    },
+    "sql-parameters-202611151-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-parameters-20261115\\sql-parameters-202611151-install-Upgrade.json",
+      "sha256": "9b65264dcd745d29b37d7bf219853af13e6d5aecd3beb2f81af19d384a58e3d2"
+    }
+  }
+}
