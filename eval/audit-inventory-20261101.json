@@ -10024,28 +10024,28 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
-      "finding": "EG20/21 text history semantic latency",
-      "original_requirement": "Usable caller-controlled history search with honest capability and latency behavior across text/precedent modes.",
-      "observed_missing_behavior": "Installed owned text-mode photo query waited0.3867912s for a350ms embedding delay; current text search has no budget and no lexical fallback on provider failure. Reachability widening repeats hybrid calls without a shared deadline.",
+      "finding": "EG20/21 composed history context",
+      "original_requirement": "Usable history evidence in complete bounded change-set planning, with honest missing/failed retrieval coverage.",
+      "observed_missing_behavior": "The typed planner history consumer discards retrieval outcome and labels any returned rows complete. It has no caller history semantic budget. New lexical fallback must retain its limits rather than becoming a complete semantic arm.",
       "implementation_files": [
-        "crates/engram_server/src/handlers/git_tools.rs",
-        "crates/engram_server/src/handlers/planning_tools.rs",
         "crates/engram_server/src/models/requests.rs",
-        "crates/engram_server/src/services/change_card_service.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/src/handlers/history_coverage_tests.rs",
+        "crates/engram_server/src/handlers/feature_plan_tools.rs",
         "crates/engram_server/src/tools.rs",
         "docs/TOOL_CONTRACT.md"
       ],
-      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
       "acceptance": [
-        "Apply semantic_timeout_ms to the whole hybrid candidate retrieval including widening rounds. Zero bypasses embeddings; timeout/provider failure recomputes lexical candidates with identical filters and reachability.",
-        "Retain explicit JSON/Markdown outcome/budget scope and typed internal outcome; metadata/local lexical fallback and formatting remain outside the budget.",
-        "Verify controlled provider timeout, zero provider calls, same expected Git commit, cutoff exclusion and healthy provider recovery. Native and release checks wait for the combined batch."
+        "get_change_set.history_semantic_timeout_ms controls only its history arm through the existing default/positive/zero semantics. Validate bad values before new retrieval; immutable response recovery stays read-only.",
+        "Retain lexical historical file candidates on timeout/provider failure and mark history coverage incomplete with the reason. Disabled vectors or explicit zero remain visible as lexical retrieval.",
+        "Add finite native coverage tests and verify public planner timeout/candidate retention on owned Git sources with a controlled provider. Freeze and verify these three related components together with one release; no full suite."
       ],
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
       "implementation_complete": true,
       "validated": false,
       "deployed": false,
-      "progress": "eval/legacy_validation-history-text-budget-progress-20261115.json"
+      "progress": "eval/legacy_validation-history-planner-budget-progress-20261115.json"
     },
     "at_utc": "2026-11-14T22:12:55.586031+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10077,8 +10077,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG20/21 text-mode history budget and honest lexical fallback",
-    "next_user_visible_deliverable": "Complete text-history retrieval control, then carry its fallback into composed planner coverage; validate and install the three related workflow components together.",
+    "active_original_item": "EG20/21 change-set history timeout controls and coverage",
+    "next_user_visible_deliverable": "Validate and install precedent, text and planner history controls together; preserve all original remaining findings and failed usefulness evidence.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -14425,10 +14425,24 @@
           ],
           "validated": false,
           "deployed": false
+        },
+        {
+          "component": "history-planner-budget-20261115",
+          "progress": "eval/legacy_validation-history-planner-budget-progress-20261115.json",
+          "source_files": [
+            "crates/engram_server/src/models/requests.rs",
+            "crates/engram_server/src/handlers/planning_tools.rs",
+            "crates/engram_server/src/handlers/history_coverage_tests.rs",
+            "crates/engram_server/src/handlers/feature_plan_tools.rs",
+            "crates/engram_server/src/tools.rs",
+            "docs/TOOL_CONTRACT.md"
+          ],
+          "validated": false,
+          "deployed": false
         }
       ],
       "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-workflow-delivery-20261115",
+      "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
       "completed_last_batch": [
         {
           "component": "completeness-delivery-20261115",
@@ -14448,8 +14462,8 @@
       "last_native_compile": "Finished `test` profile [unoptimized + debuginfo] target(s) in 3m 59s",
       "last_release_compile": "Finished `release` profile [optimized] target(s) in 14m 10s",
       "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
-      "current_step_builds_required": 0,
-      "current_step_reason": "First new component implemented; native/public after-change checks and deployment remain queued for the combined batch."
+      "current_step_builds_required": 2,
+      "current_step_reason": "All three related history components are implemented. One focused native batch and one release follow, then candidate/installed public checks; no full suite or extra integration harness."
     },
     "retained_ask_routing_contract": {
       "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -15257,6 +15271,31 @@
       "deployed": false,
       "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b2\\acceptance.json",
       "progress": "eval/legacy_validation-history-semantic-budget-progress-20261115.json"
+    },
+    "queued_text_history_contract": {
+      "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+      "finding": "EG20/21 text history semantic latency",
+      "original_requirement": "Usable caller-controlled history search with honest capability and latency behavior across text/precedent modes.",
+      "observed_missing_behavior": "Installed owned text-mode photo query waited0.3867912s for a350ms embedding delay; current text search has no budget and no lexical fallback on provider failure. Reachability widening repeats hybrid calls without a shared deadline.",
+      "implementation_files": [
+        "crates/engram_server/src/handlers/git_tools.rs",
+        "crates/engram_server/src/handlers/planning_tools.rs",
+        "crates/engram_server/src/models/requests.rs",
+        "crates/engram_server/src/services/change_card_service.rs",
+        "crates/engram_server/src/tools.rs",
+        "docs/TOOL_CONTRACT.md"
+      ],
+      "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\b3\\acceptance.json",
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+      "acceptance": [
+        "Apply semantic_timeout_ms to the whole hybrid candidate retrieval including widening rounds. Zero bypasses embeddings; timeout/provider failure recomputes lexical candidates with identical filters and reachability.",
+        "Retain explicit JSON/Markdown outcome/budget scope and typed internal outcome; metadata/local lexical fallback and formatting remain outside the budget.",
+        "Verify controlled provider timeout, zero provider calls, same expected Git commit, cutoff exclusion and healthy provider recovery. Native and release checks wait for the combined batch."
+      ],
+      "implementation_complete": true,
+      "validated": false,
+      "deployed": false,
+      "progress": "eval/legacy_validation-history-text-budget-progress-20261115.json"
     }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",

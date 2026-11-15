@@ -9145,6 +9145,30 @@ impl ArmCoverage {
     }
 }
 
+#[cfg(test)]
+#[path = "history_coverage_tests.rs"]
+mod history_coverage_tests;
+
+fn record_history_semantics(
+    arm: &mut ArmCoverage,
+    outcome: &crate::services::change_card_service::SemanticOutcome,
+    budget_ms: u64,
+) {
+    use crate::services::change_card_service::SemanticOutcome;
+    let reason = format!("History semantic retrieval: {}; budget {budget_ms} ms. Lexical history retains the same filters and revision cutoff; it does not establish equivalent semantic matches. Git/metadata and local lexical work are outside this budget.", outcome.summary());
+    if matches!(outcome, SemanticOutcome::TimedOut { .. } | SemanticOutcome::Failed { .. }) {
+        let prior = if arm.note.is_empty() { String::new() } else { format!(" {}", arm.note) };
+        arm.mark_bounded("incomplete", format!("{reason} Semantic-only matches are unassessed.{prior}"));
+    } else {
+        if !arm.note.is_empty() {
+            arm.diagnostics.entries.push(arm.note.clone());
+            arm.note.push(' ');
+        }
+        arm.note.push_str(&reason);
+        arm.diagnostics.entries.push(reason);
+    }
+}
+
 #[derive(Debug, Clone, Default, serde::Serialize)]
 pub(crate) struct ChangeSetCoverage {
     /// Exact code-shaped identifiers from the story resolved against current
@@ -9707,6 +9731,8 @@ impl Engram {
                 None,
             ));
         }
+        crate::services::change_card_service::checked_semantic_timeout_ms(req.history_semantic_timeout_ms)
+            .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         if req.story.trim().is_empty() {
             return Err(McpError::invalid_params("story must not be empty", None));
         }
@@ -10348,7 +10374,7 @@ impl Engram {
                 mode: Some("text".into()),
                 rerank: None,
                 rerank_timeout_ms: None,
-                semantic_timeout_ms: None,
+                semantic_timeout_ms: req.history_semantic_timeout_ms,
                 limit: 12,
                 fts_mode: crate::models::FtsMode::Loose,
                 use_mmr: false,
@@ -10379,6 +10405,7 @@ impl Engram {
                 if ignored > 0 {
                     cov.history.note = format!("{ignored} of {} retrieved history records were not bounded diff-file identities; commit prose is not file evidence", hits.len());
                 }
+                record_history_semantics(&mut cov.history, &retrieved.semantic, retrieved.semantic_budget_ms);
             }
             Err(e) => {
                 cov.history = ArmCoverage::failed(

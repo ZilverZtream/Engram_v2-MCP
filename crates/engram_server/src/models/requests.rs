@@ -816,6 +816,13 @@ pub enum PlanDetailLevel {
 #[serde(deny_unknown_fields)]
 pub struct GetChangeSetRequest {
     pub project_id: String,
+    /// Budget for optional semantic retrieval in the history arm only,
+    /// default5000ms, 0..=90000. Zero uses lexical history. Timeout/provider
+    /// failure retains lexical candidates and incomplete history coverage.
+    /// Other arms, Git/metadata and local lexical work are outside this budget.
+    #[serde(default)]
+    #[schemars(range(min = 0, max = 90000))]
+    pub history_semantic_timeout_ms: Option<u64>,
     /// Complete reply-text budget estimated as UTF-8 bytes / 4.
     /// Default 10240 tokens (40 KiB). Recovery pages honor the same budget.
     #[serde(default)]

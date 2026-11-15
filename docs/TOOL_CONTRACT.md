@@ -351,6 +351,13 @@ are not substituted for complete instructions.
 
 ### Caller budgets for change sets
 
+`get_change_set.history_semantic_timeout_ms` controls only the history arm
+(default 5000 ms, maximum 90000; zero requests lexical history). Timeout/provider
+failure retains filtered lexical history candidates and marks that arm
+`incomplete`, with the semantic gap in its diagnostics. Other arms, Git/metadata
+and local lexical work remain outside this budget. Immutable report recovery
+replays the captured outcome without rerunning retrieval.
+
 `get_change_set` accepts positive `max_tokens` for complete reply text, using
 the existing four-UTF-8-bytes-per-token estimate. Omitting it retains the 40 KiB
 default. The budget also travels with every exact-original recovery action.

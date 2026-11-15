@@ -1,0 +1,40 @@
+{
+  "status": "SOURCE_IMPLEMENTED_QUEUED_FOR_COMBINED_BATCH",
+  "component": "controlled and qualified planner history",
+  "finding": "EG20/21 / original complete change-set workflow",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115\\planner-baseline.json",
+  "implementation_complete": true,
+  "validated": false,
+  "deployed": false,
+  "builds_started": 0,
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/handlers/history_coverage_tests.rs",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_checkpoint_sha256": {
+    "crates/engram_server/src/models/requests.rs": "8d0eb284c21c2294985e4a66e1d8714ccdf9ed364305b612ecd669f5bff1a8e1",
+    "crates/engram_server/src/handlers/planning_tools.rs": "668d0c70b57a5fba0da6c0b4177159d09229a430dec8bc2a7228157ccef73447",
+    "crates/engram_server/src/handlers/history_coverage_tests.rs": "42bd50c8e6e98dc34060903e94810d2a732d6f1ab135dceaba471ff9078cda17",
+    "crates/engram_server/src/handlers/feature_plan_tools.rs": "077363256da2da273e057b5a26f99988e641d9e5a075a025d8765a312f919980",
+    "crates/engram_server/src/tools.rs": "f17c84e9a745f05fddefe0cb863d1f26b6dca6128869facb46bb8d4a55d1c9db",
+    "docs/TOOL_CONTRACT.md": "f626ab6ab5cf565a9a875e93a86951fe7d34cb741928aa9c342348a47880e4b3"
+  },
+  "behavior": "get_change_set.history_semantic_timeout_ms controls its shared text-history retrieval. Timeout/provider failure retains lexical historical file candidates while recording incomplete coverage and unassessed semantic matches; deliberate lexical retrieval is disclosed. Immutable recovery stays read-only.",
+  "tests_added": [
+    "Coverage preserves historical hit counts and prior scope limits on timeout/provider failure without a complete verdict.",
+    "Deliberate lexical retrieval keeps its rows and reports ranking scope.",
+    "Public controlled-provider planner check requires incomplete timeout coverage and retained Feature.js historical evidence; currently unrun."
+  ],
+  "limits": [
+    "New native/public acceptance and installation remain pending for the combined batch.",
+    "The history budget excludes other planner arms, Git/metadata and local lexical work. No overall latency or task-benefit claim."
+  ],
+  "resources": {
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-semantic-budget-20261115",
+    "retained_purpose": "Baseline/source/public verification scripts retained for the combined delivery; no preexisting folder removal."
+  }
+}

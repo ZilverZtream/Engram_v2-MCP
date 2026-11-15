@@ -173,6 +173,7 @@ fn change_request(
 ) -> GetChangeSetRequest {
     GetChangeSetRequest {
         project_id: project.into(),
+        history_semantic_timeout_ms: None,
         max_tokens: None,
         story: story.into(),
         concepts,

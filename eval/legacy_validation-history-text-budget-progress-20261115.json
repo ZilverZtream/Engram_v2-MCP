@@ -27,7 +27,7 @@
   "tests_prepared": [
     "Controlled public text query reproduces350ms provider wait on installed baseline.",
     "After-change driver checks timeout fallback, exact expected Git commit, zero provider calls, cutoff and healthy recovery; currently unrun.",
-    "Existing cutoff integration tests exercise the shared widening/filter path in the combined native batch."
+    "Existing cutoff tests remain in source. The combined acceptance uses native budget/coverage/service checks and public positive/negative cutoffs, avoiding an additional integration-harness compile."
   ],
   "limits": [
     "Source implemented only; native/public after-change validation and deployment pending.",
