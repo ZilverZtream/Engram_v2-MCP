@@ -40,36 +40,26 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "finding": "Original TODO31 normal identity-insert batch source effects",
-    "original_requirement": "Provide source-cited SQL/procedure/table paths for ordinary LegacyValidation request workflows; retain execution/binding uncertainty.",
-    "priority_evidence": "eval/legacy_validation-vb-text-command-progress-20261115.json records SyncData.ProcessEvent identity-insert batches as unfinished before the new frozen QA case. This implements that existing remainder; no recapture, scoring change or tuning of the frozen comparison.",
+    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "finding": "Original scoped task evidence and EG24/25 relevance: method-scoped workflow inputs",
+    "original_requirement": "Consolidate workflow presentation/evidence identity and supply current task-relevant evidence to existing OX AI workflows without unrelated file-wide analysis. Retain guidance and explicit coverage.",
+    "priority_evidence": {
+      "original_research": "original-agent-findings-20261101.json/tool_roi: consolidate workflow presentation and evidence identity; usefulness and noisy advice",
+      "observed_api_gap": "Current request schemas expose file scope only for detect_n_plus_one and derive_test_matrix. Retained source-backed file report has35 findings; methods are not scope selectors. Frozen comparisons remain unchanged and will not be replayed.",
+      "legacy_validation_configuration": "Prior installed receipt verifies actual VB/WebForms LegacyValidation configuration and non-Q source patterns; advertise_all_tools true. This adds optional method targeting to those supported workflows, not a language expansion."
+    },
     "components": [
-      "trace_user_request: table candidates from supported literal SET IDENTITY_INSERT ON / INSERT / OFF source batches, including conservative same-method Dim initializers.",
-      "detect_n_plus_one: source identity-batch/table observations on matching repeated command sites, without reinterpreting constructor text as effective mutable state.",
-      "derive_test_matrix: identity-batch source axis on verified explicitly requested VB methods, naming target/table candidates and reviewable session/cleanup concerns without claiming execution."
+      "detect_n_plus_one exact declaration-line root scope retaining reachable helper database paths and default file analysis.",
+      "derive_test_matrix exact requested-method scope for inferred axes/rule documents; preserve file-applicable authored guidance, disclose broader coverage exclusions and retain default file/companion behavior.",
+      "get_method_edit_context executable QA/diagnostic follow-ups bound to the selected method declaration, in JSON and Markdown; does not run analyses or change safety verdicts."
     ],
     "finite_acceptance": [
-      "Recognize exactly the bounded three-statement identity wrapper with matching source target spellings and one INSERT; preserve unknown general batches/procedures/control-flow and dynamic SQL.",
-      "Associate supported local Dim literal initializers conservatively by unique name, lexical block ancestry and no intervening reference/write; preserve current source/execution/receiver guards. No general dataflow or new compiler capability.",
-      "All three public workflows expose source facts on owned exact non-Q SyncData copies, with initializer/constructor/execute locations and source hashes. Do not infer successful cleanup, session/transaction state, physical binding or runtime execution.",
-      "Existing single-statement SQL, source freshness, historical withholding and include_db controls remain. One focused native batch plus one release for three components, then candidate/installed verification.",
-      "Frozen sync-event QA packets, scoring and producer0f3c721 remain byte-unchanged; its pending delegation request is independent. No actual project scan/update, Q read, model/SQL execution, CodeMap/Blast or target-language expansion."
+      "Opt-in positive declaration lines plus selected file identities resolve exact methods; unknown/missing/ambiguous method identities do not silently widen to a file or become a clean bill of health.",
+      "Two-method fixture proves scoped requests exclude unrelated sibling findings/axes/rule cases but retain selected-method source and reached helper evidence. Default requests retain existing results.",
+      "Authored file guidance remains complete and source-bound. Stale/historical controls remain and scoped QA does not imply helper/companion or whole-file coverage.",
+      "Method-context follow-ups execute with their original selected identity. One focused native batch and public owned checks cover all three components, then one release and candidate/installed acceptance.",
+      "No frozen task replay, model/SQL/application execution, actual whole-project operation or protected Q read. No CodeMap/Blast improvements, language expansion, broad audits or extra debug build."
     ],
-    "source_pins": {
-      "App_Code/multitenant/code/SyncData.ProcessEvent.vb": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
-        "sha256": "565dee29b05488e9e02bdd36472217c9986f9e21c4fb6c20f3ef854d34797272",
-        "bytes": 47049
-      },
-      "App_Code/multitenant/code/SyncData.Definitions.vb": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\sources\\App_Code\\multitenant\\code\\SyncData.Definitions.vb",
-        "sha256": "8a337fe6dc714826652d37d0f884a656930b629ef44c798ded08fc9349a65c0c",
-        "bytes": 4713
-      }
-    },
     "preserved_wip9": {
       "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
       "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
@@ -81,30 +71,40 @@
       "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
       "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
     },
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
+    "cleanup_condition": "All newly owned fixtures close handles then clean; retained scripts/outputs/package in this single case until superseded. Preexisting directories untouched.",
+    "baseline_commit": "704ff6d851319ff82913a8627f9f586ad279c16a",
+    "files": [
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/services/method_scope.rs",
+      "crates/engram_server/src/services/mod.rs",
+      "crates/engram_server/src/services/n_plus_one.rs",
+      "crates/engram_server/src/handlers/n_plus_one_tools.rs",
+      "crates/engram_server/src/handlers/settings_tools.rs",
+      "crates/engram_server/src/handlers/business_source.rs",
+      "crates/engram_server/src/handlers/test_derivation.rs",
+      "crates/engram_server/src/handlers/access_layer_tools.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/member_workflow_tests.rs",
+      "crates/engram_server/tests/fixtures/member-workflows/Hook.aspx.vb"
+    ],
+    "native_target": "member_workflow_tests",
+    "baseline_receipt": "baseline2/receipt.json",
+    "retained_baseline_adapter_failure": "baseline1 tools/list parser assumed all tools had schema properties; rejected before indexing. Corrected adapter only reads the two requested schemas; baseline2 passes.",
     "frozen_comparison": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\freeze.json",
       "sha256": "3a1a747c0b0bf81ff683b23dfed9027f284d4f3466ab057ffa386005b6b5be5b"
     },
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115",
-    "cleanup_condition": "New owned fixtures close handles and clean on completion/unwinding. Evidence/package retained until superseded; preexisting folders untouched.",
-    "baseline_commit": "7dced543b9305f6c75f2ac40042c30c23cabd991",
-    "files": [
-      "crates/engram_server/src/services/request_trace.rs",
-      "crates/engram_server/src/services/request_trace/identity_insert.rs",
-      "crates/engram_server/src/services/request_trace/inline_sql.rs",
-      "crates/engram_server/src/services/request_trace/sql_commands.rs",
-      "crates/engram_server/src/services/n_plus_one.rs",
-      "crates/engram_server/src/handlers/settings_tools.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/request_trace_sql_commands.rs",
-      "crates/engram_server/tests/identity_batch_workflow_tests.rs"
-    ],
-    "native_target": "identity_batch_workflow_tests",
-    "delivery_record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
-    "source_commit": "9d16a68bed6a866e59be48d023a91cd5a20d727b",
-    "runtime_source_commit": "d82dc97336a6a9e2cb802deefd02a4fa5f37b20f",
-    "installed_server_sha256": "9989bd47f56effc433e9ce3419c8167d1c2a7c42cbab0a6a72109f8a24e72ee9",
-    "actual_full_source_operation_run": false
+    "actual_source": {
+      "path": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\gis\\vetrofibermap\\Feature\\WebhookEvent.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-text-command-trace-20261115\\WebhookEvent.vb",
+      "sha256": "d2481da7d2895e4788f42ca9e31dde0e1898e24c4b31c6786fb74887d4a370dd",
+      "blake3": "0048baf7aa79d6eb7989de43e6e6ab5bd2797853b63ab5ea18b03d9b1b831542",
+      "bytes": 25806,
+      "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
+      "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched.",
+      "proof_scope": "Exact unchanged raw webhook source copied into an owned project;14 declarations and16 assignment lines independently matched through all three public workflows."
+    }
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",

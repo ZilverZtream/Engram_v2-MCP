@@ -13,6 +13,9 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         let count = req.max_files.unwrap_or(8);
         let offset = req.file_offset.unwrap_or(0);
+        if req.method_start_line.is_some_and(|line|line==0 || req.file_path.is_none()) {
+            return Err(McpError::invalid_params("method_start_line must be positive and requires file_path",None));
+        }
         if !(1..=16).contains(&count)
             || offset > 50_000
             || !(1..=65_536).contains(&req.max_tokens.unwrap_or(16_384))
@@ -57,13 +60,15 @@ impl Engram {
                 let path=path.replace('\\',"/");anyhow::ensure!(selected.contains_key(&path),"Requested VB file is not in the selected source inventory");vec![path]
             }else{all.iter().skip(offset).take(count).cloned().collect()};
             let mut analyzer=Analyzer::new(&graph,&req.project_id,Path::new(&record.directory),selected);
-            for path in &page {analyzer.analyze_file(path);}
+            for path in &page {analyzer.analyze_member(path,req.method_start_line);}
             let next=if req.file_path.is_none() && offset+page.len()<all.len() {
                 let mut next=req.clone();next.file_offset=Some(offset+page.len());Some(json!({"tool":"detect_n_plus_one","arguments":next}))
             }else{None};
             Ok(serde_json::to_string(&json!({"status":"static_candidates","project_id":req.project_id,"active_generation":generation,
                 "summary":format!("{} possible repeated database-call path(s) in {} selected VB file(s)",analyzer.findings.len(),page.len()),
                 "findings":analyzer.findings,"files_attempted":page,"selected_vb_files":all.len(),"next_page":next,
+                "method_start_line":req.method_start_line,
+                "analysis_scope":if req.method_start_line.is_some(){"Selected method roots and bounded reached helpers only; sibling methods and whole-file coverage are not analyzed."}else{"Selected file roots and bounded reached helpers."},
                 "coverage":analyzer.coverage(),"pagination_consistency":"Repeat while source generation and fingerprints remain unchanged; pages are not an atomic source/graph snapshot."}))?)
         }).await.map_err(|e|McpError::internal_error(e.to_string(),None))?
             .map_err(|e|McpError::internal_error(e.to_string(),None))?;

@@ -236,8 +236,17 @@ impl<'a> Analyzer<'a> {
         result
     }
     pub fn analyze_file(&mut self, path: &str) {
+        self.analyze_member(path,None);
+    }
+    pub fn analyze_member(&mut self, path: &str, method_start_line:Option<u32>) {
         if !self.load(path) {
             return;
+        }
+        if let Some(line)=method_start_line {
+            let scopes=[crate::models::MethodScope{file_path:path.into(),line_start:line}];
+            if let Err(error)=super::method_scope::declarations(&self.sources[path].nodes,path,&scopes){
+                self.gap(error.to_string());return;
+            }
         }
         let markup = self.markup_bindings(path);
         let invocations = self.sources[path].report.invocations.clone();
@@ -254,6 +263,7 @@ impl<'a> Analyzer<'a> {
             let Some(r) = &inv.repetition else {
                 continue;
             };
+            if method_start_line.is_some_and(|line| r.method_start_line!=line) {continue;}
             let mut contexts:Vec<Value>=r.contexts.iter().map(|c|json!({"kind":c.kind,"file":path,"start_line":c.start_line,"end_line":c.end_line,"source_hash":self.sources[path].hash,"binding":c.binding})).collect();
             let name = r.method_name.to_ascii_lowercase();
             if methods.get(&name).is_some_and(|m| m.len() == 1) {

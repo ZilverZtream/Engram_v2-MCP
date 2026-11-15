@@ -633,7 +633,7 @@ impl SourceAudit {
 
     /// Exact source lookup also works for executable members outside the graph's
     /// method index. Never emit a plausible range for stale or ambiguous evidence.
-    fn verified_range(&mut self, document: &str, root: &Path) -> Option<(String, u32, u32)> {
+    pub(super) fn verified_range(&mut self, document: &str, root: &Path) -> Option<(String, u32, u32)> {
         if !self
             .describe(document, root)
             .starts_with("VERIFIED_METHOD_HASH:")

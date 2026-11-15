@@ -7,6 +7,9 @@ pub struct DetectNPlusOneRequest {
     pub project_id: String,
     /// Selected project-relative VB file; omitted means a page of selected VB files.
     pub file_path: Option<String>,
+    /// Optional exact indexed method declaration line. Requires file_path;
+    /// roots analysis in this method while retaining reached helper paths.
+    pub method_start_line: Option<u32>,
     pub file_offset: Option<usize>,
     /// File page size, 1..=16; default 8.
     pub max_files: Option<usize>,
@@ -1445,6 +1448,10 @@ pub struct DeriveTestMatrixRequest {
     /// The changed/planned files. The matrix derives from the settings,
     /// role gates, and shared-state keys wired to THESE files' methods.
     pub files: Vec<String>,
+    /// Optional1..16 exact indexed method declarations in files. Omitting this
+    /// keeps file/companion scope. Authored file guidance remains applicable.
+    #[serde(default)]
+    pub methods: Option<Vec<MethodScope>>,
     /// Optional story/contract wording. A VB member named here is swept for
     /// residual same-callee string-literal call sites (Roslyn sidecar). The
     /// wording is never presented as current source behavior or as approved.
@@ -1464,6 +1471,13 @@ pub struct DeriveTestMatrixRequest {
     /// omission summary. Default 24, bounded to 5..=100.
     #[serde(default = "default_matrix_coverage_notes")]
     pub max_coverage_notes: usize,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct MethodScope {
+    pub file_path: String,
+    pub line_start: u32,
 }
 
 fn default_matrix_source_cases() -> usize {

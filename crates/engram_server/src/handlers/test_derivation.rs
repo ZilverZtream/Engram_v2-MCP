@@ -1282,6 +1282,13 @@ pub(super) fn collect(
     root: &Path,
     max_cases: usize,
 ) -> Result<(Vec<RuleCase>, Vec<String>), String> {
+    collect_scoped(search,pid,generation,files,root,max_cases,None)
+}
+
+pub(super) fn collect_scoped(
+    search:&HybridSearchEngine,pid:&str,generation:u64,files:&[String],root:&Path,max_cases:usize,
+    methods:Option<&[crate::models::MethodScope]>,
+)->Result<(Vec<RuleCase>,Vec<String>),String>{
     let query = HybridQuery {
         project_id: pid.into(),
         namespace: "business_logic".into(),
@@ -1351,6 +1358,9 @@ pub(super) fn collect(
             notes.push(format!("{}: {status}", hit.doc_id));
             notes.extend(warning_notes());
             continue;
+        }
+        if let Some(methods)=methods {
+            if !audit.verified_range(&document,root).is_some_and(|(path,start,_)|methods.iter().any(|scope|scope.file_path==path && scope.line_start==start)) {continue;}
         }
         let outcome_evidence =
             crate::services::business_outcome_dependencies::from_document(&document);

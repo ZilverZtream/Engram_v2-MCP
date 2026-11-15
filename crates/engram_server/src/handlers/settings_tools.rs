@@ -426,7 +426,7 @@ impl Engram {
     /// lives only in the PO's head.
     pub async fn handle_derive_test_matrix(
         &self,
-        req: crate::models::DeriveTestMatrixRequest,
+        mut req: crate::models::DeriveTestMatrixRequest,
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let _rec = self.ensure_project_record(&req.project_id).await?;
@@ -451,6 +451,13 @@ impl Engram {
         let graph = self.state.graph.clone();
         let pid = req.project_id.clone();
         let files: Vec<String> = req.files.iter().map(|f| f.replace('\\', "/")).collect();
+        if let Some(scopes)=req.methods.as_mut() {
+            for scope in scopes.iter_mut(){scope.file_path=scope.file_path.replace('\\',"/");}
+            crate::services::method_scope::validate(scopes,&files).map_err(|e|McpError::invalid_params(e.to_string(),None))?;
+        }
+        let method_scopes=req.methods.clone();
+        let rule_scopes=req.methods.clone();
+        let scoped_canonical=req.methods.is_some();
         let rule_files = files.clone();
         let axis_root = std::path::PathBuf::from(&_rec.directory);
         let canonical_files = files.clone();
@@ -516,6 +523,8 @@ impl Engram {
                 }
 
                 while let Some((file, discover_companion, companion_relation)) = pending.pop_front() {
+                    if method_scopes.as_ref().is_some_and(|scopes|!scopes.iter().any(|scope|scope.file_path==file)){continue;}
+
                     let needs_vb = engram_index::vb_extractor::requires_parser_provenance(&file);
                     if vb_extraction.is_none() && needs_vb {
                         vb_extraction = Some(engram_index::SourceExtractionExpectation::for_project(
@@ -535,6 +544,10 @@ impl Engram {
                     );
                     if let Some(note) = note {
                         coverage_notes.push(note);
+                    }
+                    if method_scopes.is_some() && (!usable || snapshot.is_none()) {
+                        coverage_notes.push(format!("{file}: method-scoped axes withheld because selected method source could not be admitted; file-wide fallback was not used."));
+                        continue;
                     }
                     if (!usable || snapshot.is_none()) && needs_vb && explicit_files.contains(&file) {
                         if !allow_current_settings {
@@ -561,10 +574,17 @@ impl Engram {
                     if !usable {
                         continue;
                     }
+                    let scoped_ranges=if let Some(scopes)=&method_scopes {
+                        match graph.query_nodes_in_file(&pid,Some("function"),&file,1025)
+                            .and_then(|nodes|{anyhow::ensure!(nodes.len()<=1024,"Method inventory exceeds1024 declarations");crate::services::method_scope::declarations(&nodes,&file,scopes).map(|selected|selected.iter().map(|n|(n.start_line,n.end_line)).collect::<Vec<_>>())}) {
+                            Ok(ranges)=>Some(ranges),
+                            Err(error)=>{coverage_notes.push(format!("{file}: method scope unresolved: {error}; no inferred axes admitted for this file."));continue;}
+                        }
+                    }else{None};
                     if let Some(relation) = companion_relation {
                         companion_context.push(relation);
                     }
-                    if discover_companion && let Some(snapshot) = snapshot.as_deref() {
+                    if method_scopes.is_none() && discover_companion && let Some(snapshot) = snapshot.as_deref() {
                         match super::test_derivation::declared_axis_companion(&axis_root, &file, snapshot) {
                             Ok(Some((companion, relation_verified))) => {
                                 let relation = format!("{file} -> {companion}");
@@ -579,7 +599,7 @@ impl Engram {
                             Err(error) => coverage_notes.push(format!("{file}: {error}")),
                         }
                     }
-                    match super::test_derivation::registered_control_hosts(&graph, &pid, &file) {
+                    if method_scopes.is_none() { match super::test_derivation::registered_control_hosts(&graph, &pid, &file) {
                         Ok((hosts, truncated)) => {
                             if truncated {
                                 coverage_notes.push(format!(
@@ -598,6 +618,7 @@ impl Engram {
                         }
                         Err(error) => coverage_notes.push(format!("{file}: {error}")),
                     }
+                    }
                     // Configured risk rules match the verified file snapshot, so
                     // they apply even when the parser emitted no symbols for a
                     // markup or client-only file.
@@ -605,11 +626,14 @@ impl Engram {
                         .as_deref()
                         .and_then(|bytes| std::str::from_utf8(bytes).ok())
                     {
+                        let scoped_source=scoped_ranges.as_ref().map(|ranges|{
+                            let lines:Vec<_>=source.lines().collect();ranges.iter().filter(|(start,end)|*start>0 && *end as usize<=lines.len()).map(|(start,end)|lines[*start as usize-1..*end as usize].join("\n")).collect::<Vec<_>>().join("\n")
+                        });
                         for (axis, evidence) in
                             super::test_derivation::configured_risk_axes(
                                 &configured_risk_pack,
                                 &file,
-                                source,
+                                scoped_source.as_deref().unwrap_or(source),
                             )
                         {
                             runtime_axes.entry(axis).or_default().push(evidence);
@@ -635,6 +659,9 @@ impl Engram {
                     let source_code = snapshot.as_deref()
                         .and_then(|bytes| std::str::from_utf8(bytes).ok())
                         .map(|source| crate::services::business_outcome_dependencies::executable_lines(source.trim_start_matches('\u{feff}'), true));
+                    if let Some(ranges)=&scoped_ranges {
+                        symbols.retain(|n| n.start_line>0 && ranges.iter().any(|(start,end)|n.start_line>=*start && n.end_line<=*end));
+                    }
                     let mut nullable_observations = BTreeMap::new();
                     for n in &symbols {
                         if n.node_type == "setting_key" {
@@ -816,6 +843,7 @@ impl Engram {
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let canonical_sweep = tokio::task::spawn_blocking(move || {
+            if scoped_canonical {return super::test_derivation::CanonicalCallSweep{notes:vec!["Method scope does not run the file/diff-wide residual call sweep. Companion, host and transitive helper QA remain outside this matrix; request file scope for that context.".into()],..Default::default()};}
             use crate::services::pre_commit_review_service::{
                 parse_unified_diff, resolve_bounded_worktree_diff,
             };
@@ -862,13 +890,14 @@ impl Engram {
                 let pid = req.project_id.clone();
                 let root = std::path::PathBuf::from(_rec.directory);
                 match tokio::task::spawn_blocking(move || {
-                    super::test_derivation::collect(
+                    super::test_derivation::collect_scoped(
                         &search,
                         &pid,
                         gen_,
                         &rule_files,
                         &root,
                         max_source_cases,
+                        rule_scopes.as_deref(),
                     )
                 })
                 .await
@@ -890,6 +919,9 @@ impl Engram {
         let mut out = format!("# Test matrix — {} requested file(s)\n", req.files.len());
         out.push_str("Evidence scope: indexed settings, permission and state references plus configured risk rules matched against source-verified snapshots. Test discovery: not_run. Test execution: not_run. These are proposed cases, not verified outcomes.\n");
         out.push_str(&project_policy_sources.render_markdown());
+        if let Some(scopes)=&req.methods {
+            out.push_str(&format!("Method declaration scope: {}. Inferred axes and rule cases cover only these exact methods. Authored file guidance remains applicable; this is not whole-file, companion or transitive-helper QA.\n",serde_json::to_string(scopes).unwrap_or_default()));
+        }
         if configured_risk_count > 0 {
             out.push_str(&format!("Configured risk packs: {configured_risk_count} validated rule(s) loaded at call time; repository rules override organization rules by stable id.\n"));
         }

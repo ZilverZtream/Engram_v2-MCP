@@ -831,3 +831,28 @@ Historical QA cutoffs and existing stale-source/database-scope controls remain.
 The collector accepts128KiB per method,32constructors,32execute sites each and
 64KiB serialized observations; a SQL string is bounded to64KiB. Unsupported or
 omitted observations remain unknown.
+
+### Exact method scope for diagnostics and QA
+
+`detect_n_plus_one` accepts `method_start_line` with `file_path`. This is the
+indexed declaration line, not an arbitrary line inside the body. It limits the
+analysis roots to that method; bounded helper paths reached from its repeated
+calls remain included. Missing, ambiguous or stale declarations produce coverage
+gaps and no file-wide fallback. Omit it to retain file/page scope.
+
+`derive_test_matrix` accepts `methods: [{"file_path":"Page.aspx.vb","line_start":5}]`.
+There must be1?16 distinct positive declaration anchors in the requested `files`.
+Inferred settings/permission/state/SQL axes and source-verified rule documents
+are limited to those methods. Configured text-risk matching uses selected method
+bodies. Authored guidance still applies at file scope, with complete qualifications
+and recovery. Method scope excludes companion/host axes, transitive-helper QA,
+file-wide current-setting fallback and the diff-wide residual-call sweep; these
+coverage limits are explicit. Omit `methods` for the original file/companion mode.
+Historical and source-freshness restrictions continue to apply.
+
+With full tool discovery enabled, `get_method_edit_context.focused_checks`
+provides explicit QA and, for VB, repetition calls for its selected declaration.
+Markdown includes the same calls. Context retrieval does not run them, and they
+do not alter edit-safety evidence or verdicts. Limited discovery gains no new
+advanced-tool dependency. Declaration lines are revision-specific: refresh the
+index and obtain the new method identity after source edits.

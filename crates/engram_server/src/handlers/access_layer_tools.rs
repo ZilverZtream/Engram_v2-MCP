@@ -467,6 +467,9 @@ pub struct CallerBody {
 #[derive(Debug, Clone, Serialize)]
 pub struct MethodEditContextResult {
     pub method_info: MethodInfoResult,
+    /// Optional explicit calls, never executed here; only on the full tool surface.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub focused_checks: Vec<serde_json::Value>,
     pub full_source: Option<String>,
     pub caller_bodies: Vec<CallerBody>,
     pub caller_excerpts: Vec<super::caller_excerpts::CallerExcerpt>,
@@ -2873,6 +2876,13 @@ fn render_method_edit_context_markdown(ctx: &MethodEditContextResult) -> String 
     // Method identity
     md.push_str(&render_method_info_markdown(&ctx.method_info));
 
+    if !ctx.focused_checks.is_empty() {
+        md.push_str("## Selected-method follow-ups\nThese calls target this declaration only. They have not been run; QA drafts and static repetition are review leads, not runtime or safety proof.\n");
+        for call in &ctx.focused_checks {
+            md.push_str(&format!("- `{}`\n",call));
+        }
+    }
+
     // Full source
     if let Some(ref src) = ctx.full_source {
         let lang = if ctx.method_info.language.contains("vb") {
@@ -4325,6 +4335,7 @@ impl Engram {
                     .map(|b| format!("{:?}", b.risk_band))
                     .unwrap_or_else(|| "Unknown".to_string()),
                 method_info: ev.method_info,
+                focused_checks: Vec::new(),
                 full_source: if include_full_body {
                     ev.full_body
                 } else {
@@ -4344,6 +4355,16 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
+        if self.state.cfg.advertise_all_tools && ctx.method_info.line_start>0 {
+            let info=&ctx.method_info;
+            ctx.focused_checks.push(serde_json::json!({"tool":"derive_test_matrix","arguments":{
+                "project_id":req.project_id,"files":[info.file_path],
+                "methods":[{"file_path":info.file_path,"line_start":info.line_start}]}}));
+            if matches!(info.language.as_str(),"vb"|"vbnet") {
+                ctx.focused_checks.push(serde_json::json!({"tool":"detect_n_plus_one","arguments":{
+                    "project_id":req.project_id,"file_path":info.file_path,"method_start_line":info.line_start}}));
+            }
+        }
         apply_downstream_safety(&mut ctx.edit_safety, downstream);
         project_downstream_safety_display(&mut ctx.edit_safety,&req.project_id,
             &downstream_node_id,req.downstream_detail)?;
