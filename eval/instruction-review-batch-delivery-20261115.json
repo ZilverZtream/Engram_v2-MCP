@@ -141,7 +141,15 @@
     "preserved_wip9": true,
     "retained_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115",
     "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\package1",
-    "cleanup_condition": "Retain evidence/package until superseded; managed installer owns rollback lifecycle. Preexisting folders remain untouched. Normal installed daemon follows application lifecycle."
+    "cleanup_condition": "Retain evidence/package until superseded; managed installer owns rollback lifecycle. Preexisting folders remain untouched. Normal installed daemon follows application lifecycle.",
+    "retained_rollback": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-68b1263a45af47eb9490572eed2eb47e",
+    "installer_journals": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-68b1263a45af47eb9490572eed2eb47e.00-prepared.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-68b1263a45af47eb9490572eed2eb47e.01-stage-verified.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-68b1263a45af47eb9490572eed2eb47e.02-old-retired.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-68b1263a45af47eb9490572eed2eb47e.03-candidate-active.json",
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-68b1263a45af47eb9490572eed2eb47e.04-committed-no-start.json"
+    ]
   },
   "evidence": {
     "contract.json": {
@@ -195,6 +203,10 @@
     "pipeline-state1.json": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\pipeline-state1.json",
       "sha256": "1a2c770174fe80eb183d48fed081733417634e4be1b81ecd83987c666b0ffa0c"
+    },
+    "instructions-review-batch-202611151-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instructions-review-batch-20261115\\instructions-review-batch-202611151-install-Upgrade.json",
+      "sha256": "a52695c1b2351db755c1a3e231544b7fc3d345c9f52642b83969736b22809a76"
     }
   }
 }
