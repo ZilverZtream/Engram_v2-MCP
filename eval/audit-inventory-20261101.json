@@ -10076,7 +10076,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "COMBINED_NATIVE_CORRECTION_RUNNING",
+      "status": "ONE_COMBINED_RELEASE_RUNNING",
       "original_requirement_ids": [
         "EG-31",
         "EG-19",
@@ -10086,7 +10086,7 @@
       "focused_target": "ai_workflow_batch_tests",
       "expected_native_cases": 19,
       "native_builds_started": 2,
-      "release_builds_started": 0,
+      "release_builds_started": 1,
       "delivery_correction": {
         "cause": "First linked public check found missing read_action in prepare_implementation_context, after correct bodies/scope/Markdown passed.",
         "changed_sources": [
@@ -10096,7 +10096,9 @@
         "affected_native_case": "linked_guidance::prepared_context_binds_linked_recovery_to_its_project",
         "public_rerun": "Only failed EG27 public fixture. EG31 and EG19 public results retained; final candidate/installed acceptance will use the shared release.",
         "source_commit": "4161fc22b07d88b940446dc6875ef1c026b7d89a"
-      }
+      },
+      "native_distinct_cases": 19,
+      "public_debug_checks": 28
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -16016,6 +16018,6 @@
     ],
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "independent_requirements_queued": 3,
-    "builds_started": 2
+    "builds_started": 3
   }
 }

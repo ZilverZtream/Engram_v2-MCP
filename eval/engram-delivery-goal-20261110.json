@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "COMBINED_NATIVE_CORRECTION_RUNNING",
+    "status": "ONE_COMBINED_RELEASE_RUNNING",
     "original_requirement_ids": [
       "EG-31",
       "EG-19",
@@ -50,7 +50,7 @@
     "focused_target": "ai_workflow_batch_tests",
     "expected_native_cases": 19,
     "native_builds_started": 2,
-    "release_builds_started": 0,
+    "release_builds_started": 1,
     "delivery_correction": {
       "cause": "First linked public check found missing read_action in prepare_implementation_context, after correct bodies/scope/Markdown passed.",
       "changed_sources": [
@@ -60,7 +60,9 @@
       "affected_native_case": "linked_guidance::prepared_context_binds_linked_recovery_to_its_project",
       "public_rerun": "Only failed EG27 public fixture. EG31 and EG19 public results retained; final candidate/installed acceptance will use the shared release.",
       "source_commit": "4161fc22b07d88b940446dc6875ef1c026b7d89a"
-    }
+    },
+    "native_distinct_cases": 19,
+    "public_debug_checks": 28
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -2670,6 +2672,6 @@
     ],
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "independent_requirements_queued": 3,
-    "builds_started": 2
+    "builds_started": 3
   }
 }
