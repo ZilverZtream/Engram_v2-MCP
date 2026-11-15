@@ -373,6 +373,12 @@ proposals that duplicate the existing surface:
   [Batch delivery](eval/legacy_validation-ai-readiness-batch-delivery-20261114.json).
   Evidence: [member-context delivery](eval/legacy_validation-ask-member-context-delivery-20261113.json);
   [retained earlier 3/4 result](eval/legacy_validation-ask-synthesis-delivery-20261113.json).
+  Revision-bound Git source retrieval is implemented in source and queued on
+  November15. Historical requests exclude the active index/graph and return
+  complete admitted blobs with revision/hash citations; unavailable pins refuse.
+  Six native checks, public acceptance and installation remain pending.
+  Historical graph/policy reconstruction and broader task acceptance stay open.
+  [Source progress](eval/ask-historical-source-progress-20261115.json).
   Routes a question to search + graph + access-layer internally and returns a synthesized,
   cited answer. This is the single highest-leverage *new* tool: it collapses the 114-tool
   selection problem for the 80% case and makes Engram useful to agents that never learn

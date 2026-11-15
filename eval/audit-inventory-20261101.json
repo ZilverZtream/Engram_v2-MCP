@@ -10109,8 +10109,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO9 VB inherited-guard review source-complete and queued for combined validation; no build authorized for this item alone.",
-    "next_user_visible_deliverable": "Continue source implementation of distinct unfinished original requirements before the guarded combined batch. Inherited guard source is not installed delivery.",
+    "active_original_item": "TODO28 revision-bound historical source retrieval source-complete; TODO9 and TODO28 await combined validation. No compiler started.",
+    "next_user_visible_deliverable": "Finish a third distinct original source requirement before the guarded combined validation. The two queued implementations are not installed deliveries.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10127,7 +10127,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "progress: committed VB inheritance-aware guard review and seven pending behavioral checks; queue1 of minimum3 independent requirements, no compilation.",
+    "previous_goal_turn_classification": "progress: committed revision-bound historical ask retrieval and six pending behavioral checks, including the public entry point. Queue2 of minimum3 independent requirements; builds0.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15903,6 +15903,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115\\contract.json",
         "progress_record": "eval/inherited-guard-review-progress-20261115.json",
         "user_outcome": "VB guard review cites selected base-class permission conventions without suppressing local warnings or claiming protection."
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b3f8c8a77ddb9f0f946a2a56ce317b97d2bd8ca4",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115\\contract.json",
+        "progress_record": "eval/ask-historical-source-progress-20261115.json",
+        "user_outcome": "Historical ask_codebase questions use revision-bound source, excluding current index/graph substitutions."
       }
     ],
     "full_original_goal_scope_unchanged": true,

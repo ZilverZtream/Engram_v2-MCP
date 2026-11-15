@@ -991,7 +991,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "TODO9 inherited-guard review source is committed and queued; seven focused behavioral cases await combined validation. Finish distinct original source requirements before the minimum-three build gate. Latest installed delivery remains eval/ai-workflow-batch-delivery-20261115.json; all original unfinished requirements and holds remain.",
+  "next_user_visible_deliverable": "TODO9 inherited-guard review and TODO28 historical-source ask retrieval are committed and queued for combined validation. Finish a third distinct original requirement before the minimum-three build gate. Latest installed delivery remains eval/ai-workflow-batch-delivery-20261115.json; original31 findings/19 gates and holds remain.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2563,6 +2563,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inherited-guard-review-20261115\\contract.json",
         "progress_record": "eval/inherited-guard-review-progress-20261115.json",
         "user_outcome": "VB guard review cites selected base-class permission conventions without suppressing local warnings or claiming protection."
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b3f8c8a77ddb9f0f946a2a56ce317b97d2bd8ca4",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115\\contract.json",
+        "progress_record": "eval/ask-historical-source-progress-20261115.json",
+        "user_outcome": "Historical ask_codebase questions use revision-bound source, excluding current index/graph substitutions."
       }
     ],
     "full_original_goal_scope_unchanged": true,

@@ -1,0 +1,71 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-15T20:39:13.208452+00:00",
+  "original_requirement_id": "TODO-28",
+  "original_requirement": "ask_codebase approved design sections7-8: honor requested as_of branch/commit and expose truthful source revision/provenance. Preserve the full natural-language entry-point requirement and its unfinished historical graph/policy/working-memory/ACL scope.",
+  "source_commit": "b3f8c8a77ddb9f0f946a2a56ce317b97d2bd8ca4",
+  "runtime_source_commit": "04c9df7a78c66b9568bbe0f778b99180c99ed258",
+  "observed_missing_behavior": "The public handler accepted as_of.commit/branch but always selected the active index and current graph; the as_of fields only disabled current policy and echoed branch metadata. No requested-commit source selection occurred.",
+  "wanted_behavior": [
+    "Resolve one immutable Git revision before source retrieval. The selected source must remain old when the working tree and active index are newer.",
+    "Return complete admitted VB/JS/TS/SQL and text-source blobs with exact commit, blob identity, source BLAKE3, whole-file line range and historical authority; never relabel them current code.",
+    "Exact question paths are admitted before scanning and bypass whole-tree enumeration when all full paths resolve. Subproject requests remain within that Git subtree.",
+    "Bound blob reads before body allocation, total bytes, tree entries, candidate scans, results and retrieval deadline; disclose omitted/partial coverage.",
+    "Unavailable or inconsistent revision pins refuse; current files/index are never a historical fallback.",
+    "Retain existing optional model routing/synthesis, formats and complete immutable response-budget recovery. No live graph/policy/registry data fills historical gaps."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/services/ask_engine.rs",
+    "crates/engram_server/src/services/ask_engine/evidence.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/src/services/ask_engine/status.rs",
+    "crates/engram_server/src/services/ask_engine/historical.rs",
+    "crates/engram_server/tests/ask_historical_source_tests.rs"
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ask_tools.rs": "d44b2ed615a653169e8ca5e7150c6b90b24dc9ff200d415c62e2abdd4734762c",
+    "crates/engram_server/src/models/requests.rs": "97f13edf9739dcd6e85fdf7e4ed2fb3e45c56b1f882205da92aa854dd77684c1",
+    "crates/engram_server/src/services/ask_engine.rs": "f9575fedbc1a0b52bfcf82b0e4829afd2d3960886f5165becde625537fdba162",
+    "crates/engram_server/src/services/ask_engine/evidence.rs": "6675df6ebdca6aba5ecb94808c38c39210a3ad6cd717604461e3ffb6496b090e",
+    "crates/engram_server/src/services/ask_engine/report.rs": "6fe4b4de9086c4d5ad5661ce2d4023ac02ff7ca872ad470a43f83c0409d6e7ff",
+    "crates/engram_server/src/services/ask_engine/status.rs": "e3e1e9f1ee98d5f86ce94d6d36fefde65970ba30897c97929e10c4b8359d9457",
+    "crates/engram_server/src/services/ask_engine/historical.rs": "5068aa6a0feaea224e718c8ba779191fd9e8f868563ea7a8943ed94533a17042",
+    "crates/engram_server/tests/ask_historical_source_tests.rs": "dc8dc347217792abda18d1711986bf4afc01305e01ebfe186ba88123aaee4b33"
+  },
+  "finite_acceptance": {
+    "native_target": "ask_historical_source_tests",
+    "native_cases": 6,
+    "existing_affected_check": "ask_synthesis_tests::default_is_retrieval_only_and_unavailable_generation_preserves_evidence",
+    "public_candidate_and_installed": [
+      "Owned VB/TS/SQL repository: pin old revision with newer active index; exact independent old-source bytes/hash, commit and historical authority match.",
+      "Resolve named historical branch once; unavailable/conflicting pin returns an actionable refusal.",
+      "Budgeted historical report recovers the same complete immutable original after current-file/branch changes; no new retrieval for response_id."
+    ],
+    "stop_rule": "Deliver this finite version-selected source behavior and advance; broader TODO28 stays partial rather than expanding this acceptance into historical graph reconstruction or new language support."
+  },
+  "checks_completed": [
+    "Rust2024 syntax parsing via rustfmt for the touched files; new files formatted",
+    "Selected-path git diff --check"
+  ],
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "builds_started": 0,
+  "limits": [
+    "Historical source selection is not a historical graph or semantic behavior verifier.",
+    "Current policy is withheld with historical-unavailable coverage, not substituted or accepted.",
+    "UTF-8 complete blobs only,128KiB per blob,2MiB total admitted reads,128 candidate blobs,2048 walked entries; quick2/standard6/deep10 lexical results, preserving up to8 explicit files. Metadata/Git internal allocations are not a whole-process memory cap.",
+    "No matched task benefit or general product-readiness claim. Native/public compilation/validation/deployment pending."
+  ],
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115",
+    "created_fixture_processes": 0,
+    "created_test_fixtures": 0,
+    "retention": "Retain contract/source/check receipts until combined native/public validation and installed identity are recorded; no preexisting-folder deletion."
+  },
+  "delivery_cadence": "Second independent source outcome after TODO9. No build until a third distinct original requirement is source-complete and the existing guard passes.",
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-historical-source-20261115\\contract.json",
+  "legacy_validation_relevance": "Original Git/history and source-understanding workflow for the existing VB.NET/WebForms, JS/TS and SQL project. Independent owned fixtures only; no current LegacyValidation runtime or productivity benefit claimed. No live Q source or full-project operation executed."
+}
