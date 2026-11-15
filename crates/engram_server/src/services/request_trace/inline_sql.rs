@@ -244,7 +244,7 @@ pub(super) fn append_sql(
     method: &Node,
     source: &Source<'_>,
     sql: &str,
-    evidence: serde_json::Value,
+    mut evidence: serde_json::Value,
     paths: &mut Vec<Hop>,
     gaps: &mut Vec<String>,
     cap: usize,
@@ -256,8 +256,14 @@ pub(super) fn append_sql(
     let invocation = evidence
         .get("invocation")
         .and_then(serde_json::Value::as_str)
-        .unwrap_or("SQL command");
-    let Ok(sql_tokens) = Tokenizer::new(&MsSqlDialect {}, sql).tokenize() else {
+        .unwrap_or("SQL command")
+        .to_owned();
+    let batch=super::identity_insert::parse(sql);
+    let inspected_sql=batch.as_ref().map(|batch|batch.insert.as_str()).unwrap_or(sql);
+    if let Some(batch)=&batch {
+        evidence["identity_insert_batch"]=batch.facts.clone();
+    }
+    let Ok(sql_tokens) = Tokenizer::new(&MsSqlDialect {}, inspected_sql).tokenize() else {
         if gaps.len() < 64 {
             gaps.push(format!("{}:{line}: {invocation} SQL tokenization unavailable; table dependencies unresolved", source.path));
         }

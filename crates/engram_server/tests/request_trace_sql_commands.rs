@@ -223,3 +223,26 @@ fn text_command_source_must_be_current_and_database_expansion_must_be_requested(
     assert!(tables(&trace(body, true, true)).is_empty());
     assert!(tables(&trace(body, false, false)).is_empty());
 }
+
+#[test]
+fn identity_wrapper_in_a_local_literal_survives_closed_connection_setup_blocks() {
+    let body="If existing Is Nothing Then\nDim sql = \"SET IDENTITY_INSERT dbo.Expected ON; INSERT INTO dbo.Expected (Id) VALUES (@id); SET IDENTITY_INSERT dbo.Expected OFF\"\nUsing connection As New SqlConnection()\nIf connection.State <> ConnectionState.Open Then\nconnection.Open()\nEnd If\nUsing cmd = New SqlCommand(sql, connection)\ncmd.ExecuteNonQuery()\nEnd Using\nEnd Using\nEnd If\n";
+    let result=trace(body,false,true);
+    assert_eq!(tables(&result),vec![("inline_sql_writes_table","Expected")]);
+    let paths=result["paths"].as_array().unwrap();
+    let evidence=&paths.iter().find(|p|p["kind"]=="inline_sql_writes_table").unwrap()["evidence"];
+    assert_eq!(evidence["sql_source"]["declaration_kind"],"Dim");
+    assert_eq!(evidence["identity_insert_batch"]["identity_target_spelling"],"dbo.Expected");
+    assert_eq!(evidence["identity_insert_batch"]["nonempty_statements"],3);
+    assert!(evidence["identity_insert_batch"]["interpretation"].as_str().unwrap().contains("cleanup after an error"));
+}
+
+#[test]
+fn identity_source_is_not_borrowed_across_branches_or_changed_locals() {
+    for body in [
+        "If ready Then\nDim sql = \"SET IDENTITY_INSERT T ON; INSERT INTO T VALUES (@id); SET IDENTITY_INSERT T OFF\"\nEnd If\nDim cmd = New SqlCommand(sql)\ncmd.ExecuteNonQuery()\n",
+        "Dim sql = \"SET IDENTITY_INSERT T ON; INSERT INTO T VALUES (@id); SET IDENTITY_INSERT T OFF\"\nsql = BuildQuery()\nDim cmd = New SqlCommand(sql)\ncmd.ExecuteNonQuery()\n",
+        "Dim cmd = New SqlCommand(\"SET IDENTITY_INSERT T ON; INSERT INTO T VALUES (@id); SET IDENTITY_INSERT Other OFF\")\ncmd.ExecuteNonQuery()\n",
+        "Dim cmd = New SqlCommand(\"SELECT * FROM A; SELECT * FROM B\")\ncmd.ExecuteReader()\n",
+    ] {assert!(tables(&trace(body,false,true)).is_empty());}
+}

@@ -10065,9 +10065,22 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
-      "finding": "Original EG24/EG25 fresh sync-event QA task",
-      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115",
+      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "finding": "Original TODO31 normal identity-insert batch source effects",
+      "original_requirement": "Provide source-cited SQL/procedure/table paths for ordinary LegacyValidation request workflows; retain execution/binding uncertainty.",
+      "priority_evidence": "eval/legacy_validation-vb-text-command-progress-20261115.json records SyncData.ProcessEvent identity-insert batches as unfinished before the new frozen QA case. This implements that existing remainder; no recapture, scoring change or tuning of the frozen comparison.",
+      "components": [
+        "trace_user_request: table candidates from supported literal SET IDENTITY_INSERT ON / INSERT / OFF source batches, including conservative same-method Dim initializers.",
+        "detect_n_plus_one: source identity-batch/table observations on matching repeated command sites, without reinterpreting constructor text as effective mutable state.",
+        "derive_test_matrix: identity-batch source axis on verified explicitly requested VB methods, naming target/table candidates and reviewable session/cleanup concerns without claiming execution."
+      ],
+      "finite_acceptance": [
+        "Recognize exactly the bounded three-statement identity wrapper with matching source target spellings and one INSERT; preserve unknown general batches/procedures/control-flow and dynamic SQL.",
+        "Associate supported local Dim literal initializers conservatively by unique name, lexical block ancestry and no intervening reference/write; preserve current source/execution/receiver guards. No general dataflow or new compiler capability.",
+        "All three public workflows expose source facts on owned exact non-Q SyncData copies, with initializer/constructor/execute locations and source hashes. Do not infer successful cleanup, session/transaction state, physical binding or runtime execution.",
+        "Existing single-statement SQL, source freshness, historical withholding and include_db controls remain. One focused native batch plus one release for three components, then candidate/installed verification.",
+        "Frozen sync-event QA packets, scoring and producer0f3c721 remain byte-unchanged; its pending delegation request is independent. No actual project scan/update, Q read, model/SQL execution, CodeMap/Blast or target-language expansion."
+      ],
       "source_pins": {
         "App_Code/multitenant/code/SyncData.ProcessEvent.vb": {
           "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\multitenant\\code\\SyncData.ProcessEvent.vb",
@@ -10093,18 +10106,25 @@
         "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
         "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
       },
-      "finite_acceptance": [
-        "Freeze exact source, six behavioral criteria, false-guidance rules and six source-control-flow cases before model candidates.",
-        "Reuse installed Engram; capture bounded source-backed task context on owned copies with no server generation, SQL/API calls, actual project indexing or protected Q reads.",
-        "Compare one source-only candidate, one assisted candidate and one blinded source judge, only after explicit delegation authorization. One pass, no outcome tuning or replay.",
-        "Retain raw outputs, source proof, bytes/calls/timings and failures. Comparative usefulness is established only by candidate/judge results; preparation and green tool checks are not benefit."
+      "frozen_comparison": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sync-event-qa-20261115\\freeze.json",
+        "sha256": "3a1a747c0b0bf81ff683b23dfed9027f284d4f3466ab057ffa386005b6b5be5b"
+      },
+      "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115",
+      "cleanup_condition": "New owned fixtures close handles and clean on completion/unwinding. Evidence/package retained until superseded; preexisting folders untouched.",
+      "baseline_commit": "7dced543b9305f6c75f2ac40042c30c23cabd991",
+      "files": [
+        "crates/engram_server/src/services/request_trace.rs",
+        "crates/engram_server/src/services/request_trace/identity_insert.rs",
+        "crates/engram_server/src/services/request_trace/inline_sql.rs",
+        "crates/engram_server/src/services/request_trace/sql_commands.rs",
+        "crates/engram_server/src/services/n_plus_one.rs",
+        "crates/engram_server/src/handlers/settings_tools.rs",
+        "crates/engram_server/src/tools.rs",
+        "crates/engram_server/tests/request_trace_sql_commands.rs",
+        "crates/engram_server/tests/identity_batch_workflow_tests.rs"
       ],
-      "engram_builds_started": 0,
-      "cleanup_condition": "New source-proof/capture fixtures close all handles then remove owned resources. Frozen sources/packets/results retained as task evidence until superseded; preexisting inventories untouched.",
-      "progress_record": "eval/legacy_validation-sync-event-task-progress-20261115.json",
-      "source_control_flow_cases": 6,
-      "candidate_runs": 0,
-      "judge_runs": 0
+      "native_target": "identity_batch_workflow_tests"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -15806,5 +15826,14 @@
     "status": "FROZEN_SOURCE_PROOF_AND_CAPTURE_READY_AWAITING_AGENT_REQUEST",
     "comparison_complete": false,
     "full_goal_complete": false
+  },
+  "held_sync_event_task": {
+    "record": "eval/legacy_validation-sync-event-task-outcome-20261115.json",
+    "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+    "inputs_unchanged": true,
+    "source_criteria": "6/6",
+    "assisted_criteria": "6/6",
+    "task_benefit_established": false,
+    "replay_or_tuning_planned": false
   }
 }

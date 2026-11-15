@@ -38,7 +38,8 @@ fn capture(tokens: &[routing::Token], call: usize, start: usize, argument: bool)
             end,
         )
     } else {
-        let (text, source) = inline_sql::local_initializer(tokens, call, start, true)?;
+        let (text, source) = inline_sql::local_initializer(tokens, call, start, true)
+            .or_else(|| super::identity_insert::local_initializer(tokens,call,start))?;
         (text, source, start + 1)
     };
     let boundary = if argument {
@@ -57,6 +58,51 @@ fn gap(gaps: &mut Vec<String>, source: &Source<'_>, line: u32, detail: &str) {
             source.path
         ));
     }
+}
+
+#[derive(serde::Serialize)]
+pub(crate) struct BatchObservations {
+    pub observations: Vec<Value>,
+    pub truncated: bool,
+    pub observations_omitted: usize,
+    pub interpretation: &'static str,
+}
+/// Constructor-only source profile for the identity wrapper used by tenant
+/// inserts. A setter or reused receiver leaves effective command state unknown.
+pub(crate) fn identity_batches(body:&str,first_line:u32)->BatchObservations {
+    let mut report=BatchObservations {observations:vec![],truncated:false,observations_omitted:0,
+        interpretation:"Literal identity-wrapper constructor observations from supplied method source. Default Text mode is a source candidate, not CLR binding or effective command-state proof. Receiver reuse or CommandText/CommandType setters are unsupported here. Input128KiB,32constructors,32execute sites per receiver and64KiB serialized report. Statement order does not prove execution, transaction/session state or error cleanup."};
+    if body.len()>128*1024 || first_line==0 {report.truncated=true;return report;}
+    let t=routing::tokens(body,true);
+    let mut constructors=Vec::new();
+    for i in 2..t.len() {
+        if !word(&t,i,"New") {continue;}
+        let variable=if word(&t,i-1,"="){Some(&t[i-2])}else if i>=3 && word(&t,i-1,"As") && (word(&t,i-3,"Dim") || word(&t,i-3,"Using")){Some(&t[i-2])}else{None};
+        let Some(variable)=variable.filter(|v|!v.string && v.text.len()<=128) else {continue;};
+        let mut at=i+1;while word(&t,at+1,".") && t.get(at+2).is_some(){at+=2;}
+        if !word(&t,at,"SqlCommand") || !word(&t,at+1,"("){continue;}
+        if constructors.len()>=32 {report.truncated=true;report.observations_omitted+=1;continue;}
+        constructors.push((variable.text.clone(),i,at+2));
+    }
+    for(name,at,argument)in &constructors {
+        if constructors.iter().filter(|(other,_,_)|other.eq_ignore_ascii_case(name)).count()!=1 {continue;}
+        if (0..t.len()).any(|i|word(&t,i,name) && word(&t,i+1,".") && (word(&t,i+2,"CommandText")||word(&t,i+2,"CommandType")) && word(&t,i+3,"=")){continue;}
+        let Some(sql)=capture(&t,*at,*argument,true) else {continue;};
+        let Some(batch)=super::identity_insert::parse(&sql.text) else {continue;};
+        let mut executions=Vec::new();
+        for i in 0..t.len() {
+            if word(&t,i,name) && word(&t,i+1,".") && ["ExecuteReader","ExecuteScalar","ExecuteNonQuery"].iter().any(|method|word(&t,i+2,method)) && word(&t,i+3,"(") {
+                if executions.len()<32 {executions.push(json!({"line":first_line+t[i].line as u32-1,"method":t[i+2].text}));}else{report.truncated=true;}
+            }
+        }
+        if executions.is_empty(){continue;}
+        let mut initializer=sql.source;
+        if let Some(relative)=initializer.get("relative_line").and_then(Value::as_u64){initializer.as_object_mut().unwrap().remove("relative_line");initializer["line"]=json!(u64::from(first_line)+relative-1);}
+        report.observations.push(json!({"receiver":name,"constructor_line":first_line+t[*at].line as u32-1,
+            "initializer":initializer,"sql":sql.text,"batch":batch.facts,"executions":executions}));
+    }
+    while serde_json::to_vec(&report).is_ok_and(|bytes|bytes.len()>64*1024){report.truncated=true;report.observations.pop();report.observations_omitted+=1;}
+    report
 }
 
 pub(super) fn append(

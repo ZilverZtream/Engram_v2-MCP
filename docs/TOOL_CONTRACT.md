@@ -806,3 +806,28 @@ It accepts128KiB per method,32commands,64parameters per command,4declaration and
 serialized report is bounded to64KiB with explicit truncation/omission counts.
 These are source observations, not CLR/SQL binding, inferred parameter-to-column
 mappings, evaluated values or database execution.
+
+### Literal identity-insert wrappers
+
+Request traces can expose INSERT table candidates from a bounded three-statement
+`SET IDENTITY_INSERT <target> ON; INSERT ...; SET IDENTITY_INSERT <target> OFF`
+literal wrapper. ON/OFF target spellings must match. These are source facts;
+statement order does not prove successful insertion, physical binding, session
+identity, transaction atomicity or cleanup after an error. General SQL batches,
+control flow and procedures remain outside this decoder.
+
+For this pattern, source SqlCommand text candidates can use a single literal
+local `Dim` initializer with supported lexical block ancestry and no intervening
+name reference/direct reassignment. This is conservative source association, not
+general dataflow or compiler binding. Existing Const/Static and direct literal
+paths retain their own behavior.
+
+`detect_n_plus_one.source_sql_batch` and the QA matrix's Identity-insert batch
+axis use a constructor-only profile: one receiver, no CommandText/CommandType
+setter and a matching observed execute site. They preserve source hashes and
+initializer/constructor/execute locations. Review success and failure cleanup
+against actual task requirements; these are proposed review/test leads.
+Historical QA cutoffs and existing stale-source/database-scope controls remain.
+The collector accepts128KiB per method,32constructors,32execute sites each and
+64KiB serialized observations; a SQL string is bounded to64KiB. Unsupported or
+omitted observations remain unknown.

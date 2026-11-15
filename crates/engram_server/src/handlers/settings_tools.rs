@@ -481,7 +481,7 @@ impl Engram {
         let current_settings_budget = self.state.memory_budget.clone();
 
         type Axis = BTreeMap<String, Vec<String>>; // axis value -> methods
-        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, sql_parameter_axes, unresolved, coverage_notes, companion_context, member_observations) =
+        let (settings_axis, setting_labels, roles_axis, state_axis, runtime_axes, sql_parameter_axes, identity_batch_axes, unresolved, coverage_notes, companion_context, member_observations) =
             tokio::task::spawn_blocking(move || {
                 let mut settings_axis: Axis = BTreeMap::new();
                 let mut setting_labels: BTreeMap<String, String> = BTreeMap::new();
@@ -489,6 +489,7 @@ impl Engram {
                 let mut state_axis: Axis = BTreeMap::new();
                 let mut runtime_axes: Axis = BTreeMap::new();
                 let mut sql_parameter_axes: Axis = BTreeMap::new();
+                let mut identity_batch_axes: Axis = BTreeMap::new();
                 let mut unresolved: Vec<String> = Vec::new();
                 let mut coverage_notes = configured_risk_notes;
                 let mut source_bytes = 0;
@@ -659,6 +660,16 @@ impl Engram {
                             && n.node_type == "function"
                         {
                             if let Some(source) = snapshot.as_deref().and_then(|bytes| std::str::from_utf8(bytes).ok()) {
+                                let lines:Vec<_>=source.lines().collect();
+                                if n.start_line>0 && n.end_line>=n.start_line && n.end_line as usize<=lines.len() {
+                                    let body=lines[n.start_line as usize-1..n.end_line as usize].join("\n");
+                                    let batches=crate::services::request_trace::sql_commands::identity_batches(&body,n.start_line);
+                                    if batches.truncated {coverage_notes.push(format!("{label}: identity-batch source observation limit reached; omitted facts remain unknown."));}
+                                    for observation in batches.observations {
+                                        let target=observation["batch"]["identity_target_spelling"].as_str().unwrap_or("unknown");
+                                        identity_batch_axes.entry(format!("IDENTITY_INSERT {target}")).or_default().push(format!("{label}; initializer {}:{}; constructor {}:{}; execute sites {}; INSERT write/read candidates {}/{}; file BLAKE3 {}. SQL source order ON/INSERT/OFF does not prove physical binding, transaction/session identity, successful insertion or cleanup after an error.",file,observation["initializer"]["line"],file,observation["constructor_line"],observation["executions"],observation["batch"]["insert_write_candidates"],observation["batch"]["insert_read_candidates"],blake3::hash(source.as_bytes()).to_hex()));
+                                    }
+                                }
                                 if let Some(parameters) = crate::services::vb_sql_parameters::method_observations(source,n.start_line,n.end_line) {
                                     if parameters.truncated {
                                         coverage_notes.push(format!("{label}: SQL parameter observation limit reached; omitted parameter facts remain unknown."));
@@ -781,7 +792,7 @@ impl Engram {
                         }
                     }
                 }
-                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis, &mut runtime_axes, &mut sql_parameter_axes] {
+                for axis in [&mut settings_axis, &mut roles_axis, &mut state_axis, &mut runtime_axes, &mut sql_parameter_axes, &mut identity_batch_axes] {
                     for v in axis.values_mut() {
                         v.sort();
                         v.dedup();
@@ -794,6 +805,7 @@ impl Engram {
                     state_axis,
                     runtime_axes,
                     sql_parameter_axes,
+                    identity_batch_axes,
                     unresolved,
                     coverage_notes,
                     companion_context,
@@ -994,6 +1006,13 @@ impl Engram {
             None,
             &mut out,
         );
+        render_axis(
+            "Identity-insert batch axis",
+            "Review the supported literal ON/INSERT/OFF constructor source and its session/error-cleanup paths against actual task requirements. These are proposed review/test leads, not executed SQL or guarantees that OFF runs after failure:",
+            &identity_batch_axes,
+            None,
+            &mut out,
+        );
         if canonical_sweep.attempted && !canonical_sweep.summary.is_empty() {
             out.push_str(&format!(
                 "\n## Canonical-call residual sweep — {}\n{}\n",
@@ -1015,7 +1034,7 @@ impl Engram {
             out.push_str("No source-verified rule cases available; run analyze_business_logic for the requested files to populate or refresh them.\n");
         }
 
-        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && sql_parameter_axes.is_empty() {
+        if settings_axis.is_empty() && roles_axis.is_empty() && state_axis.is_empty() && runtime_axes.is_empty() && sql_parameter_axes.is_empty() && identity_batch_axes.is_empty() {
             out.push_str(
                 "\nNo usable setting/role/state/configured-risk axes were emitted. This does not establish \
                  that the change is gate-free; check incomplete evidence above and \

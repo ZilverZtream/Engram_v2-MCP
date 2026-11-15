@@ -348,6 +348,17 @@ impl<'a> Analyzer<'a> {
                         });
                     }
                 }
+                if repetition.method_start_line>0 && repetition.method_end_line>=repetition.method_start_line {
+                    let lines:Vec<_>=source.text.lines().collect();
+                    if repetition.method_end_line as usize<=lines.len() {
+                        let body=lines[repetition.method_start_line as usize-1..repetition.method_end_line as usize].join("\n");
+                        let mut batches=crate::services::request_trace::sql_commands::identity_batches(&body,repetition.method_start_line);
+                        batches.observations.retain(|observation|observation["executions"].as_array().is_some_and(|sites|sites.iter().any(|site|site["line"]==inv.start_line && site["method"].as_str().is_some_and(|method|method.eq_ignore_ascii_case(&db.method)))));
+                        if !batches.observations.is_empty() || batches.truncated {
+                            self.findings.last_mut().expect("inserted finding")["source_sql_batch"]=json!({"file":file,"source_hash":source.hash,"observations":batches});
+                        }
+                    }
+                }
                 continue;
             }
             if depth >= 6 {
