@@ -101,7 +101,7 @@ impl Engram {
             result["active_generation"]=json!(generation);
             result["coverage"]=json!({"selected_sql_files":sql_files,"admitted_sql_files":admitted,"source_bytes_read":bytes,"gaps":catalog.gaps,
                 "evidence":"Source declarations with selected physical revision and BLAKE3 checks; no atomic graph/disk snapshot.",
-                "schema_semantics":"SQL Server source inventory, not a live/deployed database schema. ALTER/DROP and execution order are not applied. Omitted nullability is unknown; nullable_columns returns explicit NULL only. Computed-column result types/nullability are unknown.",
+                "schema_semantics":"SQL Server source inventory, not a live/deployed database schema. Supported ALTER TABLE ADD foreign-key declarations are reported separately with application_status=not_established; they do not modify the CREATE TABLE baseline. ALTER/DROP and execution order are not applied. Omitted nullability is unknown; nullable_columns returns explicit NULL only. Computed-column result types/nullability are unknown.",
                 "name_matching":"Case-insensitive source-name lookup; database collation/default schema unknown. Unqualified relationship candidates are labelled, not bound.",
                 "reference_semantics":"Procedure/view references are lexical source candidates; aliases, CTEs, dynamic SQL, trigger execution and code-to-database binding are not proved.",
                 "code_references":"Table queries include at most 50 verified indexed code-reference leads; basename graph identities do not establish qualified database binding.",

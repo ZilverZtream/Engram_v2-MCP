@@ -968,3 +968,19 @@ do not change the returned committed bodies or hashes. Missing/oversized Git
 targets remain named and never fall back to disk. Historical references do not
 offer current-file read actions. Recover omitted bodies at the stated commit
 and repository-relative path (including the stated project prefix).
+
+## Foreign keys declared by post-deployment SQL
+
+`query_schema(kind: "table")` reports supported `ALTER TABLE ... ADD` foreign
+keys in `alter_table_foreign_keys`, separately from the `CREATE TABLE` baseline.
+`tables_that_reference_foreign_key` includes these same source-declared operations
+with their script citation, full-file source hash, qualified names, column pairs
+and supported cascade actions. Comma-separated FK constraints and optional
+`WITH CHECK`/`WITH NOCHECK` are recognized. Existing query pagination applies.
+
+Every such row has `declaration_origin: "alter_table_add_foreign_key"` and
+`application_status: "not_established"`. Scripts may be conditional, unapplied,
+superseded or run in another order; their appearance does not establish deployed
+state or constraint trust. Unsupported ALTER operations retain coverage gaps.
+Changed script bytes are withheld until source refresh under the existing
+selected-generation and fingerprint checks. No migration is executed.

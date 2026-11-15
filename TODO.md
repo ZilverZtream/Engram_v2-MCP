@@ -544,6 +544,10 @@ proposals that duplicate the existing surface:
   primary key and unique index without source or generation changes.
   SQL declarations do not establish deployed database state; ALTER/DROP,
   execution and unresolved name binding remain explicit limits.
+  Source-complete November15, awaiting combined validation: post-deployment
+  `ALTER TABLE ... ADD` foreign keys are separately cited in table and incoming
+  relationship queries, without applying migrations or changing CREATE baselines.
+  [Pending source change](eval/alter-foreign-key-schema-progress-20261115.json).
   `detect_n_plus_one` delivered 2026-11-12: VB loop/WebForms row-binding
   database-call candidates, cross-file helper evidence, LINQ cached-list
   exclusions, source freshness, paging and complete budgets. Three native tests

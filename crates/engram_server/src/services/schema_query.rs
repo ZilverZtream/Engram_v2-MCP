@@ -9,6 +9,8 @@ use sqlparser::{
     tokenizer::{Token, TokenWithSpan, Tokenizer},
 };
 
+mod alter_foreign_keys;
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
 pub struct Name(pub(super) Vec<String>);
 impl Name {
@@ -222,6 +224,7 @@ pub struct Catalog {
     pub(super) tables: Vec<Table>,
     pub(super) objects: Vec<Object>,
     pub(super) ddl_operations: Vec<DdlTableOperation>,
+    alter_foreign_keys: Vec<alter_foreign_keys::Declaration>,
     pub gaps: Vec<String>,
 }
 
@@ -380,7 +383,9 @@ impl Catalog {
                 i += 2;
             }
             if alter && kw(&t, i, "TABLE") {
-                if let Some((table, _)) = name_at(&t, i + 1) {
+                if let Some((table, after)) = name_at(&t, i + 1) {
+                    let declarations = alter_foreign_keys::parse(&t, start, after, &table, &citation);
+                    self.alter_foreign_keys.extend(declarations);
                     self.ddl_operations.push(DdlTableOperation { operation: "ALTER", table, source_path: path.into() });
                 }
                 self.gaps.push(format!("{path}:{}: ALTER TABLE is retained as a coverage gap; source declarations are not an executed migration state",t[start].span.start.line));
@@ -623,15 +628,20 @@ impl Catalog {
             _ => {
                 let t=selected.expect("table queries resolved above");
                 match q {
-                    Table{..} => vec![json!({"table":t,"indexes":related(t,"index"),"triggers":related(t,"trigger"),"views":related(t,"view"),"stored_procedures":related(t,"stored_proc")})],
+                    Table{..} => vec![json!({"table":t,"indexes":related(t,"index"),"triggers":related(t,"trigger"),"views":related(t,"view"),"stored_procedures":related(t,"stored_proc"),
+                        "alter_table_foreign_keys":self.alter_foreign_keys.iter().filter_map(|declaration|relation(&declaration.key,t).map(|binding|declaration.row(binding))).collect::<Vec<_>>()})],
                     Column{column,..} => {let col=input_name(column)?;t.columns.iter().filter(|c|c.name.eq_ignore_ascii_case(&col.0[0])).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect()},
                     NullableColumns{..} => t.columns.iter().filter(|c|c.nullable==Some(true)).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect(),
                     ComputedColumns{..} => t.columns.iter().filter(|c|c.computed_expression.is_some()).map(|c|json!({"table":t.name,"column":c,"citation":t.citation})).collect(),
                     TriggersOnTable{..} => related(t,"trigger"), ViewsSourcedFrom{..} => related(t,"view"), IndexesOnTable{..} => related(t,"index"),
-                    TablesThatReferenceForeignKey{column,..} => {let col=input_name(column)?;self.tables.iter().flat_map(|other|other.foreign_keys.iter().filter_map(|fk| {
+                    TablesThatReferenceForeignKey{column,..} => {let col=input_name(column)?;let mut rows:Vec<_>=self.tables.iter().flat_map(|other|other.foreign_keys.iter().filter_map(|fk| {
                         let binding=relation(&fk.target,t)?;
                         fk.referenced_columns.iter().any(|c|c.eq_ignore_ascii_case(&col.0[0])).then(||json!({"table":other.name,"foreign_key":fk,"binding":binding,"citation":other.citation}))
-                    })).collect()},
+                    })).collect();
+                        rows.extend(self.alter_foreign_keys.iter().filter_map(|declaration| {
+                            let binding=relation(&declaration.foreign_key.target,t)?;
+                            declaration.foreign_key.referenced_columns.iter().any(|c|c.eq_ignore_ascii_case(&col.0[0])).then(||declaration.row(binding))
+                        })); rows},
                     _=>unreachable!(),
                 }
             }
