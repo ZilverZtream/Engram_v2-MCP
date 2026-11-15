@@ -902,6 +902,10 @@
       "identity_batch_workflows_delivery_20261115": {
         "record": "eval/legacy_validation-identity-batch-delivery-20261115.json",
         "task_benefit_established": false
+      },
+      "member_workflows_delivery_20261115": {
+        "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
+        "task_benefit_established": false
       }
     },
     {
@@ -3251,7 +3255,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
+        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -10069,7 +10073,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+      "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
       "finding": "Original scoped task evidence and EG24/25 relevance: method-scoped workflow inputs",
       "original_requirement": "Consolidate workflow presentation/evidence identity and supply current task-relevant evidence to existing OX AI workflows without unrelated file-wide analysis. Retain guidance and explicit coverage.",
       "priority_evidence": {
@@ -10133,7 +10137,12 @@
         "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
         "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched.",
         "proof_scope": "Exact unchanged raw webhook source copied into an owned project;14 declarations and16 assignment lines independently matched through all three public workflows."
-      }
+      },
+      "delivery_record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
+      "source_commit": "9783e29724b0ddd0f0caf089e552a944d01ea965",
+      "runtime_source_commit": "4ca63d99b871d405498b231680f2295a8cd2f38d",
+      "installed_server_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
+      "actual_full_source_operation_run": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10165,8 +10174,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Original scoped task evidence and EG24/25 relevance: method-scoped workflow inputs",
-    "next_user_visible_deliverable": "Identity-insert source-workflow slice delivered across three tools; advance a ready original LegacyValidation requirement without widening or replaying this acceptance. Preserve unknown general SQL/procedure/runtime binding and unfinished original semantic/usefulness/release requirements.",
+    "active_original_item": "Method-scoped workflow slice delivered; advance next original requirement.",
+    "next_user_visible_deliverable": "One method-scoping feature is delivered across three tools. Resume sequential original source work; accumulate at least three distinct source-complete original requirements before the next guarded compilation. Preserve all unfinished semantic/usefulness, authority and release requirements.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -10183,7 +10192,7 @@
       "evidence": "eval/legacy_validation-priority-correction-20261112.json"
     },
     "latest_completed_core_batch": "e15d572deployed; actual5definitions23325to14667B, original3requestbudget64948B versus71812B witholdsetup/sameactualresponses. One fresh originalfullQA then completed2PASS/3PARTIAL at64879B/7attempts including1181B path-refusal. Honest task incompleteness retained; no overall advantage demonstrated.",
-    "previous_goal_turn_classification": "PROGRESS: identity-insert workflow batch deployed; select task-scoped diagnostics and QA from the original relevance requirement.",
+    "previous_goal_turn_classification": "PROGRESS: three method-scoped workflow components deployed and public source-copy acceptance passed. Broader original goal remains active.",
     "latest_resource_attribution_batch": {
       "at_utc": "2026-11-05T18:29:48.334062+00:00",
       "source_commit": "2c885563e0de9b2edaa234f193bb0ddcd81c5c2c",
@@ -15901,5 +15910,10 @@
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact."
+  },
+  "member_workflows_delivery": {
+    "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
   }
 }

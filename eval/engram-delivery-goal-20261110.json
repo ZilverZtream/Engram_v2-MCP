@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_NATIVE_AND_DEBUG_VALIDATED",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "finding": "Original scoped task evidence and EG24/25 relevance: method-scoped workflow inputs",
     "original_requirement": "Consolidate workflow presentation/evidence identity and supply current task-relevant evidence to existing OX AI workflows without unrelated file-wide analysis. Retain guidance and explicit coverage.",
     "priority_evidence": {
@@ -104,7 +104,12 @@
       "purpose": "Exact unchanged allowed non-Q LegacyValidation SQL source for owned MCP acceptance; source application file stays read-only.",
       "cleanup": "Snapshot retained with this case as review evidence. New owned test repositories/data removed after all handles close; preexisting directories untouched.",
       "proof_scope": "Exact unchanged raw webhook source copied into an owned project;14 declarations and16 assignment lines independently matched through all three public workflows."
-    }
+    },
+    "delivery_record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
+    "source_commit": "9783e29724b0ddd0f0caf089e552a944d01ea965",
+    "runtime_source_commit": "4ca63d99b871d405498b231680f2295a8cd2f38d",
+    "installed_server_sha256": "0e4721b3dd1d744711c45f8d2a1c98be683901bf98abf21c9d4bde660d0a3665",
+    "actual_full_source_operation_run": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -894,42 +899,35 @@
     "batch_size": 3,
     "implementation_concurrency": 1,
     "rule": "Finish independent deliverables sequentially in the existing checkout, retain each finite contract and source commit, and accumulate a pending validation queue. Only one implementation item is active. Pending validation is not installed delivery or full acceptance. Do not stop source progress to release each small feature.",
-    "compiled_tests_seconds": 221.37486210011411,
-    "actual_test_execution_seconds": 8.91,
-    "last_release_compile_seconds": 813.0,
+    "compiled_tests_seconds": 345.24190690007526,
+    "actual_test_execution_seconds": 18.2,
+    "last_release_compile_seconds": 1066.0,
     "pending": [],
     "unchanged_requirements": "Original feature acceptance, actual LegacyValidation source checks, candidate/installed behavior, preserved work/configuration and resource cleanup remain required before closure. No compiler-profile/cache redesign selected.",
-    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\identity-batch-20261115",
+    "batch_release_scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\member-workflows-20261115",
     "completed_last_batch": [
       {
-        "component": "Identity-insert request paths",
-        "delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json"
-      },
-      {
-        "component": "Identity-insert repetition context",
-        "delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json"
-      },
-      {
-        "component": "Identity-insert QA axes",
-        "delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json"
+        "component": "Method-scoped diagnostic and QA workflow",
+        "independent_deliverables": 1,
+        "delivery": "eval/legacy_validation-member-workflows-delivery-20261115.json"
       }
     ],
-    "last_batch_delivery": "eval/legacy_validation-identity-batch-delivery-20261115.json",
+    "last_batch_delivery": "eval/legacy_validation-member-workflows-delivery-20261115.json",
     "server_test_selection": "Prefer focused core tests and public MCP acceptance on the combined release; compile a separate server test harness only when needed for additional behavior coverage. Preserve required original checks.",
     "last_native_compile": [
       "2m 56s"
     ],
-    "last_release_compile": "13m 33s",
+    "last_release_compile": "17m 46s",
     "validation_scope_rule": "Use one focused combined native batch and one release for the accumulated source batch. Reuse that release for candidate/installed checks. Run only checks affected by changes; repeat only the failed case after a fixture-only correction. Inspect existing interfaces/visibility before creating fixture dependencies. No full-suite default or extra debug build.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Existing release1 only; no new compile for this feature. Accumulate independent source-complete original deliverables before the next combined validation.",
-    "last_native_attempts": 2,
+    "current_step_reason": "One method-scoping feature deployed. No new compile until three independent original source deliveries pass the batch gate.",
+    "last_native_attempts": 3,
     "last_release_attempts": 1,
-    "compiled_tests_seconds_scope": "One focused thirteen-case target. First compile failed E0502; corrected native2 passed. No full/lib suite or extra debug build.",
-    "last_release_runner_seconds": 824.8348124000477,
-    "native_failed_attempts": 1,
+    "compiled_tests_seconds_scope": "Focused16distinct cases: fixture-only E0603 fix and flattened-JSON path correction;15passes plus corrected1case. Runtime source unchanged, no full/lib suite or extra debug build.",
+    "last_release_runner_seconds": 1080.013873699936,
+    "native_failed_attempts": 2,
     "public_failed_verifier_attempts": 0,
-    "last_native_runner_seconds": 221.37486210011411,
+    "last_native_runner_seconds": 345.24190690007526,
     "latest_cadence_deviation": {
       "at_utc": "2026-11-15T16:50:25.278957+00:00",
       "user_observation": "Small edits followed by repeated compilation cannot scale toward v1.",
@@ -1003,7 +1001,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Identity-insert source-workflow slice delivered across three tools; advance a ready original LegacyValidation requirement without widening or replaying this acceptance. Preserve unknown general SQL/procedure/runtime binding and unfinished original semantic/usefulness/release requirements.",
+  "next_user_visible_deliverable": "One method-scoping feature is delivered across three tools. Resume sequential original source work; accumulate at least three distinct source-complete original requirements before the next guarded compilation. Preserve all unfinished semantic/usefulness, authority and release requirements.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2571,5 +2569,10 @@
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact."
+  },
+  "member_workflows_delivery": {
+    "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "full_goal_complete": false
   }
 }
