@@ -10076,8 +10076,15 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED",
-      "record": "eval/revision-guard-history-batch-delivery-20261115.json"
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "record": "eval/retained-index-output-progress-20261115.json",
+      "original_requirement_id": "EG-13",
+      "original_gate_id": "S14",
+      "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
+      "native_tests_run": false,
+      "public_acceptance_run": false,
+      "deployed": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10109,8 +10116,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Three original source outcomes installed and normal runtime restored; select the next concrete unfinished original requirement.",
-    "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement from concrete missing behavior. This three-outcome batch is installed; do not replay its completed finite checks. Broader usefulness, authority, historical graph/policy and all other original limits remain open.",
+    "active_original_item": "EG-13 / S14 retained source output admission is source-complete and queued for combined validation. No implementation item active until the next distinct original requirement is selected.",
+    "next_user_visible_deliverable": "Accumulate at least two more distinct original source outcomes sequentially before combined focused validation and one release. No build for this single queued outcome.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15895,7 +15902,18 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-13",
+        "original_gate_id": "S14",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
+        "runtime_source_commit": "5d90b87223cdd51884e8a5d43e86b018a8270667",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
+        "progress_record": "eval/retained-index-output-progress-20261115.json",
+        "user_outcome": "Retained indexing statistics and document batches participate in shared-budget admission through their actual consumers; refusal preserves the published generation. Source complete, not yet validated or installed."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -15938,11 +15956,15 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "record": "eval/revision-guard-history-batch-delivery-20261115.json",
-    "independent_requirements_delivered": 3,
-    "native_builds": 1,
-    "release_builds": 1
+    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "independent_requirements_source_complete": [
+      "EG-13"
+    ],
+    "pending_count": 1,
+    "minimum_before_compile": 3,
+    "native_builds": 0,
+    "release_builds": 0,
+    "last_installed_record": "eval/revision-guard-history-batch-delivery-20261115.json"
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -15954,5 +15976,16 @@
     "record": "eval/revision-guard-history-batch-delivery-20261115.json",
     "full_original_goal_complete": false
   },
-  "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement from concrete missing behavior. This three-outcome batch is installed; do not replay its completed finite checks. Broader usefulness, authority, historical graph/policy and all other original limits remain open."
+  "next_user_visible_deliverable": "Advance the next unfinished original LegacyValidation requirement from concrete missing behavior. This three-outcome batch is installed; do not replay its completed finite checks. Broader usefulness, authority, historical graph/policy and all other original limits remain open.",
+  "retained_index_output_source_progress": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "record": "eval/retained-index-output-progress-20261115.json",
+    "original_requirement_id": "EG-13",
+    "original_gate_id": "S14",
+    "source_commit": "b7a7a314e848fe80705c879a541488cb7c224bb3",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-index-output-20261115\\contract.json",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
+  }
 }
