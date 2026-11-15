@@ -40,62 +40,58 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "finding": "Original TODO4 durable continuation for bounded search windows",
-    "original_requirement": "Agent pagination preserves complete selected results with stable identities and recovery; existing mutable offsets do not satisfy durable continuation.",
-    "observed_missing_behavior": "search_memory, search_history and grep_project explicitly expose mutable offsets. They do not offer a retained query-result window that survives restart or changed index/source/ranking inputs.",
-    "components": [
-      {
-        "name": "Retained code and knowledge search window",
-        "tool": "search_memory",
-        "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
+    "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+    "finding": "Original EG24/25 fresh bounded supplier-invoice QA comparison",
+    "original_requirement": "Task-level usefulness requires matched source-only and Engram-assisted evidence, correctness/false guidance/context cost/latency and preserved failures; test counts alone are insufficient.",
+    "task": "Review the supplied current LegacyValidation supplier-invoice import source. Required behavior: configured excluded account strings must not reach downstream row admission when full SupplierInvoiceRow objects are added singly or in bulk; allowed rows retain order. Diagnose current behavior, propose the smallest centralized change if needed, and produce at most12 ordinary regression cases. Also decide whether the supplied Tripletex import caller currently uses an affected entry point. Do not change any repository file or run tools, networks, databases or programs. Return JSON only with diagnosis, proposed_change, evidence (path/line citations), tests and limitations. Each test has name, operation (Add or AddRange), excluded_accounts (array of plain account strings), rows (array of objects with id and account) and expected_kept (array of row IDs). Add tests have exactly one row. Use normal account strings such as6000/7000/8000, nonempty unique row IDs and bounded lists. Preserve the existing downstream _AddRow validation; the test fixture only observes which IDs reach that admission point. Do not reimplement the importer. No independent authored policy has been supplied beyond this task requirement and the source comments. Source references are complete for these two files, not the whole application. No actual LegacyValidation code is to be edited. Do not claim application completion or that source-gate tests execute SQL or Tripletex.",
+    "source_pins": {
+      "App_Code/financialdata/SupplierInvoiceImporter.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+        "sha256": "f5d86d1bc299464cfa82f3e8fdb476be39083267d78a92b8beec7820b2178e34",
+        "bytes": 28208
       },
-      {
-        "name": "Retained historical result window",
-        "tool": "search_history",
-        "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
-      },
-      {
-        "name": "Retained verified literal-search window",
-        "tool": "grep_project",
-        "status": "IMPLEMENTED_VALIDATED_DEPLOYED"
+      "App_Code/integration/code/tripletexSupplierInvoice.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+        "sha256": "55210bc40a7e8703f8c0e07a5593ab69815f534f3fe1281bbb16a0a3e6c54c62",
+        "bytes": 11637
       }
-    ],
-    "acceptance": [
-      "Opt-in retain_response=true with output_json=true captures the complete original requested bounded result window before reply-budget clipping. Normal calls keep their current behavior, filters, fields and limits. Each new tool is implemented sequentially before any build.",
-      "Original MCP result and every selected identity/content/rank/qualification recover byte-for-byte through response_id/response_offset, within default40KiB or caller budgets, across restart and relevant live-input changes. Recovery never invokes retrieval, providers, Git ranking or freshness scans.",
-      "Retained provenance is historical capture, not current guidance/index/source evidence. Existing truncation, window/corpus caps and unavailable citations stay explicit. Outside the captured window requires a fresh query. Cached original results retain current existing24h/32snapshot/8MiB bounds.",
-      "Public owned JS/VB/Git fixture verifies complete known source paths/matches/history commits, scoping and exact recovery. Tiny budgets fail before analysis; project/tool mismatches refuse. Core/Full schemas agree for available tools. No actual LegacyValidation trace/source scan, Site/Q read, SQL execution, model replay or CodeMap/Blast work.",
-      "One dedicated native integration target, one release after all three components. Reuse release for candidate/installed; no full/lib-unit suite or build-system investigation."
-    ],
-    "implementation_files": [
-      "crates/engram_server/src/retained_results.rs",
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/src/tool_surface.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/src/lib.rs",
-      "crates/engram_server/tests/retained_results_tests.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115",
-    "actual_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
-    "temporary_resources": "All new fixtures under this case; close servers/DB handles before owned removal. Retain case evidence/package/managed rollback for review. Preexisting folders untouched.",
-    "limits": "Selected original request windows only, not exhaustive corpus snapshots or retained underlying source objects. Broader TODO4 and original semantic/benefit requirements remain unfinished.",
-    "history_selection_correction": "Retained40.49s observation is historical and later4.3188s result superseded reopening it; existing semantic-stage budgets are delivered. No new latency investigation selected.",
-    "source_commit": "877753c21c103ffccc1b3a5927fd92ba9d56f01c",
-    "implementation_complete": true,
-    "validated": true,
-    "deployed": true,
-    "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\baseline1\\acceptance.json",
-    "native_target": "retained_results_tests",
-    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\native-acceptance.json",
-    "debug_public": {
-      "status": "PASS",
-      "checks": 26,
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\retained-search-windows-20261115\\debug-smoke1\\acceptance.json"
     },
-    "bounded_delivery_complete": true,
-    "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
+    "oracle_sha256": "b491ed544b6a8a0aa42c8e2e4d73f8f7ec8219c74cabadf79f1c1474366c4db4",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115",
+    "producer_tools": [
+      "analyze_business_logic: Add@115,AddRange@138,SyncItem@83",
+      "derive_test_matrix"
+    ],
+    "producer_mode": "Installed exact binary on owned exact source copies, fts_only plus current configured text LLM for3targeted analysis calls; production config/registry untouched.",
+    "finite_acceptance": [
+      "Freeze task/source/oracle before producer capture or candidate replies.",
+      "Execute six ordinary gate cases on exact copied Add/AddRange source slices and the owned one-call delegation fix; retain actual observations.",
+      "Capture current derive_test_matrix once with exact source/config/binary pins and all owned fixture cleanup.",
+      "Prepare two matched candidate packets differing only by actual producer output; execute one comparison and blind independent judgment only when current subagent instructions permit it. No response repair/replay/tuning.",
+      "Retain raw results and report no benefit if both detect the same defect. No Engram builds, extra benchmark platform, actual source edits, Site/Q reads or CodeMap/Blast work."
+    ],
+    "agent_execution": "User explicitly requested three agents. Exactly two fresh candidates and one blinded judge completed; no model response repair or replay.",
+    "broader_eg24_complete": false,
+    "broader_eg25_complete": false,
+    "temporary_resources": "One recorded case. Retain source snapshots, frozen inputs and raw evidence. Owned index/QA fixture directories removed only after all child/database handles close; actual source and preexisting folders stay untouched.",
+    "producer_prerequisite_correction": "Capture1 was a cold two-file fixture and correctly supplied no source-verified rule cases. Before any candidate execution, complete the three targeted analysis prerequisites with the existing configured LLM, then capture matrix2. Do not treat absent curated knowledge as a production defect. Task/source/oracle criteria remain unchanged.",
+    "source_gate_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle2\\receipt.json",
+    "producer_capture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture2\\receipt.json",
+    "prepared_comparison": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\packets\\frozen.json",
+    "candidate_sessions_started": 2,
+    "judge_sessions_started": 1,
+    "fixture_setup_failure": {
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle1\\receipt.json",
+      "reason": "Standalone fixture omitted Option Infer; corrected compiler flag, exact source methods unchanged. No Engram build or source change."
+    },
+    "limits": "One exact non-Q source-gate task on owned copies. The6case fixture proves admission behavior and the owned delegation fix only; downstream validations/SQL/API/app integration are not executed. Matrix capture is advisory/inferred, not domain-accepted policy or measured task benefit. Broader EG24/25 remain open.",
+    "comparison_complete": true,
+    "benefit_demonstrated": false,
+    "outcome": "eval/legacy_validation-invoice-task-outcome-20261115.json",
+    "runtime_change": false,
+    "deploy_required": false
   },
   "previous_delivery": {
     "finding": "TODO26 Service applicability and neutral non-.NET behavior",
@@ -911,7 +907,7 @@
     "last_release_compile": "Finished `release` profile [optimized] target(s) in 14m 58s",
     "validation_scope_rule": "No full suite for a bounded component. Reuse the installed binary for corpus, documentation and evaluation work. Compile only for changed runtime code: three substantive components per combined focused native/release batch, followed by required candidate/installed checks. A concrete delivery-blocking regression may justify a smaller batch. Do not repeat passed checks without a relevant change, failure or unresolved result.",
     "current_step_builds_required": 0,
-    "current_step_reason": "Retained windows accepted and installed. Reuse the installed binary for the next original task-usefulness/evaluation work; no runtime source pending.",
+    "current_step_reason": "Evaluation complete with no incremental benefit; installed runtime unchanged. No pending runtime source from this task.",
     "last_native_attempts": 1,
     "last_release_attempts": 1,
     "compiled_tests_seconds_scope": "Native runner including compile/cleanup;16mechanism checks retained, final selection verified through MCP",
@@ -992,7 +988,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Advance original EG24/25 task-usefulness acceptance using the installed runtime and existing workflow/harness. Select one previously uninspected allowed non-Q task with finite source-grounded criteria before execution. Preserve failed outcomes; do not replay/tune inspected cases or build new benchmark infrastructure. No compilation is needed for evaluation alone. Other original unfinished requirements remain preserved.",
+  "next_user_visible_deliverable": "Advance the next ready original LegacyValidation requirement from concrete existing gaps. Preserve this completed negative comparison; no invoice-task model replay or outcome tuning. Keep original EG24/25 benefit and all other unfinished requirements open. Select a finite original implementation contract before code; batch three substantive components before any combined runtime build.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2233,5 +2229,60 @@
     "bounded_delivery_complete": true,
     "delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
   },
-  "retained_search_window_delivery": "eval/legacy_validation-retained-search-delivery-20261115.json"
+  "retained_search_window_delivery": "eval/legacy_validation-retained-search-delivery-20261115.json",
+  "retained_invoice_task_contract": {
+    "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+    "finding": "Original EG24/25 fresh bounded supplier-invoice QA comparison",
+    "original_requirement": "Task-level usefulness requires matched source-only and Engram-assisted evidence, correctness/false guidance/context cost/latency and preserved failures; test counts alone are insufficient.",
+    "task": "Review the supplied current LegacyValidation supplier-invoice import source. Required behavior: configured excluded account strings must not reach downstream row admission when full SupplierInvoiceRow objects are added singly or in bulk; allowed rows retain order. Diagnose current behavior, propose the smallest centralized change if needed, and produce at most12 ordinary regression cases. Also decide whether the supplied Tripletex import caller currently uses an affected entry point. Do not change any repository file or run tools, networks, databases or programs. Return JSON only with diagnosis, proposed_change, evidence (path/line citations), tests and limitations. Each test has name, operation (Add or AddRange), excluded_accounts (array of plain account strings), rows (array of objects with id and account) and expected_kept (array of row IDs). Add tests have exactly one row. Use normal account strings such as6000/7000/8000, nonempty unique row IDs and bounded lists. Preserve the existing downstream _AddRow validation; the test fixture only observes which IDs reach that admission point. Do not reimplement the importer. No independent authored policy has been supplied beyond this task requirement and the source comments. Source references are complete for these two files, not the whole application. No actual LegacyValidation code is to be edited. Do not claim application completion or that source-gate tests execute SQL or Tripletex.",
+    "source_pins": {
+      "App_Code/financialdata/SupplierInvoiceImporter.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+        "sha256": "f5d86d1bc299464cfa82f3e8fdb476be39083267d78a92b8beec7820b2178e34",
+        "bytes": 28208
+      },
+      "App_Code/integration/code/tripletexSupplierInvoice.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+        "sha256": "55210bc40a7e8703f8c0e07a5593ab69815f534f3fe1281bbb16a0a3e6c54c62",
+        "bytes": 11637
+      }
+    },
+    "oracle_sha256": "b491ed544b6a8a0aa42c8e2e4d73f8f7ec8219c74cabadf79f1c1474366c4db4",
+    "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115",
+    "producer_tools": [
+      "analyze_business_logic: Add@115,AddRange@138,SyncItem@83",
+      "derive_test_matrix"
+    ],
+    "producer_mode": "Installed exact binary on owned exact source copies, fts_only plus current configured text LLM for3targeted analysis calls; production config/registry untouched.",
+    "finite_acceptance": [
+      "Freeze task/source/oracle before producer capture or candidate replies.",
+      "Execute six ordinary gate cases on exact copied Add/AddRange source slices and the owned one-call delegation fix; retain actual observations.",
+      "Capture current derive_test_matrix once with exact source/config/binary pins and all owned fixture cleanup.",
+      "Prepare two matched candidate packets differing only by actual producer output; execute one comparison and blind independent judgment only when current subagent instructions permit it. No response repair/replay/tuning.",
+      "Retain raw results and report no benefit if both detect the same defect. No Engram builds, extra benchmark platform, actual source edits, Site/Q reads or CodeMap/Blast work."
+    ],
+    "agent_execution": "User explicitly requested three agents. Exactly two fresh candidates and one blinded judge completed; no model response repair or replay.",
+    "broader_eg24_complete": false,
+    "broader_eg25_complete": false,
+    "temporary_resources": "One recorded case. Retain source snapshots, frozen inputs and raw evidence. Owned index/QA fixture directories removed only after all child/database handles close; actual source and preexisting folders stay untouched.",
+    "producer_prerequisite_correction": "Capture1 was a cold two-file fixture and correctly supplied no source-verified rule cases. Before any candidate execution, complete the three targeted analysis prerequisites with the existing configured LLM, then capture matrix2. Do not treat absent curated knowledge as a production defect. Task/source/oracle criteria remain unchanged.",
+    "source_gate_evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle2\\receipt.json",
+    "producer_capture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture2\\receipt.json",
+    "prepared_comparison": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\packets\\frozen.json",
+    "candidate_sessions_started": 2,
+    "judge_sessions_started": 1,
+    "fixture_setup_failure": {
+      "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle1\\receipt.json",
+      "reason": "Standalone fixture omitted Option Infer; corrected compiler flag, exact source methods unchanged. No Engram build or source change."
+    },
+    "limits": "One exact non-Q source-gate task on owned copies. The6case fixture proves admission behavior and the owned delegation fix only; downstream validations/SQL/API/app integration are not executed. Matrix capture is advisory/inferred, not domain-accepted policy or measured task benefit. Broader EG24/25 remain open.",
+    "comparison_complete": true,
+    "benefit_demonstrated": false,
+    "outcome": "eval/legacy_validation-invoice-task-outcome-20261115.json",
+    "runtime_change": false,
+    "deploy_required": false
+  },
+  "invoice_task_outcome": "eval/legacy_validation-invoice-task-outcome-20261115.json"
 }

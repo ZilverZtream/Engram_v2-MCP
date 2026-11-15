@@ -1,0 +1,195 @@
+{
+  "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+  "at_utc": "2026-11-15T10:07:21.226291+00:00",
+  "finding": "Original EG24/25 bounded current LegacyValidation task usefulness",
+  "task": "SupplierInvoiceImporter full-row single/bulk account exclusion QA and supplied Tripletex caller discrimination.",
+  "scope": "One fresh paired source diagnosis/QA task. Frozen task/source/oracle; two fresh no-history candidates and one fresh blinded judge. Candidate JSON cases executed on exact copied admission methods and a predetermined owned one-call delegation fix.",
+  "installed_binary_sha256": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+  "source_pins": {
+    "App_Code/financialdata/SupplierInvoiceImporter.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+      "sha256": "f5d86d1bc299464cfa82f3e8fdb476be39083267d78a92b8beec7820b2178e34",
+      "bytes": 28208
+    },
+    "App_Code/integration/code/tripletexSupplierInvoice.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+      "sha256": "55210bc40a7e8703f8c0e07a5593ab69815f534f3fe1281bbb16a0a3e6c54c62",
+      "bytes": 11637
+    }
+  },
+  "arms": {
+    "engram_assisted": {
+      "candidate_agent": "/root/invoice_candidate_b",
+      "reply": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\candidate-b.json",
+      "reply_sha256": "56c206892db1e8a0b89ee3f6f1d30707255d72db35d076dcd3b0325e1dd96fbb",
+      "packet_bytes": 70442,
+      "criteria": {
+        "C1": "not_satisfied",
+        "C2": "satisfied",
+        "C3": "satisfied",
+        "C4": "satisfied",
+        "C5": "satisfied",
+        "C6": "satisfied",
+        "C7": "satisfied"
+      },
+      "satisfied": 6,
+      "total_criteria": 7,
+      "false_guidance": [],
+      "cases": 10,
+      "correct_required_behavior": 10,
+      "bug_revealing_cases": [
+        "Bulk singleton excludes configured account",
+        "Bulk rejects every excluded row",
+        "Bulk preserves allowed rows around exclusions",
+        "Bulk applies multiple configured exclusions"
+      ],
+      "distinct_frozen_defects_detected": [
+        "full_row_bulk_exclusion_bypass"
+      ]
+    },
+    "source_only": {
+      "candidate_agent": "/root/invoice_candidate_a",
+      "reply": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\candidate-a.json",
+      "reply_sha256": "0c94328683b1e03246bd7b4ef04329754840e1d371ec8407af2df6dcf0972b6e",
+      "packet_bytes": 44575,
+      "criteria": {
+        "C1": "satisfied",
+        "C2": "satisfied",
+        "C3": "satisfied",
+        "C4": "satisfied",
+        "C5": "satisfied",
+        "C6": "satisfied",
+        "C7": "satisfied"
+      },
+      "satisfied": 7,
+      "total_criteria": 7,
+      "false_guidance": [],
+      "cases": 10,
+      "correct_required_behavior": 10,
+      "bug_revealing_cases": [
+        "AddRange rejects a single excluded row",
+        "AddRange removes exclusions at beginning middle and end",
+        "AddRange rejects all rows across multiple exclusions",
+        "AddRange applies multiple exclusions while preserving survivors"
+      ],
+      "distinct_frozen_defects_detected": [
+        "full_row_bulk_exclusion_bypass"
+      ]
+    }
+  },
+  "judge": {
+    "agent": "/root/invoice_source_judge",
+    "criteria_frozen_before_candidates": true,
+    "arm_mapping_withheld": true,
+    "judgment": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\judgment.json",
+    "false_guidance": 0
+  },
+  "producer": {
+    "tools": [
+      "analyze_business_logic:Add@115",
+      "analyze_business_logic:AddRange@138",
+      "analyze_business_logic:SyncItem@83",
+      "derive_test_matrix"
+    ],
+    "analysis_calls": [
+      {
+        "method": "Add",
+        "line": 115,
+        "seconds": 5.32914140005596,
+        "response_bytes": 8695
+      },
+      {
+        "method": "AddRange",
+        "line": 138,
+        "seconds": 4.5540684999432415,
+        "response_bytes": 8356
+      },
+      {
+        "method": "SyncItem",
+        "line": 83,
+        "seconds": 14.163193399901502,
+        "response_bytes": 17602
+      }
+    ],
+    "configured_llm": {
+      "llm_backend": "openai",
+      "llm_model": "openai/gpt-5.6-luna"
+    },
+    "matrix_seconds": 0.03295219992287457,
+    "matrix_response_bytes": 24992,
+    "cold_capture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture1\\receipt.json",
+    "cold_capture_limit": "No analyzed rule corpus; no source-verified rule cases was an expected prerequisite state, not a production tool failure.",
+    "capture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture2\\receipt.json"
+  },
+  "metrics": {
+    "source_only_packet_bytes": 44575,
+    "assisted_packet_bytes": 70442,
+    "additional_assisted_packet_bytes": 25867,
+    "additional_assisted_packet_percent": 58.03,
+    "producer_analysis_seconds": 24.046403299900703,
+    "candidate_judge_token_usage": "Not exposed by collaboration tools; no billed-token or currency estimate.",
+    "candidate_judge_latency": "Not instrumented by the collaboration interface in this trial; no per-arm model-speed comparison.",
+    "engram_builds_started": 0,
+    "small_vb_fixture_compile_attempts": 4,
+    "candidate_attempts": 1,
+    "judge_attempts": 1,
+    "response_repairs": 0
+  },
+  "source_behavior_observation": "Ordinary source-gate cases confirm full-row AddRange reaches downstream admission with excluded accounts, while Add filters them. The supplied Tripletex caller uses guarded Add. This is a scoped source discrepancy, not a demonstrated deployed Tripletex incident; actual LegacyValidation files remain unchanged.",
+  "conclusion": "Both arms generated10correct desired-behavior cases and detected the same one frozen bulk-exclusion discrepancy. Source-only satisfied7/7criteria; assisted6/7, omitting the constructor setting identity. No incremental defect-detection or context-saving benefit was observed. Positive-benefit acceptance remains unfinished; do not replay or tune this inspected task.",
+  "documentation_correction": {
+    "file": "docs/TOOL_CONTRACT.md",
+    "changes": [
+      "Removed stale claim that content-hash caching avoids business-logic reanalysis; current request contract and handler use no analysis cache and force_refresh is a reserved no-op.",
+      "Documented declaration-line selection for overloaded methods and targeted analyze_business_logic -> derive_test_matrix prerequisite."
+    ]
+  },
+  "retained_setup_failures": [
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle1\\receipt.json",
+      "reason": "Standalone fixture omitted Option Infer; corrected compiler flag without changing copied methods."
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\candidate-execution1\\receipt.json",
+      "reason": "Python SDK path string escaping was incorrect; corrected raw literal, same candidate JSON and frozen inputs reused."
+    }
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115",
+    "owned_fixture_work_removed": true,
+    "owned_mcp_processes_closed": true,
+    "agent_sessions_completed": 3,
+    "actual_source_and_installed_config_unchanged": true,
+    "preserved_wip9": true,
+    "retention": "Retain private source snapshots, frozen packets, final JSON values, source-slice programs, observations, judgments and setup failures for review. Only newly owned execution/index fixtures were removed after handles closed. No preexisting folders removed."
+  },
+  "limits": [
+    "One bounded source-gate trial, not a statistical holdout suite or whole-app implementation study. Original EG24 regular/hosted verification and EG25 positive benefit remain open.",
+    "Downstream _AddRow was a collector; SQL, validation internals, network/API behavior, persistence, deployed configuration and unrelated callers were not executed. Candidate prose patches were judged, not applied verbatim.",
+    "Owned two-file index with current configured text LLM and fts_only; production curated corpus, full-project binding/ranking and production registry identity comparisons were outside this trial.",
+    "Candidate packet text normalizes platform newlines; raw source snapshots are separately hash-pinned. Final agent payloads are retained as JSON values; collaboration transport formatting, token usage and fine-grained timing were not exposed.",
+    "No Engram runtime change, actual LegacyValidation source write, Site/Q read, CodeMap/Blast work or new benchmark platform."
+  ],
+  "candidate_sessions_started": 2,
+  "judge_sessions_started": 1,
+  "runtime_change": false,
+  "eg24_closed": false,
+  "eg25_closed": false,
+  "broader_goal_complete": false,
+  "evidence_files": {
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\contract.json": "3e1d52de05dff28f3d22ef2a95f599008ee477c1958b08fd5e7a120ab0e6537f",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\oracle.json": "b491ed544b6a8a0aa42c8e2e4d73f8f7ec8219c74cabadf79f1c1474366c4db4",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\packets\\frozen.json": "944c4b8625c329078d6a07b19f6da3a2a65db504e242b523d9ea8045c7f134b6",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture2\\receipt.json": "a654d8c33a8234cf1e5e9fba82d20435e722f29f87ff2254a26e844cfa46301f",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture2\\matrix.txt": "7b365cc646dddb03491ed744e8dc8c940e3bcd1f01e456140dd95a19da983f48",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle2\\receipt.json": "afd2d51b6f0e629eed9f2ef988650a6e6c6bfaec2e430e25131ace4c45b37d07",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\candidate-a.json": "0c94328683b1e03246bd7b4ef04329754840e1d371ec8407af2df6dcf0972b6e",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\candidate-b.json": "56c206892db1e8a0b89ee3f6f1d30707255d72db35d076dcd3b0325e1dd96fbb",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\judgment.json": "3f84ce19b2311139ef005fb0bdf30def2fcfa1dd71c83a9244925bf3670d7792",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\judge-packet.json": "8caf52e8e6d548d77f870742747242fd0edbae4492961c2444106321d7887936",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\private-judge-mapping.json": "2589d6d186e4c8d41de4d69110107dc32deb25bbafb5f962454dc3e3147f5019",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\candidate-execution2\\receipt.json": "fb08afa82efd8c839ab39e6cba489a974aa50c7c4e1540ac014e668f7b9dd81a"
+  }
+}

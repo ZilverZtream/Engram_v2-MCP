@@ -1,0 +1,57 @@
+{
+  "status": "MATCHED_TASK_COMPLETE_NO_INCREMENTAL_BENEFIT_DEMONSTRATED",
+  "finding": "Original EG24/25 fresh bounded supplier-invoice QA comparison",
+  "scratch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115",
+  "actual_sources_unchanged": true,
+  "source_pins": {
+    "App_Code/financialdata/SupplierInvoiceImporter.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\financialdata\\SupplierInvoiceImporter.vb",
+      "sha256": "f5d86d1bc299464cfa82f3e8fdb476be39083267d78a92b8beec7820b2178e34",
+      "bytes": 28208
+    },
+    "App_Code/integration/code/tripletexSupplierInvoice.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\sources\\App_Code\\integration\\code\\tripletexSupplierInvoice.vb",
+      "sha256": "55210bc40a7e8703f8c0e07a5593ab69815f534f3fe1281bbb16a0a3e6c54c62",
+      "bytes": 11637
+    }
+  },
+  "gate_summary": {
+    "cases": 6,
+    "current_required_behavior_differences": [
+      "bulk_excluded",
+      "bulk_mixed"
+    ],
+    "owned_fixed_passes": true,
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\gate-oracle2\\receipt.json"
+  },
+  "producer": {
+    "binary_sha256": "3c45aa89c816c6d1bab05974369dbdd7eb69a9e39ca238a0a405d049403ca6cf",
+    "targeted_analysis_calls": 3,
+    "configured_llm": {
+      "llm_backend": "openai",
+      "llm_model": "openai/gpt-5.6-luna"
+    },
+    "matrix_seconds": 0.03295219992287457,
+    "matrix_response_bytes": 24992,
+    "evidence": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\invoice-import-qa-20261115\\capture2\\receipt.json"
+  },
+  "prepared_packets": {
+    "32ccb892379ef18578e9": {
+      "bytes": 44575,
+      "sha256": "b0e1b957c58c57d9750f35a769f20ef0404d2b8ccd50331f571ee8da65a370ae"
+    },
+    "6998b337bdc85eae9f1d": {
+      "bytes": 70442,
+      "sha256": "cb3138840d8e541fea5cb231edcf11c6426159cf230e2c5e9d6dd2ebe508d07a"
+    }
+  },
+  "comparison_started": true,
+  "engram_builds_started": 0,
+  "broader_goal_complete": false,
+  "limits": "One exact non-Q source-gate task on owned copies. The6case fixture proves admission behavior and the owned delegation fix only; downstream validations/SQL/API/app integration are not executed. Matrix capture is advisory/inferred, not domain-accepted policy or measured task benefit. Broader EG24/25 remain open.",
+  "comparison_complete": true,
+  "outcome": "eval/legacy_validation-invoice-task-outcome-20261115.json",
+  "benefit_demonstrated": false
+}
