@@ -182,6 +182,15 @@ pub fn prepare(
 }
 
 impl Report {
+    /// Reuse immutable complete-result recovery for a handler that already owns
+    /// its schema and default budget. Transport-level eligibility stays unchanged.
+    pub(crate) fn handler_owned(
+        tool: &'static str, project: String, budget: usize,
+        response_id: Option<String>, offset: usize,
+    ) -> Result<Self, McpError> {
+        Self { tool, project, budget, response_id, offset, capture_window: false }.checked()
+    }
+
     pub(crate) fn retained_window(
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,

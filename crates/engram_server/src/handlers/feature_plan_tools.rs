@@ -551,12 +551,14 @@ impl Engram {
         let mut schema = Vec::new();
         for name in intent.iter().flat_map(|intent| &intent.schema_names) {
             let result = self
-                .handle_query_schema(QuerySchemaRequest {
+                .query_schema_for_planning(QuerySchemaRequest {
                     project_id: req.project_id.clone(),
-                    query_type: SchemaQueryType::Table { name: name.clone() },
+                    query_type: Some(SchemaQueryType::Table { name: name.clone() }),
                     offset: None,
                     limit: Some(20),
                     max_tokens: Some(4096),
+                    response_id: None,
+                    response_offset: 0,
                 })
                 .await
                 .and_then(body);

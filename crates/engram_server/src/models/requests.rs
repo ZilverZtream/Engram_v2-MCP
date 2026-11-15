@@ -33,13 +33,23 @@ pub struct FindMissingIndexesRequest {
 #[serde(deny_unknown_fields)]
 pub struct QuerySchemaRequest {
     pub project_id: String,
-    pub query_type: SchemaQueryType,
+    /// Required for a fresh schema query; omit only for saved response_id recovery.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub query_type: Option<SchemaQueryType>,
     /// Zero-based result offset; repeat against the same source generation.
     pub offset: Option<usize>,
     /// Results per page, 1..=100 (default 25).
     pub limit: Option<usize>,
     pub max_tokens: Option<usize>,
+    /// Recover the exact original MCP result without reading source or rerunning the query.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_id: Option<String>,
+    /// UTF-8 byte offset from response_delivery.next_call; requires response_id.
+    #[serde(default, skip_serializing_if = "schema_response_offset_is_zero")]
+    pub response_offset: usize,
 }
+
+fn schema_response_offset_is_zero(offset: &usize) -> bool { *offset == 0 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(tag = "kind", rename_all = "snake_case", deny_unknown_fields)]

@@ -328,7 +328,7 @@ fn references(t: &[TokenWithSpan]) -> Vec<Name> {
 
 impl Catalog {
     pub fn code_reference_name(&self, request: &QuerySchemaRequest) -> Option<String> {
-        let SchemaQueryType::Table { name } = &request.query_type else {
+        let Some(SchemaQueryType::Table { name }) = request.query_type.as_ref() else {
             return None;
         };
         let key = input_name(name).ok()?;
@@ -550,7 +550,8 @@ impl Catalog {
 
     pub fn query(&self, request: &QuerySchemaRequest) -> anyhow::Result<Value> {
         use SchemaQueryType::*;
-        let q = &request.query_type;
+        let q = request.query_type.as_ref().ok_or_else(||
+            anyhow::anyhow!("query_type is required for a fresh schema query"))?;
         let table_name = match q {
             Table { name } => Some(name),
             Column { table, .. }
@@ -680,7 +681,9 @@ pub fn validate(request: &QuerySchemaRequest) -> anyhow::Result<()> {
         (1..=65536).contains(&request.max_tokens.unwrap_or(16384)),
         "max_tokens must be 1..=65536"
     );
-    let names: Vec<&str> = match &request.query_type {
+    let query = request.query_type.as_ref().ok_or_else(||
+        anyhow::anyhow!("query_type is required for a fresh schema query"))?;
+    let names: Vec<&str> = match query {
         Table { name } => vec![name],
         Column { table, column } | TablesThatReferenceForeignKey { table, column } => {
             anyhow::ensure!(

@@ -1001,3 +1001,23 @@ non-method, failed and uninspected targets and unknown totals when capped.
 JSON and Markdown retain these identities and limits; whole-report budgets and
 immutable recovery still apply. Completed indexed lookups do not establish
 exhaustive source calls, current disk freshness, an atomic snapshot or execution.
+
+## Complete schema-report recovery
+
+`query_schema` retains its default16384 estimated-token reply budget (64KiB)
+and caller range1..65536. Oversized complete results now return a bounded
+`response_delivery` manifest. Follow its `next_call` pages, concatenate UTF-8
+content by byte offset, verify the BLAKE3 `response_id`, and parse the saved
+original **MCP CallToolResult JSON**, including the original schema-report text.
+Declarations, source citations, generation, coverage, authored guidance,
+advisory next-tool actions and pagination actions survive exactly as captured.
+Small replies stay unchanged.
+
+Recovery needs only `project_id`, `response_id`, the returned byte offset and
+budget. It does not require `query_type`, source files, a current project lookup
+or another schema scan. Fresh queries still require `query_type`; row pagination
+remains a fresh query against source fingerprints. The existing8MiB/24hour/
+32snapshot per tool/project limits apply. Capture does not retain SQL source
+objects or establish current freshness/deployed state. Composed feature planning
+keeps its existing complete-context size gate and never treats a deferred report
+manifest as supplied schema evidence.

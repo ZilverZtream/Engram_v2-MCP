@@ -86,6 +86,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   cards, source actions and qualifications through exact saved-result recovery;
   broader TODO4 stays partial.
   [Delivery](eval/revision-guard-history-batch-delivery-20261115.json).
+  Source-complete November16, awaiting combined validation: `query_schema`
+  retains its64KiB default and recovers oversized complete reports, including
+  citations, guidance and advisory actions, without repeating source analysis.
+  [Pending source change](eval/schema-report-recovery-progress-20261116.json).
   Opt-in retained query windows installed 2026-11-15 for search_memory,
   search_history and grep_project. Complete requested JSON windows recover
   exactly through saved byte continuations across source/index/Git changes and
