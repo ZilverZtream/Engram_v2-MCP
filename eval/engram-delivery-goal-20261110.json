@@ -2644,7 +2644,7 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
@@ -2808,12 +2808,12 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "EG20/21 full Git commit detail over existing history tool",
-    "status": "THREE_DISTINCT_SOURCE_OUTCOMES_READY",
+    "active_original_item": "Combined browser caller / history detail / archive distribution delivery",
+    "status": "FOCUSED_NATIVE_RUNNING",
     "original_requirement_id": "EG-20/21",
     "implementation_items_active": 0,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116",
     "finite_acceptance": [
       "search_history mode=commit uses query=exact40hexOID; return original UTF8message/hash, author/time/parents and every first-parent changed path/status/blob identity, including generated paths. No new search ranking, embeddings, LLM or history reindex.",
       "Require commit reachable from explicit as_of_rev or existing origin default root; missing/unresolved scope or outside-scope commit refuses. File/author/date search filters are not silently ignored in commit mode. Normal auto/text/precedent behavior remains.",
@@ -2822,8 +2822,8 @@
     ],
     "observed_missing_behavior": "History recovery offers shell Git actions and exact indexed chunks, but no MCP action reads a selected commit full message and complete first-parent changed-file cohort. Precedent cards retain1500description characters and40nongenerated paths.",
     "full_original_goal_active": true,
-    "next_action": "Freeze reused shipping checkout with queued browser caller source and verified archive bootstrap. One focused combined native target covers the two runtime outcomes; one release then actual candidate/installed workflows. Preserve the accepted installer script proof and verify matching distribution packaging without another compiler.",
-    "source_commit": "40889ab8c66b4740693ec7dab3836d97c48b40f6",
+    "next_action": "Poll existing native18124; do not restart on observation timeout. Inspect its exact terminal receipt, then one release only if wanted behavior passes; reuse same release candidate/installed. Separate installer script/real archive proof retained.",
+    "source_commit": "8a2bd3e8020d3683a9846777f96b77e70e2a2361",
     "progress_record": "eval/history-commit-detail-progress-20261116.json",
     "implementation_files": [
       "crates/engram_server/src/handlers/history_commit.rs",
@@ -2838,7 +2838,14 @@
     ],
     "native_target": "request_history_batch_tests",
     "runtime_native_cases": 2,
-    "previous_goal_turn_classification": "PROGRESS: added full commit-detail MCP recovery source and wanted-behavior proof after retained installed gap. Zero compiles. Three distinct original outcomes ready, with archive script proof retained."
+    "previous_goal_turn_classification": "VERIFIED_WAIT: source frozen in existing clean checkout; owned native18124 confirmed live by polling, two focused runtime cases only. No release or public/deployment step started.",
+    "source_freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\release-plan.json",
+      "sha256": "19b7fcac8f3c55954145f0b89581d13d56dd6058551469c59deffa5237ad64e4"
+    },
+    "live_native_session": 18124,
+    "runtime_source_commit": "8a2bd3e8020d3683a9846777f96b77e70e2a2361",
+    "helpers_prepared": true
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
