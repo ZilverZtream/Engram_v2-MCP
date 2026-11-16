@@ -2554,7 +2554,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-25",
+        "outcome": "Current constructor input source carried once into QA matrix document evidence; stale support withheld",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
+        "progress": "eval/qa-constructor-inputs-progress-20261117.json"
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2702,28 +2711,33 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Constructor/event/historical-guidance consolidated acceptance",
-    "status": "THREE_OUTCOMES_INSTALLED_ACCEPTANCE_COMPLETE",
+    "active_original_item": "Constructor input evidence in QA matrices",
+    "original_requirement_id": "EG-25",
+    "original_requirement": "Supply useful current source and configuration evidence to existing OX diagnosis/QA workflows; keep input provenance and inference qualifications through the analysis-to-test-matrix handoff.",
+    "observed_missing_behavior": "Constructor source now reaches and persists with business analysis, but test_derivation only consumes return/reaching evidence and render_rule_cases has no constructor context. QA matrix readers must separately recover the document to identify the constructor setting that affects a referenced member.",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "implementation_files": [
+      "crates/engram_server/src/services/business_member_origins.rs",
+      "crates/engram_server/src/handlers/business_source.rs",
+      "crates/engram_server/src/handlers/test_derivation.rs",
+      "crates/engram_server/src/handlers/settings_tools.rs"
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
+    "finite_acceptance": [
+      "Matrix document evidence exposes bounded complete source assignment observations, original constructor lines/hash and explicit name-match/runtime uncertainty once per included document; preserve case order and inferred outcome qualifications.",
+      "Use the existing current full-file hash audit. Changed/unavailable supporting source is disclosed without displaying stale assignments as current setup evidence, including when the analyzed method remains unchanged. Legacy analyses explicitly lack this context.",
+      "Omitted source observations retain counts and the existing complete-document recovery pointer. Repeated cases share the same immutable context; do not duplicate every source assignment into every case or infer configured runtime values.",
+      "Confirm the installed gap on a new owned synthetic VB fixture and a local fixed-response endpoint. Native/runtime validation remains pending a substantive combined batch; no standalone Cargo, fresh agents or inspected task/model replay."
+    ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 0,
+    "pending_source_outcomes": 1,
     "full_original_goal_active": true,
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
-    "native_target": "constructor_events_policy_batch_tests",
-    "native_cases_written": 7,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\contract.json",
-    "source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
-    "next_action": "Advance substantive unmet original research/TODO acceptance. Preserve unfinished qualitative/storage findings and holds; do not rerun delivered finite contracts, inspected model/task comparisons, closed CodeMap/Blast work or a broad suite. Do not add small filler to trigger builds.",
-    "native_distinct_behaviors_passed": 7,
-    "public_current_artifact_checks": 20,
-    "initial_public_fixture_budget_failure_retained": true,
-    "release_commands_started": 1,
-    "release_live_owner": null,
-    "completion_driver": null,
-    "source_progress": "eval/constructor-events-policy-batch-delivery-20261117.json",
-    "candidate_checks": 20,
-    "installed_checks": 20,
-    "additional_installed_event_recovery_checks": 3,
-    "normal_runtime_restored": true
+    "next_action": "Advance another substantive unmet original requirement while retaining QA constructor handoff for combined native/public validation. No standalone compile, filler, inspected task replay or closed-tool work.",
+    "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
+    "source_progress": "eval/qa-constructor-inputs-progress-20261117.json",
+    "baseline_public_checks": 4,
+    "builds_started": 0,
+    "native_tests_executed": 0
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

@@ -45,5 +45,9 @@
     "baseline_process_closed": true,
     "fixed_response_endpoint_closed": true,
     "retention": "Keep the frozen contract, verifier, local fixed-response requests and receipts for acceptance/review. No production source/store/configuration changes or preexisting deletions."
-  }
+  },
+  "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\verify-public.py",
+  "public_verifier_sha256": "65d8a87a64f2f063df76908b64e5490a2b6959b11a83d5c6f32fce4c649d3aec",
+  "positive_verifier_scope": "Pending positive run uses two fixed-response rule cases to prove one shared constructor context. Baseline1 retains the one-rule missing-context proof and exact original verifier text. This is not a matched model/task comparison."
 }
