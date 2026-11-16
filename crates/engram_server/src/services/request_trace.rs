@@ -10,5 +10,6 @@ mod web_methods;
 pub mod execution;
 pub mod routing;
 pub(crate) mod triggers;
+pub(crate) mod value_lineage;
 #[cfg(test)]
 mod tests;

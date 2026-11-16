@@ -23,6 +23,17 @@ fn node(id: &Value, target: Option<&Value>, nodes: &mut Vec<Value>, indices: &mu
 }
 
 fn compact(trace: &mut Value, counts: &mut [usize; 3]) {
+    for lineage in trace["value_lineage"].as_array_mut().into_iter().flatten() {
+        let flow = &lineage["flow"];
+        lineage["flow"] = json!({"status":flow["status"],"reason":flow["reason"],
+            "entry_node_id":flow["entry_node_id"],"scope":flow["scope"],
+            "issues":flow["issues"],"truncated":flow["truncated"],"limits":flow["limits"],
+            "runtime_value_proven":false,"content_deferred":true,
+            "node_count":flow["nodes"].as_array().map_or(0,Vec::len),
+            "edge_count":flow["edges"].as_array().map_or(0,Vec::len),
+            "context_count":flow["contexts"].as_array().map_or(0,Vec::len),
+            "recovery":"Recover this request trace's immutable full report before relying on value dependencies."});
+    }
     if let Some(paths) = trace.get_mut("paths").and_then(Value::as_array_mut) {
         let mut nodes = Vec::new();
         let mut indices = BTreeMap::new();
@@ -71,7 +82,7 @@ pub(super) fn finish(data: &Path, project: &str, body: String, limit: usize) -> 
         "path_count":counts[0],"omitted_paths":0,"deferred_path_evidence_records":counts[0],
         "deferred_source_excerpts":counts[1],"deferred_excerpt_bytes":counts[2],
         "interpretation":"Each trace retains every selected path. Path from/to integers index that trace's path_nodes; evidence_index locates the same path in the immutable original. Handlers, source locations, hashes, gaps and runtime limits remain inline. Source lines are call-site hints, not a substitute for recovered binding/database evidence.",
-        "instruction":"Recover the full original before asserting detailed bindings or database effects, or relying on deferred repository guidance before an edit. Concatenate recovery content by byte offset and verify response_id as BLAKE3. Recovery does not recheck current source. Existing method-body actions read current source, not this snapshot.",
+        "instruction":"Recover the full original before asserting detailed bindings, database effects or deferred value dependencies, or relying on deferred repository guidance before an edit. Value lineage summaries retain status/counts/issues; full points, edges and invocation contexts share this immutable recovery. Concatenate recovery content by byte offset and verify response_id as BLAKE3. Recovery does not recheck current source. Existing method-body actions read current source, not this snapshot.",
         "retention":"At most 24 hours or 32 newer request-trace snapshots for this project; unavailable snapshots require a new trace.",
         "next_call":snapshots::request_trace_continuation(project,&id,0,limit)
     });

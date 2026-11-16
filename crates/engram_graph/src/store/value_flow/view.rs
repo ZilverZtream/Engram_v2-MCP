@@ -39,22 +39,34 @@ impl GraphStore {
         }
         let mut candidates = Vec::new();
         let prefix = format!("{project}\0");
-        for row in nodes.range(prefix.as_str()..)? {
-            let (key, value) = row?;
-            if !key.value().starts_with(&prefix) {
-                break;
-            }
-            let node: Node = bincode::deserialize(value.value())?;
-            if node.node_type != "function" || node.file_path.as_str() != file {
-                continue;
-            }
-            let written = local::canonical(entry, &node.language);
-            let name = local::canonical(callable_name(&node), &node.language);
-            if node.node_id == entry
-                || name == written
-                || name.rsplit('.').next() == Some(written.as_str())
-            {
-                candidates.push(node);
+        let entry_key = format!("{prefix}{entry}");
+        let exact = nodes
+            .get(entry_key.as_str())?
+            .map(|value| bincode::deserialize::<Node>(value.value()))
+            .transpose()?
+            .filter(|node| node.node_type == "function" && node.file_path.as_str() == file);
+        if let Some(node) = exact {
+            // Request routing already resolved this declaration. Reuse its
+            // identity without scanning every project node for each handler.
+            candidates.push(node);
+        } else {
+            for row in nodes.range(prefix.as_str()..)? {
+                let (key, value) = row?;
+                if !key.value().starts_with(&prefix) {
+                    break;
+                }
+                let node: Node = bincode::deserialize(value.value())?;
+                if node.node_type != "function" || node.file_path.as_str() != file {
+                    continue;
+                }
+                let written = local::canonical(entry, &node.language);
+                let name = local::canonical(callable_name(&node), &node.language);
+                if node.node_id == entry
+                    || name == written
+                    || name.rsplit('.').next() == Some(written.as_str())
+                {
+                    candidates.push(node);
+                }
             }
         }
         if candidates.len() != 1 {
