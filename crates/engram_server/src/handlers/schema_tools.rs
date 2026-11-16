@@ -63,12 +63,26 @@ impl Engram {
         &self, req: QuerySchemaRequest,
     ) -> Result<CallToolResult, McpError> {
         schema_query::validate(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-        super::search_tools::response_budget::token_bytes(req.max_tokens)?;
-        let record = self.ensure_project_record(&req.project_id).await?;
         let runtime = self.ensure_project_runtime(&req.project_id).await?;
         let (generation, view) = self
             .pin_active_source_generation(&req.project_id, &runtime.search)
             .await?;
+        self.query_schema_selected(req, generation, std::sync::Arc::new(view), vec![]).await
+    }
+
+    /// Reuse the caller's exact source capability, including retired selections.
+    /// Asking about a table must not silently advance the report's source head.
+    pub(super) async fn query_schema_selected(
+        &self, req: QuerySchemaRequest, generation: u64,
+        view: std::sync::Arc<engram_index::SourceSnapshotGuard>,
+        path_prefixes: Vec<String>,
+    ) -> Result<CallToolResult, McpError> {
+        schema_query::validate(&req).map_err(|e| McpError::invalid_params(e.to_string(), None))?;
+        super::search_tools::response_budget::token_bytes(req.max_tokens)?;
+        let record = self.ensure_project_record(&req.project_id).await?;
+        let runtime = self.ensure_project_runtime(&req.project_id).await?;
+        runtime.search.validate_source_snapshot_guard(&req.project_id, generation, &view)
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
         let graph = self.state.graph.clone();
         let reservation = engram_core::memory::AllocationGuard::try_new(
             self.state.memory_budget.as_ref(),
@@ -84,8 +98,17 @@ impl Engram {
             let mut catalog=Catalog::default();
             let mut admitted_paths=std::collections::BTreeSet::new();
             let (mut bytes,mut admitted,mut sql_files)=(0usize,0usize,0usize);
+            let in_scope=|path:&str| {
+                let normalized=path.replace('\\',"/").to_lowercase();
+                path_prefixes.is_empty() || path_prefixes.iter().any(|prefix| {
+                    let prefix=prefix.replace('\\',"/").to_lowercase();
+                    normalized==prefix || normalized.starts_with(&format!("{prefix}/"))
+                        || normalized.contains(&format!("/{prefix}/")) || normalized.ends_with(&format!("/{prefix}"))
+                })
+            };
             for (path,revision) in selected {
                 if !path.to_ascii_lowercase().ends_with(".sql") {continue;}
+                if !in_scope(path) {continue;}
                 sql_files+=1;
                 let source=(|| -> anyhow::Result<String> {
                     let target=engram_core::safe_join(Path::new(&record.directory),path)?;
@@ -115,6 +138,7 @@ impl Engram {
                 for (node_id,_) in edges.iter().take(50) {
                     let Some(node)=graph.get_node(&req.project_id,node_id)? else {withheld+=1;continue;};
                     let path=node.file_path.as_str();
+                    if !in_scope(path) {withheld+=1;continue;}
                     let verified=(|| -> anyhow::Result<String> {
                         let revision=selected.get(path).ok_or_else(||anyhow::anyhow!("Source no longer selected"))?;
                         anyhow::ensure!(node.generation==*revision,"Reference revision changed");

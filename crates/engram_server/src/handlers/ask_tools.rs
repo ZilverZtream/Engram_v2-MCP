@@ -18,6 +18,9 @@ use crate::tools::Engram;
 #[path = "ask_response_delivery.rs"]
 mod response_delivery;
 
+#[path = "ask_schema.rs"]
+mod schema;
+
 /// Round-2 audit P1-4: the dreamer-insight arm is OFF unless the caller asks
 /// for it (`include_insights: true`) — the ablation showed no measurable
 /// effect, so the default must not spend retrieval budget on it.
@@ -138,8 +141,14 @@ impl Engram {
             generation: gen_,
             source_view: source_view.clone(),
         };
-        let (raw, providers) =
-            retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection).await;
+        let ((mut raw, mut providers), mut schema_evidence) = tokio::join!(
+            retrieval::gather_evidence_selected_source(&ctx, &plan, &req.question, depth, deadline, cancel, source_selection),
+            schema::gather(self, &req.project_id, &plan, gen_, source_view.clone(), deadline),
+        );
+        if let Some(schema) = &mut schema_evidence {
+            raw.append(&mut schema.items);
+            providers.push(schema.provider.clone());
+        }
         // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
         // from the files the first pass cited — the answer to "how does X get
         // authorized" is usually one call away from the entry point.
@@ -444,6 +453,7 @@ impl Engram {
             .collect();
         let adequate = status::has_adequate_support_with(&req.question, &evidence, &known);
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
+        let st = schema_evidence.as_ref().map_or(st, |schema| schema.qualify_status(st));
         let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
         // Name the premise terms nothing supports, first — the reader must not
         // fill them in from the answer's other evidence.

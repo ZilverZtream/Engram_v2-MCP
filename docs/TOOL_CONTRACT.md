@@ -1218,3 +1218,15 @@ not establish relevance. Selected records retain their conditions, reviewed comm
 record hash and exact recovery action. Selection establishes a retrieval lead only:
 current revision applicability and authority remain unestablished. Existing bounded
 discovery limits remain disclosed, and drafting writes no authored files.
+SQL question evidence (source complete, awaiting combined validation):
+`ask_codebase` reuses `query_schema` for named-table SQL questions, preserving
+the question's qualified identifier and the caller's selected source lease.
+Complete admitted CREATE TABLE facts include column types, explicit/unknown
+nullability and raw source hash/span citations; they are not 1200-character
+search excerpts. At most three named-table lookups run alongside existing
+retrieval under its deadline. Source scans honor selected path scopes; missing,
+changed or capped evidence keeps the answer partial, and multiple matching
+declarations remain ambiguous. Existing response budgets preserve complete
+reports through saved recovery. Historical requests keep their separate Git
+source path and never consult current SQL. These are source declarations, not
+deployed database state; ALTER/DROP, default schema and collation are not inferred.
