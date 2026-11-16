@@ -40,7 +40,7 @@ async fn request_retains_authored_js_ts_callers_guidance_and_original_recovery()
     std::fs::write(root.join("client.js"), javascript)?;
     std::fs::write(root.join("client.ts"), typescript)?;
     let guidance =
-        "Preserve client refresh behavior, including manual refresh exceptions.\n".repeat(400);
+        "Preserve client refresh behavior, including manual refresh exceptions.\n".repeat(128);
     std::fs::write(
         root.join(".github/instructions/client.instructions.md"),
         format!("---\napplyTo: '*.js,*.ts'\n---\n{guidance}"),

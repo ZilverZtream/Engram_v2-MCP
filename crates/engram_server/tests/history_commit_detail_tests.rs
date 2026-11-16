@@ -34,7 +34,13 @@ struct Fixture {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn selected_git_change_retains_full_message_complete_cohort_and_revision_scope() -> Result<()>
 {
-    let owned = tempfile::tempdir()?;
+    let fixture_root = std::env::var_os("ENGRAM_TEST_FIXTURE_ROOT")
+        .map(std::path::PathBuf::from)
+        .unwrap_or_else(std::env::temp_dir);
+    let owned = tempfile::Builder::new()
+        .prefix("h")
+        .rand_bytes(2)
+        .tempdir_in(fixture_root)?;
     let root = owned.path().join("project");
     std::fs::create_dir(&root)?;
     let repo = Repository::init(&root)?;
