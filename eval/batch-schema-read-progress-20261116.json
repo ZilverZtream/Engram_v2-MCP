@@ -1,0 +1,64 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-16T19:49:06.076733+00:00",
+  "original_requirement_id": "TODO-33",
+  "original_requirement": "Batch/multi-get endpoints for common AI reads under a shared token budget",
+  "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
+    "sha256": "c247aa575de72f0903b3fa52e57b75dd2467102ed124b4dc51f0ec40ecb5d465"
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\baseline1\\acceptance.json",
+    "sha256": "e9d3f9104eebea292901a6e85e74adab98e7915daffcc9af66d2e737e51bc54f"
+  },
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\verify-public.py",
+    "sha256": "11bdda4147f5fa86dc0b37144ebaca99dfc0fc59caba79209f7362463c785c63"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\source-checks.json",
+    "sha256": "4a079b5d19a388f43b1eef243712707415807625a6286ed2d3fdeabc620d7ecf"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/handlers/batch_read_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/batch_schema_read_tests.rs",
+    "crates/engram_server/tests/procedure_discovery_schema_batch_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "The existing typed batch accepts QuerySchemaRequest and calls the ordinary query_schema handler. SQL facts, qualification, source/citations, guidance, per-read budgets and saved recovery are unchanged. Existing outer whole-result budget, independent errors/correlation and sequential live recovery remain; no SQL parser, database execution or source snapshot infrastructure was added.",
+  "finite_acceptance": [
+    "batch_read accepts a typed query_schema operation using the existing QuerySchemaRequest and normal SQL handler, including its project/name qualification, selected source/citations, authored guidance, per-read controls and saved-result recovery. No new SQL parser or interpreter.",
+    "Existing1..16operation bounds, correlation IDs, shared whole-JSON budget, independent request errors and complete-result omission/recovery remain. Unsupported/mutating tools remain rejected; sequential reads are not an atomic snapshot.",
+    "Owned two-table fixture compares actual returned SQL table facts/guidance with individual schema calls, retains a bad-project error alongside successful reads, and demonstrates whole-result omission with a callable original SQL request. Recovery reruns a fresh read unless supplied existing query_schema response_id selects its saved result.",
+    "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "native_case_written": "sql_batch_preserves_complete_reads_errors_policy_and_live_recovery",
+  "native_combined_target": "procedure_discovery_schema_batch_tests",
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "checks_completed": [
+    "Installed owned fixture confirms both individual48-column schema reports are complete while the typed query_schema batch operation is rejected. All owned process handles and fixture removed.",
+    "Selected Rust/native-test syntax, future public driver syntax, diff whitespace and protected WIP9 hashes pass. No current-source behavior or native execution claimed."
+  ],
+  "remaining_acceptance": [
+    "One focused combined native target for procedure evidence, discovery budgets and SQL batching; no full/lib suite.",
+    "Actual candidate/installed MCP schema equality, independent error/correlation, whole-result omission, original callable recovery and fresh-source withholding after edits."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "new_compilations": 0,
+    "new_worktree_created": false,
+    "protected_wip9_preserved": true,
+    "retention": "Retain source contract, installed baseline/wire and future verifier/check evidence until installed acceptance or supersession. No preexisting directory deletion."
+  },
+  "next_action": "Three distinct original source outcomes are now ready. Freeze them in the existing shipping checkout and perform the combined acceptance; do not add unrelated edge cases or full suites."
+}
