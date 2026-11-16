@@ -2576,6 +2576,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
         "progress_record": "eval/state-report-delivery-progress-20261116.json",
         "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending."
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "04f010a49aafbc9372fde61e6447e6145080280c",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
+        "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
+        "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2752,7 +2760,7 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO31 typed VB parameter DBML tracing for actual LegacyValidation RelationHelper.LiveCustomerRelations; two independent source deliveries retained.",
+    "active_original_item": "Validate and deliver the three source-complete original improvements: EG31 multi-file maintenance, TODO4 complete state-report delivery, TODO31 typed-parameter DBML mapping.",
     "original_requirement_id": "TODO-31",
     "observed_missing_behavior": "DBML mapping resolves only locally constructed VB receivers. LegacyValidation RelationHelper.LiveCustomerRelations receives db As iFaltDataContext and accesses db.CR_CopyDetails, whose current DBML mapping is dbo.CR_CopyDetail; the current binder has no parameter path.",
     "implementation_files": [
@@ -2769,10 +2777,10 @@
       "No mapping for reassigned/escaped/ambiguous/ByRef/Optional receivers or stale/mismatched source. Required parameter binding remains explicitly unverified by compiler/runtime; no implicit namespace/context inference, fields/properties, general ORM or parser/graph changes."
     ],
     "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
-    "implementation_items_active": 1,
-    "source_status": "IMPLEMENTATION_SELECTED",
+    "implementation_items_active": 0,
+    "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "deployed": false,
-    "build_rule": "Third distinct requirement after queued EG31 and TODO4. Complete and commit source before one focused combined native build and one reused release.",
+    "build_rule": "Source gate now has three distinct requirements. Reuse existing WORK/shared target. One focused combined native target, reused debug executable/public proof, then one release for candidate/installed checks. No broad suite or extra debug build.",
     "completed_batch": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "record": {
@@ -2803,10 +2811,19 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
         "progress_record": "eval/state-report-delivery-progress-20261116.json",
         "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending."
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "04f010a49aafbc9372fde61e6447e6145080280c",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
+        "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
+        "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending."
       }
     ],
     "native_tests_run": false,
-    "public_acceptance_run": false
+    "public_acceptance_run": false,
+    "next_user_visible_deliverable": "Installed complete multi-file maintenance, bounded state reports and source-declared parameter DBML mapping with their finite acceptance and limits."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2836,5 +2853,13 @@
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
     "progress_record": "eval/state-report-delivery-progress-20261116.json",
     "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending."
+  },
+  "dbml_parameter_source_progress": {
+    "original_requirement_id": "TODO-31",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "04f010a49aafbc9372fde61e6447e6145080280c",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
+    "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
+    "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending."
   }
 }
