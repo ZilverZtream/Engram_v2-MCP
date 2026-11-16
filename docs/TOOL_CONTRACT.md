@@ -1,6 +1,8 @@
 # Tool Contract
 
-Source-complete, awaiting combined delivery: instruction maintenance compares
+[November16 source, pre-edit guidance and VB freshness delivery](../eval/source-policy-batch-delivery-20261116.json).
+
+Installed November16: instruction maintenance compares
 existing captured multiline VB function ranges by their exact observed byte
 hashes. A referenced range can remain unchanged when another method changes;
 an edit inside that observed range reports changed candidate bytes. VB references
@@ -9,7 +11,7 @@ compiler bindings nor verified method boundaries, semantic equivalence or symbol
 absence. Declaration-line-only class/field candidates retain unavailable body
 coverage. Existing source and candidate budgets are unchanged.
 
-Source-complete, awaiting a future combined delivery: `get_method_edit_context`
+Installed November16: `get_method_edit_context`
 includes complete applicable authored guidance for the selected method and
 actually returned caller source. Unreturned caller leads do not widen this scope.
 JSON retains `project_policy_sources`; Markdown retains the same complete rules
@@ -18,7 +20,7 @@ The public tool uses shared complete-report delivery (default40KiB), with exact
 immutable original-result recovery when source, safety evidence and guidance do
 not fit. Recovery does not rerun the context or re-read its source and guidance.
 
-Source-complete, awaiting a future combined delivery: `batch_read` also accepts
+Installed November16: `batch_read` also accepts
 `get_full_method_body` with its normal arguments. Each source result retains its
 direct handler's hash checks, ranges, authored guidance, reply budget and saved
 report recovery controls. Batch omissions retain the complete original request;

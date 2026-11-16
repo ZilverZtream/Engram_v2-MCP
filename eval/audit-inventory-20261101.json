@@ -273,7 +273,11 @@
       "edit_session_policy_delivery_20261113": "eval/legacy_validation-edit-session-policy-delivery-20261113.json",
       "status_reconciliation_20261113": "eval/legacy_validation-shortlist-status-reconciliation-20261113.json",
       "historical_policy_delivery_20261113": "eval/legacy_validation-historical-policy-delivery-20261113.json",
-      "ask_policy_delivery_20261113": "eval/legacy_validation-ask-policy-delivery-20261113.json"
+      "ask_policy_delivery_20261113": "eval/legacy_validation-ask-policy-delivery-20261113.json",
+      "pre_edit_context_guidance_delivery_20261116": {
+        "record": "eval/source-policy-batch-delivery-20261116.json",
+        "semantic_compliance_established": false
+      }
     },
     {
       "id": "EG-02",
@@ -1004,6 +1008,10 @@
       "historical_linked_guidance_delivery": {
         "record": "eval/source-history-schema-batch-delivery-20261115.json",
         "full_original_requirement_complete": false
+      },
+      "captured_vb_method_freshness_delivery_20261116": {
+        "record": "eval/source-policy-batch-delivery-20261116.json",
+        "compiler_bindings_or_semantic_equivalence_established": false
       }
     },
     {
@@ -10088,13 +10096,14 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "record": "eval/vb-instruction-body-freshness-progress-20261116.json",
-      "original_requirement_id": "EG-27",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-instruction-body-freshness-20261116\\contract.json",
-      "native_tests_run": false,
-      "public_acceptance_run": false,
-      "deployed": false
+      "status": "DELIVERED",
+      "record": "eval/source-policy-batch-delivery-20261116.json",
+      "original_requirement_ids": [
+        "TODO-33",
+        "EG-01",
+        "EG-27"
+      ],
+      "deployed": true
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10126,8 +10135,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Three distinct source outcomes completed: TODO33 source batching, EG01 scoped pre-edit guidance and EG27 captured VB range freshness. Combined validation/installation pending.",
-    "next_user_visible_deliverable": "Finish another distinct original source outcome before next combined build. Preserve source batching and pre-edit policy changes; no new compile for these two alone.",
+    "active_original_item": "Source batching, pre-edit scoped guidance and VB instruction freshness installed; normal runtime restored. No implementation item active until the next concrete unfinished original requirement is selected.",
+    "next_user_visible_deliverable": "Continue the original unfinished backlog with a finite source contract; preserve the delivered batch and accumulate distinct outcomes before another compile. Current mechanical tool deliveries do not establish task benefit or full goal completion.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15917,44 +15926,18 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-33",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\contract.json",
-        "progress_record": "eval/batch-source-reads-progress-20261116.json",
-        "source_commit": "48aa784a2325cb9d8297e9e067e6c654f8bc624d",
-        "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303"
-      },
-      {
-        "original_requirement_id": "EG-01",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-context-report-delivery-20261116\\contract.json",
-        "progress_record": "eval/edit-context-policy-progress-20261116.json",
-        "source_commit": "bcd7ae91de65315c2eff1eb9472809b3abde49c5",
-        "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303"
-      },
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "14598567828457126bc0ae85102b451cf389a282",
-        "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-instruction-body-freshness-20261116\\contract.json",
-        "progress_record": "eval/vb-instruction-body-freshness-progress-20261116.json",
-        "user_outcome": "VB instruction freshness compares existing observed method ranges, retaining unverified/partial coverage and declaration-only limits."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/method-schema-area-batch-delivery-20261116.json",
+      "record": "eval/source-policy-batch-delivery-20261116.json",
       "source_requirements": [
-        "TODO-8",
-        "TODO-4",
-        "EG-14"
+        "TODO-33",
+        "EG-01",
+        "EG-27"
       ],
-      "native_builds": 1,
+      "native_builds": 3,
       "release_attempts": 1
     }
   },
@@ -15985,18 +15968,12 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
-    "pending_count": 3,
-    "independent_requirements_source_complete": [
-      "TODO-33",
-      "EG-01",
-      "EG-27"
-    ],
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "last_installed_record": "eval/source-policy-batch-delivery-20261116.json",
+    "pending_count": 0,
+    "independent_requirements_delivered": 3,
     "native_builds": 3,
-    "release_builds": 0,
-    "minimum_before_compile": 3,
-    "native_distinct_cases_passed": 11,
-    "public_debug_checks_passed": 26
+    "release_builds": 1
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -16055,12 +16032,9 @@
     "full_original_goal_complete": false
   },
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
-    "pending_source_records": [
-      "eval/batch-source-reads-progress-20261116.json",
-      "eval/edit-context-policy-progress-20261116.json",
-      "eval/vb-instruction-body-freshness-progress-20261116.json"
-    ],
+    "status": "SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "last_delivered_record": "eval/source-policy-batch-delivery-20261116.json",
+    "pending_source_records": [],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
@@ -16089,5 +16063,10 @@
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
     "full_original_goal_complete": false
   },
-  "following_batch_pending": []
+  "following_batch_pending": [],
+  "source_policy_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": "eval/source-policy-batch-delivery-20261116.json",
+    "full_original_goal_complete": false
+  }
 }

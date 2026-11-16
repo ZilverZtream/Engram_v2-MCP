@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "EG-01",
   "original_requirement": "Same applicable complete authored policy reaches planning, editing, retrieval and review, with exceptions and source recovery preserved.",
   "missing_behavior": "Installed get_method_edit_context omits applicable AGENTS.md and its authored exception entirely. It also lacks complete reply-budget/recovery controls; a small actual context already returns10094bytes. An attempted large-report baseline using only large guidance did not exceed40KiB because that guidance was omitted; no default-overflow claim from that probe.",
@@ -21,8 +21,8 @@
   ],
   "stop_rule": "Use existing policy resolver and read-report store. No retrieval provider tuning, downstream graph/CodeMap/Blast changes, semantic policy acceptance, new store or expanded benchmark.",
   "native_tests_run": true,
-  "public_acceptance_run": false,
-  "deployed": false,
+  "public_acceptance_run": true,
+  "deployed": true,
   "build_rule": "Second distinct source outcome in following batch; leave current release WORK19d396a untouched.",
   "resources": {
     "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-context-report-delivery-20261116",
@@ -86,6 +86,12 @@
     "fixture_only_retry_cases": 1,
     "public_debug_checks": 26,
     "receipt_sha256": "c6a3b735d2ef301a582e7aa2ce5ccbbd6bc4a21d8ee2c741c95f6c32873ace25",
-    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687"
-  }
+    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687",
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "candidate_checks": 26,
+    "installed_checks": 26,
+    "release_builds": 1
+  },
+  "combined_delivery_record": "eval/source-policy-batch-delivery-20261116.json",
+  "full_requirement_complete": false
 }

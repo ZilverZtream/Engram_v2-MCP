@@ -522,11 +522,10 @@ proposals that duplicate the existing surface:
   further timing replays. [Partial result](eval/legacy_validation-planning-node-batch-partial-20261114.json).
 
 - [x] **33. Batch/multi-get endpoints** (M) — *delivered 2026-11-12.*
-  Source-complete November16, awaiting a future combined delivery: the existing
-  typed batch also accepts `get_full_method_body` source reads and their normal
-  hash/range/guidance/recovery arguments. Existing three-operation delivery below
-  remains installed; the source-read extension is unvalidated and uninstalled.
-  [Pending source change](eval/batch-source-reads-progress-20261116.json).
+  Installed November16: typed batches also accept `get_full_method_body` source
+  reads with normal hash/range/guidance and immutable recovery arguments. Whole
+  results and independent errors retain the original batch budget contract.
+  [Delivery](eval/source-policy-batch-delivery-20261116.json).
   `batch_read` composes 1–16 typed `get_method_info`, `resolve_id` and `get_chunk`
   reads with one complete response budget, independent errors and exact recovery
   for whole omitted results. Candidate and installed public MCP checks pass;

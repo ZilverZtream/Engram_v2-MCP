@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "TODO-33",
   "original_requirement": "Batch hot reads under one response budget; extend the delivered typed batching contract to the existing complete-source read used by AI navigation actions.",
   "missing_behavior": "batch_read rejects get_full_method_body although navigation returns executable source requests, requiring one outer call per body.",
@@ -19,8 +19,8 @@
   ],
   "stop_rule": "Add one read operation through existing handler. No parallel dispatcher, scheduler, transport/store redesign, broad tool sweep or performance claim.",
   "native_tests_run": true,
-  "public_acceptance_run": false,
-  "deployed": false,
+  "public_acceptance_run": true,
+  "deployed": true,
   "build_rule": "First source outcome for following batch. Do not alter frozen19d396a build checkout or start another compile before a new qualifying multi-item batch.",
   "resources": {
     "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116",
@@ -77,6 +77,12 @@
     "fixture_only_retry_cases": 1,
     "public_debug_checks": 26,
     "receipt_sha256": "c6a3b735d2ef301a582e7aa2ce5ccbbd6bc4a21d8ee2c741c95f6c32873ace25",
-    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687"
-  }
+    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687",
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "candidate_checks": 26,
+    "installed_checks": 26,
+    "release_builds": 1
+  },
+  "combined_delivery_record": "eval/source-policy-batch-delivery-20261116.json",
+  "full_requirement_complete": false
 }
