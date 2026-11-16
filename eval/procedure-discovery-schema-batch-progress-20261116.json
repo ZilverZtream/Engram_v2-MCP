@@ -1,6 +1,6 @@
 {
   "status": "SOURCE_CORRECTED_RELEASE_RUNNING_NOT_INSTALLED",
-  "at_utc": "2026-11-16T20:09:42.332471+00:00",
+  "at_utc": "2026-11-16T20:15:48.143623+00:00",
   "original_requirements": [
     "TODO-28",
     "TODO-4",
@@ -8,7 +8,7 @@
   ],
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116",
   "initial_source_commit": "1449caf51f9120c914c8b4beb055d83f0b3aeca3",
-  "shipping_source_commit": "98d2cf5f6e0d9742c2022ddd01fe5dc37ea5ca1f",
+  "shipping_source_commit": "85a4a6073583a484eefa551935623c24747538b6",
   "production_correction_commit": "472ad57",
   "test_assertion_commit": "e4a0555",
   "native": {
@@ -28,7 +28,7 @@
     "failed_case": "procedure_question_preserves_complete_reader_evidence_and_original_recovery",
     "correction_recompiled_as_native_tests": false
   },
-  "failure": "SQL procedure definitions need not exist as graph symbols. Native and actual MCP reproduced missing evidence; correction uses bounded selected-source SQL reads for unresolved symbol mentions, suppresses successful empty speculative providers, and cites the matched requested name.",
+  "failure": "SQL procedure definitions need not exist as graph symbols. Native and actual MCP reproduced missing evidence; correction uses bounded selected-source SQL reads for unresolved symbol mentions, suppresses successful empty speculative providers, and cites the matched requested name. Follow-up source inspection found known SQL matches also needed to enter ordinary premise calibration. First release compiler canceled after312.400seconds; corrected release2 is running. No second native compilation.",
   "unaffected_debug_public_proofs": {
     "TODO4": {
       "receipt": {
@@ -46,25 +46,42 @@
     }
   },
   "release": {
-    "attempts": 1,
+    "attempts": 2,
+    "active_label": "release2",
     "live_owner": {
-      "driver_pid": 46948,
-      "driver_created": 1794859649.3947222,
-      "relay_pid": 42556,
-      "relay_created": 1794859649.719528,
+      "driver_pid": 22548,
+      "driver_created": 1794860044.5253956,
+      "relay_pid": 58556,
+      "relay_created": 1794860044.8671842,
+      "session_id": 20338,
       "owner_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1-owner.json",
-        "sha256": "6735a2abedc8522d04f06f2e6d5810dc78904b63183ff6034bdbd5397837ca20"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release2-owner.json",
+        "sha256": "071652c754366dafe82423a35156d86645e2ce35f6c684a20c6a07d70ef19c6d"
       },
-      "observed_at_utc": "2026-11-16T20:09:42.330416+00:00"
+      "observed_at_utc": "2026-11-16T20:15:48.143623+00:00"
     },
     "source": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-implementation1.json",
-      "sha256": "f437619dae8dceac057b31ba81297f7e8c9a605736310fb6290149b304e4e4f0"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-implementation2.json",
+      "sha256": "9d98e26eac304e78c0e8cb8fdb78e43745d86285550449ca2bcac582ea8e91f3"
     },
     "validation": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-source-validation1.json",
-      "sha256": "22f4569f1754966d02a93f61685c7584f760f2eb11262e1aad4d20b6d2e34bc2"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-source-validation2.json",
+      "sha256": "9706eecaa2152e1f775ad197e6ccf618980837f0974f0d8c931c242061d4dcdf"
+    },
+    "canceled_attempt": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1.json",
+        "sha256": "b88acb37037b00b7f55f0a22ef591f2dc688b2018db4c0e406c9d770fff2e5af"
+      },
+      "cancellation": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1-cancellation.json",
+        "sha256": "56898169cf29a54ea3e123b1c2be367ad521e057a67794e61c8fffaad3078f60"
+      },
+      "seconds": 312.4002495999448,
+      "job_empty_and_closed": true,
+      "relay_handle_closed": true,
+      "owned_temp_removed": true,
+      "reason": "Known unqualified-procedure premise/ambiguity defect in existing finite acceptance; stopped before finishing an artifact known to fail."
     }
   },
   "full_or_lib_suites": 0,
@@ -85,5 +102,9 @@
     "native_relay_closed": true,
     "native_runner_temp_removed": true,
     "retention": "Retain source/native failure/debug/public/release receipts until review or supersession. Release runner owns its live Job and new temp; no preexisting deletion."
-  }
+  },
+  "production_correction_commits": [
+    "472ad57",
+    "70f2843"
+  ]
 }

@@ -2558,7 +2558,7 @@
       {
         "original_requirement_id": "TODO-28",
         "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
-        "source_commit": "472ad572bdf403880e9d58e9cd6866f58182320b",
+        "source_commit": "70f2843c7bd08c564357a81a4a2f2f8b53d2d0ce",
         "progress": "eval/ask-procedure-evidence-progress-20261116.json",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -2772,7 +2772,7 @@
       "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
     ],
     "full_original_goal_active": true,
-    "next_action": "Poll exact current release driver46948/relay42556 with creation times. No native rerun, no new build, no full suites. After terminal PASS use this artifact for candidate/installed MCP procedure/discovery/SQL acceptance and deploy once.",
+    "next_action": "Poll existing release2 session20338 or exact pinned driver/relay. Release1 was explicitly canceled for the existing procedure ambiguity acceptance and all its owned resources are closed/removed. No new builds or native reruns. On release2 PASS, package that artifact, require corrected candidate MCP proof, then deploy/verify/restore normal runtime.",
     "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
     "source_progress": "eval/procedure-discovery-schema-batch-progress-20261116.json",
     "pending_source_outcomes": 3,
@@ -2789,16 +2789,23 @@
     "native_cases_passed": 3,
     "native_cases_failed": 1,
     "release_live_owner": {
-      "driver_pid": 46948,
-      "driver_created": 1794859649.3947222,
-      "relay_pid": 42556,
-      "relay_created": 1794859649.719528,
+      "driver_pid": 22548,
+      "driver_created": 1794860044.5253956,
+      "relay_pid": 58556,
+      "relay_created": 1794860044.8671842,
+      "session_id": 20338,
       "owner_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1-owner.json",
-        "sha256": "6735a2abedc8522d04f06f2e6d5810dc78904b63183ff6034bdbd5397837ca20"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release2-owner.json",
+        "sha256": "071652c754366dafe82423a35156d86645e2ce35f6c684a20c6a07d70ef19c6d"
       },
-      "observed_at_utc": "2026-11-16T20:09:42.330416+00:00"
-    }
+      "observed_at_utc": "2026-11-16T20:15:48.143623+00:00"
+    },
+    "release_session_id": 20338,
+    "release_label": "release2",
+    "production_correction_commits": [
+      "472ad57",
+      "70f2843"
+    ]
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
