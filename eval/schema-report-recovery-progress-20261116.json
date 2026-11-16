@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-15T23:48:57.373560+00:00",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Complete bounded AI responses with explicit truncation and exact recovery. Apply the remaining handler-owned gap to query_schema without changing its source analysis,64KiB default or composed-planning evidence limits. Broader TODO4 remains partial.",
@@ -68,8 +68,8 @@
     "Protected WIP9 bytes unchanged."
   ],
   "native_tests_run": true,
-  "public_acceptance_run": false,
-  "deployed": false,
+  "public_acceptance_run": true,
+  "deployed": true,
   "full_requirement_complete": false,
   "builds_before_combined_batch": {
     "native": 0,
@@ -116,6 +116,11 @@
     "public_debug_checks": 20,
     "debug_receipt_sha256": "d0f8f493ae19d4f36bce88f6244ebab5d9bb56b65022beee433813af5c7fab48",
     "release_handle": 5262,
-    "pipeline_handle": 83117
-  }
+    "pipeline_handle": 83117,
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "candidate_checks": 20,
+    "installed_checks": 20,
+    "release_builds": 1
+  },
+  "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json"
 }

@@ -53,5 +53,10 @@
     "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
     "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
   },
-  "source_commit": "48aa784a2325cb9d8297e9e067e6c654f8bc624d"
+  "source_commit": "48aa784a2325cb9d8297e9e067e6c654f8bc624d",
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "config_unchanged_verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
+    "relevance": "Existing VB.NET/WebForms/JavaScript/TypeScript/SQL source editing and scoped-guidance workflow. No target-language expansion; owned fixtures only."
+  }
 }

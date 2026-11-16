@@ -1,0 +1,168 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T00:37:54.446677+00:00",
+  "original_requirement_ids": [
+    "TODO-8",
+    "TODO-4",
+    "EG-14"
+  ],
+  "original_source_commits": {
+    "TODO-8": "2217204f28e06cb359edcac5950a963ca851e369",
+    "TODO-4": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
+    "EG-14": "b22a2b7ed4f61ce1988647dd8fbdc66e37127e6a"
+  },
+  "runtime_source_commit": "19d396aef91d0bef0ad2e2098531c2976bd81470",
+  "delivered": [
+    {
+      "requirement": "TODO-8",
+      "behavior": "Method metadata exposes canonical indexed callee IDs/FQNs/source locations and executable resolve_id actions, with missing/capped lookup qualifications instead of metadata-only empty calls."
+    },
+    {
+      "requirement": "TODO-4",
+      "behavior": "Oversized SQL schema/procedure reports preserve exact complete original MCP results, citations, guidance and advisory actions through existing bounded recovery; query arguments/source are unnecessary for recovery."
+    },
+    {
+      "requirement": "EG-14",
+      "behavior": "Area evidence selects declared-scope exceptions without prose filenames and preserves conditions, revision, authority and exact recovery."
+    }
+  ],
+  "validation": {
+    "native_cases": 14,
+    "native_builds": 1,
+    "debug_public_checks": 20,
+    "candidate_public_checks": 20,
+    "installed_public_checks": 20
+  },
+  "build_cost": {
+    "native_wall_seconds": 258.78203590004705,
+    "release_wall_seconds": 851.0384625000879,
+    "release_builds": 1,
+    "no_extra_debug_build": true,
+    "no_full_or_lib_suite": true
+  },
+  "installed_pair": {
+    "status": "PACKAGE_READY_NOT_INSTALLED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\package1",
+    "server_sha256": "dc2c53f48333957e55851cb77a59795ac5acc8f9bfe140c280a65aa7fe18f979",
+    "manifest_sha256": "ad6f5ed5723c57f759f08863ac0bcaa43bf4893551318c1717fc552e0a827b33",
+    "old_server_sha256": "26bc282d4a6a6df75b1716489ca3fa19b96cf502e8df3d220b4ad804fd3057f5",
+    "old_manifest_sha256": "75c99fe67cacaf8526f94cd1a7c7cad5f04f4986e1ba6d1dc3c1bb369ce89c42",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\release1.json",
+      "sha256": "a2bdd6593a547b9d4ddd0acb49368f86cc8cbf783fb8a4908e154bf62dd4cf08"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "75c99fe67cacaf8526f94cd1a7c7cad5f04f4986e1ba6d1dc3c1bb369ce89c42"
+    },
+    "source_commit": "19d396aef91d0bef0ad2e2098531c2976bd81470"
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 64004,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 78908,
+    "daemon_created": 1794789456.8515568,
+    "metadata": {
+      "pid": "78908",
+      "started_at_ms": "1794789456929",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "dc2c53f48333957e55851cb77a59795ac5acc8f9bfe140c280a65aa7fe18f979",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116",
+    "native_and_release_jobs_closed": true,
+    "owned_compilation_and_public_fixtures_removed": true,
+    "credential_bearing_private_config_removed": true,
+    "configuration_unchanged": true,
+    "protected_wip9_unchanged": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\package1",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-9c8f7e87a5b84d0f8e593600adea4083",
+    "normal_daemon_intentionally_restored": true,
+    "retention": "Keep owned package, rollback pair and synthetic source/build/wire receipts until superseded. No preexisting folders deleted. Later uninstalled source changes remain in ROOT; WORK stays frozen at the deployed source commit."
+  },
+  "full_original_goal_complete": false,
+  "task_productivity_demonstrated": false,
+  "limitations": [
+    "Callee identities describe bounded indexed graph observations, not exhaustive calls or runtime execution; omission and lookup qualifications remain.",
+    "SQL recovery preserves the selected original MCP result within existing8MiB/24h/32snapshot limits, not the complete corpus or deployed database state.",
+    "Declared review scope is a retrieval lead. Conditions, reviewed revision and authority remain evidence; current applicability and policy approval are not inferred. Existing64identity/256KiB/8candidate area discovery limits remain.",
+    "No CodeMap/Blast change, target-language expansion, actual LegacyValidation/Q source operation, full31finding/19gate closure or comparative productivity claim.",
+    "Later TODO33 batching and EG01 pre-edit policy source changes are committed separately but unvalidated and uninstalled. They were implemented during this frozen release and did not restart it."
+  ],
+  "evidence": {
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\implementation1.json",
+      "sha256": "99a4b6cff2508444669e52259d51faed4c6cad2c6a0a9fc6a1be64c5b933b198"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\native1.json",
+      "sha256": "02608b755f5ff88ef687c6e10ff28697d5dec203e31b899fdd4afa32bb816671"
+    },
+    "debug-binary1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\debug-binary1.json",
+      "sha256": "7eb833b96858775ab7582c0c62b1fbbe730d3f09e702a604e4a185b2e8ccd7ec"
+    },
+    "debug1/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\debug1\\receipt.json",
+      "sha256": "d0f8f493ae19d4f36bce88f6244ebab5d9bb56b65022beee433813af5c7fab48"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\release1.json",
+      "sha256": "a2bdd6593a547b9d4ddd0acb49368f86cc8cbf783fb8a4908e154bf62dd4cf08"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\pair1.json",
+      "sha256": "51bb029dbdf2799b2390a038d9911de8161e415ee833c53986b344503912585f"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\candidate1\\acceptance.json",
+      "sha256": "5cf12a3e4f8e631a092a693bdbc02d301a9fe8e9a1ed63217d3ec1cfd3bd211e"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\installed1\\acceptance.json",
+      "sha256": "b1b8a4b5733784ed9e713befcb073d7509cce07eefb7325c411703631218c840"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\deployment1-state.json",
+      "sha256": "4cee163c658f24a9d31e49c7875a186c29ad14dbdcb9b38091cd9c0dfc925c52"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "d265b1093975ec5ac922aa34aaa617fafc35d004b5804f06fee47b2549a480d5"
+    },
+    "release-gates1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\release-gates1.json",
+      "sha256": "c266b68a17c5b190742e0dc53f9abbc83b6850bfed8fd15a42c4cc44e8c2064b"
+    },
+    "resource-accounting.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\resource-accounting.json",
+      "sha256": "a0e6547634f3a41b202cde19c4b69b73553c1004e94d9a91abd0da652781dd1d"
+    },
+    "method-schema-area-batch-202611161-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116\\method-schema-area-batch-202611161-install-Upgrade.json",
+      "sha256": "ecf411bf7785173e62c2fd3a25a427204551abdfa77791dadbc402d67e96a0ef"
+    }
+  }
+}

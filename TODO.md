@@ -86,10 +86,9 @@ These degrade or improve *every single interaction*. Nothing below matters until
   cards, source actions and qualifications through exact saved-result recovery;
   broader TODO4 stays partial.
   [Delivery](eval/revision-guard-history-batch-delivery-20261115.json).
-  Source-complete November16, awaiting combined validation: `query_schema`
-  retains its64KiB default and recovers oversized complete reports, including
-  citations, guidance and advisory actions, without repeating source analysis.
-  [Pending source change](eval/schema-report-recovery-progress-20261116.json).
+  Installed November16: `query_schema` retains its64KiB default and recovers
+  oversized complete reports with citations, guidance and advisory actions.
+  [Delivery](eval/method-schema-area-batch-delivery-20261116.json).
   Opt-in retained query windows installed 2026-11-15 for search_memory,
   search_history and grep_project. Complete requested JSON windows recover
   exactly through saved byte continuations across source/index/Git changes and
@@ -160,11 +159,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   directly valid input to tool B: include `node_id` + `fqn` in search hits where resolvable,
   accept any of the three ID kinds in graph/access-layer tools, add a `resolve_id` helper.
 
-  Source-complete November16, awaiting combined validation: method metadata now
-  projects indexed callee identities and exact `resolve_id` actions instead of
-  depending solely on optional call-name metadata. Node revisions, lookup
-  qualifications and bounded omissions accompany the JSON/Markdown report.
-  [Pending source change](eval/method-callee-identities-progress-20261116.json).
+  Installed November16: method metadata projects indexed callee identities
+  and executable `resolve_id` actions with node revisions and bounded lookup
+  qualifications. VB.NET and TypeScript public calls passed.
+  [Delivery](eval/method-schema-area-batch-delivery-20261116.json).
 
 ---
 

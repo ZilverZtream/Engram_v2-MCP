@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "at_utc": "2026-11-15T23:22:51.309250+00:00",
   "original_requirement_id": "TODO-8",
   "original_requirement": "One identity system across tools: method evidence supplies canonical node IDs/FQNs/locations and actions usable by existing graph/source read tools, with ambiguity/coverage preserved. Broader original work stays in scope.",
@@ -59,8 +59,8 @@
     "Protected WIP9 and normal configuration digest unchanged."
   ],
   "native_tests_run": true,
-  "public_acceptance_run": false,
-  "deployed": false,
+  "public_acceptance_run": true,
+  "deployed": true,
   "full_requirement_complete": false,
   "builds_before_combined_batch": {
     "native": 0,
@@ -104,6 +104,11 @@
     "public_debug_checks": 20,
     "debug_receipt_sha256": "d0f8f493ae19d4f36bce88f6244ebab5d9bb56b65022beee433813af5c7fab48",
     "release_handle": 5262,
-    "pipeline_handle": 83117
-  }
+    "pipeline_handle": 83117,
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "candidate_checks": 20,
+    "installed_checks": 20,
+    "release_builds": 1
+  },
+  "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json"
 }
