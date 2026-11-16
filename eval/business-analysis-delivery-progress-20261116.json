@@ -86,7 +86,7 @@
     "relevance": "Current LegacyValidation VB.NET/JS/TS business-analysis workflow and configured OpenAI-compatible backend; proof uses an owned deterministic local provider and VB source, not the current real LLM or any inspected task."
   },
   "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
-  "runtime_source_commit": "3eafbd1daad8ea35502ae53783a379634d694c15",
+  "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/read_report_delivery.rs": "5e77bffbf8c527a6318b1af096a2f964f489723bb2263a083da781c770e53087",
@@ -99,7 +99,9 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
-    "native_builds": 0,
-    "release_builds": 0
+    "native_builds": 1,
+    "release_builds": 0,
+    "native_status": "COMPILE_FAILED_NO_TESTS_RUN",
+    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction1.json"
   }
 }
