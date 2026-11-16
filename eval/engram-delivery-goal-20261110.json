@@ -2570,6 +2570,14 @@
         "progress": "eval/shared-report-json-progress-20261116.json",
         "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
         "counts_as_independent_deliverables": 1
+      },
+      {
+        "original_requirement_id": "EG-20",
+        "outcome": "Complete scoped historical source patches through callable MCP actions",
+        "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
+        "progress": "eval/history-file-patch-progress-20261116.json",
+        "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+        "counts_as_independent_deliverables": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2717,6 +2725,14 @@
       "progress": "eval/shared-report-json-progress-20261116.json",
       "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
       "counts_as_independent_deliverables": 1
+    },
+    {
+      "original_requirement_id": "EG-20",
+      "outcome": "Complete scoped historical source patches through callable MCP actions",
+      "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
+      "progress": "eval/history-file-patch-progress-20261116.json",
+      "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+      "counts_as_independent_deliverables": 1
     }
   ],
   "method_schema_area_batch_delivery": {
@@ -2735,22 +2751,25 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO4 opt-in JSON envelopes for shared project reports",
+    "active_original_item": "Three-outcome browser/JSON/history batch acceptance",
     "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
-    "original_requirement_id": "TODO-4",
+    "original_requirement_id": "EG-20",
     "implementation_items_active": 0,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116",
+    "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
+    "source_progress": "eval/history-file-patch-progress-20261116.json",
     "finite_acceptance": [
-      "Shared project report tools without native output_json advertise and accept opt-in JSON delivery in Full/Core/advanced schemas, while tools with native output_json keep their own input/format semantics. Existing default replies are unchanged.",
-      "A versioned JSON envelope identifies tool/project and retains the entire original MCP result, including every text part, warnings, hashes and authored guidance. Delivery completeness is distinct from handler coverage and result limits; no invented source or total counts.",
-      "Complete escaped JSON text counts toward the existing caller budget. Oversized envelopes use existing immutable full-result recovery. Recovery retains the JSON envelope and original parts after source changes or restart, without rerunning the handler.",
-      "Owned public proof exercises ordinary/default and opt-in memory/state reports, typed schema advertisement, JSON escaping, small-budget exact recovery and existing native JSON preservation. No standalone Cargo; queue as one original requirement."
+      "search_history mode=patch reads one exact UTF8 Git path at query=40hex commit, as a complete first-parent unified patch with original blob IDs, pinned scope, patch hash and explicit binary/unavailable status. No embeddings, LLM or history index.",
+      "Use the same explicit/as_of or origin-default reachability scope as commit details. Exact file_filter is required; unrelated search filters/nonzero offset refuse. Missing or oversized patches refuse instead of clipping.",
+      "Every commit-detail changed-file entry supplies a callable exact-path MCP patch action. Existing complete reply budgets and retain_response recovery preserve the original patch after HEAD/disk changes. Current policy, runtime execution, semantic correctness and reviewer approval remain unproved.",
+      "Owned VB/TS/SQL fixture compares returned patches byte-for-byte with independently invoked Git, follows a commit-detail action, checks a missing/scope refusal and recovers an original retained patch after later edits. Queue as one usable-history outcome, with no standalone Cargo."
     ],
     "full_original_goal_active": true,
-    "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
-    "source_progress": "eval/shared-report-json-progress-20261116.json",
-    "next_action": "Select the next ready distinct original requirement. Two source outcomes are queued; no Cargo before at least three. Neither pending outcome is compiled, validated or installed."
+    "next_action": "Three distinct original source outcomes are queued. Freeze them in the existing shipping checkout and perform one focused combined native validation plus one release, reusing produced artifacts for public proof.",
+    "native_target": "browser_json_history_batch_tests",
+    "pending_source_outcomes": 3,
+    "new_builds_this_turn": 0
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

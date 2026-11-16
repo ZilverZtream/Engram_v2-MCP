@@ -1,0 +1,67 @@
+{
+  "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+  "at_utc": "2026-11-16T18:22:16.345247+00:00",
+  "original_requirement_id": "EG-20",
+  "related_original_requirement": "Usable history; complete original selected change evidence for AI",
+  "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json",
+    "sha256": "f7134d67a00a6e4fde7c8cbbb1e36a12c95a64e98c53179a983574fa0332b161"
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\baseline1\\acceptance.json",
+    "sha256": "c66cc82f14ba576b5ea4088f51b0d71346e4c04241a30269f3e0103fe89393dd"
+  },
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\verify-public.py",
+    "sha256": "61fdba17a6d09538ac636e24292bd79a06c496643c3a6d6a07c5f8fd1a10f590"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\source-checks.json",
+    "sha256": "06668e4a5f23415ad9a9bef16de0d05866a2ea1382be9ef84d43f42f6853168f"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/handlers/history_commit.rs",
+    "crates/engram_server/src/handlers/history_patch.rs",
+    "crates/engram_server/src/handlers/history_response.rs",
+    "crates/engram_server/src/handlers/mod.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/browser_json_history_batch_tests.rs",
+    "crates/engram_server/tests/history_file_patch_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "search_history mode=patch reads one exact path first-parent unified delta from retained Git objects using the shared commit reachability check. Commit rows expose pinned callable patch actions. Original object IDs and patch/hash survive saved-result recovery. Binary entries return identities without text; unavailable or oversized text refuses clipping. No indexing, model, external diff or text conversion.",
+  "finite_acceptance": [
+    "search_history mode=patch reads one exact UTF8 Git path at query=40hex commit, as a complete first-parent unified patch with original blob IDs, pinned scope, patch hash and explicit binary/unavailable status. No embeddings, LLM or history index.",
+    "Use the same explicit/as_of or origin-default reachability scope as commit details. Exact file_filter is required; unrelated search filters/nonzero offset refuse. Missing or oversized patches refuse instead of clipping.",
+    "Every commit-detail changed-file entry supplies a callable exact-path MCP patch action. Existing complete reply budgets and retain_response recovery preserve the original patch after HEAD/disk changes. Current policy, runtime execution, semantic correctness and reviewer approval remain unproved.",
+    "Owned VB/TS/SQL fixture compares returned patches byte-for-byte with independently invoked Git, follows a commit-detail action, checks a missing/scope refusal and recovers an original retained patch after later edits. Queue as one usable-history outcome, with no standalone Cargo."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "native_case_written": "selected_history_file_patch_matches_git_and_recovers_after_later_source_changes",
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "checks_completed": [
+    "Installed owned baseline reproduces missing patch actions/mode in2.334s; process closed and owned fixture removed.",
+    "Selected Rust syntax/diff checks and future public driver syntax passed. Protected WIP9 raw hashes unchanged."
+  ],
+  "remaining_acceptance": [
+    "One combined native target for browser clears, shared JSON envelopes and history patches; no full suite.",
+    "Candidate and installed actual MCP proofs, including independent Git bytes/scope and saved recovery after source/HEAD changes. Binary-no-text behavior remains to verify."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "new_compilations": 0,
+    "new_worktree_created": false,
+    "protected_wip9_preserved": true,
+    "retention": "Keep contract, original baseline/wire/oracle, public driver and source checks until installed acceptance or supersession. No preexisting folder deletion."
+  },
+  "next_action": "Three distinct original source outcomes are queued. Freeze them in the existing shipping checkout and perform one focused combined native validation plus one release, reusing produced artifacts for public proof."
+}
