@@ -1,0 +1,20 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-28",
+  "source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\baseline1\\acceptance.json",
+  "implemented": "Existing verified schema reader joins natural-language retrieval on the exact selected source lease. Complete table declarations retain all columns/nullability, source hash/span and declared deployment limits; incomplete/ambiguous schema qualifies answer status.",
+  "source_only": true,
+  "compiled": false,
+  "candidate_verified": false,
+  "installed": false,
+  "limits": [
+    "No general SQL natural-language completeness claim; at most3named table lookups with existing parser/query semantics.",
+    "Historical source remains separate; no current SQL arm.",
+    "Protected WIP unchanged; no real LegacyValidation/Q source read."
+  ],
+  "temporary_resources": "Baseline owner closed naturally and owned fixture removed; retained case contains evidence and scripts only.",
+  "at_utc": "2026-11-16T12:58:50.784397+00:00"
+}
