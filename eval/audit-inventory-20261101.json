@@ -10084,10 +10084,10 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "record": "eval/batch-source-reads-progress-20261116.json",
+      "record": "eval/edit-context-policy-progress-20261116.json",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "TODO-33",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\contract.json",
+      "original_requirement_id": "EG-01",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-context-report-delivery-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
@@ -10122,7 +10122,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO-33 batched source reads source-complete for following batch. Prior three-outcome batch passed14native/20public-debug checks; same release running.",
+    "active_original_item": "Following batch: TODO-33 source batching and EG-01 pre-edit scoped guidance are source-complete, unvalidated and uninstalled. Current three-outcome release continues from frozenWORK19d396a.",
     "next_user_visible_deliverable": "Canonical method callees, complete schema-report recovery and scope-aware area decision evidence; one focused combined validation/release, no full suites.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."

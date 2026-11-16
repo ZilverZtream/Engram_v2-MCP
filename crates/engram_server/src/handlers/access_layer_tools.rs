@@ -4452,20 +4452,30 @@ impl Engram {
                 downstream_generation,
             )
             .await;
-        if output_json {
-            let json = serde_json::to_string(&FreshAccessResponse {
+        let mut policy_paths = vec![ctx.method_info.file_path.clone()];
+        policy_paths.extend(ctx.caller_bodies.iter().map(|caller| caller.file_path.clone()));
+        policy_paths.extend(ctx.caller_excerpts.iter().filter(|caller| !caller.numbered_source.is_empty())
+            .map(|caller| caller.file_path.clone()));
+        let body = if output_json {
+            serde_json::to_string(&FreshAccessResponse {
                 result: &ctx,
                 freshness: freshness.clone(),
             })
-            .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
-        }
-
-        let (banner,footer)=freshness.markdown_parts();
-        let mut out = banner.unwrap_or_default();
-        out.push_str(&render_method_edit_context_markdown(&ctx));
-        out.push_str(&footer);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+            .map_err(|e| McpError::internal_error(e.to_string(), None))?
+        } else {
+            let (banner,footer)=freshness.markdown_parts();
+            let mut out = banner.unwrap_or_default();
+            out.push_str(&render_method_edit_context_markdown(&ctx));
+            out.push_str(&footer);
+            out
+        };
+        let project = req.project_id.clone();
+        let root = PathBuf::from(rec.directory);
+        let (body, _) = tokio::task::spawn_blocking(move ||
+            method_body_policy::attach(&project, &root, &policy_paths, body, output_json, None))
+            .await.map_err(|error| McpError::internal_error(error.to_string(), None))?
+            .map_err(|error| McpError::invalid_params(error.to_string(), None))?;
+        Ok(CallToolResult::success(vec![Content::text(body)]))
     }
 
     /// Business-rule evidence for a method from the `business_logic`

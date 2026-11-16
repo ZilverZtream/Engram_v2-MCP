@@ -1,5 +1,14 @@
 # Tool Contract
 
+Source-complete, awaiting a future combined delivery: `get_method_edit_context`
+includes complete applicable authored guidance for the selected method and
+actually returned caller source. Unreturned caller leads do not widen this scope.
+JSON retains `project_policy_sources`; Markdown retains the same complete rules
+and exceptions. Guidance refreshes on the next read without source reindexing.
+The public tool uses shared complete-report delivery (default40KiB), with exact
+immutable original-result recovery when source, safety evidence and guidance do
+not fit. Recovery does not rerun the context or re-read its source and guidance.
+
 Source-complete, awaiting a future combined delivery: `batch_read` also accepts
 `get_full_method_body` with its normal arguments. Each source result retains its
 direct handler's hash checks, ranges, authored guidance, reply budget and saved

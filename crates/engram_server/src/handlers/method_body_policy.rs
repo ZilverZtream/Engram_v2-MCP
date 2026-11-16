@@ -6,7 +6,7 @@ use std::{collections::BTreeSet,path::Path};
 pub(super) fn attach(project_id: &str,root: &Path,paths: &[String],body: String,output_json: bool,limit: Option<usize>) -> anyhow::Result<(String,project_policy::PolicyContext)> {
     let paths=paths.iter().cloned().collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>();
     let mut policy=project_policy::resolve(root,&paths,&[]).with_source_recovery(project_id);
-    policy.notes.push("Policy scope covers the returned main source file and actually returned caller bodies, not other caller leads or every file a future edit may touch. Recheck guidance for the final edit scope. Authored guidance does not establish method-boundary accuracy, source freshness, implementation compliance or runtime execution.".into());
+    policy.notes.push("Policy scope covers the selected method/source file and actually returned caller source, not other caller leads or every file a future edit may touch. Recheck guidance for the final edit scope. Authored guidance does not establish method-boundary accuracy, source freshness, implementation compliance or runtime execution.".into());
     let output=if output_json {
         let mut report:Value=serde_json::from_str(&body)?;
         anyhow::ensure!(report.is_object(),"Method/source evidence must retain its structured source and freshness fields");
