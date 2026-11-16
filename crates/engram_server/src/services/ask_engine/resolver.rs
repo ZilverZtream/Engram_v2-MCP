@@ -14,7 +14,7 @@ const MAX_BRANCHES: usize = 4;
 pub fn node_to_entity_kind(node_type: &str) -> EntityKind {
     match node_type {
         "file" => EntityKind::File,
-        "function" | "class" | "interface" | "stored_proc" | "inline_sql" => EntityKind::Symbol,
+        "function" | "class" | "interface" | "stored_proc" | "stored_procedure" | "inline_sql" => EntityKind::Symbol,
         "db_table" => EntityKind::Table,
         "db_column" => EntityKind::Column,
         "global_state" => EntityKind::Setting,
@@ -254,7 +254,7 @@ pub fn resolve_entities_in_context(
         p.ends_with(".vb") || p.ends_with(".cs") || p.ends_with(".asmx")
     };
     let is_sql_declaration = |node: &Node| {
-        (node_to_entity_kind(&node.node_type) == EntityKind::Table || node.node_type == "stored_proc")
+        (node_to_entity_kind(&node.node_type) == EntityKind::Table || matches!(node.node_type.as_str(), "stored_proc" | "stored_procedure"))
             && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql")
     };
     let mut sql_declarations = std::collections::HashSet::new();

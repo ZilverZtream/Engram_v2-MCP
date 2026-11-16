@@ -46,21 +46,26 @@ pub(super) async fn gather(
     view: Option<Arc<SourceSnapshotGuard>>,
     deadline: Duration,
 ) -> Option<SchemaEvidence> {
-    if !plan.modalities.iter().any(|m| matches!(m, Modality::Sql)) {
+    // SQL declarations are read from the selected source catalog. They need
+    // not have graph symbols, unlike methods supplied by language extractors.
+    let selected_sql = view.as_ref().and_then(|view| view.selected_file_revisions())
+        .is_some_and(|files| files.keys().any(|path| path.to_ascii_lowercase().ends_with(".sql")));
+    if !selected_sql && !plan.modalities.iter().any(|m| matches!(m, Modality::Sql)) {
         return None;
     }
     let mut requests = Vec::new();
     for entity in &plan.entities {
         // Classification selects an existing reader, never proves binding.
         // That reader independently admits selected/current SQL source hashes.
-        let is_procedure = entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
+        let discover_procedure = entity.guessed_kind == EntityKind::Symbol && entity.resolved.is_empty();
+        let is_procedure = discover_procedure || entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
             .any(|id| engram.state.graph.get_node(project_id, id).is_ok_and(|node| node.is_some_and(|node|
-                node.node_type == "stored_proc" && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql"))));
+                matches!(node.node_type.as_str(), "stored_proc" | "stored_procedure") && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql"))));
         let is_table = entity.resolved.iter().any(|r| r.kind == EntityKind::Table)
             || entity.guessed_kind == EntityKind::Table
             || (plan.contract.entity_type == ContractEntityType::Table
                 && entity.guessed_kind != EntityKind::File);
-        if (!is_table && !is_procedure) || requests.iter().any(|r: &QuerySchemaRequest| {
+        if (!is_table && !is_procedure) || requests.iter().any(|(r, _): &(QuerySchemaRequest, bool)| {
             matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if !is_procedure && name == &entity.text)
                 || matches!(&r.query_type, Some(SchemaQueryType::StoredProc { sp_name }) if is_procedure && sp_name == &entity.text)
         }) {
@@ -78,7 +83,7 @@ pub(super) async fn gather(
             response_offset: 0,
         };
         if schema_query::validate(&request).is_ok() {
-            requests.push(request);
+            requests.push((request, discover_procedure));
         }
     }
     if requests.is_empty() {
@@ -103,7 +108,7 @@ pub(super) async fn gather(
     let work = async {
         let view =
             view.ok_or_else(|| "Selected source unavailable for SQL schema evidence".to_string())?;
-        for request in requests.into_iter().take(3) {
+        for (request, discover_procedure) in requests.into_iter().take(3) {
             let is_procedure = matches!(&request.query_type, Some(SchemaQueryType::StoredProc { .. }));
             let result = engram
                 .query_schema_selected(
@@ -127,6 +132,10 @@ pub(super) async fn gather(
             .map_err(|e| e.to_string())?;
             let report: Value = serde_json::from_str(&text.text).map_err(|e| e.to_string())?;
             let total = report["total_matches"].as_u64().unwrap_or(0) as usize;
+            if discover_procedure && total == 0
+                && report["coverage"]["gaps"].as_array().is_some_and(|gaps| gaps.is_empty()) {
+                continue;
+            }
             out.ambiguous |= total > 1;
             *out.provider.available.as_mut().unwrap() += total;
             out.provider.examined += report["coverage"]["selected_sql_files"]
@@ -173,7 +182,10 @@ pub(super) async fn gather(
                     kind: EvidenceKind::SourceCode, authority: Authority::CurrentCode,
                     path: Some(path.into()), lines: Some((start as u32, end as u32)),
                     symbol_id: Some(format!("schema:{path}:{start}:{hash}")),
-                    title: Some(format!("Source {} {}", if is_procedure { "procedure" } else { "table" }, table["name"])),
+                    title: Some(match &request.query_type {
+                        Some(SchemaQueryType::StoredProc { sp_name }) => format!("Source procedure {sp_name}: {}", table["name"]),
+                        _ => format!("Source table {}", table["name"]),
+                    }),
                     content: if ambiguous {
                         let recovery = if engram.state.cfg.advertise_all_tools {
                             json!({"tool":"query_schema","arguments":{"project_id":project_id,
@@ -232,5 +244,5 @@ pub(super) async fn gather(
     }
     out.provider.count = out.items.len();
     out.provider.note = Some(notes.join(" "));
-    Some(out)
+    (out.provider.status != ProviderStatus::Empty).then_some(out)
 }
