@@ -20,6 +20,7 @@ fn node(id: &str, kind: &str, name: &str, file: &str, start: usize, end: usize) 
         node_id: id.into(),
         node_type: kind.into(),
         name: name.into(),
+        namespace: "code".into(),
         file_path: RelPath::new(file),
         start_line: start as u32,
         end_line: end as u32,
