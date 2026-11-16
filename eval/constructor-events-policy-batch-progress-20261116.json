@@ -1,0 +1,47 @@
+{
+  "status": "NATIVE_AND_CURRENT_DEBUG_PUBLIC_VALIDATED_ONE_RELEASE_RUNNING",
+  "original_requirements": [
+    "EG-25",
+    "TODO-31",
+    "EG-01"
+  ],
+  "source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
+  "native": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\native1.json",
+    "passed": 7,
+    "commands": 1,
+    "runner_seconds": 222.59857879998162
+  },
+  "public_debug": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\debug-accepted1\\receipt.json",
+    "passed": 20,
+    "server_sha256": "139a8054d52fd66e0a14d7c58a883730ded22b8ce8d235000e200c5f866cbaa1"
+  },
+  "retained_public_fixture_failure": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\debug1\\receipt.json",
+    "reason": "4KiB caller budget below reported4320B metadata minimum; failed history fixture alone rerun at8KiB using identical executable passed."
+  },
+  "release": {
+    "commands_started": 1,
+    "status": "RUNNING",
+    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\release-live1.json"
+  },
+  "completion_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\finish-release1.py",
+    "session_id": 71472,
+    "owner": {
+      "pid": 14544,
+      "creation_time": 1794869799.963828
+    },
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\completion1-state.json",
+    "behavior": "Waits exact existing release owners, then packages once, runs deploy5.py, restores normal runtime, verifies215installedassets and creates ZIP. Starts no Cargo."
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
+  "runtime_deployed": false,
+  "full_original_goal_active": true,
+  "actual_coding_percentage": null,
+  "limits": [
+    "Current runtime acceptance is debug7native+20public only; candidate/install not yet complete.",
+    "Full original gates and measured task usefulness remain open; no source-quality/productivity/billing claim."
+  ]
+}

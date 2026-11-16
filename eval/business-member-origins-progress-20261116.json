@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_IMPLEMENTED_NATIVE_AND_PUBLIC_ACCEPTANCE_PENDING",
+  "status": "NATIVE_AND_CURRENT_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "EG-25",
   "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116\\contract.json",
   "original_observation": "eval/legacy_validation-invoice-task-outcome-20261115.json",
@@ -32,9 +32,12 @@
     "retention": "Keep for finite acceptance and review; preexisting folders unchanged."
   },
   "builds_started": 0,
-  "native_tests_executed": 0,
+  "native_tests_executed": 2,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
   "source_commit": "3c1e68e00b41b5c573c87e18d552e88da439a2ac",
-  "pending_source_outcomes": 1
+  "pending_source_outcomes": 1,
+  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\native1.json",
+  "public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\debug-accepted1\\receipt.json",
+  "batch_progress": "eval/constructor-events-policy-batch-progress-20261116.json"
 }

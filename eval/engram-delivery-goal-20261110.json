@@ -2727,33 +2727,33 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Revision-pinned authored guidance in historical ask answers",
-    "original_requirement_id": "EG-01",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "Original LegacyValidation instruction-aware context recommendation: historical replay uses authored guidance valid at the replay commit; preserve scope, exceptions and provenance.",
-    "observed_missing_behavior": "Historical ask_codebase returns historical_unavailable policy unconditionally even when matching authored guidance exists in the same Git revision as its returned source. Existing project_policy::resolve_at_revision already supplies pinned scoped guidance to change sets.",
-    "implementation_files": [
-      "crates/engram_server/src/services/ask_engine/historical.rs",
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/tests/ask_historical_policy_tests.rs",
-      "crates/engram_server/src/tools.rs"
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-ask-policy-20261116\\contract.json",
-    "finite_acceptance": [
-      "Use one resolved immutable commit for both returned historical source and applicable historical guidance. Scope policy to returned source paths and reuse existing revision resolver including scope/exclusions, linked documents, complete-source limits, hashes and explicit gaps.",
-      "Changing/deleting live policy or moving the supplied branch after capture cannot introduce future guidance or mutate saved recovery. Preserve no-live-index/graph/provider use and historical partial/unsupported statuses; policy presence never establishes implementation compliance.",
-      "Missing or malformed policy remains absent/incomplete/unavailable with explicit provenance; a failed policy read must not substitute working-tree bytes. No returned source paths means policy scope is not evaluated.",
-      "Owned installed baseline must reproduce available historical source with withheld matching guidance. Focused native and public post-change JSON/Markdown and immutable recovery checks remain pending consolidated validation; no standalone Cargo or model replay."
-    ],
+    "active_original_item": "Constructor/event/historical-guidance consolidated acceptance",
+    "status": "ONE_OPTIMIZED_BUILD_RUNNING",
     "implementation_items_active": 0,
     "pending_source_outcomes": 3,
     "full_original_goal_active": true,
-    "next_action": "Continue substantive original source work. Three committed outcomes are pending consolidated native/public/deployment acceptance; minimum admission count is not a release trigger. No standalone compilation or replay of inspected model tasks.",
-    "source_progress": "eval/historical-ask-policy-progress-20261116.json",
-    "baseline_public_checks": 3,
-    "native_tests_executed": 0,
-    "builds_started": 0,
-    "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47"
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
+    "native_target": "constructor_events_policy_batch_tests",
+    "native_cases_written": 7,
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\contract.json",
+    "source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
+    "next_action": "Poll completion driver session71472 / exact saved process identity. It completes the existing build/package/deploy/restore sequence without another Cargo command. Inspect terminal receipts before claiming installed delivery; preserve original backlog.",
+    "native_distinct_behaviors_passed": 7,
+    "public_current_artifact_checks": 20,
+    "initial_public_fixture_budget_failure_retained": true,
+    "release_commands_started": 1,
+    "release_live_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\release-live1.json",
+    "completion_driver": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\finish-release1.py",
+      "session_id": 71472,
+      "owner": {
+        "pid": 14544,
+        "creation_time": 1794869799.963828
+      },
+      "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\completion1-state.json",
+      "behavior": "Waits exact existing release owners, then packages once, runs deploy5.py, restores normal runtime, verifies215installedassets and creates ZIP. Starts no Cargo."
+    },
+    "source_progress": "eval/constructor-events-policy-batch-progress-20261116.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

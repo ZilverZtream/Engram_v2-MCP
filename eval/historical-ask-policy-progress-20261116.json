@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_CURRENT_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
   "original_requirement": "Original LegacyValidation instruction-aware context recommendation: historical replay uses authored guidance valid at the replay commit; preserve scope, exceptions and provenance.",
   "observed_missing_behavior": "Historical ask_codebase returns historical_unavailable policy unconditionally even when matching authored guidance exists in the same Git revision as its returned source. Existing project_policy::resolve_at_revision already supplies pinned scoped guidance to change sets.",
   "implementation_files": [
@@ -26,7 +26,7 @@
     "protected_wip9": "UNCHANGED"
   },
   "native_cases_written": 3,
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "builds_started": 0,
   "runtime_deployed": false,
   "full_original_goal_complete": false,
@@ -41,5 +41,8 @@
     "baseline_process_closed": true,
     "retention": "Keep contract, private driver and raw baseline receipts for acceptance/review. No actual LegacyValidation source/store/configuration accessed or changed by this fixture."
   },
-  "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47"
+  "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47",
+  "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\native1.json",
+  "public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\debug-accepted1\\receipt.json",
+  "batch_progress": "eval/constructor-events-policy-batch-progress-20261116.json"
 }
