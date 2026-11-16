@@ -2562,6 +2562,14 @@
         "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
         "progress": "eval/qa-constructor-inputs-progress-20261117.json"
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "outcome": "Literal WebForms user-control instance event paths with preserved page context and source recovery",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
+        "progress": "eval/control-instance-trace-progress-20261117.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2711,33 +2719,33 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Constructor input evidence in QA matrices",
-    "original_requirement_id": "EG-25",
-    "original_requirement": "Supply useful current source and configuration evidence to existing OX diagnosis/QA workflows; keep input provenance and inference qualifications through the analysis-to-test-matrix handoff.",
-    "observed_missing_behavior": "Constructor source now reaches and persists with business analysis, but test_derivation only consumes return/reaching evidence and render_rule_cases has no constructor context. QA matrix readers must separately recover the document to identify the constructor setting that affects a referenced member.",
+    "active_original_item": "Declared user-control instance request paths",
+    "original_requirement_id": "TODO-31",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "implementation_files": [
-      "crates/engram_server/src/services/business_member_origins.rs",
-      "crates/engram_server/src/handlers/business_source.rs",
-      "crates/engram_server/src/handlers/test_derivation.rs",
-      "crates/engram_server/src/handlers/settings_tools.rs"
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
+    "original_requirement": "Trace a URL/action through authored WebForms handler and existing downstream call/database source evidence in normal LegacyValidation UI workflows.",
+    "observed_missing_behavior": "setup_gis_layers.aspx registers and instantiates ctrlLayerNonSpatialImage; its ASCX declares ddlOrder.OnSelectedIndexChanged and a VB handler. Current event actions reject instance/child paths, only load page code-behind, and omit ASCX sources from the trace inventory.",
     "finite_acceptance": [
-      "Matrix document evidence exposes bounded complete source assignment observations, original constructor lines/hash and explicit name-match/runtime uncertainty once per included document; preserve case order and inferred outcome qualifications.",
-      "Use the existing current full-file hash audit. Changed/unavailable supporting source is disclosed without displaying stale assignments as current setup evidence, including when the analyzed method remains unchanged. Legacy analyses explicitly lack this context.",
-      "Omitted source observations retain counts and the existing complete-document recovery pointer. Repeated cases share the same immutable context; do not duplicate every source assignment into every case or infer configured runtime values.",
-      "Confirm the installed gap on a new owned synthetic VB fixture and a local fixed-response endpoint. Native/runtime validation remains pending a substantive combined batch; no standalone Cargo, fresh agents or inspected task/model replay."
+      "Support event instance/child.Event selectors through literal same-application Register TagPrefix/TagName/Src and runat=server instances, bounded to8path components and8distinct source candidates. Preserve source declaration ambiguity and explicit unresolved/deferred coverage rather than guessing types or executing code.",
+      "Retain the original page identity/code-behind and page/control load candidates; select the terminal local event on each resolved ASCX code-behind, then reuse one existing admitted call/SQL traversal. Source order is not execution or lifecycle order.",
+      "Every control route retains parent instance and Register declaration locations, literal attributes including visibility, target source/hash and selected file admission. Changed or missing markup/code-behind is withheld; nonmatching controls and other applications do not become candidate handlers.",
+      "Actual non-Q source copies must reproduce the missing instance path and later yield the declared child handler with exact source citations. Focused synthetic checks cover nested instances, page context and downstream literal SQL; bounded report recovery retains route identities and exact full evidence. No standalone build."
     ],
+    "implementation_files": [
+      "crates/engram_server/src/services/request_trace/control_routes.rs",
+      "crates/engram_server/src/services/request_trace/control_events.rs",
+      "crates/engram_server/src/services/request_trace/execution.rs",
+      "crates/engram_server/src/handlers/request_trace_tools.rs",
+      "crates/engram_server/src/handlers/request_trace_delivery.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/tools.rs"
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1,
+    "pending_source_outcomes": 2,
     "full_original_goal_active": true,
-    "next_action": "Advance another substantive unmet original requirement while retaining QA constructor handoff for combined native/public validation. No standalone compile, filler, inspected task replay or closed-tool work.",
-    "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
-    "source_progress": "eval/qa-constructor-inputs-progress-20261117.json",
-    "baseline_public_checks": 4,
-    "builds_started": 0,
-    "native_tests_executed": 0
+    "next_action": "Select the next ready original source outcome using retained evidence; keep these two outcomes queued. No Cargo: the minimum three is not an automatic release schedule. Positive native/public/deployed acceptance remains pending.",
+    "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
+    "progress": "eval/control-instance-trace-progress-20261117.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2984,5 +2992,6 @@
     "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "original_goal_complete": false
-  }
+  },
+  "control_instance_trace_source_progress_20261117": "eval/control-instance-trace-progress-20261117.json"
 }

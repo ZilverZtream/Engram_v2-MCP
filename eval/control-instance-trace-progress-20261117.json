@@ -1,0 +1,64 @@
+{
+  "at_utc": "2026-11-16T23:51:06.373592+00:00",
+  "original_requirement_id": "TODO-31",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
+  "original_requirement": "Trace a URL/action through authored WebForms handler and existing downstream call/database source evidence in normal LegacyValidation UI workflows.",
+  "observed_missing_behavior": "setup_gis_layers.aspx registers and instantiates ctrlLayerNonSpatialImage; its ASCX declares ddlOrder.OnSelectedIndexChanged and a VB handler. Current event actions reject instance/child paths, only load page code-behind, and omit ASCX sources from the trace inventory.",
+  "finite_acceptance": [
+    "Support event instance/child.Event selectors through literal same-application Register TagPrefix/TagName/Src and runat=server instances, bounded to8path components and8distinct source candidates. Preserve source declaration ambiguity and explicit unresolved/deferred coverage rather than guessing types or executing code.",
+    "Retain the original page identity/code-behind and page/control load candidates; select the terminal local event on each resolved ASCX code-behind, then reuse one existing admitted call/SQL traversal. Source order is not execution or lifecycle order.",
+    "Every control route retains parent instance and Register declaration locations, literal attributes including visibility, target source/hash and selected file admission. Changed or missing markup/code-behind is withheld; nonmatching controls and other applications do not become candidate handlers.",
+    "Actual non-Q source copies must reproduce the missing instance path and later yield the declared child handler with exact source citations. Focused synthetic checks cover nested instances, page context and downstream literal SQL; bounded report recovery retains route identities and exact full evidence. No standalone build."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/control_routes.rs",
+    "crates/engram_server/src/services/request_trace/control_events.rs",
+    "crates/engram_server/src/services/request_trace/execution.rs",
+    "crates/engram_server/src/handlers/request_trace_tools.rs",
+    "crates/engram_server/src/handlers/request_trace_delivery.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/services/request_trace.rs",
+    "crates/engram_server/tests/request_trace_control_instances.rs"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\baseline2\\receipt.json",
+  "baseline_seconds": 3.5876644999952987,
+  "baseline_binary_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
+  "retained_setup_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\baseline1\\receipt.json",
+  "source_behavior": [
+    "Literal same-application ASCX registration and server-instance paths retain registration/instance locations, hashes and authored Visible/Enabled declarations.",
+    "Root page/code-behind identity and page/control Load candidates remain available; terminal event entries reuse one existing source-admitted graph/SQL traversal.",
+    "Nested paths preserve ambiguous source candidates and disclose limits; stale/missing/cross-application markup and changed code-behind do not authorize event handlers.",
+    "Compact delivery defers route and terminal-event source excerpts with byte/count accounting; immutable full-report recovery retains captured evidence."
+  ],
+  "source_checks": {
+    "rustfmt_parse": "PASS; legacy files parsed to stdout only",
+    "git_diff_check": "PASS",
+    "python_verifier_syntax": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "pinned_four_source_snapshots": "UNCHANGED"
+  },
+  "native_test_cases_written": 2,
+  "native_tests_executed": 0,
+  "builds_started": 0,
+  "post_change_public_checks_executed": 0,
+  "runtime_deployed": false,
+  "real_model_calls": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\verify-public.py",
+  "public_verifier_sha256": "fa68d6c823555d80fdb09323a2426ee8a24033cbf15748feff7fd0488e9f2371",
+  "prospective_phase_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\effort.jsonl",
+  "limits": [
+    "Source completion only: Rust type-checking, focused native execution, actual source-copy positive runtime and bounded recovery checks remain pending.",
+    "No effective visibility, browser reachability, runtime execution, master-page composition or dynamic control creation claim.",
+    "No whole-session coding percentage. The open phase log spans conversation interruptions and cannot be treated as continuous coding.",
+    "Full original backlog remains active; this record does not complete TODO-31 or the broader goal."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117",
+    "baseline_fixture_removed": true,
+    "baseline_process_closed": true,
+    "retention": "Keep pinned source snapshots, contract, verifiers and receipts for combined acceptance. No preexisting deletions."
+  }
+}
