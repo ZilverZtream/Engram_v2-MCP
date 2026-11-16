@@ -10123,7 +10123,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "active_original_item": "Three-outcome browser/JSON/history batch acceptance",
-    "status": "CURRENT_ARTIFACT_VALIDATED_RELEASE_RUNNING",
+    "status": "RELEASE_RUNNING_CURRENT_ARTIFACT_PUBLIC_PASS",
     "original_requirement_id": "EG-20",
     "implementation_items_active": 0,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json",
@@ -10137,7 +10137,7 @@
       "Owned VB/TS/SQL fixture compares returned patches byte-for-byte with independently invoked Git, follows a commit-detail action, checks a missing/scope refusal and recovers an original retained patch after later edits. Queue as one usable-history outcome, with no standalone Cargo."
     ],
     "full_original_goal_active": true,
-    "next_action": "Poll the same live release handle3203; no restart or second native build. Then package, candidate/installed public proof and normal lifecycle restoration.",
+    "next_action": "Poll the existing release session3203; do not restart. After terminal PASS, package, run candidate and installed proofs, and restore normal daemon.",
     "native_target": "browser_json_history_batch_tests",
     "pending_source_outcomes": 3,
     "new_builds_this_turn": 0,
@@ -10147,7 +10147,11 @@
     "native_test_compilation_failure_retained": true,
     "native_build_attempts": 1,
     "release_build_attempts": 1,
-    "release_exec_session": 3203
+    "release_exec_session": 3203,
+    "release_exec_session_id": 3203,
+    "release_driver_pid": 84600,
+    "current_artifact_public_checks_passed": 21,
+    "native_test_compile_failure_retained": true
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
