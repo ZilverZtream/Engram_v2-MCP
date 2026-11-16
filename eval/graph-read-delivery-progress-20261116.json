@@ -3,7 +3,7 @@
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete reply budgets and exact original-result recovery across agent read tools.",
   "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner.",
-  "source_commit": null,
+  "source_commit": "b3c5b4e5bd818fed8c375aed3535024b4bcfbb44",
   "implementation_files": [
     "crates/engram_server/src/read_report_delivery.rs",
     "crates/engram_server/src/read_report_delivery_tests.rs",

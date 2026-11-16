@@ -2762,6 +2762,15 @@
       "focused_native_target": "request_trigger_paths_tests",
       "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
       "user_outcome": "Reached source-qualified SQL writes lead to matching declared DML trigger candidates and cited body table references; deployed/runtime state remains unknown."
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "b3c5b4e5bd818fed8c375aed3535024b4bcfbb44",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
+      "source_progress_record": "eval/graph-read-delivery-progress-20261116.json",
+      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
+      "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner."
     }
   ],
   "method_schema_area_batch_delivery": {
@@ -2780,28 +2789,25 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO-31 source-declared trigger paths from reached SQL writes",
+    "active_original_item": "TODO-4 complete delivery across remaining basic graph readers",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "original_requirement": "trace_user_request: URL/route to handler, SQL/procedures/tables, trigger side effects and response.",
-    "observed_missing_behavior": "include_triggers is advertised and accepted but every requested trace reports unknown_no_trigger_binding_in_existing_graph; source trigger declarations are not connected to reached SQL writes.",
+    "original_requirement": "Uniform complete reply budgets and exact original-result recovery across agent read tools.",
+    "observed_missing_behavior": "query_graph_nodes, find_references and graph_search lack caller max_tokens and original-result recovery although the common report owner already serves traversal and other graph readers.",
     "implementation_files": [
-      "crates/engram_server/src/services/request_trace/triggers.rs",
-      "crates/engram_server/src/services/request_trace.rs",
-      "crates/engram_server/src/handlers/request_trace_tools.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/request_trigger_paths_tests.rs"
+      "crates/engram_server/src/read_report_delivery.rs",
+      "crates/engram_server/src/read_report_delivery_tests.rs",
+      "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "Owned WebForms save executes a source-literal UPDATE dbo.Orders. Reached SQL write is connected to a declared AFTER UPDATE trigger on exactly dbo.Orders and its body table references, retaining current source hashes/ranges and trigger timing/events. No deployed execution claimed.",
-      "A different schema with the same basename and a DELETE-only trigger do not become UPDATE candidates. SQL reads do not seed write-trigger expansion. include_triggers=false/include_db=false retain opt-out.",
-      "Use existing SQL declaration catalog/name reader/body recognizers; no database connection, new parser framework, graph store write or target-language expansion. Keep existing path and source limits, count withheld expansion, no default-schema guesses.",
-      "One dedicated native behavior function and owned public MCP proof join the next batch; no per-feature Cargo or new release."
+      "All three ordinary graph reads retain original selected node/reference/ranked output and fit caller reply budgets through existing immutable recovery.",
+      "Recover original selected MCP result and verify hash/independent authored source identities after owned source/index change and restart without rerunning graph search. Preserve existing record caps, ranking, clipping, graph freshness and ambiguity behavior.",
+      "No graph extraction, identity, ranking, CodeMap/Blast implementation or new snapshot system. Use existing shared-owner acceptance; no new implementation-mirroring unit tests or per-feature Cargo."
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
-    "concurrent_validation": "Frozen policy/revert/migration batch passed three focused native behaviors; sole release79304confirmed live. This next source item stays outside that frozen build checkout.",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
     "full_original_goal_active": true,
-    "next_action": "Finish frozen policy/revert/migration installation using the running sole release. One next-batch source outcome retained; no new compile for it."
+    "concurrent_validation": "Policy/revert/migration source remains frozen in running release1; next source changes do not enter it.",
+    "next_action": "Finish current frozen release/installation. Two independent following-batch source outcomes wait for at least three before any next Cargo."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2877,5 +2883,6 @@
     "native_runner_seconds": 394.8444534998853,
     "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
     "not_yet_deployed": true
-  }
+  },
+  "graph_read_delivery_source_progress": "eval/graph-read-delivery-progress-20261116.json"
 }
