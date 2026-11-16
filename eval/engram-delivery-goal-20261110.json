@@ -2747,14 +2747,16 @@
     "deployed": false
   },
   "schema_report_recovery_source_progress": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/schema-report-recovery-progress-20261116.json",
     "original_requirement_id": "TODO-4",
     "source_commit": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
     "native_tests_run": false,
     "public_acceptance_run": false,
-    "deployed": false
+    "deployed": true,
+    "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
+    "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
   "following_batch_pending": [],
   "method_schema_area_batch_delivery": {
