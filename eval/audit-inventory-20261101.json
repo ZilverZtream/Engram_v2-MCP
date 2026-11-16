@@ -10123,7 +10123,7 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "active_original_item": "Combined browser caller / history detail / archive distribution delivery",
-    "status": "FOCUSED_NATIVE_RUNNING",
+    "status": "PUBLIC_EQUIVALENT_PASS_SINGLE_RELEASE_RUNNING",
     "original_requirement_id": "EG-20/21",
     "implementation_items_active": 0,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\contract.json",
@@ -10136,7 +10136,7 @@
     ],
     "observed_missing_behavior": "History recovery offers shell Git actions and exact indexed chunks, but no MCP action reads a selected commit full message and complete first-parent changed-file cohort. Precedent cards retain1500description characters and40nongenerated paths.",
     "full_original_goal_active": true,
-    "next_action": "Poll existing native18124; do not restart on observation timeout. Inspect its exact terminal receipt, then one release only if wanted behavior passes; reuse same release candidate/installed. Separate installer script/real archive proof retained.",
+    "next_action": "Poll existing release89747; do not restart on observation timeout. Then package frozen candidate, verify both current release public workflows candidate/installed, create matching archive and restore normal runtime. Native fixture-only edits use current compiled artifact proof instead of another native compile.",
     "source_commit": "8a2bd3e8020d3683a9846777f96b77e70e2a2361",
     "progress_record": "eval/history-commit-detail-progress-20261116.json",
     "implementation_files": [
@@ -10152,14 +10152,23 @@
     ],
     "native_target": "request_history_batch_tests",
     "runtime_native_cases": 2,
-    "previous_goal_turn_classification": "VERIFIED_WAIT: source frozen in existing clean checkout; owned native18124 confirmed live by polling, two focused runtime cases only. No release or public/deployment step started.",
+    "previous_goal_turn_classification": "PROGRESS: one focused native build ended; two fixture errors preserved/corrected, all16current-artifact public MCP checks passed without another native compilation. One release running.",
     "source_freeze": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\release-plan.json",
-      "sha256": "19b7fcac8f3c55954145f0b89581d13d56dd6058551469c59deffa5237ad64e4"
+      "sha256": "1438d80b6119fbbefdc49b6be13ea6dadb9ec19e4af216c83b25a0705e781871"
     },
     "live_native_session": 18124,
     "runtime_source_commit": "8a2bd3e8020d3683a9846777f96b77e70e2a2361",
-    "helpers_prepared": true
+    "helpers_prepared": true,
+    "live_release_session": 89747,
+    "native_session_terminal": 18124,
+    "native_cases_passed": 0,
+    "native_fixture_failures_retained": 2,
+    "public_debug_checks_passed": 16,
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\native-acceptance.json",
+      "sha256": "948beb3cd7208264694999561a39e0a19ccdbdc78d3ed554b5b7919d6d4a4b94"
+    }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
