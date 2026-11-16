@@ -2631,7 +2631,7 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
     "independent_requirements_source_complete": [
       "TODO-8",
       "TODO-4",
@@ -2639,9 +2639,11 @@
     ],
     "pending_count": 3,
     "minimum_before_compile": 3,
-    "native_builds": 0,
-    "release_builds": 0,
-    "last_installed_record": "eval/source-history-schema-batch-delivery-20261115.json"
+    "native_builds": 1,
+    "release_builds": 1,
+    "last_installed_record": "eval/source-history-schema-batch-delivery-20261115.json",
+    "native_cases_passed": 14,
+    "public_debug_checks_passed": 20
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -2717,5 +2719,14 @@
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false
-  }
+  },
+  "following_batch_pending": [
+    {
+      "original_requirement_id": "TODO-33",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\contract.json",
+      "progress_record": "eval/batch-source-reads-progress-20261116.json",
+      "source_commit_pending": true
+    }
+  ]
 }

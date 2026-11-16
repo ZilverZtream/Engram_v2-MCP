@@ -10084,15 +10084,13 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
+      "record": "eval/batch-source-reads-progress-20261116.json",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "EG-14",
-      "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json",
+      "original_requirement_id": "TODO-33",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false,
-      "record": "eval/area-decision-scope-progress-20261116.json",
-      "source_commit": "b22a2b7ed4f61ce1988647dd8fbdc66e37127e6a",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json"
+      "deployed": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10124,7 +10122,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-14 declared-scope area review evidence: source complete; third distinct requirement in the pending batch.",
+    "active_original_item": "TODO-33 batched source reads source-complete for following batch. Prior three-outcome batch passed14native/20public-debug checks; same release running.",
     "next_user_visible_deliverable": "Canonical method callees, complete schema-report recovery and scope-aware area decision evidence; one focused combined validation/release, no full suites.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."

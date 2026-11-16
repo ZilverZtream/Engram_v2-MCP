@@ -1,5 +1,12 @@
 # Tool Contract
 
+Source-complete, awaiting a future combined delivery: `batch_read` also accepts
+`get_full_method_body` with its normal arguments. Each source result retains its
+direct handler's hash checks, ranges, authored guidance, reply budget and saved
+report recovery controls. Batch omissions retain the complete original request;
+replaying that request performs the normal read against then-current source unless
+it already selects an immutable `response_id`. Reads remain sequential.
+
 Use MCP `tools/list` for the exact names and request schemas available to the
 current client profile and registered projects. This document records workflows
 and selected signatures; it is not an exhaustive generated schema. The

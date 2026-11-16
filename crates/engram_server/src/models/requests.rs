@@ -3812,7 +3812,7 @@ pub struct GetMethodInfoRequest {
 }
 
 /// One inclusive current-source range; boundaries do not identify a method.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct SourceLineRange {
     pub line_start: u32,
@@ -3821,7 +3821,7 @@ pub struct SourceLineRange {
 
 /// Retrieve an indexed method, explicit source range, or bounded current-file
 /// excerpt. File/range reads do not resolve method boundaries.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct GetFullMethodBodyRequest {
     pub project_id: String,
@@ -4022,6 +4022,8 @@ pub enum BatchReadOperation {
     ResolveId(ResolveIdRequest),
     #[serde(rename = "get_chunk")]
     Chunk(GetChunkRequest),
+    #[serde(rename = "get_full_method_body")]
+    MethodBody(GetFullMethodBodyRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.

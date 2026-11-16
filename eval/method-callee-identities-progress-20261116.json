@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
   "at_utc": "2026-11-15T23:22:51.309250+00:00",
   "original_requirement_id": "TODO-8",
   "original_requirement": "One identity system across tools: method evidence supplies canonical node IDs/FQNs/locations and actions usable by existing graph/source read tools, with ambiguity/coverage preserved. Broader original work stays in scope.",
@@ -58,7 +58,7 @@
     "Rust2024 syntax parsed; new module/test files formatted; selected-path git diff --check.",
     "Protected WIP9 and normal configuration digest unchanged."
   ],
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "full_requirement_complete": false,
@@ -92,5 +92,18 @@
     "crates/engram_server/src/handlers/method_callee_evidence.rs": "4456d0c098cb4d4d1e6dfbe30b583894809d44d9ea6aa9b1d5da5e7a12b3d56d",
     "crates/engram_server/tests/method_callee_identity_tests.rs": "7aa653626be51028c97a475541fcdc66f53602b2fbd5e365b938e1536c798574"
   },
-  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json"
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-callee-identities-20261116\\contract.json",
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116",
+    "native_target": "method_schema_area_batch_tests",
+    "native_cases": 14,
+    "native_builds": 1,
+    "native_seconds": 258.78203590004705,
+    "native_receipt_sha256": "02608b755f5ff88ef687c6e10ff28697d5dec203e31b899fdd4afa32bb816671",
+    "public_debug_checks": 20,
+    "debug_receipt_sha256": "d0f8f493ae19d4f36bce88f6244ebab5d9bb56b65022beee433813af5c7fab48",
+    "release_handle": 5262,
+    "pipeline_handle": 83117
+  }
 }

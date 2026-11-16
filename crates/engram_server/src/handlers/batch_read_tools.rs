@@ -148,6 +148,11 @@ impl Engram {
                 }
                 BatchReadOperation::ResolveId(arguments) => self.handle_resolve_id(arguments).await,
                 BatchReadOperation::Chunk(arguments) => self.handle_get_chunk(arguments).await,
+                BatchReadOperation::MethodBody(arguments) => {
+                    // Keep the direct source contract, including hash guards,
+                    // authored guidance and immutable report continuations.
+                    self.handle_get_full_method_body(arguments).await
+                }
             };
             let (status, response) = match result {
                 Ok(result) => (

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
   "at_utc": "2026-11-15T23:48:57.373560+00:00",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Complete bounded AI responses with explicit truncation and exact recovery. Apply the remaining handler-owned gap to query_schema without changing its source analysis,64KiB default or composed-planning evidence limits. Broader TODO4 remains partial.",
@@ -67,7 +67,7 @@
     "Source inspection preserves transport eligibility for existing handler-owned tools and the planner complete-context gate; no new generic report family/store/limits.",
     "Protected WIP9 bytes unchanged."
   ],
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "full_requirement_complete": false,
@@ -104,5 +104,18 @@
     "crates/engram_server/src/tools.rs": "364d9f8d1a64a2d8ee0d139de1748079f939b379b3e37cca3d89930d3c8ee08b",
     "crates/engram_server/tests/schema_report_recovery_tests.rs": "30f8115a9a32315db735c0020d6fc13ca3a7a19250091b50920e5377b8ba7e18"
   },
-  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json"
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116",
+    "native_target": "method_schema_area_batch_tests",
+    "native_cases": 14,
+    "native_builds": 1,
+    "native_seconds": 258.78203590004705,
+    "native_receipt_sha256": "02608b755f5ff88ef687c6e10ff28697d5dec203e31b899fdd4afa32bb816671",
+    "public_debug_checks": 20,
+    "debug_receipt_sha256": "d0f8f493ae19d4f36bce88f6244ebab5d9bb56b65022beee433813af5c7fab48",
+    "release_handle": 5262,
+    "pipeline_handle": 83117
+  }
 }

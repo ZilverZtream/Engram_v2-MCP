@@ -1,0 +1,56 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-33",
+  "original_requirement": "Batch hot reads under one response budget; extend the delivered typed batching contract to the existing complete-source read used by AI navigation actions.",
+  "missing_behavior": "batch_read rejects get_full_method_body although navigation returns executable source requests, requiring one outer call per body.",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\baseline1\\receipt.json",
+  "wanted_behavior": "Accept normal get_full_method_body arguments in typed batch requests. Dispatch the existing handler unchanged, preserving source/hash/guidance/budget and immutable recovery contracts. Retain ordered independent success/error rows and whole-result batch omission recovery.",
+  "implementation_files": [
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/handlers/batch_read_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/batch_source_read_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md"
+  ],
+  "finite_acceptance": [
+    "Actual indexed owned TypeScript files and scoped authored guidance: batch source reads equal independent handler results; a failed source-hash guard does not erase successful results.",
+    "Explicit source ranges and existing immutable source recovery requests serialize/replay through batch; combined budget omits complete results with executable original requests."
+  ],
+  "stop_rule": "Add one read operation through existing handler. No parallel dispatcher, scheduler, transport/store redesign, broad tool sweep or performance claim.",
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "build_rule": "First source outcome for following batch. Do not alter frozen19d396a build checkout or start another compile before a new qualifying multi-item batch.",
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116",
+    "baseline_fixture_removed": true,
+    "retention": "Synthetic proof and receipts retained until superseded. Native fixtures close their runtime/database/Git resources before directory teardown."
+  },
+  "source_sha256": {
+    "crates/engram_server/src/models/requests.rs": "10bfbca24c10deb9b1f7cd64534aeed6624cd15ee76d117b193864b28e9ede7e",
+    "crates/engram_server/src/handlers/batch_read_tools.rs": "98a63203ec7d81bc7d23e05d7bcc08cdce894a4b1da12a4d4209aa07bcf82f13",
+    "crates/engram_server/src/tools.rs": "1320f5531dafb06a37397f3a4be44f48d81b013c0efe77a91c02a73286890e05",
+    "crates/engram_server/tests/batch_source_read_tests.rs": "49805bc9f78d26111e8b4ea713baa143cf74756caecb4e844d5ff90e8e21f81e",
+    "docs/TOOL_CONTRACT.md": "cc5636d413a9982b6451e5e2daf7d312dbcd44390600cb01b8781f8108b9a4af",
+    "TODO.md": "667aff52b6051e9ef8976b45afcf88e69ccf4cf1c8dc3e518b68c51ce0cd8b55"
+  },
+  "native_target": "batch_source_read_tests",
+  "native_cases": 2,
+  "checks_completed": [
+    "Installed public schema rejection reproduced before project lookup; exact response retained without replay after correcting driver exception interpretation.",
+    "Rust2024 syntax parsed; new test file formatted and selected-path diff whitespace check passed.",
+    "Existing source handler reused directly; frozen WORK19d396a release inputs untouched."
+  ],
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_RUNNING",
   "at_utc": "2026-11-16T00:15:38.049335+00:00",
   "original_requirement_id": "EG-14",
   "original_requirement": "Evidence-backed scoped area instruction drafts must preserve accepted exceptions with their ownership, conditions and authority qualifications.",
@@ -47,7 +47,7 @@
     "public_candidate_and_installed": "Owned TypeScript area and retained review decisions: execute pre_push_audit and exact recovery; assert selection, qualifications and no authored writes.",
     "stop_rule": "Deliver shared scope selection. Existing64-identity/256KiB/8-candidate area discovery limits remain; no persistent scope index, corpus expansion, provenance inference, policy adoption or agent replay."
   },
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "resources": {
@@ -71,5 +71,18 @@
     "crates/engram_server/src/services/instruction_maintenance/area_evidence.rs": "2236a878fa7659bc7c37e98f3b5f827cf6abafef444edf7d4b5423d9d33c07d9",
     "crates/engram_server/tests/area_decision_scope_tests.rs": "24ed2bd3e5dc7ecb85d3d08605353105ab5267167aac595c951f628161151f99",
     "crates/engram_server/tests/method_schema_area_batch_tests.rs": "8bb3ae0f3b132e75f38187598b4db701df5db27b941901c7238ddb2072991e61"
+  },
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116",
+    "native_target": "method_schema_area_batch_tests",
+    "native_cases": 14,
+    "native_builds": 1,
+    "native_seconds": 258.78203590004705,
+    "native_receipt_sha256": "02608b755f5ff88ef687c6e10ff28697d5dec203e31b899fdd4afa32bb816671",
+    "public_debug_checks": 20,
+    "debug_receipt_sha256": "d0f8f493ae19d4f36bce88f6244ebab5d9bb56b65022beee433813af5c7fab48",
+    "release_handle": 5262,
+    "pipeline_handle": 83117
   }
 }
