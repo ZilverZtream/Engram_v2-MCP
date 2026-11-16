@@ -54,5 +54,6 @@
     "Installed public owned WebForms baseline reproduces the refused new component and the unregistered read_file recovery target; target source reader is actually advertised and dossier provider_calls remains0. Fixture/server removed/closed.",
     "Rust2024 syntax parsed, new integration fixture formatted, exact handler/config interfaces inspected and selected-path diff whitespace check passed. No Cargo/test/release invocation.",
     "Only refusal recovery descriptor and qualification changed. Source admission, initial paths, discovery, generation, ranking, limits and planner prompts are untouched."
-  ]
+  ],
+  "source_commit": "da72c8f7a2b75a34e0e03a654a20a006a5758018"
 }
