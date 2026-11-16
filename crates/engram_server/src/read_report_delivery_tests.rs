@@ -19,7 +19,8 @@ fn text(result: &CallToolResult) -> &str {
 fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_owners() {
     let original = registry();
     let eligible_names = original.iter().filter_map(eligible).collect::<Vec<_>>();
-    assert_eq!(eligible_names.len(), 47);
+    assert_eq!(eligible_names.len(), 48);
+    assert!(eligible_names.contains(&"trace_state_usage"));
     assert!(eligible_names.contains(&"analyze_business_logic"));
     assert!(eligible_names.contains(&"explain_change"));
     assert!(eligible_names.contains(&"get_method_edit_context"));

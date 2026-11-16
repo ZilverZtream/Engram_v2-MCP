@@ -1,5 +1,13 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: `trace_state_usage` uses existing
+complete-report budgets and exact saved MCP-result recovery. The40KiB default
+and caller `max_tokens` apply to the whole selected report, including indexed
+access evidence, freshness and uncertainty. Existing per-role node limits,
+indirect property readers and extraction remain. Fitting Markdown replies keep
+their shape; recovery needs no state type/key and never reruns graph queries.
+[Pending source](../eval/state-report-delivery-progress-20261116.json).
+
 Installed November16: persistent Git change-card metadata compatibility is
 scoped to the metadata extractor and stored format version. Unrelated tool or
 ranking edits no longer invalidate all saved metadata; canonical repository
