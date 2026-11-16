@@ -1,5 +1,16 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: migration progress distinguishes
+caller-declared tracker completion from coverage of selected indexed source.
+Existing `total_files`, status counts and `completion_pct` retain their recorded
+row scope; new `tracking_scope`, `verification_basis` and `project_readiness`
+make that basis explicit. `source_tracking` reports held-manifest file counts,
+exact matching declarations, a separate declaration percentage and at most16
+untracked path samples with omission counts. Missing/legacy source inventory
+is unavailable, with no invented percentage. This does not run validation,
+establish planned migration scope, inspect current source bodies or assess
+readiness. Existing records and status values remain unchanged.
+
 Source-complete, awaiting combined validation: `analyze_reverts` retains
 Git revert-message references and selected original file diffs as historical evidence.
 It returns original/revert commit identities, affected paths and `get_chunk`

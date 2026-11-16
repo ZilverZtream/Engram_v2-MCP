@@ -87,6 +87,12 @@ pub struct FileStatus {
 #[derive(Debug, Clone, Serialize)]
 pub struct MigrationProgress {
     pub project_id: String,
+    /// These counts summarize stored caller declarations, not all project files.
+    pub tracking_scope: &'static str,
+    /// Recording Verified does not run compilation, tests or source validation.
+    pub verification_basis: &'static str,
+    pub project_readiness: &'static str,
+    /// Number of stored tracking rows; not a project/source inventory count.
     pub total_files: usize,
     pub not_started: usize,
     pub in_progress: usize,
@@ -293,7 +299,14 @@ impl MigrationProgressStore {
 
     /// Compute an aggregate progress report for a project.
     pub fn get_progress(&self, project_id: &str) -> anyhow::Result<MigrationProgress> {
+        self.get_progress_snapshot(project_id).map(|(progress, _)| progress)
+    }
+
+    /// Aggregate and exact path/completion declarations from one tracking read.
+    /// The boolean records Migrated/Verified declarations, not measured readiness.
+    pub fn get_progress_snapshot(&self, project_id: &str) -> anyhow::Result<(MigrationProgress, HashMap<String, bool>)> {
         let files = self.list_files(project_id, None)?;
+        let declarations = files.iter().map(|file| (file.file_path.clone(), file.status.is_complete())).collect();
 
         let total = files.len();
         let mut not_started = 0usize;
@@ -388,8 +401,11 @@ impl MigrationProgressStore {
             .map(|fs| fs.file_path.clone())
             .collect();
 
-        Ok(MigrationProgress {
+        Ok((MigrationProgress {
             project_id: project_id.to_string(),
+            tracking_scope: "caller_declared_tracking_rows_only",
+            verification_basis: "caller_declared_status; no compilation, tests or source verification performed",
+            project_readiness: "not_assessed",
             total_files: total,
             not_started,
             in_progress,
@@ -401,7 +417,7 @@ impl MigrationProgressStore {
             blocked_items,
             recently_updated,
             suggested_next,
-        })
+        }, declarations))
     }
 }
 
@@ -418,11 +434,13 @@ pub fn format_progress(report: &MigrationProgress) -> String {
     let bar = progress_bar(report.completion_pct, 30);
     let _ = writeln!(
         out,
-        "**Overall**: {bar}  {:.1}% complete ({}/{} files)\n",
+        "**Declared tracked completion**: {bar}  {:.1}% ({}/{} recorded files)\n",
         report.completion_pct,
         report.migrated + report.verified,
         report.total_files,
     );
+
+    let _ = writeln!(out, "Statuses are caller declarations; this report does not compile, test or verify source. Project readiness: not assessed.\n");
 
     // ── Status counts ──
     let _ = writeln!(out, "| Status | Count |");
@@ -430,7 +448,7 @@ pub fn format_progress(report: &MigrationProgress) -> String {
     let _ = writeln!(out, "| Not Started | {} |", report.not_started);
     let _ = writeln!(out, "| In Progress | {} |", report.in_progress);
     let _ = writeln!(out, "| Migrated    | {} |", report.migrated);
-    let _ = writeln!(out, "| Verified    | {} |", report.verified);
+    let _ = writeln!(out, "| Verified (declared) | {} |", report.verified);
     let _ = writeln!(out, "| Blocked     | {} |\n", report.blocked);
 
     // ── By file type ──

@@ -3454,7 +3454,8 @@ pub struct UpdateMigrationStatusRequest {
     pub project_id: String,
     /// Project-relative path of the file whose status is being updated.
     pub file_path: String,
-    /// Status: "not_started", "in_progress", "migrated", "verified", "blocked".
+    /// Caller-declared status: "not_started", "in_progress", "migrated", "verified", "blocked".
+    /// Recording "verified" does not compile, test or validate source.
     pub status: String,
     /// Free-form notes (PR links, comments, blockers).
     #[serde(default)]

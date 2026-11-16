@@ -1,0 +1,60 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-26",
+  "original_requirement": "Reconcile actual capability/readiness claims: an implemented or declared status is not measured readiness. Preserve completed contract/documentation deliveries.",
+  "user_outcome": "Migration reporting distinguishes caller-recorded tracking completion from exact coverage of a held selected-source manifest and from unassessed project readiness, preserving existing declarations and exposing untracked files.",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\baseline1\\acceptance.json",
+  "source_count_reconciliation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\baseline-source-count-reconciliation.json",
+  "baseline_status": "BASELINE_GAP_CONFIRMED",
+  "baseline_checks_passed": 4,
+  "baseline_indexed_files": 2,
+  "baseline_tracked_files": 1,
+  "baseline_completion_pct": 100.0,
+  "implementation_files": [
+    "crates/engram_server/src/services/migration_progress_service.rs",
+    "crates/engram_server/src/handlers/migration_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/migration_declaration_scope_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_files_sha256": {
+    "crates/engram_server/src/services/migration_progress_service.rs": "4ed6a8fb11bb7d1df52f1ebcde7dae55afc4b8d05769440bce78b6498b8133a6",
+    "crates/engram_server/src/handlers/migration_tools.rs": "92256022e4986dc83800c6322224c93049f94afecc9472fb1fa02411d2f263c9",
+    "crates/engram_server/src/models/requests.rs": "a7bdb0e9e9fce372002b183995dd78ca26b74bab159df1c2b61a241e1cce15b4",
+    "crates/engram_server/src/tools.rs": "351d0f9cad055cf1c12251430c3b97c1115029768f5083dd4b1f43bd4b58cc48",
+    "crates/engram_server/tests/migration_declaration_scope_tests.rs": "a4606512909e153055893e8c6c192e15568decffccf12d8b2fbe1a778161be81",
+    "docs/TOOL_CONTRACT.md": "91969d87c2aabc4cb07fb094f7034f18ece09adde2612386a67b24dae5a308b2"
+  },
+  "source_checks": [
+    "Existing source store/handler/models/tool source parsed with rustfmt without formatting unrelated legacy code",
+    "One dedicated real-index behavioral native test parsed/formatted; public verifier parsed with ast",
+    "Existing AppState store visibility, source-manifest accessor and constructor interfaces inspected",
+    "Selected git diff --check passed"
+  ],
+  "native_target": "migration_declaration_scope_tests",
+  "native_execution": "NOT_RUN: this third distinct source outcome joins policy delivery/revert authority for one combined native target",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\verify-public.py",
+  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "native_tests_run": false,
+  "deployed": false,
+  "source_commit": null,
+  "timing": {
+    "source_block_started_utc": "2026-11-16T10:27:56.061284+00:00",
+    "baseline_execution_seconds": 2.3946642875671387,
+    "compilation_seconds": 0,
+    "full_suite_runs": 0,
+    "actual_complete_coding_percent": null,
+    "source_and_focused_verification_authoring_ended_utc": "2026-11-16T10:42:18.472508+00:00",
+    "activity_scope": "Source, focused test/verifier design and authoring block; not a complete or production-only coding-time measure."
+  },
+  "resources": "Baseline isolated MCP owner exited naturally; its two-file WebForms fixture and temporary stores were removed. Only recorded CASE evidence retained. No actual LegacyValidation/Q source scan or preexisting deletion.",
+  "limits": [
+    "Legacy total_files/completion_pct retain recorded-row values, explicitly qualified by tracking_scope; they are not replaced with an invented planned migration scope.",
+    "Source coverage uses exact relative keys in the held persisted source manifest, including zero-chunk entries; unmatched rows are retained and indexing/ignore scope stays explicit. The sample is capped at16 with omission counts.",
+    "No compilation, tests, source-content validation, current-disk freshness proof or project readiness assessment is performed by tracking/reporting. Unknown managed-source coverage is explicit with no source percentage.",
+    "Underlying FileStatus storage and caller status values remain unchanged; no new approval UI, status migration or source/index write is added to the report.",
+    "Source has not been compiled, runtime-verified or installed yet; full original31findings/19gates scope remains active."
+  ]
+}

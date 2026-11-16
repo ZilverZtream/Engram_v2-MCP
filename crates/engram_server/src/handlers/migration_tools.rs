@@ -822,7 +822,7 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         Ok(CallToolResult::success(vec![Content::text(format!(
-            "✅ Updated migration status for {fp_for_msg}"
+            "✅ Recorded caller-declared migration status for {fp_for_msg}"
         ))]))
     }
 
@@ -831,28 +831,68 @@ impl Engram {
         req: GetMigrationProgressRequest,
     ) -> Result<CallToolResult, McpError> {
         let _ = self.ensure_project_record(&req.project_id).await?;
+        let source_observation = async {
+            let runtime = self.ensure_project_runtime(&req.project_id).await?;
+            self.pin_active_source_generation(&req.project_id, &runtime.search).await
+        }.await;
         let store = self.state.migration_progress.clone();
         let pid = req.project_id.clone();
 
-        let progress = tokio::task::spawn_blocking(move || store.get_progress(&pid))
+        let (progress, declarations) = tokio::task::spawn_blocking(move || store.get_progress_snapshot(&pid))
             .await
             .map_err(|e| McpError::internal_error(e.to_string(), None))?
             .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
+        let unavailable = |reason: &str| serde_json::json!({
+            "status":"unavailable","reason":reason,
+            "declared_complete_selected_source_pct":null,
+            "scope":"Selected source inventory is unknown; recorded tracking rows are still supplied.",
+            "next_tools":[{"tool":"project_health","arguments":{"project_id":req.project_id},
+                "reason":"Inspect source selection before interpreting project coverage."}]
+        });
+        let source_tracking = match &source_observation {
+            Ok((generation, view)) => match view.selected_file_revisions() {
+                Some(files) => {
+                    let tracked = files.keys().filter(|path| declarations.contains_key(path.as_str())).count();
+                    let complete = files.keys().filter(|path| declarations.get(path.as_str()) == Some(&true)).count();
+                    let sample: Vec<_> = files.keys().filter(|path| !declarations.contains_key(path.as_str())).take(16).cloned().collect();
+                    serde_json::json!({
+                        "status":"available","source_generation":generation,
+                        "selected_source_files":files.len(),"tracked_selected_source_files":tracked,
+                        "declared_complete_selected_source_files":complete,
+                        "untracked_selected_source_files":files.len()-tracked,
+                        "declared_complete_selected_source_pct":(!files.is_empty()).then(||100.0*complete as f64/files.len() as f64),
+                        "unmatched_tracking_records":declarations.keys().filter(|path| !files.contains_key(path.as_str())).count(),
+                        "untracked_source_file_sample":sample,
+                        "untracked_sample_limit":16,"untracked_sample_omitted":files.len()-tracked-sample.len(),
+                        "matching_basis":"Exact project-relative keys; case and separators preserved. Unmatched tracking rows remain unchanged.",
+                        "scope":"Held persisted source manifest, including zero-chunk files, within the configured indexing preset and ignores. This is declaration coverage of selected indexed files, not planned migration scope, working-tree freshness, executed validation or project readiness."
+                    })
+                }
+                None => unavailable("A complete managed source manifest is unavailable for the selected legacy view."),
+            },
+            Err(error) => {
+                tracing::debug!(project_id=%req.project_id,%error,"migration source coverage unavailable");
+                unavailable("The selected source inventory could not be observed.")
+            }
+        };
         if req.output_json {
-            let json = serde_json::to_string_pretty(&progress)
+            let mut value = serde_json::to_value(&progress)
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+            value["source_tracking"] = source_tracking;
+            let json = serde_json::to_string_pretty(&value)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
             return Ok(CallToolResult::success(vec![Content::text(json)]));
         }
 
         let mut out = format!(
             "# Migration Progress — {}\n\n\
-             **Total files**: {} | **Completion**: {:.1}%\n\n\
+             **Tracked files**: {} | **Declared tracked completion**: {:.1}%\n\n\
              | Status | Count |\n|--------|-------|\n\
              | Not Started | {} |\n\
              | In Progress | {} |\n\
              | Migrated | {} |\n\
-             | Verified | {} |\n\
+             | Verified (declared) | {} |\n\
              | Blocked | {} |\n\n",
             progress.project_id,
             progress.total_files,
@@ -863,6 +903,24 @@ impl Engram {
             progress.verified,
             progress.blocked,
         );
+
+        out.push_str("Statuses are caller declarations. This report does not compile, test or verify source. Project readiness: not assessed.\n\n");
+        if let Some(total) = source_tracking["selected_source_files"].as_u64() {
+            let pct = source_tracking["declared_complete_selected_source_pct"].as_f64()
+                .map(|value| format!("{value:.1}%")).unwrap_or_else(|| "undefined for empty selection".into());
+            out.push_str(&format!("## Indexed source declaration coverage\n\nSelected indexed files: {total}; with tracking: {}; with complete declarations: {}; without tracking: {}. Complete declarations within this selected set: {pct}.\n\n{}\n\nUntracked path sample (at most16; {} additional paths omitted): {}\n\n",
+                source_tracking["tracked_selected_source_files"], source_tracking["declared_complete_selected_source_files"],
+                source_tracking["untracked_selected_source_files"], source_tracking["scope"].as_str().unwrap_or(""),
+                source_tracking["untracked_sample_omitted"], serde_json::to_string(&source_tracking["untracked_source_file_sample"]).unwrap_or_default()));
+        } else {
+            out.push_str(&format!("Indexed source declaration coverage: unavailable. {}\n\n",
+                source_tracking["reason"].as_str().unwrap_or("No managed source inventory.")));
+        }
+
+        if source_tracking["status"] == "available" {
+            out.push_str(&format!("{} Unmatched tracking records: {}.\n\n",
+                source_tracking["matching_basis"].as_str().unwrap_or(""), source_tracking["unmatched_tracking_records"]));
+        }
 
         if !progress.by_file_type.is_empty() {
             out.push_str("## By File Type\n");

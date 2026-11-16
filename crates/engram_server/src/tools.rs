@@ -1452,7 +1452,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "[.NET legacy] Project-wide migration progress dashboard from the durable tracker."
+        description = "[.NET legacy] Recorded migration declarations with their tracker denominator and coverage of selected indexed source paths. Verified is a caller declaration; this report does not compile, test or validate source or assess project readiness. Indexed coverage uses the held source manifest and exact relative-path keys; unknown coverage stays explicit."
     )]
     pub async fn get_migration_progress(
         &self,
