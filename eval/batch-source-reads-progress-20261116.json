@@ -58,5 +58,13 @@
     "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "config_unchanged_verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
     "relevance": "Existing VB.NET/WebForms/JavaScript/TypeScript/SQL source editing and scoped-guidance workflow. No target-language expansion; owned fixtures only."
+  },
+  "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/models/requests.rs": "10bfbca24c10deb9b1f7cd64534aeed6624cd15ee76d117b193864b28e9ede7e",
+    "crates/engram_server/src/handlers/batch_read_tools.rs": "98a63203ec7d81bc7d23e05d7bcc08cdce894a4b1da12a4d4209aa07bcf82f13",
+    "crates/engram_server/src/tools.rs": "662a6de607618c05d77031e0b703211cab23e4e06b17433e13ad38b7835056b1",
+    "crates/engram_server/tests/batch_source_read_tests.rs": "49805bc9f78d26111e8b4ea713baa143cf74756caecb4e844d5ff90e8e21f81e"
   }
 }

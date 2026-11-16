@@ -58,5 +58,14 @@
     "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
     "relevance": "LegacyValidation primary VB.NET/WebForms instruction freshness, operating on captured source evidence independently of embedding provider. No new parser or target-language support."
-  }
+  },
+  "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "80801a2dcc1e1f97551c5d1d77ba428a1bf18e88cb09f0141e6ef9948eb8de9e",
+    "crates/engram_server/src/services/instruction_maintenance/manifest.rs": "5b14d22a75e9a1df2d9d16e706843b0b47deb4dc306a6a86b600adb24a187927",
+    "crates/engram_server/tests/vb_instruction_body_freshness_tests.rs": "7c49e1b8079be879a3c095c22f01639eeed6511d7382f23908b72dbfabc90d32",
+    "crates/engram_server/tests/source_policy_freshness_batch_tests.rs": "1cbe5a0f558a9c16cec7def39cdb80a5d97dd7c65387e381365e635e40a53bb8"
+  },
+  "source_commit": "14598567828457126bc0ae85102b451cf389a282"
 }

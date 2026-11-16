@@ -63,5 +63,16 @@
     "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "config_unchanged_verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
     "relevance": "Existing VB.NET/WebForms/JavaScript/TypeScript/SQL source editing and scoped-guidance workflow. No target-language expansion; owned fixtures only."
+  },
+  "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "dfe70bc102422276edd71f190a93cf1d7fc59bbfb50622d261d67c9f4b560c10",
+    "crates/engram_server/src/handlers/method_body_policy.rs": "46deb7ffe1a4cd11856df1c4ea00695a1e7d076259cf80eae712c43d7a020008",
+    "crates/engram_server/src/read_report_delivery.rs": "989e58a7c89783abc17fa4e9706b56ff07db0403365543ef9e034c1d0ea000ac",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "b2af0f7c97b495553dbe37069850353c097c4e25c248c181d5c916d55418171a",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs": "b60285d90bb14ad665c79de893f19ba185f99a3d95946befabcb2d2372ff7823",
+    "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "b9499b77445374335236cb2580bf821b36a6bc4fdd1061254615a6b5615ae8c8",
+    "crates/engram_server/src/tools.rs": "662a6de607618c05d77031e0b703211cab23e4e06b17433e13ad38b7835056b1"
   }
 }

@@ -40,10 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
       "eval/batch-source-reads-progress-20261116.json",
-      "eval/edit-context-policy-progress-20261116.json"
+      "eval/edit-context-policy-progress-20261116.json",
+      "eval/vb-instruction-body-freshness-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2565,14 +2566,25 @@
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\contract.json",
         "progress_record": "eval/batch-source-reads-progress-20261116.json",
-        "source_commit": "48aa784a2325cb9d8297e9e067e6c654f8bc624d"
+        "source_commit": "48aa784a2325cb9d8297e9e067e6c654f8bc624d",
+        "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f"
       },
       {
         "original_requirement_id": "EG-01",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-context-report-delivery-20261116\\contract.json",
         "progress_record": "eval/edit-context-policy-progress-20261116.json",
-        "source_commit": "bcd7ae91de65315c2eff1eb9472809b3abde49c5"
+        "source_commit": "bcd7ae91de65315c2eff1eb9472809b3abde49c5",
+        "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f"
+      },
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "14598567828457126bc0ae85102b451cf389a282",
+        "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-instruction-body-freshness-20261116\\contract.json",
+        "progress_record": "eval/vb-instruction-body-freshness-progress-20261116.json",
+        "user_outcome": "VB instruction freshness compares existing observed method ranges, retaining unverified/partial coverage and declaration-only limits."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2609,19 +2621,19 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-schema-area-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "ACCUMULATING_FOLLOWING_SOURCE_NO_BUILD_STARTED",
-    "last_installed_record": "eval/method-schema-area-batch-delivery-20261116.json",
-    "pending_count": 2,
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "pending_count": 3,
     "independent_requirements_source_complete": [
       "TODO-33",
-      "EG-01"
+      "EG-01",
+      "EG-27"
     ],
     "native_builds": 0,
     "release_builds": 0,
