@@ -118,6 +118,10 @@ pub fn advertise(mut tool: Tool) -> Tool {
         .cloned()
         .unwrap_or_default();
     if let Some(properties) = schema.get_mut("properties").and_then(Value::as_object_mut) {
+        if !properties.contains_key("output_json") {
+            properties.insert("output_json".into(), json!({"type":"boolean","default":false,
+                "description":"Return a versioned JSON delivery envelope containing the complete original MCP result. Preserves every text part and existing coverage warnings. Does not make handler coverage exhaustive. Existing budgets and immutable recovery apply to the escaped envelope."}));
+        }
         for name in required
             .iter()
             .filter_map(Value::as_str)
@@ -151,6 +155,7 @@ struct Controls {
     max_tokens: Option<usize>,
     response_id: Option<String>,
     response_offset: Option<usize>,
+    output_json: Option<bool>,
 }
 
 #[derive(Debug)]
@@ -161,19 +166,25 @@ pub struct Report {
     response_id: Option<String>,
     offset: usize,
     capture_window: bool,
+    json_envelope: bool,
 }
 
 pub fn prepare(
     request: &mut CallToolRequestParam,
     registry: &[Tool],
 ) -> Result<Option<Report>, McpError> {
-    let Some(tool) = registry
+    let Some(definition) = registry
         .iter()
         .find(|tool| tool.name == request.name)
-        .and_then(eligible)
     else {
         return Ok(None);
     };
+    let Some(tool) = eligible(definition) else {
+        return Ok(None);
+    };
+    // Handler-owned JSON retains its schema, arguments and original result.
+    let owns_json = definition.input_schema.get("properties")
+        .and_then(|properties| properties.get("output_json")).is_some();
     let args = request.arguments.as_ref().ok_or_else(|| {
         McpError::invalid_params(
             "project_id and fresh-analysis fields or response_id are required",
@@ -181,7 +192,8 @@ pub fn prepare(
         )
     })?;
     let controls: Controls = serde_json::from_value(json!({
-        "max_tokens":args.get("max_tokens"),"response_id":args.get("response_id"),"response_offset":args.get("response_offset")
+        "max_tokens":args.get("max_tokens"),"response_id":args.get("response_id"),"response_offset":args.get("response_offset"),
+        "output_json":if owns_json {None} else {args.get("output_json")}
     })).map_err(|error| McpError::invalid_params(format!("Invalid read-report delivery controls: {error}"), None))?;
     let project = args
         .get("project_id")
@@ -200,10 +212,14 @@ pub fn prepare(
         response_id: controls.response_id,
         offset: controls.response_offset.unwrap_or(0),
         capture_window: false,
+        json_envelope: controls.output_json.unwrap_or(false),
     }.checked()?;
     if let Some(args) = request.arguments.as_mut() {
         for key in CONTROLS {
             args.remove(*key);
+        }
+        if !owns_json {
+            args.remove("output_json");
         }
     }
     Ok(Some(report))
@@ -216,14 +232,14 @@ impl Report {
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,
     ) -> Result<Self, McpError> {
-        Self { tool, project, budget, response_id, offset, capture_window: false }.checked()
+        Self { tool, project, budget, response_id, offset, capture_window: false, json_envelope: false }.checked()
     }
 
     pub(crate) fn retained_window(
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,
     ) -> Result<Self, McpError> {
-        Self { tool, project, budget, response_id, offset, capture_window: true }.checked()
+        Self { tool, project, budget, response_id, offset, capture_window: true, json_envelope: false }.checked()
     }
 
     fn checked(self) -> Result<Self, McpError> {
@@ -286,6 +302,19 @@ impl Report {
         {
             return Ok(original);
         }
+        let original = if self.json_envelope {
+            let result = serde_json::to_value(&original)
+                .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            CallToolResult::success(vec![Content::text(json!({
+                "schema_version":1,"tool":self.tool,"project_id":self.project,
+                "result":result,
+                "response_delivery":{"status":"COMPLETE","complete":true,"truncated":false,
+                    "scope":"complete_original_selected_report",
+                    "coverage":"Existing handler limits, omissions, warnings and freshness remain in result. Complete delivery does not prove exhaustive source coverage or runtime correctness."}
+            }).to_string())])
+        } else {
+            original
+        };
         let text_bytes: usize = original
             .content
             .iter()

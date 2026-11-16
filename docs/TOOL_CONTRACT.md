@@ -830,6 +830,22 @@ non-text content retain their existing delivery. Tools with their own delivery
 controls retain their semantics; composed in-process engines also retain their
 complete reports. This does not change feature-plan semantic acceptance.
 
+Pending source change (not yet installed): shared report tools that lack their
+own `output_json` option advertise `output_json=true` for a common inline JSON
+envelope. Its `schema_version`, `tool` and `project_id` identify the format and
+request; `result` retains the original complete MCP result, including all text
+parts. `response_delivery.complete` describes delivery of that selected report,
+not exhaustive source coverage. Existing handler limits, warnings and freshness
+remain inside `result`. Tools with native JSON formats retain those formats;
+ordinary calls retain their current replies.
+
+The fully escaped JSON envelope counts toward `max_tokens`. If it cannot fit,
+the existing deferred manifest and saved-result pages recover the original
+enveloped MCP result exactly. Parse the recovered MCP result's text to obtain
+the envelope and its original `result`. Recovery requires no JSON flag and does
+not rerun the tool. This adds no provider-token accounting, domain-specific
+parsing of Markdown reports or new source-completeness claim.
+
 
 ### Namespace integrity after partial ingestion
 
