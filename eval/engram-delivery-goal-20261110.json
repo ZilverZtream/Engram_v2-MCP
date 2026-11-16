@@ -40,13 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
-    "pending_source_records": [
-      "eval/remaining-report-delivery-progress-20261116.json",
-      "eval/safety-assessment-basis-progress-20261116.json",
-      "eval/ask-sql-schema-progress-20261116.json"
-    ],
-    "minimum_distinct_requirements_before_compile": 3,
+    "status": "SELECT_NEXT_READY_ORIGINAL_REQUIREMENT",
+    "last_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\reports-safety-sql-batch-delivery-20261116.json",
+      "sha256": "910afb771838a428ff631f6ff2b412ea4b1ecc38100b558d6142c93f676f4496"
+    },
     "full_original_goal_complete": false
   },
   "previous_delivery": {
@@ -2560,48 +2558,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "548c68ad35b3dd04e1a3132af3a830504fd8e63b",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\contract.json",
-        "source_progress_record": "eval/remaining-report-delivery-progress-20261116.json",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\verify-public.py",
-        "user_outcome": "18remaining project report readers gain existing complete default/caller reply budgets and immutable selected-result recovery, preserving their analysis and effects."
-      },
-      {
-        "original_requirement_id": "EG-26",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "b2e9134ba1897d000e7fbbcb59e604603a985aae",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\contract.json",
-        "source_progress_record": "eval/safety-assessment-basis-progress-20261116.json",
-        "focused_native_target": "safety_assessment_basis_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\verify-public.py",
-        "user_outcome": "Public policy output distinguishes disabled unassessed bypass from threshold arithmetic on caller-supplied unverified inputs, preserving internal safety/ADP policy decisions."
-      },
-      {
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "original_requirement_id": "TODO-28",
-        "source_commit": "da8dc1dfa92b63c0ea130ae2ccd58c4b6ecfc055",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
-        "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116",
-        "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\baseline1\\acceptance.json",
-        "implemented": "Existing verified schema reader joins natural-language retrieval on the exact selected source lease. Complete table declarations retain all columns/nullability, source hash/span and declared deployment limits; incomplete/ambiguous schema qualifies answer status.",
-        "source_only": true,
-        "compiled": false,
-        "candidate_verified": false,
-        "installed": false,
-        "limits": [
-          "No general SQL natural-language completeness claim; at most3named table lookups with existing parser/query semantics.",
-          "Historical source remains separate; no current SQL arm.",
-          "Protected WIP unchanged; no real LegacyValidation/Q source read."
-        ],
-        "temporary_resources": "Baseline owner closed naturally and owned fixture removed; retained case contains evidence and scripts only.",
-        "at_utc": "2026-11-16T12:58:50.784397+00:00",
-        "prior_source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb"
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2788,41 +2745,15 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Combined TODO4 / EG26 / TODO28 delivery",
-    "status": "AFFECTED_NATIVE_PASS_CORRECTED_RELEASE_RUNNING",
+    "status": "DELIVERY_RECORDED_SELECT_NEXT_ORIGINAL_ITEM",
     "implementation_items_active": 0,
-    "original_requirement": "TODO28 natural-language entry point for existing SQL schema workflows",
-    "observed_missing_behavior": "Installed public ask_codebase labels a48column sales.Orders declaration question answered but its1200character snippets omit19columns; existing query_schema returns all48with typed nullability and raw hash/span citations.",
-    "implementation_files": [
-      "crates/engram_server/src/handlers/ask_schema.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
-      "crates/engram_server/src/handlers/schema_tools.rs",
-      "crates/engram_server/tests/ask_sql_schema_tests.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "finite_acceptance": [
-      "Ordinary named-table SQL questions return complete admitted table/column declarations and exact nullability/source citations through existing schema reader, preserving qualifications and name ambiguity.",
-      "Reuse caller-selected source lease; never repin to newer source or consult current SQL on historical requests. Preserve authored guidance, selected path scopes and source/deployment/ALTER limitations.",
-      "Changed source without update is withheld from verified schema arm and reported as unavailable/partial. Reports use existing complete response budget/recovery; no new SQL parser or read API.",
-      "One native behavior check plus owned candidate/installed MCP proof joins the two queued requirements in one guarded native target and one release build."
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
-    "previous_goal_turn_classification": "PROGRESS: preserved first candidate failure, restored old installed runtime, committed/pushed cited ambiguity handling, passed the affected SQL native check with unaffected safety pass retained; corrected release14362 remains live. No full/lib suite or extra debug build.",
+    "last_delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\reports-safety-sql-batch-delivery-20261116.json",
+      "sha256": "910afb771838a428ff631f6ff2b412ea4b1ecc38100b558d6142c93f676f4496"
+    },
+    "previous_goal_turn_classification": "PROGRESS: corrected release packaged, affected SQL candidate passed with20evidence-bound unaffected passes retained, installed31/31public checks passed, normal runtime restored, source3151/config/WIP9 unchanged.",
     "full_original_goal_active": true,
-    "next_action": "Poll existing corrected release14362; do not restart. Package this binary, retain20unaffected prior candidate checks with unchanged source proof, rerun affected SQL candidate, then install and run all31current public checks. Prior normal runtime restored while building.",
-    "source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb",
-    "progress_record": "eval/ask-sql-schema-progress-20261116.json",
-    "source_freeze": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\release-plan.json",
-      "sha256": "0f9b874b20abaa300c3ccdca8f219ec75512bd204beb4335dc4aff069ed3cff1"
-    },
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\native-acceptance.json",
-      "sha256": "6cd8df45331e3a39872de9679242f355b72cdc83f03be4ddb8f592a311db0501"
-    },
-    "live_release_session": 14362,
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116",
-    "observed_failure": "Public schema ambiguity returns source candidate identities with citation at row root. New ask adapter incorrectly assumed every result was a full table; status ambiguous but provider failed with missing citation. Correct this existing finite ambiguity requirement. Other28checks passed; two verifier assumptions need correction. Old installed runtime restored."
+    "next_action": "Check one ready unfinished original requirement against existing evidence and select a finite implementation. Preserve completed work and partial findings; no CodeMap/Blast, held kernel/SSD or unneeded language expansion. Do not stop for optional missing EQS requirements."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2939,5 +2870,60 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "remaining_report_delivery_source_progress": "eval/remaining-report-delivery-progress-20261116.json",
-  "safety_assessment_basis_source_progress": "eval/safety-assessment-basis-progress-20261116.json"
+  "safety_assessment_basis_source_progress": "eval/safety-assessment-basis-progress-20261116.json",
+  "reports_safety_sql_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/reports-safety-sql-batch-delivery-20261116.json",
+    "source_records": [
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "548c68ad35b3dd04e1a3132af3a830504fd8e63b",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\contract.json",
+        "source_progress_record": "eval/remaining-report-delivery-progress-20261116.json",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\verify-public.py",
+        "user_outcome": "18remaining project report readers gain existing complete default/caller reply budgets and immutable selected-result recovery, preserving their analysis and effects."
+      },
+      {
+        "original_requirement_id": "EG-26",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b2e9134ba1897d000e7fbbcb59e604603a985aae",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\contract.json",
+        "source_progress_record": "eval/safety-assessment-basis-progress-20261116.json",
+        "focused_native_target": "safety_assessment_basis_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\verify-public.py",
+        "user_outcome": "Public policy output distinguishes disabled unassessed bypass from threshold arithmetic on caller-supplied unverified inputs, preserving internal safety/ADP policy decisions."
+      },
+      {
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "original_requirement_id": "TODO-28",
+        "source_commit": "da8dc1dfa92b63c0ea130ae2ccd58c4b6ecfc055",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
+        "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116",
+        "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\baseline1\\acceptance.json",
+        "implemented": "Existing verified schema reader joins natural-language retrieval on the exact selected source lease. Complete table declarations retain all columns/nullability, source hash/span and declared deployment limits; incomplete/ambiguous schema qualifies answer status.",
+        "source_only": true,
+        "compiled": false,
+        "candidate_verified": false,
+        "installed": false,
+        "limits": [
+          "No general SQL natural-language completeness claim; at most3named table lookups with existing parser/query semantics.",
+          "Historical source remains separate; no current SQL arm.",
+          "Protected WIP unchanged; no real LegacyValidation/Q source read."
+        ],
+        "temporary_resources": "Baseline owner closed naturally and owned fixture removed; retained case contains evidence and scripts only.",
+        "at_utc": "2026-11-16T12:58:50.784397+00:00",
+        "prior_source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb"
+      }
+    ],
+    "full_original_goal_complete": false
+  },
+  "pending_eqs_requirements_request": {
+    "original_item": "TODO51 EQS gate plan",
+    "status": "REQUIREMENTS_LOCATION_REQUESTED_ASYNCHRONOUSLY",
+    "reason": "TODO.md753-763 records referenced eqs_gate_requirements.md absent from checkout/available history; no replacement score or criteria invented.",
+    "requested": "File path or requirements text",
+    "does_not_stop_current_delivery": true,
+    "at_utc": "2026-11-16T13:18:19.872152+00:00"
+  }
 }

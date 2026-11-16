@@ -1,15 +1,15 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-28",
   "source_commit": "da8dc1dfa92b63c0ea130ae2ccd58c4b6ecfc055",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\baseline1\\acceptance.json",
   "implemented": "Existing verified schema reader joins natural-language retrieval on the exact selected source lease. Complete table declarations retain all columns/nullability, source hash/span and declared deployment limits; incomplete/ambiguous schema qualifies answer status.",
-  "source_only": true,
-  "compiled": false,
-  "candidate_verified": false,
-  "installed": false,
+  "source_only": false,
+  "compiled": true,
+  "candidate_verified": true,
+  "installed": true,
   "limits": [
     "No general SQL natural-language completeness claim; at most3named table lookups with existing parser/query semantics.",
     "Historical source remains separate; no current SQL arm.",
@@ -27,5 +27,8 @@
       "Historical fixture names Orders.sql explicitly, preserving existing literal Git-source retrieval semantics."
     ]
   },
-  "correction_scope": "Same original named-table contract; affected SQL native/public checks only. Unaffected safety/report passes retained with exact source-delta evidence."
+  "correction_scope": "Same original named-table contract; affected SQL native/public checks only. Unaffected safety/report passes retained with exact source-delta evidence.",
+  "combined_delivery_record": "eval/reports-safety-sql-batch-delivery-20261116.json",
+  "installed_server_sha256": "08d899d58df1ee6639e842ab8ee8f4756631a6f4974dfb1acb89dad14db390c5",
+  "validation_note": "Native and public proof scopes are recorded in combined receipt; unaffected checks retained with explicit source/evidence binding, all31installed checks use the installed binary."
 }

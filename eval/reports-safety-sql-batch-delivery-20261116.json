@@ -1,0 +1,129 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-16T14:11:49.786904+00:00",
+  "original_requirements": [
+    "TODO-4 complete remaining project report delivery",
+    "EG-26 public safety assessment basis",
+    "TODO-28 named-table SQL question evidence"
+  ],
+  "outcomes": [
+    "18existing project report readers share complete reply budgets and exact saved MCP result recovery without changing selected analysis, ranking, model/publication effects or original caps; WebForms QA report preserves complete authored guidance and survives source edits/restart.",
+    "Public evaluate_safety preserves internal policy decisions/checks/mitigations. Disabled policy is explicitly unassessed with null confidence/risk; enabled fractions and risk heuristics are labelled as derived from unverified caller inputs.",
+    "ask_codebase returns complete admitted named-table declarations through the existing selected-source SQL reader, preserving all48source columns/types/nullability, raw hash/span citations and guidance. Ambiguous source names return cited candidate identities and qualified recovery, not invented columns/bindings. Changed source is withheld/partial; historical source remains on its separate Git path; saved complete recovery survives edits."
+  ],
+  "runtime_source_commit": "292a2122740bad89b6264c2d1cf91a8a2c5788b9",
+  "original_source_commits": [
+    "548c68ad35b3dd04e1a3132af3a830504fd8e63b",
+    "b2e9134ba1897d000e7fbbcb59e604603a985aae",
+    "8eda5970467b350e9dff89432a2038f31f6b19eb",
+    "da8dc1dfa92b63c0ea130ae2ccd58c4b6ecfc055"
+  ],
+  "source_freeze": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\release-plan.json",
+    "sha256": "0f9b874b20abaa300c3ccdca8f219ec75512bd204beb4335dc4aff069ed3cff1"
+  },
+  "source_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\source-validation1.json",
+    "sha256": "0f9b874b20abaa300c3ccdca8f219ec75512bd204beb4335dc4aff069ed3cff1"
+  },
+  "installed": {
+    "server_sha256": "08d899d58df1ee6639e842ab8ee8f4756631a6f4974dfb1acb89dad14db390c5",
+    "manifest_sha256": "761a2522100d5092a87bb07b2d164b11ad2316eaf23b61b9488fc28b689bbe01",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "verified_assets": 215,
+    "unchanged_assets": 214,
+    "changed_assets": [
+      "engram_server.exe"
+    ]
+  },
+  "validation": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\native-acceptance.json",
+      "sha256": "6cd8df45331e3a39872de9679242f355b72cdc83f03be4ddb8f592a311db0501"
+    },
+    "native_behavior_cases": 2,
+    "native_attempts": 2,
+    "affected_native_reruns": 1,
+    "retained_unaffected_native_cases": 1,
+    "releases": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116\\release1.json",
+        "sha256": "130a54b983b85272c92999c824037929c96a72ea84c0cc87c7552a743bd306cb"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\release1.json",
+        "sha256": "3f5d5812f14211be5e08d6a2cb6417f1a5e984ee65f1a37643c2684f4ac973c5"
+      }
+    ],
+    "release_builds": 2,
+    "public": {
+      "candidate2": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\candidate2\\acceptance.json",
+        "sha256": "b87572ca233f832b1f7eaddd1efccfc88f4b42a22e7bcd9b47efa7c15e7f72a4"
+      },
+      "installed1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\installed1\\acceptance.json",
+        "sha256": "a7203986efa8e740f3ddaf77e3bf00a0636d67841af1e40c73b40c1547974ded"
+      }
+    },
+    "public_checks_each": 31,
+    "retained_unaffected_candidate_checks": 20,
+    "installed_checks_all_against_current_binary": true,
+    "failed_first_candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116\\candidate1\\acceptance.json",
+      "sha256": "8b40072182e63606708dcce8d42f464f4b5e748197c05ef6b652be6de89cf3b4"
+    },
+    "first_deployment_failure": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116\\deployment4-state.json",
+      "sha256": "16cdef3e62af809260aa423f77c18c70d251764912e37175c9fee842fb189c9a"
+    },
+    "correction": "Ordinary unqualified lookup returns the existing schema reader ambiguity envelope, not full table rows. Preserve cited candidate identities and clarification instead of reporting missing citation fields. Verifier also compares actual Windows raw guidance bytes and uses an explicit file scope for unchanged historical retrieval.",
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\deployment4-state.json",
+      "sha256": "c6ccfc5f868aa9f0ec97b2afffda3f58433e32776e561ae8e663c02c07412403"
+    },
+    "restored_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\restored-runtime\\receipt.json",
+      "sha256": "3e44013347e7527250bb608ef3792d81c8772e4f82f2fd4f181252d12a17c6d6"
+    },
+    "full_or_lib_suite_run": false,
+    "extra_debug_builds": 0,
+    "original_full19gates_closed": false
+  },
+  "timing": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\coding-compile-timing-20261116.json",
+    "sha256": "a9094aeabca1b7550281fdf54ad7386b2a2c707146d6250ce988725593b559ac"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116",
+    "prior_attempt_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116",
+    "retention": "Packages, source/failed-candidate evidence and scripts retained until superseded/reviewed; no preexisting deletion. Owned transient fixtures/helpers are closed/removed.",
+    "reused_build_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "new_worktree_created": false,
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    },
+    "all_new_fixture_processes_and_temporaries_closed_removed": true,
+    "all_config_holds_released": true,
+    "owned_runtime_configs_removed": true,
+    "normal_daemon_intentionally_restored": 83992,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0769e49227ba4967bba0c7bf3395c46b"
+  },
+  "limits": [
+    "Finite three-requirement delivery, not all natural-language SQL queries, general agent usefulness, live database behavior or full original backlog completion.",
+    "First candidate failure and both release/native attempts are retained and included in timings. The correction release has a smaller source delta; no controlled incremental speedup is claimed.",
+    "Actual complete production coding percentage remains unknown. Recorded selected authoring intervals are partial and must not be substituted for total coding.",
+    "Other original unfinished requirements/gates and ownership decisions remain open. Missing EQS requirements were requested asynchronously without stopping this delivery."
+  ]
+}

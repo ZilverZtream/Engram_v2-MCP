@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-26",
   "original_requirement": "Reconcile tool contracts/readiness claims; declared capability and policy state are not measured readiness.",
   "user_outcome": "Public policy output distinguishes disabled unassessed bypass from threshold arithmetic on caller-supplied unverified inputs, preserving internal safety/ADP policy decisions.",
@@ -56,5 +56,12 @@
     "No independent source, project existence, coverage or runtime verification was added; this remains a policy calculator over caller claims.",
     "Baseline1 omitted required allowed_roots and correctly refused startup before a tool call; baseline2 uses an explicit owned root. Original failed evidence is retained.",
     "No CodeMap/Blast algorithm, graph/parser/store change or target-language expansion; native/public new-source behavior remains pending."
-  ]
+  ],
+  "compiled": true,
+  "candidate_verified": true,
+  "installed": true,
+  "source_only": false,
+  "combined_delivery_record": "eval/reports-safety-sql-batch-delivery-20261116.json",
+  "installed_server_sha256": "08d899d58df1ee6639e842ab8ee8f4756631a6f4974dfb1acb89dad14db390c5",
+  "validation_note": "Native and public proof scopes are recorded in combined receipt; unaffected checks retained with explicit source/evidence binding, all31installed checks use the installed binary."
 }
