@@ -67,7 +67,7 @@ These are different task sets, so their scores do not measure a version
 change. None of these checks establishes productivity gain or completed application
 validation; the archive result also retains its read-instruction ambiguity.
 
-### Original LegacyValidation improvement shortlist — receipts through November 15
+### Original LegacyValidation improvement shortlist — receipts through November 17
 
 This is the original research shortlist, scoped to LegacyValidation's VB.NET/WebForms,
 JavaScript/TypeScript and SQL workflows. Each link records the tested runtime
