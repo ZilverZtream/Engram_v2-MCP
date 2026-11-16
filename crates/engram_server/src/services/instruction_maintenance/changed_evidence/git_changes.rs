@@ -34,13 +34,16 @@ pub(super) fn paths_since(root: &Path, base_commit: &str) -> Result<Vec<String>>
             )?;
             selected.insert(path.replace('\\', "/"));
             ensure!(
-                selected.len() <= 16,
-                "Git comparison exceeds16 changed files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
+                selected.len() <= GIT_EVIDENCE_PATH_LIMIT,
+                "Git comparison exceeds{GIT_EVIDENCE_PATH_LIMIT} changed files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
             );
         }
     }
     if selected.is_empty() {
         return Ok(Vec::new());
     }
-    paths(&selected.into_iter().collect::<Vec<_>>(), 16)
+    paths(
+        &selected.into_iter().collect::<Vec<_>>(),
+        GIT_EVIDENCE_PATH_LIMIT,
+    )
 }

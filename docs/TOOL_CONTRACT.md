@@ -106,8 +106,12 @@ committed after the base, staged/unstaged changes and nonignored untracked files
 the after snapshot is current disk, not a separate staged view. A clean comparison
 returns `no_git_changes_observed`, which establishes no semantic policy conclusion.
 Explicit `changed_paths` remains available and cannot be mixed with this option.
-The existing16-file combined evidence bound is unchanged: an oversized comparison
-refuses with an explicit-slice alternative instead of silently omitting files.
+Source-complete, awaiting combined validation: automatic Git selection allows up
+to128 distinct changed and supplemental evidence paths, so ordinary multi-file
+features do not require hand-splitting at16 files. Explicit `changed_paths` lists
+retain their16-file combined evidence limit. Complete per-file128KiB and packet
+768KiB source limits still apply; oversized inputs refuse rather than supply a
+partial packet. [Pending source](../eval/eg31-maintenance-volume-progress-20261116.json).
 Git listing and source capture are separate observations; collection does not
 write authored guidance or index state, infer rename semantics or accept policy.
 

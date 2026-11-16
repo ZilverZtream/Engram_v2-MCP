@@ -237,7 +237,7 @@ async fn git_selection_reports_clean_comparisons_and_refuses_oversized_or_mixed_
             .message
             .contains("alternatives")
     );
-    for n in 0..17 {
+    for n in 0..129 {
         std::fs::write(
             f.root.join(format!("Site/new{n}.ts")),
             "export const n = 1;\n",
@@ -246,7 +246,7 @@ async fn git_selection_reports_clean_comparisons_and_refuses_oversized_or_mixed_
     }
     let error = f.audit(request).await.unwrap_err();
     assert!(
-        error.message.contains("exceeds16") && error.message.contains("explicit changed_paths")
+        error.message.contains("exceeds128") && error.message.contains("explicit changed_paths")
     );
     assert_eq!(
         std::fs::read_to_string(f.root.join(".github/instructions/saves.instructions.md")).unwrap(),

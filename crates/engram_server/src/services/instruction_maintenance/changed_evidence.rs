@@ -5,6 +5,8 @@ use serde_json::{Value, json};
 mod git_changes;
 mod references;
 
+const GIT_EVIDENCE_PATH_LIMIT: usize = 128;
+
 pub(super) struct Selection {
     pub instructions: Vec<String>,
     pub evidence: Vec<String>,
@@ -46,9 +48,14 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         paths(&req.changed_paths, 16)?
     };
     evidence.extend(changed.iter().cloned());
+    let evidence_limit = if req.use_git_changes {
+        GIT_EVIDENCE_PATH_LIMIT
+    } else {
+        16
+    };
     ensure!(
-        evidence.len() <= 16,
-        "Git changes and evidence_paths exceed16 distinct files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
+        evidence.len() <= evidence_limit,
+        "Changes and evidence_paths exceed{evidence_limit} distinct files; use explicit changed_paths for a bounded review slice or reduce the comparison. No files were silently omitted."
     );
     let evidence: Vec<_> = evidence.into_iter().collect();
     let basis = if req.use_git_changes {

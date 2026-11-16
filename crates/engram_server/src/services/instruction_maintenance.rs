@@ -22,8 +22,10 @@ const PACKET_LIMIT: usize = 768 * 1024;
 pub struct MaintenanceRequest {
     /// Discover changed files from the exact base_commit to current disk, including
     /// staged, unstaged, committed-since-base and nonignored untracked changes.
-    /// Opt-in alternative to changed_paths; the existing16-file evidence limit
-    /// applies. A clean comparison selects no instructions and proves no policy intent.
+    /// Opt-in alternative to changed_paths; up to128 distinct Git-derived and
+    /// supplemental evidence paths, subject to the existing complete-file and
+    /// packet byte limits. Explicit changed_paths retain their16-file bound.
+    /// A clean comparison selects no instructions and proves no policy intent.
     #[serde(default)]
     pub use_git_changes: bool,
     /// Discover current applicable guidance and bounded literal-reference review
