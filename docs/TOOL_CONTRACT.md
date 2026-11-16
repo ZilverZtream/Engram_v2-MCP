@@ -1,5 +1,7 @@
 # Tool Contract
 
+Source-complete, awaiting a later combined validation/deployment: `query_graph_nodes`, `find_references` and `graph_search` use existing complete-reply `max_tokens`/immutable recovery. Graph reads preserve their original record limits, ranking, content clipping and freshness limitations; saved recovery returns the original selected result and does not requery the graph or search engine. This does not change CodeMap or Blast Radius.
+
 Source-complete, awaiting a later combined validation/deployment: `trace_user_request(include_triggers=true)` connects reached literal qualified SQL writes to exact source DML trigger declarations with matching event types, timing and raw-source citations. Trigger bodies supply lexical table-reference paths using the existing basename convention. Different schemas/events are excluded; include_db/include_triggers opt-outs remain. This is selected current source evidence, with unknown deployed/disabled state and execution; dynamic/alias bindings and nested trigger/procedure effects remain unresolved. No absence conclusion follows from missing SQL declarations. Existing path limits and immutable trace delivery remain.
 
 Source-complete, awaiting combined validation: migration progress distinguishes

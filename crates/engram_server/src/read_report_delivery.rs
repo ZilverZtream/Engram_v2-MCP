@@ -10,6 +10,9 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "query_graph_nodes",
+    "find_references",
+    "graph_search",
     "analyze_reverts",
     "list_repo_rules",
     "trace_state_usage",

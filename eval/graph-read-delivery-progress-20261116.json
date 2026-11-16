@@ -1,0 +1,36 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform complete reply budgets and exact original-result recovery across agent read tools.",
+  "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner.",
+  "source_commit": null,
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_files_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "8ecded029526c5a9eb96d86cffd7a65232cb4e62048465239c98163c79e987a6",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "0421153a02bcbfa17677cd88d1f53667b1e12a1090be266669e19118f344afb5",
+    "docs/TOOL_CONTRACT.md": "9abc888b037e699d9a27482b3e82e13ee65eab24297c45a3fde8bfac8e03e55f"
+  },
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\baseline1\\acceptance.json",
+  "baseline_checks_passed": 6,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
+  "native_target": "Existing shared report-owner acceptance; no new implementation-mirroring native tests.",
+  "native_tests_run": false,
+  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "deployed": false,
+  "timing": {
+    "baseline_seconds": 1.870715856552124,
+    "new_compilations": 0,
+    "actual_production_coding_percent": null
+  },
+  "resources": "Owned isolated baseline server exited naturally, reader joined, its JavaScript/data/config fixture removed. CASE evidence retained until superseded.",
+  "limits": [
+    "Existing100reference/selected node/ranked result caps, content clipping, tie order and graph consistency remain original behavior. Recovery retains exactly the selected window, not all project relationships.",
+    "No graph parser, ranking, CodeMap/Blast, source-format or target-language expansion.",
+    "Source-only until later combined release/public acceptance; actual full coding percentage remains unknown."
+  ]
+}
