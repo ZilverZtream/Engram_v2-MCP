@@ -1,5 +1,16 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation/deployment: the existing complete
+report delivery also covers QA matrices, stored business-rule queries, table and
+setting descriptions, SQL/generated-code validation, safety/decision reports,
+freshness, pattern/cycle/AST/centrality/connection reports, runtime reconciliation,
+anti-pattern reports, story briefs and support-KB results. These18read/report
+tools retain their existing inputs, analysis, model/publication effects and result
+limits; saved recovery returns the exact original selected MCP result without
+repeating that work. Fitting replies remain unchanged; default40KiB/caller budgets
+and existing retention/error behavior apply. Closed CodeMap/Blast tools and tools
+that already own delivery controls keep their existing behavior.
+
 Installed2026-11-16: instruction maintenance captures table, view and DML-trigger declaration candidates from already supplied SQL evidence through the shared SQL catalog, alongside existing procedure candidates. Exact qualified spellings, raw source/range hashes and changed-versus-unchanged observed bytes remain explicit. No live index, database deployment/collation or absence proof is inferred; current scope, candidate/reply caps, authored exceptions and stale packet guards remain.
 
 Installed2026-11-16: `query_graph_nodes`, `find_references` and `graph_search` use existing complete-reply `max_tokens`/immutable recovery. Graph reads preserve their original record limits, ranking, content clipping and freshness limitations; saved recovery returns the original selected result and does not requery the graph or search engine. This does not change CodeMap or Blast Radius.
