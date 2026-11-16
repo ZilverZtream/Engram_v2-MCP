@@ -1,0 +1,52 @@
+{
+  "status": "IMPLEMENTATION_SELECTED",
+  "original_requirement_id": "TODO-31",
+  "original_requirement": "Trace LegacyValidation HTTP requests through reached application methods to source-declared database mappings.",
+  "observed_missing_behavior": "DBML mapping resolves only locally constructed VB receivers. LegacyValidation RelationHelper.LiveCustomerRelations receives db As iFaltDataContext and accesses db.CR_CopyDetails, whose current DBML mapping is dbo.CR_CopyDetail; the current binder has no parameter path.",
+  "wanted_behavior": "Map direct table access through an explicitly declared required ByVal VB parameter (including implicit ByVal), using the selected current method and exact unique DBML context/member. Label this as declared parameter-type candidate evidence, distinct from a local constructor or compiler/runtime binding.",
+  "finite_acceptance": [
+    "Installed public owned fixture using the unchanged six-line actual LegacyValidation LiveCustomerRelations method and exact DBML reproduces an unresolved table mapping for the typed parameter. No actual project/index operation.",
+    "Source tracing retains the reached method, query source/hash and exact dbo.CR_CopyDetail DBML citation for the declared required parameter. Existing local-constructor mapping and database opt-out retain their behavior.",
+    "No mapping for reassigned/escaped/ambiguous/ByRef/Optional receivers or stale/mismatched source. Required parameter binding remains explicitly unverified by compiler/runtime; no implicit namespace/context inference, fields/properties, general ORM or parser/graph changes."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/dbml.rs",
+    "crates/engram_server/tests/request_trace_dbml_parameters.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md"
+  ],
+  "source_evidence": {
+    "original_method_file": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\ata\\code\\RelationHelper.vb",
+    "original_file_sha256": "af315bc959f9ee95619e621088db839ba97b34aba552c13af369e6be5e4a612b",
+    "method_lines": [
+      26,
+      31
+    ],
+    "method_snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\sources\\LiveCustomerRelations.vb",
+    "method_snapshot_sha256": "3eb883c0808fa5e3f8ca7232e54e0c6fc592169b139e626aacbc4d48d927c4aa",
+    "mapping_snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\sources\\iFalt.dbml",
+    "mapping_sha256": "e7c98a9e9708f757cda404d1f9d0a94312491962d8e8411aac83d3483382378b",
+    "mapping_class": "iFaltDataContext",
+    "mapping_context_namespace": null,
+    "mapping": {
+      "Member": "CR_CopyDetails",
+      "Name": "dbo.CR_CopyDetail"
+    },
+    "operation": "Only explicit non-Q method source and DBML read/copied; DBML connection information is not printed or committed."
+  },
+  "legacy_validation_runtime_filter": {
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "relevance": "Actual VB.NET data helper and DBML mapping used by LegacyValidation change-request workflows; no target-language expansion."
+  },
+  "stop_rule": "One original request-to-data tracing gap. Preserve closed CodeMap/Blast and all unrelated findings. No new graph/parser/store, field binding, alias/namespace guessing, model operation or full-suite campaign.",
+  "build_rule": "Third distinct requirement after queued EG31 and TODO4. Complete and commit source before one focused combined native build and one reused release.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116",
+    "fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "retention": "Raw owned source copies and evidence retained until superseded. New runtime/native fixtures close handles before teardown. No preexisting deletion."
+  },
+  "deployed": false,
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "at_utc": "2026-11-16T06:05:21.451652+00:00"
+}

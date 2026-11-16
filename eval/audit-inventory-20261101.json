@@ -10105,9 +10105,9 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "active_original_item": "Select a third distinct original LegacyValidation requirement for source work; EG31 maintenance volume and TODO4 state reports are source complete awaiting combined validation.",
-    "original_requirement_id": "TODO-4",
-    "observed_missing_behavior": "trace_state_usage has a node selection limit but no max_tokens or saved-result controls. A selected reader/writer report can overflow the client budget; its indexed-source evidence, internal-cap warnings and indirect property readers must remain complete.",
+    "active_original_item": "TODO31 typed VB parameter DBML tracing for actual LegacyValidation RelationHelper.LiveCustomerRelations; two independent source deliveries retained.",
+    "original_requirement_id": "TODO-31",
+    "observed_missing_behavior": "DBML mapping resolves only locally constructed VB receivers. LegacyValidation RelationHelper.LiveCustomerRelations receives db As iFaltDataContext and accesses db.CR_CopyDetails, whose current DBML mapping is dbo.CR_CopyDetail; the current binder has no parameter path.",
     "implementation_files": [
       "crates/engram_server/src/services/instruction_maintenance.rs",
       "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
@@ -10117,15 +10117,15 @@
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "Installed owned180-function TypeScript browser-preference source: reproduce a report exceeding40KiB with limit180, verify all independently authored readers/writers and current indexed hashes. Default smaller selection may fit; do not claim otherwise.",
-      "Use the unchanged actual handler and existing delivery owner: default40KiB and caller-budgeted large selected reports defer; fitting replies retain exact original MCP shape; recovery reconstructs the captured MCP result byte-for-byte.",
-      "Public recovery omits state_type/state_key and works after source removal with all selected identities/indexed access hashes and warnings retained. Existing per-role selection caps, unknown/runtime limitations, invalid-input errors and extraction remain."
+      "Installed public owned fixture using the unchanged six-line actual LegacyValidation LiveCustomerRelations method and exact DBML reproduces an unresolved table mapping for the typed parameter. No actual project/index operation.",
+      "Source tracing retains the reached method, query source/hash and exact dbo.CR_CopyDetail DBML citation for the declared required parameter. Existing local-constructor mapping and database opt-out retain their behavior.",
+      "No mapping for reassigned/escaped/ambiguous/ByRef/Optional receivers or stale/mismatched source. Required parameter binding remains explicitly unverified by compiler/runtime; no implicit namespace/context inference, fields/properties, general ORM or parser/graph changes."
     ],
-    "progress_record": "eval/state-report-delivery-progress-20261116.json",
-    "implementation_items_active": 0,
-    "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
+    "implementation_items_active": 1,
+    "source_status": "IMPLEMENTATION_SELECTED",
     "deployed": false,
-    "build_rule": "Do not compile the two-item queue. Finish one other distinct original requirement first.",
+    "build_rule": "Third distinct requirement after queued EG31 and TODO4. Complete and commit source before one focused combined native build and one reused release.",
     "completed_batch": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "record": {
