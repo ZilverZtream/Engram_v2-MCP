@@ -1,5 +1,7 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation/deployment: public `evaluate_safety` identifies caller-supplied unverified inputs. Disabled policy keeps its configured allow/bypass but returns null confidence/risk and `policy_disabled_unassessed`. Enabled results retain their threshold decision/checks, label confidence as the fraction passed rather than a safety probability, and label risk as a heuristic on supplied scope. No source analysis, coverage measurement or test execution is performed. Internal policy/ADP decision types and enforcement thresholds remain unchanged.
+
 Source-complete, awaiting combined validation/deployment: the existing complete
 report delivery also covers QA matrices, stored business-rule queries, table and
 setting descriptions, SQL/generated-code validation, safety/decision reports,

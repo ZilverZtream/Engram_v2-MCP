@@ -1,4 +1,5 @@
 pub(crate) mod index_suggestion_tools;
+pub(crate) mod safety_report;
 pub mod feature_plan_tools;
 mod file_functions;
 pub mod access_layer_tools;

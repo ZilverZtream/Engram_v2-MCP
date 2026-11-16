@@ -1159,13 +1159,16 @@ impl Engram {
     }
 
     #[tool(
-        description = "Policy-based safety evaluation of a proposed change (confidence + coverage thresholds). Part of the autonomous-edit pipeline; for a quick per-method verdict use check_edit_safety."
+        description = "Evaluate policy thresholds on caller-supplied confidence, coverage, anti-pattern and scope values. This tool does not gather source evidence or measure coverage/execute tests. With policy disabled, allowed records the configured bypass and risk/confidence are null (unassessed). With policy enabled, confidence is the fraction of checks passed and risk is a heuristic on supplied values, not a measured safety probability. For source-based per-method assessment use check_edit_safety."
     )]
     pub async fn evaluate_safety(
         &self,
         params: Parameters<EvaluateSafetyRequest>,
     ) -> Result<CallToolResult, McpError> {
-        self.handle_evaluate_safety(params.0).await
+        crate::handlers::safety_report::finish(
+            self.handle_evaluate_safety(params.0).await?,
+            self.state.cfg.safety_policy_enabled,
+        )
     }
 
     #[tool(

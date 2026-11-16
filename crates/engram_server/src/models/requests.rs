@@ -2959,13 +2959,13 @@ pub struct EvaluateSafetyRequest {
     /// Number of nodes affected by impact analysis.
     #[serde(default)]
     pub impact_node_count: u64,
-    /// Confidence from impact analysis (0.0–1.0).
+    /// Caller-supplied impact-analysis confidence (0.0–1.0); this tool does not verify it.
     #[serde(default = "default_safety_confidence")]
     pub impact_confidence: f64,
-    /// Test coverage of affected files (0.0–1.0, or -1.0 if unknown). Default: -1.0.
+    /// Caller-supplied test coverage (0.0–1.0, or -1.0 unknown). Not measured here. Default: -1.0.
     #[serde(default = "default_unknown_coverage")]
     pub test_coverage: f64,
-    /// Anti-pattern guard passed for affected files. Default: true.
+    /// Caller-declared anti-pattern verdict. No scan runs here. Default: true.
     #[serde(default = "default_true")]
     pub anti_pattern_clear: bool,
     /// Number of downstream dependents (callers, importers). Default: 0.
