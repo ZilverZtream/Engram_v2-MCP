@@ -1,0 +1,42 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-27",
+  "original_requirement": "Instruction evidence dependencies include referenced files/symbols and distinguish relevant source changes while preserving scope, raw hashes and authority uncertainty.",
+  "user_outcome": "Instruction evidence recognizes referenced SQL table/view/trigger declarations with exact before/current ranges and distinguishes a changed declaration from unchanged declarations in the same file.",
+  "source_commit": null,
+  "implementation_files": [
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+    "crates/engram_server/tests/sql_instruction_evidence_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_files_sha256": {
+    "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "1542ff4fbb5c5b8adbf0a3e6a630e1f66ca9eb571f9f5059f18f9b6a8d6bbc5d",
+    "crates/engram_server/tests/sql_instruction_evidence_tests.rs": "00b0c3d52ec3fc6e8eca6661c1fa18e77f05cc46a20e9c484a8bd50f9e64bd7a",
+    "docs/TOOL_CONTRACT.md": "a4577a8278eed81c24e493cada17cea48fa8475670e0a6fa6a549924a6540e34"
+  },
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\baseline1\\acceptance.json",
+  "baseline_checks_passed": 4,
+  "native_target": "sql_instruction_evidence_tests",
+  "native_execution": "NOT_RUN; third distinct original source outcome joins trigger tracing and grouped graph delivery for combined validation.",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\verify-public.py",
+  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "deployed": false,
+  "timing": {
+    "baseline_seconds": 2.2807562351226807,
+    "new_compilations": 0,
+    "actual_production_coding_percent": null
+  },
+  "source_checks": [
+    "New native behavior target and existing source parsed with rustfmt.",
+    "Shared catalog visibility/line conventions and original stored-procedure basename behavior inspected before fixture authoring.",
+    "Owned installed MCP baseline confirms exact SQL capture and preserved procedure evidence while table/view/trigger names stay unresolved."
+  ],
+  "resources": "Owned Git/data/config fixture removed after isolated MCP owner closed naturally and reader joined. CASE evidence retained until superseded.",
+  "limits": [
+    "Positive observed declaration ranges only; SQL collation, deployment, accepted policy authority, unsupported SQL objects and absence remain unproven. Qualified table/view/trigger spellings are preserved; previous procedure basename behavior stays.",
+    "Existing declaration/candidate/reference/work/response budgets and generic stale proposal guard remain. No parser framework, model call, source scan of actual LegacyValidation/Q, or policy write.",
+    "Existing whole-instruction suite contains a historical SQL-function unsupported-extractor assertion inconsistent with prior SQL-procedure support. Recorded as a preexisting test/status reconciliation issue; not expanded into a new implementation task.",
+    "Native/public new-source acceptance and deployment pending; full EG27 and broader task usefulness remain unfinished."
+  ]
+}

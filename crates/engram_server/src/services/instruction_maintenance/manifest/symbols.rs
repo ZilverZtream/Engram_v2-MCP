@@ -170,6 +170,27 @@ pub(super) fn capture(
                             symbol.start_line += 1;
                             symbol.end_line += 1;
                         }
+                        // Reuse the source catalog rather than treating only
+                        // procedures as SQL declaration evidence. Its ranges
+                        // are already one-based raw-source line observations.
+                        let mut catalog = crate::services::schema_query::Catalog::default();
+                        catalog.add_source(path, &snapshot.content).ok()?;
+                        let declarations = catalog.tables.iter().map(|table|
+                            ("table", &table.key, &table.citation))
+                            .chain(catalog.objects.iter()
+                                .filter(|object| matches!(object.kind, "view" | "trigger"))
+                                .map(|object| (object.kind, &object.key, &object.citation)));
+                        for (kind, name, citation) in declarations {
+                            symbols.push(engram_index::parsing::ExtractedSymbol {
+                                name: name.0.last().cloned().unwrap_or_default(),
+                                kind: kind.into(),
+                                start_line: citation.start_line.try_into().ok()?,
+                                end_line: citation.end_line.try_into().ok()?,
+                                metadata: Some(std::collections::HashMap::from([
+                                    ("fqn".into(), name.0.join(".")),
+                                ])),
+                            });
+                        }
                         Some(symbols)
                     } else {
                         Some(engram_index::parsing::SymbolExtractor::new()
@@ -190,6 +211,9 @@ pub(super) fn capture(
                 "symbol_extractor_unavailable"
             } else if vb {
                 "regex_declaration_line_candidates_no_absence_proof"
+            } else if sql && extracted.as_ref().is_some_and(|symbols| symbols.iter()
+                .any(|symbol| matches!(symbol.kind.as_str(), "table" | "view" | "trigger"))) {
+                "sql_catalog_declaration_candidates_no_absence_proof"
             } else if sql {
                 "regex_procedure_line_range_candidates_no_absence_proof"
             } else {
@@ -227,6 +251,8 @@ pub(super) fn capture(
                     "regex_observed_method_line_range"
                 } else if vb {
                     "regex_declaration_line_only"
+                } else if sql && matches!(symbol.kind.as_str(), "table" | "view" | "trigger") {
+                    "sql_catalog_declaration_line_range"
                 } else if sql {
                     "regex_procedure_line_range"
                 } else {
