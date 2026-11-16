@@ -1,0 +1,73 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform complete tool response budgets and exact recovery without silently losing selected evidence.",
+  "observed_missing_behavior": "trace_state_usage has a node selection limit but no max_tokens or saved-result controls. A selected reader/writer report can overflow the client budget; its indexed-source evidence, internal-cap warnings and indirect property readers must remain complete.",
+  "wanted_behavior": "Admit the existing read-only state report to complete-MCP-result delivery. Bound the complete selected report and recover it without rerunning graph queries, preserving all original Markdown, state categories, limits and uncertainty.",
+  "finite_acceptance": [
+    "Installed owned180-function TypeScript browser-preference source: reproduce a report exceeding40KiB with limit180, verify all independently authored readers/writers and current indexed hashes. Default smaller selection may fit; do not claim otherwise.",
+    "Use the unchanged actual handler and existing delivery owner: default40KiB and caller-budgeted large selected reports defer; fitting replies retain exact original MCP shape; recovery reconstructs the captured MCP result byte-for-byte.",
+    "Public recovery omits state_type/state_key and works after source removal with all selected identities/indexed access hashes and warnings retained. Existing per-role selection caps, unknown/runtime limitations, invalid-input errors and extraction remain."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs",
+    "crates/engram_server/tests/state_report_delivery_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md"
+  ],
+  "stop_rule": "Only shared delivery eligibility and relevant schema/actual-handler acceptance. No protected cognitive_tools.rs or modern-state WIP edits, new extraction, graph behavior, CodeMap/Blast, language expansion, report storage or model requests.",
+  "build_rule": "Second distinct original requirement after queued EG31. Do not compile the two-item source batch; require a third distinct source-complete original requirement.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116",
+    "fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "retention": "New owned fixture sources/indexes and process handles close before teardown; retain driver/receipts until superseded. No preexisting deletion."
+  },
+  "legacy_validation_runtime_filter": {
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "relevance": "Current LegacyValidation VB.NET session/state and installed JS/TS browser-storage workflows. Prior actual non-Q LegacyValidation browser-storage proof in eval/legacy_validation-browser-storage-delivery-20261113.json; proof here uses owned TypeScript and fts_only/none, no current project/source operation."
+  },
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "at_utc": "2026-11-16T05:50:20.831965+00:00",
+  "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
+  "source_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "905bc8ebcba870c3064be0ee7772414f60a7cba7970b9d1fba7deae8b37a2d07",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "7e34a3cc0e702c6e80e81b6a95999e5290ee6a7a66bc1ff7790456c37875a3d0",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs": "b24d188623ed6c2f8456e9582a08eaec20071b5a7a5a9426815415ffe1292d43",
+    "crates/engram_server/tests/state_report_delivery_tests.rs": "fa9424aff98de909d03eec3c747a5d312e14ee4911243dea36d71ec7426680e1",
+    "docs/TOOL_CONTRACT.md": "5eed8043c035c830f9dbc9f3bce927c821ed740b9e1c3de761375670c2e85b4f",
+    "TODO.md": "d4aacaa1c43074c7b5ff4dbfcd6eb0235a5cb8f2d2effdcb06c58a175d567c25"
+  },
+  "baseline_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\baseline-acceptance.json",
+    "sha256": "52ae037d4cef95ef922983e9b18ca448eeba733a7e5c8ee653bff8f7faca4c85"
+  },
+  "baseline_report_bytes": 158968,
+  "baseline_reader_writer_access_facts": 360,
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "native_cases": 1,
+  "native_case": "state_report_recovers_exact_original_after_graph_owners_close_and_source_disappears",
+  "public_driver": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\verify-public.py",
+  "public_driver_sha256": "a9111cb56cb5db23a5b4c3946c37c08019c937e45953b5f14f5112777f07fa76",
+  "checks_completed": [
+    "Installed owned180-function browser-state report produced158968bytes and retained360independently verified source access facts. Same-installed-binary schema archive proves no delivery controls. No model requests; owner closed and fixture removed.",
+    "Initial Python verifier needed int conversion for indexed numeric strings; raw saved report reconciled without a baseline replay. Original failing receipt retained.",
+    "Added only existing delivery eligibility and schema expectations. Protected handler and modern-state WIP are byte-unchanged; new actual-handler recovery fixture prepared. Rust syntax and owned whitespace checks pass; native/public new-source acceptance not yet run."
+  ],
+  "checks_pending": [
+    "Combined focused native and public debug/candidate/installed acceptance after a third distinct original source requirement is complete. No two-item compile."
+  ]
+}

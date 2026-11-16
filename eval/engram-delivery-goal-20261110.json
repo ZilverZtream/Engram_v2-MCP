@@ -2568,6 +2568,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
         "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
         "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending."
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
+        "progress_record": "eval/state-report-delivery-progress-20261116.json",
+        "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2744,9 +2752,9 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Select second distinct original LegacyValidation requirement for source work; EG31 multi-file maintenance is source complete awaiting combined validation.",
-    "original_requirement_id": "EG-31",
-    "observed_missing_behavior": "Git automatic maintenance rejects a comparison at17paths before collecting any evidence, despite the existing768KiB packet budget. An actual recent LegacyValidation commit touches35files under explicit non-Q App_Code/ts/~.js scopes.",
+    "active_original_item": "Select a third distinct original LegacyValidation requirement for source work; EG31 maintenance volume and TODO4 state reports are source complete awaiting combined validation.",
+    "original_requirement_id": "TODO-4",
+    "observed_missing_behavior": "trace_state_usage has a node selection limit but no max_tokens or saved-result controls. A selected reader/writer report can overflow the client budget; its indexed-source evidence, internal-cap warnings and indirect property readers must remain complete.",
     "implementation_files": [
       "crates/engram_server/src/services/instruction_maintenance.rs",
       "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
@@ -2756,15 +2764,15 @@
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "Installed owned35-file VB/TS/SQL fixture reproduces old whole-comparison rejection without reading actual LegacyValidation sources.",
-      "Automatic mode returns all35independent before/current source pairs and complete scoped exception text; the existing proposal contract stays bound to the whole packet and a change to the35thfile refuses a captured proposal.",
-      "Explicit list bounds, complete file/packet byte limits, Git comparison semantics and no-authored-publication behavior remain; no silent first16selection or stale mixed report. Public debug/candidate/installed proof is deferred to a combined source batch."
+      "Installed owned180-function TypeScript browser-preference source: reproduce a report exceeding40KiB with limit180, verify all independently authored readers/writers and current indexed hashes. Default smaller selection may fit; do not claim otherwise.",
+      "Use the unchanged actual handler and existing delivery owner: default40KiB and caller-budgeted large selected reports defer; fitting replies retain exact original MCP shape; recovery reconstructs the captured MCP result byte-for-byte.",
+      "Public recovery omits state_type/state_key and works after source removal with all selected identities/indexed access hashes and warnings retained. Existing per-role selection caps, unknown/runtime limitations, invalid-input errors and extraction remain."
     ],
-    "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
+    "progress_record": "eval/state-report-delivery-progress-20261116.json",
     "implementation_items_active": 0,
     "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "deployed": false,
-    "build_rule": "Do not compile the one-item queue. Finish two other original requirements first.",
+    "build_rule": "Do not compile the two-item queue. Finish one other distinct original requirement first.",
     "completed_batch": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "record": {
@@ -2787,6 +2795,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
         "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
         "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending."
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
+        "progress_record": "eval/state-report-delivery-progress-20261116.json",
+        "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending."
       }
     ],
     "native_tests_run": false,
@@ -2812,5 +2828,13 @@
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
     "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
     "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending."
+  },
+  "state_report_source_progress": {
+    "original_requirement_id": "TODO-4",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
+    "progress_record": "eval/state-report-delivery-progress-20261116.json",
+    "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending."
   }
 }
