@@ -10122,11 +10122,16 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "active_original_item": "TODO31 request value-lineage composition",
-    "progress_record": "eval/request-value-lineage-progress-20261116.json",
+    "active_original_item": "Completed TODO31 / TODO28 / EG18 delivery",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "implementation_items_active": 0,
-    "next_action": "Keep first original source outcome queued, select two other genuinely ready distinct original requirements before one guarded combined native target/release. No standalone Cargo."
+    "delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+      "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
+    },
+    "full_original_goal_active": true,
+    "previous_goal_turn_classification": "PROGRESS: installed three original source outcomes, passed24candidate and24installed checks, restored normal daemon. Timing correction demonstrates majority-coding promise unmet.",
+    "next_action": "Select next ready unfinished original requirement from retained backlog; preserve completed delivery, no further build for this batch."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10273,7 +10278,7 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
@@ -16254,5 +16259,18 @@
     "original_requirement_id": "TODO-31",
     "source_commit": "7b824a1e2461719c1c659b8e6c4f7fde801dce5a",
     "installed": false
+  },
+  "lineage_routing_preset_batch_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+    "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
+  },
+  "latest_delivered_runtime": {
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+      "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
+    },
+    "runtime_source_commit": "acd634473c0416238cc2d3106f05736f7a675048",
+    "installed_server_sha256": "957953733d7f6ea1119afd112e0c5a45f756c45964bd2f8adeceed32057211dd"
   }
 }

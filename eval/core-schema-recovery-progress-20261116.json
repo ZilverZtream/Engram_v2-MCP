@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-18",
   "original_requirement": "Dependency-complete optional Core preset and actionable citation/clarification recovery, preserving Full default.",
   "source_commit": "0526c02eb6e76f51e9516e2fe978370a18221175",
@@ -15,12 +15,12 @@
     "sha256": "2f542e1bf9909d8b3f3e8723d4735da7053042d2ce6c1b58c4c3afa30887b59d"
   },
   "implemented": "Optional Core SQL ambiguity clarification reuses advertised ask_codebase with quoted qualified source name and JSON output. Full preserves original query_schema action. Candidate identity/ambiguity/source limits and tool preset membership remain unchanged.",
-  "compiled": false,
-  "native_tests_run": false,
+  "compiled": true,
+  "native_tests_run": true,
   "native_case_written": "core_and_full_sql_clarifications_recover_the_selected_source_declaration",
-  "public_acceptance_run": false,
-  "installed": false,
-  "source_only": true,
+  "public_acceptance_run": true,
+  "installed": true,
+  "source_only": false,
   "configuration_relevance": "The unchanged normal LegacyValidation config advertises all tools. Its Full-mode action stays unchanged; this accepted original preset requirement benefits optional Core use only, not a claimed improvement to current Full-mode behavior.",
   "finite_acceptance": [
     "Core SQL ambiguity candidate recovery names advertised ask_codebase with a quoted qualified source-name question and JSON output. Returned action can be followed to the complete selected declaration; candidate identity/ambiguity/source limits remain.",
@@ -36,11 +36,24 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-schema-recovery-20261116",
     "baseline_owners_closed": true,
     "baseline_owned_temp_removed": true,
-    "new_builds": 0,
+    "new_builds": 2,
     "sidecar_builds": 0,
     "new_worktree_created": false,
-    "retention": "Retain source/owned baseline/driver evidence; native fixtures not run. Protected WIP and installed runtime/config unchanged."
+    "retention": "Retain baseline/source/public evidence. All new owned fixtures closed and removed; normal installed daemon restored.",
+    "shared_batch_builds": true
   },
-  "next_action": "Third distinct source outcome complete. Freeze existing shipping checkout and select one combined native target for request lineage, ordinary SQL routing and Core/Full recovery, then one release/public candidate+installed proof.",
-  "at_utc": "2026-11-16T15:26:54.586959+00:00"
+  "next_action": "Finite delivery accepted; advance another unfinished original requirement.",
+  "at_utc": "2026-11-16T16:04:44.376111+00:00",
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+    "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-schema-recovery-20261116\\candidate1\\acceptance.json",
+    "sha256": "aadb949242c5bee2e63c5cff2a43d2820c580573eb8c4047d8024de3a3f36b79"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-schema-recovery-20261116\\installed1\\acceptance.json",
+    "sha256": "43e13d9fa15413549d8cc6f2ce066b3bd77ae8f11f9243b48736174a818a2b41"
+  }
 }

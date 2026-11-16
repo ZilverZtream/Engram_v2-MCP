@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-31",
   "original_requirement": "Compose source request entry/call/data evidence into one usable agent request trace.",
   "source_commit": "7b824a1e2461719c1c659b8e6c4f7fde801dce5a",
@@ -13,9 +13,6 @@
     "crates/engram_server/tests/request_value_lineage_tests.rs",
     "docs/TOOL_CONTRACT.md",
     "crates/engram_graph/src/store/value_flow/view.rs",
-    "crates/engram_graph/src/store/value_flow/view.rs",
-    "crates/engram_server/src/tools.rs",
-    "crates/engram_graph/src/store/value_flow/view.rs",
     "crates/engram_server/src/tools.rs"
   ],
   "baseline": {
@@ -24,12 +21,12 @@
   },
   "baseline_reconciliation": "baseline1 used a wrong response key and source-only fixture; baseline2 still omitted the already required configured VB provider/reference context. Both are verifier/fixture failures with owners/temps closed, not sidecar defects. baseline3 reuses the existing supported .NET4.8 fixture configuration and confirms available helper contexts plus missing request composition.",
   "implemented": "Resolved page/controller entries compose existing compiler-backed indexed value lineage. Up to8total entry reports preserve distinct helper contexts, original partial/issues/limits and selected raw-file/generation admission. Oversized lineage shares immutable trace recovery with explicit deferred counts/status. Exact declaration lookup avoids a full project-node scan for each resolved handler; no measured speedup claimed.",
-  "compiled": false,
-  "native_tests_run": false,
+  "compiled": true,
+  "native_tests_run": true,
   "native_case_written": "request_entries_preserve_helper_value_contexts_and_original_recovery",
-  "public_acceptance_run": false,
-  "installed": false,
-  "source_only": true,
+  "public_acceptance_run": true,
+  "installed": true,
+  "source_only": false,
   "activity_observation": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-value-lineage-20261116\\activity-ledger.json",
     "sha256": "2db3bb67df677ae792790af56c5c05374a5550ec4b44b33603b2dace6db2b353"
@@ -39,10 +36,11 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-value-lineage-20261116",
     "all3baseline_owners_closed": true,
     "all3baseline_owned_fixtures_removed": true,
-    "new_builds": 0,
+    "new_builds": 2,
     "sidecar_builds": 0,
     "new_worktree_created": false,
-    "retention": "Retain source, supported-context baseline and initial verifier failures. New native fixtures have not run. Existing copies/retained folders untouched."
+    "retention": "Retain baseline/source/public evidence. All new owned fixtures closed and removed; normal installed daemon restored.",
+    "shared_batch_builds": true
   },
   "finite_acceptance": [
     "Reuse existing trace_value_flow for resolved page/controller handler node IDs, bounded to8total entry reports. Preserve call-context separation and existing partial/issues/limits; no runtime or new SQL binding inferred.",
@@ -52,6 +50,18 @@
     "Resolved entry node IDs use existing-node lookup instead of an all-project node scan. Name-based lookup behavior remains; independent direct-reader versus routed-reader output equality covers both entry forms. No measured speedup claimed.",
     "Resolved request entry node IDs use direct existing node lookup in trace_value_flow instead of repeatedly scanning all project nodes. Short-name discovery behavior remains; native request/direct-reader equality verifies the returned flow, with no measured speedup claim."
   ],
-  "next_action": "Keep first original source outcome queued, select two other genuinely ready distinct original requirements before one guarded combined native target/release. No standalone Cargo.",
-  "at_utc": "2026-11-16T14:45:53.891755+00:00"
+  "next_action": "Finite delivery accepted; advance another unfinished original requirement.",
+  "at_utc": "2026-11-16T16:04:44.376111+00:00",
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+    "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-value-lineage-20261116\\candidate1\\acceptance.json",
+    "sha256": "19298951303c505d89841a57ad6e0d737bb8356c064f045e4e93023123b17d21"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-value-lineage-20261116\\installed1\\acceptance.json",
+    "sha256": "62d9d143c8e72c1b2250c70700422097fdd072292f8b286c99b60f9b4fb08b9d"
+  }
 }

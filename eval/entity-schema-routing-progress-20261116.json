@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-28",
   "original_requirement": "Natural-language entry point chooses existing specialized evidence from resolved source entities.",
   "source_commit": "4cc76ee4b485c244b0ad1bbe24439eb39a7d15c6",
@@ -20,12 +20,12 @@
   },
   "observed_missing_behavior": "Installed Describe sales.Orders resolves an indexed SQL table but invokes no schema provider and omits16of48source columns. Describe GetOrderLimit correctly invokes no SQL schema provider. Keyword-only modality routing loses known SQL entity type.",
   "implemented": "Retained resolver candidates declared as SQL tables add existing SQL modality after final narrowing/collapse. This selects existing full schema evidence for ordinary entity descriptions without SQL keywords. Source file/type checks exclude DBML/file-only inference; no extra lookup, parser, model call, default-schema or ambiguity override.",
-  "compiled": false,
-  "native_tests_run": false,
+  "compiled": true,
+  "native_tests_run": true,
   "native_case_extended": "sql_question_preserves_complete_columns_and_withholds_changed_declarations",
-  "public_acceptance_run": false,
-  "installed": false,
-  "source_only": true,
+  "public_acceptance_run": true,
+  "installed": true,
+  "source_only": false,
   "activity_observation": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\activity-ledger.json",
     "sha256": "7f8d8ce1b43f3756d025ead938fc26267c86bcaa39f1ad5306703a9d2d88359b"
@@ -45,11 +45,24 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116",
     "baseline_owners_closed": true,
     "baseline_fixtures_removed": true,
-    "new_builds": 0,
+    "new_builds": 2,
     "sidecar_builds": 0,
     "new_worktree_created": false,
-    "retention": "Keep source, baseline and original failed control expectation for review. Native fixtures not run. Protected WIP9 and installed binary unchanged; no actual LegacyValidation/Q source read."
+    "retention": "Retain baseline/source/public evidence. All new owned fixtures closed and removed; normal installed daemon restored.",
+    "shared_batch_builds": true
   },
-  "next_action": "Keep two distinct source outcomes queued and select the next ready original requirement; do not manufacture a third variant or compile either feature alone.",
-  "at_utc": "2026-11-16T15:04:15.042908+00:00"
+  "next_action": "Finite delivery accepted; advance another unfinished original requirement.",
+  "at_utc": "2026-11-16T16:04:44.376111+00:00",
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+    "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\candidate1\\acceptance.json",
+    "sha256": "6c075e641d32659c18f61ae3c31181e24b4190f421893dc189f501001fef708f"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\installed1\\acceptance.json",
+    "sha256": "86674f26e17a32dc88d5e73acdb3764efad204ab5df1fc1110e89c088f99c750"
+  }
 }

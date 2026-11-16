@@ -2792,7 +2792,7 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
@@ -2906,38 +2906,16 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Combined TODO31 / TODO28 / EG18 delivery",
-    "status": "FOCUSED_NATIVE_PASS_SINGLE_RELEASE_RUNNING",
+    "active_original_item": "Completed TODO31 / TODO28 / EG18 delivery",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "implementation_items_active": 0,
-    "original_requirement_id": "EG-18",
-    "observed_missing_behavior": "A newly composed SQL ambiguity report in Core returns query_schema recovery, which is not advertised in Core. Installed owned baseline proves Core ask_codebase can already retrieve the selected qualified table; Full advertises and successfully follows the original query_schema action.",
-    "implementation_files": [
-      "crates/engram_server/src/handlers/ask_schema.rs",
-      "crates/engram_server/tests/core_schema_recovery_tests.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "finite_acceptance": [
-      "Core SQL ambiguity candidate recovery names advertised ask_codebase with a quoted qualified source-name question and JSON output. Returned action can be followed to the complete selected declaration; candidate identity/ambiguity/source limits remain.",
-      "Full mode preserves the original query_schema tool/arguments and actual follow-up result. Core/Full advertised tool membership remains unchanged; no broad expansion or new activation UI.",
-      "No default schema, compiler binding or source deployment inferred. This is a finite new schema handoff correction, not closure of every specialist dependency or measured task benefit.",
-      "One Core/Full wanted-behavior native case and owned public proof join queued TODO31 and TODO28 for one combined native target and one release; no standalone build/full suite."
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-schema-recovery-20261116\\contract.json",
-    "previous_goal_turn_classification": "PROGRESS: third distinct Core handoff source fix committed/pushed, three original requirements frozen, all3focused native checks passed first attempt; one release running. No full/lib suite or extra debug build.",
-    "full_original_goal_active": true,
-    "next_action": "Poll existing release73496, never restart on observation timeout. Then package this frozen release, verify all three owned public workflows on candidate/installed, restore normal runtime and record evidence.",
-    "source_commit": "0526c02eb6e76f51e9516e2fe978370a18221175",
-    "progress_record": "eval/core-schema-recovery-progress-20261116.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116",
-    "source_freeze": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116\\release-plan.json",
-      "sha256": "15e581036707d4130e248644657e2ef4d148af0d78d87d9d534e3f64babdf461"
+    "delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+      "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
     },
-    "live_release_session": 73496,
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116\\native-acceptance.json",
-      "sha256": "ff72bba7b4e7715301548ce3f6c714337c6eaacfa6d64cc6733c5213f6b3ff2e"
-    }
+    "full_original_goal_active": true,
+    "previous_goal_turn_classification": "PROGRESS: installed three original source outcomes, passed24candidate and24installed checks, restored normal daemon. Timing correction demonstrates majority-coding promise unmet.",
+    "next_action": "Select next ready unfinished original requirement from retained backlog; preserve completed delivery, no further build for this batch."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3045,13 +3023,13 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
     "record": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\sql-graph-guidance-batch-delivery-20261116.json",
-      "sha256": "9a96ffda89a6bc4b9af46bba525eeb8e7be670266bcc81c36e8ba9bd58660e9b"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+      "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
     },
-    "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
-    "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
+    "runtime_source_commit": "acd634473c0416238cc2d3106f05736f7a675048",
+    "installed_server_sha256": "957953733d7f6ea1119afd112e0c5a45f756c45964bd2f8adeceed32057211dd"
   },
   "remaining_report_delivery_source_progress": "eval/remaining-report-delivery-progress-20261116.json",
   "safety_assessment_basis_source_progress": "eval/safety-assessment-basis-progress-20261116.json",
@@ -3109,5 +3087,9 @@
     "requested": "File path or requirements text",
     "does_not_stop_current_delivery": true,
     "at_utc": "2026-11-16T13:18:19.872152+00:00"
+  },
+  "lineage_routing_preset_batch_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\lineage-routing-preset-batch-delivery-20261116.json",
+    "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
   }
 }

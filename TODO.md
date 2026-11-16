@@ -396,6 +396,10 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed November16: resolved SQL-source tables select complete schema evidence
+  for ordinary descriptions without SQL keywords. Optional Core clarification
+  actions use its advertised entry point; Full remains unchanged.
+  [Delivery](eval/lineage-routing-preset-batch-delivery-20261116.json).
   Optional cited synthesis installed 2026-11-13. Default requests retain the
   deterministic evidence report; `synthesize: true` uses the configured model
   and checks evidence IDs and exact quotations without upgrading retrieval status.
@@ -464,6 +468,9 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed November16: resolved entries include source-verified existing value
+  lineage with separate helper contexts and exact bounded-report recovery.
+  [Delivery](eval/lineage-routing-preset-batch-delivery-20261116.json).
   Installed November16: reached literal qualified SQL writes connect to matching source DML trigger/event declarations and lexical body table references. Source citations and opt-outs are retained; deployment/enablement/execution and nested effects remain unknown. [Delivery](eval/sql-graph-guidance-batch-delivery-20261116.json).
   Installed November16: direct DBML table references through required
   typed VB parameters retain declaration/query/mapping citations and explicit
