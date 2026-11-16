@@ -2789,7 +2789,7 @@
   },
   "current_execution_focus": {
     "active_original_item": "Combined TODO4 / EG26 / TODO28 delivery",
-    "status": "SOURCE_CORRECTED_AWAITING_AFFECTED_VALIDATION",
+    "status": "AFFECTED_NATIVE_PASS_CORRECTED_RELEASE_RUNNING",
     "implementation_items_active": 0,
     "original_requirement": "TODO28 natural-language entry point for existing SQL schema workflows",
     "observed_missing_behavior": "Installed public ask_codebase labels a48column sales.Orders declaration question answered but its1200character snippets omit19columns; existing query_schema returns all48with typed nullability and raw hash/span citations.",
@@ -2807,9 +2807,9 @@
       "One native behavior check plus owned candidate/installed MCP proof joins the two queued requirements in one guarded native target and one release build."
     ],
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
-    "previous_goal_turn_classification": "PROGRESS: retained first release/candidate failure evidence, restored unchanged installed runtime, corrected ordinary ambiguous-table response handling and verifier assumptions, committed source; affected native check running with unaffected pass retained.",
+    "previous_goal_turn_classification": "PROGRESS: preserved first candidate failure, restored old installed runtime, committed/pushed cited ambiguity handling, passed the affected SQL native check with unaffected safety pass retained; corrected release14362 remains live. No full/lib suite or extra debug build.",
     "full_original_goal_active": true,
-    "next_action": "Only affected SQL native case, retain unaffected native safety pass; required corrected release. Candidate retains20unaffected public checks, reruns affected SQL; installed runs current binary all31checks.",
+    "next_action": "Poll existing corrected release14362; do not restart. Package this binary, retain20unaffected prior candidate checks with unchanged source proof, rerun affected SQL candidate, then install and run all31current public checks. Prior normal runtime restored while building.",
     "source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb",
     "progress_record": "eval/ask-sql-schema-progress-20261116.json",
     "source_freeze": {
@@ -2817,10 +2817,10 @@
       "sha256": "0f9b874b20abaa300c3ccdca8f219ec75512bd204beb4335dc4aff069ed3cff1"
     },
     "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116\\native-acceptance.json",
-      "sha256": "447ea72960a8a348e3affe3aeb7d21355679ff141a1c621256c6632eeb74f31a"
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116\\native-acceptance.json",
+      "sha256": "6cd8df45331e3a39872de9679242f355b72cdc83f03be4ddb8f592a311db0501"
     },
-    "live_release_session": null,
+    "live_release_session": 14362,
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-correction-20261116",
     "observed_failure": "Public schema ambiguity returns source candidate identities with citation at row root. New ask adapter incorrectly assumed every result was a full table; status ambiguous but provider failed with missing citation. Correct this existing finite ambiguity requirement. Other28checks passed; two verifier assumptions need correction. Old installed runtime restored."
   },
