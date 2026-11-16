@@ -10097,13 +10097,12 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "record": "eval/edit-safety-policy-progress-20261116.json",
-      "original_requirement_id": "EG-01",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\contract.json",
+      "original_requirement_id": "TODO-7",
+      "record": "eval/dossier-source-recovery-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dossier-source-recovery-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false,
-      "source_commit": "b9d89f6754c3f0277f52887fb46bfc80e9e3a149"
+      "deployed": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10135,7 +10134,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-01 scoped authored guidance in standalone method safety and change-completeness reports: both source-complete, awaiting one combined validation after other distinct requirements. No native build or release started.",
+    "active_original_item": "TODO7 source-dossier gap recovery source-complete. Queue with EG01 standalone editing guidance; no new build before at least a third distinct original source outcome.",
     "next_user_visible_deliverable": "Accumulate two additional distinct original LegacyValidation source outcomes before the next combined build. Standalone editing guidance is source-complete in two tools but counts as one requirement; the last installed runtime remains the source-policy batch.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."

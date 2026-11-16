@@ -533,7 +533,10 @@ impl Engram {
                         }
                         evidence.push(row);
                     },
-                    Err(_) => gaps.push(json!({"file_path":path, "reason":"Source unavailable, unselected, stale, non-UTF8 or exceeds evidence limits; no source claims admitted", "recovery":{"tool":"read_file","arguments":{"project_id":project_id,"file_path":path}}})),
+                    Err(_) => gaps.push(json!({"file_path":path, "reason":"Source unavailable, unselected, stale, non-UTF8 or exceeds evidence limits; no source claims admitted",
+                        "recovery":{"tool":"get_full_method_body","arguments":{"project_id":project_id,"file_path":path,
+                            "line_start":1,"context_lines":0,"output_json":true}},
+                        "recovery_scope":"Current source read only. Follow its next_page for remaining lines. This does not admit source into the captured dossier or verify indexed freshness. Refresh indexing and request a new dossier where needed."})),
                 }
             }
             (evidence, gaps, composition)

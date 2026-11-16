@@ -148,6 +148,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   brain that's always current and one that's minutes behind during active editing.
 
 - [x] **7. Actionable error messages with recovery hints** (M) — *done 2026-06-12: ProjectNotFound, no_hits, get_chunk not-found, find_symbol_references empty — all carry concrete next steps.*
+  Source-complete November16, awaiting combined validation: source-dossier gaps
+  now return the registered current-source reader instead of an unavailable
+  `read_file` tool, with a separate-read qualification that preserves admission.
+  [Pending source change](eval/dossier-source-recovery-progress-20261116.json).
   `error.rs` + all handlers. "doc_id not found" / wrong `project_id` / unindexed project
   errors give no next step. Every error an agent can hit should say what to do:
   "project_id 'X' unknown — call list_projects", "node not found — try resolve_symbol

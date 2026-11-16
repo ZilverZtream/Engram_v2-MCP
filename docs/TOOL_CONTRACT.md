@@ -1,5 +1,12 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: source-dossier admission gaps from
+`one_shot_feature_plan` recover through the registered `get_full_method_body`
+reader. The returned call requests a current file excerpt with normal source
+continuation and read limits. It does not add that source to the captured dossier
+or certify indexed freshness; refresh indexing and request a new dossier where
+needed. Dossier admission, generation calls and planner semantics are unchanged.
+
 Source-complete, awaiting combined validation: standalone `check_edit_safety`
 adds current scoped authored guidance for the canonical selected method file.
 Its verdict, confidence, evidence and unknown coverage retain their existing
