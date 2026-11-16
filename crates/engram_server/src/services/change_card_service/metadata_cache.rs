@@ -5,6 +5,8 @@ use super::*;
 use engram_core::Registry;
 use std::collections::{HashMap, HashSet};
 
+const FORMAT_VERSION: u32 = 1;
+
 pub(super) trait Store {
     fn lookup(&self, keys: &[String]) -> anyhow::Result<Vec<Option<Vec<u8>>>>;
     fn persist(
@@ -52,18 +54,13 @@ enum Decoded {
 }
 
 fn scope(root: &Path, repo: &Repository) -> anyhow::Result<String> {
-    // Include extraction implementation, rather than relying on developers to
-    // remember a version bump after changing generated filters/title parsing.
+    // Only the actual extraction implementation and persisted format define
+    // metadata compatibility. Tool/ranking/cache-maintenance edits must not
+    // discard immutable Git cards across application releases.
     static EXTRACTOR: LazyLock<blake3::Hash> = LazyLock::new(|| {
         let mut hash = blake3::Hasher::new();
-        for source in [
-            include_str!("../change_card_service.rs"),
-            include_str!("metadata_cache.rs"),
-            include_str!("../../handlers/pr_history_tools.rs"),
-        ] {
-            hash.update(&(source.len() as u64).to_le_bytes());
-            hash.update(source.as_bytes());
-        }
+        hash.update(include_str!("extraction.rs").as_bytes());
+        hash.update(&FORMAT_VERSION.to_le_bytes());
         hash.finalize()
     });
     let mut hash = blake3::Hasher::new();
@@ -91,7 +88,7 @@ fn encode(scope: &str, card: &ChangeCard) -> anyhow::Result<Vec<u8>> {
         .to_hex()
         .to_string();
     Ok(serde_json::to_vec(&Envelope {
-        version: 1,
+        version: FORMAT_VERSION,
         scope: scope.into(),
         metadata,
         checksum,
@@ -105,7 +102,7 @@ fn decode(bytes: &[u8], scope: &str, oid: Oid) -> Decoded {
     if value
         .get("version")
         .and_then(|v| v.as_u64())
-        .is_some_and(|v| v != 1)
+        .is_some_and(|v| v != u64::from(FORMAT_VERSION))
     {
         return Decoded::Future;
     }
@@ -141,7 +138,9 @@ fn decode(bytes: &[u8], scope: &str, oid: Oid) -> Decoded {
     let Ok(envelope) = serde_json::from_value::<Envelope>(value) else {
         return Decoded::Miss;
     };
-    if envelope.version != 1 || envelope.scope != scope || envelope.metadata.oid != oid.to_string()
+    if envelope.version != FORMAT_VERSION
+        || envelope.scope != scope
+        || envelope.metadata.oid != oid.to_string()
     {
         return Decoded::Miss;
     }

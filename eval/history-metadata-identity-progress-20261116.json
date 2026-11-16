@@ -1,0 +1,69 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-22",
+  "original_requirement": "Persistent change-card metadata cache: reuse unchanged history metadata across restarts and avoid repeatedly describing the same Git changes.",
+  "observed_missing_behavior": "The metadata namespace hashes entire change_card_service.rs, metadata_cache.rs and pr_history_tools.rs. Unrelated ranking, tool response and cache-handling edits invalidate every persisted card even when the extraction result is unchanged.",
+  "wanted_behavior": "Derive cache extraction identity from the actual metadata extractor, its limits/generated-file filter/shared PR-title parsing and persisted format version, retaining canonical repository identity. Unrelated callers and report/ranking code no longer invalidate immutable Git metadata. Keep all card fields/filtering/scope/cache validation unchanged.",
+  "implementation_files": [
+    "crates/engram_server/src/services/change_card_service.rs",
+    "crates/engram_server/src/services/change_card_service/metadata_cache.rs",
+    "crates/engram_server/src/handlers/pr_history_tools.rs",
+    "crates/engram_server/src/services/change_card_service/extraction.rs"
+  ],
+  "finite_acceptance": [
+    "Extractor and PR identity behavior remains byte-for-byte equivalent for the existing title/body/generated-file fixtures and persisted cache/restart cases.",
+    "Cache identity includes extraction source and persisted format version; repository identity isolation and invalid/corrupt/future-data handling remain. Parent tool/ranking/maintenance source is no longer a cache namespace input.",
+    "No immediate40-second or percentage speedup claim. The historical40.49s observation predates later delivery and does not attribute the whole delay to namespace invalidation. No actual LegacyValidation/Q operation or full-suite run."
+  ],
+  "build_rule": "First distinct requirement in the next source queue. Do not compile this item alone.",
+  "stop_rule": "Isolate metadata extraction dependency only; no new cache/store, wider history rewrite, ranking/model changes, language expansion, benchmark campaign or system investigation.",
+  "baseline_source_sha256": {
+    "crates/engram_server/src/services/change_card_service.rs": "3996cf6c8dfcc4cbfc62e19ef14b747cd0f2ce638c7c9147df85118865ab5339",
+    "crates/engram_server/src/services/change_card_service/metadata_cache.rs": "e046094b154b5ff169c593b97b34e15f37fc0edb07412ef35e62befe03f5a811",
+    "crates/engram_server/src/handlers/pr_history_tools.rs": "3aa089b5351cf5dfb33b9d77a174cdfebb3ca4a687bed5780a37a1658e59c34b"
+  },
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "relevance": "Current LegacyValidation configured Ollama runtime uses existing search_history precedent metadata before embedding. Cache reuse applies to its Git changes regardless of target language. No normal project traversal or language expansion."
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116",
+    "fixtures_created": false,
+    "owned_processes_started": false,
+    "retention": "Retain source/contract/equivalence receipt until superseded; no preexisting removal."
+  },
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "checks_completed": [
+    "Rust2024 syntax parsed; existing extraction/PR-parser bodies match the prior committed source after formatting and visibility/path adjustments.",
+    "Namespace now hashes only extraction.rs and persisted format1, retaining both canonical repository identities. No card field, generated-file rule, title parser or file/body limit changed.",
+    "No Cargo/native/public/release execution; one source-complete requirement only. Existing metadata cache and extraction fixtures will be selected in the next combined native validation."
+  ],
+  "checks_pending": [
+    "Focused native metadata/extractor/cache fixtures",
+    "Public candidate/installed history and unchanged-result acceptance after combined release"
+  ],
+  "limitations": [
+    "One cache namespace transition can cause an initial rebuild. Future unrelated ranking/tool changes no longer invalidate extraction identity.",
+    "No measured current40-second reduction, warm/cold timing claim, task benefit or global metadata readiness claim."
+  ],
+  "source_baseline": "b0f7d5d",
+  "source_sha256": {
+    "crates/engram_server/src/services/change_card_service.rs": "bde26c51cb40057945e2650b7a9e551a62ccde86aef2ef55a52ce9ef1c61c9dd",
+    "crates/engram_server/src/services/change_card_service/metadata_cache.rs": "7cec1404b0d1b5dc0d4f2800f54b2a4fa869ae3e774ebe4145925c10923fa6a9",
+    "crates/engram_server/src/handlers/pr_history_tools.rs": "8cc6fafd1c3c6956483abdb4181b29d9c7b7208ccefd6443f6ee49c32a03036b",
+    "crates/engram_server/src/services/change_card_service/extraction.rs": "163342d8b9452cef1e23520dbd7c71e8cad2c5cba2440159fa29cc5e978f2ec3"
+  }
+}

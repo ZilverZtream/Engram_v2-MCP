@@ -29,6 +29,11 @@ use std::path::Path;
 use std::sync::{Arc, LazyLock, Mutex};
 mod cache;
 mod metadata_cache;
+mod extraction;
+use extraction::{describe, MAX_CARD_FILES, MAX_DESCRIPTION};
+#[cfg(test)]
+use extraction::is_generated;
+pub(crate) use extraction::parse_pr_identity;
 #[cfg(test)]
 #[path = "change_card_service/semantic_budget_tests.rs"]
 mod semantic_budget_tests;
@@ -201,8 +206,6 @@ where
 /// reformats), never a precedent.
 pub const BULK_FILES: usize = 150;
 
-const MAX_DESCRIPTION: usize = 1500;
-const MAX_CARD_FILES: usize = 40;
 
 /// One published change.
 #[derive(Debug, Clone)]
@@ -256,17 +259,6 @@ impl CardFilter {
     }
 }
 
-/// Build output and dependency files that say nothing about a change's intent.
-fn is_generated(path: &str) -> bool {
-    static GENERATED: LazyLock<Regex> = LazyLock::new(|| {
-        Regex::new(
-            r"(?i)(\.designer\.(vb|cs)$|\.resx$|\.min\.(js|css)$|\.(js|css)\.map$|(^|/)(bin|obj|node_modules|dist|packages)/|\.(dll|exe|pdb)$|\.refresh$|\.dbml\.layout$|\.(csproj|vbproj|sqlproj|sln)$|packages\.config$|package-lock\.json$|yarn\.lock$|\.lock$)",
-        )
-        .expect("generated-file pattern")
-    });
-    GENERATED.is_match(path)
-}
-
 /// The first-parent line of `tip`, oldest first.
 fn first_parent_line(repo: &Repository, tip: Oid) -> anyhow::Result<Vec<Oid>> {
     let mut line = Vec::new();
@@ -277,48 +269,6 @@ fn first_parent_line(repo: &Repository, tip: Oid) -> anyhow::Result<Vec<Oid>> {
     }
     line.reverse();
     Ok(line)
-}
-
-/// A card's fields, from git (no vector yet).
-fn describe(repo: &Repository, oid: Oid) -> anyhow::Result<ChangeCard> {
-    let commit = repo.find_commit(oid)?;
-    let message = commit.message().unwrap_or("").trim().to_string();
-    let summary = commit.summary().unwrap_or("").to_string();
-    let hex = oid.to_string();
-    let (_, title) = crate::handlers::pr_history_tools::parse_pr_identity(&summary, &hex[..10]);
-    let description: String = message
-        .lines()
-        .skip(1)
-        .collect::<Vec<_>>()
-        .join("\n")
-        .trim()
-        .chars()
-        .take(MAX_DESCRIPTION)
-        .collect();
-    let tree = commit.tree()?;
-    let parent_tree = if commit.parent_count() == 0 { None } else {
-        Some(commit.parent(0)?.tree()?)
-    };
-    let diff = repo.diff_tree_to_tree(parent_tree.as_ref(), Some(&tree), None)?;
-    let mut files: Vec<String> = diff
-        .deltas()
-        .filter_map(|d| d.new_file().path().or_else(|| d.old_file().path()))
-        .map(|p| p.to_string_lossy().replace('\\', "/"))
-        .filter(|p| !is_generated(p))
-        .collect();
-    files.dedup();
-    let file_count = files.len();
-    files.truncate(MAX_CARD_FILES);
-    Ok(ChangeCard {
-        oid: hex,
-        title,
-        description,
-        author: commit.author().name().unwrap_or("").to_string(),
-        timestamp: commit.time().seconds().max(0) as u64,
-        files,
-        file_count,
-        vector: Vec::new(),
-    })
 }
 
 /// Text prepended to documents and queries before embedding. nomic-embed

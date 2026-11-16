@@ -2696,5 +2696,25 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/editing-report-batch-delivery-20261116.json",
     "full_original_goal_complete": false
+  },
+  "current_execution_focus": {
+    "active_original_item": "EG-22 persistent history metadata compatibility across unrelated releases",
+    "observed_missing_behavior": "The metadata namespace hashes entire change_card_service.rs, metadata_cache.rs and pr_history_tools.rs. Unrelated ranking, tool response and cache-handling edits invalidate every persisted card even when the extraction result is unchanged.",
+    "implementation_files": [
+      "crates/engram_server/src/services/change_card_service.rs",
+      "crates/engram_server/src/services/change_card_service/metadata_cache.rs",
+      "crates/engram_server/src/handlers/pr_history_tools.rs",
+      "crates/engram_server/src/services/change_card_service/extraction.rs"
+    ],
+    "finite_acceptance": [
+      "Extractor and PR identity behavior remains byte-for-byte equivalent for the existing title/body/generated-file fixtures and persisted cache/restart cases.",
+      "Cache identity includes extraction source and persisted format version; repository identity isolation and invalid/corrupt/future-data handling remain. Parent tool/ranking/maintenance source is no longer a cache namespace input.",
+      "No immediate40-second or percentage speedup claim. The historical40.49s observation predates later delivery and does not attribute the whole delay to namespace invalidation. No actual LegacyValidation/Q operation or full-suite run."
+    ],
+    "progress_record": "eval/history-metadata-identity-progress-20261116.json",
+    "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
   }
 }

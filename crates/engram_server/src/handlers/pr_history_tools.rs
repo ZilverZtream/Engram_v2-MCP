@@ -174,40 +174,7 @@ fn exemplar_title_rank(story: &str, content: &str) -> (usize, usize, usize, usiz
     (primary.0, primary.1, all.0, all.1)
 }
 
-/// Parse a PR identity from a first-parent commit summary.
-/// Returns (pr_id, title). Falls back to the short oid + full summary for
-/// direct pushes so the corpus still covers repos without PR discipline.
-pub(crate) fn parse_pr_identity(summary: &str, short_oid: &str) -> (String, String) {
-    static ADO_RE: LazyLock<regex::Regex> =
-        LazyLock::new(|| regex::Regex::new(r"(?i)^merged pr (\d+)\s*:?\s*(.*)$").expect("ADO_RE"));
-    static GH_RE: LazyLock<regex::Regex> = LazyLock::new(|| {
-        regex::Regex::new(r"(?i)^merge pull request #(\d+)(?:\s+from\s+\S+)?\s*(.*)$")
-            .expect("GH_RE")
-    });
-    if let Some(c) = ADO_RE.captures(summary) {
-        let title = c[2].trim().to_string();
-        return (
-            format!("PR-{}", &c[1]),
-            if title.is_empty() {
-                summary.to_string()
-            } else {
-                title
-            },
-        );
-    }
-    if let Some(c) = GH_RE.captures(summary) {
-        let title = c[2].trim().to_string();
-        return (
-            format!("PR-{}", &c[1]),
-            if title.is_empty() {
-                summary.to_string()
-            } else {
-                title
-            },
-        );
-    }
-    (format!("commit-{short_oid}"), summary.to_string())
-}
+pub(crate) use crate::services::change_card_service::parse_pr_identity;
 
 /// Coarse domain classification from file paths: the top-2 most common
 /// directory prefixes (up to 4 segments, vendor-filtered). Deliberately

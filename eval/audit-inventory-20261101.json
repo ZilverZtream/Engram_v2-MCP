@@ -10101,9 +10101,9 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "TODO-4",
-      "record": "eval/explain-change-report-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\explain-change-report-20261116\\contract.json",
+      "original_requirement_id": "EG-22",
+      "record": "eval/history-metadata-identity-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
@@ -10138,7 +10138,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Standalone editing guidance, executable dossier recovery and budgeted explanations installed; normal runtime restored. No implementation item active until the next concrete unfinished original requirement is selected.",
+    "active_original_item": "EG-22 persistent history metadata compatibility across unrelated releases",
     "next_user_visible_deliverable": "Continue the original unfinished backlog with a finite source contract; preserve the delivered batch and accumulate distinct outcomes before another compile. Current mechanical tool deliveries do not establish task benefit or full goal completion.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -15846,7 +15846,24 @@
       "full_original_goal_scope_unchanged": true,
       "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
       "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact."
-    }
+    },
+    "observed_missing_behavior": "The metadata namespace hashes entire change_card_service.rs, metadata_cache.rs and pr_history_tools.rs. Unrelated ranking, tool response and cache-handling edits invalidate every persisted card even when the extraction result is unchanged.",
+    "implementation_files": [
+      "crates/engram_server/src/services/change_card_service.rs",
+      "crates/engram_server/src/services/change_card_service/metadata_cache.rs",
+      "crates/engram_server/src/handlers/pr_history_tools.rs",
+      "crates/engram_server/src/services/change_card_service/extraction.rs"
+    ],
+    "finite_acceptance": [
+      "Extractor and PR identity behavior remains byte-for-byte equivalent for the existing title/body/generated-file fixtures and persisted cache/restart cases.",
+      "Cache identity includes extraction source and persisted format version; repository identity isolation and invalid/corrupt/future-data handling remain. Parent tool/ranking/maintenance source is no longer a cache namespace input.",
+      "No immediate40-second or percentage speedup claim. The historical40.49s observation predates later delivery and does not attribute the whole delay to namespace invalidation. No actual LegacyValidation/Q operation or full-suite run."
+    ],
+    "progress_record": "eval/history-metadata-identity-progress-20261116.json",
+    "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "native_tests_run": false,
+    "public_acceptance_run": false,
+    "deployed": false
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
