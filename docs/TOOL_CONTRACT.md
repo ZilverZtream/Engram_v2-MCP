@@ -1345,3 +1345,12 @@ its ranking weight is unchanged. Existing history-diff and other-provider excerp
 retrieval windows, scopes and historical-request routing stay unchanged. Complete
 question reports use the existing whole-report budget and immutable recovery;
 saved recovery does not query a later Git HEAD or promote historical intent.
+
+Pending source change, not yet compiled or installed: `batch_read` also accepts
+typed `read_memory_bank` requests for project and user sections. It calls the
+ordinary reader, preserving section identity/content, provenance, per-read JSON
+and budgets, byte/line citations and expected-raw-hash refusal. Read errors remain
+independent and correlate to the original request IDs. The shared budget omits
+whole results with their complete single-tool recovery arguments. An uncited
+recovery is a fresh read; hash-bound recovery refuses changed stored content.
+This does not write memory, adopt its prose, or provide an atomic snapshot.

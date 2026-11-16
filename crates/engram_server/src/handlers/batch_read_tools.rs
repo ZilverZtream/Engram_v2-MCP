@@ -148,6 +148,11 @@ impl Engram {
                 }
                 BatchReadOperation::ResolveId(arguments) => self.handle_resolve_id(arguments).await,
                 BatchReadOperation::Chunk(arguments) => self.handle_get_chunk(arguments).await,
+                BatchReadOperation::MemorySection(arguments) => {
+                    // Keep the ordinary section identity, provenance, byte/line
+                    // citation guards and per-read document delivery contract.
+                    self.handle_read_memory_bank(arguments).await
+                }
                 BatchReadOperation::Schema(arguments) => {
                     // Preserve the normal source/citation, policy, caller-budget
                     // and saved-result recovery contract for each SQL read.

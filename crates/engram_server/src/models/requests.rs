@@ -1912,7 +1912,7 @@ pub struct MemorySectionRequest {
 }
 
 /// Read-only request; delete_memory_bank intentionally retains MemorySectionRequest.
-#[derive(Debug, Clone, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Deserialize, Serialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct ReadMemoryBankRequest {
     /// Complete reply budget, estimated as ceil(UTF-8 text bytes / 4).
@@ -4041,6 +4041,8 @@ pub enum BatchReadOperation {
     MethodBody(GetFullMethodBodyRequest),
     #[serde(rename = "query_schema")]
     Schema(QuerySchemaRequest),
+    #[serde(rename = "read_memory_bank")]
+    MemorySection(ReadMemoryBankRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.
