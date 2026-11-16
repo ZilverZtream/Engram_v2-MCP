@@ -277,7 +277,7 @@ async fn healthy_write_and_prewrite_validation_keep_their_original_outcomes() {
             .contains("Updated memory_bank: workflow")
     );
     let invalid = fixture.engram.handle_update_memory_bank(serde_json::from_value(json!({
-        "project_id":PID,"section_id":"../invalid","section":"Invalid","content":"Do not persist"
+        "project_id":PID,"section_id":"invalid","section":"Invalid","kind":"unsupported","content":"Do not persist"
     })).unwrap()).await;
     assert!(invalid.is_err());
     assert!(
