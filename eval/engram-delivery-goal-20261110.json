@@ -2787,8 +2787,8 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO28 natural-language entry point for existing SQL schema workflows",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "active_original_item": "Combined TODO4 / EG26 / TODO28 delivery",
+    "status": "FOCUSED_NATIVE_PASS_SINGLE_RELEASE_RUNNING",
     "implementation_items_active": 0,
     "original_requirement": "TODO28 natural-language entry point for existing SQL schema workflows",
     "observed_missing_behavior": "Installed public ask_codebase labels a48column sales.Orders declaration question answered but its1200character snippets omit19columns; existing query_schema returns all48with typed nullability and raw hash/span citations.",
@@ -2806,11 +2806,21 @@
       "One native behavior check plus owned candidate/installed MCP proof joins the two queued requirements in one guarded native target and one release build."
     ],
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
-    "previous_goal_turn_classification": "NO_PROGRESS: previous user-status turn read existing timing only. Revalidated queue now and public SQL baseline changes next action:19missing source columns despite answered status; selected reuse of existing schema reader.",
+    "previous_goal_turn_classification": "PROGRESS: SQL source implementation committed/pushed, three original requirements frozen, both native behaviors passed first attempt, one release build running. No full/lib suite or extra debug server build.",
     "full_original_goal_active": true,
-    "next_action": "Freeze three source outcomes in existing shipping checkout, one focused native target and one release, then same candidate/installed public proofs.",
+    "next_action": "Poll existing release session32930; do not restart on observation timeout. Then package and run owned candidate/installed proofs with the exact same single release, restore normal runtime, record identity and advance.",
     "source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb",
-    "progress_record": "eval/ask-sql-schema-progress-20261116.json"
+    "progress_record": "eval/ask-sql-schema-progress-20261116.json",
+    "source_freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116\\release-plan.json",
+      "sha256": "cacf00128ea3045230794334f67d0b2fee8a959e4864053b25ebd7c17a8701b2"
+    },
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116\\native-acceptance.json",
+      "sha256": "447ea72960a8a348e3affe3aeb7d21355679ff141a1c621256c6632eeb74f31a"
+    },
+    "live_release_session": 32930,
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\reports-safety-sql-batch-20261116"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
