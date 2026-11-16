@@ -1021,3 +1021,13 @@ remains a fresh query against source fingerprints. The existing8MiB/24hour/
 objects or establish current freshness/deployed state. Composed feature planning
 keeps its existing complete-context size gate and never treats a deferred report
 manifest as supplied schema evidence.
+# Area draft review evidence
+
+Area instruction drafting uses declared review-decision scope to select retained
+decisions for the selected source paths. Exact declared paths take precedence over
+incidental path mentions in rationale or finding text. Legacy unscoped decisions
+remain discoverable through complete relative-path mentions; basename matches do
+not establish relevance. Selected records retain their conditions, reviewed commit,
+record hash and exact recovery action. Selection establishes a retrieval lead only:
+current revision applicability and authority remain unestablished. Existing bounded
+discovery limits remain disclosed, and drafting writes no authored files.

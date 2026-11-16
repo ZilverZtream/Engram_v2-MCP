@@ -398,12 +398,14 @@ pub async fn assemble(
         let relevant: Vec<_> = files.values().filter(|f| f.roles.contains("area_implementation") || f.roles.contains("consumer") || f.roles.contains("consumer_recovery_candidate"))
             .map(|f| f.path.clone()).collect();
         let review = match crate::handlers::review_decisions::discover(&state, &pid, 8, |event|
-            relevant.iter().any(|path| event.rationale.contains(path) || event.finding_id.contains(path))) {
+            crate::handlers::review_decisions::relevant_to_paths(event, &relevant)) {
             Ok(discovery) => json!({"coverage":discovery.coverage,"items":discovery.candidates.into_iter().map(|candidate| {
                 let effective_status = crate::handlers::review_decisions::effective_status(&candidate.event, "externally_attested_fix_not_reverified");
                 let workflow_only = crate::handlers::review_decisions::workflow_disposition_only(&candidate.event);
                 json!({"review_id":candidate.review_id,"event":candidate.event,"record_blake3":candidate.record_blake3,
                     "effective_status":effective_status,"workflow_disposition_only":workflow_only,
+                    "selection_basis":if candidate.event.scope.is_some(){"declared_scope_intersection"}else{"unscoped_complete_path_mention"},
+                    "scope_and_revision_applicability":"not_established; review the retained source revision, conditions and authority before using this declaration as policy",
                     "authority":"imported declaration, not authenticated policy or proof of accepted scope",
                     "recovery":{"tool":"get_review_decisions","arguments":{"project_id":pid,"review_id":candidate.review_id}}})
             }).collect::<Vec<_>>() }),

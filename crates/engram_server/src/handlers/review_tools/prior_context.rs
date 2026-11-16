@@ -80,25 +80,7 @@ fn referenced_file(content: &str) -> Option<String> {
 // Match the whole relative path, allowing a leading slash and line suffix;
 // reject basename-only and longer-path substrings. No boilerplate word scoring.
 fn mentions_changed_path(event: &ReviewDecision, paths: &[String]) -> bool {
-    if let Some(scope) = &event.scope {
-        return scope.paths.iter().any(|path| paths.contains(&normalized(path)));
-    }
-    let path_char = |c: char| c.is_alphanumeric() || matches!(c, '/' | '_' | '-' | '.');
-    for source in [&event.rationale, &event.finding_id] {
-        let text = normalized(source);
-        for path in paths.iter().filter(|path| !path.is_empty()) {
-            for (start, _) in text.match_indices(path) {
-                let before = &text[..start];
-                let before_ok = before.chars().next_back().is_none_or(|c| !path_char(c))
-                    || before.strip_suffix('/').is_some_and(|prefix|
-                        prefix.chars().next_back().is_none_or(|c| !path_char(c)));
-                let after_ok = text[start + path.len()..].chars().next()
-                    .is_none_or(|c| !path_char(c));
-                if before_ok && after_ok { return true; }
-            }
-        }
-    }
-    false
+    review_decisions::relevant_to_paths(event, paths)
 }
 
 fn identity(path: &str) -> Option<(u64, u64)> {

@@ -241,6 +241,36 @@ pub(crate) struct DecisionDiscovery {
     pub coverage: serde_json::Value,
 }
 
+/// Relevance is a retrieval lead, never authority or current-revision approval.
+/// Explicit declared scope takes precedence over incidental prose mentions.
+pub(crate) fn relevant_to_paths(event: &ReviewDecision, selected: &[String]) -> bool {
+    let normalize = |path: &str| {
+        let path = path.replace('\\', "/").trim_start_matches('/').to_owned();
+        if cfg!(windows) { path.to_ascii_lowercase() } else { path }
+    };
+    let paths = selected.iter().map(|path| normalize(path))
+        .filter(|path| !path.is_empty()).collect::<std::collections::BTreeSet<_>>();
+    if let Some(scope) = &event.scope {
+        return scope.paths.iter().any(|path| paths.contains(&normalize(path)));
+    }
+    let path_char = |c: char| c.is_alphanumeric() || matches!(c, '/' | '_' | '-' | '.');
+    for source in [&event.rationale, &event.finding_id] {
+        let text = normalize(source);
+        for path in &paths {
+            for (start, _) in text.match_indices(path.as_str()) {
+                let before = &text[..start];
+                let before_ok = before.chars().next_back().is_none_or(|c| !path_char(c))
+                    || before.strip_suffix('/').is_some_and(|prefix|
+                        prefix.chars().next_back().is_none_or(|c| !path_char(c)));
+                let after_ok = text[start + path.len()..].chars().next()
+                    .is_none_or(|c| !path_char(c));
+                if before_ok && after_ok { return true; }
+            }
+        }
+    }
+    false
+}
+
 /// Discover only identities explicitly recorded with their event arrays. Old
 /// BLAKE3 keys contain no recoverable review ID: never infer one from a URL or
 /// rationale. Those rows remain recoverable by exact ID through the public tool.
@@ -311,7 +341,7 @@ pub(crate) fn discover(
         "serialized_record_bytes_read":record_bytes_read,
         "per_record_byte_cap":DISCOVERY_RECORD_BYTES,"total_record_byte_cap":DISCOVERY_TOTAL_BYTES,
         "legacy_identity_coverage":"Unknown: older hashed rows without identity companions cannot be discovered. Read by the original review_id, or record the unchanged original events with that exact ID to add a companion. No IDs are inferred and no old arrays are migrated by discovery.",
-        "relevance":"Explicit scope must intersect a changed path; legacy events require a complete changed relative path in the rationale or finding ID. Declared scope and text relevance do not authenticate authority or establish semantic applicability.",
+        "relevance":"Explicit scope must intersect a selected path; legacy events require a complete selected relative path in the rationale or finding ID. Declared scope and text relevance do not authenticate authority or establish semantic applicability.",
         "observation_scope":"Independent current metadata observations, not an atomic corpus snapshot or historical replay. Missing, malformed, oversized and uninspected records establish no absence of decisions."
     }) })
 }

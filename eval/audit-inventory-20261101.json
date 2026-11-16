@@ -3266,7 +3266,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
+        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -10085,13 +10085,12 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "record": "eval/schema-report-recovery-progress-20261116.json",
-      "original_requirement_id": "TODO-4",
-      "source_commit": "5a3f5b226b490ce4fab988475c35624d4bcf2bc0",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
+      "original_requirement_id": "EG-14",
+      "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false
+      "deployed": false,
+      "record": "eval/area-decision-scope-progress-20261116.json"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10123,8 +10122,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO-4 complete query_schema report recovery source-complete and queued with TODO-8 canonical method callees. No implementation item active until a third distinct original requirement is selected; no compile yet.",
-    "next_user_visible_deliverable": "Finish a third distinct useful original source outcome before one focused combined native target and one release. Canonical method callees and complete schema-report recovery are source-complete but remain unvalidated/uninstalled. Prior installed batch remains delivered.",
+    "active_original_item": "EG-14 declared-scope area review evidence: source complete; third distinct requirement in the pending batch.",
+    "next_user_visible_deliverable": "Canonical method callees, complete schema-report recovery and scope-aware area decision evidence; one focused combined validation/release, no full suites.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
