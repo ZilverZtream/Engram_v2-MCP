@@ -1,0 +1,59 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-20",
+  "related_preserved_requirement": "EG-21",
+  "original_requirement": "Usable capability-aware history for AI: discover and inspect complete retained prior work without treating previews as full evidence.",
+  "source_commit": "40889ab8c66b4740693ec7dab3836d97c48b40f6",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/history_commit.rs",
+    "crates/engram_server/src/handlers/mod.rs",
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/handlers/history_response.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/history_commit_detail_tests.rs",
+    "crates/engram_server/tests/request_history_batch_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\contract.json",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116",
+  "observed_missing_behavior": "History recovery offers shell Git actions and exact indexed chunks, but no MCP action reads a selected commit full message and complete first-parent changed-file cohort. Precedent cards retain1500description characters and40nongenerated paths.",
+  "implemented": "Existing history leads provide complete_git_commit MCP actions. search_history mode=commit reads one exact Git message and full first-parent file cohort including generated paths/object identities, under explicit or published revision scope. No history index, embedding, model or cache-metadata extraction change. Existing retained-result delivery preserves the complete original across later HEAD/disk changes.",
+  "finite_acceptance": [
+    "search_history mode=commit uses query=exact40hexOID; return original UTF8message/hash, author/time/parents and every first-parent changed path/status/blob identity, including generated paths. No new search ranking, embeddings, LLM or history reindex.",
+    "Require commit reachable from explicit as_of_rev or existing origin default root; missing/unresolved scope or outside-scope commit refuses. File/author/date search filters are not silently ignored in commit mode. Normal auto/text/precedent behavior remains.",
+    "Existing history rows offer a followable search_history commit recovery action with an explicit commit scope and existing retain_response immutable MCP recovery. Complete metadata and selected files survive subsequent HEAD movement, disk edits and recovery. This does not supply patch bodies, current policy or approval/deployment proof.",
+    "One owned VB/TS/SQL Git fixture has48changed paths including generated metadata and a message beyond preview length; compare returned exact message/hash and files against independently authored Git objects, scope refusal and saved recovery. Queue native behavior proof with earlier browser-caller outcome; no standalone Cargo."
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\baseline1\\acceptance.json",
+    "sha256": "3fc64fb1a9b1e136506e108c0bc523d0b7adfec3acbdb5dff06aaa67292e38ab"
+  },
+  "baseline_reconciliation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\baseline-reconciliation.json",
+    "sha256": "33117eef232e16c2d3b87e8652df0386b6c078af9f53b435070d6f8148969a41"
+  },
+  "compiled": false,
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "native_case_written": "selected_git_change_retains_full_message_complete_cohort_and_revision_scope",
+  "native_target": "request_history_batch_tests",
+  "checks_completed": [
+    "Installed owned preview omits message tail/late source companion; retained raw RPC response proves commit mode absent. Initial generic-exception assertion failed; raw-response reconciliation retained without replay.",
+    "Rust2024 syntax and selected whitespace checks passed. One focused native wanted-behavior case and future public driver prepared, neither executed."
+  ],
+  "configuration_relevance": "Original usable-history workflow for VB/JS/TS/SQL changes. Normal installed LegacyValidation config hash3f96687... and source3151 unchanged; no actual LegacyValidation/Q bodies read. No overall task benefit or complete EG20/21 closure claimed.",
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116",
+    "baseline_owner_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "new_compilations": 0,
+    "new_worktree_created": false,
+    "protected_wip9_preserved": true,
+    "retention": "Keep contract/baseline/raw-error/oracle/source evidence until reviewed or superseded. Native/current-source public checks have not run."
+  },
+  "next_action": "Freeze reused shipping checkout with queued browser caller source and verified archive bootstrap. One focused combined native target covers the two runtime outcomes; one release then actual candidate/installed workflows. Preserve the accepted installer script proof and verify matching distribution packaging without another compiler.",
+  "at_utc": "2026-11-16T16:41:20.312541+00:00"
+}
