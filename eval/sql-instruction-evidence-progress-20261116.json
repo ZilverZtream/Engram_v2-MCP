@@ -18,9 +18,9 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\baseline1\\acceptance.json",
   "baseline_checks_passed": 4,
   "native_target": "sql_instruction_evidence_tests",
-  "native_execution": "NOT_RUN; third distinct original source outcome joins trigger tracing and grouped graph delivery for combined validation.",
+  "native_execution": "FOCUSED_BEHAVIOR_PASS_FIRST_ATTEMPT",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "runtime_acceptance": "AWAITING_SINGLE_RELEASE_PUBLIC_PROOF",
   "deployed": false,
   "timing": {
     "baseline_seconds": 2.2807562351226807,
@@ -38,5 +38,8 @@
     "Existing declaration/candidate/reference/work/response budgets and generic stale proposal guard remain. No parser framework, model call, source scan of actual LegacyValidation/Q, or policy write.",
     "Existing whole-instruction suite contains a historical SQL-function unsupported-extractor assertion inconsistent with prior SQL-procedure support. Recorded as a preexisting test/status reconciliation issue; not expanded into a new implementation task.",
     "Native/public new-source acceptance and deployment pending; full EG27 and broader task usefulness remain unfinished."
-  ]
+  ],
+  "native_tests_run": true,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\native-acceptance.json",
+  "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86"
 }

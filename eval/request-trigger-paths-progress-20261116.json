@@ -26,9 +26,9 @@
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\baseline1\\acceptance.json",
   "baseline_checks_passed": 4,
   "native_target": "request_trigger_paths_tests",
-  "native_execution": "NOT_RUN; one next-batch original source outcome, wait for at least three independent requirements.",
+  "native_execution": "FOCUSED_BEHAVIOR_PASS_FIRST_ATTEMPT",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "runtime_acceptance": "AWAITING_SINGLE_RELEASE_PUBLIC_PROOF",
   "deployed": false,
   "source_checks": [
     "New implementation and dedicated native behavior target parsed/formatted with rustfmt; existing source syntax parsed without formatting unrelated code.",
@@ -47,5 +47,8 @@
     "Only exact qualified literal write/event matches; dynamic/alias names, default schemas, trigger enablement/deployment/execution and nested trigger/procedure effects remain unresolved.",
     "Trigger body table references use existing lexical basename convention; pseudo inserted/deleted tables are not physical dependencies. Existing128path cap discloses omitted paths.",
     "One dedicated native behavior function prepared, not executed. No claim of installed functionality or full TODO31 completion."
-  ]
+  ],
+  "native_tests_run": true,
+  "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\native-acceptance.json",
+  "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86"
 }

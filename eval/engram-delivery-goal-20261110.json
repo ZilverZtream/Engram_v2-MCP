@@ -2772,7 +2772,7 @@
   },
   "current_execution_focus": {
     "active_original_item": "EG-27 SQL declaration evidence for authored instructions",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "FOCUSED_NATIVE_PASS_SOLE_RELEASE_RUNNING",
     "implementation_items_active": 0,
     "original_requirement": "Instruction evidence dependencies include referenced files/symbols and distinguish relevant source changes while preserving scope, raw hashes and authority uncertainty.",
     "observed_missing_behavior": "SQL evidence capture extracts stored procedures only. Ordinary table/view/trigger identifiers in authored SQL guidance remain unresolved despite the existing shared SQL declaration catalog.",
@@ -2788,8 +2788,9 @@
     ],
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
     "full_original_goal_active": true,
-    "previous_goal_turn_classification": "PROGRESS: policy/revert/migration installed with37public checks per candidate/installed; grouped graph reader source committed and queued with trigger tracing.",
-    "next_action": "One focused native target then one release for all three original source outcomes; preserve unaffected passes and reuse release for candidate/installed."
+    "previous_goal_turn_classification": "PROGRESS: three installed workflow outcomes recorded/pushed and grouped graph source queued; current turn adds SQL instruction evidence, passes the focused native target first attempt and starts one release.",
+    "next_action": "Reuse the running sole release for public MCP candidate/installed proof and deployment. No new Cargo or broadened acceptance.",
+    "concurrent_validation": "Previous batch installed and restored. This current source batch passed both native checks on first attempt; release65532confirmed live."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2877,5 +2878,15 @@
     "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
     "installed_server_sha256": "54ae7bf78084f76c88cf9952fd178e39258a1843eec509528159d00f9c8d740d"
   },
-  "sql_instruction_evidence_source_progress": "eval/sql-instruction-evidence-progress-20261116.json"
+  "sql_instruction_evidence_source_progress": "eval/sql-instruction-evidence-progress-20261116.json",
+  "sql_graph_guidance_batch_progress": {
+    "status": "NATIVE_PASS_SOLE_RELEASE_RUNNING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116",
+    "native_cases_passed": 2,
+    "native_runner_seconds": 182.46355910005514,
+    "native_attempts": 1,
+    "release_builds": 1,
+    "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+    "not_yet_deployed": true
+  }
 }
