@@ -2554,7 +2554,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-27",
+        "outcome": "JS/TS key traces include source-admitted store-wide browser clear candidates",
+        "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
+        "progress": "eval/browser-store-clear-progress-20261116.json",
+        "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+        "counts_as_independent_deliverables": 1
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2684,7 +2693,16 @@
     "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
     "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
-  "following_batch_pending": [],
+  "following_batch_pending": [
+    {
+      "original_requirement_id": "TODO-27",
+      "outcome": "JS/TS key traces include source-admitted store-wide browser clear candidates",
+      "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
+      "progress": "eval/browser-store-clear-progress-20261116.json",
+      "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+      "counts_as_independent_deliverables": 1
+    }
+  ],
   "method_schema_area_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
@@ -2701,16 +2719,22 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Completed browser caller/history/archive batch",
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "active_original_item": "TODO27 JS/TS store-wide clear candidates in authentication state tracing",
+    "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+    "original_requirement_id": "TODO-27",
     "implementation_items_active": 0,
-    "delivery": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-history-archive-batch-delivery-20261116.json",
-      "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
-    },
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\contract.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116",
+    "finite_acceptance": [
+      "Emit unshadowed JS/TS localStorage/sessionStorage clear() syntax as distinct store-wide mutation state edges, keeping them separate from literal keys and preserving source byte/line/hash evidence. Existing lexical shadow checks apply.",
+      "Key-specific trace_state_usage includes bounded source-admitted whole-store clear candidates even when a file has no access to that literal key. Distinguish local/session stores and source candidates from browser origin/tab/session and runtime execution. Ordinary trace remains visible.",
+      "A new per-script extraction marker makes old indexes require the relevant refresh. Preserve parked WIP9; changes use existing browser extractor, non-WIP postprocessing/source contract and a separate public handler wrapper. No language expansion or new storage interpreter.",
+      "Owned JS/TS auth-flow fixture verifies literal readers/writers plus two clear candidates, unrelated-store/shadow controls, changed-source withholding and existing complete report recovery. Queue without Cargo until three distinct original source outcomes are ready."
+    ],
     "full_original_goal_active": true,
-    "previous_goal_turn_classification": "PROGRESS: same release passed16candidate and16installed public checks,3default-scope checks, matching219entry ZIP ready, normal runtime restored. Native2fixture failures retained; no native recompile/full suite.",
-    "next_action": "Advance another ready unfinished original requirement from retained backlog; no further compilation or replay for this accepted batch."
+    "next_action": "Select the next ready original requirement; retain this one in the pending queue. No Cargo before three independent source outcomes. Current implementation is not compiled, validated or installed.",
+    "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
+    "source_progress": "eval/browser-store-clear-progress-20261116.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
