@@ -44,5 +44,6 @@
     "baseline_fixture_removed": true,
     "baseline_process_closed": true,
     "retained": "Two pinned source copies, finite contract, verification driver and raw baseline evidence. Keep for acceptance and review; no preexisting folders removed."
-  }
+  },
+  "source_commit": "f1d1ef400e7e5db0a07d0ac4f5c60004a37829f4"
 }
