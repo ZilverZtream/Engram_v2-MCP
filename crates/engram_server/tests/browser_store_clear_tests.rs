@@ -169,7 +169,7 @@ async fn browser_key_trace_retains_store_wide_clear_sources_and_original_recover
     fixture
         .server
         .handle_update_project(serde_json::from_value(json!({
-            "project_id":project,"wait":true
+            "project_id":project,"wait":true,"only_paths":["callback.js"]
         }))?)
         .await?;
     let refreshed = fixture
