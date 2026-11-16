@@ -55,5 +55,11 @@
     "Rust2024 syntax parsed, new integration fixture formatted, exact handler/config interfaces inspected and selected-path diff whitespace check passed. No Cargo/test/release invocation.",
     "Only refusal recovery descriptor and qualification changed. Source admission, initial paths, discovery, generation, ranking, limits and planner prompts are untouched."
   ],
-  "source_commit": "da72c8f7a2b75a34e0e03a654a20a006a5758018"
+  "source_commit": "da72c8f7a2b75a34e0e03a654a20a006a5758018",
+  "runtime_source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/handlers/feature_plan_tools.rs": "440b38e033f13b256aa683e073a853d7c6546495751c787ef599a6e49517bf18",
+    "crates/engram_server/tests/dossier_source_recovery_tests.rs": "5a4f3119254d65a14c428b3cf990455144c1de4cd7d258b2bcccd839e9f86fdb"
+  }
 }

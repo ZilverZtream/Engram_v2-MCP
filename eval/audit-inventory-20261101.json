@@ -15936,7 +15936,8 @@
         "component_source_commits": [
           "6e3577ce17c7530b5def32ae7449fe5aa6976799",
           "b9d89f6754c3f0277f52887fb46bfc80e9e3a149"
-        ]
+        ],
+        "runtime_source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5"
       },
       {
         "original_requirement_id": "TODO-7",
@@ -15944,7 +15945,17 @@
         "source_commit": "da72c8f7a2b75a34e0e03a654a20a006a5758018",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dossier-source-recovery-20261116\\contract.json",
         "progress_record": "eval/dossier-source-recovery-progress-20261116.json",
-        "user_outcome": "Source-dossier gaps return the registered current-source reader with usable arguments and explicit separate-read qualification; original evidence admission and zero-generation behavior remain. Source complete; validation/installation pending."
+        "user_outcome": "Source-dossier gaps return the registered current-source reader with usable arguments and explicit separate-read qualification; original evidence admission and zero-generation behavior remain. Source complete; validation/installation pending.",
+        "runtime_source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5"
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "808cda0cd8f1ad29d9b31380abf414ecbc40cc6b",
+        "runtime_source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\explain-change-report-20261116\\contract.json",
+        "progress_record": "eval/explain-change-report-progress-20261116.json",
+        "user_outcome": "Existing JSON/Markdown diff explanations retain fitting default results and recover complete selected narratives/commit/PR/changelog output under caller budgets. Source complete; validation/installation pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -15981,24 +15992,23 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
-    "pending_count": 2,
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "pending_count": 3,
     "independent_requirements_source_complete": [
       "EG-01",
-      "TODO-7"
+      "TODO-7",
+      "TODO-4"
     ],
     "native_builds": 0,
     "release_builds": 0,
-    "minimum_before_compile": 3,
-    "last_installed_record": "eval/source-policy-batch-delivery-20261116.json",
-    "source_components": 3
+    "minimum_before_compile": 3
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -16057,9 +16067,12 @@
     "full_original_goal_complete": false
   },
   "immediate_next_delivery": {
-    "status": "SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "last_delivered_record": "eval/source-policy-batch-delivery-20261116.json",
-    "pending_source_records": [],
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "pending_source_records": [
+      "eval/edit-safety-policy-progress-20261116.json",
+      "eval/dossier-source-recovery-progress-20261116.json",
+      "eval/explain-change-report-progress-20261116.json"
+    ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },

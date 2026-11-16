@@ -81,5 +81,14 @@
   "component_source_commits": [
     "6e3577ce17c7530b5def32ae7449fe5aa6976799",
     "b9d89f6754c3f0277f52887fb46bfc80e9e3a149"
-  ]
+  ],
+  "runtime_source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "70f996c804425932a649cc67be610c45f5ed36db51548323ad38bf399a2d6269",
+    "crates/engram_server/src/handlers/method_body_policy.rs": "03089c1fc6b44229138804115a0839a09b75b26c68e3ee0d325122a72154d104",
+    "crates/engram_server/src/tools.rs": "4d5159b279eb3854c2b68a45f217f01d9297aadff2c0a13429efc0c6227341b7",
+    "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "ded95659202fa209a2c846a68c5672281a298154faf4848f5c8d3128a324746e",
+    "crates/engram_server/src/handlers/planning_tools.rs": "1308d36acd6a40ea71cc85aa76fb50adebf5ea7f31c821afc62c315a1b41e8ba"
+  }
 }
