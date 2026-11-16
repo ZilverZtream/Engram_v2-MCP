@@ -16,7 +16,8 @@ pub fn requires_modern_state(path: &std::path::Path) -> bool {
 fn current_modern_state(raw: &str, path: &str) -> bool {
     serde_json::from_str::<serde_json::Value>(raw).is_ok_and(|value|
         value["version"] == engram_core::modern_state::VERSION && value["status"] == "partial_static_coverage"
-            && (!requires_script_call_contract(std::path::Path::new(path)) || value["browser_storage_contract"] == 1))
+            && (!requires_script_call_contract(std::path::Path::new(path))
+                || (value["browser_storage_contract"] == 1 && value["browser_storage_clear_contract"] == 1)))
 }
 
 pub fn requires_script_call_contract(path: &std::path::Path) -> bool {

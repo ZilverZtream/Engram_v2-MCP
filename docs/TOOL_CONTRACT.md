@@ -759,11 +759,24 @@ The two stores remain distinct. The existing `limit` bounds readers and writers.
 
 Access evidence carries the indexed file hash and source position. These are
 project-local static matches: common origin, session/tab, runtime execution and
-stored values are not proven. Dynamic keys and `clear()` effects are unresolved;
-their source coverage observations are reported alongside admitted accesses.
+stored values are not proven. Dynamic keys and runtime `clear()` effects are
+unresolved; source coverage observations accompany admitted accesses.
 Aliases and property-style access are outside this extraction. Missing keys do
 not establish absence of runtime access. Run `update_project` after upgrading to
 acquire the browser-storage facts for previously indexed JS/TS files.
+
+Pending source change (not yet installed): the same key trace appends
+`store_wide_mutation_candidates` for unshadowed calls to that store's `clear()`.
+These candidates apply to any queried key, including keys without literal
+accesses. A separate identity keeps clear-all mutations distinct from a literal
+key named `*`. Each admitted candidate carries a selected revision, current
+source hash, access byte/line position, bounded excerpt and applicable guidance.
+Changed or unavailable source is withheld with a gap. The existing `limit`
+also bounds clear candidates. Shared origin, tab/session, inclusion, execution
+order and actual values remain unproved; repeated calls in one containing symbol
+may share one relationship. Existing full-report recovery retains both the
+key-specific result and clear candidates after source changes. Upgrading requires
+`update_project` for previously indexed scripts (`browser_storage_clear_contract=1`).
 
 ### Shared database source analysis
 

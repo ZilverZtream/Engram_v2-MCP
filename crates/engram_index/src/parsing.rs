@@ -1372,8 +1372,15 @@ impl SymbolExtractor {
                 script: module.as_ref().or(script_state.as_ref()), python: python.as_ref(),
                 rust: rust.as_ref(), go: go.as_ref(),
             };
-            let (state_symbols, state_edges, coverage) = modern_state::extract(
+            let (state_symbols, state_edges, mut coverage) = modern_state::extract(
                 path, content, tree.root_node(), static_ext, &symbols, bindings);
+            if matches!(ext, "js" | "jsx" | "ts" | "tsx") {
+                let mut facts: serde_json::Value = serde_json::from_str(&coverage)
+                    .expect("modern state extraction serializes its own JSON");
+                facts["browser_storage_clear_contract"] = serde_json::json!(1);
+                facts["browser_storage"] = serde_json::json!("literal_getItem_setItem_removeItem_and_unshadowed_store_wide_clear_candidates; dynamic_keys_aliases_property_access_and_runtime_context_unresolved");
+                coverage = facts.to_string();
+            }
             if let Some(file) = symbols.iter_mut().find(|symbol| symbol.kind == "file") {
                 file.metadata.get_or_insert_with(Default::default)
                     .insert(crate::source_contract::MODERN_STATE_KEY.into(), coverage);

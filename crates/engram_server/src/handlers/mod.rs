@@ -17,6 +17,7 @@ pub mod git_tools;
 mod history_refresh;
 mod history_response;
 mod history_commit;
+pub mod browser_state_tools;
 pub mod graph_tools;
 pub mod grep_tools;
 pub mod migration_tools;

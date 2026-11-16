@@ -817,7 +817,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), LocalStorage, SessionStorage, ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment and browser storage keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Static extraction has explicit coverage limits; absence does not prove no runtime access."
+        description = "Indexed readers and writers of shared state. Modern types: Environment, Module, Singleton (JS/TS, Python, Rust, Go), LocalStorage, SessionStorage, ReactContext and Redux (JS/TS); also legacy Session/ViewState/Application/Cache. Environment and browser storage keys are literal names; other modern keys use project-relative path::declaration with any property suffix. Browser key traces also include bounded source-verified store-wide clear() candidates, separately from key references. Refresh older JS/TS indexes with update_project. Static extraction does not prove shared browser origin/session or runtime execution; absence does not prove no runtime access."
     )]
     pub async fn trace_state_usage(
         &self,
@@ -826,7 +826,7 @@ impl Engram {
         if let Some(result) = self.state_tool_applicability(&params.0.project_id, &params.0.state_type).await? {
             return Ok(result);
         }
-        self.handle_trace_state_usage(params.0).await
+        self.handle_trace_state_usage_with_clear(params.0).await
     }
 
     #[tool(

@@ -113,7 +113,7 @@ pub(super) fn member_name(node: &Node) -> &str {
 
 /// Every expansion requires a graph file fingerprint and the selected physical
 /// revision. Matching current disk text alone cannot authorize a newer graph view.
-pub(super) fn verified_node(
+pub(crate) fn verified_node(
     graph: &GraphStore,
     project: &str,
     node: &Node,

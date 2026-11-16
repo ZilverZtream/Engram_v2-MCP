@@ -2697,7 +2697,8 @@ impl GraphStore {
                     // to an unchanged source before retiring this file's edges.
                     // Local module/framework state keeps declaration ownership.
                     if n.node_type == "global_state"
-                        && ["state:Environment:", "state:LocalStorage:", "state:SessionStorage:"]
+                        && ["state:Environment:", "state:LocalStorage:", "state:SessionStorage:",
+                            "state:LocalStorageClearAll:", "state:SessionStorageClearAll:"]
                             .iter().any(|prefix| n.node_id.starts_with(prefix))
                     {
                         let mut survivor = None;
