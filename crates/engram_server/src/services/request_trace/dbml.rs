@@ -204,7 +204,7 @@ impl Catalog {
         if line < method.start_line as u64 || line > method.end_line as u64 {
             return Err("ORM source line outside reached member");
         }
-        let (receiver, context) =
+        let (receiver, context, parameter_line) =
             context_at(body, member, (line - method.start_line as u64 + 1) as usize)
                 .ok_or("Local ORM receiver is unknown, aliased, reassigned or ambiguous")?;
         if self.contexts.get(&context.to_ascii_lowercase()) != Some(&1) {
@@ -222,19 +222,178 @@ impl Catalog {
         let [mapping] = matches.as_slice() else {
             return Err("DBML context/member mapping is missing or ambiguous");
         };
-        Ok(json!({
+        let mut binding = json!({
             "table": mapping.table, "context": mapping.context, "member": mapping.member, "receiver": receiver,
             "mapping_source": {"file": mapping.path, "line": mapping.line, "source_blake3": mapping.hash},
             "query_source": {"file": method.file_path.as_str(), "line": line},
             "basis": "selected_current_dbml_and_explicit_local_vb_context",
             "interpretation": "Source-declared table mapping for this indexed ORM reference. Not a table definition, generated SQL, deployed database identity, proof of query execution, write completion or trigger execution."
-        }))
+        });
+        if let Some(parameter_line) = parameter_line {
+            binding["basis"] = json!("selected_current_dbml_and_declared_vb_parameter_type");
+            binding["receiver_binding"] = json!({
+                "kind":"required_by_value_parameter",
+                "declaration_file":method.file_path.as_str(),
+                "declaration_line":method.start_line as usize+parameter_line-1,
+                "compiler_binding_verified":false,"runtime_argument_known":false,
+                "interpretation":"The current method declares this parameter's type. Caller arguments, actual object identity, connection and execution remain unverified."
+            });
+            binding["receiver_binding"] = json!({
+                "kind":"declared_required_by_value_parameter",
+                "declaration_line":method.start_line as usize + parameter_line - 1,
+                "compiler_binding_verified":false,"runtime_argument_verified":false,
+                "interpretation":"The reached method declares this parameter type. Caller argument identity, object contents, successful execution and deployed database binding are not proven."
+            });
+        }
+        Ok(binding)
     }
 }
 
-/// Conservative local construction binding. Unknown aliases, shadowing or
+/// Conservative method-local receiver binding. Unknown aliases, shadowing or
 /// receiver escapes are withheld rather than treated as a compiler type proof.
-fn context_at(body: &str, member: &str, line: usize) -> Option<(String, String)> {
+fn context_at(body: &str, member: &str, line: usize) -> Option<(String, String, Option<usize>)> {
+    local_context_at(body, member, line)
+        .map(|(receiver, context)| (receiver, context, None))
+        .or_else(|| parameter_context_at(body, member, line))
+}
+
+/// Bind an explicit required parameter declaration without treating its type as
+/// a constructor, compiler proof, or evidence of the caller's runtime argument.
+fn parameter_context_at(
+    body: &str,
+    member: &str,
+    line: usize,
+) -> Option<(String, String, Option<usize>)> {
+    let tokens = routing::tokens(body, true);
+    let word = |i: usize, value: &str| {
+        tokens
+            .get(i)
+            .is_some_and(|t| !t.string && t.text.eq_ignore_ascii_case(value))
+    };
+    let receivers: BTreeSet<_> = (0..tokens.len().saturating_sub(2))
+        .filter(|&i| {
+            !tokens[i].string
+                && identifier(&tokens[i].text)
+                && word(i + 1, ".")
+                && word(i + 2, member)
+                && tokens[i + 2].line == line
+                && (i == 0 || !word(i - 1, "."))
+        })
+        .map(|i| tokens[i].text.to_ascii_lowercase())
+        .collect();
+    if receivers.len() != 1 {
+        return None;
+    }
+    let receiver = receivers.into_iter().next()?;
+    let signature = (0..tokens.len()).find(|&i| word(i, "Function") || word(i, "Sub"))?;
+    if tokens[..signature].iter().any(|t| {
+        t.string
+            || ![
+                "public",
+                "private",
+                "protected",
+                "friend",
+                "shared",
+                "overloads",
+                "overrides",
+                "overridable",
+                "notoverridable",
+                "mustoverride",
+                "async",
+                "iterator",
+                "shadows",
+                "partial",
+            ]
+            .contains(&t.text.to_ascii_lowercase().as_str())
+    }) {
+        return None;
+    }
+    if !tokens
+        .get(signature + 1)
+        .is_some_and(|t| !t.string && identifier(&t.text))
+        || !word(signature + 2, "(")
+    {
+        return None;
+    }
+    let mut segments = Vec::new();
+    let mut start = signature + 3;
+    let mut depth = 1usize;
+    let mut end = None;
+    for i in start..tokens.len() {
+        if word(i, "(") {
+            depth += 1;
+        }
+        if word(i, ")") {
+            depth -= 1;
+            if depth == 0 {
+                segments.push((start, i));
+                end = Some(i);
+                break;
+            }
+        }
+        if depth == 1 && word(i, ",") {
+            segments.push((start, i));
+            start = i + 1;
+        }
+    }
+    end?;
+    let mut matches = Vec::new();
+    for (mut i, end) in segments {
+        if word(i, "ByVal") {
+            i += 1;
+        }
+        if !word(i, &receiver) || !word(i + 1, "As") {
+            continue;
+        }
+        let declaration = i;
+        let mut j = i + 2;
+        let mut parts = Vec::new();
+        loop {
+            let token = tokens.get(j)?;
+            if j >= end || token.string || !identifier(&token.text) {
+                return None;
+            }
+            parts.push(token.text.clone());
+            j += 1;
+            if !word(j, ".") {
+                break;
+            }
+            j += 1;
+        }
+        if j != end {
+            return None;
+        }
+        if parts
+            .first()
+            .is_some_and(|p| p.eq_ignore_ascii_case("Global"))
+        {
+            parts.remove(0);
+        }
+        if parts.is_empty() {
+            return None;
+        }
+        matches.push((declaration, parts.join(".")));
+    }
+    let [(declaration, context)] = matches.as_slice() else {
+        return None;
+    };
+    if tokens[*declaration].line > line
+        || (0..tokens.len()).any(|i| word(i, "Dim") && word(i + 1, &receiver))
+    {
+        return None;
+    }
+    for i in 0..tokens.len() {
+        if word(i, &receiver)
+            && i != *declaration
+            && (!word(i + 1, ".") || (i > 0 && word(i - 1, ".")))
+        {
+            return None;
+        }
+    }
+    Some((receiver, context.clone(), Some(tokens[*declaration].line)))
+}
+
+fn local_context_at(body: &str, member: &str, line: usize) -> Option<(String, String)> {
     let tokens = routing::tokens(body, true);
     let word = |i: usize, value: &str| {
         tokens

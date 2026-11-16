@@ -444,6 +444,10 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Source-complete November16: direct DBML table references through required
+  typed VB parameters retain declaration/query/mapping citations and explicit
+  compiler/runtime uncertainty. No namespace guessing; validation pending.
+  [Pending source](eval/dbml-parameter-trace-progress-20261116.json).
   Installed November16: literal VB
   ASPX/ASMX WebMethod URLs resolve public attributed entries, including LegacyValidation's
   page-method and App_Code partial-service patterns. Existing admitted call/SQL

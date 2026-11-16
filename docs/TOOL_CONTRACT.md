@@ -1,5 +1,14 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: reached VB ORM references may map
+through a simple required typed parameter, with explicit or implicit `ByVal`.
+Exact selected-current DBML context/member matching remains mandatory. A new
+`receiver_binding` cites the parameter declaration and explicitly withholds
+compiler binding and the runtime argument. This is distinct from local
+construction evidence. ByRef/Optional, reassigned, escaped or ambiguous
+receivers and stale evidence remain unresolved; no graph/parser change or
+namespace inference. [Pending source](../eval/dbml-parameter-trace-progress-20261116.json).
+
 Source-complete, awaiting combined validation: `trace_state_usage` uses existing
 complete-report budgets and exact saved MCP-result recovery. The40KiB default
 and caller `max_tokens` apply to the whole selected report, including indexed
