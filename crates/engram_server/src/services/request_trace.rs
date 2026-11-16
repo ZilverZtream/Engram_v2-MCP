@@ -1,6 +1,7 @@
 //! Static HTTP request navigation. Candidate source routes are not runtime observations.
 pub mod api;
 mod container_registrations;
+pub(crate) mod client_callers;
 mod database;
 mod dbml;
 mod inline_sql;

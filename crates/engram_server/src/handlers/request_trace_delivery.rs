@@ -67,6 +67,16 @@ pub(super) fn finish(data: &Path, project: &str, body: String, limit: usize) -> 
     let mut report: Value = serde_json::from_str(&body)
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
     let mut counts = [0usize; 3];
+    let mut deferred_client_evidence = 0;
+    for caller in report["client_callers"].as_array_mut().into_iter().flatten() {
+        if let Some(object) = caller.as_object_mut() {
+            object.remove("excerpt");
+            object.remove("evidence");
+            object.insert("content_deferred".into(), json!(true));
+            object.insert("recovery".into(), json!("Recover this request trace's immutable full report for the original client call source and indexed route metadata."));
+            deferred_client_evidence += 1;
+        }
+    }
     for page in report["pages"].as_array_mut().into_iter().flatten() {
         compact(page, &mut counts);
     }
@@ -81,6 +91,7 @@ pub(super) fn finish(data: &Path, project: &str, body: String, limit: usize) -> 
         "original_bytes":body.len(),"response_budget_bytes":limit,
         "path_count":counts[0],"omitted_paths":0,"deferred_path_evidence_records":counts[0],
         "deferred_source_excerpts":counts[1],"deferred_excerpt_bytes":counts[2],
+        "deferred_client_evidence_records":deferred_client_evidence,
         "interpretation":"Each trace retains every selected path. Path from/to integers index that trace's path_nodes; evidence_index locates the same path in the immutable original. Handlers, source locations, hashes, gaps and runtime limits remain inline. Source lines are call-site hints, not a substitute for recovered binding/database evidence.",
         "instruction":"Recover the full original before asserting detailed bindings, database effects or deferred value dependencies, or relying on deferred repository guidance before an edit. Value lineage summaries retain status/counts/issues; full points, edges and invocation contexts share this immutable recovery. Concatenate recovery content by byte offset and verify response_id as BLAKE3. Recovery does not recheck current source. Existing method-body actions read current source, not this snapshot.",
         "retention":"At most 24 hours or 32 newer request-trace snapshots for this project; unavailable snapshots require a new trace.",

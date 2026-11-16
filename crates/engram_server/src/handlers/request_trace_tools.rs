@@ -107,7 +107,12 @@ impl Engram {
                 "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}});
             crate::services::request_trace::triggers::attach(&mut report, &sources);
             crate::services::request_trace::value_lineage::attach(&graph, &req.project_id, &mut report, &sources, selected);
-            let loaded_paths = sources.iter().map(|source| source.path).collect();
+            let client_files = crate::services::request_trace::client_callers::attach(
+                &graph, &req.project_id, Path::new(&record.directory), &mut report, &sources, selected, &mut bytes);
+            report["coverage"]["source_bytes_read"] = json!(bytes);
+            report["coverage"]["source_files_read"] = json!(sources.len() + report["client_caller_coverage"]["script_files_read"].as_u64().unwrap_or(0) as usize);
+            let mut loaded_paths = sources.iter().map(|source| source.path).collect::<std::collections::BTreeSet<_>>();
+            loaded_paths.extend(client_files.iter().map(String::as_str));
             policy::attach(Path::new(&record.directory), &mut report, &loaded_paths)?;
             Ok(serde_json::to_string(&report)?)
         }).await.map_err(|e| McpError::internal_error(e.to_string(), None))?
