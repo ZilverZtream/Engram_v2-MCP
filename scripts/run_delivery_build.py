@@ -1,6 +1,7 @@
 """Reject small-feature compile cycles before launching the owned build runner."""
 import argparse
 import json
+import os
 import re
 import subprocess
 import sys
@@ -37,9 +38,11 @@ def main():
     trailing = args.arguments[1:] if args.arguments[:1] == ["--"] else args.arguments
     command = [sys.executable, "-B", "-u", str(case / "build.py"), *trailing]
     if args.dry_run:
-        print(json.dumps({"status": "BATCH_GATE_PASSED_NO_BUILD_STARTED", "command": command}))
+        print(json.dumps({"status": "BATCH_GATE_PASSED_NO_BUILD_STARTED", "command": command, "build_environment": {"CARGO_INCREMENTAL": "1"}}))
         return 0
-    return subprocess.run(command, cwd=ROOT).returncode
+    # Reuse code-generation work across source batches as well as dependency
+    # artifacts. The owned runner keeps the existing shared target directory.
+    return subprocess.run(command, cwd=ROOT, env=dict(os.environ, CARGO_INCREMENTAL="1")).returncode
 
 if __name__ == "__main__":
     try:
