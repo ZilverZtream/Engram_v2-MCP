@@ -1,5 +1,14 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: `list_repo_rules` uses the
+existing whole-report reply budget and immutable original-result recovery in
+both ordinary-list and `ownership_inventory=true` modes. The default is40KiB;
+caller `max_tokens` and returned `response_delivery.next_call` bound delivery
+without dropping selected rules, scopes, receipt claims or qualifications.
+Recovery does not repeat inventory or check current ownership/source freshness.
+Existing inventory source-path and4MiB response limits remain; this does not
+adopt legacy rules or establish their authority.
+
 Installed November16: reached VB ORM references may map
 through a simple required typed parameter, with explicit or implicit `ByVal`.
 Exact selected-current DBML context/member matching remains mandatory. A new
