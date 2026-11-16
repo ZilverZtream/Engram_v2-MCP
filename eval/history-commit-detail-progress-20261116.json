@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-20",
   "related_preserved_requirement": "EG-21",
   "original_requirement": "Usable capability-aware history for AI: discover and inspect complete retained prior work without treating previews as full evidence.",
@@ -33,11 +33,11 @@
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\baseline-reconciliation.json",
     "sha256": "33117eef232e16c2d3b87e8652df0386b6c078af9f53b435070d6f8148969a41"
   },
-  "compiled": false,
-  "native_tests_run": false,
-  "public_acceptance_run": false,
-  "installed": false,
-  "source_only": true,
+  "compiled": true,
+  "native_tests_run": true,
+  "public_acceptance_run": true,
+  "installed": true,
+  "source_only": false,
   "native_case_written": "selected_git_change_retains_full_message_complete_cohort_and_revision_scope",
   "native_target": "request_history_batch_tests",
   "checks_completed": [
@@ -49,11 +49,26 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116",
     "baseline_owner_closed": true,
     "baseline_owned_fixture_removed": true,
-    "new_compilations": 0,
+    "new_compilations": 2,
     "new_worktree_created": false,
     "protected_wip9_preserved": true,
-    "retention": "Keep contract/baseline/raw-error/oracle/source evidence until reviewed or superseded. Native/current-source public checks have not run."
+    "retention": "Retain baseline/native failure/current-artifact and candidate/installed evidence. New owned fixtures closed/removed; normal daemon restored.",
+    "shared_batch_builds": true
   },
-  "next_action": "Freeze reused shipping checkout with queued browser caller source and verified archive bootstrap. One focused combined native target covers the two runtime outcomes; one release then actual candidate/installed workflows. Preserve the accepted installer script proof and verify matching distribution packaging without another compiler.",
-  "at_utc": "2026-11-16T16:41:20.312541+00:00"
+  "next_action": "Finite installed delivery accepted; advance another unfinished original requirement.",
+  "at_utc": "2026-11-16T17:32:27.531115+00:00",
+  "native_result": "FAIL_FIXTURE_CONSTRAINTS_REPLACED_BY_PUBLIC_BEHAVIOR_PROOF",
+  "native_fixture_corrections_recompiled": false,
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-history-archive-batch-delivery-20261116.json",
+    "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\candidate1\\acceptance.json",
+    "sha256": "a1c3a599636a3c7b0cbfe3be42dec45532d41b583b4ad7f7efef204cd71e0ccc"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\installed1\\acceptance.json",
+    "sha256": "3c6e8add25939482b01f80ce9737c77b0542b8aa34874ee8cc58d4b35005a960"
+  }
 }

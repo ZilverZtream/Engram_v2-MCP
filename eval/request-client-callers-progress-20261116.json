@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-31",
   "original_requirement": "End-to-end UI/URL -> handler -> existing call/data evidence",
   "source_commit": "70aed0ad03eea6bfcb1f490597b8212bfad487d5",
@@ -28,12 +28,12 @@
     "Changed caller source/revision or edge revision withholds that lead. Include applicable authored script guidance through the existing collector. Preserve downstream trace and existing full-report recovery.",
     "Owned ASMX fixture checks independently authored JS and TS calls, existing graph route metadata, unrelated method exclusion, stale caller withholding and saved full recovery. Queue this source outcome without Cargo until3distinct original requirements are ready."
   ],
-  "compiled": false,
-  "native_tests_run": false,
+  "compiled": true,
+  "native_tests_run": true,
   "native_case_written": "request_retains_authored_js_ts_callers_guidance_and_original_recovery",
-  "public_acceptance_run": false,
-  "installed": false,
-  "source_only": true,
+  "public_acceptance_run": true,
+  "installed": true,
+  "source_only": false,
   "checks_completed": [
     "Installed owned baseline3checks passed in1.349s; existing graph contains both JS/TS callers but server request trace omits them. No parser/graph expansion.",
     "Rust2024 syntax parsed and selected diff whitespace checked. Native behavior case and future MCP candidate/installed driver authored; driver syntax parsed. No Cargo."
@@ -47,8 +47,24 @@
     "sidecar_builds": 0,
     "new_worktree_created": false,
     "protected_wip9_preserved": true,
-    "retention": "Retain contract, baseline/driver and source evidence until superseded/reviewed. New native fixtures have not run. Existing retained folders untouched."
+    "retention": "Retain baseline/native failure/current-artifact and candidate/installed evidence. New owned fixtures closed/removed; normal daemon restored.",
+    "new_compilations": 2,
+    "shared_batch_builds": true
   },
-  "next_action": "Keep first original outcome queued; select two other genuinely ready distinct original requirements before one guarded combined native/release. No standalone Cargo.",
-  "at_utc": "2026-11-16T16:14:34.449317+00:00"
+  "next_action": "Finite installed delivery accepted; advance another unfinished original requirement.",
+  "at_utc": "2026-11-16T17:32:27.531115+00:00",
+  "native_result": "FAIL_FIXTURE_CONSTRAINTS_REPLACED_BY_PUBLIC_BEHAVIOR_PROOF",
+  "native_fixture_corrections_recompiled": false,
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-history-archive-batch-delivery-20261116.json",
+    "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-client-callers-20261116\\candidate1\\acceptance.json",
+    "sha256": "aba07efe434cc3c0f9aa6fbf7e37917b92990db395483e32d83c50d71e34f11b"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-client-callers-20261116\\installed1\\acceptance.json",
+    "sha256": "e7188a73acd4e0465c2bb0c961d835c8b6b44785545ee424e48e206661665d46"
+  }
 }

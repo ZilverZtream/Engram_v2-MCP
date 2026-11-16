@@ -468,6 +468,10 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Installed November16: existing JS/TS API callers are now composed into server
+  entry traces with source lines/hashes, original route metadata, scoped guidance
+  and exact saved recovery. Static caller candidates do not prove browser/runtime
+  execution. [Delivery](eval/request-history-archive-batch-delivery-20261116.json).
   Installed November16: resolved entries include source-verified existing value
   lineage with separate helper contexts and exact bounded-report recovery.
   [Delivery](eval/lineage-routing-preset-batch-delivery-20261116.json).
@@ -797,6 +801,9 @@ value is accuracy, this is the biggest meta-gap.
 ## P6 — Adoption & packaging
 
 - [~] **53. Prebuilt release binaries + one-command install** (M)
+  Matching November16runtime ZIP now includes215runtime assets and both trusted
+  installers, with219archive entry hashes verified. Public hosting and external
+  download acceptance remain open. [Delivery](eval/request-history-archive-batch-delivery-20261116.json).
   *November16: checksum-pinned Windows ZIP installation accepts a local archive
   or HTTPS URL and reuses full-package verification and JSON/Codex registration.
   Local archive installation, all215runtime assets and VB retrieval through the

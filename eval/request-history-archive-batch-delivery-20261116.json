@@ -1,0 +1,136 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-16T17:32:27.531115+00:00",
+  "original_requirements": [
+    "TODO-31 browser callers in request navigation",
+    "EG-20 complete selected Git change recovery",
+    "TODO-53 pinned Windows archive installation/distribution"
+  ],
+  "outcomes": [
+    "Request traces include existing selected JS/TS API callers with caller line/hash, original transport/resolution metadata, scoped guidance, explicit stale/capped coverage and immutable full-report recovery.",
+    "History previews offer callable MCP complete_git_commit recovery. mode=commit reads the complete original UTF8 message and first-parent changed-file cohort, including generated paths and original object identities; explicit/default Git ancestry scopes and missing scope refuse truthfully. No embeddings, LLM or history reindex.",
+    "Matching current-runtime Windows bundle includes215runtime assets and trusted offline/archive installers. Generic pinned local/archive installation and source query proof from the retained complete release is preserved; HTTPS branch used injected transport and external publication/download remain open."
+  ],
+  "runtime_source_commit": "bc753b2a50186387fcdbb791f0c7f24fd6f7a2c6",
+  "original_source_commits": [
+    "70aed0ad03eea6bfcb1f490597b8212bfad487d5",
+    "aee2e44e3f154cd84345d988a20c70e26f0f2f4a",
+    "40889ab8c66b4740693ec7dab3836d97c48b40f6"
+  ],
+  "fixture_correction_source_commit": "4a299f1",
+  "source_freeze": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\release-plan.json",
+    "sha256": "1438d80b6119fbbefdc49b6be13ea6dadb9ec19e4af216c83b25a0705e781871"
+  },
+  "source_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\source-validation1.json",
+    "sha256": "1438d80b6119fbbefdc49b6be13ea6dadb9ec19e4af216c83b25a0705e781871"
+  },
+  "installed": {
+    "server_sha256": "e602c456da14358fae540c331f019b29757bb79ad9ecf4455a0c5f3297596a42",
+    "manifest_sha256": "9062e7a8e5a5186b798a3af25fef6938b7ecc2b6aff359ff201348acaa16a1d4",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151,
+    "verified_assets": 215,
+    "unchanged_assets": 214,
+    "changed_assets": [
+      "engram_server.exe"
+    ]
+  },
+  "validation": {
+    "native_attempts": 1,
+    "native_cases_passed": 0,
+    "native_fixture_failures_retained": 2,
+    "native_fixture_corrections_recompiled": false,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\native1.json",
+      "sha256": "9a238b139be346d5cd59dd99e65285ee295e91211d9478f9cd0394be5ac42cbf"
+    },
+    "public_equivalence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\native-acceptance.json",
+      "sha256": "948beb3cd7208264694999561a39e0a19ccdbdc78d3ed554b5b7919d6d4a4b94"
+    },
+    "debug_public": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\debug1\\receipt.json",
+      "sha256": "5ff1f7756a27f55f19cbcff58bdac8d2aeea83f842962dc1f94b9ae4fbca9fa8"
+    },
+    "debug_public_checks": 16,
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\release1.json",
+      "sha256": "6822c48102dd57385d3ceef7d8c9edd1f2e45f67337e039015742eaf4be0bff5"
+    },
+    "release_builds": 1,
+    "public": {
+      "candidate1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\candidate1\\acceptance.json",
+        "sha256": "46329c0dd4a893314fe19deac9388cc8f4811e72f78ecbb18745605f695f2c09"
+      },
+      "installed1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\installed1\\acceptance.json",
+        "sha256": "635bc308c8051a599cdeb9b86edcdcb43179ced64ffa388aa419fcf229f567f5"
+      }
+    },
+    "public_checks_each": 16,
+    "installed_default_scope": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-commit-detail-20261116\\scope1\\acceptance.json",
+      "sha256": "7a6ca7ede0d932602bda7c723f33b6f46ba4228ff1bf73453af4461d8f150791"
+    },
+    "installed_default_scope_checks": 3,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\deployment4-state.json",
+      "sha256": "92f9be294378bce08b216b834e9740d59a85f95df8b515665248e5b4e5c8a528"
+    },
+    "restored_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "31bedfdd48075a851732073e4bfc0c6bd8a2d3b15f3d4d11bff1cbb5d468e08b"
+    },
+    "installer_local_archive": "eval/windows-archive-bootstrap-delivery-20261116.json",
+    "full_or_lib_suite_run": false,
+    "extra_debug_builds": 0,
+    "original_full19gates_closed": false
+  },
+  "bundle": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\bundle1.json",
+      "sha256": "ea24da7a0fd7bd3df0c5c99bbb2e957d0900b5740e99613fa535f890dac6372f"
+    },
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\Engram-win-x64-request-history.zip",
+    "sha256": "1a12f816d4d7553d05d86d7893a1effea50036259e21c29943f8f7b74b6ec0cd",
+    "bytes": 115871337,
+    "entries": 219,
+    "runtime_assets": 215,
+    "publicly_published": false
+  },
+  "timing": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\coding-compile-timing-20261116.json",
+    "sha256": "b05c6bf5896729111189f2bf029b583c9dda30a1282ce06269df425027ec5fc4"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116",
+    "reused_shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "new_worktree_created": false,
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    },
+    "all_new_owned_fixtures_and_build_temporaries_closed_removed": true,
+    "normal_daemon_intentionally_restored": 83420,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-47308a5d47144de3a44e80346d7e4fdc",
+    "retention": "Keep package, ZIP, source/native failure/public proof and draft workflow rejection until reviewed or superseded. No preexisting folder deletion."
+  },
+  "limits": [
+    "Finite workflows, not broader task usefulness, complete dynamic request resolution, all history/SQL/preset behavior or full original backlog closure.",
+    "Native fixture failures remain FAIL: oversized authored guidance was correctly omitted by the existing complete-source limit, and libgit2 refused the deep native fixture path. Actual compiled-artifact plus candidate/installed MCP proofs establish intended user behavior. Corrected native fixture source was not recompiled.",
+    "Git patch bodies, rename inference, runtime route inclusion/execution, deployed database behavior, approval and current-policy applicability remain unknown.",
+    "Public release hosting, external HTTPS download and macOS/Linux installation remain unfinished.",
+    "Actual complete coding percentage remains unknown. The attempted single-profile workflow stays an unapplied draft after automatic approval review rejected its validation/recording command."
+  ]
+}

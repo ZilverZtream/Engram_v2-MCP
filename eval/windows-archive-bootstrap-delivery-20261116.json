@@ -68,5 +68,21 @@
     "The real input ZIP is the retained November13full package, not the latest server feature batch. No latest-runtime regression or new-feature acceptance is claimed from this installation proof.",
     "This is the accepted distribution requirement; it does not change current LegacyValidation runtime. Broader original backlog remains active.",
     "Failed small-fixture attempts and their corrections are retained in reconciliation/tool history; no compilation was performed."
-  ]
+  ],
+  "matching_current_runtime_bundle": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\bundle1.json",
+      "sha256": "ea24da7a0fd7bd3df0c5c99bbb2e957d0900b5740e99613fa535f890dac6372f"
+    },
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-history-release-batch-20261116\\Engram-win-x64-request-history.zip",
+    "sha256": "1a12f816d4d7553d05d86d7893a1effea50036259e21c29943f8f7b74b6ec0cd",
+    "bytes": 115871337,
+    "entries": 219,
+    "runtime_assets": 215,
+    "publicly_published": false
+  },
+  "matching_runtime_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-history-archive-batch-delivery-20261116.json",
+    "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
+  }
 }
