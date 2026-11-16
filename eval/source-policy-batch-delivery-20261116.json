@@ -103,7 +103,8 @@
     "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116\\package1",
     "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-0d607a655e65487693c141ca9327b618",
     "normal_daemon_intentionally_restored": true,
-    "retention": "Keep owned package, rollback pair and synthetic source/build/wire receipts until superseded. No preexisting folders deleted. Protected unrelated work remains in ROOT; WORK stays frozen at the deployed source commit."
+    "retention": "Keep owned package, rollback pair and synthetic source/build/wire receipts until superseded. No preexisting folders deleted. Protected unrelated work remains in ROOT; WORK stays frozen at the deployed source commit.",
+    "all_three_native_attempts_owned_resources_verified_removed": true
   },
   "full_original_goal_complete": false,
   "task_productivity_demonstrated": false,
@@ -181,7 +182,7 @@
     },
     "resource-accounting.json": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116\\resource-accounting.json",
-      "sha256": "1fae46856ca44ae55d58950b56e244d248515a58e907843ed754f32048a31279"
+      "sha256": "b9f762be8b7a9f9915fa909077c2d891eb297f76bf78b10a80fb3dbb70ee7280"
     },
     "source-policy-batch-202611161-install-Upgrade.json": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116\\source-policy-batch-202611161-install-Upgrade.json",

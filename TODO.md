@@ -526,8 +526,8 @@ proposals that duplicate the existing surface:
   reads with normal hash/range/guidance and immutable recovery arguments. Whole
   results and independent errors retain the original batch budget contract.
   [Delivery](eval/source-policy-batch-delivery-20261116.json).
-  `batch_read` composes 1–16 typed `get_method_info`, `resolve_id` and `get_chunk`
-  reads with one complete response budget, independent errors and exact recovery
+  `batch_read` composes 1–16 typed `get_method_info`, `resolve_id`,
+  `get_chunk` and `get_full_method_body` reads with one complete response budget, independent errors and exact recovery
   for whole omitted results. Candidate and installed public MCP checks pass;
   one actual LegacyValidation batch matched three individual responses. No atomic snapshot
   or latency/productivity improvement is claimed.
