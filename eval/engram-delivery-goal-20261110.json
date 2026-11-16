@@ -2558,11 +2558,13 @@
       {
         "original_requirement_id": "TODO-28",
         "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
-        "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+        "source_commit": "472ad572bdf403880e9d58e9cd6866f58182320b",
         "progress": "eval/ask-procedure-evidence-progress-20261116.json",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1
+        "counts_as_independent_deliverables": 1,
+        "initial_source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+        "source_correction": "Selected SQL catalog lookup replaces the missing graph-symbol assumption; native failure retained and release proof pending."
       },
       {
         "original_requirement_id": "TODO-4",
@@ -2758,11 +2760,11 @@
   },
   "current_execution_focus": {
     "active_original_item": "Procedure/discovery/SQL source batch acceptance",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "SOURCE_CORRECTED_RELEASE_RUNNING_NOT_INSTALLED",
     "original_requirement_id": "TODO-33",
     "implementation_items_active": 0,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116",
     "finite_acceptance": [
       "batch_read accepts a typed query_schema operation using the existing QuerySchemaRequest and normal SQL handler, including its project/name qualification, selected source/citations, authored guidance, per-read controls and saved-result recovery. No new SQL parser or interpreter.",
       "Existing1..16operation bounds, correlation IDs, shared whole-JSON budget, independent request errors and complete-result omission/recovery remain. Unsupported/mutating tools remain rejected; sequential reads are not an atomic snapshot.",
@@ -2770,12 +2772,33 @@
       "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
     ],
     "full_original_goal_active": true,
-    "next_action": "Three distinct original source outcomes are now ready. Freeze them in the existing shipping checkout and perform the combined acceptance; do not add unrelated edge cases or full suites.",
+    "next_action": "Poll exact current release driver46948/relay42556 with creation times. No native rerun, no new build, no full suites. After terminal PASS use this artifact for candidate/installed MCP procedure/discovery/SQL acceptance and deploy once.",
     "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-    "source_progress": "eval/batch-schema-read-progress-20261116.json",
+    "source_progress": "eval/procedure-discovery-schema-batch-progress-20261116.json",
     "pending_source_outcomes": 3,
     "native_target": "procedure_discovery_schema_batch_tests",
-    "native_cases_written": 4
+    "native_cases_written": 4,
+    "native_session_id": null,
+    "native_attempts_this_batch": 1,
+    "native_result": {
+      "passed": 3,
+      "failed": 1,
+      "seconds": 254.77806669997517
+    },
+    "production_correction_commit": "472ad57",
+    "native_cases_passed": 3,
+    "native_cases_failed": 1,
+    "release_live_owner": {
+      "driver_pid": 46948,
+      "driver_created": 1794859649.3947222,
+      "relay_pid": 42556,
+      "relay_created": 1794859649.719528,
+      "owner_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1-owner.json",
+        "sha256": "6735a2abedc8522d04f06f2e6d5810dc78904b63183ff6034bdbd5397837ca20"
+      },
+      "observed_at_utc": "2026-11-16T20:09:42.330416+00:00"
+    }
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3008,5 +3031,13 @@
   "browser_json_history_batch_delivery": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
     "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
+  },
+  "latest_build_frequency_evidence_20261116": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\build-frequency-check-20261116.json",
+    "recorded_release_builds": 13,
+    "recorded_focused_native_commands": 24,
+    "runner_seconds": 19094.889676200226,
+    "actual_coding_percent": null,
+    "scope": "November16 UTC records before this new three-outcome batch. No compiler was running at that inspection; total includes tests/teardown, not pure compilation."
   }
 }

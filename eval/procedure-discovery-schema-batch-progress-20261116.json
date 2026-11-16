@@ -1,0 +1,89 @@
+{
+  "status": "SOURCE_CORRECTED_RELEASE_RUNNING_NOT_INSTALLED",
+  "at_utc": "2026-11-16T20:09:42.332471+00:00",
+  "original_requirements": [
+    "TODO-28",
+    "TODO-4",
+    "TODO-33"
+  ],
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116",
+  "initial_source_commit": "1449caf51f9120c914c8b4beb055d83f0b3aeca3",
+  "shipping_source_commit": "98d2cf5f6e0d9742c2022ddd01fe5dc37ea5ca1f",
+  "production_correction_commit": "472ad57",
+  "test_assertion_commit": "e4a0555",
+  "native": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\native1.json",
+      "sha256": "0ca62ff4ed7a50e3677559a468b10d072ad3c2e9f7c6f667d1a2be6514a8ad2d"
+    },
+    "log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\native1.log",
+      "sha256": "9ec37cf7204557e62ecbb5bbde75be9799a4193b0eceedf45a4c1792b6c46205"
+    },
+    "attempts": 1,
+    "seconds": 254.77806669997517,
+    "cases_executed": 4,
+    "cases_passed": 3,
+    "cases_failed": 1,
+    "failed_case": "procedure_question_preserves_complete_reader_evidence_and_original_recovery",
+    "correction_recompiled_as_native_tests": false
+  },
+  "failure": "SQL procedure definitions need not exist as graph symbols. Native and actual MCP reproduced missing evidence; correction uses bounded selected-source SQL reads for unresolved symbol mentions, suppresses successful empty speculative providers, and cites the matched requested name.",
+  "unaffected_debug_public_proofs": {
+    "TODO4": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\debug1\\acceptance.json",
+        "sha256": "09d9c761b9f93fd39f3fbad187c3ae0bf79cae2aa78ba13cbd92488f20332ba9"
+      },
+      "checks_passed": 7
+    },
+    "TODO33": {
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\debug1\\acceptance.json",
+        "sha256": "46b1025c7bc9a9f14b846dd7bf517dec5438574beb16d2c4213b1c44100b02ee"
+      },
+      "checks_passed": 5
+    }
+  },
+  "release": {
+    "attempts": 1,
+    "live_owner": {
+      "driver_pid": 46948,
+      "driver_created": 1794859649.3947222,
+      "relay_pid": 42556,
+      "relay_created": 1794859649.719528,
+      "owner_receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1-owner.json",
+        "sha256": "6735a2abedc8522d04f06f2e6d5810dc78904b63183ff6034bdbd5397837ca20"
+      },
+      "observed_at_utc": "2026-11-16T20:09:42.330416+00:00"
+    },
+    "source": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-implementation1.json",
+      "sha256": "f437619dae8dceac057b31ba81297f7e8c9a605736310fb6290149b304e4e4f0"
+    },
+    "validation": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-source-validation1.json",
+      "sha256": "22f4569f1754966d02a93f61685c7584f760f2eb11262e1aad4d20b6d2e34bc2"
+    }
+  },
+  "full_or_lib_suites": 0,
+  "extra_debug_builds": 0,
+  "installed": false,
+  "protected_wip9_unchanged": true,
+  "actual_coding_percent": null,
+  "remaining_acceptance": [
+    "Finish existing release; never restart based on observation timeout.",
+    "Run finite candidate MCP checks for all three outcomes; require corrected procedure proof before installing.",
+    "Deploy once, run installed checks, restore normal daemon and record exact identities."
+  ],
+  "resources": {
+    "reused_checkout": true,
+    "reused_shared_target": true,
+    "new_worktree": false,
+    "native_job_closed": true,
+    "native_relay_closed": true,
+    "native_runner_temp_removed": true,
+    "retention": "Retain source/native failure/debug/public/release receipts until review or supersession. Release runner owns its live Job and new temp; no preexisting deletion."
+  }
+}
