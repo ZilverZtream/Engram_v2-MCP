@@ -2572,6 +2572,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\contract.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "counts_as_independent_deliverables": 1
+      },
+      {
+        "original_requirement_id": "TODO-33",
+        "outcome": "Typed complete project/user memory section reads under a shared batch budget",
+        "source_commit": "81ea03eb4a8c80a458a743d37cc2439e80ef7164",
+        "progress": "eval/batch-memory-read-progress-20261116.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\contract.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "counts_as_independent_deliverables": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2720,23 +2729,25 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Complete recorded messages in ordinary history questions",
+    "active_original_item": "Job/history/memory source batch acceptance",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-28",
-    "source_commit": "99d332b8c85435f3059763138437aa7600087cfd",
-    "source_progress": "eval/ask-history-message-progress-20261116.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\contract.json",
+    "original_requirement_id": "TODO-33",
+    "source_commit": "81ea03eb4a8c80a458a743d37cc2439e80ef7164",
+    "source_progress": "eval/batch-memory-read-progress-20261116.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\contract.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116",
     "finite_acceptance": [
-      "Ordinary history/rationale retrieval preserves complete selected indexed commit-message bodies, including their exceptions, author/date text, indexed document identity, timestamp and exact40hex commit ID. Existing diff/other-provider snippets and retrieval scopes/windows are retained.",
-      "Indexed history uses recorded_history with the existing ranking weight, rather than treating index presence as verified merge, approval or current policy. Message warnings state the evidence boundary; no policy is adopted or source/current-history authority inferred.",
-      "Owned VB Git fixture compares returned complete message endings against independent immutable Git object bytes for two commits. Bounded whole-question recovery must preserve the full original report after a later checked-out commit; historical request routing/cutoffs remain separate unchanged code paths.",
-      "One TODO28 outcome, queued beside TODO4 jobs; no standalone Cargo/native/release run, new source/Git parser, extra Git reads/models, normal configuration/runtime change, actual LegacyValidation/Q reads or target-language expansion."
+      "The existing typed batch accepts ReadMemoryBankRequest and calls the ordinary read_memory_bank handler. Project and __user__ identities, content/provenance, per-read JSON/budgets and citation/hash validation are preserved. Mutating operations remain excluded.",
+      "Shared1..16read bounds, correlation/order, independent errors and complete-result omission/recovery remain. Uncited recovery reruns a live read; supplied raw-hash guards refuse changed memory. No atomic section snapshot or policy adoption is inferred.",
+      "Owned project/user notes compare full source content and stable provenance with individual reads, retain a bad-project error, prove complete shared-budget omission/recovery, then preserve a stale-hash refusal beside another successful read.",
+      "Queue this one TODO33 document-read outcome beside TODO4 job reports and TODO28 complete history messages. One future combined native target has three cases; no standalone Cargo or full suite."
     ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
+    "native_target": "job_history_memory_batch_tests",
+    "native_cases_written": 3,
     "full_original_goal_active": true,
-    "next_action": "Two original source outcomes are queued. Continue another genuine original requirement before combined validation; do not compile merely for this history change."
+    "next_action": "Three distinct original source outcomes are ready. Inspect the finite source interfaces, freeze them in the existing shipping checkout, run the single combined native target and reuse its implicit executable for public checks. One optimized release for the batch; no full/lib suites or extra debug build."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

@@ -1,0 +1,56 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-16T21:16:21.303823+00:00",
+  "original_requirement_id": "TODO-33",
+  "source_commit": "81ea03eb4a8c80a458a743d37cc2439e80ef7164",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\contract.json",
+    "sha256": "7d4ecfcb0ae2ebc0246099dd01fe87f2065677741fabdac260f0ecf186dfbfa7"
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\baseline1\\acceptance.json",
+    "sha256": "b98539897ef8074fd94fbb63c83e59bee30c0e9c353730903e42201f04eac1f4"
+  },
+  "baseline_seconds": 1.3788179999683052,
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\verify-public.py",
+    "sha256": "e5f870d385f601f6152f998e71adc471f41fe343e00a46963fa4b348b98d124c"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\source-checks.json",
+    "sha256": "8c59fb36d65308d4fd04460d3abe986eae9230196577ab2fe032bb740ba0dfde"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/handlers/batch_read_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/batch_memory_read_tests.rs",
+    "crates/engram_server/tests/job_history_memory_batch_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "Add the readonly typed variant, derive serialization for its existing request, and call the normal section reader. Existing document delivery, citation guards, project/user validation, shared batch budget, independent errors and whole-result recovery are reused. No new memory store, parser, writer or policy behavior.",
+  "finite_acceptance": [
+    "The existing typed batch accepts ReadMemoryBankRequest and calls the ordinary read_memory_bank handler. Project and __user__ identities, content/provenance, per-read JSON/budgets and citation/hash validation are preserved. Mutating operations remain excluded.",
+    "Shared1..16read bounds, correlation/order, independent errors and complete-result omission/recovery remain. Uncited recovery reruns a live read; supplied raw-hash guards refuse changed memory. No atomic section snapshot or policy adoption is inferred.",
+    "Owned project/user notes compare full source content and stable provenance with individual reads, retain a bad-project error, prove complete shared-budget omission/recovery, then preserve a stale-hash refusal beside another successful read.",
+    "Queue this one TODO33 document-read outcome beside TODO4 job reports and TODO28 complete history messages. One future combined native target has three cases; no standalone Cargo or full suite."
+  ],
+  "native_combined_target": "job_history_memory_batch_tests",
+  "native_cases_written": 3,
+  "compiled": false,
+  "native_tests_run": false,
+  "current_source_public_acceptance_run": false,
+  "installed": false,
+  "independent_outcomes": 1,
+  "resources": {
+    "new_compilations": 0,
+    "baseline_owners_closed": true,
+    "baseline_fixtures_removed": true,
+    "protected_wip9_unchanged": true,
+    "normal_configuration_unchanged": true,
+    "normal_daemon_restarted": false,
+    "retention": "Retain source contract, exact baseline wire, checks and future verifier until installed acceptance or supersession. No preexisting deletion."
+  },
+  "next_action": "Three distinct original source outcomes are ready. Inspect the finite source interfaces, freeze them in the existing shipping checkout, run the single combined native target and reuse its implicit executable for public checks. One optimized release for the batch; no full/lib suites or extra debug build."
+}
