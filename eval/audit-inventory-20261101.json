@@ -10122,22 +10122,23 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "active_original_item": "TODO28 complete procedure evidence in ordinary questions",
+    "active_original_item": "TODO4 bounded project and capability discovery",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-28",
+    "original_requirement_id": "TODO-4",
     "implementation_items_active": 0,
-    "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
-    "source_progress": "eval/ask-procedure-evidence-progress-20261116.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116",
     "finite_acceptance": [
-      "An ordinary description of a graph-resolved SQL stored procedure selects existing SQL modality and the existing query_schema stored_proc selected-source lookup. No new parser, source scan, model, schema binding or historical-branch change.",
-      "Return the complete existing procedure object/declaration/references/citation as typed schema evidence, preserving the question qualification, selected hash/revision, root guidance, original lookup cap and deadlines. Source declaration is distinct from deployment/execution or runtime parameter values.",
-      "Retain ambiguous procedure candidates and source gaps. Withhold changed source through the existing reader; non-SQL function queries stay outside SQL evidence. Existing response budgets and immutable recovery preserve the original procedure/guidance after edits.",
-      "Use owned long-SQL procedure, same-name schema ambiguity and non-SQL method controls. Author relevant checks and queue this next-batch source outcome without touching the currently compiling release checkout or starting Cargo."
+      "list_projects and list_advanced_tools accept whole-reply max_tokens/output_json and immutable recovery without requiring a project. project_info uses existing project-bound delivery. Preserve fitting default results and original catalog/filter/profile semantics.",
+      "Use existing snapshot storage with a private server-discovery binding, expose server_discovery scope and schema-valid continuation arguments without a synthetic project_id. Existing project/tool binding and native handler ownership remain intact.",
+      "Every escaped reply/page fits its complete caller budget. Saved full MCP results survive project removal and restart without repeating discovery or lookup. Recovering catalog evidence does not establish current project presence or tool availability.",
+      "Owned eight-project public fixture demonstrates baseline ignored budget, exact original catalog recovery after one owned project removal, filter/native schema behavior and scoped project_info. Queue with the existing TODO28 source outcome; no Cargo before three distinct original requirements."
     ],
     "full_original_goal_active": true,
-    "next_action": "Select the next ready distinct original source requirement. The procedure-answer change is source-complete but uncompiled/uninstalled; only one next-batch outcome is pending, so do not start Cargo. Preserve all earlier findings/holds."
+    "next_action": "Continue the next distinct original requirement. Two source outcomes are pending; do not compile yet.",
+    "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
+    "source_progress": "eval/discovery-report-delivery-progress-20261116.json",
+    "pending_source_outcomes": 2
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10227,6 +10228,15 @@
         "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
         "progress": "eval/ask-procedure-evidence-progress-20261116.json",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "counts_as_independent_deliverables": 1
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "outcome": "Bounded project and tool discovery with project-free exact recovery",
+        "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
+        "progress": "eval/discovery-report-delivery-progress-20261116.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "counts_as_independent_deliverables": 1
       }
@@ -10370,6 +10380,15 @@
       "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
       "progress": "eval/ask-procedure-evidence-progress-20261116.json",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "counts_as_independent_deliverables": 1
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "outcome": "Bounded project and tool discovery with project-free exact recovery",
+      "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
+      "progress": "eval/discovery-report-delivery-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "counts_as_independent_deliverables": 1
     }

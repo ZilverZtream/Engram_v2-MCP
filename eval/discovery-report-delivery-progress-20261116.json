@@ -1,0 +1,64 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-16T19:32:16.228397+00:00",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform response budgets and recoverable discovery at the AI entry point",
+  "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
+    "sha256": "af491c2bbe2820523e69de2441a5e37c233db666520332287cb62aa8ef7d3090"
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\baseline1\\acceptance.json",
+    "sha256": "761929a82c0092f7e159ce07c3165b754c697f2ed61aa349f49821ecd50b7188"
+  },
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\verify-public.py",
+    "sha256": "1449dd1e469779a1e1ffab383013c5ff542ae0e9fed5092d76580493fdc2e6e3"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\source-checks.json",
+    "sha256": "34390ba95ae552c330ca9bb348cf2339c5a834b1221b6190dd5f48215cc29996"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "crates/engram_server/tests/discovery_report_delivery_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "Existing report delivery now covers project listing, advanced-tool catalog and project info. Discovery stores bind privately to server scope; public manifests/JSON identify server_discovery and continuations omit synthetic project IDs. Existing scoped readers/native owners remain project-bound. Saved original MCP results reuse current bounded UTF8/hash recovery.",
+  "finite_acceptance": [
+    "list_projects and list_advanced_tools accept whole-reply max_tokens/output_json and immutable recovery without requiring a project. project_info uses existing project-bound delivery. Preserve fitting default results and original catalog/filter/profile semantics.",
+    "Use existing snapshot storage with a private server-discovery binding, expose server_discovery scope and schema-valid continuation arguments without a synthetic project_id. Existing project/tool binding and native handler ownership remain intact.",
+    "Every escaped reply/page fits its complete caller budget. Saved full MCP results survive project removal and restart without repeating discovery or lookup. Recovering catalog evidence does not establish current project presence or tool availability.",
+    "Owned eight-project public fixture demonstrates baseline ignored budget, exact original catalog recovery after one owned project removal, filter/native schema behavior and scoped project_info. Queue with the existing TODO28 source outcome; no Cargo before three distinct original requirements."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "native_cases_written": [
+    "discovery_budget_recovers_original_projects_after_removal_and_owner_shutdown",
+    "discovery_schemas_and_json_need_no_project_but_project_info_keeps_its_binding"
+  ],
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "checks_completed": [
+    "Installed owned eight-project baseline confirms schema omission and a real listing exceeding the requested2048-byte reply budget;3.611s, owned process closed and fixture removed.",
+    "Selected Rust syntax, native test format, future public driver syntax, whitespace and protected WIP9 raw hashes pass. No current-source native/public behavior claimed."
+  ],
+  "remaining_acceptance": [
+    "Combine with two other distinct original source outcomes before Cargo; TODO28 procedure evidence is the first pending outcome.",
+    "Actual candidate/installed discovery budget, project-free schema/continuations, snapshot recovery after owned project deletion and restart, filtered catalog and scoped project info."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "new_compilations": 0,
+    "new_worktree_created": false,
+    "protected_wip9_preserved": true,
+    "retention": "Keep source contract, baseline/wire and future verifier/check evidence until installed acceptance or supersession. No preexisting directory deletion."
+  },
+  "next_action": "Continue the next distinct original requirement. Two source outcomes are pending; do not compile yet."
+}
