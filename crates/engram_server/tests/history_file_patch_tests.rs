@@ -148,7 +148,9 @@ async fn selected_history_file_patch_matches_git_and_recovers_after_later_source
         retained_results::prepare(&mut request, &Engram::tool_registry().list_all())?.unwrap();
     let original = fixture
         .server
-        .handle_search_history(serde_json::from_value(request.arguments.unwrap())?)
+        .handle_search_history(serde_json::from_value(Value::Object(
+            request.arguments.unwrap(),
+        ))?)
         .await?;
     let data = fixture.owned.path().join("data");
     let captured = delivery.finish(&data, original)?;
