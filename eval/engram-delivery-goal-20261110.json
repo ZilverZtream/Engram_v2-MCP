@@ -40,8 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "SELECT_NEXT_ORIGINAL_BACKLOG_ITEM",
-    "pending_source_records": [],
+    "status": "ONE_SOURCE_OUTCOME_AWAITING_COMBINED_VALIDATION",
+    "pending_source_records": [
+      "eval/remaining-report-delivery-progress-20261116.json"
+    ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
@@ -2556,7 +2558,17 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "548c68ad35b3dd04e1a3132af3a830504fd8e63b",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\contract.json",
+        "source_progress_record": "eval/remaining-report-delivery-progress-20261116.json",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\verify-public.py",
+        "user_outcome": "18remaining project report readers gain existing complete default/caller reply budgets and immutable selected-result recovery, preserving their analysis and effects."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2743,13 +2755,26 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Completed TODO31 trigger paths, TODO4 graph readers, EG27 SQL instruction evidence",
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "active_original_item": "TODO4 remaining18agent report readers",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "delivery_record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
-    "previous_goal_turn_classification": "VERIFIED_WAIT: previous turn polled the exact live release/compiler. Current turn completes candidate/installed acceptance, retains fixture correction and eight unaffected passes, installs/restores the same single binary and enables future incremental builds without another compile.",
-    "next_action": "Select the next ready original requirement using retained delivery evidence. No closed-tool work, new language support, repeated completed acceptance or per-feature Cargo. Preserve unresolved policy decisions and held investigations.",
-    "full_original_goal_active": true
+    "original_requirement": "Complete response budgets and exact original-result recovery across remaining agent report readers.",
+    "observed_missing_behavior": "Retained actual tools/list schemas on the shipped lineage show these18project report tools lack max_tokens although their output can include full source/rules, inferred cards, QA cases and graph evidence.",
+    "implementation_files": [
+      "crates/engram_server/src/read_report_delivery.rs",
+      "crates/engram_server/src/read_report_delivery_tests.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "finite_acceptance": [
+      "Use existing shared report delivery without modifying any selected handler, ranking, model input, generated result, schema-specific source cap or analysis behavior. Default40KiB and caller budgets retain exact full selected MCP results.",
+      "Owned WebForms QA report includes a complete authored guide within the existing10000character source cap and its explicit exception. Caller8KiB capture recovers original report bytes/hash and source/uncertainty content; the fitting default40KiB reply remains unchanged. Live source/guidance changes do not mutate saved results, including restart.",
+      "Recovery never reruns analysis, graph lookup, model generation or publication. Reuse existing generic owner acceptance; schema coverage identifies all18newreport tools and preserves original control owners and closed tools.",
+      "Group this source outcome with at least two other distinct original requirements before Cargo. No individual-tool release or full suite."
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\contract.json",
+    "previous_goal_turn_classification": "PROGRESS: prior turn completed28candidate/installed checks, installed/restored same single release, retained corrections and enabled future incremental caching without another build.",
+    "full_original_goal_active": true,
+    "next_action": "Retain this one original source outcome. Select the next distinct original requirement; no Cargo until at least three substantive original outcomes."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2864,5 +2889,6 @@
     },
     "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
-  }
+  },
+  "remaining_report_delivery_source_progress": "eval/remaining-report-delivery-progress-20261116.json"
 }

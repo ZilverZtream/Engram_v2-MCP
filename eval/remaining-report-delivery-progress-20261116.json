@@ -3,7 +3,7 @@
   "original_requirement_id": "TODO-4",
   "original_requirement": "Complete response budgets and exact original-result recovery across remaining agent report readers.",
   "user_outcome": "18remaining project report readers gain existing complete default/caller reply budgets and immutable selected-result recovery, preserving their analysis and effects.",
-  "source_commit": null,
+  "source_commit": "548c68ad35b3dd04e1a3132af3a830504fd8e63b",
   "implementation_files": [
     "crates/engram_server/src/read_report_delivery.rs",
     "crates/engram_server/src/read_report_delivery_tests.rs",
@@ -65,5 +65,6 @@
     "Fresh tools keep their existing effects, including model/publication work; recovery skips the handler through the existing owner. Original result windows/caps and error/non-text behavior remain.",
     "No CodeMap/Blast source/description, graph/parser/store code or target-language expansion. Global/maintenance acknowledgment controls remain separate original TODO4 work; no all-tool completion claimed.",
     "One source outcome only; no Cargo until at least three distinct original requirements are source-complete."
-  ]
+  ],
+  "schema_baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\schema-gap1.json"
 }
