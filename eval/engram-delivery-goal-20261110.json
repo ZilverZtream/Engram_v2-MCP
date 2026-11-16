@@ -2570,6 +2570,14 @@
         "source_commit": "f1d1ef400e7e5db0a07d0ac4f5c60004a37829f4",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116\\contract.json",
         "progress": "eval/webforms-control-events-progress-20261116.json"
+      },
+      {
+        "original_requirement_id": "EG-01",
+        "outcome": "Historical ask answers carry scoped authored guidance from the exact source revision, preserving exceptions and pinned provenance without live policy fallback",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-ask-policy-20261116\\contract.json",
+        "progress": "eval/historical-ask-policy-progress-20261116.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2719,37 +2727,33 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Declared WebForms control-event request entries",
-    "original_requirement_id": "TODO-31",
-    "original_requirement": "URL/action to authored handler and existing source-bound calls/database evidence for LegacyValidation VB.NET/WebForms.",
-    "observed_missing_behavior": "LegacyValidation project.aspx:63 declares ddlType.OnSelectedIndexChanged, implemented in its VB code-behind:173. Current handler_bindings selects only load/click and explicit method names; a control/event action has no authored binding path.",
+    "active_original_item": "Revision-pinned authored guidance in historical ask answers",
+    "original_requirement_id": "EG-01",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement": "Original LegacyValidation instruction-aware context recommendation: historical replay uses authored guidance valid at the replay commit; preserve scope, exceptions and provenance.",
+    "observed_missing_behavior": "Historical ask_codebase returns historical_unavailable policy unconditionally even when matching authored guidance exists in the same Git revision as its returned source. Existing project_policy::resolve_at_revision already supplies pinned scoped guidance to change sets.",
     "implementation_files": [
-      "crates/engram_server/src/services/request_trace/control_events.rs",
-      "crates/engram_server/src/services/request_trace/execution.rs",
-      "crates/engram_server/src/services/request_trace.rs",
-      "crates/engram_server/src/handlers/request_trace_tools.rs",
-      "crates/engram_server/src/handlers/request_trace_delivery.rs",
+      "crates/engram_server/src/services/ask_engine/historical.rs",
       "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/request_trace_control_events.rs"
+      "crates/engram_server/tests/ask_historical_policy_tests.rs",
+      "crates/engram_server/src/tools.rs"
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116\\contract.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-ask-policy-20261116\\contract.json",
     "finite_acceptance": [
-      "Support explicit event controlID.EventName actions for exact authored runat=server OnEvent attributes and VB Handles control.Event bindings; retain their names rather than inferring handlers from method suffixes.",
-      "Reuse current selected revision/hash admission, page lifecycle candidates, downstream traversal, authored guidance and exact bounded report recovery. Wrong events/controls must not select the target; no HTTP postback/runtime execution guarantee.",
-      "Owned source copy of the actual non-Q LegacyValidation page must reproduce the missing event entry before the change and expose the source-cited declared handler after it. Synthetic native source must demonstrate downstream literal table navigation and unchanged load/click behavior.",
-      "Do not expand to dynamic bindings, user-control/master composition, ASHX support, framework execution or a broader route audit. No standalone Cargo."
+      "Use one resolved immutable commit for both returned historical source and applicable historical guidance. Scope policy to returned source paths and reuse existing revision resolver including scope/exclusions, linked documents, complete-source limits, hashes and explicit gaps.",
+      "Changing/deleting live policy or moving the supplied branch after capture cannot introduce future guidance or mutate saved recovery. Preserve no-live-index/graph/provider use and historical partial/unsupported statuses; policy presence never establishes implementation compliance.",
+      "Missing or malformed policy remains absent/incomplete/unavailable with explicit provenance; a failed policy read must not substitute working-tree bytes. No returned source paths means policy scope is not evaluated.",
+      "Owned installed baseline must reproduce available historical source with withheld matching guidance. Focused native and public post-change JSON/Markdown and immutable recovery checks remain pending consolidated validation; no standalone Cargo or model replay."
     ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
     "full_original_goal_active": true,
-    "next_action": "Advance another substantive unmet original requirement; retain two committed source outcomes pending consolidated native/public verification and deployment. Minimum batch count is not a release schedule. No standalone compile or model replay.",
-    "source_progress": "eval/webforms-control-events-progress-20261116.json",
-    "source_commit": "f1d1ef400e7e5db0a07d0ac4f5c60004a37829f4",
-    "baseline_public_checks": 5,
+    "next_action": "Continue substantive original source work. Three committed outcomes are pending consolidated native/public/deployment acceptance; minimum admission count is not a release trigger. No standalone compilation or replay of inspected model tasks.",
+    "source_progress": "eval/historical-ask-policy-progress-20261116.json",
+    "baseline_public_checks": 3,
     "native_tests_executed": 0,
-    "builds_started": 0
+    "builds_started": 0,
+    "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

@@ -40,5 +40,6 @@
     "baseline_fixture_removed": true,
     "baseline_process_closed": true,
     "retention": "Keep contract, private driver and raw baseline receipts for acceptance/review. No actual LegacyValidation source/store/configuration accessed or changed by this fixture."
-  }
+  },
+  "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47"
 }
