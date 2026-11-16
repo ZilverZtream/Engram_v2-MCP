@@ -411,6 +411,7 @@ enum HistoryMode {
     Precedent,
     Text,
     Commit,
+    Patch,
 }
 
 /// `auto`: story-like prose (8+ words, mostly not code tokens) asks for
@@ -420,6 +421,7 @@ fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError
         "precedent" => Ok(HistoryMode::Precedent),
         "text" => Ok(HistoryMode::Text),
         "commit" => Ok(HistoryMode::Commit),
+        "patch" => Ok(HistoryMode::Patch),
         "auto" => {
             let words: Vec<&str> = query
                 .split_whitespace()
@@ -440,7 +442,7 @@ fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError
             })
         }
         other => Err(McpError::invalid_params(
-            format!("mode must be auto, precedent, text or commit, got '{other}'"),
+            format!("mode must be auto, precedent, text, commit or patch, got '{other}'"),
             None,
         )),
     }
@@ -2075,6 +2077,7 @@ impl Engram {
         match history_mode(req.mode.as_deref(), &req.query)? {
             HistoryMode::Precedent => return self.handle_precedents(req).await,
             HistoryMode::Commit => return self.handle_history_commit(req).await,
+            HistoryMode::Patch => return self.handle_history_patch(req).await,
             HistoryMode::Text => (),
         }
         let response_req = req.clone();

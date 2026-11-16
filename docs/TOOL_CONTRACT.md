@@ -1,6 +1,17 @@
 # Tool Contract
 
-Installed2026-11-16: `search_history` supports `mode: "commit"` with `query` set to an exact40hex Git ID. It reads the full original UTF-8 message and complete first-parent changed-file cohort, including generated paths and old/new object identities, through MCP without history reindexing, embeddings or an LLM. The commit must be reachable from `as_of_rev` or the origin default history scope; missing scope and unsupported search filters refuse. Previews retain normal ranking/caps and offer `recovery.complete_git_commit` using immutable result recovery. Full reads refuse rather than silently clip beyond256KiB message,10000paths or2MiB message/path text. Patch bodies, rename inference, deployment, reviewer approval and current-policy applicability are not established.
+Installed2026-11-16: `search_history` supports `mode: "commit"` with `query` set to an exact40hex Git ID. It reads the full original UTF-8 message and complete first-parent changed-file cohort, including generated paths and old/new object identities, through MCP without history reindexing, embeddings or an LLM. The commit must be reachable from `as_of_rev` or the origin default history scope; missing scope and unsupported search filters refuse. Previews retain normal ranking/caps and offer `recovery.complete_git_commit` using immutable result recovery. Full reads refuse rather than silently clip beyond256KiB message,10000paths or2MiB message/path text. Rename inference, deployment, reviewer approval and current-policy applicability are not established.
+
+Pending source change, not yet installed: `mode: "patch"` with an exact40hex
+commit `query` and exact repository-relative `file_filter` returns that path's
+complete first-parent unified patch, full old/new object IDs and BLAKE3 hash.
+Commit-detail `file_changes` entries provide callable `patch` actions using the
+same pinned history scope and immutable saved-response recovery. Source changes
+and later HEAD movement do not change the retained result. No index, embedding,
+LLM, external diff or text conversion runs. Binary entries expose identities
+without a text patch; missing objects, non-UTF8 text, blobs or patches beyond2MiB
+refuse instead of clipping. These are historical source facts, not approval,
+current policy or runtime behavior. Other search filters/nonzero offset refuse.
 
 Installed2026-11-16: request traces compose existing JS/TS incoming API-call candidates for selected server handlers. Caller source lines/hashes and original transport/resolution metadata are retained with applicable authored script guidance. Only referenced scripts are read, within the shared source budget; up to8entries and64incoming edges are inspected with explicit incomplete/stale coverage. Browser inclusion, event wiring, HTTP verb and runtime binding remain unknown. Oversized caller details use the existing immutable full-report recovery.
 

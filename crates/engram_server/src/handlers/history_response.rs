@@ -63,7 +63,9 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
         metadata["query"]=json!(req.query);
         metadata["status"]=json!("ok");
         metadata["requested_offset"]=json!(req.offset);
-        metadata["coverage"]=json!(if metadata["mode"]=="commit" {
+        metadata["coverage"]=json!(if metadata["mode"]=="patch" {
+            "One exact file's first-parent Git patch in the selected revision scope, with full object IDs and original UTF-8 patch/hash. Binary entries supply no text patch. No indexed search, embedding, LLM, external diff or text conversion. Existing complete_capture/retain_response preserves the original result; historical evidence does not prove current policy or runtime behavior."
+        } else if metadata["mode"]=="commit" {
             "One exact Git commit in the selected revision scope. Complete original UTF-8 message and first-parent changed-file cohort, including generated paths; no patch body or rename inference. No indexed search, embedding or LLM call. Use complete_capture or retain_response=true with output_json=true for immutable full-result recovery when the complete row exceeds a reply budget."
         } else {
             "Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages."

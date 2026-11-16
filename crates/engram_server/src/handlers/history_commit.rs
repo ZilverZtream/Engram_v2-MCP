@@ -7,7 +7,11 @@ use rmcp::{ErrorData as McpError, model::CallToolResult};
 use serde_json::{Value, json};
 use std::path::Path;
 
-fn read(root: &Path, project: &str, oid: &str, cutoff: Option<&str>) -> Result<Value> {
+pub(super) fn open_scoped(
+    root: &Path,
+    oid: &str,
+    cutoff: Option<&str>,
+) -> Result<(git2::Repository, Oid, Oid)> {
     let repo = GitWalker::open_repo(root)?;
     let id = Oid::from_str(oid)?;
     let scope = match cutoff {
@@ -19,6 +23,11 @@ fn read(root: &Path, project: &str, oid: &str, cutoff: Option<&str>) -> Result<V
         id == scope || repo.graph_descendant_of(scope, id)?,
         "Commit is outside the selected history scope"
     );
+    Ok((repo, id, scope))
+}
+
+fn read(root: &Path, project: &str, oid: &str, cutoff: Option<&str>) -> Result<Value> {
+    let (repo, id, scope) = open_scoped(root, oid, cutoff)?;
     let commit = repo.find_commit(id)?;
     ensure!(
         commit.message_bytes().len() <= 256 * 1024,
@@ -57,7 +66,10 @@ fn read(root: &Path, project: &str, oid: &str, cutoff: Option<&str>) -> Result<V
         changes.push(json!({"status":format!("{:?}",delta.status()),"path":path,
             "old_blob":if old.id().is_zero(){None}else{Some(old.id().to_string())},
             "new_blob":if new.id().is_zero(){None}else{Some(new.id().to_string())},
-            "old_mode":format!("{:?}",old.mode()),"new_mode":format!("{:?}",new.mode())}));
+            "old_mode":format!("{:?}",old.mode()),"new_mode":format!("{:?}",new.mode()),
+            "patch":{"tool":"search_history","arguments":{"project_id":project,"query":id.to_string(),
+                "mode":"patch","file_filter":path,"as_of_rev":scope.to_string(),
+                "output_json":true,"retain_response":true,"max_tokens":1024}}}));
     }
     Ok(
         json!({"rank":1,"project_id":project,"commit":id.to_string(),

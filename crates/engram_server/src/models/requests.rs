@@ -2213,6 +2213,11 @@ pub struct SearchHistoryRequest {
     /// embeddings or LLM. Search filters/nonzero offset are refused; limit,
     /// reranking and preview caps do not clip this single complete change.
     /// Use output_json=true with retain_response=true for saved full recovery.
+    /// `patch`: query is an exact40hex commit ID and file_filter is one exact
+    /// repository-relative Git path. Reads its complete first-parent unified
+    /// patch and object IDs under the same history scope; no rename inference
+    /// or binary text conversion. TwoMiB blob/patch ceilings refuse clipping.
+    /// Complete commit rows supply literal patch actions for changed paths.
     #[serde(default)]
     pub mode: Option<String>,
     /// Precedent mode: rerank with the configured OpenRouter LLM. Default true;
