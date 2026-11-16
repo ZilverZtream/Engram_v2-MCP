@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_CORRECTED_RELEASE_RUNNING_NOT_INSTALLED",
+  "status": "INSTALLED_ACCEPTANCE_COMPLETE",
   "at_utc": "2026-11-16T20:15:48.143623+00:00",
   "original_requirements": [
     "TODO-28",
@@ -47,19 +47,8 @@
   },
   "release": {
     "attempts": 2,
-    "active_label": "release2",
-    "live_owner": {
-      "driver_pid": 22548,
-      "driver_created": 1794860044.5253956,
-      "relay_pid": 58556,
-      "relay_created": 1794860044.8671842,
-      "session_id": 20338,
-      "owner_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release2-owner.json",
-        "sha256": "071652c754366dafe82423a35156d86645e2ce35f6c684a20c6a07d70ef19c6d"
-      },
-      "observed_at_utc": "2026-11-16T20:15:48.143623+00:00"
-    },
+    "active_label": null,
+    "live_owner": null,
     "source": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-implementation2.json",
       "sha256": "9d98e26eac304e78c0e8cb8fdb78e43745d86285550449ca2bcac582ea8e91f3"
@@ -82,6 +71,10 @@
       "relay_handle_closed": true,
       "owned_temp_removed": true,
       "reason": "Known unqualified-procedure premise/ambiguity defect in existing finite acceptance; stopped before finishing an artifact known to fail."
+    },
+    "terminal_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release2.json",
+      "sha256": "06d949d88427f2f08fb497a3d4ed31598456da2f710b13b28cc6099ec3891ba4"
     }
   },
   "full_or_lib_suites": 0,
@@ -107,14 +100,6 @@
     "472ad57",
     "70f2843"
   ],
-  "completion_driver": {
-    "session_id": 48109,
-    "driver_pid": 88272,
-    "driver_created": 1794860280.609736,
-    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\completion2-state.json",
-    "script": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\finish-release2.py",
-    "verified_at_utc": "2026-11-16T20:18:53.768563+00:00",
-    "builds_launched": 0,
-    "purpose": "Wait for already-running release2, package, require candidate MCP acceptance before upgrade, verify installed behavior and restore normal daemon. Stop on failure; never recompile."
-  }
+  "completion_driver": null,
+  "delivery": "eval/procedure-discovery-schema-batch-delivery-20261116.json"
 }

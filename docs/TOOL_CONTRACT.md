@@ -177,7 +177,7 @@ report recovery controls. Batch omissions retain the complete original request;
 replaying that request performs the normal read against then-current source unless
 it already selects an immutable `response_id`. Reads remain sequential.
 
-Pending source change, not yet installed: `batch_read` also accepts
+Installed November16: `batch_read` also accepts
 `query_schema` with its normal typed arguments. Table, column, relationship and
 stored-procedure reads keep existing qualification, source hashes/citations,
 authored guidance and per-read budget/recovery controls. Other operations still
@@ -1293,8 +1293,8 @@ deployed database state; ALTER/DROP, default schema and collation are not inferr
 Installed proof for these three changes: [reports, safety and SQL delivery](../eval/reports-safety-sql-batch-delivery-20261116.json). Ambiguous SQL lookup supplies cited candidate identities and qualified recovery actions; candidate identities do not supply columns or establish database name binding.
 
 
-Pending next-batch source change, not in the installed browser/JSON/history release:
-`ask_codebase` ordinary descriptions of graph-resolved SQL stored procedures
+Installed November16:
+`ask_codebase` ordinary descriptions of named SQL stored procedures
 select the existing `query_schema` stored-procedure reader under the same selected
 source view. Typed `schema` evidence retains its complete token-normalized
 procedure declaration, lexical references and raw-source citation/hash. The
@@ -1304,10 +1304,11 @@ changes withhold their facts. Existing whole-report budgets and saved recovery
 retain original procedure/guidance evidence after edits. VB methods do not become
 SQL from their names alone. This supplies source declarations, without proving
 migration/deployment order, dynamic SQL resolution, runtime argument values or
-execution. This change is not yet compiled, validated or installed.
+execution. Selected-source lookup also handles declarations without graph symbols;
+matched source names support the question premise without inferring deployment.
 
 
-Pending source change, not yet installed: `list_projects` and
+Installed November16: `list_projects` and
 `list_advanced_tools` use the existing complete-report delivery budget, including
 caller `max_tokens`, optional JSON and exact original-result recovery. They need
 no project ID: manifests identify `report_scope: server_discovery`, and their
@@ -1318,3 +1319,9 @@ project or tool discovery, grant capabilities, or prove current project presence
 project binding. Fitting default results and original filters/profile rules stay
 with their handlers. Existing retention, UTF-8 budgeting and error/media limits
 apply. The private snapshot binding is not a project record or a public argument.
+
+Installed proof for procedure answers, discovery and SQL batches:
+[combined delivery](../eval/procedure-discovery-schema-batch-delivery-20261116.json).
+The corrected runtime passed21candidate and21installed MCP checks. The retained
+native run passed three cases and failed procedure routing before its correction;
+that native case was not recompiled or claimed as passing.

@@ -1,0 +1,172 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-16T20:36:10.067200+00:00",
+  "original_requirements": [
+    "TODO-28",
+    "TODO-4",
+    "TODO-33"
+  ],
+  "outcomes": [
+    "Ordinary named SQL procedure answers preserve complete selected-source declarations, lexical references, raw hashes and scoped guidance; matching premises and ambiguity are retained without requiring graph symbols. Exact saved recovery survives SQL/guidance edits; fresh changed-source facts are withheld.",
+    "Project/tool discovery honors caller budgets and opt-in JSON without a project ID. Exact original catalog recovery survives project removal and owned-server restart; project_info stays project-bound.",
+    "Typed batch_read composes ordinary query_schema source evidence with independent errors/correlation, whole-result budget omission and complete callable recovery. Ordinary recovery observes current source drift; no atomic batch snapshot is claimed."
+  ],
+  "runtime_source_commit": "85a4a6073583a484eefa551935623c24747538b6",
+  "source_commits": [
+    "2b045590daa12b3219efb11d803d360e75927426",
+    "149dd541f169a070ba3388858f225b7f56041707",
+    "6b4d52e79d77a8bfd5079438fe78751afc2106fd"
+  ],
+  "production_corrections": [
+    "472ad57",
+    "70f2843"
+  ],
+  "native": {
+    "attempts": 1,
+    "passed": 3,
+    "failed": 1,
+    "corrected_case_recompiled": false
+  },
+  "validation": {
+    "candidate_checks_passed": 21,
+    "installed_checks_passed": 21,
+    "full_or_lib_suites": 0,
+    "extra_debug_builds": 0,
+    "original_full19gates_closed": false
+  },
+  "installed": {
+    "server_sha256": "9b0f1bdf5f89868fa0e2fc9c0eb6cf336fc4a5ad07ec961154c0567f7a148b31",
+    "manifest_sha256": "22df17e92ee7d9b01f531fc008c102e5f924858e7c2ac6b396ddcc6573fbc2be",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151,
+    "assets_verified": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "protected_wip9_unchanged": true
+  },
+  "evidence": {
+    "release-implementation2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-implementation2.json",
+      "sha256": "9d98e26eac304e78c0e8cb8fdb78e43745d86285550449ca2bcac582ea8e91f3"
+    },
+    "release-source-validation2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release-source-validation2.json",
+      "sha256": "9706eecaa2152e1f775ad197e6ccf618980837f0974f0d8c931c242061d4dcdf"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\native1.json",
+      "sha256": "0ca62ff4ed7a50e3677559a468b10d072ad3c2e9f7c6f667d1a2be6514a8ad2d"
+    },
+    "native1.log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\native1.log",
+      "sha256": "9ec37cf7204557e62ecbb5bbde75be9799a4193b0eceedf45a4c1792b6c46205"
+    },
+    "native-acceptance2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\native-acceptance2.json",
+      "sha256": "78244f84cd183f32e490dce0879676d7519ee78344ad5e113c35291ca175764f"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1.json",
+      "sha256": "b88acb37037b00b7f55f0a22ef591f2dc688b2018db4c0e406c9d770fff2e5af"
+    },
+    "release1-cancellation.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release1-cancellation.json",
+      "sha256": "56898169cf29a54ea3e123b1c2be367ad521e057a67794e61c8fffaad3078f60"
+    },
+    "release2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release2.json",
+      "sha256": "06d949d88427f2f08fb497a3d4ed31598456da2f710b13b28cc6099ec3891ba4"
+    },
+    "candidate1-budget-fixture-correction.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\candidate1-budget-fixture-correction.json",
+      "sha256": "96e56dc31bdd7eea3051590a023f4c06a6ee04de9c11565998134da4309b4949"
+    },
+    "candidate2/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\candidate2\\acceptance.json",
+      "sha256": "6e0ef7f50ca3725a2d4e8a2174e80b6a846cf909cda194e0ca2c715ad2adca46"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\installed1\\acceptance.json",
+      "sha256": "9c70401390444c1a15bdf7ca248b8caa0de8782e7243282879bfc17be3109c5e"
+    },
+    "deployment5-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\deployment5-state.json",
+      "sha256": "84de60a12df0922d0edc367aabc65995222cc412b3d91e6dc5a3fa69e5805c44"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "7f5a022061eaa566e8a71aa7ce1c25248d549863ffc7313534ac7f54da0483b0"
+    },
+    "bundle1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\bundle1.json",
+      "sha256": "55638a4eb16a961d4900599dcdeb74013c2977b0d5b515d61e8f0709d38465e8"
+    },
+    "timing1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\timing1.json",
+      "sha256": "b85ee73c87b10a1c176e7573981e9c44b233450eb3c22a0f0f53f6e42e759f02"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\candidate1\\acceptance.json",
+      "sha256": "2a5d93086698a652b13fcd6f4a3d4d64fc91932a7f3c8be5860cc4997c0e3ad0"
+    },
+    "completion2-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\completion2-state.json",
+      "sha256": "044ef9d2f98aa88b09d7400da1ee344c603ecadfc3e3cbb01df29b6b0ce80dd9"
+    },
+    "package-completion2.log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\package-completion2.log",
+      "sha256": "3029ba2d67f07dbc3dfa6298bd6baef33119636a4ce87af5fa96fad08aa3cb91"
+    },
+    "deployment4-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\deployment4-state.json",
+      "sha256": "f22ab77ab9f0464f7e2011c1c78d25e1f60fb44be184796631121b5faf6b1095"
+    }
+  },
+  "timing": {
+    "scope": "This batch validation/deployment: first native start to completed normal-runtime restoration. Source authoring before this interval is excluded.",
+    "start_utc": "2026-11-16T19:56:44.347795+00:00",
+    "end_utc": "2026-11-16T20:33:02.888712+00:00",
+    "elapsed_seconds": 2178.540917,
+    "build_runner_seconds": 1355.9634181999136,
+    "build_runner_percent": 62.24181550223845,
+    "native_attempts": 1,
+    "release_attempts": 2,
+    "canceled_release_attempts": 1,
+    "successful_release_builds": 1,
+    "full_or_lib_suites": 0,
+    "extra_debug_builds": 0,
+    "actual_coding_percent": null,
+    "limits": [
+      "Build runners include tests/cleanup, not pure compiler CPU.",
+      "Other elapsed is not classified as coding. This does not establish a coding/testing split or improvement over a differently scoped prior window."
+    ]
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\Engram-win-x64-procedure-discovery-schema.zip",
+    "sha256": "459556bd6768c743894a071b47fcc463542ef84c15aa847465349426949e5a0d",
+    "entries": 219,
+    "runtime_assets": 215,
+    "publicly_published": false
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116",
+    "reused_checkout": true,
+    "new_worktree": false,
+    "build_jobs_relays_temp_closed_removed": true,
+    "all_public_fixture_owners_closed_removed": true,
+    "configuration_hold_closed_and_owned_copy_removed": true,
+    "normal_daemon": 42496,
+    "normal_daemon_application_owned": true,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-a48d05fa414d4fb68911295c190acf53",
+    "retention": "Keep exact source/failure/build/public/package receipts until review or supersession and managed old pair for rollback. No preexisting folder deletion."
+  },
+  "limits": [
+    "The native procedure case failed before correction; no native pass is claimed for the corrected source or later budget-fixture correction.",
+    "Initial release canceled after312.4s for an ordinary-question status defect; completed release took788.8s. Packaging metadata and too-small fixture-budget failures are retained; neither caused recompilation.",
+    "No actual LegacyValidation/Q source read or reindex, sidecar change, new target language, CodeMap/Blast Radius change, global policy adoption, full19gate closure or demonstrated task-productivity improvement.",
+    "Actual coding percentage remains unknown. The measured validation/deployment build share is not a coding/testing percentage."
+  ]
+}

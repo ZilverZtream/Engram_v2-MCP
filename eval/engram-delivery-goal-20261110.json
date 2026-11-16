@@ -2554,41 +2554,11 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-28",
-        "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
-        "source_commit": "70f2843c7bd08c564357a81a4a2f2f8b53d2d0ce",
-        "progress": "eval/ask-procedure-evidence-progress-20261116.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1,
-        "initial_source_commit": "2b045590daa12b3219efb11d803d360e75927426",
-        "source_correction": "Selected SQL catalog lookup replaces the missing graph-symbol assumption; native failure retained and release proof pending."
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "outcome": "Bounded project and tool discovery with project-free exact recovery",
-        "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
-        "progress": "eval/discovery-report-delivery-progress-20261116.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1
-      },
-      {
-        "original_requirement_id": "TODO-33",
-        "outcome": "Typed SQL schema batches preserve ordinary evidence, errors and recovery",
-        "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-        "progress": "eval/batch-schema-read-progress-20261116.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/browser-json-history-batch-delivery-20261116.json",
+    "last_completed_batch": "eval/procedure-discovery-schema-batch-delivery-20261116.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2714,35 +2684,7 @@
     "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
     "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
-  "following_batch_pending": [
-    {
-      "original_requirement_id": "TODO-28",
-      "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
-      "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
-      "progress": "eval/ask-procedure-evidence-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    },
-    {
-      "original_requirement_id": "TODO-4",
-      "outcome": "Bounded project and tool discovery with project-free exact recovery",
-      "source_commit": "149dd541f169a070ba3388858f225b7f56041707",
-      "progress": "eval/discovery-report-delivery-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\discovery-report-delivery-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    },
-    {
-      "original_requirement_id": "TODO-33",
-      "outcome": "Typed SQL schema batches preserve ordinary evidence, errors and recovery",
-      "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-      "progress": "eval/batch-schema-read-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    }
-  ],
+  "following_batch_pending": [],
   "method_schema_area_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
@@ -2760,7 +2702,7 @@
   },
   "current_execution_focus": {
     "active_original_item": "Procedure/discovery/SQL source batch acceptance",
-    "status": "SOURCE_CORRECTED_RELEASE_RUNNING_NOT_INSTALLED",
+    "status": "THREE_OUTCOMES_INSTALLED_ACCEPTANCE_COMPLETE",
     "original_requirement_id": "TODO-33",
     "implementation_items_active": 0,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
@@ -2772,9 +2714,9 @@
       "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
     ],
     "full_original_goal_active": true,
-    "next_action": "Poll existing completion session48109 (driver pinned in completion_driver) and release2 session20338 as needed. Do not separately package/deploy while that runner is live. On terminal completion inspect current candidate/installed/normal-runtime receipts, record delivery and advance original backlog; on failure inspect retained exact evidence, never restart a build from a timeout.",
+    "next_action": "Advance remaining original acceptance with one implementation item active. Preserve all unfinished research/TODO/storage findings. Do not rerun these completed finite outcomes, CodeMap/Blast Radius, unrelated full suites or inspected task/model comparisons; do not invent small filler changes to trigger another build.",
     "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-    "source_progress": "eval/procedure-discovery-schema-batch-progress-20261116.json",
+    "source_progress": "eval/procedure-discovery-schema-batch-delivery-20261116.json",
     "pending_source_outcomes": 3,
     "native_target": "procedure_discovery_schema_batch_tests",
     "native_cases_written": 4,
@@ -2788,34 +2730,15 @@
     "production_correction_commit": "472ad57",
     "native_cases_passed": 3,
     "native_cases_failed": 1,
-    "release_live_owner": {
-      "driver_pid": 22548,
-      "driver_created": 1794860044.5253956,
-      "relay_pid": 58556,
-      "relay_created": 1794860044.8671842,
-      "session_id": 20338,
-      "owner_receipt": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\release2-owner.json",
-        "sha256": "071652c754366dafe82423a35156d86645e2ce35f6c684a20c6a07d70ef19c6d"
-      },
-      "observed_at_utc": "2026-11-16T20:15:48.143623+00:00"
-    },
-    "release_session_id": 20338,
+    "release_live_owner": null,
+    "release_session_id": null,
     "release_label": "release2",
     "production_correction_commits": [
       "472ad57",
       "70f2843"
     ],
-    "completion_driver": {
-      "session_id": 48109,
-      "driver_pid": 88272,
-      "driver_created": 1794860280.609736,
-      "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\completion2-state.json",
-      "script": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\finish-release2.py",
-      "verified_at_utc": "2026-11-16T20:18:53.768563+00:00",
-      "builds_launched": 0,
-      "purpose": "Wait for already-running release2, package, require candidate MCP acceptance before upgrade, verify installed behavior and restore normal daemon. Stop on failure; never recompile."
-    }
+    "completion_driver": null,
+    "release_result": "release1 explicitly canceled/cleaned; release2 terminal PASS; initial completion helper stopped on missing packaging metadata; fixed handoff reused exact artifact; deployment5 and normal restoration passed"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3056,5 +2979,6 @@
     "runner_seconds": 19094.889676200226,
     "actual_coding_percent": null,
     "scope": "November16 UTC records before this new three-outcome batch. No compiler was running at that inspection; total includes tests/teardown, not pure compilation."
-  }
+  },
+  "procedure_discovery_schema_delivery_20261116": "eval/procedure-discovery-schema-batch-delivery-20261116.json"
 }

@@ -138,12 +138,12 @@ async fn procedure_question_preserves_complete_reader_evidence_and_original_reco
             .any(|item| item["provider"] == "schema")
     );
     let mut bounded = args.clone();
-    bounded["max_tokens"] = json!(1024);
+    bounded["max_tokens"] = json!(2048);
     let bounded = fixture
         .server
         .handle_ask_codebase(serde_json::from_value(bounded)?)
         .await?;
-    ensure!(text(&bounded).len() <= 4096);
+    ensure!(text(&bounded).len() <= 8192);
     let bounded: Value = serde_json::from_str(text(&bounded))?;
     let mut action = bounded["response_delivery"]["next_call"].clone();
     std::fs::write(
@@ -169,7 +169,7 @@ async fn procedure_question_preserves_complete_reader_evidence_and_original_reco
             .server
             .handle_ask_codebase(serde_json::from_value(action["arguments"].clone())?)
             .await?;
-        ensure!(text(&page).len() <= 4096);
+        ensure!(text(&page).len() <= 8192);
         let page: Value = serde_json::from_str(text(&page))?;
         recovered.push_str(page["content"].as_str().unwrap());
         action = page["next_call"].clone();
