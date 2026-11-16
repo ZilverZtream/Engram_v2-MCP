@@ -1,4 +1,4 @@
-//! Complete source-declared table evidence for the existing SQL question path.
+//! Complete source-declared table/procedure evidence for the SQL question path.
 use std::{sync::Arc, time::Duration};
 
 use engram_index::SourceSnapshotGuard;
@@ -51,21 +51,26 @@ pub(super) async fn gather(
     }
     let mut requests = Vec::new();
     for entity in &plan.entities {
+        // Classification selects an existing reader, never proves binding.
+        // That reader independently admits selected/current SQL source hashes.
+        let is_procedure = entity.resolved.iter().filter_map(|resolved| resolved.node_id.as_deref())
+            .any(|id| engram.state.graph.get_node(project_id, id).is_ok_and(|node| node.is_some_and(|node|
+                node.node_type == "stored_proc" && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql"))));
         let is_table = entity.resolved.iter().any(|r| r.kind == EntityKind::Table)
             || entity.guessed_kind == EntityKind::Table
             || (plan.contract.entity_type == ContractEntityType::Table
                 && entity.guessed_kind != EntityKind::File);
-        if !is_table || requests.iter().any(|r: &QuerySchemaRequest| {
-            matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if name == &entity.text)
+        if (!is_table && !is_procedure) || requests.iter().any(|r: &QuerySchemaRequest| {
+            matches!(&r.query_type, Some(SchemaQueryType::Table { name }) if !is_procedure && name == &entity.text)
+                || matches!(&r.query_type, Some(SchemaQueryType::StoredProc { sp_name }) if is_procedure && sp_name == &entity.text)
         }) {
             continue;
         }
         let request = QuerySchemaRequest {
             project_id: project_id.into(),
             // Preserve qualification from the question, never a basename graph identity.
-            query_type: Some(SchemaQueryType::Table {
-                name: entity.text.clone(),
-            }),
+            query_type: Some(if is_procedure { SchemaQueryType::StoredProc { sp_name: entity.text.clone() } }
+                else { SchemaQueryType::Table { name: entity.text.clone() } }),
             offset: Some(0),
             limit: Some(100),
             max_tokens: Some(65536),
@@ -93,12 +98,13 @@ pub(super) async fn gather(
             proof: None,
         },
     };
-    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most3 named-table lookups; examined counts source-file examinations across lookups.".to_string()];
+    let mut notes = vec!["Source declarations only; no live database, default-schema or collation binding. At most3 named-table/procedure lookups; examined counts source-file examinations across lookups.".to_string()];
     let mut failed = false;
     let work = async {
         let view =
             view.ok_or_else(|| "Selected source unavailable for SQL schema evidence".to_string())?;
         for request in requests.into_iter().take(3) {
+            let is_procedure = matches!(&request.query_type, Some(SchemaQueryType::StoredProc { .. }));
             let result = engram
                 .query_schema_selected(
                     request.clone(),
@@ -146,7 +152,7 @@ pub(super) async fn gather(
             }
             for row in report["results"].as_array().into_iter().flatten() {
                 let ambiguous = report["status"] == "ambiguous";
-                let table = if ambiguous { row } else { &row["table"] };
+                let table = if ambiguous || is_procedure { row } else { &row["table"] };
                 let citation = &table["citation"];
                 let path = citation["path"]
                     .as_str()
@@ -167,26 +173,34 @@ pub(super) async fn gather(
                     kind: EvidenceKind::SourceCode, authority: Authority::CurrentCode,
                     path: Some(path.into()), lines: Some((start as u32, end as u32)),
                     symbol_id: Some(format!("schema:{path}:{start}:{hash}")),
-                    title: Some(format!("Source table {}", table["name"])),
+                    title: Some(format!("Source {} {}", if is_procedure { "procedure" } else { "table" }, table["name"])),
                     content: if ambiguous {
                         let recovery = if engram.state.cfg.advertise_all_tools {
                             json!({"tool":"query_schema","arguments":{"project_id":project_id,
-                                "query_type":{"kind":"table","name":row["name"]}}})
+                                "query_type":if is_procedure {json!({"kind":"stored_proc","sp_name":row["name"]})}
+                                    else {json!({"kind":"table","name":row["name"]})}}})
                         } else {
                             json!({"tool":"ask_codebase","arguments":{"project_id":project_id,
-                                "question":format!("What are the columns of the \"{}\" table?",row["name"].as_str().unwrap_or_default()),
+                                "question":if is_procedure {format!("Describe the stored procedure \"{}\"",row["name"].as_str().unwrap_or_default())}
+                                    else {format!("What are the columns of the \"{}\" table?",row["name"].as_str().unwrap_or_default())},
                                 "output_format":"json"}})
                         };
                         json!({"status":"ambiguous", "candidate":row,
                         "source_coverage":report["coverage"],
                         "clarification":"Choose a qualified source name; duplicate declarations may still require source inspection. No default schema or deployment binding is inferred.",
                         "recovery":recovery}).to_string()
+                    } else if is_procedure { json!({"stored_procedure":table,"source_coverage":report["coverage"],
+                        "next_page":report["next_page"]}).to_string()
                     } else { json!({"table":table,"source_coverage":report["coverage"],
                         "table_gaps":report["table_gaps"],"unknown_nullability_columns":report["unknown_nullability_columns"],
                         "next_page":report["next_page"]}).to_string() },
                     generation: Some(generation), commit: None, timestamp: None,
                     confidence: 0.95, relevance: 1.0, extraction_method: "source_sql_schema".into(),
-                    warnings: vec![if ambiguous {
+                    warnings: vec![if is_procedure && ambiguous {
+                        "Multiple source procedure declarations; choose a qualified name or inspect duplicates. No unique deployed procedure is established."
+                    } else if is_procedure {
+                        "Complete admitted token-normalized procedure declaration and lexical references. Deployment order, execution, dynamic SQL and runtime argument values are not established."
+                    } else if ambiguous {
                         "Ambiguous source-name candidate identity only; columns are not supplied. Choose a qualified name before relying on its schema."
                     } else {
                         "Complete admitted CREATE TABLE declaration; ALTER/DROP and deployment order are not applied. Omitted nullability remains unknown."

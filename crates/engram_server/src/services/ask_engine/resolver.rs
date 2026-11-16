@@ -254,7 +254,7 @@ pub fn resolve_entities_in_context(
         p.ends_with(".vb") || p.ends_with(".cs") || p.ends_with(".asmx")
     };
     let is_sql_declaration = |node: &Node| {
-        node_to_entity_kind(&node.node_type) == EntityKind::Table
+        (node_to_entity_kind(&node.node_type) == EntityKind::Table || node.node_type == "stored_proc")
             && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql")
     };
     let mut sql_declarations = std::collections::HashSet::new();
@@ -464,8 +464,7 @@ pub fn resolve_entities_in_context(
     // keywords. Preserve the final narrowed resolutions and their ambiguity;
     // DBML/table-like names alone do not establish a SQL source declaration.
     if plan.entities.iter().flat_map(|mention| &mention.resolved).any(|resolved| {
-        resolved.kind == EntityKind::Table
-            && resolved.node_id.as_ref().is_some_and(|id| sql_declarations.contains(id))
+        resolved.node_id.as_ref().is_some_and(|id| sql_declarations.contains(id))
     }) && !plan.modalities.iter().any(|modality| matches!(modality, Modality::Sql)) {
         plan.modalities.push(Modality::Sql);
     }
