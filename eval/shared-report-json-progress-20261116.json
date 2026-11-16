@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
-  "at_utc": "2026-11-16T18:12:18.698614+00:00",
+  "status": "CURRENT_ARTIFACT_VALIDATED_RELEASE_RUNNING",
+  "at_utc": "2026-11-16T18:38:43.207766+00:00",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform response envelope: token budgets, truncation metadata, pagination and consistent output_json",
   "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
@@ -20,7 +20,7 @@
   "baseline_status": "Expected unknown-output_json RPC refusal confirmed from retained wire; original driver FAIL preserved. No repeat execution.",
   "future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\verify-public.py",
-    "sha256": "ef878f4ee511df29bd6447e931069ae11872c695a551cc3760f6f453411575db"
+    "sha256": "8d152a32d7e43b8348da5267b94e48104744354a03fe2c2ce16037c4bca152b8"
   },
   "source_checks": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\source-checks.json",
@@ -38,18 +38,18 @@
     "Complete escaped JSON text counts toward the existing caller budget. Oversized envelopes use existing immutable full-result recovery. Recovery retains the JSON envelope and original parts after source changes or restart, without rerunning the handler.",
     "Owned public proof exercises ordinary/default and opt-in memory/state reports, typed schema advertisement, JSON escaping, small-budget exact recovery and existing native JSON preservation. No standalone Cargo; queue as one original requirement."
   ],
-  "compiled": false,
+  "compiled": true,
   "native_tests_run": false,
   "native_cases_written": [
     "json_report_surface_preserves_native_json_owners_and_default_replies",
     "escaped_json_budget_and_recovery_retain_all_original_evidence_parts"
   ],
-  "public_acceptance_run": false,
+  "public_acceptance_run": true,
   "installed": false,
-  "source_only": true,
+  "source_only": false,
   "remaining_acceptance": [
-    "Combined focused native batch after at least three distinct original source outcomes.",
-    "Candidate and installed public proof of schemas, ordinary/default replies, complete JSON parts and saved recovery after source changes."
+    "One release build currently live as exec session3203; then candidate/installed public proof, identity accounting and normal lifecycle restoration.",
+    "Four authored native test cases remain unexecuted; first attempt failed to compile test arguments. Corrected test sources retained without another native build."
   ],
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116",
@@ -60,5 +60,28 @@
     "protected_wip9_preserved": true,
     "retention": "Keep original failed baseline, raw wire, reconciliation, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folders removed."
   },
-  "next_action": "Accumulate the next distinct original source outcome; do not compile a two-outcome batch."
+  "next_action": "Finish the existing single release build, then candidate and installed MCP acceptance using that artifact. Do not start another native build.",
+  "runtime_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
+  "current_artifact_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\debug1\\acceptance.json",
+    "sha256": "2856fe2703a0cd79be0919f75b943bdc5685c90d7792dfe3106bf2a2bc295786"
+  },
+  "native_result": "TEST_ONLY_COMPILATION_FAILURE_NO_CASES_EXECUTED",
+  "native_failure_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\native1.json",
+    "sha256": "7e9bca24d978876fd0790c9085cdbed1fd6dd488a2f968294f9c7476666a467b"
+  },
+  "native_equivalent_behavior": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\native-acceptance.json",
+    "sha256": "ed6ef3b18b01cb3d564be3b49d7a279c1d8e631d6184d2f141cd22f7ff4b13ea"
+  },
+  "test_only_source_corrections": [
+    "381176e",
+    "feb7eba"
+  ],
+  "native_fixture_corrections_recompiled": false,
+  "prior_future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\verify-public.py",
+    "sha256": "ef878f4ee511df29bd6447e931069ae11872c695a551cc3760f6f453411575db"
+  }
 }

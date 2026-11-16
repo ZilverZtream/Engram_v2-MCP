@@ -1,6 +1,6 @@
 {
-  "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
-  "at_utc": "2026-11-16T18:05:50.499616+00:00",
+  "status": "CURRENT_ARTIFACT_VALIDATED_RELEASE_RUNNING",
+  "at_utc": "2026-11-16T18:38:43.206760+00:00",
   "original_requirement_id": "TODO-27",
   "original_requirement": "Usable JS/TS shared state tracing through existing state edges",
   "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
@@ -15,7 +15,7 @@
   },
   "future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\verify-public.py",
-    "sha256": "aa46461138f6e3bbd921b68ca97659a36376321d06de02ab6c0379fe5d6800c6"
+    "sha256": "8408ac6520186ec7ebb620ec532f81b193b06f582239c883feb7a4e633e65090"
   },
   "source_checks": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\source-checks.json",
@@ -54,19 +54,19 @@
       "observed": "sessionStorage.clear()"
     }
   ],
-  "compiled": false,
+  "compiled": true,
   "native_tests_run": false,
   "native_case_written": "browser_key_trace_retains_store_wide_clear_sources_and_original_recovery",
-  "public_acceptance_run": false,
+  "public_acceptance_run": true,
   "installed": false,
-  "source_only": true,
+  "source_only": false,
   "checks_completed": [
     "Installed baseline reproduces omitted clear calls while literal key readers/writers remain visible; owned fixture closed/removed.",
     "Selected Rust syntax, diff whitespace, future public driver syntax and protected WIP9 raw hashes pass. These do not establish compiled or installed behavior."
   ],
   "remaining_acceptance": [
-    "Combined focused native batch after three distinct original source outcomes are ready.",
-    "Candidate/installed public proof: both auth clear sources, separate store/no-literal-key handling, guidance, changed-source withholding, immutable original recovery and cross-script refresh preservation."
+    "One release build currently live as exec session3203; then candidate/installed public proof, identity accounting and normal lifecycle restoration.",
+    "Four authored native test cases remain unexecuted; first attempt failed to compile test arguments. Corrected test sources retained without another native build."
   ],
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116",
@@ -78,5 +78,28 @@
     "protected_wip9_preserved": true,
     "retention": "Keep contract, baseline, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folder deletion."
   },
-  "next_action": "Accumulate further distinct original source outcomes; do not compile this one alone."
+  "next_action": "Finish the existing single release build, then candidate and installed MCP acceptance using that artifact. Do not start another native build.",
+  "runtime_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
+  "current_artifact_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\debug1\\acceptance.json",
+    "sha256": "34bb422f34aec7b9d7c5c3a68e0bdab85996d7cf862179b18822603a6551fda9"
+  },
+  "native_result": "TEST_ONLY_COMPILATION_FAILURE_NO_CASES_EXECUTED",
+  "native_failure_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\native1.json",
+    "sha256": "7e9bca24d978876fd0790c9085cdbed1fd6dd488a2f968294f9c7476666a467b"
+  },
+  "native_equivalent_behavior": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\native-acceptance.json",
+    "sha256": "ed6ef3b18b01cb3d564be3b49d7a279c1d8e631d6184d2f141cd22f7ff4b13ea"
+  },
+  "test_only_source_corrections": [
+    "381176e",
+    "feb7eba"
+  ],
+  "native_fixture_corrections_recompiled": false,
+  "prior_future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\verify-public.py",
+    "sha256": "aa46461138f6e3bbd921b68ca97659a36376321d06de02ab6c0379fe5d6800c6"
+  }
 }
