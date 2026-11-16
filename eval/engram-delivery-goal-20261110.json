@@ -2630,25 +2630,35 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "ASMX_CANONICAL_CALLABLE_ENTRY_FIX_PENDING",
-    "pending_count": 3,
+    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-    "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5",
     "native_target": "history_webmethod_business_batch_tests",
-    "native_cases": 11,
-    "native_builds": 4,
-    "release_builds": 0,
-    "last_installed_record": "eval/editing-report-batch-delivery-20261116.json",
-    "tests_run": 0,
-    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
+    "native_builds": 5,
     "native_cases_passed": 11,
-    "failed_cases_pending": 4,
-    "native_seconds": 242.70562930009328,
-    "retained_native_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
-    "retained_unaffected_native_cases": 8,
-    "pending_affected_cases": 3,
-    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction2.json",
-    "retained_unaffected_cases": 8
+    "retained_unaffected_cases": 8,
+    "current_affected_cases": 3,
+    "native_seconds": 463.33426500007045,
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
+      "sha256": "c5054107af2afb2f69aafad463d604972628cc4c550e689e7e53ae95c7fda21c"
+    },
+    "public_checks_passed": 33,
+    "public_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug6\\receipt.json",
+      "sha256": "5afee29dcd165668c1cc7289251d05619d5a2355f5f0410080e8154e61a1a6d5"
+    },
+    "release_builds": 0,
+    "extra_debug_builds": 0,
+    "full_suite_run": false,
+    "owned_native_temp_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
+    },
+    "paired_debug_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug-pair1.json",
+      "sha256": "3ca05bf0f7876f23c9be0cddb7dc08b62d4e721b292c836992fc55b96ebed27c"
+    },
+    "deployed": false
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -2742,38 +2752,50 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Finish the concrete new WebMethod public-entry regression: declaration-only VB classes; three affected native cases then failed public proof only.",
-    "observed_missing_behavior": "analyze_business_logic persists method documents and returns full JSON/Markdown without max_tokens/response_id/response_offset. A large successful result can exceed the client reply budget after provider work/publication has completed; force_refresh is a no-op and a fresh call repeats analysis.",
-    "implementation_files": [
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/src/read_report_delivery_tests.rs",
-      "crates/engram_server/tests/webforms_report_delivery_tests.rs",
-      "crates/engram_server/tests/business_analysis_delivery_tests.rs",
-      "docs/TOOL_CONTRACT.md",
-      "TODO.md",
-      "crates/engram_server/tests/history_webmethod_business_batch_tests.rs"
+    "active_original_item": "Deliver the source-complete EG-22 / TODO-31 / TODO-4 batch using one release, then advance original backlog.",
+    "source_status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED",
+    "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5",
+    "implementation_items_active": 0,
+    "pending_delivery_requirements": [
+      "EG-22",
+      "TODO-31",
+      "TODO-4"
     ],
-    "finite_acceptance": [
-      "Owned12-method VB file with deterministic local provider: independently verify complete successful JSON output, method identities/provider/provenance and persisted documents; reproduce actual default40KiB JSON overflow and absent delivery controls on installed binary. Measure Markdown independently; no overflow claim if it fits.",
-      "Native actual-handler plus existing delivery owner and public transport: JSON default overflow and caller-budgeted Markdown recover exact original MCP results, preserving method evidence/advisory/publication metadata. Fitting responses retain their original shape.",
-      "After capture, remove source and stop the owned provider; complete saved-result paging within caller budgets with no additional provider requests or document publication. Existing failure/error semantics and extraction/runtime uncertainty remain."
-    ],
-    "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
-    "source_status": "SOURCE_FIXED_AFFECTED_VALIDATION_PENDING",
-    "native_tests_run": false,
-    "public_acceptance_run": false,
+    "finite_acceptance": "One shared optimized artifact; thirty-three scoped public candidate and installed checks; unchanged normal config, selected generation3151 and214companion assets; normal runtime restored.",
+    "native_tests_run": true,
+    "public_acceptance_run": true,
     "deployed": false,
-    "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
-    "selected_delivery_contract": {
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "TODO-4",
-      "record": "eval/business-analysis-delivery-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\contract.json",
-      "native_tests_run": false,
-      "public_acceptance_run": false,
-      "deployed": false,
-      "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460"
+    "validation": {
+      "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
+      "native_target": "history_webmethod_business_batch_tests",
+      "native_builds": 5,
+      "native_cases_passed": 11,
+      "retained_unaffected_cases": 8,
+      "current_affected_cases": 3,
+      "native_seconds": 463.33426500007045,
+      "native_acceptance": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
+        "sha256": "c5054107af2afb2f69aafad463d604972628cc4c550e689e7e53ae95c7fda21c"
+      },
+      "public_checks_passed": 33,
+      "public_acceptance": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug6\\receipt.json",
+        "sha256": "5afee29dcd165668c1cc7289251d05619d5a2355f5f0410080e8154e61a1a6d5"
+      },
+      "release_builds": 0,
+      "extra_debug_builds": 0,
+      "full_suite_run": false,
+      "owned_native_temp_retained": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+        "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
+      },
+      "paired_debug_artifact": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug-pair1.json",
+        "sha256": "3ca05bf0f7876f23c9be0cddb7dc08b62d4e721b292c836992fc55b96ebed27c"
+      },
+      "deployed": false
     },
-    "next_user_visible_deliverable": "Select a third distinct original LegacyValidation requirement for source implementation before one combined native/release validation. Do not compile these two items alone or count another WebMethod/parser variant, cache variant, documentation or fixture change as another requirement. No new agent comparison, closed-tool work or inspected-task replay."
+    "next_user_visible_deliverable": "Install and verify this already-validated three-outcome batch; do not reopen passed acceptance or run broad suites."
   }
 }

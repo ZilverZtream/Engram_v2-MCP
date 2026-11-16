@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_FUNCTIONAL_VALIDATED_PUBLIC_DEBUG_PENDING",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
   "original_requirement_id": "TODO-31",
   "original_requirement": "URL/action to authored WebForms handler and existing downstream call/database source evidence.",
   "observed_missing_behavior": "LegacyValidation JS calls POST /language.aspx/change and /api.asmx/getimg; current physical-page routing requires the entire request path to equal the .aspx/.asmx file and cannot route its WebMethod suffix. ASMX Class=api implementation also lives in App_Code partial files rather than the literal nonexistent api.vb CodeBehind target.",
@@ -52,8 +52,7 @@
     ],
     "cleanup_condition": "Retain selected non-Q source copies and contract/public receipts until superseded. New fixtures close server/database handles before removing their own directories; no preexisting removal.",
     "baseline_fixture_removed": true,
-    "baseline_owners_closed": true,
-    "public_driver_prepared_not_run": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\verify-public.py"
+    "baseline_owners_closed": true
   },
   "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "protected_wip_sha256": {
@@ -68,7 +67,7 @@
     "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
   },
   "native_tests_run": true,
-  "public_acceptance_run": false,
+  "public_acceptance_run": true,
   "deployed": false,
   "stop_rule": "WebMethod entry routing/admission only; reuse trace_selected and fixed existing limits. No new graph traversal, general request-body/JS execution/DI resolution, type system, SQL analysis, global route scan expansion, new tool/store or language expansion.",
   "build_rule": "Second distinct source requirement after queued EG22; no compile for this item alone.",
@@ -84,11 +83,11 @@
     "Rust2024 source syntax parsed; new implementation/three native fixtures formatted and selected-path diff whitespace check passed. No Cargo/native/release invocation.",
     "Existing selected physical source/hash admission and trace walker retained. Physical URL/event path does not acquire method binding unless the URL has a single identifier suffix. Registered route constructors preserve web_method=None.",
     "Existing compact page-trace response projection already retains handlers/source-member hashes and immutable full-evidence recovery; no new report/store or projection required.",
-    "Actual owned LegacyValidation public trace exposed declaration-only class records; exact indexed qualified owner fallback and current lexical Class validation added. Native fixture now covers declaration-only and complete type ranges; no parser/store/closed-tool changes."
+    "Actual owned LegacyValidation public trace exposed declaration-only class records; exact indexed qualified owner fallback and current lexical Class validation added. Native fixture now covers declaration-only and complete type ranges; no parser/store/closed-tool changes.",
+    "Combined focused acceptance complete: eleven native cases with eight retained unaffected, thirty-three public checks with passed history/WebMethod retained and only failed business provider helper rerun. All public server/provider owners closed and fixtures removed."
   ],
   "checks_pending": [
-    "Three focused native WebMethod cases plus relevant ordinary-page/report regressions in a future combined source batch.",
-    "Thirteen public owned actual-copy entry/source-hash/stale/lifecycle checks on debug/candidate/installed binaries; driver prepared and not run against uncompiled source."
+    "Reuse one optimized release for owned candidate and installed public acceptance, restore normal runtime and record installed identities. No accepted debug/native proof replay."
   ],
   "source_sha256": {
     "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
@@ -125,32 +124,35 @@
     "crates/engram_server/src/handlers/request_trace_tools.rs": "8e78f47a5c55c1c23318622b3dfad0f5544b823834d2352807f35c674bc5eaf0"
   },
   "combined_validation": {
+    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
     "native_target": "history_webmethod_business_batch_tests",
-    "native_cases": 11,
-    "native_builds": 4,
-    "release_builds": 0,
-    "native_status": "SEVEN_PASSED_FOUR_FIXTURE_CORRECTIONS",
-    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
-    "retained_passed_cases": 7,
-    "pending_failed_cases": 4,
-    "status": "ASMX_CANONICAL_CALLABLE_ENTRY_FIX_PENDING",
+    "native_builds": 5,
     "native_cases_passed": 11,
-    "native_seconds": 242.70562930009328,
-    "retried_cases": 4,
+    "retained_unaffected_cases": 8,
+    "current_affected_cases": 3,
+    "native_seconds": 463.33426500007045,
     "native_acceptance": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
-      "sha256": "12ca4acba498ec79d115979bcd2ea16ba97af016289b28483dbb503dc54895df"
+      "sha256": "c5054107af2afb2f69aafad463d604972628cc4c550e689e7e53ae95c7fda21c"
     },
-    "retained_native_fixture": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nuzmava3g",
-      "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
-      "reason": "Automatic approval review rejected exact deletion; no equivalent retry."
+    "public_checks_passed": 33,
+    "public_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug6\\receipt.json",
+      "sha256": "5afee29dcd165668c1cc7289251d05619d5a2355f5f0410080e8154e61a1a6d5"
     },
-    "retained_unaffected_cases": 8,
-    "pending_affected_cases": 3,
-    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction2.json",
-    "owned_native_temp_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
+    "release_builds": 0,
+    "extra_debug_builds": 0,
+    "full_suite_run": false,
+    "owned_native_temp_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
+    },
+    "paired_debug_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug-pair1.json",
+      "sha256": "3ca05bf0f7876f23c9be0cddb7dc08b62d4e721b292c836992fc55b96ebed27c"
+    },
+    "deployed": false
   },
   "component_source_commits": [
     "8b14ff1e6c777b55b16430e4488f647fcab598bd",
