@@ -40,9 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "ONE_SOURCE_OUTCOME_AWAITING_COMBINED_VALIDATION",
+    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
-      "eval/policy-inventory-delivery-progress-20261116.json"
+      "eval/policy-inventory-delivery-progress-20261116.json",
+      "eval/revert-evidence-authority-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -989,7 +990,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Accumulate the next distinct substantive original source outcomes before combined validation/deployment. Complete policy inventory budgeting is source-complete only; the previous memory/vector/repair batch remains installed.",
+  "next_user_visible_deliverable": "Finish another distinct substantive original source outcome, then perform combined validation/deployment. Policy report delivery and revert evidence authority are not installed; prior installed deliveries and all unfinished original findings are preserved.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2568,6 +2569,16 @@
         "focused_native_target": "policy_inventory_delivery_tests",
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\verify-public.py",
         "user_outcome": "Both ordinary repository-rule listings and exact ownership inventories gain complete default/caller reply budgets and immutable original-result recovery, preserving selected policy rows, scopes and ownership uncertainty."
+      },
+      {
+        "original_requirement_id": "EG-17",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
+        "source_progress_record": "eval/revert-evidence-authority-progress-20261116.json",
+        "focused_native_target": "revert_evidence_authority_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
+        "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2747,30 +2758,33 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO-4 complete bounded repository policy inventory delivery",
+    "active_original_item": "EG-17 revert evidence without automatic policy promotion",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "original_requirement": "Uniform complete response budgets and exact recovery for actionable agent context, applied to scoped repository guidance and ownership discovery.",
-    "observed_missing_behavior": "list_repo_rules builds an unbounded string for all rule text; ownership_inventory returns complete raw JSON through the same tool with no max_tokens/recovery controls. Shared report delivery currently excludes the tool.",
+    "original_requirement": "Preserve policy authority and accepted exceptions; workflow status does not automatically establish an accepted policy decision. Preserve completed generator/workflow deliveries.",
+    "observed_missing_behavior": "analyze_reverts sends each reverted file diff to a model with a leading why-avoid prompt and directly writes a priority10 RepoRule. Its deterministic fallback claims every rollback indicates a regression. Known learned-evidence classification does not prevent effective_repo_rules from retaining these rows as constraints.",
     "implementation_files": [
+      "crates/engram_server/src/handlers/git_tools.rs",
       "crates/engram_server/src/read_report_delivery.rs",
       "crates/engram_server/src/read_report_delivery_tests.rs",
-      "crates/engram_server/tests/policy_inventory_delivery_tests.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/tests/revert_evidence_authority_tests.rs",
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "Rule-list text and ownership JSON use existing default40KiB/caller reply budgets and exact immutable original-MCP recovery. All selected rule identities/text/scope/priority/provenance/timestamps, receipt claims and ownership/enforcement qualifications remain recoverable.",
-      "Small fitting results retain their original format; invalid source_paths without ownership_inventory remain errors. No rule ownership, enforcement, import or registry mutation is added by delivery/recovery.",
-      "Owned public fixture independently authors24ordinary multi-paragraph rules. Recover exact original contents/hashes within8KiB pages after a rule deletion, source change and process restart. Recovery needs only project_id and saved controls, not the original inventory/source arguments.",
-      "Preserve the actual LegacyValidation configuration, installed runtime and protected WIP9. One focused combined native/release run waits for at least three distinct substantive original source outcomes; do not compile this component alone."
+      "A real owned JS Git change followed by git revert yields original/revert commit identities, affected path and a recoverable stored diff citation, explicitly identifying historical evidence and unknown cause/policy acceptance.",
+      "The analysis creates no repository rules and leaves all existing accepted/manual/learned rows exactly unchanged. Preserve existing indexed evidence/graph linkage behavior with explicit evidence provenance; do not migrate or delete preexisting rules.",
+      "With an owned configured fake OpenAI provider, the installed baseline demonstrates a model call and new inferred rule; new source must make zero model requests. No real provider calls, replayed inspected tasks or new approval UI.",
+      "Deliver the complete selected evidence report through existing default/caller budgets and immutable saved recovery. Recovery never repeats history extraction, indexing or model work; existing max_commits and retention limits remain.",
+      "One focused source-specific native test and finite candidate/installed public proof join the queued policy delivery in a later combined batch. At least three distinct substantive original source outcomes precede Cargo; no per-feature compile or full suite."
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\contract.json",
-    "previous_goal_turn_classification": "PROGRESS: installed baseline demonstrated unbounded ordinary/ownership policy reports; shared delivery source and one focused behavioral test committed without compilation.",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
     "full_original_goal_active": true,
-    "next_build_rule": "Accumulate at least three substantive distinct original source-complete requirements before focused combined native/release validation; pending queue currently empty.",
-    "source_commit": "5d6f48fcf0e788045d5110a132394f3c81b20760",
-    "source_progress_record": "eval/policy-inventory-delivery-progress-20261116.json",
-    "next_action": "Select the next distinct substantive unfinished original LegacyValidation requirement; one source outcome queued, no Cargo until at least three. Preserve the fully installed previous batch."
+    "next_build_rule": "Policy inventory delivery is queued; implement this second distinct original outcome before selecting a third. No per-feature compilation.",
+    "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
+    "source_progress_record": "eval/revert-evidence-authority-progress-20261116.json",
+    "next_action": "Select the next distinct substantive original LegacyValidation requirement. Policy inventory delivery and revert evidence authority are source-complete only; two outcomes queued and no Cargo before at least three.",
+    "previous_goal_turn_classification": "PROGRESS: actual installed fake-provider/Git baseline proved new enforced inferred rule and one LLM generation request. Source now retains commit/diff evidence without rule publication or LLM generation; no compilation performed."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2835,5 +2849,6 @@
     "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
     "installed_server_sha256": "8bdee03478a30c6ce254fcb45632549582f0d0a5ef8f50c6d8529c57b935c7a4"
   },
-  "policy_inventory_delivery_source_progress": "eval/policy-inventory-delivery-progress-20261116.json"
+  "policy_inventory_delivery_source_progress": "eval/policy-inventory-delivery-progress-20261116.json",
+  "revert_evidence_authority_source_progress": "eval/revert-evidence-authority-progress-20261116.json"
 }

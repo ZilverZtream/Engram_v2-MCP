@@ -37,7 +37,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "deployed": false,
-  "source_commit": null,
+  "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
   "timing": {
     "source_block_started_utc": "2026-11-16T09:31:53.434018+00:00",
     "baseline_execution_seconds": 3.394515037536621,
@@ -58,5 +58,6 @@
     "Fresh evidence indexing preserves its configured embedding backend and can require embeddings. Removed and measured calls concern LLM generation only; the fake-provider baseline makes no real model requests.",
     "Existing max_commits,50000-byte per-file extraction and saved-result retention limits remain. No new policy approval UI, model study, CodeMap/Blast improvement or target-language expansion.",
     "Source is not compiled, runtime-verified or installed yet; the full original backlog remains active."
-  ]
+  ],
+  "native_tests_run": false
 }
