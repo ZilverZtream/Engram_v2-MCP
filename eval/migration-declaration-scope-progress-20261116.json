@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "EG-26",
   "original_requirement": "Reconcile actual capability/readiness claims: an implemented or declared status is not measured readiness. Preserve completed contract/documentation deliveries.",
   "user_outcome": "Migration reporting distinguishes caller-recorded tracking completion from exact coverage of a held selected-source manifest and from unassessed project readiness, preserving existing declarations and exposing untracked files.",
@@ -36,9 +36,9 @@
   "native_target": "migration_declaration_scope_tests",
   "native_execution": "NOT_RUN: this third distinct source outcome joins policy delivery/revert authority for one combined native target",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "native_tests_run": false,
-  "deployed": false,
+  "runtime_acceptance": "CANDIDATE_AND_INSTALLED_PUBLIC_PASS",
+  "native_tests_run": true,
+  "deployed": true,
   "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
   "timing": {
     "source_block_started_utc": "2026-11-16T10:27:56.061284+00:00",
@@ -56,5 +56,15 @@
     "No compilation, tests, source-content validation, current-disk freshness proof or project readiness assessment is performed by tracking/reporting. Unknown managed-source coverage is explicit with no source percentage.",
     "Underlying FileStatus storage and caller status values remain unchanged; no new approval UI, status migration or source/index write is added to the report.",
     "Source has not been compiled, runtime-verified or installed yet; full original31findings/19gates scope remains active."
-  ]
+  ],
+  "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
+  "combined_delivery_record": "eval/policy-revert-status-batch-delivery-20261116.json",
+  "deployed_source_files_sha256": {
+    "crates/engram_server/src/services/migration_progress_service.rs": "d6527ab73708266ecd9975969e4e9812715db7c5505e4ce9969acdf07e9eab22",
+    "crates/engram_server/src/handlers/migration_tools.rs": "0b16172ae984b95c16d71f6f52b1501fd966d369184309df797b49901e2cca79",
+    "crates/engram_server/src/models/requests.rs": "a7bdb0e9e9fce372002b183995dd78ca26b74bab159df1c2b61a241e1cce15b4",
+    "crates/engram_server/src/tools.rs": "33bb95146a8959d7807cb3f912244a563d97a6347bcead9657ee6c878dd6f511",
+    "crates/engram_server/tests/migration_declaration_scope_tests.rs": "fd16f1ae24aef53f386691ee042d6716d988fa5e3115847ce442cc3ba6630cf3",
+    "docs/TOOL_CONTRACT.md": "ea6fa1f619833ef6bcaf05f6d36010d6b9cfca64ea106950c821d7a0168d912d"
+  }
 }

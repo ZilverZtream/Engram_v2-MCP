@@ -40,11 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
-      "eval/policy-inventory-delivery-progress-20261116.json",
-      "eval/revert-evidence-authority-progress-20261116.json",
-      "eval/migration-declaration-scope-progress-20261116.json"
+      "eval/request-trigger-paths-progress-20261116.json",
+      "eval/graph-read-delivery-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2562,75 +2561,67 @@
     },
     "next_batch_pending": [
       {
+        "original_requirement_id": "TODO-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
+        "source_progress_record": "eval/request-trigger-paths-progress-20261116.json",
+        "focused_native_target": "request_trigger_paths_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
+        "user_outcome": "Reached source-qualified SQL writes lead to matching declared DML trigger candidates and cited body table references; deployed/runtime state remains unknown."
+      },
+      {
         "original_requirement_id": "TODO-4",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "5d6f48fcf0e788045d5110a132394f3c81b20760",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\contract.json",
-        "source_progress_record": "eval/policy-inventory-delivery-progress-20261116.json",
-        "focused_native_target": "policy_inventory_delivery_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\verify-public.py",
-        "user_outcome": "Both ordinary repository-rule listings and exact ownership inventories gain complete default/caller reply budgets and immutable original-result recovery, preserving selected policy rows, scopes and ownership uncertainty."
-      },
-      {
-        "original_requirement_id": "EG-17",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
-        "source_progress_record": "eval/revert-evidence-authority-progress-20261116.json",
-        "focused_native_target": "revert_evidence_authority_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
-        "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery."
-      },
-      {
-        "original_requirement_id": "EG-26",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\contract.json",
-        "source_progress_record": "eval/migration-declaration-scope-progress-20261116.json",
-        "focused_native_target": "migration_declaration_scope_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\verify-public.py",
-        "user_outcome": "Migration reporting distinguishes caller-recorded tracking completion from exact coverage of a held selected-source manifest and from unassessed project readiness, preserving existing declarations and exposing untracked files."
+        "source_commit": "b3c5b4e5bd818fed8c375aed3535024b4bcfbb44",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
+        "source_progress_record": "eval/graph-read-delivery-progress-20261116.json",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
+        "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner."
       }
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/maintenance-state-parameter-batch-delivery-20261116.json",
+      "record": "eval/policy-revert-status-batch-delivery-20261116.json",
       "source_requirements": [
-        "EG-31",
         "TODO-4",
-        "TODO-31"
+        "EG-17",
+        "EG-26"
       ],
-      "native_builds": 2,
+      "native_builds": 3,
       "release_attempts": 1,
       "source_queue": [
         {
-          "original_requirement_id": "EG-31",
-          "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "ef8eb82eb1d31be21a7de6a0d05aadce5ab0dd87",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
-          "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
-          "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending.",
-          "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-        },
-        {
           "original_requirement_id": "TODO-4",
           "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
-          "progress_record": "eval/state-report-delivery-progress-20261116.json",
-          "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending.",
-          "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
+          "source_commit": "5d6f48fcf0e788045d5110a132394f3c81b20760",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\contract.json",
+          "source_progress_record": "eval/policy-inventory-delivery-progress-20261116.json",
+          "focused_native_target": "policy_inventory_delivery_tests",
+          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\verify-public.py",
+          "user_outcome": "Both ordinary repository-rule listings and exact ownership inventories gain complete default/caller reply budgets and immutable original-result recovery, preserving selected policy rows, scopes and ownership uncertainty."
         },
         {
-          "original_requirement_id": "TODO-31",
+          "original_requirement_id": "EG-17",
           "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "599af5b7ebacd6f43d0539653c1706f560378c6e",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
-          "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
-          "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending.",
-          "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
+          "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
+          "source_progress_record": "eval/revert-evidence-authority-progress-20261116.json",
+          "focused_native_target": "revert_evidence_authority_tests",
+          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
+          "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery."
+        },
+        {
+          "original_requirement_id": "EG-26",
+          "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+          "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\contract.json",
+          "source_progress_record": "eval/migration-declaration-scope-progress-20261116.json",
+          "focused_native_target": "migration_declaration_scope_tests",
+          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\verify-public.py",
+          "user_outcome": "Migration reporting distinguishes caller-recorded tracking completion from exact coverage of a held selected-source manifest and from unassessed project readiness, preserving existing declarations and exposing untracked files."
         }
       ]
     }
@@ -2752,27 +2743,7 @@
     "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
     "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
-  "following_batch_pending": [
-    {
-      "original_requirement_id": "TODO-31",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
-      "source_progress_record": "eval/request-trigger-paths-progress-20261116.json",
-      "focused_native_target": "request_trigger_paths_tests",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
-      "user_outcome": "Reached source-qualified SQL writes lead to matching declared DML trigger candidates and cited body table references; deployed/runtime state remains unknown."
-    },
-    {
-      "original_requirement_id": "TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "b3c5b4e5bd818fed8c375aed3535024b4bcfbb44",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
-      "source_progress_record": "eval/graph-read-delivery-progress-20261116.json",
-      "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
-      "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner."
-    }
-  ],
+  "following_batch_pending": [],
   "method_schema_area_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
@@ -2807,7 +2778,8 @@
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
     "full_original_goal_active": true,
     "concurrent_validation": "Policy/revert/migration source remains frozen in running release1; next source changes do not enter it.",
-    "next_action": "Finish current frozen release/installation. Two independent following-batch source outcomes wait for at least three before any next Cargo."
+    "next_action": "Select the next ready distinct original requirement; two next-batch source outcomes are retained, no per-feature Cargo. Preserve installed delivery and all unfinished original requirements.",
+    "previous_goal_turn_classification": "PROGRESS: previous turn completed native acceptance, started sole release and committed trigger tracing. Current turn completed candidate/installed37checks and restored runtime, and committed grouped graph reader source."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2877,12 +2849,22 @@
   "migration_declaration_scope_source_progress": "eval/migration-declaration-scope-progress-20261116.json",
   "request_trigger_paths_source_progress": "eval/request-trigger-paths-progress-20261116.json",
   "policy_revert_status_batch_progress": {
-    "status": "NATIVE_PASS_SOLE_RELEASE_RUNNING",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116",
-    "native_cases_passed": 3,
-    "native_runner_seconds": 394.8444534998853,
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\policy-revert-status-batch-delivery-20261116.json",
+      "sha256": "8b407c8b3bf6c776201bf9e4d21abe68e406d81c06957a017393f940b0bfdc6a"
+    },
     "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
-    "not_yet_deployed": true
+    "installed_server_sha256": "54ae7bf78084f76c88cf9952fd178e39258a1843eec509528159d00f9c8d740d"
   },
-  "graph_read_delivery_source_progress": "eval/graph-read-delivery-progress-20261116.json"
+  "graph_read_delivery_source_progress": "eval/graph-read-delivery-progress-20261116.json",
+  "policy_revert_status_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\policy-revert-status-batch-delivery-20261116.json",
+      "sha256": "8b407c8b3bf6c776201bf9e4d21abe68e406d81c06957a017393f940b0bfdc6a"
+    },
+    "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
+    "installed_server_sha256": "54ae7bf78084f76c88cf9952fd178e39258a1843eec509528159d00f9c8d740d"
+  }
 }

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete response budgets and exact recovery for actionable agent context, applied to scoped repository guidance and ownership discovery.",
   "user_outcome": "Both ordinary repository-rule listings and exact ownership inventories gain complete default/caller reply budgets and immutable original-result recovery, preserving selected policy rows, scopes and ownership uncertainty.",
@@ -28,8 +28,8 @@
   "native_target": "policy_inventory_delivery_tests",
   "native_execution": "NOT_RUN: wait for at least three distinct original source outcomes before combined validation",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "deployed": false,
+  "runtime_acceptance": "CANDIDATE_AND_INSTALLED_PUBLIC_PASS",
+  "deployed": true,
   "source_commit": "5d6f48fcf0e788045d5110a132394f3c81b20760",
   "timing": {
     "production_source_block_started_utc": "2026-11-16T09:07:49.535974+00:00",
@@ -63,5 +63,14 @@
   "shared_migration_followup": {
     "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
     "reason": "Migration reporting updates shared tool descriptions/documentation; earlier behavior and finite acceptance remain unchanged."
+  },
+  "native_tests_run": true,
+  "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
+  "combined_delivery_record": "eval/policy-revert-status-batch-delivery-20261116.json",
+  "deployed_source_files_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "f630b4b8e3084cb05681c94edaf3f5c4509e8976eb2af2115dee6c7e54e08be0",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "3f62d9f7c7d84139510faeb2527732b5863a760778995dc5ecdf9f6a05490076",
+    "crates/engram_server/tests/policy_inventory_delivery_tests.rs": "37f48930656a26e46aed113e0c6c3c5d0ab3e2753e2d9c8f1e6ba39b19351a99",
+    "docs/TOOL_CONTRACT.md": "ea6fa1f619833ef6bcaf05f6d36010d6b9cfca64ea106950c821d7a0168d912d"
   }
 }

@@ -4,7 +4,7 @@ Source-complete, awaiting a later combined validation/deployment: `query_graph_n
 
 Source-complete, awaiting a later combined validation/deployment: `trace_user_request(include_triggers=true)` connects reached literal qualified SQL writes to exact source DML trigger declarations with matching event types, timing and raw-source citations. Trigger bodies supply lexical table-reference paths using the existing basename convention. Different schemas/events are excluded; include_db/include_triggers opt-outs remain. This is selected current source evidence, with unknown deployed/disabled state and execution; dynamic/alias bindings and nested trigger/procedure effects remain unresolved. No absence conclusion follows from missing SQL declarations. Existing path limits and immutable trace delivery remain.
 
-Source-complete, awaiting combined validation: migration progress distinguishes
+Installed2026-11-16: migration progress distinguishes
 caller-declared tracker completion from coverage of selected indexed source.
 Existing `total_files`, status counts and `completion_pct` retain their recorded
 row scope; new `tracking_scope`, `verification_basis` and `project_readiness`
@@ -15,7 +15,7 @@ is unavailable, with no invented percentage. This does not run validation,
 establish planned migration scope, inspect current source bodies or assess
 readiness. Existing records and status values remain unchanged.
 
-Source-complete, awaiting combined validation: `analyze_reverts` retains
+Installed2026-11-16: `analyze_reverts` retains
 Git revert-message references and selected original file diffs as historical evidence.
 It returns original/revert commit identities, affected paths and `get_chunk`
 citations. It makes no LLM generation requests and creates or replaces no repository
@@ -27,7 +27,7 @@ recovery repeats none of that work. Existing `max_commits`, per-file diff
 extraction and retention limits remain. This does not establish cause,
 regression, safety, runtime behavior or accepted policy.
 
-Source-complete, awaiting combined validation: `list_repo_rules` uses the
+Installed2026-11-16: `list_repo_rules` uses the
 existing whole-report reply budget and immutable original-result recovery in
 both ordinary-list and `ownership_inventory=true` modes. The default is40KiB;
 caller `max_tokens` and returned `response_delivery.next_call` bound delivery

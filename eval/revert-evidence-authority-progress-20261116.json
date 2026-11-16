@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "EG-17",
   "original_requirement": "Preserve policy authority and accepted exceptions; workflow status does not automatically establish an accepted policy decision. Preserve completed generator/workflow deliveries.",
   "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery.",
@@ -35,8 +35,8 @@
   "native_target": "revert_evidence_authority_tests",
   "native_execution": "NOT_RUN: two original source outcomes queued; wait for at least three before combined native validation",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "deployed": false,
+  "runtime_acceptance": "CANDIDATE_AND_INSTALLED_PUBLIC_PASS",
+  "deployed": true,
   "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
   "timing": {
     "source_block_started_utc": "2026-11-16T09:31:53.434018+00:00",
@@ -59,7 +59,7 @@
     "Existing max_commits,50000-byte per-file extraction and saved-result retention limits remain. No new policy approval UI, model study, CodeMap/Blast improvement or target-language expansion.",
     "Source is not compiled, runtime-verified or installed yet; the full original backlog remains active."
   ],
-  "native_tests_run": false,
+  "native_tests_run": true,
   "initial_source_files_sha256": {
     "crates/engram_server/src/handlers/git_tools.rs": "e0e449ac3d399405302da489adb29adeee439d7e30d77aa3439889c23dccb2c2",
     "crates/engram_server/src/read_report_delivery.rs": "f630b4b8e3084cb05681c94edaf3f5c4509e8976eb2af2115dee6c7e54e08be0",
@@ -71,5 +71,15 @@
   "shared_migration_followup": {
     "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
     "reason": "Migration reporting updates shared tool descriptions/documentation; earlier behavior and finite acceptance remain unchanged."
+  },
+  "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
+  "combined_delivery_record": "eval/policy-revert-status-batch-delivery-20261116.json",
+  "deployed_source_files_sha256": {
+    "crates/engram_server/src/handlers/git_tools.rs": "c87c5094b7ade8b416227405bfe143bf83b3d829ac29de43e3779ec24ae186f9",
+    "crates/engram_server/src/read_report_delivery.rs": "f630b4b8e3084cb05681c94edaf3f5c4509e8976eb2af2115dee6c7e54e08be0",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "3f62d9f7c7d84139510faeb2527732b5863a760778995dc5ecdf9f6a05490076",
+    "crates/engram_server/src/tools.rs": "33bb95146a8959d7807cb3f912244a563d97a6347bcead9657ee6c878dd6f511",
+    "crates/engram_server/tests/revert_evidence_authority_tests.rs": "24dbdccb905a10a37b9497008214f784ec1b54e66e6c6addf54220c1903c33bc",
+    "docs/TOOL_CONTRACT.md": "ea6fa1f619833ef6bcaf05f6d36010d6b9cfca64ea106950c821d7a0168d912d"
   }
 }

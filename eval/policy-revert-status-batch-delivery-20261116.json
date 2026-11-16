@@ -1,0 +1,102 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T11:13:07.767564+00:00",
+  "full_original_goal_complete": false,
+  "original_requirements": [
+    "TODO-4",
+    "EG-17",
+    "EG-26"
+  ],
+  "outcomes": [
+    "Complete policy lists and exact ownership inventories fit caller/default reply budgets with immutable original MCP recovery, including after source/rule changes and restart. Ownership is not inferred.",
+    "Revert analysis stores cited original/revert Git evidence with zero LLM generation requests and no repository-rule creation/replacement. Existing manual and learned policies remain unchanged. Fresh configured embedding work can still be needed.",
+    "Migration reporting preserves caller-recorded values, labels tracker-only completion and unassessed readiness, and separately reports held-source-manifest coverage/untracked files. A1-of2declaration returns50percent source coverage while its tracker retains100percent."
+  ],
+  "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
+  "source_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\source-validation1.json",
+    "sha256": "ed306414df6a791e5f4bbaddb4194044045641d653b361f60806ed540701f043"
+  },
+  "installed": {
+    "server_sha256": "54ae7bf78084f76c88cf9952fd178e39258a1843eec509528159d00f9c8d740d",
+    "manifest_sha256": "1e8c2950d406e0fde99e2a01ea008bb2f19be146d6a6b72a7417f2cfc3e0aeca",
+    "assets_verified": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151
+  },
+  "validation": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\native-acceptance.json",
+      "sha256": "2ac22837ad121cacb2c4bb9b767549adf95e58f5a6f2ab83f8bd26667719cc17"
+    },
+    "native_cases_passed": 3,
+    "retained_unaffected_passes": 2,
+    "native_attempts": 3,
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\release1.json",
+      "sha256": "fc0842cc691e98489bc93d4046523c25b238186caa5f7647ac3528842950fc17"
+    },
+    "release_builds": 1,
+    "full_or_lib_suites": 0,
+    "extra_debug_builds": 0,
+    "public": {
+      "candidate1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\candidate1\\acceptance.json",
+          "sha256": "2aac61ef12b71a18a8fc7c728f921281c43f5ba57a6935a083aa30629894c4e2"
+        },
+        "checks": 37,
+        "same_release": true
+      },
+      "installed1": {
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\installed1\\acceptance.json",
+          "sha256": "d50b21ed2b081601b43886a0d8ddaceabfa15c9b009d6ea9bb7a542d2b85f5a6"
+        },
+        "checks": 37,
+        "same_release": true
+      }
+    },
+    "normal_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "585e4c3ea71a03717801fb8b9e173edbbd9aebf73a2ec858a0fa10182575acf4"
+    },
+    "original_full19gates_closed": false
+  },
+  "timing": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116\\coding-compile-timing-20261116.json",
+    "sha256": "1fef9836daf407a3651ea1ad1633b98cc8e4f5e366b268459d9b4b62547d2b5f"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116",
+    "evidence_retention": "Retain source/package/evidence until superseded; no preexisting deletion.",
+    "new_fixture_processes_and_temporaries_closed_removed": true,
+    "config_hold_closed": true,
+    "owned_runtime_config_removed": true,
+    "normal_daemon_intentionally_restored": 63396,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-10635bfdab934f71be52a455993a65d5",
+    "reused_build_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "new_worktree_created": false,
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    }
+  },
+  "limits": [
+    "Three finite workflow deliveries; broad original requirements, legacy ownership decisions, task usefulness and full19gates remain unfinished.",
+    "Following-batch trigger tracing and graph reader delivery are committed source only, excluded from this installed binary.",
+    "Actual production coding percentage remains unknown; remaining elapsed is not coding."
+  ]
+}
