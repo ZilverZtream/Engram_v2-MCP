@@ -148,6 +148,11 @@ impl Engram {
                 }
                 BatchReadOperation::ResolveId(arguments) => self.handle_resolve_id(arguments).await,
                 BatchReadOperation::Chunk(arguments) => self.handle_get_chunk(arguments).await,
+                BatchReadOperation::Schema(arguments) => {
+                    // Preserve the normal source/citation, policy, caller-budget
+                    // and saved-result recovery contract for each SQL read.
+                    self.handle_query_schema(arguments).await
+                }
                 BatchReadOperation::MethodBody(arguments) => {
                     // Keep the direct source contract, including hash guards,
                     // authored guidance and immutable report continuations.

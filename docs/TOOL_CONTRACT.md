@@ -177,6 +177,15 @@ report recovery controls. Batch omissions retain the complete original request;
 replaying that request performs the normal read against then-current source unless
 it already selects an immutable `response_id`. Reads remain sequential.
 
+Pending source change, not yet installed: `batch_read` also accepts
+`query_schema` with its normal typed arguments. Table, column, relationship and
+stored-procedure reads keep existing qualification, source hashes/citations,
+authored guidance and per-read budget/recovery controls. Other operations still
+run after an individual SQL request error. The shared batch budget omits whole
+results and preserves complete original single-tool requests; those recovery
+calls rerun against then-current state unless they already select a saved
+`response_id`. Existing16-read limits and sequential, non-atomic semantics remain.
+
 Use MCP `tools/list` for the exact names and request schemas available to the
 current client profile and registered projects. This document records workflows
 and selected signatures; it is not an exhaustive generated schema. The

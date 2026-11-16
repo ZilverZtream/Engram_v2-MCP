@@ -4039,6 +4039,8 @@ pub enum BatchReadOperation {
     Chunk(GetChunkRequest),
     #[serde(rename = "get_full_method_body")]
     MethodBody(GetFullMethodBodyRequest),
+    #[serde(rename = "query_schema")]
+    Schema(QuerySchemaRequest),
 }
 
 /// Navigate a URL/page and optional action through authored WebForms bindings.
