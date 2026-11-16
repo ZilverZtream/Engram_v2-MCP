@@ -28,7 +28,11 @@ fn git(root: &Path, args: &[&str]) -> String {
 
 #[tokio::test]
 async fn real_git_revert_keeps_rulings_and_returns_source_bound_evidence() {
-    let temporary = tempfile::tempdir().unwrap();
+    let fixture_root = std::env::var_os("ENGRAM_TEST_FIXTURE_ROOT");
+    let temporary = match fixture_root {
+        Some(root) => tempfile::tempdir_in(root).unwrap(),
+        None => tempfile::tempdir().unwrap(),
+    };
     let source = temporary.path().join("source");
     let data = temporary.path().join("data");
     std::fs::create_dir_all(&source).unwrap();
