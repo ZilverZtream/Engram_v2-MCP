@@ -40,10 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
       "eval/policy-inventory-delivery-progress-20261116.json",
-      "eval/revert-evidence-authority-progress-20261116.json"
+      "eval/revert-evidence-authority-progress-20261116.json",
+      "eval/migration-declaration-scope-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2579,6 +2580,16 @@
         "focused_native_target": "revert_evidence_authority_tests",
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
         "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery."
+      },
+      {
+        "original_requirement_id": "EG-26",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\contract.json",
+        "source_progress_record": "eval/migration-declaration-scope-progress-20261116.json",
+        "focused_native_target": "migration_declaration_scope_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\verify-public.py",
+        "user_outcome": "Migration reporting distinguishes caller-recorded tracking completion from exact coverage of a held selected-source manifest and from unassessed project readiness, preserving existing declarations and exposing untracked files."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2644,7 +2655,7 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
@@ -2758,33 +2769,31 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "EG-17 revert evidence without automatic policy promotion",
+    "active_original_item": "EG-26 declared migration scope and indexed-source coverage",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "original_requirement": "Preserve policy authority and accepted exceptions; workflow status does not automatically establish an accepted policy decision. Preserve completed generator/workflow deliveries.",
-    "observed_missing_behavior": "analyze_reverts sends each reverted file diff to a model with a leading why-avoid prompt and directly writes a priority10 RepoRule. Its deterministic fallback claims every rollback indicates a regression. Known learned-evidence classification does not prevent effective_repo_rules from retaining these rows as constraints.",
+    "original_requirement": "Reconcile actual capability/readiness claims: an implemented or declared status is not measured readiness. Preserve completed contract/documentation deliveries.",
+    "observed_missing_behavior": "get_migration_progress calls the number of stored tracker rows Total files and labels (Migrated+Verified)/tracker rows Completion. update_migration_status accepts verified as a caller declaration without running checks. One declared row can therefore show100percent while other selected indexed files have no tracking record.",
     "implementation_files": [
-      "crates/engram_server/src/handlers/git_tools.rs",
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/src/read_report_delivery_tests.rs",
+      "crates/engram_server/src/services/migration_progress_service.rs",
+      "crates/engram_server/src/handlers/migration_tools.rs",
+      "crates/engram_server/src/models/requests.rs",
       "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/revert_evidence_authority_tests.rs",
+      "crates/engram_server/tests/migration_declaration_scope_tests.rs",
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "A real owned JS Git change followed by git revert yields original/revert commit identities, affected path and a recoverable stored diff citation, explicitly identifying historical evidence and unknown cause/policy acceptance.",
-      "The analysis creates no repository rules and leaves all existing accepted/manual/learned rows exactly unchanged. Preserve existing indexed evidence/graph linkage behavior with explicit evidence provenance; do not migrate or delete preexisting rules.",
-      "With an owned configured fake OpenAI provider, the installed baseline demonstrates a model call and new inferred rule; new source must make zero model requests. No real provider calls, replayed inspected tasks or new approval UI.",
-      "Deliver the complete selected evidence report through existing default/caller budgets and immutable saved recovery. Recovery never repeats history extraction, indexing or model work; existing max_commits and retention limits remain.",
-      "One focused source-specific native test and finite candidate/installed public proof join the queued policy delivery in a later combined batch. At least three distinct substantive original source outcomes precede Cargo; no per-feature compile or full suite."
+      "Owned WebForms fixture contains two indexed source files and one caller-declared verified row. Baseline shows total_files1/completion100without any denominator or verification qualification. New JSON/Markdown preserve the stored values but label tracker-only scope and caller-declared verification; project readiness stays not_assessed.",
+      "Use one read snapshot of tracking rows and a held current managed source manifest, including zero-chunk files, for exact relative-path matching. Report selected-source file count, matching tracked/completed declarations, coverage percentage and bounded untracked-path sample with omission counts. Preserve indexing/ignore scope and unmatched tracking rows; no filesystem scan or path/authority guessing.",
+      "With no usable managed source manifest, return the recorded declarations with explicit unavailable source coverage and no invented source percentage. Status writes do not compile, test, execute or verify source. No new approval UI, status migration or reinterpretation of existing records.",
+      "The owned two-file fixture demonstrates50percent indexed-source complete declarations while the tracker itself remains100percent; declaring the second file can reach100percent declared coverage while readiness remains unassessed. Verify both formats and cold reopen in the combined public proof.",
+      "Join policy inventory and revert authority in one focused combined native validation and one release reused for candidate/installed checks. No full suite, extra debug build or per-feature compilation."
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\contract.json",
+    "previous_goal_turn_classification": "PROGRESS: timing receipts inspected; measurement confirms46percent compile/test in last batch and leaves actual coding percentage unknown.",
     "full_original_goal_active": true,
-    "next_build_rule": "Policy inventory delivery is queued; implement this second distinct original outcome before selecting a third. No per-feature compilation.",
-    "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
-    "source_progress_record": "eval/revert-evidence-authority-progress-20261116.json",
-    "next_action": "Select the next distinct substantive original LegacyValidation requirement. Policy inventory delivery and revert evidence authority are source-complete only; two outcomes queued and no Cargo before at least three.",
-    "previous_goal_turn_classification": "PROGRESS: actual installed fake-provider/Git baseline proved new enforced inferred rule and one LLM generation request. Source now retains commit/diff evidence without rule publication or LLM generation; no compilation performed."
+    "next_build_rule": "Finish this third substantive original runtime outcome, then one focused combined native target and one release; retain unaffected passes.",
+    "next_action": "One focused combined native target for three committed source outcomes; one release reused for candidate/installed acceptance."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2850,5 +2859,6 @@
     "installed_server_sha256": "8bdee03478a30c6ce254fcb45632549582f0d0a5ef8f50c6d8529c57b935c7a4"
   },
   "policy_inventory_delivery_source_progress": "eval/policy-inventory-delivery-progress-20261116.json",
-  "revert_evidence_authority_source_progress": "eval/revert-evidence-authority-progress-20261116.json"
+  "revert_evidence_authority_source_progress": "eval/revert-evidence-authority-progress-20261116.json",
+  "migration_declaration_scope_source_progress": "eval/migration-declaration-scope-progress-20261116.json"
 }

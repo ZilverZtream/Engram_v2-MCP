@@ -39,7 +39,7 @@
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "native_tests_run": false,
   "deployed": false,
-  "source_commit": null,
+  "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
   "timing": {
     "source_block_started_utc": "2026-11-16T10:27:56.061284+00:00",
     "baseline_execution_seconds": 2.3946642875671387,

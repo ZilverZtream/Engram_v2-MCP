@@ -22,9 +22,9 @@
     "crates/engram_server/src/handlers/git_tools.rs": "e0e449ac3d399405302da489adb29adeee439d7e30d77aa3439889c23dccb2c2",
     "crates/engram_server/src/read_report_delivery.rs": "f630b4b8e3084cb05681c94edaf3f5c4509e8976eb2af2115dee6c7e54e08be0",
     "crates/engram_server/src/read_report_delivery_tests.rs": "3f62d9f7c7d84139510faeb2527732b5863a760778995dc5ecdf9f6a05490076",
-    "crates/engram_server/src/tools.rs": "6322269df6f3227a936ae78b01541d5cbdd59b6f421eee75de491d510f2841f2",
+    "crates/engram_server/src/tools.rs": "351d0f9cad055cf1c12251430c3b97c1115029768f5083dd4b1f43bd4b58cc48",
     "crates/engram_server/tests/revert_evidence_authority_tests.rs": "9eb68187486663322980370123de2171e9fdd5617dad47e0436c98606adbeadb",
-    "docs/TOOL_CONTRACT.md": "f7450f63616150e357e23cac0eb2337a0080ca95e8797700fe93de7ac25a2853"
+    "docs/TOOL_CONTRACT.md": "91969d87c2aabc4cb07fb094f7034f18ece09adde2612386a67b24dae5a308b2"
   },
   "source_checks": [
     "Legacy handler/tool/report source parsed with rustfmt without unrelated formatting",
@@ -59,5 +59,17 @@
     "Existing max_commits,50000-byte per-file extraction and saved-result retention limits remain. No new policy approval UI, model study, CodeMap/Blast improvement or target-language expansion.",
     "Source is not compiled, runtime-verified or installed yet; the full original backlog remains active."
   ],
-  "native_tests_run": false
+  "native_tests_run": false,
+  "initial_source_files_sha256": {
+    "crates/engram_server/src/handlers/git_tools.rs": "e0e449ac3d399405302da489adb29adeee439d7e30d77aa3439889c23dccb2c2",
+    "crates/engram_server/src/read_report_delivery.rs": "f630b4b8e3084cb05681c94edaf3f5c4509e8976eb2af2115dee6c7e54e08be0",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "3f62d9f7c7d84139510faeb2527732b5863a760778995dc5ecdf9f6a05490076",
+    "crates/engram_server/src/tools.rs": "6322269df6f3227a936ae78b01541d5cbdd59b6f421eee75de491d510f2841f2",
+    "crates/engram_server/tests/revert_evidence_authority_tests.rs": "9eb68187486663322980370123de2171e9fdd5617dad47e0436c98606adbeadb",
+    "docs/TOOL_CONTRACT.md": "f7450f63616150e357e23cac0eb2337a0080ca95e8797700fe93de7ac25a2853"
+  },
+  "shared_migration_followup": {
+    "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
+    "reason": "Migration reporting updates shared tool descriptions/documentation; earlier behavior and finite acceptance remain unchanged."
+  }
 }
