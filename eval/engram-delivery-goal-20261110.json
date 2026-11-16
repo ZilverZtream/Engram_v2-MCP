@@ -2554,7 +2554,17 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-4",
+        "outcome": "Complete bounded job observations with project-free immutable recovery",
+        "source_commit": "ac1784329399fe1e4ef648127dfce3421e970697",
+        "progress": "eval/job-report-delivery-progress-20261116.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\contract.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "counts_as_independent_deliverables": 1
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2701,44 +2711,23 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Procedure/discovery/SQL source batch acceptance",
-    "status": "THREE_OUTCOMES_INSTALLED_ACCEPTANCE_COMPLETE",
-    "original_requirement_id": "TODO-33",
+    "active_original_item": "Bounded complete background-job observation",
+    "original_requirement_id": "TODO-4",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116",
+    "source_commit": "ac1784329399fe1e4ef648127dfce3421e970697",
+    "source_progress": "eval/job-report-delivery-progress-20261116.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\contract.json",
     "finite_acceptance": [
-      "batch_read accepts a typed query_schema operation using the existing QuerySchemaRequest and normal SQL handler, including its project/name qualification, selected source/citations, authored guidance, per-read controls and saved-result recovery. No new SQL parser or interpreter.",
-      "Existing1..16operation bounds, correlation IDs, shared whole-JSON budget, independent request errors and complete-result omission/recovery remain. Unsupported/mutating tools remain rejected; sequential reads are not an atomic snapshot.",
-      "Owned two-table fixture compares actual returned SQL table facts/guidance with individual schema calls, retains a bad-project error alongside successful reads, and demonstrates whole-result omission with a callable original SQL request. Recovery reruns a fresh read unless supplied existing query_schema response_id selects its saved result.",
-      "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
+      "Both job-observation tools advertise the existing max_tokens/output_json/saved recovery controls without requiring a project ID. Fresh job/project filters retain normal handler validation; cancellation is unchanged.",
+      "Whole replies fit the requested budget or explicitly reject insufficient recovery metadata before the handler; complete original results, status/progress and errors are preserved. Recovery is immutable capture-time observation, not a fresh poll or completion claim.",
+      "An owned real background-indexing fixture demonstrates full list budgeting, fresh project filter, exact status JSON, new job arrival and exact original job-list recovery across restart. An owned native case retains large job-message/status content after job-row deletion and owner shutdown.",
+      "Count both tools as one TODO-4 outcome. Retain one pending source item until a genuine combined batch is ready; no Cargo, full suites, installed changes, normal daemon restart, LegacyValidation/Q read or new target language for this source delivery."
     ],
+    "pending_source_outcomes": 1,
     "full_original_goal_active": true,
-    "next_action": "Advance remaining original acceptance with one implementation item active. Preserve all unfinished research/TODO/storage findings. Do not rerun these completed finite outcomes, CodeMap/Blast Radius, unrelated full suites or inspected task/model comparisons; do not invent small filler changes to trigger another build.",
-    "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-    "source_progress": "eval/procedure-discovery-schema-batch-delivery-20261116.json",
-    "pending_source_outcomes": 3,
-    "native_target": "procedure_discovery_schema_batch_tests",
-    "native_cases_written": 4,
-    "native_session_id": null,
-    "native_attempts_this_batch": 1,
-    "native_result": {
-      "passed": 3,
-      "failed": 1,
-      "seconds": 254.77806669997517
-    },
-    "production_correction_commit": "472ad57",
-    "native_cases_passed": 3,
-    "native_cases_failed": 1,
-    "release_live_owner": null,
-    "release_session_id": null,
-    "release_label": "release2",
-    "production_correction_commits": [
-      "472ad57",
-      "70f2843"
-    ],
-    "completion_driver": null,
-    "release_result": "release1 explicitly canceled/cleaned; release2 terminal PASS; initial completion helper stopped on missing packaging metadata; fixed handoff reused exact artifact; deployment5 and normal restoration passed"
+    "next_action": "Accumulate further distinct original source outcomes before one combined validation; do not compile or release this single report-wrapper extension."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

@@ -1,0 +1,57 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-16T20:52:56.270837+00:00",
+  "original_requirement_id": "TODO-4",
+  "source_commit": "ac1784329399fe1e4ef648127dfce3421e970697",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\contract.json",
+    "sha256": "ac613d117a49d986cb658e76cf130270d794f968a712b6b636d2982c5bdde82d"
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\baseline2\\acceptance.json",
+    "sha256": "bebb258ed3e710b2d936d50923c81647ed47fc8e61b4caf49ef16bca6251dd21"
+  },
+  "baseline_seconds": 14.500586400041357,
+  "retained_failed_baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\baseline1\\acceptance.json",
+    "sha256": "841226837ad80eec395b1384c09a6d005370e5465ab8eda34057fc95db71abb6"
+  },
+  "fixture_correction": "First fixture used synchronous wait=true indexing, which intentionally creates no background jobs. Corrected to32 real wait=false jobs with explicit terminal observation; all owned resources removed in both runs.",
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\verify-public.py",
+    "sha256": "96267d9c469cab186584e3304ec0582af6a56b1428fd3dfc703cc4a20067e282"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\source-checks.json",
+    "sha256": "ff2c275a818398550d8fa74146db195ca2d301c62ebb53b70037bd1057cf7ede"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/tests/job_report_delivery_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "Reuse existing server-level report delivery for list_jobs and get_job_status. Existing project filter, job selection, current status/progress, handler errors, exact immutable snapshots and cancellation semantics stay with the existing owners. No new job runner or polling infrastructure.",
+  "finite_acceptance": [
+    "Both job-observation tools advertise the existing max_tokens/output_json/saved recovery controls without requiring a project ID. Fresh job/project filters retain normal handler validation; cancellation is unchanged.",
+    "Whole replies fit the requested budget or explicitly reject insufficient recovery metadata before the handler; complete original results, status/progress and errors are preserved. Recovery is immutable capture-time observation, not a fresh poll or completion claim.",
+    "An owned real background-indexing fixture demonstrates full list budgeting, fresh project filter, exact status JSON, new job arrival and exact original job-list recovery across restart. An owned native case retains large job-message/status content after job-row deletion and owner shutdown.",
+    "Count both tools as one TODO-4 outcome. Retain one pending source item until a genuine combined batch is ready; no Cargo, full suites, installed changes, normal daemon restart, LegacyValidation/Q read or new target language for this source delivery."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "current_source_public_proof_run": false,
+  "installed": false,
+  "independent_outcomes": 1,
+  "resources": {
+    "new_compilations": 0,
+    "baseline_owners_closed": true,
+    "baseline_fixtures_removed": true,
+    "protected_wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "normal_daemon_restarted": false,
+    "retention": "Retain source contract, exact baseline failure/corrected baseline wires and future verifier until installed acceptance or supersession; no preexisting deletion."
+  },
+  "selection_evidence": "Retained EG13 differential persistence delivery and existing S03 source-provenance freshness were already implemented; neither was reimplemented or replayed. Original broader storage/resource gates remain open. This unfinished TODO4 job-observation gap was independently confirmed in the installed runtime.",
+  "next_action": "Accumulate further distinct original source outcomes before one combined validation; do not compile or release this single report-wrapper extension."
+}
