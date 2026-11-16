@@ -40,9 +40,10 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "ONE_SOURCE_OUTCOME_AWAITING_COMBINED_VALIDATION",
+    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
-      "eval/remaining-report-delivery-progress-20261116.json"
+      "eval/remaining-report-delivery-progress-20261116.json",
+      "eval/safety-assessment-basis-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2567,6 +2568,16 @@
         "source_progress_record": "eval/remaining-report-delivery-progress-20261116.json",
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\verify-public.py",
         "user_outcome": "18remaining project report readers gain existing complete default/caller reply budgets and immutable selected-result recovery, preserving their analysis and effects."
+      },
+      {
+        "original_requirement_id": "EG-26",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b2e9134ba1897d000e7fbbcb59e604603a985aae",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\contract.json",
+        "source_progress_record": "eval/safety-assessment-basis-progress-20261116.json",
+        "focused_native_target": "safety_assessment_basis_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\verify-public.py",
+        "user_outcome": "Public policy output distinguishes disabled unassessed bypass from threshold arithmetic on caller-supplied unverified inputs, preserving internal safety/ADP policy decisions."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2755,26 +2766,29 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO4 remaining18agent report readers",
+    "active_original_item": "EG26 public safety assessment basis",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "original_requirement": "Complete response budgets and exact original-result recovery across remaining agent report readers.",
-    "observed_missing_behavior": "Retained actual tools/list schemas on the shipped lineage show these18project report tools lack max_tokens although their output can include full source/rules, inferred cards, QA cases and graph evidence.",
+    "original_requirement": "Reconcile tool contracts/readiness claims; declared capability and policy state are not measured readiness.",
+    "observed_missing_behavior": "evaluate_safety serializes a policy-disabled result as confidence1.0/riskLow with zero checks. Enabled confidence is the fraction of threshold checks passed over caller claims, not empirical safety probability. The normal configuration omits safety_policy_enabled and uses existingfalse default.",
     "implementation_files": [
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/src/read_report_delivery_tests.rs",
+      "crates/engram_server/src/handlers/safety_report.rs",
+      "crates/engram_server/src/handlers/mod.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/tests/safety_assessment_basis_tests.rs",
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "Use existing shared report delivery without modifying any selected handler, ranking, model input, generated result, schema-specific source cap or analysis behavior. Default40KiB and caller budgets retain exact full selected MCP results.",
-      "Owned WebForms QA report includes a complete authored guide within the existing10000character source cap and its explicit exception. Caller8KiB capture recovers original report bytes/hash and source/uncertainty content; the fitting default40KiB reply remains unchanged. Live source/guidance changes do not mutate saved results, including restart.",
-      "Recovery never reruns analysis, graph lookup, model generation or publication. Reuse existing generic owner acceptance; schema coverage identifies all18newreport tools and preserves original control owners and closed tools.",
-      "Group this source outcome with at least two other distinct original requirements before Cargo. No individual-tool release or full suite."
+      "Public evaluate_safety with disabled policy preserves allowed/bypass but reports unassessed risk/confidence as null and explicit policy-disabled/input basis; no checks or verified safety are invented.",
+      "Enabled pass/block cases preserve original allowed result and exact underlying threshold checks/mitigations. Confidence is explicitly a passed-check fraction and risk a heuristic on supplied claims; this tool performs no source analysis, measurement or runtime validation.",
+      "Change only public response qualification and request/tool descriptions. Internal PolicyDecision/safety thresholds, ADP enqueue semantics and existing fixtures remain unchanged; protected cognitive_tools WIP untouched. No new source analysis or CodeMap/Blast behavior.",
+      "One focused native public-wrapper behavior check and owned MCP proof join the18report-source outcome; no per-feature Cargo or new full suite."
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\remaining-report-delivery-20261116\\contract.json",
-    "previous_goal_turn_classification": "PROGRESS: prior turn completed28candidate/installed checks, installed/restored same single release, retained corrections and enabled future incremental caching without another build.",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\safety-assessment-basis-20261116\\contract.json",
+    "previous_goal_turn_classification": "PROGRESS: previous turn committed grouped18report budget source with actual baseline. Current turn implements truthful safety reporting and verifies six installed baseline observations; zero compilation.",
     "full_original_goal_active": true,
-    "next_action": "Retain this one original source outcome. Select the next distinct original requirement; no Cargo until at least three substantive original outcomes."
+    "next_action": "Keep both source outcomes queued and select the next ready distinct original requirement; no per-feature Cargo."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2890,5 +2904,6 @@
     "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
-  "remaining_report_delivery_source_progress": "eval/remaining-report-delivery-progress-20261116.json"
+  "remaining_report_delivery_source_progress": "eval/remaining-report-delivery-progress-20261116.json",
+  "safety_assessment_basis_source_progress": "eval/safety-assessment-basis-progress-20261116.json"
 }

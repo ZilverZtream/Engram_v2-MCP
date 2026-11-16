@@ -3,7 +3,7 @@
   "original_requirement_id": "EG-26",
   "original_requirement": "Reconcile tool contracts/readiness claims; declared capability and policy state are not measured readiness.",
   "user_outcome": "Public policy output distinguishes disabled unassessed bypass from threshold arithmetic on caller-supplied unverified inputs, preserving internal safety/ADP policy decisions.",
-  "source_commit": null,
+  "source_commit": "b2e9134ba1897d000e7fbbcb59e604603a985aae",
   "implementation_files": [
     "crates/engram_server/src/handlers/safety_report.rs",
     "crates/engram_server/src/handlers/mod.rs",
