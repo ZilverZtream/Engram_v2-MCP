@@ -65,5 +65,6 @@
     "crates/engram_server/src/services/change_card_service/metadata_cache.rs": "7cec1404b0d1b5dc0d4f2800f54b2a4fa869ae3e774ebe4145925c10923fa6a9",
     "crates/engram_server/src/handlers/pr_history_tools.rs": "8cc6fafd1c3c6956483abdb4181b29d9c7b7208ccefd6443f6ee49c32a03036b",
     "crates/engram_server/src/services/change_card_service/extraction.rs": "163342d8b9452cef1e23520dbd7c71e8cad2c5cba2440159fa29cc5e978f2ec3"
-  }
+  },
+  "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd"
 }

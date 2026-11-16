@@ -15863,7 +15863,8 @@
     "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "native_tests_run": false,
     "public_acceptance_run": false,
-    "deployed": false
+    "deployed": false,
+    "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -15946,7 +15947,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-22",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
+        "progress_record": "eval/history-metadata-identity-progress-20261116.json",
+        "user_outcome": "Unrelated tool/ranking releases retain persistent immutable Git card metadata compatibility. Extraction changes and canonical repository identities remain separate. No current timing gain claimed; validation/installation pending."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -15988,12 +15998,11 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "last_installed_record": "eval/editing-report-batch-delivery-20261116.json",
-    "pending_count": 0,
-    "independent_requirements_delivered": 3,
-    "native_builds": 1,
-    "release_builds": 1
+    "pending_count": 1,
+    "native_builds": 0,
+    "release_builds": 0
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -16052,9 +16061,10 @@
     "full_original_goal_complete": false
   },
   "immediate_next_delivery": {
-    "status": "SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "last_delivered_record": "eval/editing-report-batch-delivery-20261116.json",
-    "pending_source_records": [],
+    "status": "ACCUMULATING_SOURCE_OUTCOMES",
+    "pending_source_records": [
+      "eval/history-metadata-identity-progress-20261116.json"
+    ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
