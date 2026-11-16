@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_FUNCTIONAL_VALIDATED_PUBLIC_DEBUG_PENDING",
   "original_requirement_id": "EG-22",
   "original_requirement": "Persistent change-card metadata cache: reuse unchanged history metadata across restarts and avoid repeatedly describing the same Git changes.",
   "observed_missing_behavior": "The metadata namespace hashes entire change_card_service.rs, metadata_cache.rs and pr_history_tools.rs. Unrelated ranking, tool response and cache-handling edits invalidate every persisted card even when the extraction result is unchanged.",
@@ -43,7 +43,7 @@
     "owned_processes_started": false,
     "retention": "Retain source/contract/equivalence receipt until superseded; no preexisting removal."
   },
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "checks_completed": [
@@ -67,7 +67,7 @@
     "crates/engram_server/src/services/change_card_service/extraction.rs": "163342d8b9452cef1e23520dbd7c71e8cad2c5cba2440159fa29cc5e978f2ec3"
   },
   "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
-  "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df",
+  "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/services/change_card_service.rs": "bde26c51cb40057945e2650b7a9e551a62ccde86aef2ef55a52ce9ef1c61c9dd",
@@ -79,9 +79,24 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
-    "native_builds": 1,
+    "native_builds": 3,
     "release_builds": 0,
-    "native_status": "COMPILE_FAILED_NO_TESTS_RUN",
-    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction1.json"
+    "native_status": "SEVEN_PASSED_FOUR_FIXTURE_CORRECTIONS",
+    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
+    "retained_passed_cases": 7,
+    "pending_failed_cases": 4,
+    "status": "FUNCTIONAL_PASS_WITH_OWNED_TEMP_RETAINED",
+    "native_cases_passed": 11,
+    "native_seconds": 242.70562930009328,
+    "retried_cases": 4,
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
+      "sha256": "12ca4acba498ec79d115979bcd2ea16ba97af016289b28483dbb503dc54895df"
+    },
+    "retained_native_fixture": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nuzmava3g",
+      "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "reason": "Automatic approval review rejected exact deletion; no equivalent retry."
+    }
   }
 }

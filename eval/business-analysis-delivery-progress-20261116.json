@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_FUNCTIONAL_VALIDATED_PUBLIC_DEBUG_PENDING",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete response budgets and exact recovery for AI tool outputs without silently losing selected evidence.",
   "observed_missing_behavior": "analyze_business_logic persists method documents and returns full JSON/Markdown without max_tokens/response_id/response_offset. A large successful result can exceed the client reply budget after provider work/publication has completed; force_refresh is a no-op and a fresh call repeats analysis.",
@@ -33,7 +33,7 @@
   "native_cases": 1,
   "combined_native_target": "history_webmethod_business_batch_tests",
   "combined_native_cases": 11,
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "baseline_receipt": {
@@ -86,7 +86,7 @@
     "relevance": "Current LegacyValidation VB.NET/JS/TS business-analysis workflow and configured OpenAI-compatible backend; proof uses an owned deterministic local provider and VB source, not the current real LLM or any inspected task."
   },
   "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
-  "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df",
+  "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/read_report_delivery.rs": "5e77bffbf8c527a6318b1af096a2f964f489723bb2263a083da781c770e53087",
@@ -99,9 +99,24 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
-    "native_builds": 1,
+    "native_builds": 3,
     "release_builds": 0,
-    "native_status": "COMPILE_FAILED_NO_TESTS_RUN",
-    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction1.json"
+    "native_status": "SEVEN_PASSED_FOUR_FIXTURE_CORRECTIONS",
+    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
+    "retained_passed_cases": 7,
+    "pending_failed_cases": 4,
+    "status": "FUNCTIONAL_PASS_WITH_OWNED_TEMP_RETAINED",
+    "native_cases_passed": 11,
+    "native_seconds": 242.70562930009328,
+    "retried_cases": 4,
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
+      "sha256": "12ca4acba498ec79d115979bcd2ea16ba97af016289b28483dbb503dc54895df"
+    },
+    "retained_native_fixture": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nuzmava3g",
+      "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "reason": "Automatic approval review rejected exact deletion; no equivalent retry."
+    }
   }
 }

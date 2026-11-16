@@ -2568,16 +2568,16 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
         "progress_record": "eval/history-metadata-identity-progress-20261116.json",
         "user_outcome": "Unrelated tool/ranking releases retain persistent immutable Git card metadata compatibility. Extraction changes and canonical repository identities remain separate. No current timing gain claimed; validation/installation pending.",
-        "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df"
+        "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5"
       },
       {
         "original_requirement_id": "TODO-31",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "5c5ba401c3bba7ca0b3a32f24d973857377f918e",
+        "source_commit": "493be03f0da534f86d88424586593844812d050c",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
         "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
         "user_outcome": "Existing LegacyValidation AJAX-style VB ASPX/ASMX URL suffixes reach authored attributed method candidates and the existing source-admitted call/database walker, including same-application App_Code partial services. Source complete; native/public/installed validation pending.",
-        "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df"
+        "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5"
       },
       {
         "original_requirement_id": "TODO-4",
@@ -2586,7 +2586,7 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\contract.json",
         "progress_record": "eval/business-analysis-delivery-progress-20261116.json",
         "user_outcome": "Large successful business-analysis JSON/Markdown reports use existing complete reply budgets and exact saved-result recovery after generation/persistence; recovery does not repeat either. Native/public/deployment pending.",
-        "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df"
+        "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2630,17 +2630,21 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "FOCUSED_NATIVE_FIXTURE_COMPILE_CORRECTION",
+    "status": "NATIVE_11_FUNCTIONAL_PASS_PUBLIC_DEBUG_PENDING",
     "pending_count": 3,
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-    "runtime_source_commit": "b0ebab529a6325c8c8cf1f1b9f60cc23cc2ec7df",
+    "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
-    "native_builds": 1,
+    "native_builds": 3,
     "release_builds": 0,
     "last_installed_record": "eval/editing-report-batch-delivery-20261116.json",
     "tests_run": 0,
-    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction1.json"
+    "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
+    "native_cases_passed": 11,
+    "failed_cases_pending": 4,
+    "native_seconds": 242.70562930009328,
+    "retained_native_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
