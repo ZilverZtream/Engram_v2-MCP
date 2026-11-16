@@ -110,6 +110,15 @@ impl Fixture {
             }))?)
             .await?)
     }
+    async fn safety(&self, output_json: bool) -> Result<CallToolResult> {
+        Ok(self
+            .server
+            .handle_check_edit_safety(serde_json::from_value(json!({
+                "project_id":self.project,"file_path":"Site/order.ts","method_name":"saveOrder",
+                "output_json":output_json
+            }))?)
+            .await?)
+    }
     fn close(self) -> Result<()> {
         let Self { server, owned, .. } = self;
         drop(server);
@@ -121,10 +130,13 @@ fn text(reply: &CallToolResult) -> &str {
     &reply.content[0].as_text().unwrap().text
 }
 fn report(project: &str, controls: Value) -> Result<delivery::Report> {
+    report_for("get_method_edit_context", project, controls)
+}
+fn report_for(tool: &str, project: &str, controls: Value) -> Result<delivery::Report> {
     let mut arguments = controls;
     arguments["project_id"] = json!(project);
     let mut request: CallToolRequestParam =
-        serde_json::from_value(json!({"name":"get_method_edit_context","arguments":arguments}))?;
+        serde_json::from_value(json!({"name":tool,"arguments":arguments}))?;
     Ok(delivery::prepare(&mut request, &Engram::tool_registry().list_all())?.unwrap())
 }
 
@@ -156,6 +168,38 @@ async fn pre_edit_context_preserves_live_method_and_returned_caller_guidance_in_
     }
     ensure!(!text(&original).contains("UNRELATED_POLICY"));
     ensure!(body.get("edit_safety").is_some() && body.get("freshness").is_some());
+    let safety_reply = fixture.safety(true).await?;
+    let mut safety: Value = serde_json::from_str(text(&safety_reply))?;
+    let policy = safety
+        .as_object_mut()
+        .unwrap()
+        .remove("project_policy_sources")
+        .unwrap();
+    ensure!(safety == body["edit_safety"]);
+    let safety_sources = policy["sources"].as_array().unwrap();
+    for (path, expected) in [
+        ("AGENTS.md", GUIDE),
+        (".github/instructions/method.instructions.md", METHOD),
+    ] {
+        let row = safety_sources
+            .iter()
+            .find(|row| row["path"] == path)
+            .unwrap();
+        ensure!(
+            row["content"] == expected
+                && row["blake3"] == blake3::hash(expected.as_bytes()).to_hex().to_string()
+        );
+    }
+    ensure!(!safety_sources.iter().any(|row| row["path"]
+        == ".github/instructions/caller.instructions.md"
+        || row["path"] == ".github/instructions/other.instructions.md"));
+    let standalone_markdown = fixture.safety(false).await?;
+    ensure!(
+        text(&standalone_markdown).contains(GUIDE)
+            && text(&standalone_markdown).contains(METHOD)
+            && !text(&standalone_markdown).contains(CALLER)
+            && !text(&standalone_markdown).contains("UNRELATED_POLICY")
+    );
     let markdown = fixture.context(false).await?;
     ensure!(
         text(&markdown).contains(GUIDE)
@@ -174,6 +218,21 @@ async fn pre_edit_context_preserves_live_method_and_returned_caller_guidance_in_
             .any(|s| s["path"] == "AGENTS.md" && s["content"] == revised)
     );
     ensure!(updated["edit_safety"] == body["edit_safety"]);
+    let revised_safety = fixture.safety(true).await?;
+    let mut revised_safety: Value = serde_json::from_str(text(&revised_safety))?;
+    let policy = revised_safety
+        .as_object_mut()
+        .unwrap()
+        .remove("project_policy_sources")
+        .unwrap();
+    ensure!(
+        policy["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|row| row["path"] == "AGENTS.md" && row["content"] == revised)
+    );
+    ensure!(revised_safety == safety);
     fixture.close()
 }
 
@@ -205,6 +264,17 @@ async fn complete_large_pre_edit_policy_recovers_without_repeating_source_or_ana
         ensure!(manifest["report_content"] == "DEFERRED_NOT_SUPPLIED");
         manifests.push(manifest);
     }
+    let original_safety = fixture.safety(true).await?;
+    let exact_safety = serde_json::to_string(&original_safety)?;
+    let deferred = report_for(
+        "check_edit_safety",
+        &fixture.project,
+        json!({"max_tokens":1024}),
+    )?
+    .finish(&fixture.server.state.cfg.data_dir, original_safety)?;
+    ensure!(text(&deferred).len() <= 4096);
+    let safety_manifest: Value = serde_json::from_str(text(&deferred))?;
+    ensure!(safety_manifest["report_content"] == "DEFERRED_NOT_SUPPLIED");
     std::fs::remove_file(fixture.root.join("AGENTS.md"))?;
     std::fs::remove_file(fixture.root.join("Site/order.ts"))?;
     for manifest in manifests {
@@ -231,5 +301,34 @@ async fn complete_large_pre_edit_policy_recovers_without_repeating_source_or_ana
                     .unwrap()
         );
     }
+    let mut action = safety_manifest["response_delivery"]["next_call"].clone();
+    let mut restored = String::new();
+    for _ in 0..100 {
+        ensure!(
+            action["tool"] == "check_edit_safety"
+                && action["arguments"].get("method_name").is_none()
+        );
+        let page = report_for(
+            "check_edit_safety",
+            &fixture.project,
+            action["arguments"].clone(),
+        )?
+        .recover(&fixture.server.state.cfg.data_dir)?
+        .unwrap();
+        let page: Value = serde_json::from_str(text(&page))?;
+        ensure!(page["start_byte"] == restored.len());
+        restored.push_str(page["content"].as_str().unwrap());
+        if page["complete"] == true {
+            break;
+        }
+        action = page["next_call"].clone();
+    }
+    ensure!(restored == exact_safety);
+    ensure!(
+        blake3::hash(restored.as_bytes()).to_hex().as_str()
+            == safety_manifest["response_delivery"]["response_id"]
+                .as_str()
+                .unwrap()
+    );
     fixture.close()
 }

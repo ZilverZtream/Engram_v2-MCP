@@ -3,6 +3,17 @@ use crate::services::project_policy;
 use serde_json::Value;
 use std::{collections::BTreeSet,path::Path};
 
+/// Attach guidance off the async runtime without changing the underlying report.
+pub(super) async fn reply(
+    project: String, root: std::path::PathBuf, paths: Vec<String>, body: String, output_json: bool,
+) -> Result<rmcp::model::CallToolResult, rmcp::ErrorData> {
+    let (body, _) = tokio::task::spawn_blocking(move ||
+        attach(&project, &root, &paths, body, output_json, None))
+        .await.map_err(|error| rmcp::ErrorData::internal_error(error.to_string(), None))?
+        .map_err(|error| rmcp::ErrorData::invalid_params(error.to_string(), None))?;
+    Ok(rmcp::model::CallToolResult::success(vec![rmcp::model::Content::text(body)]))
+}
+
 pub(super) fn attach(project_id: &str,root: &Path,paths: &[String],body: String,output_json: bool,limit: Option<usize>) -> anyhow::Result<(String,project_policy::PolicyContext)> {
     let paths=paths.iter().cloned().collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>();
     let mut policy=project_policy::resolve(root,&paths,&[]).with_source_recovery(project_id);

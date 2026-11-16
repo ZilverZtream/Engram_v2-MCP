@@ -10096,14 +10096,13 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "status": "DELIVERED",
-      "record": "eval/source-policy-batch-delivery-20261116.json",
-      "original_requirement_ids": [
-        "TODO-33",
-        "EG-01",
-        "EG-27"
-      ],
-      "deployed": true
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "record": "eval/edit-safety-policy-progress-20261116.json",
+      "original_requirement_id": "EG-01",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\contract.json",
+      "native_tests_run": false,
+      "public_acceptance_run": false,
+      "deployed": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10135,7 +10134,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Source batching, pre-edit scoped guidance and VB instruction freshness installed; normal runtime restored. No implementation item active until the next concrete unfinished original requirement is selected.",
+    "active_original_item": "EG-01 standalone edit-safety policy source complete; awaiting combined validation. No native build or release for this item alone.",
     "next_user_visible_deliverable": "Continue the original unfinished backlog with a finite source contract; preserve the delivered batch and accumulate distinct outcomes before another compile. Current mechanical tool deliveries do not establish task benefit or full goal completion.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."

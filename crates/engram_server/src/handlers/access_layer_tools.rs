@@ -6723,6 +6723,7 @@ impl Engram {
         .await
         .map_err(|error| McpError::internal_error(error.to_string(), None))?
         .map_err(|error| McpError::invalid_params(error, None))?;
+        let policy_path = node.file_path.as_str().to_owned();
         let (downstream, _impact_source_hold, membership) = self
             .method_downstream_assessment(&req.project_id, &node)
             .await?;
@@ -6756,7 +6757,8 @@ impl Engram {
         if output_json {
             let json = serde_json::to_string(&safety)
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            return Ok(CallToolResult::success(vec![Content::text(json)]));
+            return method_body_policy::reply(req.project_id, PathBuf::from(rec.directory),
+                vec![policy_path], json, true).await;
         }
 
         let badge = match safety.verdict.as_str() {
@@ -6820,7 +6822,8 @@ impl Engram {
         let mut out = banner.unwrap_or_default();
         out.push_str(&md);
         out.push_str(&footer);
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        method_body_policy::reply(req.project_id, PathBuf::from(rec.directory),
+            vec![policy_path], out, false).await
     }
 }
 
