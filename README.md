@@ -1157,8 +1157,12 @@ package, a new installation directory, your project directory and the client's
 `mcpServers` JSON configuration path. It installs the full sidecar and registers
 the connection while preserving existing client entries. See the
 [installation command](docs/QUICKSTART.md#install-a-windows-package-and-connect-your-project).
-The script consumes an existing package; public prebuilt releases and
-macOS/Linux installation are still unfinished.
+For a completed runtime ZIP, `scripts/install_windows_release.ps1` accepts a
+local `-PackageArchive` or an HTTPS `-PackageUri`, a required trusted
+`-PackageSha256`, and the same project/client installation arguments. It checks
+the archive before extraction and registration; no compiler is run.
+See [archive installation](docs/WINDOWS_BUNDLE.md).
+Public prebuilt releases and macOS/Linux installation are still unfinished.
 
 `ENGRAM_VB_SIDECAR_PATH` overrides discovery, including legacy adjacent executable
 locations. Trusted VB indexing requires a matching companion that attests

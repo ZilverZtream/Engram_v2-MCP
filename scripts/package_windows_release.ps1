@@ -39,8 +39,9 @@ foreach ($name in @('engram_server.exe','sidecar/vb_roslyn_sidecar-win-x64.exe',
 $inputs['runtime/windows-release-manifest.json'] = $manifestPath
 $expected['runtime/windows-release-manifest.json'] = $manifestHash
 $inputs['install.ps1'] = Join-Path $PSScriptRoot 'install_windows.ps1'
+$inputs['install-release.ps1'] = Join-Path $PSScriptRoot 'install_windows_release.ps1'
 $inputs['README.md'] = Join-Path (Split-Path $PSScriptRoot -Parent) 'docs/WINDOWS_BUNDLE.md'
-foreach ($entry in @('install.ps1','README.md')) { $expected[$entry] = (Get-FileHash -LiteralPath $inputs[$entry] -Algorithm SHA256).Hash }
+foreach ($entry in @('install.ps1','install-release.ps1','README.md')) { $expected[$entry] = (Get-FileHash -LiteralPath $inputs[$entry] -Algorithm SHA256).Hash }
 $partial = $OutputPath + '.partial-' + [Guid]::NewGuid().ToString('N')
 $stream = $null
 $archive = $null

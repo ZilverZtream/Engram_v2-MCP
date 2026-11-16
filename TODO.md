@@ -797,6 +797,13 @@ value is accuracy, this is the biggest meta-gap.
 ## P6 — Adoption & packaging
 
 - [~] **53. Prebuilt release binaries + one-command install** (M)
+  *November16: checksum-pinned Windows ZIP installation accepts a local archive
+  or HTTPS URL and reuses full-package verification and JSON/Codex registration.
+  Local archive installation, all215runtime assets and VB retrieval through the
+  registered command passed using a retained complete release. HTTPS branch
+  behavior used injected transport; external downloads/public hosting remain
+  unverified. No compiler was run.
+  Evidence: `eval/windows-archive-bootstrap-delivery-20261116.json`.*
   *Codex installation added 2026-11-13: `-Codex` registers through the native
   CLI while retaining existing settings and refusing duplicate server names.
   Isolated CLI registration, unchanged JSON-client checks and VB retrieval through

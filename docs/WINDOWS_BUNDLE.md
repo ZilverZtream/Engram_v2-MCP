@@ -28,6 +28,33 @@ Set-Location .\Engram
 download when reporting an installation problem. The inner archive contains the
 same complete runtime and installer described below; no local build is needed.
 
+With the repository's trusted installer scripts available, a pinned archive can
+be installed directly, without extracting its runtime manually:
+
+```powershell
+.\scripts\install_windows_release.ps1 `
+    -PackageArchive '.\Engram-win-x64.zip' `
+    -PackageSha256 '<trusted 64-character SHA256>' `
+    -InstallRoot "$env:LOCALAPPDATA\engram" `
+    -ProjectRoot 'C:\path\to\your-project' `
+    -Codex
+```
+
+Supply the checksum from the publisher you trust. To download the ZIP in the
+same command, replace `-PackageArchive` with `-PackageUri '<absolute HTTPS URL>'`.
+An authenticated GitHub Actions download may require downloading the artifact
+through GitHub first; this command does not acquire GitHub credentials or unwrap
+an Actions artifact. Supply the inner Engram runtime ZIP. Checksums are required
+for both local and downloaded ZIPs. JSON clients use `-McpConfigPath` instead of
+`-Codex`. The command verifies the ZIP before extraction, uses the adjacent
+trusted installer, and removes its owned download/extraction files. It records
+the installed ZIP hash in `release-source.json`. Existing installations use the
+managed upgrade procedure.
+
+New bundles also include `install-release.ps1`; next to their `install.ps1`, it
+accepts the same pinned local/HTTPS archive arguments. Public releases and
+external HTTPS download acceptance remain unfinished.
+
 Extract the trusted archive. For **Codex**, with its CLI installed, run from the
 extracted directory:
 
