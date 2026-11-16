@@ -62,10 +62,11 @@ These degrade or improve *every single interaction*. Nothing below matters until
   not 114 (see #28).
 
 - [~] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L) — *partial: deployed 2026-11-11 for search_memory, vector_search and grep_project. Optional max_tokens estimates ceil(UTF-8 complete reply-text bytes / 4), pages whole records and retains warnings/freshness and exact recovery actions. All three support output_json; search/vector now share a versioned envelope with typed identities/recovery, per-field truncation, live-guidance handling and explicit unknown-versus-bounded totals. Search retains requested-page guidance/omissions; vector exposes full_chunk guidance recovery within its fixed top_k/MMR window. Grep preserves coverage/stale-source warnings and continuation within max_results, including previously hidden Markdown matches. Candidate and installed MCP checks recovered independent source and distinct original memory sections exactly; JSON escaping counts toward the reply budget. See eval/p04-search-response-budget-delivery-20261111.json, eval/p04-vector-response-budget-delivery-20261111.json, eval/p04-grep-response-budget-delivery-20261111.json and eval/p04-search-json-delivery-20261111.json. get_chunk and read_memory_bank now also honor root max_tokens for complete text/JSON replies and offer output_json with exact hash-bound recovery. Open citation pages retain whole lines or UTF-8 boundaries; explicit ranges, quote proofs and transformed content remain complete or return a minimum-budget retry. Native candidate/installed checks retained provenance/guidance and reconstructed 114,000-byte project/user sections exactly in pages no larger than 8,192 bytes; see eval/p04-document-response-delivery-20261111.json. search_history text/precedent modes now also offer complete reply budgets, typed JSON and whole-record paging within the selected limit. Exact indexed citations and Git message/file actions are verified against independently authored history; capability, rerank and clipping disclosures remain. See eval/p04-history-response-delivery-20261111.json. prepare_implementation_context now supports complete-reply max_tokens with required policy/coverage/warnings and hash-bound source/context continuation records. Native candidate/installed checks reconstructed original typed contexts from authored method/caller sources and retained policy qualifications; changed evidence refuses. See eval/p04-context-response-delivery-20261111.json. get_page_context also supports complete text/JSON budgets with exact hash-bound recovery of controls, methods and other context entries, retaining provider/composition/house-style qualifications. Candidate/installed checks reconstructed four authored handler bodies and150controls; changed evidence refuses mixed pages. See eval/p04-page-response-delivery-20261111.json. pre_commit_review now also defaults to a40KiB complete reply-text budget, accepts max_tokens, preserves every selected finding in a bounded ledger and provides exact original-report recovery without rerunning gates. Candidate/installed JSON and Markdown checks preserve40findings and decision evidence after source edits; actual LegacyValidation returned6526B with exact recovery of its47369B report. The131s review is not a latency improvement. See eval/legacy_validation-review-response-budget-delivery-20261113.json. Remaining: budgets and consistent envelopes across other tools and durable cursors; provider-token accounting is not claimed.*
-  Source-complete November16, awaiting combined validation: `explain_change`
-  uses shared complete-report budgets and immutable original-result recovery,
-  retaining JSON/Markdown and its narrative/commit/PR/changelog output.
-  [Pending source change](eval/explain-change-report-progress-20261116.json).
+  Installed November16: `explain_change` preserves fitting default replies and
+  supports caller budgets with exact original-result recovery, retaining both
+  formats and narrative/commit/PR/changelog output. No default-overflow reproduction
+  is claimed; the80-file baseline fits40KiB but exceeds a4096-byte caller budget.
+  [Delivery](eval/editing-report-batch-delivery-20261116.json).
   Shared read-report delivery installed 2026-11-15:12registered project-scoped
   reports without their own controls now share a40KiB default, caller budgets
   and exact immutable original MCP result recovery. Core/Full/advanced schemas
@@ -152,10 +153,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   brain that's always current and one that's minutes behind during active editing.
 
 - [x] **7. Actionable error messages with recovery hints** (M) — *done 2026-06-12: ProjectNotFound, no_hits, get_chunk not-found, find_symbol_references empty — all carry concrete next steps.*
-  Source-complete November16, awaiting combined validation: source-dossier gaps
-  now return the registered current-source reader instead of an unavailable
-  `read_file` tool, with a separate-read qualification that preserves admission.
-  [Pending source change](eval/dossier-source-recovery-progress-20261116.json).
+  Installed November16: source-dossier admission gaps return an executable
+  `get_full_method_body` call. Current source reads remain separate from captured
+  dossier evidence and do not change its admission or selected generation.
+  [Delivery](eval/editing-report-batch-delivery-20261116.json).
   `error.rs` + all handlers. "doc_id not found" / wrong `project_id` / unindexed project
   errors give no next step. Every error an agent can hit should say what to do:
   "project_id 'X' unknown — call list_projects", "node not found — try resolve_symbol

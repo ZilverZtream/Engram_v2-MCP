@@ -1,32 +1,34 @@
 # Tool Contract
 
-Source-complete, awaiting combined validation: `explain_change` uses shared
+Installed November16: `explain_change` uses shared
 complete-report delivery with a40KiB default and caller `max_tokens` controls.
 Fitting commit-message, PR-description, changelog and narrative replies preserve
 their original formats. Oversized replies return immutable original MCP-result
 recovery without rereading the diff; follow the returned saved-report controls.
 Explanation classification, rendering and existing evidence limits are unchanged.
 
-Source-complete, awaiting combined validation: source-dossier admission gaps from
+Installed November16: source-dossier admission gaps from
 `one_shot_feature_plan` recover through the registered `get_full_method_body`
 reader. The returned call requests a current file excerpt with normal source
 continuation and read limits. It does not add that source to the captured dossier
 or certify indexed freshness; refresh indexing and request a new dossier where
 needed. Dossier admission, generation calls and planner semantics are unchanged.
 
-Source-complete, awaiting combined validation: standalone `check_edit_safety`
+Installed November16: standalone `check_edit_safety`
 adds current scoped authored guidance for the canonical selected method file.
 Its verdict, confidence, evidence and unknown coverage retain their existing
 meaning. Caller identities alone do not widen policy scope. JSON and Markdown
 retain exceptions, source hashes and guidance recovery; existing public report
 budgets and immutable recovery preserve policy with the original safety evidence.
 
-The same pending scoped-editing change adds authored guidance to standalone
+The same scoped-editing delivery adds authored guidance to standalone
 `detect_incomplete_changes` for its declared edited paths, using the existing
 edit-session policy helper. Learned conventions and completeness findings keep
 their existing meaning. Policy joins the report before existing JSON wrapping,
 budgeting and immutable recovery; neither collection nor recovery changes an
 edit-session lifecycle.
+
+[November16 standalone editing, dossier recovery and explanation delivery](../eval/editing-report-batch-delivery-20261116.json).
 
 [November16 source, pre-edit guidance and VB freshness delivery](../eval/source-policy-batch-delivery-20261116.json).
 

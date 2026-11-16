@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "TODO-7",
   "original_requirement": "Actionable recovery guidance: an AI must be able to execute the returned next step instead of receiving another unknown-tool error.",
   "observed_missing_behavior": "Installed00670b7e source dossier with a newly created registered WebForms control correctly withholds the unindexed control but returns recovery.tool=read_file, absent from tools/list. The existing get_full_method_body reader is registered.",
@@ -18,8 +18,8 @@
   "native_target": "dossier_source_recovery_tests",
   "native_cases": 1,
   "native_tests_run": true,
-  "public_acceptance_run": false,
-  "deployed": false,
+  "public_acceptance_run": true,
+  "deployed": true,
   "stop_rule": "Replace this unregistered source-gap recovery descriptor only. No planner prompt/model changes, generated-plan semantic tuning, source-admission relaxation, composition expansion, new reader/store or benchmark replay.",
   "build_rule": "Second distinct source outcome after queued EG01 editing guidance. No compile or release for this item alone.",
   "legacy_validation_runtime_filter": {
@@ -71,6 +71,12 @@
     "native_seconds": 206.31980030005798,
     "public_debug_checks": 27,
     "native_receipt_sha256": "1fc83d1cd2cde1e879d7664587aef57e54f6dff2bd5e81baecdd33f390c512c5",
-    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f"
-  }
+    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f",
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "candidate_checks": 27,
+    "installed_checks": 27,
+    "release_builds": 1
+  },
+  "combined_delivery_record": "eval/editing-report-batch-delivery-20261116.json",
+  "full_requirement_complete": false
 }

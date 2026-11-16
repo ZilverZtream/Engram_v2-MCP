@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete reply budgets and exact recovery for AI tool responses, without silent loss of selected evidence.",
   "observed_missing_behavior": "Installed80-file TypeScript diff explanation retains80affected files but returns24091JSONbytes/4716Markdownbytes with no max_tokens/response_id/response_offset controls. Both exceed a caller4096-byte budget; default40KiB overflow was not reproduced and is not claimed.",
@@ -21,8 +21,8 @@
   "native_target": "explain_change_delivery_tests",
   "native_cases": 1,
   "native_tests_run": true,
-  "public_acceptance_run": false,
-  "deployed": false,
+  "public_acceptance_run": true,
+  "deployed": true,
   "stop_rule": "Add this existing read-only tool to the shared delivery owner. No new envelope/store, wider report sweep, diff/risk/render changes, planner tuning or benchmark replay. Broader TODO4 stays partial.",
   "build_rule": "Third distinct source outcome after EG01 and TODO7; use one focused combined native target and one release after source commit.",
   "legacy_validation_runtime_filter": {
@@ -82,6 +82,12 @@
     "native_seconds": 206.31980030005798,
     "public_debug_checks": 27,
     "native_receipt_sha256": "1fc83d1cd2cde1e879d7664587aef57e54f6dff2bd5e81baecdd33f390c512c5",
-    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f"
-  }
+    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f",
+    "status": "INSTALLED_AND_NORMAL_RUNTIME_VERIFIED",
+    "candidate_checks": 27,
+    "installed_checks": 27,
+    "release_builds": 1
+  },
+  "combined_delivery_record": "eval/editing-report-batch-delivery-20261116.json",
+  "full_requirement_complete": false
 }

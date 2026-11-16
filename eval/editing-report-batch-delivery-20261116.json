@@ -1,0 +1,169 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T02:52:33.407351+00:00",
+  "original_requirement_ids": [
+    "EG-01",
+    "TODO-7",
+    "TODO-4"
+  ],
+  "original_source_commits": {
+    "EG-01": "b9d89f6754c3f0277f52887fb46bfc80e9e3a149",
+    "TODO-7": "da72c8f7a2b75a34e0e03a654a20a006a5758018",
+    "TODO-4": "808cda0cd8f1ad29d9b31380abf414ecbc40cc6b"
+  },
+  "runtime_source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5",
+  "delivered": [
+    {
+      "requirement": "EG-01",
+      "behavior": "Attach current scoped policy to standalone method safety reports using the canonical selected method path and existing project-policy resolver. Preserve verdict, confidence, evidence, caller identities and unknown coverage. Caller metadata alone does not widen guidance scope. Existing public report budgeting/recovery captures the resulting policy with the original safety evidence. Also include authored guidance for declared edited paths in the standalone completeness report using the existing edit-session policy helper, before its existing public delivery owner captures the report. Do not alter learned-rule checks, completeness findings or lifecycle state."
+    },
+    {
+      "requirement": "TODO-7",
+      "behavior": "Source-admission gaps return executable get_full_method_body current-file excerpt requests with the original project/path, JSON output and no caller expansion. Explain that a separate current read does not admit evidence into the captured dossier or verify the index; follow source continuation and refresh/re-request where needed. Keep all original admission checks, gaps, generation, file/byte limits and zero-generation dossier mode."
+    },
+    {
+      "requirement": "TODO-4",
+      "behavior": "Use existing shared report delivery for explain_change: default40KiB preserves fitting original results, caller budgets defer complete selected MCP results with immutable recovery before any project/diff lookup. Keep original narrative, commit message, PR description, optional changelog, style and existing source/heuristic limits unchanged."
+    }
+  ],
+  "validation": {
+    "native_cases": 11,
+    "native_builds": 1,
+    "first_attempt_passed": true,
+    "debug_public_checks": 27,
+    "candidate_public_checks": 27,
+    "installed_public_checks": 27
+  },
+  "build_cost": {
+    "native_wall_seconds": 206.31980030005798,
+    "release_wall_seconds": 808.7504957000492,
+    "release_builds": 1,
+    "no_extra_debug_build": true,
+    "no_full_or_lib_suite": true
+  },
+  "installed_pair": {
+    "status": "INSTALLED_AND_PUBLICLY_VERIFIED",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\package1",
+    "server_sha256": "ad3243853268a5580739d7255a8c981a8b7590b593d7ce055d9fc6d3f7ffa276",
+    "manifest_sha256": "94be8b2b2be20b02d3b05028f6e70c940ac209e8f64a2019b83e3cf09bd4c125",
+    "old_server_sha256": "00670b7e051e1b6b480cc1c4dd64a96609d9b7a9723e7dba5526a741571af5fc",
+    "old_manifest_sha256": "6aca95b06f2c92fb75a0376aa5f5c8280beba5373eadbc7d8af62adc4f4b6f5b",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\release1.json",
+      "sha256": "da0b372e824a09a66c7ac5fd44d51f18bec62c03d0c038431583b5076b6f631c"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "6aca95b06f2c92fb75a0376aa5f5c8280beba5373eadbc7d8af62adc4f4b6f5b"
+    },
+    "source_commit": "2984e79cdd5402d481283a92eabd8fd3632c21f5",
+    "package_receipt_status": "PACKAGE_READY_NOT_INSTALLED"
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "owners": [
+      {
+        "wire": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\restored-runtime\\wire",
+        "closed": true,
+        "pid": 58144,
+        "natural_exit": true,
+        "reader_joined": true,
+        "exit_code": 0,
+        "pending_observations": []
+      }
+    ],
+    "intentional_retained_runtime": true,
+    "daemon_pid": 6828,
+    "daemon_created": 1794797537.0837376,
+    "metadata": {
+      "pid": "6828",
+      "started_at_ms": "1794797537135",
+      "protocol_version": "1",
+      "socket": "\\\\.\\pipe\\engram-3dd483b313a2dd43",
+      "version": "0.1.0"
+    },
+    "server_sha256": "ad3243853268a5580739d7255a8c981a8b7590b593d7ce055d9fc6d3f7ffa276",
+    "normal_proxy_metrics_succeeded": true,
+    "selected_generation": 3151,
+    "owned_temp_removed": true,
+    "retained_purpose": "Normal installed Engram daemon, intentionally left running; regular application lifecycle owns it."
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116",
+    "native_and_release_jobs_closed": true,
+    "owned_compilation_and_public_fixtures_removed": true,
+    "credential_bearing_private_config_removed": true,
+    "configuration_unchanged": true,
+    "protected_wip9_unchanged": true,
+    "retained_package": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\package1",
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ce0d7a2319494d2e821d99f25fc6cfaf",
+    "normal_daemon_intentionally_restored": true,
+    "retention": "Keep owned package, rollback pair and synthetic source/build/wire receipts until superseded. No preexisting folders deleted. Protected unrelated work remains in ROOT; WORK stays frozen at the deployed source commit."
+  },
+  "full_original_goal_complete": false,
+  "task_productivity_demonstrated": false,
+  "limitations": [
+    "Standalone editing guidance preserves original risk/findings and declared selection. Delivering prose does not establish policy compliance or semantic correctness.",
+    "Dossier recovery reads current bytes separately. It does not admit source into the captured dossier, verify the indexed generation, or change planner prompts/semantics.",
+    "The80-file explanation baseline fits40KiB but exceeds4096bytes; caller budget controls were absent. The initial default-overflow expectation failed and is retained. No default-overflow reproduction is claimed. Existing advisory/rendered fields are retained in exact immutable recovery.",
+    "Eleven focused native cases passed first build;27public checks passed per debug/candidate/installed binary. No full/lib suite, separate debug build, CodeMap/Blast improvement, language expansion, actual LegacyValidation/Q source action, new agent comparison, planner tuning or full31finding/19gate closure. Current matched-task evidence shows no incremental benefit."
+  ],
+  "evidence": {
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\implementation1.json",
+      "sha256": "bb669253d6c20e1fa23ec835880fd745d71179f5465c806fd98baed0def43081"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\native1.json",
+      "sha256": "1fc83d1cd2cde1e879d7664587aef57e54f6dff2bd5e81baecdd33f390c512c5"
+    },
+    "debug-binary1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\debug-binary1.json",
+      "sha256": "e27ee34dd2b828d5102c0c31c6ca37eb2e36c966a97c9ecc697dcd111c0a51ac"
+    },
+    "debug1/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\debug1\\receipt.json",
+      "sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f"
+    },
+    "release1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\release1.json",
+      "sha256": "da0b372e824a09a66c7ac5fd44d51f18bec62c03d0c038431583b5076b6f631c"
+    },
+    "pair1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\pair1.json",
+      "sha256": "f9e47229960ca3752c5682b603deff1c367e5ffbd3e93b5b29eb835141ed7e69"
+    },
+    "candidate1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\candidate1\\acceptance.json",
+      "sha256": "d023d127ffe31d85c199cbc588a8df06666184f96d267d69172942e6d035042e"
+    },
+    "installed1/acceptance.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\installed1\\acceptance.json",
+      "sha256": "8ce2188af36bdc659e3881f4414a866921f207cff497fee04a9c84aacf631d48"
+    },
+    "deployment1-state.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\deployment1-state.json",
+      "sha256": "d19d456d344c963335244bb31f6f033a6b295723e55001efb571cd05e6364d73"
+    },
+    "restored-runtime/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "b78c60583515a041da7d656a3be4b2fd52020e1a970d5abcebd22c8cfd9d3e04"
+    },
+    "release-gates1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\release-gates1.json",
+      "sha256": "e67f70f422ada1ddaf808fd4653c9aa79f9851cda13031d2a57289a861a62919"
+    },
+    "resource-accounting.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\resource-accounting.json",
+      "sha256": "ac4c0402d8a6f3f38519085d357c89b0837f80ff41c035b0138c84c2e4d24636"
+    },
+    "editing-report-batch-202611161-install-Upgrade.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116\\editing-report-batch-202611161-install-Upgrade.json",
+      "sha256": "35ecc43f433df134cebdaaa2a47408e0168c38ff353479f26144e139e90e8c5c"
+    }
+  }
+}
