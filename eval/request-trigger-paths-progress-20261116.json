@@ -30,7 +30,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "deployed": false,
-  "source_commit": null,
+  "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
   "source_checks": [
     "New source and dedicated native behavior target parsed/formatted with rustfmt; legacy owners parsed without unrelated formatting",
     "Owned installed baseline four checks pass; original update path present, requested trigger path absent, sources unchanged",
