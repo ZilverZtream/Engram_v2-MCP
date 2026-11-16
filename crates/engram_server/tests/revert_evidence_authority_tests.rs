@@ -155,7 +155,9 @@ async fn real_git_revert_keeps_rulings_and_returns_source_bound_evidence() {
     assert_eq!(metadata["revert_commit"], reverted);
     assert_eq!(metadata["policy_acceptance"], "not_inferred");
     assert_eq!(
-        std::fs::read_to_string(&file).unwrap(),
+        std::fs::read_to_string(&file)
+            .unwrap()
+            .replace("\r\n", "\n"),
         "export const sidebarVisible = false;\n"
     );
     drop(engram);
