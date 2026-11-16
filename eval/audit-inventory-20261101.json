@@ -1033,6 +1033,11 @@
       "captured_vb_method_freshness_delivery_20261116": {
         "record": "eval/source-policy-batch-delivery-20261116.json",
         "compiler_bindings_or_semantic_equivalence_established": false
+      },
+      "sql_declaration_evidence_delivery_20261116": {
+        "record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
+        "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+        "whole_finding_complete": false
       }
     },
     {
@@ -16248,5 +16253,14 @@
     },
     "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
     "installed_server_sha256": "54ae7bf78084f76c88cf9952fd178e39258a1843eec509528159d00f9c8d740d"
+  },
+  "sql_graph_guidance_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\sql-graph-guidance-batch-delivery-20261116.json",
+      "sha256": "9a96ffda89a6bc4b9af46bba525eeb8e7be670266bcc81c36e8ba9bd58660e9b"
+    },
+    "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+    "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   }
 }

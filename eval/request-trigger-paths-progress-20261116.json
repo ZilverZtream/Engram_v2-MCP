@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "TODO-31",
   "original_requirement": "trace_user_request: URL/route to handler, SQL/procedures/tables, trigger side effects and response.",
   "user_outcome": "Request traces connect reached literal qualified SQL writes to exact source trigger declarations and cited body references without claiming deployment/execution.",
@@ -28,8 +28,8 @@
   "native_target": "request_trigger_paths_tests",
   "native_execution": "FOCUSED_BEHAVIOR_PASS_FIRST_ATTEMPT",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
-  "runtime_acceptance": "AWAITING_SINGLE_RELEASE_PUBLIC_PROOF",
-  "deployed": false,
+  "runtime_acceptance": "CANDIDATE_AND_INSTALLED_PUBLIC_PASS",
+  "deployed": true,
   "source_checks": [
     "New implementation and dedicated native behavior target parsed/formatted with rustfmt; existing source syntax parsed without formatting unrelated code.",
     "Public Python verifier parsed; exact installed baseline confirms ordinary reached write with absent trigger source paths.",
@@ -50,5 +50,15 @@
   ],
   "native_tests_run": true,
   "combined_native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\native-acceptance.json",
-  "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86"
+  "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+  "combined_delivery_record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
+  "deployed_source_files_sha256": {
+    "crates/engram_server/src/services/request_trace/triggers.rs": "f92142254f5a0e8b2f081f0706fe44bc7e5cc8b4dde0d596b7451860a6f06c99",
+    "crates/engram_server/src/services/request_trace.rs": "69e91d4388a093385aa2cf83380a446202978d758d6f3f21d3089159a82826d1",
+    "crates/engram_server/src/handlers/request_trace_tools.rs": "319d2732a9a5e762604298fb696f1c17a33f500e81e637c2930b5d831ad8f7cd",
+    "crates/engram_server/src/tools.rs": "9c6e29f3c7863bafaca8eecd76bc612a65fe383597e927cd9c2a58276943d5f2",
+    "crates/engram_server/src/models/requests.rs": "c5abe6626821da3f373054c906ac286c13f1f05d7ecb83713bbeb741868ba30f",
+    "crates/engram_server/tests/request_trigger_paths_tests.rs": "0807b62052ccd7bf85182ed1354553fd4c46b7b791adcc7f156b6ca295cc65a3",
+    "docs/TOOL_CONTRACT.md": "8bcc91cc5bcb96cafd3c031a6a4db802bf82ae09df8d165bb30b65eab3fd3a58"
+  }
 }

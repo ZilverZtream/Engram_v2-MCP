@@ -1,0 +1,109 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "original_requirements": [
+    "TODO-31",
+    "TODO-4",
+    "EG-27"
+  ],
+  "outcomes": [
+    "Source-qualified reached SQL writes connect to matching DML trigger/event declarations and lexical body references, with raw-source citations and explicit runtime/deployment uncertainty.",
+    "Basic query_graph_nodes/find_references/graph_search use complete reply budgets and exact immutable selected-result recovery across source/index change and restart. Existing ranking/caps/graph limits remain.",
+    "Instruction maintenance captures SQL table/view/trigger declaration candidates and exact before/current byte ranges, distinguishes changed from unchanged observed declarations, preserves procedure behavior and refuses stale proposals without editing authored exceptions."
+  ],
+  "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+  "source_freeze": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\release-plan.json",
+    "sha256": "f8726da1f0eb5279f23b2f25ab1c3bf45b8817f2e18603107ffe0aa96e548978"
+  },
+  "source_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\source-validation1.json",
+    "sha256": "f8726da1f0eb5279f23b2f25ab1c3bf45b8817f2e18603107ffe0aa96e548978"
+  },
+  "installed": {
+    "server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163",
+    "manifest_sha256": "97206a02fd7c95e8d782be0a168f74c8f0e6e4f45bd0a0a6fc3aa6ff4e487277",
+    "verified_assets": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "validation": {
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\native-acceptance.json",
+      "sha256": "fbbbfe85a6b505f2b74251f1167c52768d56fed7b5a01a8ab6100dacb5a2ab34"
+    },
+    "native_behavior_cases": 2,
+    "native_attempts": 1,
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\release1.json",
+      "sha256": "63ac897e3f5ac2937f16d0a5c03782df097004a7acc617a6d93c5b6f94c4876a"
+    },
+    "release_builds": 1,
+    "public": {
+      "candidate2": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\candidate2\\acceptance.json",
+        "sha256": "72cdff808946d9facca4c8aa7b06ef9a16a9a51b0773a848e80d2c2be9ef647f"
+      },
+      "installed1": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\installed1\\acceptance.json",
+        "sha256": "a2274dd1c7932cef25cca049aa0d3c646643b201761ae285c14d6b7ae87a72de"
+      }
+    },
+    "public_checks_each": 28,
+    "retained_unaffected_candidate_checks": 8,
+    "fixture_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\citation-fixture-correction1.json",
+      "sha256": "8160ac3a773f4a80d854f903d2998d0d59a4b7fa737e879c3b93501403fdd1a3"
+    },
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\deployment4-state.json",
+      "sha256": "b5ce5c8035184e9e5c52635aea9b1b7f8b73b3cef9c37e0403452d4b83531722"
+    },
+    "restored_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "847337541533ad928c18282d7c2c50509cd3888fc63a589ffb32ab2214b5f4a3"
+    },
+    "failed_candidate_and_deployment_attempts_retained": true,
+    "additional_compilations_after_fixture_correction": 0,
+    "full_or_lib_suite_run": false,
+    "extra_debug_builds": 0,
+    "original_full19gates_closed": false
+  },
+  "timing": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\coding-compile-timing-20261116.json",
+    "sha256": "fe29440e8a61c024a9cdc017e9cb3622314f07b68da6ac918d904eda347250ca"
+  },
+  "build_workflow_correction": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116\\incremental-build-correction1.json",
+    "sha256": "9f1585c5f799f4aff2f412fa23d4e0d0627f65cd233a8743183f5cab61bc3cb3"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116",
+    "retention": "Source/package/evidence retained until superseded; no preexisting folder removal.",
+    "reused_build_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "new_worktree_created": false,
+    "preserved_wip9": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    },
+    "all_new_fixture_processes_and_temporaries_closed_removed": true,
+    "all_config_holds_released": true,
+    "owned_runtime_configs_removed": true,
+    "normal_daemon_intentionally_restored": 64500,
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-02ffdddcd6c64569ac90b2afc74c702c"
+  },
+  "limits": [
+    "Three finite source workflow contracts, not general task benefit, database execution/deployment correctness, full original backlog completion or full19gate closure.",
+    "One failed raw-byte verifier expectation and two setup/quiescence retries are retained; no runtime source change or replacement release was needed.",
+    "Legacy authority decisions and other original partial requirements remain unfinished.",
+    "Actual complete production coding percentage remains unknown."
+  ]
+}

@@ -40,12 +40,8 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
-    "pending_source_records": [
-      "eval/request-trigger-paths-progress-20261116.json",
-      "eval/graph-read-delivery-progress-20261116.json",
-      "eval/sql-instruction-evidence-progress-20261116.json"
-    ],
+    "status": "SELECT_NEXT_ORIGINAL_BACKLOG_ITEM",
+    "pending_source_records": [],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
@@ -2560,81 +2556,57 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
-        "source_progress_record": "eval/request-trigger-paths-progress-20261116.json",
-        "focused_native_target": "request_trigger_paths_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
-        "user_outcome": "Reached source-qualified SQL writes lead to matching declared DML trigger candidates and cited body table references; deployed/runtime state remains unknown."
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "b3c5b4e5bd818fed8c375aed3535024b4bcfbb44",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
-        "source_progress_record": "eval/graph-read-delivery-progress-20261116.json",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
-        "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner."
-      },
-      {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "d19b8843492f7e39306ffca91a7fbeb00ea8c677",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
-        "source_progress_record": "eval/sql-instruction-evidence-progress-20261116.json",
-        "focused_native_target": "sql_instruction_evidence_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\verify-public.py",
-        "user_outcome": "Instruction evidence recognizes referenced SQL table/view/trigger declarations with exact before/current ranges and distinguishes a changed declaration from unchanged declarations in the same file."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/policy-revert-status-batch-delivery-20261116.json",
+      "record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
       "source_requirements": [
+        "TODO-31",
         "TODO-4",
-        "EG-17",
-        "EG-26"
+        "EG-27"
       ],
-      "native_builds": 3,
+      "native_builds": 1,
       "release_attempts": 1,
       "source_queue": [
         {
+          "original_requirement_id": "TODO-31",
+          "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+          "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
+          "source_progress_record": "eval/request-trigger-paths-progress-20261116.json",
+          "focused_native_target": "request_trigger_paths_tests",
+          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
+          "user_outcome": "Reached source-qualified SQL writes lead to matching declared DML trigger candidates and cited body table references; deployed/runtime state remains unknown."
+        },
+        {
           "original_requirement_id": "TODO-4",
           "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "5d6f48fcf0e788045d5110a132394f3c81b20760",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\contract.json",
-          "source_progress_record": "eval/policy-inventory-delivery-progress-20261116.json",
-          "focused_native_target": "policy_inventory_delivery_tests",
-          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-inventory-delivery-20261116\\verify-public.py",
-          "user_outcome": "Both ordinary repository-rule listings and exact ownership inventories gain complete default/caller reply budgets and immutable original-result recovery, preserving selected policy rows, scopes and ownership uncertainty."
+          "source_commit": "b3c5b4e5bd818fed8c375aed3535024b4bcfbb44",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
+          "source_progress_record": "eval/graph-read-delivery-progress-20261116.json",
+          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
+          "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner."
         },
         {
-          "original_requirement_id": "EG-17",
+          "original_requirement_id": "EG-27",
           "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "baa48f57272ff2ff6ccd109d05237ee2d7d5cfb9",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
-          "source_progress_record": "eval/revert-evidence-authority-progress-20261116.json",
-          "focused_native_target": "revert_evidence_authority_tests",
-          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
-          "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery."
-        },
-        {
-          "original_requirement_id": "EG-26",
-          "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "cd1a7f8278aaadcb3ddaac8cddf17429afda6d45",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\contract.json",
-          "source_progress_record": "eval/migration-declaration-scope-progress-20261116.json",
-          "focused_native_target": "migration_declaration_scope_tests",
-          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\migration-declaration-scope-20261116\\verify-public.py",
-          "user_outcome": "Migration reporting distinguishes caller-recorded tracking completion from exact coverage of a held selected-source manifest and from unassessed project readiness, preserving existing declarations and exposing untracked files."
+          "source_commit": "d19b8843492f7e39306ffca91a7fbeb00ea8c677",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
+          "source_progress_record": "eval/sql-instruction-evidence-progress-20261116.json",
+          "focused_native_target": "sql_instruction_evidence_tests",
+          "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\verify-public.py",
+          "user_outcome": "Instruction evidence recognizes referenced SQL table/view/trigger declarations with exact before/current ranges and distinguishes a changed declaration from unchanged declarations in the same file."
         }
       ]
+    },
+    "incremental_codegen": {
+      "enabled_for_future_runs": true,
+      "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
+      "measured_speedup": null,
+      "existing_shared_target_reused": true,
+      "this_release_was_incremental": false
     }
   },
   "member_workflows_delivery": {
@@ -2771,26 +2743,13 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "EG-27 SQL declaration evidence for authored instructions",
-    "status": "FOCUSED_NATIVE_PASS_SOLE_RELEASE_RUNNING",
+    "active_original_item": "Completed TODO31 trigger paths, TODO4 graph readers, EG27 SQL instruction evidence",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "implementation_items_active": 0,
-    "original_requirement": "Instruction evidence dependencies include referenced files/symbols and distinguish relevant source changes while preserving scope, raw hashes and authority uncertainty.",
-    "observed_missing_behavior": "SQL evidence capture extracts stored procedures only. Ordinary table/view/trigger identifiers in authored SQL guidance remain unresolved despite the existing shared SQL declaration catalog.",
-    "implementation_files": [
-      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
-      "crates/engram_server/tests/sql_instruction_evidence_tests.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "finite_acceptance": [
-      "Owned authored guide references dbo.Orders, dbo.OrdersView and dbo.OrderAudit in a captured SQL script. Return positive table/view/trigger declaration candidates with exact before/current raw byte and line spans and hashes, without live-index/default-schema/deployment assumptions.",
-      "Changing only the table declaration reports changed observed table bytes while unchanged view/trigger declaration bytes remain unchanged. Qualified names preserve schema distinctions and existing procedure behavior/caps remain.",
-      "Existing stale draft packet guard refuses after SQL source changes. Authored guide and its exception remain byte-identical; no policy changes or model requests. One dedicated behavioral native test plus public MCP proof join the two queued original source outcomes; no per-feature Cargo."
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
-    "full_original_goal_active": true,
-    "previous_goal_turn_classification": "PROGRESS: three installed workflow outcomes recorded/pushed and grouped graph source queued; current turn adds SQL instruction evidence, passes the focused native target first attempt and starts one release.",
-    "next_action": "Reuse the running sole release for public MCP candidate/installed proof and deployment. No new Cargo or broadened acceptance.",
-    "concurrent_validation": "Previous batch installed and restored. This current source batch passed both native checks on first attempt; release65532confirmed live."
+    "delivery_record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
+    "previous_goal_turn_classification": "VERIFIED_WAIT: previous turn polled the exact live release/compiler. Current turn completes candidate/installed acceptance, retains fixture correction and eight unaffected passes, installs/restores the same single binary and enables future incremental builds without another compile.",
+    "next_action": "Select the next ready original requirement using retained delivery evidence. No closed-tool work, new language support, repeated completed acceptance or per-feature Cargo. Preserve unresolved policy decisions and held investigations.",
+    "full_original_goal_active": true
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2880,13 +2839,30 @@
   },
   "sql_instruction_evidence_source_progress": "eval/sql-instruction-evidence-progress-20261116.json",
   "sql_graph_guidance_batch_progress": {
-    "status": "NATIVE_PASS_SOLE_RELEASE_RUNNING",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116",
-    "native_cases_passed": 2,
-    "native_runner_seconds": 182.46355910005514,
-    "native_attempts": 1,
-    "release_builds": 1,
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\sql-graph-guidance-batch-delivery-20261116.json",
+      "sha256": "9a96ffda89a6bc4b9af46bba525eeb8e7be670266bcc81c36e8ba9bd58660e9b"
+    },
     "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
-    "not_yet_deployed": true
+    "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
+  },
+  "sql_graph_guidance_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\sql-graph-guidance-batch-delivery-20261116.json",
+      "sha256": "9a96ffda89a6bc4b9af46bba525eeb8e7be670266bcc81c36e8ba9bd58660e9b"
+    },
+    "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+    "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
+  },
+  "latest_delivered_runtime": {
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\sql-graph-guidance-batch-delivery-20261116.json",
+      "sha256": "9a96ffda89a6bc4b9af46bba525eeb8e7be670266bcc81c36e8ba9bd58660e9b"
+    },
+    "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+    "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   }
 }

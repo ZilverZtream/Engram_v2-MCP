@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete reply budgets and exact original-result recovery across agent read tools.",
   "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner.",
@@ -20,8 +20,8 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
   "native_target": "Existing shared report-owner acceptance; no new implementation-mirroring native tests.",
   "native_tests_run": false,
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "deployed": false,
+  "runtime_acceptance": "CANDIDATE_AND_INSTALLED_PUBLIC_PASS",
+  "deployed": true,
   "timing": {
     "baseline_seconds": 1.870715856552124,
     "new_compilations": 0,
@@ -32,5 +32,12 @@
     "Existing100reference/selected node/ranked result caps, content clipping, tie order and graph consistency remain original behavior. Recovery retains exactly the selected window, not all project relationships.",
     "No graph parser, ranking, CodeMap/Blast, source-format or target-language expansion.",
     "Source-only until later combined release/public acceptance; actual full coding percentage remains unknown."
-  ]
+  ],
+  "runtime_source_commit": "22d42b5698c63759f198470e4fb1ea4661bf3b86",
+  "combined_delivery_record": "eval/sql-graph-guidance-batch-delivery-20261116.json",
+  "deployed_source_files_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "8ecded029526c5a9eb96d86cffd7a65232cb4e62048465239c98163c79e987a6",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "0421153a02bcbfa17677cd88d1f53667b1e12a1090be266669e19118f344afb5",
+    "docs/TOOL_CONTRACT.md": "8bcc91cc5bcb96cafd3c031a6a4db802bf82ae09df8d165bb30b65eab3fd3a58"
+  }
 }
