@@ -10102,7 +10102,8 @@
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false
+      "deployed": false,
+      "source_commit": "6e3577ce17c7530b5def32ae7449fe5aa6976799"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10134,7 +10135,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-01 standalone edit-safety policy source complete; awaiting combined validation. No native build or release for this item alone.",
+    "active_original_item": "EG-01 scoped authored guidance in standalone method safety and change-completeness reports: both source-complete, awaiting one combined validation after other distinct requirements. No native build or release started.",
     "next_user_visible_deliverable": "Continue the original unfinished backlog with a finite source contract; preserve the delivered batch and accumulate distinct outcomes before another compile. Current mechanical tool deliveries do not establish task benefit or full goal completion.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -15925,7 +15926,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-01",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "6e3577ce17c7530b5def32ae7449fe5aa6976799",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\contract.json",
+        "progress_record": "eval/edit-safety-policy-progress-20261116.json",
+        "user_outcome": "Standalone method safety reports retain scoped authored instructions, exceptions, hashes and recovery alongside unchanged safety evidence. Source complete; native/public validation and installation pending."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -15967,12 +15977,15 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "last_installed_record": "eval/source-policy-batch-delivery-20261116.json",
-    "pending_count": 0,
-    "independent_requirements_delivered": 3,
-    "native_builds": 3,
-    "release_builds": 1
+    "status": "ACCUMULATING_SOURCE_NO_BUILD_STARTED",
+    "pending_count": 1,
+    "independent_requirements_source_complete": [
+      "EG-01"
+    ],
+    "native_builds": 0,
+    "release_builds": 0,
+    "minimum_before_compile": 3,
+    "last_installed_record": "eval/source-policy-batch-delivery-20261116.json"
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",

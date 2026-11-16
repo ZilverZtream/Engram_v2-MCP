@@ -13026,8 +13026,12 @@ impl Engram {
         }
         let project=req.project_id.clone();let output_json=req.output_json;
         let summary=serde_json::json!({"tool":"detect_incomplete_changes","requested_file_count":req.edited_files.len(),"analysis":"IN_ORIGINAL_REPORT"});
+        let policy_paths=req.edited_files.iter().map(|file|
+            file.trim().replace('\\', "/").trim_start_matches('/').to_owned()).collect::<Vec<_>>();
         let full=self.detect_incomplete_changes_with(req,None).await?;
-        let body=full.content.iter().filter_map(|c|c.as_text().map(|t|t.text.as_str())).collect::<Vec<_>>().join("\n");
+        let mut body=full.content.iter().filter_map(|c|c.as_text().map(|t|t.text.as_str())).collect::<Vec<_>>().join("\n");
+        let root=PathBuf::from(self.ensure_project_record(&project).await?.directory);
+        body.push_str(&edit_session_policy(&project,root,normalize_edit_files(&policy_paths)?).await?);
         let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&project,change_set_delivery::EditReport::Completeness,body,summary,output_json,budget)?;
         Ok(CallToolResult::success(vec![Content::text(reply)]))
     }

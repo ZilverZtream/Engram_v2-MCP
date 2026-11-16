@@ -2,26 +2,28 @@
   "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
   "original_requirement_id": "EG-01",
   "original_requirement": "Same applicable complete authored instructions reach planning, editing, retrieval and review, preserving scope, qualifications and recovery.",
-  "observed_missing_behavior": "Installed00670b7e standalone check_edit_safety omits the root authored exception in JSON and Markdown although get_method_edit_context returns the same exact guidance for the same indexed method.",
+  "observed_missing_behavior": "Installed00670b7e standalone check_edit_safety omits the root authored exception in JSON and Markdown although get_method_edit_context returns the same exact guidance for the same indexed method. Installed public standalone detect_incomplete_changes also omits the same authored exception in JSON and Markdown; its edit-session bookends already resolve authored guidance.",
   "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\baseline1\\receipt.json",
-  "wanted_behavior": "Attach current scoped policy to standalone method safety reports using the canonical selected method path and existing project-policy resolver. Preserve verdict, confidence, evidence, caller identities and unknown coverage. Caller metadata alone does not widen guidance scope. Existing public report budgeting/recovery captures the resulting policy with the original safety evidence.",
+  "wanted_behavior": "Attach current scoped policy to standalone method safety reports using the canonical selected method path and existing project-policy resolver. Preserve verdict, confidence, evidence, caller identities and unknown coverage. Caller metadata alone does not widen guidance scope. Existing public report budgeting/recovery captures the resulting policy with the original safety evidence. Also include authored guidance for declared edited paths in the standalone completeness report using the existing edit-session policy helper, before its existing public delivery owner captures the report. Do not alter learned-rule checks, completeness findings or lifecycle state.",
   "implementation_files": [
     "crates/engram_server/src/handlers/access_layer_tools.rs",
     "crates/engram_server/src/handlers/method_body_policy.rs",
     "crates/engram_server/src/tools.rs",
     "crates/engram_server/tests/edit_context_policy_delivery_tests.rs",
-    "docs/TOOL_CONTRACT.md"
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/handlers/planning_tools.rs"
   ],
   "finite_acceptance": [
     "Existing indexed owned method/caller fixture: standalone JSON/Markdown contains exact root/method guidance with hashes and accepted exceptions, excludes caller-only and unrelated guidance, and preserves all original safety fields against the composed context. Guide edits refresh without source reindexing.",
-    "Existing report-delivery fixture: caller-budgeted standalone safety plus guidance recovers the exact captured MCP result after source/guidance deletion; recovery omits method selection and does not recompute safety."
+    "Existing report-delivery fixture: caller-budgeted standalone safety plus guidance recovers the exact captured MCP result after source/guidance deletion; recovery omits method selection and does not recompute safety.",
+    "Standalone completeness JSON/Markdown retains root/edited-file guidance separately from learned conventions, excludes guidance for unedited caller leads, refreshes live guidance without reindexing, and recovers exact captured findings plus guidance after source/guidance deletion."
   ],
   "native_target": "edit_context_policy_delivery_tests",
-  "native_cases": 2,
+  "native_cases": 3,
   "native_tests_run": false,
   "public_acceptance_run": false,
   "deployed": false,
-  "stop_rule": "Finish the standalone safety entry point. No safety verdict/downstream/graph algorithm change, generic all-tool policy sweep, new report store, agent replay or semantic policy enforcement.",
+  "stop_rule": "Finish the two standalone editing entry points: method safety and change completeness. No safety/completeness/downstream algorithms, lifecycle ownership, graph/CodeMap/Blast logic, generic all-tool sweep, new store or semantic policy enforcement. Both tools count as one EG-01 outcome.",
   "build_rule": "First distinct source outcome in the next batch; do not compile for this item alone.",
   "resources": {
     "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116",
@@ -38,9 +40,10 @@
   "source_sha256": {
     "crates/engram_server/src/handlers/access_layer_tools.rs": "70f996c804425932a649cc67be610c45f5ed36db51548323ad38bf399a2d6269",
     "crates/engram_server/src/handlers/method_body_policy.rs": "03089c1fc6b44229138804115a0839a09b75b26c68e3ee0d325122a72154d104",
-    "crates/engram_server/src/tools.rs": "5355798babc272488444f7161505ad25fed58766fccf4d308e4508b688ad76f3",
-    "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "5993dd65827eb500ffd7d62f8edae88383b0b75f757b820b740723a87e718a8a",
-    "docs/TOOL_CONTRACT.md": "19d41c06b5994faea6596446ee733a6bdd504a34ff0939a393c0e15b737011ce"
+    "crates/engram_server/src/tools.rs": "4d5159b279eb3854c2b68a45f217f01d9297aadff2c0a13429efc0c6227341b7",
+    "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "ded95659202fa209a2c846a68c5672281a298154faf4848f5c8d3128a324746e",
+    "docs/TOOL_CONTRACT.md": "cf482d59848c04f09e5243a2974e8f6b9e1bd5258dcd8604885924a66be7a68d",
+    "crates/engram_server/src/handlers/planning_tools.rs": "1308d36acd6a40ea71cc85aa76fb50adebf5ea7f31c821afc62c315a1b41e8ba"
   },
   "protected_wip_sha256": {
     "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
@@ -57,14 +60,22 @@
     "Installed public baseline confirms the same root exception is delivered by pre-edit context but absent from standalone safety in both formats; owned server and fixture closed/removed.",
     "Rust2024 syntax parsed; extended existing fixture formatted and selected-path diff whitespace check passed. No Cargo/test/release invoked.",
     "Independent baseline safety JSON is8091bytes before policy, supporting the planned4096-byte caller-budget recovery case without changing report or policy limits.",
-    "Canonical selected method path feeds the existing resolver after verdict/evidence construction. No safety/downstream algorithm or existing handler-report owner changed."
+    "Canonical selected method path feeds the existing resolver after verdict/evidence construction. No safety/downstream algorithm or existing handler-report owner changed.",
+    "Second installed public baseline confirms standalone completeness omits authored guidance in JSON and Markdown. Its owned server and source fixture closed/removed.",
+    "Standalone completeness reuses the existing edit-session policy helper only at its public fresh-report boundary; composed checks and session lifecycle code remain unchanged. New guidance is captured before existing public wrapping/budget/recovery."
   ],
-  "retained_unselected_findings": [
+  "retained_unselected_findings": [],
+  "source_commit": "6e3577ce17c7530b5def32ae7449fe5aa6976799",
+  "standalone_safety_component_source_commit": "6e3577ce17c7530b5def32ae7449fe5aa6976799",
+  "completeness_baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\completeness-baseline1\\receipt.json",
+  "baseline_receipts": [
     {
-      "original_requirement_id": "EG-01",
-      "location": "crates/engram_server/src/handlers/planning_tools.rs:13017",
-      "observation": "Standalone completeness source appears to render effective learned rules without the authored-guidance helper used by edit-session bookends. This is source inspection only, not a public reproduction or selected implementation.",
-      "disposition": "Retain as a candidate for the same original scoped-editing requirement; it does not displace this finite standalone-safety delivery and must not count as a distinct original requirement for batch size."
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\baseline1\\receipt.json",
+      "sha256": "73e930c6ce469feab3951810088c34aebe40e49730b2a4bf16bb2a55f6612c8d"
+    },
+    {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\completeness-baseline1\\receipt.json",
+      "sha256": "2bb1edf5b61567daffb65d9c99b5bfb31f83741325ad529b7a1fcdfc8597b786"
     }
   ]
 }

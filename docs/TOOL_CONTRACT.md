@@ -7,6 +7,13 @@ meaning. Caller identities alone do not widen policy scope. JSON and Markdown
 retain exceptions, source hashes and guidance recovery; existing public report
 budgets and immutable recovery preserve policy with the original safety evidence.
 
+The same pending scoped-editing change adds authored guidance to standalone
+`detect_incomplete_changes` for its declared edited paths, using the existing
+edit-session policy helper. Learned conventions and completeness findings keep
+their existing meaning. Policy joins the report before existing JSON wrapping,
+budgeting and immutable recovery; neither collection nor recovery changes an
+edit-session lifecycle.
+
 [November16 source, pre-edit guidance and VB freshness delivery](../eval/source-policy-batch-delivery-20261116.json).
 
 Installed November16: instruction maintenance compares

@@ -119,6 +119,19 @@ impl Fixture {
             }))?)
             .await?)
     }
+    async fn completeness(
+        &self,
+        output_json: bool,
+        max_tokens: Option<usize>,
+    ) -> Result<CallToolResult> {
+        Ok(self
+            .server
+            .handle_detect_incomplete_changes(serde_json::from_value(json!({
+                "project_id":self.project,"edited_files":["Site/order.ts"],
+                "output_json":output_json,"max_tokens":max_tokens
+            }))?)
+            .await?)
+    }
     fn close(self) -> Result<()> {
         let Self { server, owned, .. } = self;
         drop(server);
@@ -329,6 +342,80 @@ async fn complete_large_pre_edit_policy_recovers_without_repeating_source_or_ana
             == safety_manifest["response_delivery"]["response_id"]
                 .as_str()
                 .unwrap()
+    );
+    fixture.close()
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn standalone_completeness_keeps_declared_scope_guidance_and_saved_recovery() -> Result<()> {
+    let fixture = Fixture::new().await?;
+    let small = fixture.completeness(true, None).await?;
+    let small: Value = serde_json::from_str(text(&small))?;
+    let markdown = small["report_markdown"].as_str().unwrap();
+    ensure!(markdown.starts_with("# Edit completeness check"));
+    ensure!(markdown.contains(GUIDE) && markdown.contains(METHOD));
+    ensure!(markdown.contains(blake3::hash(GUIDE.as_bytes()).to_hex().as_str()));
+    ensure!(!markdown.contains(CALLER) && !markdown.contains("UNRELATED_POLICY"));
+    let plain = fixture.completeness(false, None).await?;
+    ensure!(text(&plain).contains(GUIDE) && text(&plain).contains(METHOD));
+    let revised = GUIDE.to_owned() + &"Retain this complete authored qualification.\n".repeat(100);
+    std::fs::write(fixture.root.join("AGENTS.md"), &revised)?;
+    let current = fixture.completeness(true, None).await?;
+    let current: Value = serde_json::from_str(text(&current))?;
+    ensure!(
+        current["report_markdown"]
+            .as_str()
+            .unwrap()
+            .contains(&revised)
+    );
+    let deferred = fixture.completeness(true, Some(1024)).await?;
+    ensure!(text(&deferred).len() <= 4096);
+    let manifest: Value = serde_json::from_str(text(&deferred))?;
+    ensure!(manifest["report_content"] == "DEFERRED_NOT_SUPPLIED");
+    std::fs::write(
+        fixture.root.join("AGENTS.md"),
+        "CURRENT_GUIDANCE_MUST_NOT_REPLACE_CAPTURE\n",
+    )?;
+    std::fs::remove_file(fixture.root.join("Site/order.ts"))?;
+    let mut action = manifest["response_delivery"]["next_call"].clone();
+    let mut restored = String::new();
+    for _ in 0..100 {
+        ensure!(action["arguments"].get("edited_files").is_none());
+        let reply = fixture
+            .server
+            .handle_detect_incomplete_changes(serde_json::from_value(action["arguments"].clone())?)
+            .await?;
+        let page: Value = serde_json::from_str(text(&reply))?;
+        ensure!(page["start_byte"] == restored.len());
+        restored.push_str(page["content"].as_str().unwrap());
+        if page["complete"] == true {
+            break;
+        }
+        action = page["next_call"].clone();
+    }
+    ensure!(
+        restored.len()
+            == manifest["response_delivery"]["original_bytes"]
+                .as_u64()
+                .unwrap() as usize
+    );
+    ensure!(
+        blake3::hash(restored.as_bytes()).to_hex().as_str()
+            == manifest["response_delivery"]["response_id"]
+                .as_str()
+                .unwrap()
+    );
+    let saved: Value = serde_json::from_str(&restored)?;
+    ensure!(saved["summary"] == current["summary"] && saved["advisory"] == true);
+    let markdown = saved["report_markdown"].as_str().unwrap();
+    ensure!(
+        markdown.starts_with("# Edit completeness check")
+            && markdown.contains(&revised)
+            && markdown.contains(METHOD)
+    );
+    ensure!(
+        !markdown.contains(CALLER)
+            && !markdown.contains("CURRENT_GUIDANCE_MUST_NOT_REPLACE_CAPTURE")
     );
     fixture.close()
 }
