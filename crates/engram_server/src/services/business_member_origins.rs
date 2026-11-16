@@ -30,6 +30,30 @@ pub struct Assignment {
 }
 
 impl ConstructorContext {
+    /// Setup leads stay separate from inferred rules and effective runtime values.
+    /// Complete assignments are shown or omitted whole, once per matrix document.
+    pub fn qa_evidence(&self, current_file_hash: Option<&str>) -> String {
+        let mut text = format!("Constructor input evidence: {}\n{}\n",
+            qualification(Some(self), current_file_hash), self.interpretation);
+        if self.source_blake3.as_deref().zip(current_file_hash)
+            .is_none_or(|(recorded, current)| recorded != current) {
+            text.push_str("Constructor source assignments withheld. Refresh the source analysis before using these setup leads; the complete stored document remains recoverable.\n");
+            return text;
+        }
+        let mut shown = 0;
+        for observation in &self.observations {
+            let entry = format!("- Constructor {} at line {}; member spelling {}; supporting source {}:{}; file BLAKE3 {}; assignment BLAKE3 {}:\n  {}\n",
+                observation.constructor_owner, observation.constructor_line, observation.member_spelling,
+                self.source_file, observation.line, self.source_blake3.as_deref().unwrap_or("unavailable"),
+                observation.source_blake3, observation.source);
+            if shown == 4 || text.len() + entry.len() + 256 > 4096 { continue; }
+            text.push_str(&entry); shown += 1;
+        }
+        text.push_str(&format!("Constructor setup leads shown {shown}/{}; omitted {}. Recover the complete evidence document above for all recorded assignments and gaps. These are not additional rules, chosen configuration values or executable test oracles.\n",
+            self.observations.len(), self.observations.len().saturating_sub(shown)));
+        text
+    }
+
     pub fn unavailable(file: &str, reason: &str) -> Self {
         Self {
             source_file: file.replace('\\', "/"), source_blake3: None,

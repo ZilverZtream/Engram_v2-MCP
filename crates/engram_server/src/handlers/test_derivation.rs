@@ -1222,6 +1222,7 @@ pub(super) struct RuleCase {
     pub requirement: String,
     pub doc_id: String,
     pub source_status: String,
+    pub constructor_context: Option<std::sync::Arc<str>>,
     pub source_warnings: Vec<String>,
     pub expected_outcome_status: String,
     pub other_outcome_status: String,
@@ -1364,6 +1365,8 @@ pub(super) fn collect_scoped(
         }
         let outcome_evidence =
             crate::services::business_outcome_dependencies::from_document(&document);
+        let constructor_context: std::sync::Arc<str> =
+            audit.constructor_input_evidence(&document, root).into();
         // Independent source alternatives; never attach them to inferred rules by proximity.
         // Eight paths per document, exact source/anchor checks, remaining paths recoverable.
         notes.extend(
@@ -1456,6 +1459,7 @@ pub(super) fn collect_scoped(
             cases.push(RuleCase {
                 requirement,
                 doc_id: hit.doc_id.clone(),
+                constructor_context: Some(constructor_context.clone()),
                 source_status: status.clone(),
                 source_warnings: source_warnings.clone(),
                 expected_outcome_status,

@@ -502,6 +502,17 @@ pub(super) struct SourceAudit {
 }
 
 impl SourceAudit {
+    pub(super) fn constructor_input_evidence(&mut self, document: &str, root: &Path) -> String {
+        let evidence = crate::services::business_outcome_dependencies::from_document(document);
+        let Some(origins) = evidence.as_ref().and_then(|item| item.member_origins.as_ref()) else {
+            return "Constructor input evidence: unavailable in this stored analysis. Re-analyze the relevant member to collect current supporting source; no constructor setup or runtime configuration is established.\n".into();
+        };
+        let range = self.verified_range(document, root);
+        let current_hash = range.as_ref().filter(|(file, _, _)| file.replace('\\', "/") == origins.source_file)
+            .and_then(|(file, _, _)| self.raw_file_hashes.get(file)).map(String::as_str);
+        origins.qa_evidence(current_hash)
+    }
+
     /// Full-document qualifications must survive query windows and excerpts.
     /// They are independent of caller body-hash verification, not extra stale
     /// source counts or proof of semantic correctness.

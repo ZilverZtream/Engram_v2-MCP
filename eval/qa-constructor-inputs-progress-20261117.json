@@ -1,0 +1,49 @@
+{
+  "original_requirement_id": "EG-25",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Supply useful current source and configuration evidence to existing OX diagnosis/QA workflows; keep input provenance and inference qualifications through the analysis-to-test-matrix handoff.",
+  "observed_missing_behavior": "Constructor source now reaches and persists with business analysis, but test_derivation only consumes return/reaching evidence and render_rule_cases has no constructor context. QA matrix readers must separately recover the document to identify the constructor setting that affects a referenced member.",
+  "implementation_files": [
+    "crates/engram_server/src/services/business_member_origins.rs",
+    "crates/engram_server/src/handlers/business_source.rs",
+    "crates/engram_server/src/handlers/test_derivation.rs",
+    "crates/engram_server/src/handlers/settings_tools.rs"
+  ],
+  "finite_acceptance": [
+    "Matrix document evidence exposes bounded complete source assignment observations, original constructor lines/hash and explicit name-match/runtime uncertainty once per included document; preserve case order and inferred outcome qualifications.",
+    "Use the existing current full-file hash audit. Changed/unavailable supporting source is disclosed without displaying stale assignments as current setup evidence, including when the analyzed method remains unchanged. Legacy analyses explicitly lack this context.",
+    "Omitted source observations retain counts and the existing complete-document recovery pointer. Repeated cases share the same immutable context; do not duplicate every source assignment into every case or infer configured runtime values.",
+    "Confirm the installed gap on a new owned synthetic VB fixture and a local fixed-response endpoint. Native/runtime validation remains pending a substantive combined batch; no standalone Cargo, fresh agents or inspected task/model replay."
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 2.1760827000252903,
+  "baseline_binary_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
+  "source_behavior": [
+    "A shared bounded source-context string accompanies each document's case rows and renders once in their factored evidence header.",
+    "Existing full-file source audit checks supporting-source currency separately from unchanged method currency; stale source observations are withheld with recovery/refresh guidance.",
+    "Whole source assignments are capped at4shown/4KiB with omission counts and the existing full-document pointer. Rule order and inferred outcome statuses are unchanged."
+  ],
+  "source_checks": {
+    "rustfmt_parse": "PASS; legacy files emitted to stdout only",
+    "git_diff_check": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "prospective_phase_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\effort.jsonl",
+  "native_tests_executed": 0,
+  "builds_started": 0,
+  "runtime_deployed": false,
+  "real_model_calls": 0,
+  "limits": [
+    "Source implementation only; post-change native and public matrix acceptance remain pending. Installed binary still16baba3f.",
+    "This is configuration source/name evidence, not effective runtime values, accepted test oracles or a matched-task improvement claim.",
+    "The phase ledger begins after initial source inspection; it is not whole-session or retrospective coding accounting."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117",
+    "baseline_fixture_removed": true,
+    "baseline_process_closed": true,
+    "fixed_response_endpoint_closed": true,
+    "retention": "Keep the frozen contract, verifier, local fixed-response requests and receipts for acceptance/review. No production source/store/configuration changes or preexisting deletions."
+  }
+}
