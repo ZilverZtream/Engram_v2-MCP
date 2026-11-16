@@ -1,4 +1,5 @@
-//! Complete delivery for selected read-only reports without a handler-owned budget.
+//! Complete delivery for selected reports without a handler-owned budget.
+//! Fresh analysis retains its existing effects; saved recovery never repeats them.
 use crate::handlers::planning_tools::change_set_delivery as snapshots;
 use rmcp::{
     ErrorData as McpError,
@@ -9,6 +10,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "analyze_business_logic",
     "explain_change",
     "get_method_edit_context",
     "traverse_graph",

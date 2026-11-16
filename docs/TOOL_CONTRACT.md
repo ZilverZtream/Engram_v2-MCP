@@ -1,5 +1,15 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: successful text results from
+`analyze_business_logic` use existing complete-report delivery with a40KiB
+default and caller `max_tokens`. Follow the returned saved-report controls to
+recover the original JSON/Markdown MCP result without source access, model
+calls or repeated document publication. Fresh analysis keeps its existing
+provider calls and persistence; this is not an analysis cache. Existing failures
+retain their original error delivery. Generation, inferred-rule semantics,
+provenance and publication behavior are unchanged.
+[Pending source](../eval/business-analysis-delivery-progress-20261116.json).
+
 Source-complete, awaiting combined validation: `trace_user_request` recognizes
 literal VB WebMethod URL suffixes such as `POST /language.aspx/change` and
 `POST /api.asmx/getimg`. Page entries require a public Shared method with an
