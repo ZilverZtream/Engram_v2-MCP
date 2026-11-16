@@ -42,7 +42,7 @@ impl Fixture {
             }
             .into(),
             ollama_url: Some(provider.unwrap_or("http://127.0.0.1:1").into()),
-            embedding_model: "owned-memory-fixture".into(),
+            embedding_model: Some("owned-memory-fixture".into()),
             ollama_embed_dim: Some(4),
             embedding_request_timeout_secs: 2,
             ..Default::default()
