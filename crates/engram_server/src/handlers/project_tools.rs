@@ -3793,6 +3793,29 @@ impl Engram {
                 )
                 .await
                 .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                if scope == "tantivy_only" {
+                    return Ok(CallToolResult::success(vec![
+                        Content::text(format!(
+                            "Maintenance only (tantivy_only) for project_id: {pid}\n{msg}\n\
+                             This cleanup does not rebuild the lexical index or verify index health."
+                        )),
+                        Content::text(serde_json::json!({
+                            "tool":"repair_project",
+                            "project_id":pid,
+                            "scope":scope,
+                            "status":"maintenance_only",
+                            "repair_performed":false,
+                            "index_health_verified":false,
+                            "maintenance":msg,
+                            "next_tools":[{
+                                "tool":"repair_project",
+                                "arguments":{"project_id":pid,"scope":"full",
+                                    "wipe_and_reindex":false,"max_commits":0},
+                                "reason":"Rebuild source from project files without wiping retained knowledge or replaying Git history. Full repair is broader than lexical cleanup and can require embeddings."
+                            }]
+                        }).to_string()),
+                    ]));
+                }
                 return Ok(CallToolResult::success(vec![Content::text(format!(
                     "✅ Scoped repair ({scope}) for project_id: {pid}
 {msg}"

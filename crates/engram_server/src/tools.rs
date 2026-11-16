@@ -174,7 +174,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Repair a project index (scopes: tantivy_only, vector_only, graph_only, full). graph_only re-extracts unchanged source with current parsers while preserving search/vector stores and source revisions; it never embeds or replays Git. Update changed source first. Use other scopes when check_integrity or project_health reports storage inconsistencies."
+        description = "Repair a project index (scopes: full, graph_only, vector_only, initialize_vectors, tantivy_only). tantivy_only performs superseded-generation cleanup; it does not rebuild the lexical index or verify index health. For source reconstruction use full with wipe_and_reindex=false; max_commits=0 skips Git-history replay. graph_only re-extracts unchanged source while preserving search/vector stores and source revisions; it never embeds or replays Git. Update changed source first. vector_only rebuilds retained vectors; initialize_vectors creates an absent vector table. Use check_integrity or project_health to diagnose storage inconsistencies."
     )]
     pub async fn repair_project(
         &self,

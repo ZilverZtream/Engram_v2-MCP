@@ -1392,6 +1392,7 @@ pub struct WatchProjectRequest {
 pub struct RepairProjectRequest {
     pub project_id: String,
     /// Repair scope: "full" (default), "graph_only", "tantivy_only", "vector_only", "initialize_vectors".
+    /// tantivy_only is cleanup of eligible superseded generations: it does not rebuild the lexical index or verify index health. The result reports maintenance_only and repair_performed=false. Use non-wiping full repair to reconstruct source from project files; max_commits=0 skips the Git-history follow-up.
     /// graph_only re-extracts unchanged source with current parsers, preserves source revisions and search/vector/history stores, and never embeds or replays Git. Changed source or chunk configuration requires update_project first. Retained relationships without a unique successor are reported explicitly. Cannot combine with wipe_and_reindex.
     /// With wipe_and_reindex=false, full repair can recover a damaged or missing required source head using fresh staging, while preserving existing readers, history and knowledge. Recovery refuses incomplete storage/identity authority or an exceeded discovery budget.
     /// initialize_vectors embeds stored documents into an absent vector table; vector_only rebuilds vectors for all retained namespaces. Both preserve stored text/history/knowledge and the source generation, require an embedding backend and may take several minutes. initialize_vectors refuses existing tables and wipe_and_reindex.

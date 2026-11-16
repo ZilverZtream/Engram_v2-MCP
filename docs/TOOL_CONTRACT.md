@@ -202,7 +202,7 @@ VB project extraction records the compiler environment separately from loaded pa
 - `list_projects()`
 - `project_info(project_id)`
 - `project_health(project_id)` — per-namespace doc counts, graph/vector stats, disk usage, language/symbol breakdown, integrity warnings with actionable repair suggestions
-- `repair_project(project_id, scope="full", wipe_and_reindex=false, max_commits=500, index_antipatterns=true)` — targeted repair scopes: `full`, `graph_only`, `tantivy_only`, `vector_only`; optional full wipe and re-index
+- `repair_project(project_id, scope="full", wipe_and_reindex=false, max_commits=500, index_antipatterns=true)` — repair scopes: `full`, `graph_only`, `vector_only`, `initialize_vectors`; optional full wipe and re-index. The retained `tantivy_only` scope only cleans up eligible superseded generations: it does not rebuild the lexical index or verify health. It reports `status="maintenance_only"`, `repair_performed=false`, `index_health_verified=false` and a complete advisory non-wiping full-repair call with `max_commits=0`. Full repair reconstructs source from project files, can require embeddings, and preserves retained knowledge when not wiping. Cleanup does not establish a repaired index.
 - `delete_project(project_id)`
 - `watch_project(project_id, enabled=true)`
 - `unwatch_project(project_id)`
