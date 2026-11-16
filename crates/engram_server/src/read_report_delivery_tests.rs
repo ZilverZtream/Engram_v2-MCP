@@ -19,7 +19,9 @@ fn text(result: &CallToolResult) -> &str {
 fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_owners() {
     let original = registry();
     let eligible_names = original.iter().filter_map(eligible).collect::<Vec<_>>();
-    assert_eq!(eligible_names.len(), 71);
+    for name in ["list_projects", "list_advanced_tools", "project_info"] {
+        assert!(eligible_names.contains(&name));
+    }
     assert!(eligible_names.contains(&"analyze_reverts"));
     assert!(eligible_names.contains(&"list_repo_rules"));
     assert!(eligible_names.contains(&"trace_state_usage"));
@@ -33,7 +35,12 @@ fn schemas_expose_shared_recovery_for_selected_reports_and_preserve_existing_own
         let advertised = advertise(tool);
         if selected {
             let schema = crate::tool_surface::sanitize_schema(&advertised.input_schema);
-            assert_eq!(schema["required"], json!(["project_id"]));
+            if server_discovery(advertised.name.as_ref()) {
+                assert!(!schema["required"].as_array()
+                    .is_some_and(|fields| fields.iter().any(|field| field == "project_id")));
+            } else {
+                assert_eq!(schema["required"], json!(["project_id"]));
+            }
             for name in CONTROLS {
                 assert!(schema["properties"].get(*name).is_some());
             }

@@ -10,6 +10,9 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "list_projects",
+    "list_advanced_tools",
+    "project_info",
     "derive_test_matrix",
     "query_business_logic",
     "describe_table",
@@ -85,6 +88,10 @@ const TOOLS: &[&str] = &[
 ];
 const CONTROLS: &[&str] = &["max_tokens", "response_id", "response_offset"];
 
+fn server_discovery(tool: &str) -> bool {
+    matches!(tool, "list_projects" | "list_advanced_tools")
+}
+
 #[cfg(test)]
 #[path = "read_report_delivery_tests.rs"]
 mod tests;
@@ -95,9 +102,12 @@ pub fn eligible(tool: &Tool) -> Option<&'static str> {
         .iter()
         .copied()
         .find(|name| *name == tool.name.as_ref())?;
-    let properties = tool.input_schema.get("properties")?.as_object()?;
-    if CONTROLS.iter().any(|key| properties.contains_key(*key)) {
+    let properties = tool.input_schema.get("properties").and_then(Value::as_object);
+    if properties.is_some_and(|properties| CONTROLS.iter().any(|key| properties.contains_key(*key))) {
         return None;
+    }
+    if server_discovery(name) {
+        return Some(name);
     }
     tool.input_schema
         .get("required")?
@@ -111,7 +121,9 @@ pub fn advertise(mut tool: Tool) -> Tool {
     if eligible(&tool).is_none() {
         return tool;
     }
+    let global = server_discovery(tool.name.as_ref());
     let schema = std::sync::Arc::make_mut(&mut tool.input_schema);
+    schema.entry("properties").or_insert_with(|| json!({}));
     let required = schema
         .get("required")
         .and_then(Value::as_array)
@@ -144,9 +156,10 @@ pub fn advertise(mut tool: Tool) -> Tool {
     }
     // Conditional required fields are stated in prose rather than root anyOf:
     // strict function-schema clients must also be able to invoke recovery.
-    schema.insert("required".into(), json!(["project_id"]));
+    schema.insert("required".into(), if global { json!([]) } else { json!(["project_id"]) });
     let description = tool.description.as_deref().unwrap_or("");
-    tool.description = Some(format!("{description} Read-report delivery: max_tokens budgets complete reply text (default40KiB). Original analysis fields are required for fresh calls. Oversized results provide response_delivery.next_call; recovery needs only project_id and returned delivery controls and does not rerun the tool. Reconstruct the original MCP result before interpreting its evidence. Errors and non-text content retain their original delivery.").into());
+    let recovery = if global { "returned delivery controls; no project_id is required" } else { "project_id and returned delivery controls" };
+    tool.description = Some(format!("{description} Read-report delivery: max_tokens budgets complete reply text (default40KiB). Original analysis fields are required for fresh calls. Oversized results provide response_delivery.next_call; recovery needs only {recovery} and does not rerun the tool. Reconstruct the original MCP result before interpreting its evidence. Errors and non-text content retain their original delivery.").into());
     tool
 }
 
@@ -167,6 +180,7 @@ pub struct Report {
     offset: usize,
     capture_window: bool,
     json_envelope: bool,
+    server_discovery: bool,
 }
 
 pub fn prepare(
@@ -182,10 +196,12 @@ pub fn prepare(
     let Some(tool) = eligible(definition) else {
         return Ok(None);
     };
+    let global = server_discovery(tool);
     // Handler-owned JSON retains its schema, arguments and original result.
     let owns_json = definition.input_schema.get("properties")
         .and_then(|properties| properties.get("output_json")).is_some();
-    let args = request.arguments.as_ref().ok_or_else(|| {
+    let empty = serde_json::Map::new();
+    let args = request.arguments.as_ref().or(global.then_some(&empty)).ok_or_else(|| {
         McpError::invalid_params(
             "project_id and fresh-analysis fields or response_id are required",
             None,
@@ -195,13 +211,13 @@ pub fn prepare(
         "max_tokens":args.get("max_tokens"),"response_id":args.get("response_id"),"response_offset":args.get("response_offset"),
         "output_json":if owns_json {None} else {args.get("output_json")}
     })).map_err(|error| McpError::invalid_params(format!("Invalid read-report delivery controls: {error}"), None))?;
-    let project = args
+    let project = if global { "server-discovery".to_owned() } else { args
         .get("project_id")
         .and_then(Value::as_str)
         .ok_or_else(|| {
             McpError::invalid_params("project_id must be supplied for read-report delivery", None)
         })?
-        .to_owned();
+        .to_owned() };
     crate::handlers::validate_project_id(&project)?;
     let budget = crate::handlers::search_tools::response_budget::token_bytes(controls.max_tokens)?
         .unwrap_or(40960);
@@ -213,6 +229,7 @@ pub fn prepare(
         offset: controls.response_offset.unwrap_or(0),
         capture_window: false,
         json_envelope: controls.output_json.unwrap_or(false),
+        server_discovery: global,
     }.checked()?;
     if let Some(args) = request.arguments.as_mut() {
         for key in CONTROLS {
@@ -232,14 +249,14 @@ impl Report {
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,
     ) -> Result<Self, McpError> {
-        Self { tool, project, budget, response_id, offset, capture_window: false, json_envelope: false }.checked()
+        Self { tool, project, budget, response_id, offset, capture_window: false, json_envelope: false, server_discovery: false }.checked()
     }
 
     pub(crate) fn retained_window(
         tool: &'static str, project: String, budget: usize,
         response_id: Option<String>, offset: usize,
     ) -> Result<Self, McpError> {
-        Self { tool, project, budget, response_id, offset, capture_window: true, json_envelope: false }.checked()
+        Self { tool, project, budget, response_id, offset, capture_window: true, json_envelope: false, server_discovery: false }.checked()
     }
 
     fn checked(self) -> Result<Self, McpError> {
@@ -269,7 +286,18 @@ impl Report {
         if self.capture_window {
             value["response_delivery"]["capture_scope"] = json!("Immutable original requested result window, captured before reply-budget clipping. Existing retrieval/window/content limits still apply. This retains the report, not underlying source objects or the whole corpus. Guidance and freshness describe capture time. Follow saved next_call pages; original offset actions outside this capture are fresh queries.");
         }
+        if self.server_discovery {
+            value.as_object_mut().unwrap().remove("project_id");
+            value["report_scope"] = json!("server_discovery");
+            Self::discovery_action(&mut value["response_delivery"]["next_call"]);
+        }
         value.to_string()
+    }
+
+    fn discovery_action(action: &mut Value) {
+        if let Some(arguments) = action.get_mut("arguments").and_then(Value::as_object_mut) {
+            arguments.remove("project_id");
+        }
     }
 
     pub fn recover(&self, data: &Path) -> Result<Option<CallToolResult>, McpError> {
@@ -284,7 +312,17 @@ impl Report {
                     self.budget,
                     self.tool,
                 )
-                .map(|page| CallToolResult::success(vec![Content::text(page)]))
+                .and_then(|page| {
+                    let page = if self.server_discovery {
+                        let mut value: Value = serde_json::from_str(&page)
+                            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                        // Removing a private storage binding cannot grow a page
+                        // that the existing recovery reader already budgeted.
+                        Self::discovery_action(&mut value["next_call"]);
+                        value.to_string()
+                    } else { page };
+                    Ok(CallToolResult::success(vec![Content::text(page)]))
+                })
             })
             .transpose()
     }
@@ -305,13 +343,18 @@ impl Report {
         let original = if self.json_envelope {
             let result = serde_json::to_value(&original)
                 .map_err(|error| McpError::internal_error(error.to_string(), None))?;
-            CallToolResult::success(vec![Content::text(json!({
+            let mut envelope = json!({
                 "schema_version":1,"tool":self.tool,"project_id":self.project,
                 "result":result,
                 "response_delivery":{"status":"COMPLETE","complete":true,"truncated":false,
                     "scope":"complete_original_selected_report",
                     "coverage":"Existing handler limits, omissions, warnings and freshness remain in result. Complete delivery does not prove exhaustive source coverage or runtime correctness."}
-            }).to_string())])
+            });
+            if self.server_discovery {
+                envelope.as_object_mut().unwrap().remove("project_id");
+                envelope["report_scope"] = json!("server_discovery");
+            }
+            CallToolResult::success(vec![Content::text(envelope.to_string())])
         } else {
             original
         };

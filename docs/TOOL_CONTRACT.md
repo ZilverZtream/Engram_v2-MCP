@@ -1296,3 +1296,16 @@ retain original procedure/guidance evidence after edits. VB methods do not becom
 SQL from their names alone. This supplies source declarations, without proving
 migration/deployment order, dynamic SQL resolution, runtime argument values or
 execution. This change is not yet compiled, validated or installed.
+
+
+Pending source change, not yet installed: `list_projects` and
+`list_advanced_tools` use the existing complete-report delivery budget, including
+caller `max_tokens`, optional JSON and exact original-result recovery. They need
+no project ID: manifests identify `report_scope: server_discovery`, and their
+schema-valid continuation arguments carry only the returned recovery controls.
+Filtered catalog content is retained as supplied; recovery does not repeat
+project or tool discovery, grant capabilities, or prove current project presence.
+`project_info` also gains the existing delivery controls and retains its required
+project binding. Fitting default results and original filters/profile rules stay
+with their handlers. Existing retention, UTF-8 budgeting and error/media limits
+apply. The private snapshot binding is not a project record or a public argument.
