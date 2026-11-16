@@ -1,0 +1,72 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_LOCAL_ARCHIVE_INSTALL",
+  "at_utc": "2026-11-16T16:25:20.911189+00:00",
+  "original_requirement_id": "TODO-53",
+  "original_requirement": "Prebuilt Windows release and one-command download/archive installation with MCP client configuration",
+  "full_original_item_complete": false,
+  "source_commit": "aee2e44e3f154cd84345d988a20c70e26f0f2f4a",
+  "implementation_files": [
+    "scripts/install_windows_release.ps1",
+    "scripts/package_windows_release.ps1",
+    "scripts/test_install_windows_release.ps1",
+    "docs/WINDOWS_BUNDLE.md",
+    "README.md",
+    "TODO.md"
+  ],
+  "source_hashes": {
+    "scripts/install_windows_release.ps1": "9992637d978aa8f52cf699287d677693c3dcfaae584f0a4afb132d9c1e06e056",
+    "scripts/package_windows_release.ps1": "2f3fe066d5c4b8c6106fbc14f58daea8c462f57cf4bcfe7bede28d088976bbcb",
+    "scripts/test_install_windows_release.ps1": "fb91ce06e83cad87d66aa1ccfbd12ce049d174f5fd6651617186aa907aa46ab8",
+    "docs/WINDOWS_BUNDLE.md": "4be4856793fc2b64a385168831539be8deffe283cd9ef427a88a448cc4c86002",
+    "README.md": "658595d02a927b055ff9ed418ae8acc5f5ab09ece2cfe32688efb733d794011a",
+    "TODO.md": "cc86dee1771ca3f05edade315257f7f7eefb6a4093e2737c2413b28b5fd2e67a"
+  },
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-archive-bootstrap-20261116\\contract.json",
+    "sha256": "8391027c9a4ac0cbbffec1a8271b701bf4fc452065f0c4f7e296bcaef584a3f8"
+  },
+  "delivered": [
+    "Checksum-pinned ZIP path delegates to existing trusted complete-package installer, avoiding manual extraction. Local archive and HTTPS URI inputs are exclusive; checksum required for either.",
+    "HTTPS download branch is implemented and fixture-tested with an injected transfer. Executable scripts from the archive are ignored; only contained runtime/ entries are extracted. Existing installer validates all manifest assets and registers JSON or Codex using its established contract.",
+    "Owned local archive proof installs215runtime assets, preserves unrelated client settings, starts the exact registered command and bundled sidecar, and recovers authored VB source. New bundles include the archive bootstrap beside their trusted installer."
+  ],
+  "validation": {
+    "focused_script_check": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-archive-bootstrap-20261116\\fixture-reconciliation.json",
+      "sha256": "adce4d72d4a295e873c6c58e1f29d8ca4c10f293cdc2f23a71db78f86b17b8bd"
+    },
+    "actual": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-archive-bootstrap-20261116\\actual1\\acceptance.json",
+      "sha256": "db1923af0f3858bcb9c9704bdc8fcdd2381e55529c327c5e52dcfed3f783f33c"
+    },
+    "actual_checks": 7,
+    "actual_seconds": 23.66772080003284,
+    "actual_archive_sha256": "35584154b76d706218aad468a1d69d34b88e5a770ebaaa0d4fe7fac2c8e0bbb5",
+    "actual_server_sha256": "bb1c70b00bd395b62465729c84303edc055a9460403df1b3a4b04e93ae5cf2b1",
+    "runtime_provenance": "Retained complete November13release; installer behavior proof only, not latest runtime feature acceptance.",
+    "external_https_download_verified": false,
+    "https_transfer_injected": true,
+    "codex_registration_engine": "Existing previously validated installer reused; fresh actual proof here uses JSON client registration.",
+    "owned_fixture_idle_timeout_override_secs": 10,
+    "new_compilations": 0,
+    "full_suite_run": false
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-archive-bootstrap-20261116",
+    "fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+    "owned_real_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ipdypok7t",
+    "all_real_resources_closed": true,
+    "owned_real_fixture_removed": true,
+    "small_script_fixtures_owned_and_cleaned": true,
+    "retention": "Keep retained input archive, source/check receipts and wire evidence until reviewed or superseded. No preexisting folder deletion or normal runtime/config modification.",
+    "protected_wip9_preserved": true,
+    "normal_installed_server_sha256": "957953733d7f6ea1119afd112e0c5a45f756c45964bd2f8adeceed32057211dd",
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66"
+  },
+  "limits": [
+    "Public hosting/release publication, external HTTPS end-to-end download and macOS/Linux distribution remain unfinished. No new tags or releases created.",
+    "The real input ZIP is the retained November13full package, not the latest server feature batch. No latest-runtime regression or new-feature acceptance is claimed from this installation proof.",
+    "This is the accepted distribution requirement; it does not change current LegacyValidation runtime. Broader original backlog remains active.",
+    "Failed small-fixture attempts and their corrections are retained in reconciliation/tool history; no compilation was performed."
+  ]
+}

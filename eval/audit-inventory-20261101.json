@@ -10122,33 +10122,34 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "active_original_item": "TODO31 browser caller composition",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "active_original_item": "TODO53 checksum-pinned Windows archive bootstrap",
+    "status": "IMPLEMENTED_VALIDATED_LOCAL_ARCHIVE_INSTALL",
     "implementation_items_active": 0,
-    "original_requirement_id": "TODO-31",
-    "observed_missing_behavior": "Resolved server request traces omit existing indexed JavaScript/TypeScript ApiCall callers.",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-client-callers-20261116\\contract.json",
+    "original_requirement_id": "TODO-53",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-archive-bootstrap-20261116\\contract.json",
+    "observed_missing_behavior": "Existing installer requires an already unpacked package. No pinned ZIP/HTTPS download-to-registration path exists.",
     "finite_acceptance": [
-      "For resolved source-verified request handler IDs, compose existing incoming ApiCall edges from selected JS/TS sources with caller identity, source line/hash, original resolution/transport metadata and explicit static-candidate limits. No new parser or graph resolution.",
-      "Use bounded incoming prefixes across at most8handler entries; report truncation/missing/stale evidence explicitly. Read only referenced script paths, within existing source byte limits, not all script files.",
-      "Changed caller source/revision or edge revision withholds that lead. Include applicable authored script guidance through the existing collector. Preserve downstream trace and existing full-report recovery.",
-      "Owned ASMX fixture checks independently authored JS and TS calls, existing graph route metadata, unrelated method exclusion, stale caller withholding and saved full recovery. Queue this source outcome without Cargo until3distinct original requirements are ready."
+      "One command accepts exactly one local release ZIP or HTTPS URL plus mandatory independent SHA256, verifies bytes before extraction, and reuses existing complete-package installer for JSON/Codex registration. No toolchain/compiler/build step.",
+      "Extract only the expected runtime subtree to one newly owned location, validate contained destinations, close ZIP and network handles and remove transient download/extraction on success/failure. Preserve existing packages, installs and unrelated client settings.",
+      "Owned small artifact proof covers local and injected HTTPS transport flow, wrong hash refusal before installation and client preservation. Real retained full release ZIP installs server/all sidecar assets and serves a source query through its registered command. Public hosting, external network download and macOS/Linux are separate unfinished acceptance."
     ],
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-client-callers-20261116",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\windows-archive-bootstrap-20261116",
     "full_original_goal_active": true,
-    "next_action": "Keep first original outcome queued; select two other genuinely ready distinct original requirements before one guarded combined native/release. No standalone Cargo.",
-    "source_commit": "70aed0ad03eea6bfcb1f490597b8212bfad487d5",
+    "next_action": "Advance the next ready distinct original requirement; keep browser caller runtime source queued and avoid standalone Cargo. Installation proof is complete within its stated local/archive scope; broader distribution remains open.",
+    "source_commit": "aee2e44e3f154cd84345d988a20c70e26f0f2f4a",
     "implementation_files": [
-      "crates/engram_server/src/services/request_trace/client_callers.rs",
-      "crates/engram_server/src/services/request_trace.rs",
-      "crates/engram_server/src/handlers/request_trace_tools.rs",
-      "crates/engram_server/src/handlers/request_trace_delivery.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/request_client_callers_tests.rs",
-      "docs/TOOL_CONTRACT.md"
+      "scripts/install_windows_release.ps1",
+      "scripts/package_windows_release.ps1",
+      "scripts/test_install_windows_release.ps1",
+      "docs/WINDOWS_BUNDLE.md",
+      "README.md",
+      "TODO.md"
     ],
-    "progress_record": "eval/request-client-callers-progress-20261116.json",
-    "previous_goal_turn_classification": "PROGRESS: completed installed24+24acceptance/delivery record for prior3requirements; implemented and committed next original browser-caller composition after installed gap proof. Zero compilation in this continuation."
+    "delivery": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\windows-archive-bootstrap-delivery-20261116.json",
+      "sha256": "a9f6cc434e4f383070fc3fd6e34e97a9437fdc34a7b0a9cb2db76c6090c01492"
+    },
+    "previous_goal_turn_classification": "PROGRESS: implemented pinned Windows archive/HTTPS bootstrap and passed real full-package installation/source retrieval using retained artifacts. Zero compilation."
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10325,7 +10326,7 @@
     "record": "eval/revision-guard-history-batch-delivery-20261115.json",
     "full_original_goal_complete": false
   },
-  "next_user_visible_deliverable": "Source-verified JS/TS API callers composed into existing server request traces.",
+  "next_user_visible_deliverable": "Select next ready distinct original source requirement before combined runtime validation; preserve completed archive-install proof and uncompiled browser source.",
   "retained_index_output_source_progress": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/retained-index-output-progress-20261115.json",
@@ -10372,9 +10373,13 @@
     "full_original_goal_complete": false
   },
   "immediate_next_delivery": {
-    "status": "ONE_SOURCE_OUTCOME_QUEUED",
-    "pending_source_records": [
+    "status": "BROWSER_SOURCE_QUEUED_ARCHIVE_INSTALL_DELIVERED",
+    "pending_runtime_source_records": [
       "eval/request-client-callers-progress-20261116.json"
+    ],
+    "completed_distinct_original_source_outcomes": [
+      "TODO31 browser caller composition",
+      "TODO53 pinned archive installation"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -10411,6 +10416,13 @@
       "original_requirement_id": "TODO-31",
       "progress_record": "eval/request-client-callers-progress-20261116.json",
       "source_commit": "70aed0ad03eea6bfcb1f490597b8212bfad487d5"
+    },
+    {
+      "original_requirement_id": "TODO-53",
+      "delivery_record": "eval/windows-archive-bootstrap-delivery-20261116.json",
+      "source_commit": "aee2e44e3f154cd84345d988a20c70e26f0f2f4a",
+      "status": "IMPLEMENTED_VALIDATED_LOCAL_ARCHIVE_INSTALL",
+      "runtime_build_required": false
     }
   ],
   "source_policy_batch_delivery": {
@@ -16297,5 +16309,9 @@
   "request_client_callers_source_progress": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-client-callers-progress-20261116.json",
     "sha256": "58ea311fbe905ed9698583625e818e93eaa1c2478206e9b99bfc944e3fe309bc"
+  },
+  "windows_archive_bootstrap_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\windows-archive-bootstrap-delivery-20261116.json",
+    "sha256": "a9f6cc434e4f383070fc3fd6e34e97a9437fdc34a7b0a9cb2db76c6090c01492"
   }
 }
