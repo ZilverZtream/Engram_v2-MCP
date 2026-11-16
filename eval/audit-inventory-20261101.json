@@ -10090,7 +10090,9 @@
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false,
-      "record": "eval/area-decision-scope-progress-20261116.json"
+      "record": "eval/area-decision-scope-progress-20261116.json",
+      "source_commit": "b22a2b7ed4f61ce1988647dd8fbdc66e37127e6a",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -15931,6 +15933,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\schema-report-recovery-20261116\\contract.json",
         "progress_record": "eval/schema-report-recovery-progress-20261116.json",
         "user_outcome": "Oversized SQL schema/procedure reports preserve exact complete original MCP results, citations, guidance and advisory actions through existing bounded recovery; query arguments/source are unnecessary for recovery. Source complete; validation and installation pending."
+      },
+      {
+        "original_requirement_id": "EG-14",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "b22a2b7ed4f61ce1988647dd8fbdc66e37127e6a",
+        "runtime_source_commit": "19d396aef91d0bef0ad2e2098531c2976bd81470",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json",
+        "progress_record": "eval/area-decision-scope-progress-20261116.json",
+        "user_outcome": "Area evidence selects declared-scope exceptions without prose filenames and preserves conditions, revision, authority and exact recovery. Source complete; validation and installation pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,

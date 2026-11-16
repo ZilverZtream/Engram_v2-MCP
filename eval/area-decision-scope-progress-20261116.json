@@ -60,5 +60,16 @@
     "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "relevance": "Existing scoped LegacyValidation VB.NET/WebForms/JS/TS/SQL instruction workflow. Provider-independent; invented TypeScript proof only, no actual LegacyValidation/Q reads."
   },
-  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json"
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\area-decision-scope-20261116\\contract.json",
+  "source_commit": "b22a2b7ed4f61ce1988647dd8fbdc66e37127e6a",
+  "runtime_source_commit": "19d396aef91d0bef0ad2e2098531c2976bd81470",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "build_checkout_inventory_resolution": "Authoritative ROOT inventory copied over conflict; previous WORK inventory retained in parent08621c9. No source/WIP conflict.",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/handlers/review_decisions.rs": "74d786b1d11e99bd038344c2d986ac08fe830f11d6633c9dd5b6e61cdca70f86",
+    "crates/engram_server/src/handlers/review_tools/prior_context.rs": "651fccba565fda93f481acad800bace11b8813a682cb67f6aa6aa4f078e27430",
+    "crates/engram_server/src/services/instruction_maintenance/area_evidence.rs": "2236a878fa7659bc7c37e98f3b5f827cf6abafef444edf7d4b5423d9d33c07d9",
+    "crates/engram_server/tests/area_decision_scope_tests.rs": "24ed2bd3e5dc7ecb85d3d08605353105ab5267167aac595c951f628161151f99",
+    "crates/engram_server/tests/method_schema_area_batch_tests.rs": "8bb3ae0f3b132e75f38187598b4db701df5db27b941901c7238ddb2072991e61"
+  }
 }
