@@ -110,5 +110,24 @@
     "verified_this_turn": true,
     "relevance": "Selected actual non-Q LegacyValidation WebForms/VB and JavaScript AJAX source paths; backend independent. Only owned copies indexed; no actual project operation or new language support."
   },
-  "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd"
+  "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd",
+  "runtime_source_commit": "3eafbd1daad8ea35502ae53783a379634d694c15",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "physical_build_source_sha256": {
+    "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
+    "crates/engram_server/src/services/request_trace/execution.rs": "a99d70c4e80862a624f212a01de0efaaa19c78a70f7b7c544a88f456cc0cbde6",
+    "crates/engram_server/src/services/request_trace/web_methods.rs": "a813cb35e3b3bdfd3a069279bca52e01d1c50d16a7a48efd4635f88e906894f7",
+    "crates/engram_server/src/services/request_trace.rs": "6df28ec132e918a0cf978e11d12226469413c3168e9ae7c52556fade2948c41b",
+    "crates/engram_server/tests/request_trace_web_methods.rs": "31e816457b663fd8f40450d134405ba5ed99cce4d9e128d1200c14ae96f5aa92",
+    "crates/engram_server/src/models/requests.rs": "36e63001752295083d5c5dbe8882169ba09fa657c9d8dc611e3dbbc8b5b6b170",
+    "crates/engram_server/src/tools.rs": "31dc91dbdfdad85c6e0f1fcf0051e5846f1597aef74746b55c03fedf12094842",
+    "crates/engram_server/src/handlers/request_trace_tools.rs": "8e78f47a5c55c1c23318622b3dfad0f5544b823834d2352807f35c674bc5eaf0"
+  },
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
+    "native_target": "history_webmethod_business_batch_tests",
+    "native_cases": 11,
+    "native_builds": 0,
+    "release_builds": 0
+  }
 }
