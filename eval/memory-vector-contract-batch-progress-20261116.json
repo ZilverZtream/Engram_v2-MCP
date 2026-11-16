@@ -1,0 +1,38 @@
+{
+  "status": "NATIVE_ACCEPTED_SINGLE_RELEASE_RUNNING",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+  "source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+  "source_outcomes": [
+    "TODO-7",
+    "TODO-4",
+    "EG-26"
+  ],
+  "native_cases_passed": 7,
+  "native_attempts": 3,
+  "retained_cases": 6,
+  "current_cases": 1,
+  "native_runner_seconds": 571.4547026999062,
+  "release_owner": {
+    "pid": 84636,
+    "created": 1794817508.6781702,
+    "confirmed_utc": "2026-11-16T08:26:13.141651+00:00",
+    "owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\release1-owner.json",
+    "purpose": "Observe the same owned optimized release; never restart solely on an observation timeout"
+  },
+  "pipeline_session": 56790,
+  "release_session": 68125,
+  "deployed": false,
+  "at_utc": "2026-11-16T08:28:00.830426+00:00",
+  "preserved_wip9_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "build_policy": "No full/lib suite, extra debug build or per-feature release; failed attempts retained."
+}

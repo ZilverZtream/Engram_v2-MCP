@@ -40,7 +40,7 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "NATIVE_ACCEPTED_SINGLE_RELEASE_RUNNING",
     "pending_source_records": [
       "eval/memory-write-recovery-progress-20261116.json",
       "eval/vector-retained-window-progress-20261116.json",
@@ -2771,7 +2771,7 @@
   "current_execution_focus": {
     "active_original_item": "EG-26 truthful repair-scope capability and outcome contract",
     "implementation_items_active": 0,
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "NATIVE_ACCEPTED_SINGLE_RELEASE_RUNNING",
     "original_requirement": "Reconcile actual schemas, tool descriptions and capability claims with actual behavior. Preserve completed catalog/documentation deliveries.",
     "observed_missing_behavior": "repair_project describes scopes as index repair and returns a successful scoped-repair header for tantivy_only. Its existing service branch only purges superseded generations and performs no lexical reconstruction or health verification.",
     "implementation_files": [
@@ -2793,7 +2793,19 @@
     "source_commit": "747cbdf1abbb1c446b8a82f9cd1610158a21674d",
     "source_progress_record": "eval/repair-scope-contract-progress-20261116.json",
     "combined_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
-    "next_action": "Prepare existing shipping checkout, run one focused seven-case native target, then one release reused for candidate/installed acceptance. No full suite or separate per-feature builds."
+    "next_action": "Observe existing release68125 and pipeline56790 handles. Same single release proceeds through package/candidate/install/installed/normal runtime restoration. No restart on timeout.",
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
+    "native_cases_passed": 7,
+    "native_runner_seconds": 571.4547026999062,
+    "release_owner": {
+      "pid": 84636,
+      "created": 1794817508.6781702,
+      "confirmed_utc": "2026-11-16T08:26:13.141651+00:00",
+      "owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\release1-owner.json",
+      "purpose": "Observe the same owned optimized release; never restart solely on an observation timeout"
+    },
+    "pipeline_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+    "previous_goal_turn_classification": "PROGRESS: third runtime contract correction committed, seven distinct native cases accepted after fixture-only corrections; single release and deployment pipeline are live."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

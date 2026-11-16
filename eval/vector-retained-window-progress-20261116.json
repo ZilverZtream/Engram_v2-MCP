@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_VALIDATED_AWAITING_RELEASE_AND_INSTALLED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform bounded replies and durable result cursors/recovery across tools.",
   "user_outcome": "Vector-search selected results can be retained and recovered immutably with the caller reply budget, reusing existing result storage and delivery. Ordinary search and retrieval limits remain unchanged.",
@@ -15,9 +15,9 @@
   ],
   "source_files_sha256": {
     "crates/engram_server/src/retained_results.rs": "5d3d8ebb26fd1aee50c2cdbc2b8c8399ca48c98263a5f83d41d02251bdd4fa15",
-    "crates/engram_server/src/models/requests.rs": "f531cbdba85f9f7cb408550858368452858494297c643ad67122fe1548501c2f",
+    "crates/engram_server/src/models/requests.rs": "8714a6c21584cef0add55e01a0f8d1940640353e12043e626b953e92942b2954",
     "crates/engram_server/tests/vector_retained_results_tests.rs": "d0c2fe646fb3983ab863c738ce8ecdaac33244cfa5cee04928aafc5a956fe6a1",
-    "docs/TOOL_CONTRACT.md": "44f4ceecc5ecb4be950980c1380bb2c4fcbdd54397d6c5ff75deb68976393eab"
+    "docs/TOOL_CONTRACT.md": "4eeacfea4a1763adda5ffe3ccdf605e38b3029ec6326f2b1b389e0901b84ec05"
   },
   "source_checks": [
     "rustfmt passed on existing retention module and focused new tests",
@@ -25,7 +25,7 @@
     "git diff --check passed for selected files"
   ],
   "native_target": "vector_retained_results_tests",
-  "native_execution": "NOT_RUN: two independent requirements queued; minimum three before combined native validation",
+  "native_execution": "PASS: six retained native2 cases plus corrected native3 case.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\verify-public.py",
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "deployed": false,
@@ -47,5 +47,9 @@
     "Only the requested ranking window and content selection are captured; no corpus completeness, expanded top_k, restored per-hit clipping or source-object retention claimed.",
     "Existing TTL/count/size limits remain. Fresh captures still require provider/index availability; recovery reruns neither.",
     "Source delivery awaits combined native and candidate/installed public verification; broader original backlog stays active."
-  ]
+  ],
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
+  "native_tests_run": true,
+  "combined_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5"
 }

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_VALIDATED_AWAITING_RELEASE_AND_INSTALLED",
   "original_requirement_id": "TODO-7",
   "original_requirement": "Actionable error messages with recovery hints; preserve already-completed error cases.",
   "user_outcome": "A saved memory append/import is reported as stored even when search publication fails, with exact readback and stage-appropriate existing recovery. Agents are explicitly told not to repeat the write.",
@@ -14,10 +14,10 @@
     "docs/TOOL_CONTRACT.md"
   ],
   "source_files_sha256": {
-    "crates/engram_server/src/handlers/project_tools.rs": "bb69692ca89d548500caab04249b01d5277bd9012cd3e2278548e1c7bb6517ae",
+    "crates/engram_server/src/handlers/project_tools.rs": "9cc4eb78403fd6d683bd719a1730a9e4cb9b4962cd8717d3a41cecaccef96474",
     "crates/engram_server/src/handlers/project_tools/memory_publication.rs": "c6e922ae70f81267873a137f46d7ba85c0ea2a4e81ac11b2e9104612dda753ed",
-    "crates/engram_server/tests/memory_write_recovery_tests.rs": "3f9f81267e485bd47b10d58c34b7ee725c4e1458879d0ce1895cbedf3d2af84f",
-    "docs/TOOL_CONTRACT.md": "cdecb318b951cc9690ac9530a5bc7d965202da56a7c0aea23520306fd2e65823"
+    "crates/engram_server/tests/memory_write_recovery_tests.rs": "a0044ed443b5d083a74ab6b7f9391e85b040ca7ce60343d5f3395fcaab461110",
+    "docs/TOOL_CONTRACT.md": "4eeacfea4a1763adda5ffe3ccdf605e38b3029ec6326f2b1b389e0901b84ec05"
   },
   "source_checks": [
     "rustfmt parse/format of new module and focused native tests passed",
@@ -25,7 +25,7 @@
     "git diff --check passed for selected changes"
   ],
   "native_target": "memory_write_recovery_tests",
-  "native_execution": "NOT_RUN: wait for three independent original requirements before combined native validation",
+  "native_execution": "PASS: six retained native2 cases plus corrected native3 case.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\verify-public.py",
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "deployed": false,
@@ -43,5 +43,13 @@
     "Existing completed TODO7 error cases preserved; this record only covers the persisted-memory recovery gap.",
     "Provider recovery is offered only for the typed post-lexical embedding-provider failure; other failures disclose unknown lexical publication.",
     "This source delivery is not validated or installed; full original backlog remains active."
+  ],
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
+  "native_tests_run": true,
+  "combined_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+  "fixture_correction_commits": [
+    "441af5e",
+    "0a05612"
   ]
 }
