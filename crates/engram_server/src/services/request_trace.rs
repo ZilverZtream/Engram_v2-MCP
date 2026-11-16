@@ -6,6 +6,7 @@ mod dbml;
 mod inline_sql;
 pub(crate) mod identity_insert;
 pub(crate) mod sql_commands;
+mod web_methods;
 pub mod execution;
 pub mod routing;
 #[cfg(test)]

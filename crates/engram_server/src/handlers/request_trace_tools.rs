@@ -85,10 +85,11 @@ impl Engram {
             let routing = routing::resolve(&req.entry_point, &sources)?;
             let mut pages = Vec::new();
             // Duplicate registrations remain visible in routing, but tracing the
-            // same page twice must not imply two executions of its handlers.
+            // same page entry twice must not imply two executions of its handlers.
+            // A literal WebMethod and a lifecycle route are distinct entry candidates.
             let mut seen = std::collections::BTreeSet::new();
             for route in &routing.candidates {
-                if !seen.insert(route.page.clone()) { continue; }
+                if !seen.insert((route.page.clone(), route.web_method.clone())) { continue; }
                 if pages.len() >= 8 { gaps.push("Page expansion truncated at 8 distinct candidates".into()); break; }
                 pages.push(execution::trace_page(&graph, &req.project_id, route, req.action.as_deref(), req.include_db, req.include_triggers, &sources, selected)?);
             }

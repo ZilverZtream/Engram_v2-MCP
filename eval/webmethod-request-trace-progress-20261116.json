@@ -1,0 +1,113 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-31",
+  "original_requirement": "URL/action to authored WebForms handler and existing downstream call/database source evidence.",
+  "observed_missing_behavior": "LegacyValidation JS calls POST /language.aspx/change and /api.asmx/getimg; current physical-page routing requires the entire request path to equal the .aspx/.asmx file and cannot route its WebMethod suffix. ASMX Class=api implementation also lives in App_Code partial files rather than the literal nonexistent api.vb CodeBehind target.",
+  "wanted_behavior": "Recognize literal single-method URL suffixes for selected VB WebForms/ASMX sources, bind public attributed methods to the authored page/service type and pass only admitted entries to existing source/call/database tracing. Page methods require Shared; ASMX partial methods use explicit Class identity under the same application root. Retain ambiguity, missing/stale evidence and runtime-hosting uncertainty.",
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/routing.rs",
+    "crates/engram_server/src/services/request_trace/execution.rs",
+    "crates/engram_server/src/services/request_trace/web_methods.rs",
+    "crates/engram_server/src/services/request_trace.rs",
+    "crates/engram_server/tests/request_trace_web_methods.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/handlers/request_trace_tools.rs"
+  ],
+  "finite_acceptance": [
+    "Owned VB page/service fixtures: /language.aspx/change and /api.asmx/getimg resolve a physical source candidate and the exact attributed function, retaining independent source hash/excerpts and existing downstream SQL source paths.",
+    "Ordinary page/event traces are unchanged. Private, unattributed, wrong-class or non-Shared page functions are not HTTP method entries; stale/revision-mismatched graph members do not expand. Multiple eligible implementations remain candidates with explicit ambiguity.",
+    "Owned copies of the selected actual non-Q LegacyValidation sources prove the authored language.change entry and ASMX partial getimg entry. No actual project indexing or manual Q operation, inferred runtime dispatch/protocol behavior, planner tuning or closed-tool change."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116",
+    "retained_actual_source_copies": [
+      {
+        "path": "Site/language.aspx",
+        "bytes": 117,
+        "sha256": "e174b812c31b5cb51950413b3949efcddc7593eacfe54589a4908a3edf793bd8"
+      },
+      {
+        "path": "Site/language.aspx.vb",
+        "bytes": 1953,
+        "sha256": "abedc38c21b0345f22f12432edfa83c0be01016a37361cf7602dd2fcbb50688f"
+      },
+      {
+        "path": "Site/api.asmx",
+        "bytes": 68,
+        "sha256": "6f548f6b9080ecaeb5e26fb354e884fa68bc551689bf15f6cdfe784776f29e3d"
+      },
+      {
+        "path": "Site/App_Code/api-json/api-images.vb",
+        "bytes": 40480,
+        "sha256": "8e179c0d9a5cba7a20be593dc31edaaaf8aa24909e07a77aae4e68f2351ba8b4"
+      },
+      {
+        "path": "Site/~.js/menu.js",
+        "bytes": 1888,
+        "sha256": "91385ba103aa0cd190bef6e77946ee8406deba0ada06381a5dd4aeb4abb8e532"
+      }
+    ],
+    "cleanup_condition": "Retain selected non-Q source copies and contract/public receipts until superseded. New fixtures close server/database handles before removing their own directories; no preexisting removal.",
+    "baseline_fixture_removed": true,
+    "baseline_owners_closed": true,
+    "public_driver_prepared_not_run": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\verify-public.py"
+  },
+  "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "stop_rule": "WebMethod entry routing/admission only; reuse trace_selected and fixed existing limits. No new graph traversal, general request-body/JS execution/DI resolution, type system, SQL analysis, global route scan expansion, new tool/store or language expansion.",
+  "build_rule": "Second distinct source requirement after queued EG22; no compile for this item alone.",
+  "source_baseline": "c0c4e73",
+  "native_target": "request_trace_web_methods",
+  "native_cases": 3,
+  "baseline_receipt": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\baseline1\\receipt.json",
+    "sha256": "a7cb3d17da81c9c7a0b14ff27c2e20943d42b4bb6d94f74e2e211c97d2d99098"
+  },
+  "checks_completed": [
+    "Installed ad324385 owned-copy baseline reproduced both zero-candidate WebMethod URL results; original source copies unchanged, all owned owners closed and fixture removed.",
+    "Rust2024 source syntax parsed; new implementation/three native fixtures formatted and selected-path diff whitespace check passed. No Cargo/native/release invocation.",
+    "Existing selected physical source/hash admission and trace walker retained. Physical URL/event path does not acquire method binding unless the URL has a single identifier suffix. Registered route constructors preserve web_method=None.",
+    "Existing compact page-trace response projection already retains handlers/source-member hashes and immutable full-evidence recovery; no new report/store or projection required."
+  ],
+  "checks_pending": [
+    "Three focused native WebMethod cases plus relevant ordinary-page/report regressions in a future combined source batch.",
+    "Thirteen public owned actual-copy entry/source-hash/stale/lifecycle checks on debug/candidate/installed binaries; driver prepared and not run against uncompiled source."
+  ],
+  "source_sha256": {
+    "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
+    "crates/engram_server/src/services/request_trace/execution.rs": "a99d70c4e80862a624f212a01de0efaaa19c78a70f7b7c544a88f456cc0cbde6",
+    "crates/engram_server/src/services/request_trace/web_methods.rs": "a813cb35e3b3bdfd3a069279bca52e01d1c50d16a7a48efd4635f88e906894f7",
+    "crates/engram_server/src/services/request_trace.rs": "6df28ec132e918a0cf978e11d12226469413c3168e9ae7c52556fade2948c41b",
+    "crates/engram_server/tests/request_trace_web_methods.rs": "31e816457b663fd8f40450d134405ba5ed99cce4d9e128d1200c14ae96f5aa92",
+    "docs/TOOL_CONTRACT.md": "3452b9bb3f5efeccee4188b5937f9456eb97b1d4d4de3f55b671a5f657a689ca",
+    "TODO.md": "94876a21ff744e161650a2d1ab98c5b4a32531e88cdb8a38aa85413e7be19516",
+    "crates/engram_server/src/models/requests.rs": "36e63001752295083d5c5dbe8882169ba09fa657c9d8dc611e3dbbc8b5b6b170",
+    "crates/engram_server/src/tools.rs": "31dc91dbdfdad85c6e0f1fcf0051e5846f1597aef74746b55c03fedf12094842",
+    "crates/engram_server/src/handlers/request_trace_tools.rs": "8e78f47a5c55c1c23318622b3dfad0f5544b823834d2352807f35c674bc5eaf0"
+  },
+  "primary_contract_sources": [
+    "https://learn.microsoft.com/en-us/previous-versions/aspnet/bb398998(v=vs.100)",
+    "https://learn.microsoft.com/en-us/dotnet/api/system.web.ui.scriptmanager.enablepagemethods?view=netframework-4.8.1"
+  ],
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "verified_this_turn": true,
+    "relevance": "Selected actual non-Q LegacyValidation WebForms/VB and JavaScript AJAX source paths; backend independent. Only owned copies indexed; no actual project operation or new language support."
+  }
+}

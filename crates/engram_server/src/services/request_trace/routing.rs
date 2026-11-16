@@ -12,6 +12,9 @@ pub struct Source<'a> {
 #[derive(Debug, Serialize, PartialEq, Eq)]
 pub struct RouteCandidate {
     pub page: String,
+    /// Literal ASPX/ASMX method suffix; this is not runtime dispatch proof.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub web_method: Option<String>,
     pub route_name: Option<String>,
     pub pattern: String,
     pub parameters: BTreeMap<String, String>,
@@ -277,11 +280,26 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                     .unwrap_or(source.path)
                     .trim_start_matches('/')
             });
+            let web_method = if lower.ends_with(".aspx") || lower.ends_with(".asmx") {
+                [Some(source.path), relative].into_iter().flatten().find_map(|page| {
+                    let prefix = path.get(..page.len())?;
+                    if !prefix.eq_ignore_ascii_case(page) { return None; }
+                    let name = path.get(page.len()..)?.strip_prefix('/')?;
+                    let mut chars = name.bytes();
+                    let first = chars.next()?;
+                    ((first.is_ascii_alphabetic() || first == b'_')
+                        && chars.all(|v| v.is_ascii_alphanumeric() || v == b'_'))
+                        .then(|| name.to_owned())
+                })
+            } else { None };
             if source.path.eq_ignore_ascii_case(&path)
                 || relative.is_some_and(|p| p.eq_ignore_ascii_case(&path))
+                || web_method.is_some()
             {
+                let basis = if web_method.is_some() { "physical_web_method_candidate" } else { "physical_page_candidate" };
                 result.candidates.push(RouteCandidate {
                     page: source.path.into(),
+                    web_method,
                     route_name: None,
                     pattern: path.clone(),
                     parameters: BTreeMap::new(),
@@ -296,7 +314,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
                         .chars()
                         .take(400)
                         .collect(),
-                    basis: "physical_page_candidate",
+                    basis,
                 });
             }
         }
@@ -380,6 +398,7 @@ pub fn resolve(entry: &str, sources: &[Source<'_>]) -> anyhow::Result<Routing> {
             };
             result.candidates.push(RouteCandidate {
                 page: actual.path.into(),
+                web_method: None,
                 route_name: Some(window[3].text.clone()),
                 pattern: window[5].text.clone(),
                 parameters: values,

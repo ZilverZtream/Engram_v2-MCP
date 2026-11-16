@@ -436,6 +436,11 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Source-complete November16, awaiting combined validation: literal VB
+  ASPX/ASMX WebMethod URLs resolve public attributed entries, including LegacyValidation's
+  page-method and App_Code partial-service patterns. Existing admitted call/SQL
+  traversal is reused; runtime dispatch is unproven.
+  [Pending source](eval/webmethod-request-trace-progress-20261116.json).
   *Partial delivery 2026-11-12: installed source-cited WebForms URL/action tracing,
   authored handlers, verified calls, literal stored-procedure/table source evidence
   and response excerpts. Added source-bound DBML mapping for explicit local VB

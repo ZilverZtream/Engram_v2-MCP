@@ -47,7 +47,7 @@ pub struct PageTrace {
     pub interpretation: &'static str,
 }
 
-fn attribute(source: &str, key: &str) -> Option<String> {
+pub(super) fn attribute(source: &str, key: &str) -> Option<String> {
     let re = Regex::new(&format!(
         r#"(?is)\b{}\s*=\s*(?:"([^"]*)"|'([^']*)')"#,
         regex::escape(key)
@@ -63,7 +63,7 @@ fn attribute(source: &str, key: &str) -> Option<String> {
     )
 }
 
-fn without_markup_comments(source: &str) -> String {
+pub(super) fn without_markup_comments(source: &str) -> String {
     Regex::new(r"(?s)<%--.*?--%>|<!--.*?-->")
         .expect("comment syntax")
         .replace_all(source, |c: &regex::Captures<'_>| {
@@ -74,7 +74,7 @@ fn without_markup_comments(source: &str) -> String {
         .into_owned()
 }
 
-fn relative_target(page: &str, raw: &str, app_root: Option<&str>) -> Option<String> {
+pub(super) fn relative_target(page: &str, raw: &str, app_root: Option<&str>) -> Option<String> {
     let raw = raw.replace('\\', "/");
     if raw.contains([':', '\0', '%']) || raw.starts_with('/') {
         return None;
@@ -243,6 +243,9 @@ pub fn trace_page(
     sources: &[Source<'_>],
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<PageTrace> {
+    if route.web_method.is_some() {
+        return super::web_methods::trace(graph, project, route, action, include_db, include_triggers, sources, selected);
+    }
     let mut result = empty_trace(&route.page, include_db, include_triggers);
     let Some(page) = sources.iter().find(|source| source.path == route.page) else {
         result.gaps.push("Page source unavailable".into());

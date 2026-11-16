@@ -4032,6 +4032,8 @@ pub enum BatchReadOperation {
 pub struct TraceUserRequestRequest {
     pub project_id: String,
     /// URL, application-relative path, or project-relative page; optional HTTP verb prefix.
+    /// Literal VB WebMethod suffixes are supported, e.g. POST /language.aspx/change
+    /// or POST /api.asmx/getimg. Omit action or match that exact method suffix.
     /// Required for a new trace; omit when recovering response_id.
     #[serde(default)]
     pub entry_point: String,

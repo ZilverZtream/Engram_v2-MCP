@@ -1,5 +1,18 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: `trace_user_request` recognizes
+literal VB WebMethod URL suffixes such as `POST /language.aspx/change` and
+`POST /api.asmx/getimg`. Page entries require a public Shared method with an
+observed WebMethod attribute and the directive's authored type/code file. ASMX
+Class directives can select public instance methods from matching App_Code
+partial classes under the same established application root. Selected entries
+reuse the existing source/revision-admitted call and database walker; ordinary
+page/lifecycle traces keep their behavior. An action cannot override the URL's
+method. Inherited/inline/aliased bindings, runtime hosting/protocol/verb dispatch,
+session availability and successful execution remain unproven. Nothing is
+published or executed in the application.
+[Pending source](../eval/webmethod-request-trace-progress-20261116.json).
+
 Installed November16: `explain_change` uses shared
 complete-report delivery with a40KiB default and caller `max_tokens` controls.
 Fitting commit-message, PR-description, changelog and narrative replies preserve

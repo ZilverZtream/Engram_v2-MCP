@@ -2707,20 +2707,26 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "EG-22 source complete and queued. No implementation item active until the next concrete original requirement is selected.",
-    "observed_missing_behavior": "The metadata namespace hashes entire change_card_service.rs, metadata_cache.rs and pr_history_tools.rs. Unrelated ranking, tool response and cache-handling edits invalidate every persisted card even when the extraction result is unchanged.",
+    "active_original_item": "TODO-31 VB WebMethod URL entry tracing for existing LegacyValidation AJAX calls",
+    "observed_missing_behavior": "LegacyValidation JS calls POST /language.aspx/change and /api.asmx/getimg; current physical-page routing requires the entire request path to equal the .aspx/.asmx file and cannot route its WebMethod suffix. ASMX Class=api implementation also lives in App_Code partial files rather than the literal nonexistent api.vb CodeBehind target.",
     "implementation_files": [
-      "crates/engram_server/src/services/change_card_service.rs",
-      "crates/engram_server/src/services/change_card_service/metadata_cache.rs",
-      "crates/engram_server/src/handlers/pr_history_tools.rs",
-      "crates/engram_server/src/services/change_card_service/extraction.rs"
+      "crates/engram_server/src/services/request_trace/routing.rs",
+      "crates/engram_server/src/services/request_trace/execution.rs",
+      "crates/engram_server/src/services/request_trace/web_methods.rs",
+      "crates/engram_server/src/services/request_trace.rs",
+      "crates/engram_server/tests/request_trace_web_methods.rs",
+      "docs/TOOL_CONTRACT.md",
+      "TODO.md",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/tools.rs",
+      "crates/engram_server/src/handlers/request_trace_tools.rs"
     ],
     "finite_acceptance": [
-      "Extractor and PR identity behavior remains byte-for-byte equivalent for the existing title/body/generated-file fixtures and persisted cache/restart cases.",
-      "Cache identity includes extraction source and persisted format version; repository identity isolation and invalid/corrupt/future-data handling remain. Parent tool/ranking/maintenance source is no longer a cache namespace input.",
-      "No immediate40-second or percentage speedup claim. The historical40.49s observation predates later delivery and does not attribute the whole delay to namespace invalidation. No actual LegacyValidation/Q operation or full-suite run."
+      "Owned VB page/service fixtures: /language.aspx/change and /api.asmx/getimg resolve a physical source candidate and the exact attributed function, retaining independent source hash/excerpts and existing downstream SQL source paths.",
+      "Ordinary page/event traces are unchanged. Private, unattributed, wrong-class or non-Shared page functions are not HTTP method entries; stale/revision-mismatched graph members do not expand. Multiple eligible implementations remain candidates with explicit ambiguity.",
+      "Owned copies of the selected actual non-Q LegacyValidation sources prove the authored language.change entry and ASMX partial getimg entry. No actual project indexing or manual Q operation, inferred runtime dispatch/protocol behavior, planner tuning or closed-tool change."
     ],
-    "progress_record": "eval/history-metadata-identity-progress-20261116.json",
+    "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
     "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "native_tests_run": false,
     "public_acceptance_run": false,
@@ -2728,10 +2734,9 @@
     "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "EG-22",
-      "record": "eval/history-metadata-identity-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
-      "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
+      "original_requirement_id": "TODO-31",
+      "record": "eval/webmethod-request-trace-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
