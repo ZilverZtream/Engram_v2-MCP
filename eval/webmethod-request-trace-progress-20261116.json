@@ -109,5 +109,6 @@
     "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "verified_this_turn": true,
     "relevance": "Selected actual non-Q LegacyValidation WebForms/VB and JavaScript AJAX source paths; backend independent. Only owned copies indexed; no actual project operation or new language support."
-  }
+  },
+  "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd"
 }

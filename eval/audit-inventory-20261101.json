@@ -10111,7 +10111,8 @@
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false
+      "deployed": false,
+      "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd"
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10143,8 +10144,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO-31 VB WebMethod URL entry tracing for existing LegacyValidation AJAX calls",
-    "next_user_visible_deliverable": "Accumulate another distinct source outcome from the unfinished original LegacyValidation backlog before compiling. Preserve installed editing/report delivery and the queued metadata compatibility change; do not count documentation or another cache variant toward the three-requirement gate.",
+    "active_original_item": "TODO-31 WebMethod entry source complete and queued alongside EG-22; no implementation item active until the next original requirement is selected.",
+    "next_user_visible_deliverable": "Select a third distinct original LegacyValidation requirement for source implementation before one combined native/release validation. Do not compile these two items alone or count another WebMethod/parser variant, cache variant, documentation or fixture change as another requirement. No new agent comparison, closed-tool work or inspected-task replay.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
@@ -15875,7 +15876,7 @@
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false,
-    "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd"
+    "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -15966,6 +15967,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
         "progress_record": "eval/history-metadata-identity-progress-20261116.json",
         "user_outcome": "Unrelated tool/ranking releases retain persistent immutable Git card metadata compatibility. Extraction changes and canonical repository identities remain separate. No current timing gain claimed; validation/installation pending."
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
+        "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
+        "user_outcome": "Existing LegacyValidation AJAX-style VB ASPX/ASMX URL suffixes reach authored attributed method candidates and the existing source-admitted call/database walker, including same-application App_Code partial services. Source complete; native/public/installed validation pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -16011,7 +16020,7 @@
   "latest_source_batch_progress": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "last_installed_record": "eval/editing-report-batch-delivery-20261116.json",
-    "pending_count": 1,
+    "pending_count": 2,
     "native_builds": 0,
     "release_builds": 0
   },
@@ -16074,7 +16083,8 @@
   "immediate_next_delivery": {
     "status": "ACCUMULATING_SOURCE_OUTCOMES",
     "pending_source_records": [
-      "eval/history-metadata-identity-progress-20261116.json"
+      "eval/history-metadata-identity-progress-20261116.json",
+      "eval/webmethod-request-trace-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
