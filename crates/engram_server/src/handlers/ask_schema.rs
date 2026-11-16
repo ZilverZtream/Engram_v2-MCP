@@ -20,6 +20,7 @@ use crate::{
 pub(super) struct SchemaEvidence {
     pub items: Vec<EvidenceItem>,
     pub provider: ProviderReport,
+    pub matched_names: Vec<String>,
     ambiguous: bool,
 }
 
@@ -91,6 +92,7 @@ pub(super) async fn gather(
     }
     let mut out = SchemaEvidence {
         items: vec![],
+        matched_names: vec![],
         ambiguous: false,
         provider: ProviderReport {
             provider: "schema".into(),
@@ -158,6 +160,12 @@ pub(super) async fn gather(
                     "No admitted source declaration for {}",
                     serde_json::to_value(&request.query_type).unwrap_or(Value::Null)
                 ));
+            } else {
+                match &request.query_type {
+                    Some(SchemaQueryType::StoredProc { sp_name }) => out.matched_names.push(sp_name.clone()),
+                    Some(SchemaQueryType::Table { name }) => out.matched_names.push(name.clone()),
+                    _ => {},
+                }
             }
             for row in report["results"].as_array().into_iter().flatten() {
                 let ambiguous = report["status"] == "ambiguous";

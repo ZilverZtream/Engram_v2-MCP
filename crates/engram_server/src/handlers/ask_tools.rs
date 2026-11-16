@@ -442,7 +442,7 @@ impl Engram {
         // reliably detected (graph nodes keep per-node generations); staleness
         // rides on reindex_required inside build_snapshot instead.
         // Row 6 slice 2: the planner's resolved terms count as covered/anchoring.
-        let known: Vec<String> = plan
+        let mut known: Vec<String> = plan
             .entities
             .iter()
             .flat_map(|e| {
@@ -451,6 +451,10 @@ impl Engram {
                     .chain(e.resolved.iter().map(|r| r.canonical.clone()))
             })
             .collect();
+        // Selected SQL source matches also establish the named premise even
+        // when their declarations have no graph symbol. Ambiguity and source
+        // coverage remain separate qualifications of the resulting answer.
+        known.extend(schema_evidence.iter().flat_map(|schema| schema.matched_names.iter().cloned()));
         let adequate = status::has_adequate_support_with(&req.question, &evidence, &known);
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
         let st = schema_evidence.as_ref().map_or(st, |schema| schema.qualify_status(st));
