@@ -18,16 +18,16 @@ struct Fixture {
 }
 impl Fixture {
     async fn new() -> Result<Self> {
+        Self::with_source("export function saveOrder() { return true; }\n").await
+    }
+    async fn with_source(source: &str) -> Result<Self> {
         let owned = tempfile::tempdir()?;
         let root = owned.path().join("source");
         for name in ["Site", "Caller", ".github/instructions"] {
             std::fs::create_dir_all(root.join(name))?;
         }
         for (path, body) in [
-            (
-                "Site/order.ts",
-                "export function saveOrder() { return true; }\n",
-            ),
+            ("Site/order.ts", source),
             (
                 "Caller/dispatch.ts",
                 "import { saveOrder } from '../Site/order';\nexport function dispatchOrder() { return saveOrder(); }\n",
@@ -180,13 +180,23 @@ async fn pre_edit_context_preserves_live_method_and_returned_caller_guidance_in_
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn complete_large_pre_edit_policy_recovers_without_repeating_source_or_analysis() -> Result<()>
 {
-    let fixture = Fixture::new().await?;
-    let large = GUIDE.to_owned()
-        + &"Authored context retains all source and scope qualifications.\n".repeat(1200);
-    std::fs::write(fixture.root.join("AGENTS.md"), &large)?;
+    let source = format!(
+        "export function saveOrder() {{\n{}  return true;\n}}\n",
+        "  // Retain this selected method source in the complete pre-edit context.\n".repeat(1000)
+    );
+    let fixture = Fixture::with_source(&source).await?;
     let original = fixture.context(true).await?;
     let exact = serde_json::to_string(&original)?;
     ensure!(text(&original).len() > 40960);
+    let body: Value = serde_json::from_str(text(&original))?;
+    ensure!(body["full_source"] == source.trim_end_matches('\n'));
+    ensure!(
+        body["project_policy_sources"]["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["path"] == "AGENTS.md" && s["content"] == GUIDE)
+    );
     let mut manifests = Vec::new();
     for controls in [json!({}), json!({"max_tokens":2048})] {
         let deferred = report(&fixture.project, controls)?
