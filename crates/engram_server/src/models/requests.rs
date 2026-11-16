@@ -4061,6 +4061,8 @@ pub struct TraceUserRequestRequest {
     /// "load page", "click controlID", "submit form", an exact method name,
     /// or "event controlID.EventName" for an authored server event, e.g.
     /// "event ddlType.SelectedIndexChanged". This selects static candidates;
+    /// use "event panel/ddlType.SelectedIndexChanged" for literal registered
+    /// user-control instances (up to8path components in the same application).
     /// postback, client wiring and runtime execution remain unproven.
     #[serde(default)]
     pub action: Option<String>,

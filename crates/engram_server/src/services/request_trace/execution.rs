@@ -41,6 +41,8 @@ pub struct PageTrace {
     pub codebehind: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub control_event: Option<super::control_events::Evidence>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub control_routes: Option<super::control_routes::Resolution>,
     pub handlers: Vec<Handler>,
     pub paths: Vec<Hop>,
     pub source_members: Vec<serde_json::Value>,
@@ -264,6 +266,10 @@ pub fn trace_page(
         result.gaps.push("Page source unavailable".into());
         return Ok(result);
     };
+    if let Some((control, event)) = requested_event.filter(|(control, _)| control.contains('/')) {
+        return trace_control_instances(graph, project, result, *page, control, event,
+            include_db, sources, selected);
+    }
     let markup = without_markup_comments(page.content);
     let directive =
         Regex::new(r"(?is)<%@\s*(?:Page|WebHandler|WebService)\b.*?%>").expect("directive syntax");
@@ -320,11 +326,73 @@ pub fn trace_page(
     )
 }
 
+fn control_codebehind<'a>(markup_source: Source<'a>, sources: &[Source<'a>], gaps: &mut Vec<String>) -> Option<Source<'a>> {
+    let markup=without_markup_comments(markup_source.content);
+    let directive=Regex::new(r"(?is)<%@\s*(?:Page|Control)\b.*?%>").expect("page/control directive");
+    let Some(directive)=directive.find(&markup) else {
+        gaps.push(format!("{}: authored Page/Control directive unavailable",markup_source.path));return None;
+    };
+    let Some(raw)=attribute(directive.as_str(),"CodeFile").or_else(||attribute(directive.as_str(),"CodeBehind")) else {
+        gaps.push(format!("{}: no literal code-behind; inline/inherited handlers unexamined",markup_source.path));return None;
+    };
+    let Some(path)=relative_target(markup_source.path,&raw,super::routing::app_root(markup_source.path,sources)) else {
+        gaps.push(format!("{}: code-behind target lacks bounded hosting evidence",markup_source.path));return None;
+    };
+    let matches:Vec<_>=sources.iter().filter(|source|source.path.eq_ignore_ascii_case(&path)
+        && super::routing::app_root(source.path,sources)==super::routing::app_root(markup_source.path,sources)).collect();
+    if matches.len()!=1 {
+        gaps.push(format!("{}: code-behind {path} has {}same-application source candidates; handlers withheld",markup_source.path,matches.len()));return None;
+    }
+    Some(*matches[0])
+}
+
+fn trace_control_instances<'a>(
+    graph: &Arc<GraphStore>, project: &str, mut result: PageTrace, page: Source<'a>,
+    control_path: &str, event: &str, include_db: bool, sources: &[Source<'a>],
+    selected: &BTreeMap<String,u64>,
+) -> anyhow::Result<PageTrace> {
+    let mut routes=super::control_routes::resolve(graph,project,&page,control_path,sources,selected)?;
+    let local=control_path.rsplit('/').next().expect("validated child selector");
+    let terminal_action=format!("event {local}.{event}");
+    let mut markup_files=vec![page];
+    markup_files.extend(routes.contexts.iter().filter_map(|path|sources.iter().find(|source|source.path==path).copied()));
+    let mut chosen:Vec<(Node,String)>=Vec::new();
+    let mut positions:BTreeMap<String,usize>=BTreeMap::new();
+    for markup_source in markup_files {
+        let Some(code)=control_codebehind(markup_source,sources,&mut result.gaps) else {continue};
+        if markup_source.path==page.path {result.codebehind=Some(code.path.into());}
+        let mut methods=graph.query_nodes_in_file(project,Some("function"),code.path,MAX_METHODS+1)?;
+        if methods.len()>MAX_METHODS {methods.truncate(MAX_METHODS);result.gaps.push(format!("{}: method inventory truncated at{MAX_METHODS}",code.path));}
+        let is_terminal=routes.terminals.iter().any(|path|path==markup_source.path);
+        let evidence=is_terminal.then(||super::control_events::collect(markup_source.path,markup_source.content,local,event));
+        let markup=without_markup_comments(markup_source.content);
+        let entries=handler_bindings(&markup,code.content,&methods,
+            Some(if is_terminal {&terminal_action} else {"load page"}),evidence.as_ref());
+        if let Some(evidence)=evidence {routes.terminal_events.push(evidence);}
+        for (node,binding) in entries {
+            let binding=format!("control path {control_path}: {binding}; source-level context, not lifecycle order");
+            if let Some(&position)=positions.get(&node.node_id) {
+                let existing:&mut (Node,String)=&mut chosen[position];
+                if !existing.1.contains(&binding) {existing.1.push_str("; ");existing.1.push_str(&binding);}
+            } else if chosen.len()<MAX_NODES {
+                positions.insert(node.node_id.clone(),chosen.len());chosen.push((node,binding));
+            } else if !result.gaps.iter().any(|gap|gap.starts_with("Control entry inventory")) {
+                result.gaps.push(format!("Control entry inventory capped at{MAX_NODES}; further entries unexamined"));
+            }
+        }
+    }
+    if routes.terminals.is_empty() {result.gaps.push("No complete admitted control-instance route; inspect control_routes gaps".into());}
+    if chosen.is_empty() {result.gaps.push("No admitted page/control load or terminal event entry found".into());}
+    result.control_routes=Some(routes);
+    trace_selected(graph,project,result,chosen,include_db,sources,selected)
+}
+
 pub(super) fn empty_trace(path: &str, include_db: bool, include_triggers: bool) -> PageTrace {
     PageTrace {
         page: path.into(),
         codebehind: None,
         control_event: None,
+        control_routes: None,
         handlers: Vec::new(),
         paths: Vec::new(),
         source_members: Vec::new(),

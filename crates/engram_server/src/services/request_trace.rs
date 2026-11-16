@@ -10,6 +10,7 @@ pub(crate) mod sql_commands;
 mod web_methods;
 pub mod execution;
 pub mod control_events;
+pub mod control_routes;
 pub mod routing;
 pub(crate) mod triggers;
 pub(crate) mod value_lineage;

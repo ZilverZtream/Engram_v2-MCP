@@ -27,8 +27,8 @@ pub fn requested(action: Option<&str>) -> anyhow::Result<Option<(&str, &str)>> {
         anyhow::anyhow!("control event action must be 'event controlID.EventName'")
     })?;
     anyhow::ensure!(
-        identifier(control) && identifier(event),
-        "control event action requires simple control and event identifiers, e.g. event ddlType.SelectedIndexChanged"
+        control.split('/').count() <= 8 && control.split('/').all(identifier) && identifier(event),
+        "control event action requires1..8simple control path identifiers and an event, e.g. event panel/ddlType.SelectedIndexChanged"
     );
     Ok(Some((control, event)))
 }
