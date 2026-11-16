@@ -2906,8 +2906,8 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Dependency-complete optional Core preset and actionable citation/clarification recovery, preserving Full default.",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "active_original_item": "Combined TODO31 / TODO28 / EG18 delivery",
+    "status": "FOCUSED_NATIVE_RUNNING",
     "implementation_items_active": 0,
     "original_requirement_id": "EG-18",
     "observed_missing_behavior": "A newly composed SQL ambiguity report in Core returns query_schema recovery, which is not advertised in Core. Installed owned baseline proves Core ask_codebase can already retrieve the selected qualified table; Full advertises and successfully follows the original query_schema action.",
@@ -2925,9 +2925,15 @@
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\core-schema-recovery-20261116\\contract.json",
     "previous_goal_turn_classification": "PROGRESS: preceding SQL routing source preserved; Core handoff regression independently observed, source fix/native case committed and finite9baseline controls captured. Three distinct original source outcomes now queued; no standalone build.",
     "full_original_goal_active": true,
-    "next_action": "Third distinct source outcome complete. Freeze existing shipping checkout and select one combined native target for request lineage, ordinary SQL routing and Core/Full recovery, then one release/public candidate+installed proof.",
+    "next_action": "Poll existing native31312. Preserve successful cases and rerun only affected failures if needed; then one guarded release and same candidate/installed owned public proofs. No full/lib suite, debug server build, actual LegacyValidation/Q traversal or new agents.",
     "source_commit": "0526c02eb6e76f51e9516e2fe978370a18221175",
-    "progress_record": "eval/core-schema-recovery-progress-20261116.json"
+    "progress_record": "eval/core-schema-recovery-progress-20261116.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116",
+    "source_freeze": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\lineage-routing-preset-batch-20261116\\release-plan.json",
+      "sha256": "15e581036707d4130e248644657e2ef4d148af0d78d87d9d534e3f64babdf461"
+    },
+    "live_native_session": 31312
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
