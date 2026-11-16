@@ -410,6 +410,10 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Source pending November16: historical answers reuse the revision-pinned scoped
+  guidance resolver, preserving authored exceptions and excluding live policy.
+  Native and updated-runtime acceptance remain pending.
+  [Source progress](eval/historical-ask-policy-progress-20261116.json).
   Installed November16: ordinary history answers retain complete indexed commit messages,
   exceptions and exact identities, with recorded-history authority and unchanged ranking weight.
   [Delivery](eval/job-history-memory-batch-delivery-20261116.json).

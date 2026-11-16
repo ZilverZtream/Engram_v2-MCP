@@ -1164,7 +1164,9 @@ pub struct AskCodebaseRequest {
     pub task_context: Option<String>,
     /// Retrieve complete bounded source blobs at one resolved Git commit/branch.
     /// Excludes current index, live graph and current policy evidence; historical
-    /// coverage stays partial. Unavailable revisions never fall back to current code.
+    /// coverage stays partial. Applicable authored guidance is read from that
+    /// same revision for returned source paths. Unavailable revisions never
+    /// fall back to current code or checked-out policy.
     #[serde(default)]
     pub as_of: Option<AsOf>,
     /// Who is asking (role/permissions — carried for future ACL).

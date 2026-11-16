@@ -1,5 +1,6 @@
 //! Read source at one resolved Git revision. No active index, live graph,
 //! working-tree bytes or current policy may leak into this evidence report.
+//! Applicable guidance is read from the same immutable Git revision.
 use super::{
     evidence::{Authority, EvidenceItem, EvidenceKind},
     plan::{EntityKind, QueryPlan},
@@ -287,10 +288,33 @@ pub fn gather(root: &Path, req: &AskCodebaseRequest, plan: QueryPlan) -> Result<
         }
     }).collect();
     let count = evidence.len();
+    let policy_paths: Vec<_> = evidence.iter()
+        .filter(|item| item.kind == EvidenceKind::SourceCode)
+        .filter_map(|item| item.path.clone())
+        .collect::<BTreeSet<_>>().into_iter().collect();
+    let mut policy = if policy_paths.is_empty() {
+        let mut withheld = crate::services::project_policy::PolicyContext::historical_unavailable();
+        withheld.notes.push("Historical policy scope was not evaluated because no code paths were returned. No task scope or live guidance was substituted.".into());
+        withheld
+    } else {
+        match crate::services::project_policy::resolve_at_revision(root, oid, &policy_paths, &[]) {
+            Ok(context) => context,
+            Err(error) => {
+                let mut withheld = crate::services::project_policy::PolicyContext::historical_unavailable();
+                withheld.notes.push(format!("Guidance at resolved revision {oid} could not be read: {error:#}. Working-tree policy was not substituted."));
+                withheld
+            }
+        }
+    };
+    policy.source_revision = Some(oid.to_string());
+    policy.notes.push("Policy scope covers only the code paths returned in this report at source_revision; it does not establish reviewer approval, current policy, implementation compliance or the scope of a future edit.".into());
+    if policy.coverage != "complete" {
+        unknowns.push("Historical authored guidance is incomplete or not evaluated; inspect project_policy_sources omissions and notes. Code evidence remains revision-pinned and policy coverage does not upgrade the answer status.".into());
+    }
     Ok(AskReport {
         question:req.question.clone(),plan,status:if count > 0 { AnswerStatus::Partial } else { AnswerStatus::Unsupported },
         mode:"retrieval_only".into(),synthesis:None,
-        project_policy_sources:Some(crate::services::project_policy::PolicyContext::historical_unavailable()),
+        project_policy_sources:Some(policy),
         evidence,conflicts:Vec::new(),unknowns,
         next_best:vec!["Inspect the complete source at the cited Git revision. Do not use current index/graph results to fill historical behavior or policy gaps.".into()],
         snapshot:FreshnessSnapshot {git_commit:Some(oid.to_string()),git_branch:req.as_of.as_ref().and_then(|pin|pin.branch.as_deref()).map(str::trim).filter(|name|!name.is_empty()).map(str::to_owned),semantic_tier:"off_historical_git_source".into(),..Default::default()},
