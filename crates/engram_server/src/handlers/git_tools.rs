@@ -410,6 +410,7 @@ async fn collect_text_history(
 enum HistoryMode {
     Precedent,
     Text,
+    Commit,
 }
 
 /// `auto`: story-like prose (8+ words, mostly not code tokens) asks for
@@ -418,6 +419,7 @@ fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError
     match mode.unwrap_or("auto") {
         "precedent" => Ok(HistoryMode::Precedent),
         "text" => Ok(HistoryMode::Text),
+        "commit" => Ok(HistoryMode::Commit),
         "auto" => {
             let words: Vec<&str> = query
                 .split_whitespace()
@@ -438,7 +440,7 @@ fn history_mode(mode: Option<&str>, query: &str) -> Result<HistoryMode, McpError
             })
         }
         other => Err(McpError::invalid_params(
-            format!("mode must be auto, precedent or text, got '{other}'"),
+            format!("mode must be auto, precedent, text or commit, got '{other}'"),
             None,
         )),
     }
@@ -2070,8 +2072,10 @@ impl Engram {
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
         req.validated_semantic_timeout_ms()
             .map_err(|e| McpError::invalid_params(e.to_string(), None))?;
-        if history_mode(req.mode.as_deref(), &req.query)? == HistoryMode::Precedent {
-            return self.handle_precedents(req).await;
+        match history_mode(req.mode.as_deref(), &req.query)? {
+            HistoryMode::Precedent => return self.handle_precedents(req).await,
+            HistoryMode::Commit => return self.handle_history_commit(req).await,
+            HistoryMode::Text => (),
         }
         let response_req = req.clone();
         let content_limit = req.max_content_chars;

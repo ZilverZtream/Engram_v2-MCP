@@ -2207,6 +2207,12 @@ pub struct SearchHistoryRequest {
     /// words, text otherwise.
     /// Without vectors, precedent mode uses a disclosed lexical baseline.
     /// Projection providers are disclosed as degraded trigram ranking.
+    /// `commit`: query is an exact40hex Git commit ID. Returns the complete
+    /// UTF-8 message and first-parent changed-file cohort, including generated
+    /// files, inside as_of_rev or the origin default history scope. No index,
+    /// embeddings or LLM. Search filters/nonzero offset are refused; limit,
+    /// reranking and preview caps do not clip this single complete change.
+    /// Use output_json=true with retain_response=true for saved full recovery.
     #[serde(default)]
     pub mode: Option<String>,
     /// Precedent mode: rerank with the configured OpenRouter LLM. Default true;

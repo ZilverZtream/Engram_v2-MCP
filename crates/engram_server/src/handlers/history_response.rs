@@ -17,6 +17,9 @@ pub(super) fn validate(req: &SearchHistoryRequest) -> Result<(), McpError> {
 pub(super) fn recovery(project: &str, commit: Option<&str>, doc_id: Option<&str>) -> Value {
     let oid=commit.filter(|oid|oid.len()==40 && oid.bytes().all(|c|c.is_ascii_hexdigit()));
     json!({
+        "complete_git_commit":oid.map(|oid|json!({"tool":"search_history","arguments":{
+            "project_id":project,"query":oid,"mode":"commit","as_of_rev":oid,
+            "output_json":true,"retain_response":true,"max_tokens":1024}})),
         "citation_chunk":doc_id.map(|id|json!({"tool":"get_chunk","arguments":{
             "project_id":project,"namespace":"history","doc_id":id,"citation":{}}})),
         "git_message":oid.map(|oid|json!({"executable":"git","cwd":"project repository",
@@ -60,7 +63,11 @@ pub(super) fn finish(req: &SearchHistoryRequest, header: String, blocks: &[Strin
         metadata["query"]=json!(req.query);
         metadata["status"]=json!("ok");
         metadata["requested_offset"]=json!(req.offset);
-        metadata["coverage"]=json!("Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages.");
+        metadata["coverage"]=json!(if metadata["mode"]=="commit" {
+            "One exact Git commit in the selected revision scope. Complete original UTF-8 message and first-parent changed-file cohort, including generated paths; no patch body or rename inference. No indexed search, embedding or LLM call. Use complete_capture or retain_response=true with output_json=true for immutable full-result recovery when the complete row exceeds a reply budget."
+        } else {
+            "Selected ranking window only. Text matched-file lists are drawn from retrieved documents, not the complete commit. Precedent descriptions and non-generated file lists are capped at 1500 characters and 40 paths before previews. Git recovery includes generated paths. No corpus completeness or snapshot guarantee; LLM reranking and mutable inputs can reorder pages."
+        });
         structured_response::finish(metadata,rows,structured_response::Page{
             offset:req.offset,window_limit:req.sanitized_limit(),total:Some(window)},req.max_tokens)?.0
     } else {
