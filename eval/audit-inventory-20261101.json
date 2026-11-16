@@ -845,7 +845,12 @@
       "current_evidence": "execution_evidence_20261101.eg22_persistent_metadata_final_20261103",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "latest_installed_restart_acceptance": "eval/legacy_validation-history-restart-acceptance-20261113.json",
-      "installed_restart_scope": "Closes current installed same-configuration LegacyValidation result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness."
+      "installed_restart_scope": "Closes current installed same-configuration LegacyValidation result/restart acceptance. Native metadata timing/provider counters and cross-configuration identity tests remain separate evidence. Does not close full resource/review gates, all EG23 installed identity scenarios, or overall task usefulness.",
+      "metadata_compatibility_source_progress_20261116": {
+        "record": "eval/history-metadata-identity-progress-20261116.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "deployed": false
+      }
     },
     {
       "id": "EG-23",
@@ -10104,6 +10109,7 @@
       "original_requirement_id": "EG-22",
       "record": "eval/history-metadata-identity-progress-20261116.json",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
+      "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
@@ -10138,8 +10144,8 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "EG-22 persistent history metadata compatibility across unrelated releases",
-    "next_user_visible_deliverable": "Continue the original unfinished backlog with a finite source contract; preserve the delivered batch and accumulate distinct outcomes before another compile. Current mechanical tool deliveries do not establish task benefit or full goal completion.",
+    "active_original_item": "EG-22 source complete and queued. No implementation item active until the next concrete original requirement is selected.",
+    "next_user_visible_deliverable": "Accumulate another distinct source outcome from the unfinished original LegacyValidation backlog before compiling. Preserve installed editing/report delivery and the queued metadata compatibility change; do not count documentation or another cache variant toward the three-requirement gate.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
     ],
