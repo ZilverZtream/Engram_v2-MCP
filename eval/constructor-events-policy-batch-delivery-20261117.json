@@ -1,0 +1,87 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T23:11:08.414593+00:00",
+  "original_requirement_ids": [
+    "EG-25",
+    "TODO-31",
+    "EG-01"
+  ],
+  "shipping_source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
+  "source_commits": {
+    "EG-25": "3c1e68e00b41b5c573c87e18d552e88da439a2ac",
+    "TODO-31": "f1d1ef400e7e5db0a07d0ac4f5c60004a37829f4",
+    "EG-01": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47"
+  },
+  "delivered": [
+    "VB business analysis supplies source-cited same-owner constructor assignment observations, persists them in the analysis fingerprint and reports changed supporting source even when the method is unchanged.",
+    "Explicit WebForms event controlID.EventName actions select authored server-event markup or VB Handles candidates and reuse admitted handler/call/database traversal. Default-budget markup deferral retains identities/counts and exact captured recovery.",
+    "Historical ask_codebase answers supply scoped authored guidance from the same immutable Git commit as returned code, with exceptions, hashes and linked sources. Current policy stays excluded; absent/incomplete historical scope remains disclosed."
+  ],
+  "validation": {
+    "native_commands": 1,
+    "native_cases_passed": 7,
+    "debug_public_checks": 20,
+    "candidate_public_checks": 20,
+    "installed_public_checks": 20,
+    "additional_installed_event_recovery_checks": 3,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false,
+    "real_model_calls": 0
+  },
+  "build_cost": {
+    "native_runner_seconds": 222.59857879998162,
+    "release_commands": 1,
+    "release_runner_seconds": 811.2481319999788,
+    "combined_runner_seconds": 1033.8467107999604,
+    "actual_coding_percentage": null,
+    "limits": "Compilation/test/teardown runner time; source-authoring time not instrumented. No claimed coding-versus-testing percentage or speedup."
+  },
+  "cumulative_build_frequency": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\build-frequency-check-20261117.json",
+  "installed_pair": {
+    "server_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
+    "manifest_sha256": "3f4a233c23844794e49b0d7ddfe92dcbd84b05874d572bdbf67064f9d249552b",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "assets_verified": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151
+  },
+  "normal_runtime": {
+    "status": "NORMAL_INSTALLED_RUNTIME_RESTORED",
+    "daemon_pid": 236,
+    "served_normal_proxy": true,
+    "intentional_application_owned_daemon": true
+  },
+  "bundle": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\Engram-win-x64-constructor-events-policy.zip",
+    "sha256": "2b046140c9197e6263dac1bdafa32139f33ca8f95d43c139ca69371a397b0e18",
+    "entries": 219,
+    "runtime_assets": 215,
+    "public_hosting": false
+  },
+  "retained_failure": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\debug1\\receipt.json",
+    "reason": "History fixture asked for4KiB, below reported4320B metadata minimum. Only failed fixture rerun at8KiB against identical debug executable passed; no recompile."
+  },
+  "resources": {
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
+    "new_owned_fixtures_removed": true,
+    "compiler_jobs_and_handles_closed": true,
+    "private_config_hold_closed": true,
+    "owned_config_copy_removed": true,
+    "protected_wip9_unchanged": true,
+    "retained_old_pair_backups": [
+      "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-e7c2176cd8284caba32a79cd8a76174b"
+    ],
+    "retention": "Keep receipts, pinned source copies, private verifiers, package, ZIP and managed rollback pair for review/recovery. Normal daemon is application-owned; no preexisting directories deleted."
+  },
+  "limits": [
+    "Finite contracts delivered; full original31findings/19storagegates and broader task usefulness remain unfinished.",
+    "Constructor names and declared control events do not establish compiler binding, runtime execution, chosen configuration or complete workflow coverage.",
+    "No model/task comparison replay, policy publication/adoption, measured productivity gain, production LegacyValidation reindex or actual Site/Q read.",
+    "Historical graph reconstruction and broad historical task correctness remain unproven."
+  ]
+}

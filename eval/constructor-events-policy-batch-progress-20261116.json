@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_CURRENT_DEBUG_PUBLIC_VALIDATED_ONE_RELEASE_RUNNING",
+  "status": "INSTALLED_ACCEPTANCE_COMPLETE",
   "original_requirements": [
     "EG-25",
     "TODO-31",
@@ -22,9 +22,9 @@
     "reason": "4KiB caller budget below reported4320B metadata minimum; failed history fixture alone rerun at8KiB using identical executable passed."
   },
   "release": {
+    "status": "PASS",
     "commands_started": 1,
-    "status": "RUNNING",
-    "owner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\release-live1.json"
+    "runner_seconds": 811.2481319999788
   },
   "completion_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\finish-release1.py",
@@ -37,11 +37,17 @@
     "behavior": "Waits exact existing release owners, then packages once, runs deploy5.py, restores normal runtime, verifies215installedassets and creates ZIP. Starts no Cargo."
   },
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_active": true,
   "actual_coding_percentage": null,
   "limits": [
     "Current runtime acceptance is debug7native+20public only; candidate/install not yet complete.",
     "Full original gates and measured task usefulness remain open; no source-quality/productivity/billing claim."
-  ]
+  ],
+  "delivery": "eval/constructor-events-policy-batch-delivery-20261117.json",
+  "candidate_checks": 20,
+  "installed_checks": 20,
+  "additional_installed_event_recovery_checks": 3,
+  "normal_runtime_restored": true,
+  "completion_driver_terminal": true
 }

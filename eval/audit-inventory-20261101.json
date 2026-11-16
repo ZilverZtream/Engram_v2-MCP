@@ -281,6 +281,10 @@
       "standalone_editing_guidance_delivery_20261116": {
         "record": "eval/editing-report-batch-delivery-20261116.json",
         "full_original_requirement_complete": false
+      },
+      "historical_ask_policy_delivery_20261117": {
+        "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
+        "scope": "Scoped authored guidance from the same pinned revision as returned historical code. Compliance, historical graph and broader usefulness unproven."
       }
     },
     {
@@ -934,6 +938,10 @@
       "member_workflows_delivery_20261115": {
         "record": "eval/legacy_validation-member-workflows-delivery-20261115.json",
         "task_benefit_established": false
+      },
+      "constructor_context_delivery_20261117": {
+        "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
+        "scope": "Source setting identity reaches model input and persisted/readback evidence, including supporting-source drift. Not a new matched task evaluation or positive benefit claim."
       }
     },
     {
@@ -3305,7 +3313,7 @@
           "before_bytes": 504,
           "after_bytes": 504
         },
-        "unwatch_response": "\u00c3\u0192\u00c6\u2019\u00c3\u2020\u00e2\u20ac\u2122\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c6\u2019\u00c3\u00a2\u00e2\u201a\u00ac\u00c2\u00a6\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u20ac\u0161\u00c2\u00ac\u00c3\u2026\u00e2\u20ac\u0153\u00c3\u0192\u00c6\u2019\u00c3\u201a\u00c2\u00a2\u00c3\u0192\u00c2\u00a2\u00c3\u00a2\u00e2\u201a\u00ac\u00c5\u00a1\u00c3\u201a\u00c2\u00ac\u00c3\u0192\u00e2\u20ac\u0161\u00c3\u201a\u00c2\u00a6 Unwatched.",
+        "unwatch_response": "ÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â¢ÃƒÆ’Ã¢â‚¬Â¦ÃƒÂ¢Ã¢â€šÂ¬Ã…â€œÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦ Unwatched.",
         "error": "RuntimeError('Updated project_id: 7efa788d-05ab-4892-b981-ca1462fb427a\\nstatus: done\\nsource_update: no_changes_detected\\nactive_generation: 1\\nfiles=0 chunks=0 bytes=0\\ncommits=0; git history already current at the approved history root\\n')",
         "fixture_removed": true,
         "required_candidate_behavior": "Same immutable binary/config/workload probe must index the changed source, preserve sibling queries and survive restart; no sleep is added to hide failure."
@@ -10122,25 +10130,28 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "active_original_item": "Procedure/discovery/SQL source batch acceptance",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-33",
+    "active_original_item": "Constructor/event/historical-guidance consolidated acceptance",
+    "status": "THREE_OUTCOMES_INSTALLED_ACCEPTANCE_COMPLETE",
     "implementation_items_active": 0,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-schema-read-20261116",
-    "finite_acceptance": [
-      "batch_read accepts a typed query_schema operation using the existing QuerySchemaRequest and normal SQL handler, including its project/name qualification, selected source/citations, authored guidance, per-read controls and saved-result recovery. No new SQL parser or interpreter.",
-      "Existing1..16operation bounds, correlation IDs, shared whole-JSON budget, independent request errors and complete-result omission/recovery remain. Unsupported/mutating tools remain rejected; sequential reads are not an atomic snapshot.",
-      "Owned two-table fixture compares actual returned SQL table facts/guidance with individual schema calls, retains a bad-project error alongside successful reads, and demonstrates whole-result omission with a callable original SQL request. Recovery reruns a fresh read unless supplied existing query_schema response_id selects its saved result.",
-      "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
-    ],
+    "pending_source_outcomes": 0,
     "full_original_goal_active": true,
-    "next_action": "Three distinct original source outcomes are now ready. Freeze them in the existing shipping checkout and perform the combined acceptance; do not add unrelated edge cases or full suites.",
-    "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
-    "source_progress": "eval/batch-schema-read-progress-20261116.json",
-    "pending_source_outcomes": 3,
-    "native_target": "procedure_discovery_schema_batch_tests",
-    "native_cases_written": 4
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
+    "native_target": "constructor_events_policy_batch_tests",
+    "native_cases_written": 7,
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\contract.json",
+    "source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
+    "next_action": "Advance substantive unmet original research/TODO acceptance. Preserve unfinished qualitative/storage findings and holds; do not rerun delivered finite contracts, inspected model/task comparisons, closed CodeMap/Blast work or a broad suite. Do not add small filler to trigger builds.",
+    "native_distinct_behaviors_passed": 7,
+    "public_current_artifact_checks": 20,
+    "initial_public_fixture_budget_failure_retained": true,
+    "release_commands_started": 1,
+    "release_live_owner": null,
+    "completion_driver": null,
+    "source_progress": "eval/constructor-events-policy-batch-delivery-20261117.json",
+    "candidate_checks": 20,
+    "installed_checks": 20,
+    "additional_installed_event_recovery_checks": 3,
+    "normal_runtime_restored": true
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16286,10 +16297,9 @@
     "sha256": "354225e9e99863ffc093be07ee40eec5442506b18b3afd34fd59b4a41eb71adc"
   },
   "latest_delivered_runtime": {
-    "server_sha256": "7b88fd43c4260773a76a957a979c2c8bd6cf5ea77365fc1ceb9d35f3399abc18",
-    "manifest_sha256": "308fb6bf06267af5c95bd9921ed5a0727d173c44b1671bb9abc2982e1ff65f67",
-    "source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
-    "delivery": "eval/browser-json-history-batch-delivery-20261116.json",
+    "server_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d",
+    "manifest_sha256": "3f4a233c23844794e49b0d7ddfe92dcbd84b05874d572bdbf67064f9d249552b",
+    "receipt": "eval/constructor-events-policy-batch-delivery-20261117.json",
     "selected_generation": 3151
   },
   "request_client_callers_source_progress": {
@@ -16350,5 +16360,10 @@
   "browser_json_history_batch_delivery": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
     "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
+  },
+  "constructor_events_policy_batch_delivery_20261117": {
+    "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "original_goal_complete": false
   }
 }

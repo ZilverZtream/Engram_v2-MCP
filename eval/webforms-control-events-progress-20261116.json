@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-31",
-  "status": "NATIVE_AND_CURRENT_DEBUG_PUBLIC_VALIDATED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
   "original_requirement": "URL/action through authored WebForms handlers and existing call/database evidence.",
   "observed_missing_behavior": "Installed ec1f2567 resolves the actual copied LegacyValidation project.aspx URL, but event ddlType.SelectedIndexChanged yields no requested authored handler despite its OnSelectedIndexChanged declaration.",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116\\contract.json",
@@ -32,7 +32,7 @@
   "native_cases_written": 2,
   "native_tests_executed": 2,
   "builds_started": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "original_goal_complete": false,
   "limits": [
     "This is pending source work, not installed event support or completed TODO31.",
@@ -48,5 +48,8 @@
   "source_commit": "f1d1ef400e7e5db0a07d0ac4f5c60004a37829f4",
   "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\native1.json",
   "public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\debug-accepted1\\receipt.json",
-  "batch_progress": "eval/constructor-events-policy-batch-progress-20261116.json"
+  "batch_progress": "eval/constructor-events-policy-batch-progress-20261116.json",
+  "delivery": "eval/constructor-events-policy-batch-delivery-20261117.json",
+  "shipping_source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
+  "installed_server_sha256": "16baba3f184a1c252542cc600b0bcb5240d02dcd7362aea543d8c8ac6264ac2d"
 }

@@ -2554,32 +2554,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-25",
-        "outcome": "Source-cited same-owner VB constructor assignments in business-logic evidence with supporting-source change qualification",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "3c1e68e00b41b5c573c87e18d552e88da439a2ac",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116\\contract.json",
-        "progress": "eval/business-member-origins-progress-20261116.json"
-      },
-      {
-        "original_requirement_id": "TODO-31",
-        "outcome": "Explicit authored WebForms control events with source-cited markup and existing admitted handler/database traversal",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "f1d1ef400e7e5db0a07d0ac4f5c60004a37829f4",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116\\contract.json",
-        "progress": "eval/webforms-control-events-progress-20261116.json"
-      },
-      {
-        "original_requirement_id": "EG-01",
-        "outcome": "Historical ask answers carry scoped authored guidance from the exact source revision, preserving exceptions and pinned provenance without live policy fallback",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "5feb9b9f2e4d969685b7e9b635cbf305c1a61f47",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\historical-ask-policy-20261116\\contract.json",
-        "progress": "eval/historical-ask-policy-progress-20261116.json"
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2728,32 +2703,27 @@
   },
   "current_execution_focus": {
     "active_original_item": "Constructor/event/historical-guidance consolidated acceptance",
-    "status": "ONE_OPTIMIZED_BUILD_RUNNING",
+    "status": "THREE_OUTCOMES_INSTALLED_ACCEPTANCE_COMPLETE",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 3,
+    "pending_source_outcomes": 0,
     "full_original_goal_active": true,
     "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116",
     "native_target": "constructor_events_policy_batch_tests",
     "native_cases_written": 7,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\contract.json",
     "source_commit": "e7d9604ba5b18db343d378fecfb85eab5c34ff01",
-    "next_action": "Poll completion driver session71472 / exact saved process identity. It completes the existing build/package/deploy/restore sequence without another Cargo command. Inspect terminal receipts before claiming installed delivery; preserve original backlog.",
+    "next_action": "Advance substantive unmet original research/TODO acceptance. Preserve unfinished qualitative/storage findings and holds; do not rerun delivered finite contracts, inspected model/task comparisons, closed CodeMap/Blast work or a broad suite. Do not add small filler to trigger builds.",
     "native_distinct_behaviors_passed": 7,
     "public_current_artifact_checks": 20,
     "initial_public_fixture_budget_failure_retained": true,
     "release_commands_started": 1,
-    "release_live_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\release-live1.json",
-    "completion_driver": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\finish-release1.py",
-      "session_id": 71472,
-      "owner": {
-        "pid": 14544,
-        "creation_time": 1794869799.963828
-      },
-      "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\constructor-events-policy-batch-20261116\\completion1-state.json",
-      "behavior": "Waits exact existing release owners, then packages once, runs deploy5.py, restores normal runtime, verifies215installedassets and creates ZIP. Starts no Cargo."
-    },
-    "source_progress": "eval/constructor-events-policy-batch-progress-20261116.json"
+    "release_live_owner": null,
+    "completion_driver": null,
+    "source_progress": "eval/constructor-events-policy-batch-delivery-20261117.json",
+    "candidate_checks": 20,
+    "installed_checks": 20,
+    "additional_installed_event_recovery_checks": 3,
+    "normal_runtime_restored": true
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2995,5 +2965,10 @@
     "actual_coding_percent": null,
     "scope": "Recorded native/release Cargo-runner receipts starting November16 UTC in current-task-check; not an exhaustive machine activity log."
   },
-  "procedure_discovery_schema_delivery_20261116": "eval/procedure-discovery-schema-batch-delivery-20261116.json"
+  "procedure_discovery_schema_delivery_20261116": "eval/procedure-discovery-schema-batch-delivery-20261116.json",
+  "constructor_events_policy_batch_delivery_20261117": {
+    "record": "eval/constructor-events-policy-batch-delivery-20261117.json",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+    "original_goal_complete": false
+  }
 }

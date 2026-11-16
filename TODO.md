@@ -410,10 +410,10 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
-  Source pending November16: historical answers reuse the revision-pinned scoped
-  guidance resolver, preserving authored exceptions and excluding live policy.
-  Native and updated-runtime acceptance remain pending.
-  [Source progress](eval/historical-ask-policy-progress-20261116.json).
+  Installed November17: historical answers return scoped guidance from the same
+  immutable Git revision as their source, preserving exceptions, hashes and exact
+  saved recovery. Current guidance stays excluded; historical graph reconstruction
+  and broader task acceptance remain open. [Delivery](eval/constructor-events-policy-batch-delivery-20261117.json).
   Installed November16: ordinary history answers retain complete indexed commit messages,
   exceptions and exact identities, with recorded-history authority and unchanged ranking weight.
   [Delivery](eval/job-history-memory-batch-delivery-20261116.json).
@@ -493,10 +493,10 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
-  Source pending November16: explicit `event controlID.EventName` actions select
-  authored server-control markup and VB Handles bindings, with markup lines/hashes.
-  The installed baseline misses an actual LegacyValidation dropdown event; native and updated
-  runtime acceptance remain pending. [Source progress](eval/webforms-control-events-progress-20261116.json).
+  Installed November17: `event controlID.EventName` selects declared server
+  markup events and VB Handles bindings with source lines/hashes. The copied
+  LegacyValidation dropdown entry and default-budget exact recovery passed installed checks;
+  postback and runtime execution remain unproven. [Delivery](eval/constructor-events-policy-batch-delivery-20261117.json).
   Installed November16: existing JS/TS API callers are now composed into server
   entry traces with source lines/hashes, original route metadata, scoped guidance
   and exact saved recovery. Static caller candidates do not prove browser/runtime
@@ -736,6 +736,11 @@ specs already written.
   Centrality reranking blocks on first use. Compute post-ingest, persist, refresh lazily.
 
 - [x] **42. Harden `business_logic_service` LLM integration** (M) - delivered
+  Installed November17: referenced VB member names can carry bounded, cited
+  same-owner constructor assignments into analysis and persisted evidence. A changed
+  supporting file is disclosed even when the analyzed method is unchanged. These
+  are name matches, not proven effective state or measured task benefit.
+  [Delivery](eval/constructor-events-policy-batch-delivery-20261117.json).
   2026-11-12: safe visible failure reasons, bounded cited source fallback and no
   misplaced output-budget retry on provider outages. Reuses configured backend/model,
   deadlines and provider backoff; preserves malformed-output retry and prevents failed
