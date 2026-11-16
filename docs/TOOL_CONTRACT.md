@@ -1335,3 +1335,13 @@ or process restart, and does not poll, cancel or restart work. A captured runnin
 status is not evidence that a job is still running. `cancel_job` stays a separate
 mutation without these delivery controls. The shared `server_discovery` report
 scope identifies project-free retention, not a project record.
+
+Pending source change, not yet compiled or installed: ordinary `ask_codebase`
+history/rationale questions preserve each selected indexed commit message in full,
+including its recorded exceptions. Message evidence retains its indexed document
+identity, timestamp and exact commit ID. `recorded_history` distinguishes this
+indexed record from verified merge, approval, current policy or runtime behavior;
+its ranking weight is unchanged. Existing history-diff and other-provider excerpts,
+retrieval windows, scopes and historical-request routing stay unchanged. Complete
+question reports use the existing whole-report budget and immutable recovery;
+saved recovery does not query a later Git HEAD or promote historical intent.

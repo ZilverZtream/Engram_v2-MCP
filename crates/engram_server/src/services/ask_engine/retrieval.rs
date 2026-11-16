@@ -457,7 +457,7 @@ pub(crate) async fn gather_evidence_selected_source(
             ctx,
             namespaces::NAMESPACE_HISTORY,
             EvidenceKind::HistoryCommit,
-            Authority::MergedHistory,
+            Authority::RecordedHistory,
             "history",
             question,
             plan.qualifiers.path_prefixes.clone(),

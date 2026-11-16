@@ -30,6 +30,7 @@ pub enum Authority {
     ApprovedRequirement,  // approved requirement / explicit decision (memory)
     CurrentDocs,          // current product documentation
     MergedHistory,        // merged implementation history
+    RecordedHistory,      // indexed historical record; merge/approval not established
     DerivedBusinessLogic, // validated derived business logic
     AgentMemory,          // agent-authored memory note
     DreamerInsight,       // dreamer insight
@@ -45,7 +46,7 @@ impl Authority {
             Authority::HistoricalCode => 0.95,
             Authority::ApprovedRequirement => 0.9,
             Authority::CurrentDocs => 0.7,
-            Authority::MergedHistory => 0.6,
+            Authority::MergedHistory | Authority::RecordedHistory => 0.6,
             Authority::DerivedBusinessLogic => 0.55,
             Authority::AgentMemory => 0.45,
             Authority::DreamerInsight => 0.35,

@@ -79,6 +79,12 @@ impl ProviderOutcome {
 
 const SNIPPET_CHARS: usize = 1200;
 
+fn indexed_commit_id<'a>(namespace: &str, path: &'a str) -> Option<&'a str> {
+    let id = path.strip_prefix("commit:")?;
+    (namespace == namespaces::NAMESPACE_HISTORY && id.len() == 40
+        && id.bytes().all(|byte| byte.is_ascii_hexdigit())).then_some(id)
+}
+
 fn base_query(
     project_id: &str,
     namespace: &str,
@@ -135,6 +141,8 @@ fn hit_to_evidence(
     id: &mut usize,
 ) -> EvidenceItem {
     *id += 1;
+    let commit = indexed_commit_id(namespace, h.path.as_str()).map(str::to_owned);
+    let complete_message = commit.is_some();
     EvidenceItem {
         evidence_id: format!("ev_{id}"),
         document_id: Some(h.doc_id.clone()),
@@ -145,15 +153,15 @@ fn hit_to_evidence(
         path: Some(h.path.as_str().replace('\\', "/")),
         lines: (h.start_line > 0).then_some((h.start_line, h.end_line)),
         symbol_id: None, // search hits carry no node id
-        title: None,
-        content: content.chars().take(SNIPPET_CHARS).collect(),
+        title: commit.as_ref().map(|oid| format!("Indexed commit message {oid}")),
+        content: if complete_message { content } else { content.chars().take(SNIPPET_CHARS).collect() },
         generation: Some(generation),
-        commit: None,
+        commit,
         timestamp: h.timestamp,
         confidence: 0.85,
         relevance: h.score.clamp(0.0, 1.0),
         extraction_method: "fts".into(),
-        warnings: vec![],
+        warnings: if complete_message { vec!["Complete indexed commit message. Historical intent is not approval or current policy; merge status, current Git reachability and runtime behavior are not established by this indexed record.".into()] } else { vec![] },
         provider: provider.into(),
         score: None,
         directness: None,
@@ -338,7 +346,11 @@ async fn search_with(
                     search.get_doc_by_pk(&h.pk).ok().flatten().map(|t| t.2)
                         .or_else(|| h.snippet.clone()).unwrap_or_default()
                 };
-                let content = windowed_snippet(&full, &terms);
+                let content = if indexed_commit_id(&q.namespace, h.path.as_str()).is_some() {
+                    full
+                } else {
+                    windowed_snippet(&full, &terms)
+                };
                 items.push(hit_to_evidence(
                     h,
                     kind,
@@ -794,7 +806,7 @@ pub fn companion_evidence(
             gen_,
             c.weight,
             0.5,
-            Authority::MergedHistory,
+            Authority::RecordedHistory,
             id,
         );
         it.extraction_method = "git".into();

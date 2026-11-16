@@ -169,6 +169,7 @@ fn authority_label(a: Authority) -> &'static str {
         Authority::ApprovedRequirement => "requirement",
         Authority::CurrentDocs => "docs",
         Authority::MergedHistory => "history",
+        Authority::RecordedHistory => "recorded_history",
         Authority::DerivedBusinessLogic => "business_logic",
         Authority::AgentMemory => "memory",
         Authority::DreamerInsight => "insight",
