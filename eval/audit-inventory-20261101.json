@@ -10088,10 +10088,10 @@
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
     "selected_delivery_contract": {
-      "record": "eval/edit-context-policy-progress-20261116.json",
+      "record": "eval/vb-instruction-body-freshness-progress-20261116.json",
+      "original_requirement_id": "EG-27",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "EG-01",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-context-report-delivery-20261116\\contract.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-instruction-body-freshness-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
       "deployed": false
@@ -10126,7 +10126,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "Current three-outcome batch installed and normal runtime restored. Following TODO33/EG01 source outcomes await combined validation; no implementation item active until next original requirement is selected.",
+    "active_original_item": "Three distinct source outcomes completed: TODO33 source batching, EG01 scoped pre-edit guidance and EG27 captured VB range freshness. Combined validation/installation pending.",
     "next_user_visible_deliverable": "Finish another distinct original source outcome before next combined build. Preserve source batching and pre-edit policy changes; no new compile for these two alone.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."

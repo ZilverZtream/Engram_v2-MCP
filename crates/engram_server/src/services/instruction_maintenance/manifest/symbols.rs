@@ -223,6 +223,15 @@ pub(super) fn capture(
                     omitted += 1;
                     continue;
                 };
+                let span_kind = if vb && symbol.kind == "function" && symbol.end_line > symbol.start_line {
+                    "regex_observed_method_line_range"
+                } else if vb {
+                    "regex_declaration_line_only"
+                } else if sql {
+                    "regex_procedure_line_range"
+                } else {
+                    "extracted_declaration_line_range"
+                };
                 let candidate = Candidate {
                     path: path.clone(),
                     source_blake3: snapshot.blake3.clone(),
@@ -235,13 +244,7 @@ pub(super) fn capture(
                     evidence_blake3: blake3::hash(snapshot.content[range[0]..range[1]].as_bytes())
                         .to_hex()
                         .to_string(),
-                    span_kind: if vb {
-                        "regex_declaration_line_only"
-                    } else if sql {
-                        "regex_procedure_line_range"
-                    } else {
-                        "extracted_declaration_line_range"
-                    },
+                    span_kind,
                     absence_proof: false,
                 };
                 if names(&candidate).is_empty() {
@@ -440,7 +443,8 @@ pub(super) fn capture(
                         "ambiguous_symbol_candidates"
                     } else if qualified_suffix {
                         "qualification_not_verified"
-                    } else if candidates[0].span_kind == "regex_declaration_line_only" {
+                    } else if matches!(candidates[0].span_kind,
+                        "regex_declaration_line_only" | "regex_observed_method_line_range") {
                         "unverified_vb_declaration_candidate"
                     } else {
                         "single_observed_declaration_candidate"

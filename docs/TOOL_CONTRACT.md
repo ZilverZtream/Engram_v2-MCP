@@ -1,5 +1,14 @@
 # Tool Contract
 
+Source-complete, awaiting combined delivery: instruction maintenance compares
+existing captured multiline VB function ranges by their exact observed byte
+hashes. A referenced range can remain unchanged when another method changes;
+an edit inside that observed range reports changed candidate bytes. VB references
+remain unverified with partial coverage: these regex ranges establish neither
+compiler bindings nor verified method boundaries, semantic equivalence or symbol
+absence. Declaration-line-only class/field candidates retain unavailable body
+coverage. Existing source and candidate budgets are unchanged.
+
 Source-complete, awaiting a future combined delivery: `get_method_edit_context`
 includes complete applicable authored guidance for the selected method and
 actually returned caller source. Unreturned caller leads do not widen this scope.

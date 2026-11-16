@@ -721,7 +721,7 @@ pub(super) fn capture(
             "Symbol observations search only captured code: 1024 declaration candidates total, 256 per file, 256 mentions and four returned matches per mention, with observed counts/omissions. ",
             "Inline identifiers and plain text matching collected names are candidate references, not certified bindings or exhaustive prose discovery. ",
             "Plain text requires exact declaration spelling; explicit inline-code VB identifiers retain case-insensitive lookup. ",
-            "Unsupported/unavailable/truncated inventories leave coverage gaps even when no mention is found. Existing extractors provide positive line-range candidates only; VB uses source-only regex declaration lines without Roslyn. ",
+            "Unsupported/unavailable/truncated inventories leave coverage gaps even when no mention is found. Existing extractors provide positive line-range candidates only; VB uses source-only regex observations without Roslyn. Multiline VB function ranges retain exact observed bytes for comparison; declaration-line-only candidates do not establish body coverage. These are not verified method boundaries or compiler bindings. ",
             "No candidate or empty scan proves symbol absence, deletion, semantic identity or unchanged behavior. Compared excerpt hashes and candidate-location changes have only their literal observed meaning. ",
             "Whole-file LF/CRLF-only differences remain separate; raw hashes are exact. Move candidates cover collected exact-content paths only. ",
             "No reference establishes policy acceptance, ownership or authorization to edit."
