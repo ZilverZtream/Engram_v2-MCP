@@ -238,12 +238,6 @@ impl Catalog {
                 "compiler_binding_verified":false,"runtime_argument_known":false,
                 "interpretation":"The current method declares this parameter's type. Caller arguments, actual object identity, connection and execution remain unverified."
             });
-            binding["receiver_binding"] = json!({
-                "kind":"declared_required_by_value_parameter",
-                "declaration_line":method.start_line as usize + parameter_line - 1,
-                "compiler_binding_verified":false,"runtime_argument_verified":false,
-                "interpretation":"The reached method declares this parameter type. Caller argument identity, object contents, successful execution and deployed database binding are not proven."
-            });
         }
         Ok(binding)
     }
