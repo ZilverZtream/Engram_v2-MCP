@@ -11,6 +11,7 @@ use crate::state::{AppEvent, ProjectInfo, ProjectState};
 use crate::tools::Engram;
 mod instruction_observation;
 mod graph_rebuild;
+mod memory_publication;
 #[cfg(test)]
 #[path = "project_tools/memory_retention_tests.rs"]
 mod memory_retention_tests;
@@ -4663,7 +4664,7 @@ impl Engram {
         content: &str,
         author: Option<&str>,
         timestamp_ms: u64,
-    ) -> Result<(), McpError> {
+    ) -> Result<(), memory_publication::MemoryIndexFailure> {
         let ps = self.ensure_project_runtime(project_id).await?;
         let namespace = engram_core::namespaces::NAMESPACE_MEMORY_BANK;
         let path = format!("memory_bank:{section_id}");
@@ -4703,7 +4704,7 @@ impl Engram {
             ps.search
                 .index_docs(project_id, &docs, &cancel)
                 .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                .map_err(memory_publication::MemoryIndexFailure::from_indexing)?;
         }
         Ok(())
     }
@@ -4846,14 +4847,17 @@ impl Engram {
         }
 
         // Re-index for search (chunked; clears the prior version's chunks).
-        self.index_memory_section_for_search(
+        if let Err(error) = self.index_memory_section_for_search(
             &req.project_id,
             &section_id,
             &content,
             author.as_deref(),
             now,
         )
-        .await?;
+        .await
+        {
+            return Ok(error.stored_result(&req.project_id, &section_id, now));
+        }
 
         // Advisory near-duplicate check: warn if another section covers nearly
         // the same ground, so knowledge doesn't fragment into rival notes.
@@ -5142,14 +5146,17 @@ impl Engram {
                 })?;
         }
 
-        self.index_memory_section_for_search(
+        if let Err(error) = self.index_memory_section_for_search(
             &req.project_id,
             &section_id,
             &sec.content,
             sec.author.as_deref(),
             now,
         )
-        .await?;
+        .await
+        {
+            return Ok(error.stored_result(&req.project_id, &section_id, now));
+        }
 
         Ok(crate::tool_guidance::stored_readback(
             CallToolResult::success(vec![Content::text(format!(

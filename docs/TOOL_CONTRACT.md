@@ -806,6 +806,18 @@ identifiers are included. Follow-ups are advisory and do not execute reads or
 authenticate imported decisions. Errors retain their original result. Memory
 deletion suggests list_memory_bank to inspect the remaining sections.
 
+When a memory update or import is durable but search indexing fails, the tool
+returns `stored_search_incomplete`, `stored: true`, `search_indexing: failed`
+and `retry_write: false`, with the stored section ID and update timestamp.
+The note is already saved: do not repeat an append to repair search. The result
+preserves the indexing diagnostic and supplies an exact `read_memory_bank`
+call. An embedding-provider failure after lexical publication also supplies
+`repair_project(project_id, scope="vector_only")`, to run after restoring the
+provider; this repairs search without rewriting the note. Other indexing
+failures disclose unknown lexical publication and suggest `project_health`
+instead of promising vector-only recovery. Validation and registry-write
+failures still return errors because persistence has not been established.
+
 
 VB request tracing includes source-level SqlCommand text candidates. Literal
 constructor/CommandText values and stable same-method Const/Static string
