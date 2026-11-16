@@ -39,6 +39,8 @@ pub struct Hop {
 pub struct PageTrace {
     pub page: String,
     pub codebehind: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub control_event: Option<super::control_events::Evidence>,
     pub handlers: Vec<Handler>,
     pub paths: Vec<Hop>,
     pub source_members: Vec<serde_json::Value>,
@@ -154,12 +156,13 @@ fn handler_bindings(
     source: &str,
     methods: &[Node],
     action: Option<&str>,
+    control_event: Option<&super::control_events::Evidence>,
 ) -> Vec<(Node, String)> {
     let requested = action.map(str::trim).filter(|a| !a.is_empty());
     let click = requested.and_then(|a| a.strip_prefix("click "));
     let form = requested.is_some_and(|a| a.eq_ignore_ascii_case("submit form"));
     let load =
-        requested.is_none_or(|a| a.eq_ignore_ascii_case("load page")) || click.is_some() || form;
+        requested.is_none_or(|a| a.eq_ignore_ascii_case("load page")) || click.is_some() || form || control_event.is_some();
     let tags = Regex::new(r"(?s)<[A-Za-z][^>]*>").expect("markup tag syntax");
     let mut selected = Vec::new();
     for node in methods {
@@ -193,8 +196,17 @@ fn handler_bindings(
                     || click.is_some_and(|target| {
                         control.eq_ignore_ascii_case(target) && event.eq_ignore_ascii_case("click")
                     })
+                    || control_event.is_some_and(|request| control.eq_ignore_ascii_case(&request.control)
+                        && event.eq_ignore_ascii_case(&request.event))
                 {
                     reasons.push(format!("Handles {control}.{event}"));
+                }
+            }
+        }
+        if let Some(request) = control_event {
+            for binding in &request.markup_bindings {
+                if binding.handler.eq_ignore_ascii_case(name) {
+                    reasons.push(format!("{} {}={name} (authored server-control event)", request.control, binding.attribute));
                 }
             }
         }
@@ -243,6 +255,7 @@ pub fn trace_page(
     sources: &[Source<'_>],
     selected: &BTreeMap<String, u64>,
 ) -> anyhow::Result<PageTrace> {
+    let requested_event = super::control_events::requested(action)?;
     if route.web_method.is_some() {
         return super::web_methods::trace(graph, project, route, action, include_db, include_triggers, sources, selected);
     }
@@ -294,7 +307,8 @@ pub fn trace_page(
             .gaps
             .push(format!("Method inventory truncated at {MAX_METHODS}"));
     }
-    let chosen = handler_bindings(&markup, source.content, &methods, action);
+    result.control_event = requested_event.map(|(control, event)| super::control_events::collect(page.path, page.content, control, event));
+    let chosen = handler_bindings(&markup, source.content, &methods, action, result.control_event.as_ref());
     if chosen.is_empty() {
         result.gaps.push("No requested authored handler binding found; dynamic, multiline and inherited bindings are not inferred".into());
     }
@@ -310,6 +324,7 @@ pub(super) fn empty_trace(path: &str, include_db: bool, include_triggers: bool) 
     PageTrace {
         page: path.into(),
         codebehind: None,
+        control_event: None,
         handlers: Vec::new(),
         paths: Vec::new(),
         source_members: Vec::new(),

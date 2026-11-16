@@ -37,6 +37,8 @@ impl Engram {
                 None,
             ));
         }
+        crate::services::request_trace::control_events::requested(req.action.as_deref())
+            .map_err(|error| McpError::invalid_params(error.to_string(), None))?;
         let record = self.ensure_project_record(&req.project_id).await?;
         let runtime = self.ensure_project_runtime(&req.project_id).await?;
         let (generation, view) = self

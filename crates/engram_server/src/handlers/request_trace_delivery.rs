@@ -23,6 +23,18 @@ fn node(id: &Value, target: Option<&Value>, nodes: &mut Vec<Value>, indices: &mu
 }
 
 fn compact(trace: &mut Value, counts: &mut [usize; 3]) {
+    if let Some(bindings) = trace.get_mut("control_event")
+        .and_then(|event| event.get_mut("markup_bindings")).and_then(Value::as_array_mut) {
+        for binding in bindings {
+            if let Some(object) = binding.as_object_mut() {
+                if let Some(excerpt) = object.remove("excerpt") {
+                    counts[1] += 1;
+                    counts[2] += excerpt.as_str().map(str::len).unwrap_or(0);
+                }
+                object.insert("source_excerpt_deferred".into(), json!(true));
+            }
+        }
+    }
     for lineage in trace["value_lineage"].as_array_mut().into_iter().flatten() {
         let flow = &lineage["flow"];
         lineage["flow"] = json!({"status":flow["status"],"reason":flow["reason"],

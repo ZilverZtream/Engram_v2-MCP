@@ -489,6 +489,10 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
+  Source pending November16: explicit `event controlID.EventName` actions select
+  authored server-control markup and VB Handles bindings, with markup lines/hashes.
+  The installed baseline misses an actual LegacyValidation dropdown event; native and updated
+  runtime acceptance remain pending. [Source progress](eval/webforms-control-events-progress-20261116.json).
   Installed November16: existing JS/TS API callers are now composed into server
   entry traces with source lines/hashes, original route metadata, scoped guidance
   and exact saved recovery. Static caller candidates do not prove browser/runtime

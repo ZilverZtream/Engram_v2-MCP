@@ -1,0 +1,48 @@
+{
+  "original_requirement_id": "TODO-31",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "URL/action through authored WebForms handlers and existing call/database evidence.",
+  "observed_missing_behavior": "Installed ec1f2567 resolves the actual copied LegacyValidation project.aspx URL, but event ddlType.SelectedIndexChanged yields no requested authored handler despite its OnSelectedIndexChanged declaration.",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116\\contract.json",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116\\baseline1\\receipt.json",
+  "baseline_status": "BASELINE_GAP_CONFIRMED",
+  "baseline_seconds": 1.5239033999387175,
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/control_events.rs",
+    "crates/engram_server/src/services/request_trace/execution.rs",
+    "crates/engram_server/src/services/request_trace.rs",
+    "crates/engram_server/src/handlers/request_trace_tools.rs",
+    "crates/engram_server/src/handlers/request_trace_delivery.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/request_trace_control_events.rs"
+  ],
+  "finite_acceptance": [
+    "Explicit event controlID.EventName accepts authored OnEvent on runat=server markup and explicit VB Handles bindings. Preserve current load/click/submit/method behavior and static source/runtime qualifications.",
+    "Current markup declarations retain file/line/end-line/full-source hash and tag source. Only selected physical-revision/source-hash admitted methods expand into existing call/SQL evidence.",
+    "Wrong event names do not select unrelated handlers; comments do not create markup bindings, stale code stays withheld, malformed explicit event actions refuse before opening project stores.",
+    "Whole-report budgets retain every selected path and markup binding identity; deferred tag excerpts contribute to omission byte/count metadata and exact immutable recovery.",
+    "Focused native source cases and owned public actual-source-copy acceptance remain pending; no model replay or standalone Cargo."
+  ],
+  "checks_completed": [
+    "Installed owned-copy public baseline confirms the gap; source copies preserved, process closed and temporary index removed.",
+    "Rustfmt syntax parsing completed; legacy modules emitted to stdout only.",
+    "Git diff whitespace check passed; nine protected WIP file hashes unchanged."
+  ],
+  "native_cases_written": 2,
+  "native_tests_executed": 0,
+  "builds_started": 0,
+  "runtime_deployed": false,
+  "original_goal_complete": false,
+  "limits": [
+    "This is pending source work, not installed event support or completed TODO31.",
+    "Actual production LegacyValidation index/configuration was not changed or revalidated. Baseline used two exact non-Q source copies in a private fts_only/no-LLM configuration.",
+    "Dynamic bindings, inherited control creation, naming containers, client wiring, postback validation, lifecycle order and execution remain unproven."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-control-events-20261116",
+    "baseline_fixture_removed": true,
+    "baseline_process_closed": true,
+    "retained": "Two pinned source copies, finite contract, verification driver and raw baseline evidence. Keep for acceptance and review; no preexisting folders removed."
+  }
+}
