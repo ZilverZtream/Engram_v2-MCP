@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete response budgets and exact recovery for AI tool outputs without silently losing selected evidence.",
   "observed_missing_behavior": "analyze_business_logic persists method documents and returns full JSON/Markdown without max_tokens/response_id/response_offset. A large successful result can exceed the client reply budget after provider work/publication has completed; force_refresh is a no-op and a fresh call repeats analysis.",
@@ -25,7 +25,13 @@
     "retention": "Keep owned synthetic source/driver/receipts until superseded; new provider/server/DB fixtures own their shutdown and temporary directories. No preexisting deletion.",
     "baseline_provider_closed": true,
     "baseline_owners_closed": true,
-    "baseline_fixture_removed": true
+    "baseline_fixture_removed": true,
+    "final_public_owners_closed": true,
+    "final_public_fixtures_removed": true,
+    "owned_native_fixture_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
+    }
   },
   "source_baseline": "0d6a152",
   "native_target": "business_analysis_delivery_tests",
@@ -34,7 +40,7 @@
   "combined_native_cases": 11,
   "native_tests_run": true,
   "public_acceptance_run": true,
-  "deployed": false,
+  "deployed": true,
   "baseline_receipt": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\baseline1\\receipt.json",
     "sha256": "7dcdd2a4d66a57dc0a5ed1986f31462034c4fdce4a304f35db8aba1c5f1d6806"
@@ -61,11 +67,10 @@
     "Rust2024 syntax parsed; new actual-handler native fixture formatted. Shared schema tests include the newly selected analysis; original budget owners remain excluded.",
     "Only shared eligibility/description and schema expectations change runtime behavior. Protected business handler, extraction, prompts, models, publication and errors unchanged; saved recovery is dispatched before the handler.",
     "Native proof prepared: two large actual analyses, a normal fitting single-member reanalysis, provider shutdown and source deletion, exact saved MCP recovery with all12current documents byte-unchanged and zero additional model requests. Not run yet.",
-    "Combined focused acceptance complete: eleven native cases with eight retained unaffected, thirty-three public checks with passed history/WebMethod retained and only failed business provider helper rerun. All public server/provider owners closed and fixtures removed."
+    "Combined focused acceptance complete: eleven native cases with eight retained unaffected, thirty-three public checks with passed history/WebMethod retained and only failed business provider helper rerun. All public server/provider owners closed and fixtures removed.",
+    "Same optimized release passed33candidate and33installed public checks. Installed identity, unchanged214companion assets/config/generation3151 and normal runtime restoration verified."
   ],
-  "checks_pending": [
-    "Reuse one optimized release for owned candidate and installed public acceptance, restore normal runtime and record installed identities. No accepted debug/native proof replay."
-  ],
+  "checks_pending": [],
   "limitations": [
     "Successful text reports only; existing error/nontext delivery is preserved. Snapshot delivery is not an analysis cache, semantic validation or policy compliance.",
     "Ordinary fresh analyses retain existing provider/persistence effects. Recovery never promises current source freshness.",
@@ -95,34 +100,17 @@
     "crates/engram_server/tests/history_webmethod_business_batch_tests.rs": "0161743c1357cfd6f273ee80efd47539177da14393cb910d457a20a602f47631"
   },
   "combined_validation": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\history-webmethod-business-batch-delivery-20261116.json",
+      "sha256": "418904739d3d327dd908af89cdac0dd9f8727875ca33bd339eb4c5ce2de7fc60"
+    },
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-    "native_target": "history_webmethod_business_batch_tests",
-    "native_builds": 5,
     "native_cases_passed": 11,
-    "retained_unaffected_cases": 8,
-    "current_affected_cases": 3,
-    "native_seconds": 463.33426500007045,
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
-      "sha256": "c5054107af2afb2f69aafad463d604972628cc4c550e689e7e53ae95c7fda21c"
-    },
-    "public_checks_passed": 33,
-    "public_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug6\\receipt.json",
-      "sha256": "5afee29dcd165668c1cc7289251d05619d5a2355f5f0410080e8154e61a1a6d5"
-    },
-    "release_builds": 0,
-    "extra_debug_builds": 0,
-    "full_suite_run": false,
-    "owned_native_temp_retained": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
-      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
-    },
-    "paired_debug_artifact": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug-pair1.json",
-      "sha256": "3ca05bf0f7876f23c9be0cddb7dc08b62d4e721b292c836992fc55b96ebed27c"
-    },
-    "deployed": false
-  }
+    "native_builds": 5,
+    "public_checks_per_candidate_and_installed": 33,
+    "release_builds": 1,
+    "deployed": true
+  },
+  "delivery_record": "eval/history-webmethod-business-batch-delivery-20261116.json"
 }

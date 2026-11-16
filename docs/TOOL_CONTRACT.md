@@ -1,6 +1,12 @@
 # Tool Contract
 
-Source-complete, awaiting combined validation: successful text results from
+Installed November16: persistent Git change-card metadata compatibility is
+scoped to the metadata extractor and stored format version. Unrelated tool or
+ranking edits no longer invalidate all saved metadata; canonical repository
+separation, fields and exclusions remain. No current latency gain is measured.
+[Delivery](../eval/history-webmethod-business-batch-delivery-20261116.json).
+
+Installed November16: successful text results from
 `analyze_business_logic` use existing complete-report delivery with a40KiB
 default and caller `max_tokens`. Follow the returned saved-report controls to
 recover the original JSON/Markdown MCP result without source access, model
@@ -8,9 +14,9 @@ calls or repeated document publication. Fresh analysis keeps its existing
 provider calls and persistence; this is not an analysis cache. Existing failures
 retain their original error delivery. Generation, inferred-rule semantics,
 provenance and publication behavior are unchanged.
-[Pending source](../eval/business-analysis-delivery-progress-20261116.json).
+[Delivery](../eval/history-webmethod-business-batch-delivery-20261116.json).
 
-Source-complete, awaiting combined validation: `trace_user_request` recognizes
+Installed November16: `trace_user_request` recognizes
 literal VB WebMethod URL suffixes such as `POST /language.aspx/change` and
 `POST /api.asmx/getimg`. Page entries require a public Shared method with an
 observed WebMethod attribute and the directive's authored type/code file. ASMX
@@ -23,7 +29,7 @@ page/lifecycle traces keep their behavior. An action cannot override the URL's
 method. Inherited/inline/aliased bindings, runtime hosting/protocol/verb dispatch,
 session availability and successful execution remain unproven. Nothing is
 published or executed in the application.
-[Pending source](../eval/webmethod-request-trace-progress-20261116.json).
+[Delivery](../eval/history-webmethod-business-batch-delivery-20261116.json).
 
 Installed November16: `explain_change` uses shared
 complete-report delivery with a40KiB default and caller `max_tokens` controls.

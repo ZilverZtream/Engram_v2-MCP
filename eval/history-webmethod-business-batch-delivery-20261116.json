@@ -1,0 +1,196 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-16T05:28:42.261947+00:00",
+  "original_requirements": [
+    "EG-22",
+    "TODO-31",
+    "TODO-4"
+  ],
+  "behavior": [
+    "Git change-card metadata cache compatibility now depends on isolated extraction source and format version; unrelated tool/ranking edits no longer invalidate all immutable metadata. Fields, generated-file exclusions and canonical repository separation retained.",
+    "Literal ASPX/ASMX WebMethod URL suffixes reach current attributed public VB methods, including page Shared methods and same-application App_Code partial-service methods, before the existing admitted call/database walker.",
+    "Large successful business-analysis JSON/Markdown reports use existing complete reply budgets and exact immutable MCP-result recovery after provider work/publication. Recovery works with source removed and provider stopped, without additional model requests or document publication."
+  ],
+  "source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5",
+  "original_source_commits": {
+    "EG-22": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
+    "TODO-31": "8b14ff1e6c777b55b16430e4488f647fcab598bd",
+    "TODO-4": "4408401a60d927f0357a0900a1f220e7bcc9f460"
+  },
+  "source_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\source-validation1.json",
+    "sha256": "03d5eeb7ea35ba174c2713859f57532edb4ce61c7b5d99aed59d1c6cbaa52d25"
+  },
+  "source_progress_records": [
+    "eval/history-metadata-identity-progress-20261116.json",
+    "eval/webmethod-request-trace-progress-20261116.json",
+    "eval/business-analysis-delivery-progress-20261116.json"
+  ],
+  "installed_runtime": {
+    "server_sha256": "449fe47a139eeac3e5b7de017e101c7f2c2340f601d1c6d8f59c1dfccb9977d1",
+    "manifest_sha256": "57d268ebe333096cf188132df0096ffbaed25a3cdb093f52fec31a3bdbd9b891",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "active": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin"
+  },
+  "native_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
+    "sha256": "c5054107af2afb2f69aafad463d604972628cc4c550e689e7e53ae95c7fda21c"
+  },
+  "native_cases_passed": 11,
+  "native_retained_unaffected_cases": 8,
+  "debug_public": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug6\\receipt.json",
+    "sha256": "5afee29dcd165668c1cc7289251d05619d5a2355f5f0410080e8154e61a1a6d5"
+  },
+  "public": {
+    "candidate1": {
+      "checks": 33,
+      "all_passed": true,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\candidate1\\acceptance.json",
+        "sha256": "9b74ee19b77d4c3c57adf5c5f9b90d961cec64325189436abed52afe9d83bb3f"
+      },
+      "subproofs": [
+        {
+          "requirement": "EG22",
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\candidate1\\receipt.json",
+          "sha256": "706ae1c1fb720453a0279b12ca734afa9819ebfba6f89d7e0528b05fc13b7418",
+          "driver_sha256": "aefc74b683923170588aef08f677ea4b1d51969493d2aaf31dcafa19c276c3ee"
+        },
+        {
+          "requirement": "TODO31",
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\candidate1\\receipt.json",
+          "sha256": "df390866bfc3567f7b5f9673c6fb35dd95d7836f2be4f910ee913d2138bf9e8b",
+          "driver_sha256": "c740403cbf1cc0e35bf51e062775b6fcbbe4a0b0436df93c6e8264a2927edf3e"
+        },
+        {
+          "requirement": "TODO4",
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\candidate1\\receipt.json",
+          "sha256": "f7df33e8eed13ef1b77134b85398e62e3d96df5226647027c4cc48b246ee5aa4",
+          "driver_sha256": "33746da77905edc0685918ce2a585a752747e231234030b077b1e4d0edfa3a01"
+        }
+      ]
+    },
+    "installed1": {
+      "checks": 33,
+      "all_passed": true,
+      "receipt": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\installed1\\acceptance.json",
+        "sha256": "626d7bff221065fdc7dc4df518260079acb78d267d24453b7ae3315bf2fb8a8f"
+      },
+      "subproofs": [
+        {
+          "requirement": "EG22",
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\installed1\\receipt.json",
+          "sha256": "3dbfa815d976617d74ae55f0f5b0a19e3002958aabae8e57f0053bb3e8b97b2b",
+          "driver_sha256": "aefc74b683923170588aef08f677ea4b1d51969493d2aaf31dcafa19c276c3ee"
+        },
+        {
+          "requirement": "TODO31",
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\installed1\\receipt.json",
+          "sha256": "dedc821943fc3e49ae3d0eb2018f44298204b195fa373a5aa1b212ffe99656bb",
+          "driver_sha256": "c740403cbf1cc0e35bf51e062775b6fcbbe4a0b0436df93c6e8264a2927edf3e"
+        },
+        {
+          "requirement": "TODO4",
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\installed1\\receipt.json",
+          "sha256": "2c9a97cce2edef96551405b577e16c5aed18f5e7354cb16c735ac2a281191a57",
+          "driver_sha256": "33746da77905edc0685918ce2a585a752747e231234030b077b1e4d0edfa3a01"
+        }
+      ]
+    }
+  },
+  "builds": {
+    "native_attempts": 5,
+    "native_seconds": 463.33426500007045,
+    "release_attempts": 1,
+    "release_seconds": 841.3290094999829,
+    "extra_debug_builds": 0,
+    "full_or_lib_suite_run": false
+  },
+  "normal_runtime": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\restored-runtime\\receipt.json",
+    "sha256": "486e93dc2fded14abc5c0f765f27b6155c805852561ef4f5d53f6fbfc6481a23"
+  },
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "normal_selected_generation": 3151,
+  "protected_wip9_unchanged": true,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
+    "new_worktree_created": false,
+    "existing_source_checkout_reused": true,
+    "release_job_and_relay_closed": true,
+    "release_fixture_removed": true,
+    "all_final_public_fixtures_and_owners_closed": true,
+    "private_config_hold_closed": true,
+    "private_config_clone_removed": true,
+    "owned_native_fixture_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
+    },
+    "paired_debug_artifact_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug-pair1.json",
+      "sha256": "3ca05bf0f7876f23c9be0cddb7dc08b62d4e721b292c836992fc55b96ebed27c"
+    },
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-72add8a47b164575a767419724ad22d8",
+    "cleanup_condition": "Retain delivery package/evidence and old installed pair until superseded. Do not retry policy-rejected native3 cleanup; no preexisting folders deleted."
+  },
+  "retained_failures": {
+    "native_attempt_receipts": [
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native1.json",
+        "sha256": "69f568ec75285debd481fba71e491107c861481942da5c2b0447d28a00e5745c"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native2.json",
+        "sha256": "a14579d04a9f72beeb9db1fcf55a15eced590c3f5cb2f2d9a0849ed9805e3948"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3.json",
+        "sha256": "3705e2dba81f788a14ecfeae5da73074112fcea7ee793e969b050645acc81f4e"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native4.json",
+        "sha256": "3a221a3087f3394e6d12d014531b4ec0851e5534420758314782166c3db10beb"
+      },
+      {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native5.json",
+        "sha256": "17d624bbc37b6f3684443d3d423112b62ab73ae6fb93ab65c87394cf0b58df99"
+      }
+    ],
+    "debug_failed_phases": [
+      "debug1",
+      "debug2",
+      "debug3",
+      "debug4",
+      "debug5"
+    ],
+    "provider_shutdown_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\provider-fixture-shutdown-correction1.json",
+      "sha256": "954e9598bdb8101303ca271ce99dfa79e8105fa55937c4e3ad86f52f879b5490"
+    },
+    "package_handoff_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\package-handoff-correction1.json",
+      "sha256": "e2d7d6d55a51994aab2a1c619f5f19725a1c4a9bfa8e796838334b32c73ac883"
+    },
+    "first_pipeline": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\pipeline-state1.json",
+      "sha256": "f59a02eab2b224ef6aa460d4f0b37feb2e2cac518164c90ebedf710bf0ba4c03"
+    }
+  },
+  "delivery_pipeline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\pipeline-state2.json",
+    "sha256": "b7e9f0f312b392e4c3f8c95c9d3fda24ce1c945648aba971b8138697b527acd7"
+  },
+  "limitations": [
+    "No current history latency improvement or percentage gain measured. This compatibility fix is not a wider history/cache redesign.",
+    "WebMethod output is static source-admitted candidate evidence. Runtime hosting/protocol/verb binding, inherited/inline/aliased methods and execution remain unproven; no parser/CodeMap/Blast changes.",
+    "Business recovery is not an analysis cache or semantic validation. Fresh analysis retains existing model/persistence effects, failure delivery and unverified inferred-rule semantics.",
+    "Owned actual non-Q LegacyValidation source copies and deterministic local provider used. No actual LegacyValidation/Q source operation, real-model billing, task-productivity gain, v1 readiness or full19gate closure claimed."
+  ],
+  "full_original_goal_active": true
+}

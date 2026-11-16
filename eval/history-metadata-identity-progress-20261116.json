@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-22",
   "original_requirement": "Persistent change-card metadata cache: reuse unchanged history metadata across restarts and avoid repeatedly describing the same Git changes.",
   "observed_missing_behavior": "The metadata namespace hashes entire change_card_service.rs, metadata_cache.rs and pr_history_tools.rs. Unrelated ranking, tool response and cache-handling edits invalidate every persisted card even when the extraction result is unchanged.",
@@ -41,20 +41,25 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116",
     "fixtures_created": false,
     "owned_processes_started": false,
-    "retention": "Retain source/contract/equivalence receipt until superseded; no preexisting removal."
+    "retention": "Retain source/contract/equivalence receipt until superseded; no preexisting removal.",
+    "final_public_owners_closed": true,
+    "final_public_fixtures_removed": true,
+    "owned_native_fixture_retained": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
+    }
   },
   "native_tests_run": true,
   "public_acceptance_run": true,
-  "deployed": false,
+  "deployed": true,
   "checks_completed": [
     "Rust2024 syntax parsed; existing extraction/PR-parser bodies match the prior committed source after formatting and visibility/path adjustments.",
     "Namespace now hashes only extraction.rs and persisted format1, retaining both canonical repository identities. No card field, generated-file rule, title parser or file/body limit changed.",
     "No Cargo/native/public/release execution; one source-complete requirement only. Existing metadata cache and extraction fixtures will be selected in the next combined native validation.",
-    "Combined focused acceptance complete: eleven native cases with eight retained unaffected, thirty-three public checks with passed history/WebMethod retained and only failed business provider helper rerun. All public server/provider owners closed and fixtures removed."
+    "Combined focused acceptance complete: eleven native cases with eight retained unaffected, thirty-three public checks with passed history/WebMethod retained and only failed business provider helper rerun. All public server/provider owners closed and fixtures removed.",
+    "Same optimized release passed33candidate and33installed public checks. Installed identity, unchanged214companion assets/config/generation3151 and normal runtime restoration verified."
   ],
-  "checks_pending": [
-    "Reuse one optimized release for owned candidate and installed public acceptance, restore normal runtime and record installed identities. No accepted debug/native proof replay."
-  ],
+  "checks_pending": [],
   "limitations": [
     "One cache namespace transition can cause an initial rebuild. Future unrelated ranking/tool changes no longer invalidate extraction identity.",
     "No measured current40-second reduction, warm/cold timing claim, task benefit or global metadata readiness claim."
@@ -76,34 +81,17 @@
     "crates/engram_server/src/services/change_card_service/extraction.rs": "163342d8b9452cef1e23520dbd7c71e8cad2c5cba2440159fa29cc5e978f2ec3"
   },
   "combined_validation": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\history-webmethod-business-batch-delivery-20261116.json",
+      "sha256": "418904739d3d327dd908af89cdac0dd9f8727875ca33bd339eb4c5ce2de7fc60"
+    },
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-    "native_target": "history_webmethod_business_batch_tests",
-    "native_builds": 5,
     "native_cases_passed": 11,
-    "retained_unaffected_cases": 8,
-    "current_affected_cases": 3,
-    "native_seconds": 463.33426500007045,
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native-acceptance.json",
-      "sha256": "c5054107af2afb2f69aafad463d604972628cc4c550e689e7e53ae95c7fda21c"
-    },
-    "public_checks_passed": 33,
-    "public_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug6\\receipt.json",
-      "sha256": "5afee29dcd165668c1cc7289251d05619d5a2355f5f0410080e8154e61a1a6d5"
-    },
-    "release_builds": 0,
-    "extra_debug_builds": 0,
-    "full_suite_run": false,
-    "owned_native_temp_retained": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
-      "sha256": "caa893ae484794e1b9f3ec2cb5bc06abb0f1afae9e6c1165b996bcb151dcc322"
-    },
-    "paired_debug_artifact": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\debug-pair1.json",
-      "sha256": "3ca05bf0f7876f23c9be0cddb7dc08b62d4e721b292c836992fc55b96ebed27c"
-    },
-    "deployed": false
-  }
+    "native_builds": 5,
+    "public_checks_per_candidate_and_installed": 33,
+    "release_builds": 1,
+    "deployed": true
+  },
+  "delivery_record": "eval/history-webmethod-business-batch-delivery-20261116.json"
 }
