@@ -81,6 +81,10 @@ async fn procedure_question_preserves_complete_reader_evidence_and_original_reco
         .handle_ask_codebase(serde_json::from_value(args.clone())?)
         .await?;
     let full: Value = serde_json::from_str(text(&full))?;
+    ensure!(
+        full["status"] != "unsupported",
+        "A complete matching source declaration must support the named procedure premise"
+    );
     let evidence = full["evidence"]
         .as_array()
         .unwrap()
