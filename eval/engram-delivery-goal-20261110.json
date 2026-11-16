@@ -2560,74 +2560,46 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "ef8eb82eb1d31be21a7de6a0d05aadce5ab0dd87",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
-        "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
-        "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending.",
-        "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
-        "progress_record": "eval/state-report-delivery-progress-20261116.json",
-        "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending.",
-        "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-      },
-      {
-        "original_requirement_id": "TODO-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "599af5b7ebacd6f43d0539653c1706f560378c6e",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
-        "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
-        "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending.",
-        "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
     "last_completed_batch": {
-      "record": "eval/history-webmethod-business-batch-delivery-20261116.json",
+      "record": "eval/maintenance-state-parameter-batch-delivery-20261116.json",
       "source_requirements": [
-        "EG-22",
-        "TODO-31",
-        "TODO-4"
+        "EG-31",
+        "TODO-4",
+        "TODO-31"
       ],
-      "native_builds": 5,
+      "native_builds": 2,
       "release_attempts": 1,
       "source_queue": [
         {
-          "original_requirement_id": "EG-22",
+          "original_requirement_id": "EG-31",
           "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
-          "progress_record": "eval/history-metadata-identity-progress-20261116.json",
-          "user_outcome": "Unrelated tool/ranking releases retain persistent immutable Git card metadata compatibility. Extraction changes and canonical repository identities remain separate. No current timing gain claimed; validation/installation pending.",
-          "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5"
-        },
-        {
-          "original_requirement_id": "TODO-31",
-          "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "ed97416cc6663f5118e578ef7019bfebb5ddb2c8",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
-          "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
-          "user_outcome": "Existing LegacyValidation AJAX-style VB ASPX/ASMX URL suffixes reach authored attributed method candidates and the existing source-admitted call/database walker, including same-application App_Code partial services. Source complete; native/public/installed validation pending.",
-          "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5"
+          "source_commit": "ef8eb82eb1d31be21a7de6a0d05aadce5ab0dd87",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
+          "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
+          "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending.",
+          "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
         },
         {
           "original_requirement_id": "TODO-4",
           "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-          "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
-          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\contract.json",
-          "progress_record": "eval/business-analysis-delivery-progress-20261116.json",
-          "user_outcome": "Large successful business-analysis JSON/Markdown reports use existing complete reply budgets and exact saved-result recovery after generation/persistence; recovery does not repeat either. Native/public/deployment pending.",
-          "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5"
+          "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
+          "progress_record": "eval/state-report-delivery-progress-20261116.json",
+          "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending.",
+          "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
+        },
+        {
+          "original_requirement_id": "TODO-31",
+          "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+          "source_commit": "599af5b7ebacd6f43d0539653c1706f560378c6e",
+          "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
+          "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
+          "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending.",
+          "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
         }
       ]
     }
@@ -2659,27 +2631,18 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\maintenance-state-parameter-batch-delivery-20261116.json",
+      "sha256": "ab58ef2dc52b90c6ef8bba1cf38b3e6cec99d823991faf257ea6ece77151e955"
+    },
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
     "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
     "native_cases_passed": 8,
     "native_builds": 2,
-    "retained_unaffected_cases": 7,
-    "current_affected_cases": 1,
-    "native_seconds": 296.61605190008413,
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native-acceptance.json",
-      "sha256": "1b74fd606eb81e040be34111807088a470f0f78d48bd066404c750ad20a42c55"
-    },
-    "public_checks_passed": 31,
-    "public_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug1\\receipt.json",
-      "sha256": "8ceb885e75698db97b814739870e78498b993bd38a8f458478c771ea3192c3c8"
-    },
-    "release_builds": 0,
-    "extra_debug_builds": 0,
-    "full_suite_run": false,
-    "deployed": false
+    "public_checks_per_candidate_and_installed": 31,
+    "release_builds": 1,
+    "deployed": true
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
@@ -2775,99 +2738,26 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Deliver the three native/public-debug validated improvements with one shared release, then advance the original backlog.",
-    "original_requirement_id": "TODO-31",
-    "observed_missing_behavior": "DBML mapping resolves only locally constructed VB receivers. LegacyValidation RelationHelper.LiveCustomerRelations receives db As iFaltDataContext and accesses db.CR_CopyDetails, whose current DBML mapping is dbo.CR_CopyDetail; the current binder has no parameter path.",
-    "implementation_files": [
-      "crates/engram_server/src/services/instruction_maintenance.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
-      "crates/engram_server/src/services/instruction_maintenance/changed_evidence/git_changes.rs",
-      "crates/engram_server/tests/changed_instruction_workflow_tests.rs",
-      "crates/engram_server/tests/instruction_maintenance_volume_tests.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "finite_acceptance": [
-      "Installed public owned fixture using the unchanged six-line actual LegacyValidation LiveCustomerRelations method and exact DBML reproduces an unresolved table mapping for the typed parameter. No actual project/index operation.",
-      "Source tracing retains the reached method, query source/hash and exact dbo.CR_CopyDetail DBML citation for the declared required parameter. Existing local-constructor mapping and database opt-out retain their behavior.",
-      "No mapping for reassigned/escaped/ambiguous/ByRef/Optional receivers or stale/mismatched source. Required parameter binding remains explicitly unverified by compiler/runtime; no implicit namespace/context inference, fields/properties, general ORM or parser/graph changes."
-    ],
-    "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
+    "active_original_item": "Advance the remaining original accepted backlog after the installed maintenance/state/parameter batch. Select a concrete unmet LegacyValidation behavior before new source work or compilation.",
     "implementation_items_active": 0,
-    "source_status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
-    "deployed": false,
-    "build_rule": "Source gate now has three distinct requirements. Reuse existing WORK/shared target. One focused combined native target, reused debug executable/public proof, then one release for candidate/installed checks. No broad suite or extra debug build.",
     "completed_batch": {
       "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
       "record": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\history-webmethod-business-batch-delivery-20261116.json",
-        "sha256": "418904739d3d327dd908af89cdac0dd9f8727875ca33bd339eb4c5ce2de7fc60"
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\maintenance-state-parameter-batch-delivery-20261116.json",
+        "sha256": "ab58ef2dc52b90c6ef8bba1cf38b3e6cec99d823991faf257ea6ece77151e955"
       },
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-      "native_cases_passed": 11,
-      "native_builds": 5,
-      "public_checks_per_candidate_and_installed": 33,
-      "release_builds": 1,
-      "deployed": true
-    },
-    "full_original_goal_active": true,
-    "pending_source_requirements": [
-      {
-        "original_requirement_id": "EG-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "ef8eb82eb1d31be21a7de6a0d05aadce5ab0dd87",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\contract.json",
-        "progress_record": "eval/eg31-maintenance-volume-progress-20261116.json",
-        "user_outcome": "Automatic instruction maintenance covers normal multi-file features without caller-enumerated16-file slices; all complete evidence and stale guards retained. Validation/installation pending.",
-        "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\contract.json",
-        "progress_record": "eval/state-report-delivery-progress-20261116.json",
-        "user_outcome": "Large selected state reader/writer reports fit complete reply budgets and recover exact original MCP output without repeat graph reads; current caps and indexed/runtime uncertainty retained. Validation/deployment pending.",
-        "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-      },
-      {
-        "original_requirement_id": "TODO-31",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "599af5b7ebacd6f43d0539653c1706f560378c6e",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
-        "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
-        "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending.",
-        "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e"
-      }
-    ],
-    "native_tests_run": true,
-    "public_acceptance_run": true,
-    "next_user_visible_deliverable": "Installed complete multi-file maintenance, bounded state reports and source-declared parameter DBML mapping with their finite acceptance and limits.",
-    "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
-    "native_status": "EIGHT_FOCUSED_CASES_PASSED",
-    "validation": {
-      "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
       "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
       "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
       "native_cases_passed": 8,
       "native_builds": 2,
-      "retained_unaffected_cases": 7,
-      "current_affected_cases": 1,
-      "native_seconds": 296.61605190008413,
-      "native_acceptance": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native-acceptance.json",
-        "sha256": "1b74fd606eb81e040be34111807088a470f0f78d48bd066404c750ad20a42c55"
-      },
-      "public_checks_passed": 31,
-      "public_acceptance": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug1\\receipt.json",
-        "sha256": "8ceb885e75698db97b814739870e78498b993bd38a8f458478c771ea3192c3c8"
-      },
-      "release_builds": 0,
-      "extra_debug_builds": 0,
-      "full_suite_run": false,
-      "deployed": false
-    }
+      "public_checks_per_candidate_and_installed": 31,
+      "release_builds": 1,
+      "deployed": true
+    },
+    "previous_goal_turn_classification": "PROGRESS: validated and installed three original workflow improvements; same single release reused for candidate/installed acceptance.",
+    "scope_guard": "Full original31findings/19applicable gates and accepted TODO scope retained. Preserve all completed deliveries and unfinished findings. CodeMap/Blast closed; LegacyValidation VB.NET/WebForms/JS/TS/SQL priorities. Held planner semantic capacity, legacy ownership, cleanup restrictions and kernel/SSD items remain unfinished.",
+    "next_build_rule": "Accumulate three distinct original source-complete requirements; one focused combined native target and one release. Retain unaffected passes; no freshness replays, full-suite default or extra debug build.",
+    "full_original_goal_active": true
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2905,5 +2795,19 @@
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\contract.json",
     "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
     "user_outcome": "Reached VB helper parameters retain exact source-declared DBML table mappings with declared-type evidence instead of constructor/runtime claims; actual LegacyValidation query gap reproduced. Validation/installation pending."
+  },
+  "maintenance_state_parameter_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\maintenance-state-parameter-batch-delivery-20261116.json",
+      "sha256": "ab58ef2dc52b90c6ef8bba1cf38b3e6cec99d823991faf257ea6ece77151e955"
+    },
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
+    "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
+    "native_cases_passed": 8,
+    "native_builds": 2,
+    "public_checks_per_candidate_and_installed": 31,
+    "release_builds": 1,
+    "deployed": true
   }
 }

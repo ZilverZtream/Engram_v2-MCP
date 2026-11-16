@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete tool response budgets and exact recovery without silently losing selected evidence.",
   "observed_missing_behavior": "trace_state_usage has a node selection limit but no max_tokens or saved-result controls. A selected reader/writer report can overflow the client budget; its indexed-source evidence, internal-cap warnings and indirect property readers must remain complete.",
@@ -22,7 +22,10 @@
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116",
     "fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
-    "retention": "New owned fixture sources/indexes and process handles close before teardown; retain driver/receipts until superseded. No preexisting deletion."
+    "retention": "New owned fixture sources/indexes and process handles close before teardown; retain driver/receipts until superseded. No preexisting deletion.",
+    "final_public_owners_closed": true,
+    "final_public_temps_removed": true,
+    "build_temps_removed": true
   },
   "legacy_validation_runtime_filter": {
     "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
@@ -30,7 +33,7 @@
   },
   "native_tests_run": true,
   "public_acceptance_run": true,
-  "deployed": false,
+  "deployed": true,
   "at_utc": "2026-11-16T05:50:20.831965+00:00",
   "source_commit": "b560c41930a34ec64ee59dff6e487f941631ee6c",
   "source_sha256": {
@@ -66,34 +69,25 @@
     "Installed owned180-function browser-state report produced158968bytes and retained360independently verified source access facts. Same-installed-binary schema archive proves no delivery controls. No model requests; owner closed and fixture removed.",
     "Initial Python verifier needed int conversion for indexed numeric strings; raw saved report reconciled without a baseline replay. Original failing receipt retained.",
     "Added only existing delivery eligibility and schema expectations. Protected handler and modern-state WIP are byte-unchanged; new actual-handler recovery fixture prepared. Rust syntax and owned whitespace checks pass; native/public new-source acceptance not yet run.",
-    "Eight focused native cases accounted for with seven unaffected passes retained; all31public debug checks passed first public run on the reused paired server. All new native/compiler/public owners closed and fixture resources removed."
+    "Eight focused native cases accounted for with seven unaffected passes retained; all31public debug checks passed first public run on the reused paired server. All new native/compiler/public owners closed and fixture resources removed.",
+    "One optimized release passed31candidate and31installed public checks;215asset identities, unchanged214companions/config/selection3151 and normal runtime restoration verified."
   ],
-  "checks_pending": [
-    "Use one shared optimized release for owned candidate/installed public acceptance, verify installed identities and normal config/generation3151 restoration. Retain passed native/debug checks."
-  ],
+  "checks_pending": [],
   "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "combined_validation": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\maintenance-state-parameter-batch-delivery-20261116.json",
+      "sha256": "ab58ef2dc52b90c6ef8bba1cf38b3e6cec99d823991faf257ea6ece77151e955"
+    },
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
     "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
     "native_cases_passed": 8,
     "native_builds": 2,
-    "retained_unaffected_cases": 7,
-    "current_affected_cases": 1,
-    "native_seconds": 296.61605190008413,
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native-acceptance.json",
-      "sha256": "1b74fd606eb81e040be34111807088a470f0f78d48bd066404c750ad20a42c55"
-    },
-    "public_checks_passed": 31,
-    "public_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug1\\receipt.json",
-      "sha256": "8ceb885e75698db97b814739870e78498b993bd38a8f458478c771ea3192c3c8"
-    },
-    "release_builds": 0,
-    "extra_debug_builds": 0,
-    "full_suite_run": false,
-    "deployed": false
-  }
+    "public_checks_per_candidate_and_installed": 31,
+    "release_builds": 1,
+    "deployed": true
+  },
+  "combined_delivery_record": "eval/maintenance-state-parameter-batch-delivery-20261116.json"
 }

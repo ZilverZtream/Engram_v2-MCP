@@ -1,21 +1,21 @@
 # Tool Contract
 
-Source-complete, awaiting combined validation: reached VB ORM references may map
+Installed November16: reached VB ORM references may map
 through a simple required typed parameter, with explicit or implicit `ByVal`.
 Exact selected-current DBML context/member matching remains mandatory. A new
 `receiver_binding` cites the parameter declaration and explicitly withholds
 compiler binding and the runtime argument. This is distinct from local
 construction evidence. ByRef/Optional, reassigned, escaped or ambiguous
 receivers and stale evidence remain unresolved; no graph/parser change or
-namespace inference. [Pending source](../eval/dbml-parameter-trace-progress-20261116.json).
+namespace inference. [Delivery](../eval/maintenance-state-parameter-batch-delivery-20261116.json).
 
-Source-complete, awaiting combined validation: `trace_state_usage` uses existing
+Installed November16: `trace_state_usage` uses existing
 complete-report budgets and exact saved MCP-result recovery. The40KiB default
 and caller `max_tokens` apply to the whole selected report, including indexed
 access evidence, freshness and uncertainty. Existing per-role node limits,
 indirect property readers and extraction remain. Fitting Markdown replies keep
 their shape; recovery needs no state type/key and never reruns graph queries.
-[Pending source](../eval/state-report-delivery-progress-20261116.json).
+[Delivery](../eval/maintenance-state-parameter-batch-delivery-20261116.json).
 
 Installed November16: persistent Git change-card metadata compatibility is
 scoped to the metadata extractor and stored format version. Unrelated tool or
@@ -123,12 +123,12 @@ committed after the base, staged/unstaged changes and nonignored untracked files
 the after snapshot is current disk, not a separate staged view. A clean comparison
 returns `no_git_changes_observed`, which establishes no semantic policy conclusion.
 Explicit `changed_paths` remains available and cannot be mixed with this option.
-Source-complete, awaiting combined validation: automatic Git selection allows up
+Installed November16: automatic Git selection allows up
 to128 distinct changed and supplemental evidence paths, so ordinary multi-file
 features do not require hand-splitting at16 files. Explicit `changed_paths` lists
 retain their16-file combined evidence limit. Complete per-file128KiB and packet
 768KiB source limits still apply; oversized inputs refuse rather than supply a
-partial packet. [Pending source](../eval/eg31-maintenance-volume-progress-20261116.json).
+partial packet. [Delivery](../eval/maintenance-state-parameter-batch-delivery-20261116.json).
 Git listing and source capture are separate observations; collection does not
 write authored guidance or index state, infer rename semantics or accept policy.
 

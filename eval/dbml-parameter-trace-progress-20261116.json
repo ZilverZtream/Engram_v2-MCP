@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-31",
   "original_requirement": "Trace LegacyValidation HTTP requests through reached application methods to source-declared database mappings.",
   "observed_missing_behavior": "DBML mapping resolves only locally constructed VB receivers. LegacyValidation RelationHelper.LiveCustomerRelations receives db As iFaltDataContext and accesses db.CR_CopyDetails, whose current DBML mapping is dbo.CR_CopyDetail; the current binder has no parameter path.",
@@ -44,9 +44,12 @@
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116",
     "fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
-    "retention": "Raw owned source copies and evidence retained until superseded. New runtime/native fixtures close handles before teardown. No preexisting deletion."
+    "retention": "Raw owned source copies and evidence retained until superseded. New runtime/native fixtures close handles before teardown. No preexisting deletion.",
+    "final_public_owners_closed": true,
+    "final_public_temps_removed": true,
+    "build_temps_removed": true
   },
-  "deployed": false,
+  "deployed": true,
   "native_tests_run": true,
   "public_acceptance_run": true,
   "at_utc": "2026-11-16T06:05:21.451652+00:00",
@@ -89,11 +92,10 @@
     "Initial baseline predicate expected bare case-sensitive target_name; retained raw path/gap reconciles proof without a baseline replay.",
     "Existing local-constructor resolver retained; new required typed by-value parameter path is labeled separately with exact declaration source and explicit unknown compiler/runtime argument status.",
     "Native/public wanted behavior fixtures prepared and Rust syntax/owned whitespace checked. Repository hook anonymization honored for the synthetic native fixture; actual raw source copies retained only locally.",
-    "Eight focused native cases accounted for with seven unaffected passes retained; all31public debug checks passed first public run on the reused paired server. All new native/compiler/public owners closed and fixture resources removed."
+    "Eight focused native cases accounted for with seven unaffected passes retained; all31public debug checks passed first public run on the reused paired server. All new native/compiler/public owners closed and fixture resources removed.",
+    "One optimized release passed31candidate and31installed public checks;215asset identities, unchanged214companions/config/selection3151 and normal runtime restoration verified."
   ],
-  "checks_pending": [
-    "Use one shared optimized release for owned candidate/installed public acceptance, verify installed identities and normal config/generation3151 restoration. Retain passed native/debug checks."
-  ],
+  "checks_pending": [],
   "commit_hook_correction": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\commit-hook-correction1.json",
     "sha256": "78d86d38bce5e11559bf3d0fe5d22e1763e242448d57b9b39f71a6c72748eb76"
@@ -101,30 +103,22 @@
   "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "combined_validation": {
-    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\maintenance-state-parameter-batch-delivery-20261116.json",
+      "sha256": "ab58ef2dc52b90c6ef8bba1cf38b3e6cec99d823991faf257ea6ece77151e955"
+    },
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
     "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
     "native_cases_passed": 8,
     "native_builds": 2,
-    "retained_unaffected_cases": 7,
-    "current_affected_cases": 1,
-    "native_seconds": 296.61605190008413,
-    "native_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native-acceptance.json",
-      "sha256": "1b74fd606eb81e040be34111807088a470f0f78d48bd066404c750ad20a42c55"
-    },
-    "public_checks_passed": 31,
-    "public_acceptance": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug1\\receipt.json",
-      "sha256": "8ceb885e75698db97b814739870e78498b993bd38a8f458478c771ea3192c3c8"
-    },
-    "release_builds": 0,
-    "extra_debug_builds": 0,
-    "full_suite_run": false,
-    "deployed": false
+    "public_checks_per_candidate_and_installed": 31,
+    "release_builds": 1,
+    "deployed": true
   },
   "component_source_commits": [
     "04f010a49aafbc9372fde61e6447e6145080280c",
     "599af5b7ebacd6f43d0539653c1706f560378c6e"
-  ]
+  ],
+  "combined_delivery_record": "eval/maintenance-state-parameter-batch-delivery-20261116.json"
 }

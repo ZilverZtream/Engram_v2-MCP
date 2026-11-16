@@ -62,10 +62,10 @@ These degrade or improve *every single interaction*. Nothing below matters until
   not 114 (see #28).
 
 - [~] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L) — *partial: deployed 2026-11-11 for search_memory, vector_search and grep_project. Optional max_tokens estimates ceil(UTF-8 complete reply-text bytes / 4), pages whole records and retains warnings/freshness and exact recovery actions. All three support output_json; search/vector now share a versioned envelope with typed identities/recovery, per-field truncation, live-guidance handling and explicit unknown-versus-bounded totals. Search retains requested-page guidance/omissions; vector exposes full_chunk guidance recovery within its fixed top_k/MMR window. Grep preserves coverage/stale-source warnings and continuation within max_results, including previously hidden Markdown matches. Candidate and installed MCP checks recovered independent source and distinct original memory sections exactly; JSON escaping counts toward the reply budget. See eval/p04-search-response-budget-delivery-20261111.json, eval/p04-vector-response-budget-delivery-20261111.json, eval/p04-grep-response-budget-delivery-20261111.json and eval/p04-search-json-delivery-20261111.json. get_chunk and read_memory_bank now also honor root max_tokens for complete text/JSON replies and offer output_json with exact hash-bound recovery. Open citation pages retain whole lines or UTF-8 boundaries; explicit ranges, quote proofs and transformed content remain complete or return a minimum-budget retry. Native candidate/installed checks retained provenance/guidance and reconstructed 114,000-byte project/user sections exactly in pages no larger than 8,192 bytes; see eval/p04-document-response-delivery-20261111.json. search_history text/precedent modes now also offer complete reply budgets, typed JSON and whole-record paging within the selected limit. Exact indexed citations and Git message/file actions are verified against independently authored history; capability, rerank and clipping disclosures remain. See eval/p04-history-response-delivery-20261111.json. prepare_implementation_context now supports complete-reply max_tokens with required policy/coverage/warnings and hash-bound source/context continuation records. Native candidate/installed checks reconstructed original typed contexts from authored method/caller sources and retained policy qualifications; changed evidence refuses. See eval/p04-context-response-delivery-20261111.json. get_page_context also supports complete text/JSON budgets with exact hash-bound recovery of controls, methods and other context entries, retaining provider/composition/house-style qualifications. Candidate/installed checks reconstructed four authored handler bodies and150controls; changed evidence refuses mixed pages. See eval/p04-page-response-delivery-20261111.json. pre_commit_review now also defaults to a40KiB complete reply-text budget, accepts max_tokens, preserves every selected finding in a bounded ledger and provides exact original-report recovery without rerunning gates. Candidate/installed JSON and Markdown checks preserve40findings and decision evidence after source edits; actual LegacyValidation returned6526B with exact recovery of its47369B report. The131s review is not a latency improvement. See eval/legacy_validation-review-response-budget-delivery-20261113.json. Remaining: budgets and consistent envelopes across other tools and durable cursors; provider-token accounting is not claimed.*
-  Source-complete November16: `trace_state_usage` has whole-report budgets
+  Installed November16: `trace_state_usage` has whole-report budgets
   and exact saved-result recovery, preserving selected reader/writer evidence
-  and existing per-role caps. Validation/installation pending.
-  [Pending source](eval/state-report-delivery-progress-20261116.json).
+  and existing per-role caps.
+  [Delivery](eval/maintenance-state-parameter-batch-delivery-20261116.json).
   Installed November16: successful
   `analyze_business_logic` results use complete-report budgets and exact saved
   recovery after generation/persistence, without repeating either on recovery.
@@ -444,10 +444,10 @@ proposals that duplicate the existing surface:
   templates.*
 
 - [ ] **31. `trace_user_request` (spec 43-2)** (M)
-  Source-complete November16: direct DBML table references through required
+  Installed November16: direct DBML table references through required
   typed VB parameters retain declaration/query/mapping citations and explicit
-  compiler/runtime uncertainty. No namespace guessing; validation pending.
-  [Pending source](eval/dbml-parameter-trace-progress-20261116.json).
+  compiler/runtime uncertainty. No namespace guessing.
+  [Delivery](eval/maintenance-state-parameter-batch-delivery-20261116.json).
   Installed November16: literal VB
   ASPX/ASMX WebMethod URLs resolve public attributed entries, including LegacyValidation's
   page-method and App_Code partial-service patterns. Existing admitted call/SQL

@@ -1,0 +1,191 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-16T07:02:41.846545+00:00",
+  "original_requirements": [
+    "EG-31",
+    "TODO-4",
+    "TODO-31"
+  ],
+  "delivered": [
+    {
+      "requirement": "EG-31",
+      "behavior": "Git-driven instruction maintenance collects normal multi-file features up to128distinct changed/supplemental evidence paths instead of rejecting at17. Explicit caller lists retain16files and complete per-file/packet byte budgets remain. Owned35-file VB/TS/SQL proof preserves every before/current source, scoped exception, health/update packet and late-file stale refusal."
+    },
+    {
+      "requirement": "TODO-4",
+      "behavior": "trace_state_usage supports complete selected-report budgets and exact original MCP recovery without repeat graph reads. Owned180-function browser preference report exceeds40KiB; all180reader/writer identities and360original indexed access facts recover after source removal and index change. Fitting Markdown and independent role caps remain."
+    },
+    {
+      "requirement": "TODO-31",
+      "behavior": "Required explicitly typed ByVal VB parameters, including implicit ByVal, supply exact source-declared DBML table candidates. Owned unchanged LegacyValidation LiveCustomerRelations method and DBML resolve CR_CopyDetails to dbo.CR_CopyDetail with exact declaration/query/mapping citations and explicit unknown compiler/runtime argument status. Existing constructor mapping remains."
+    }
+  ],
+  "source_commits": {
+    "EG-31": "ef8eb82eb1d31be21a7de6a0d05aadce5ab0dd87",
+    "TODO-4": "b560c41930a34ec64ee59dff6e487f941631ee6c",
+    "TODO-31": "599af5b7ebacd6f43d0539653c1706f560378c6e"
+  },
+  "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
+  "source_plan": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\implementation1.json",
+    "sha256": "ddf5ddfdbda1406ddaaeb24a6c81af877778aa036e3b93479004ae71b7568989"
+  },
+  "installed_runtime": {
+    "server_sha256": "6b2346d30d30d27a53e07404352d01ac94e76988a59fb7b17e4a54685bee49e1",
+    "manifest_sha256": "6f4d14f886fb7740239d76a6aa497e9664ab18b4a82398ad8534304be74dbe12",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "active": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin"
+  },
+  "validation": {
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native-acceptance.json",
+      "sha256": "1b74fd606eb81e040be34111807088a470f0f78d48bd066404c750ad20a42c55"
+    },
+    "native_distinct_cases": 8,
+    "retained_unaffected_cases": 7,
+    "retried_affected_cases": 1,
+    "public": {
+      "debug1": {
+        "checks": 31,
+        "all_passed": true,
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug1\\receipt.json",
+          "sha256": "8ceb885e75698db97b814739870e78498b993bd38a8f458478c771ea3192c3c8"
+        },
+        "subproofs": [
+          {
+            "requirement": "EG31",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\debug1\\receipt.json",
+            "sha256": "956ae90937861537cd8af0a2d392c0baead0b0670844b142d9182f8d9a59e45a",
+            "driver_sha256": "73d18da16aaa20da0c3c4c2230372ccff12c4dfa4f33bd8fd2089f34ac10b8bd"
+          },
+          {
+            "requirement": "TODO4",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\debug1\\receipt.json",
+            "sha256": "c8771fa020363e564eccf784d5a288a2abeb7a8df28f9933c6494f3029656c24",
+            "driver_sha256": "a9111cb56cb5db23a5b4c3946c37c08019c937e45953b5f14f5112777f07fa76"
+          },
+          {
+            "requirement": "TODO31",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\debug1\\receipt.json",
+            "sha256": "bd420962587359ad7304802e16463324508a11b19a31fe38d7983c5e59bc18b3",
+            "driver_sha256": "671154ba1e398492919636e7c418c77d03db5a0080ac8940e3b2b56be86c03dc"
+          }
+        ]
+      },
+      "candidate1": {
+        "checks": 31,
+        "all_passed": true,
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\candidate1\\acceptance.json",
+          "sha256": "726829c070acc70631c354762c6d12683b9d9b22f0874e11d330a72d3d4cfa25"
+        },
+        "subproofs": [
+          {
+            "requirement": "EG31",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\candidate1\\receipt.json",
+            "sha256": "bf07d8605ee948004ce0624a5593538d16f7a6a4c5c1738374115f6adacdbd82",
+            "driver_sha256": "73d18da16aaa20da0c3c4c2230372ccff12c4dfa4f33bd8fd2089f34ac10b8bd"
+          },
+          {
+            "requirement": "TODO4",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\candidate1\\receipt.json",
+            "sha256": "7b9c1ca0d4c46cc02bdd7ab62f32c19f25e3dd229bc01f7b1766409126a34ef2",
+            "driver_sha256": "a9111cb56cb5db23a5b4c3946c37c08019c937e45953b5f14f5112777f07fa76"
+          },
+          {
+            "requirement": "TODO31",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\candidate1\\receipt.json",
+            "sha256": "f60ac714ab83ccd2434a32ea5f1540330f48c3ca69f935fb91529428922701c6",
+            "driver_sha256": "671154ba1e398492919636e7c418c77d03db5a0080ac8940e3b2b56be86c03dc"
+          }
+        ]
+      },
+      "installed1": {
+        "checks": 31,
+        "all_passed": true,
+        "receipt": {
+          "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\installed1\\acceptance.json",
+          "sha256": "e4fdf39147cf1d19416be4754d5b1a8117d6703dd0e0a32929f78012f777934c"
+        },
+        "subproofs": [
+          {
+            "requirement": "EG31",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\git-maintenance-volume-20261116\\installed1\\receipt.json",
+            "sha256": "5f37f5c8bfe1cb7f39372c5a68058777f521be899be8193bfa7b36ceb7c23913",
+            "driver_sha256": "73d18da16aaa20da0c3c4c2230372ccff12c4dfa4f33bd8fd2089f34ac10b8bd"
+          },
+          {
+            "requirement": "TODO4",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\state-report-delivery-20261116\\installed1\\receipt.json",
+            "sha256": "09f9e373c22cc507b9649646ad1730e5ec847f8a4833bcb36aca33260bb1e5a6",
+            "driver_sha256": "a9111cb56cb5db23a5b4c3946c37c08019c937e45953b5f14f5112777f07fa76"
+          },
+          {
+            "requirement": "TODO31",
+            "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\installed1\\receipt.json",
+            "sha256": "eab6901e5df0a208ff12d5f73c2c1377a4891ff38b81ec6782918ae0bec2ba1c",
+            "driver_sha256": "671154ba1e398492919636e7c418c77d03db5a0080ac8940e3b2b56be86c03dc"
+          }
+        ]
+      }
+    }
+  },
+  "builds": {
+    "native_attempts": 2,
+    "native_seconds": 296.61605190008413,
+    "release_attempts": 1,
+    "release_seconds": 1022.8211559000192,
+    "extra_debug_builds": 0,
+    "full_or_lib_suite_run": false
+  },
+  "retained_failures": {
+    "native1": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native1.json",
+      "sha256": "dca5762c3161e9a9666a079ba67f3a210a9f334920a43b9d1bbef125a7892df0"
+    },
+    "runtime_correction": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\parameter-evidence-correction1.json",
+      "sha256": "05d195230785bdfcdefefa3e72144109858efae62912a74feff6f4493641d7d8"
+    },
+    "baseline_failures": "Initial verifier mistakes were reconciled from saved wire/report evidence without baseline replays: generic RPC exception text, numeric-string offsets, table-prefixed lowercase target names. Original receipts retained in each source case.",
+    "commit_hook_correction": "Synthetic native fixture customer-specific names replaced with neutral names; exact actual copies remain outside Git in recorded diagnostics."
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
+    "all_new_compiler_jobs_and_relays_closed": true,
+    "all_new_compiler_temps_removed": true,
+    "all_new_public_owners_closed": true,
+    "all_new_public_temps_removed": true,
+    "owned_config_removed": true,
+    "config_hold_released": true,
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151,
+    "normal_runtime_restoration": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "803e075d26ca88ce60eecd2e3c7b2ecd2deb54d750791519f6386d3fa8c7f296"
+    },
+    "debug_pair": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug-pair1.json",
+      "sha256": "e0b764cd5be75bf92b9163174c3d0ccbc8c07c03fedca04317f54ecd01130bae"
+    },
+    "retained_old_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-35c635665fd544c197fcf304bc21936a",
+    "previous_restricted_cleanup_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+    "retention": "Retain package, paired debug artifact, raw actual source copies, logs/receipts and old runtime pair until superseded. Prior policy-rejected native3 folder remains untouched; no equivalent cleanup retry or preexisting deletion."
+  },
+  "deployment_pipeline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\pipeline-state1.json",
+    "sha256": "da70ef0d4385379ffc1e197e59ee8500bd402df3e5706ea3ad9936badedb74e0"
+  },
+  "limitations": [
+    "Complete source limits remain128KiB per maintenance input and768KiB per packet;128paths does not imply every128-file comparison fits. Explicit lists still cap at16. Mechanical proposal checks do not establish policy semantics or publish authored policy.",
+    "State recovery preserves the selected original report and indexed qualifications, including existing internal limits. It does not expand graph coverage, refresh evidence or prove current source/runtime behavior. Original default10-reader/writer selection was not claimed to overflow; the reproduced159KB report explicitly selected180.",
+    "DBML parameter support is a static declared-type candidate, not a constructor, compiler proof, actual caller object/connection, database identity, generated SQL or execution. Unsupported optional/ByRef/reassigned/escaped receivers and stale mapping sources stay unresolved.",
+    "Owned actual non-Q method/DBML copies and synthetic VB/TS/SQL fixtures used. No actual LegacyValidation/Q source operation, model requests, parser/graph/CodeMap/Blast change, new target-language support, measured productivity benefit, v1 readiness or full19gate closure claimed."
+  ],
+  "full_original_goal_active": true
+}
