@@ -95,9 +95,16 @@ impl Fixture {
                     .position(|s| ["End Function", "End Sub"].contains(&s.trim()))
                     .unwrap();
             nodes.push(node(
-                &format!("method:{file}:{method}"),
+                &engram_core::NodeId::symbol(
+                    "function",
+                    None,
+                    file,
+                    &format!("{name}.{method}"),
+                    (start + 1) as u32,
+                )
+                .0,
                 "function",
-                &format!("{name}.{method}"),
+                method,
                 file,
                 start + 1,
                 end + 1,

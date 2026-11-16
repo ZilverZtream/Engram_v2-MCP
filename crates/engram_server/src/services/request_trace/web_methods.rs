@@ -207,8 +207,15 @@ pub(super) fn trace(
             // its functions retain qualified names and complete method ranges.
             // A one-line class record cannot establish enclosing body bounds.
             let qualified = format!("{}.{method}", class.name);
+            let qualified_id = engram_core::NodeId::symbol(
+                "function",
+                None,
+                source.path,
+                &qualified,
+                node.start_line,
+            );
             let named_owner = class.start_line == class.end_line
-                && [
+                && ([
                     Some(node.name.as_str()),
                     node.metadata
                         .as_ref()
@@ -217,7 +224,8 @@ pub(super) fn trace(
                 ]
                 .into_iter()
                 .flatten()
-                .any(|name| name.eq_ignore_ascii_case(&qualified));
+                .any(|name| name.eq_ignore_ascii_case(&qualified))
+                    || node.node_id.eq_ignore_ascii_case(&qualified_id.0));
             if (!ranged_owner && !named_owner) || !entry(node, source, method, !service) {
                 continue;
             }
