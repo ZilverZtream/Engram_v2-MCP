@@ -2554,7 +2554,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-25",
+        "outcome": "Source-cited same-owner VB constructor assignments in business-logic evidence with supporting-source change qualification",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "3c1e68e00b41b5c573c87e18d552e88da439a2ac",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116\\contract.json",
+        "progress": "eval/business-member-origins-progress-20261116.json"
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2701,34 +2710,29 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Job/history/memory source batch acceptance",
-    "status": "THREE_OUTCOMES_INSTALLED_ACCEPTANCE_COMPLETE",
-    "original_requirement_id": "TODO-33",
-    "source_commit": "81ea03eb4a8c80a458a743d37cc2439e80ef7164",
-    "source_progress": "eval/job-history-memory-batch-delivery-20261116.json",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116",
+    "active_original_item": "Business-logic constructor member origins",
+    "original_requirement_id": "EG-25",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement": "Supply useful current source evidence to existing OX diagnosis/QA workflows; retain the observed invoice task omission without replaying or tuning its model comparison.",
+    "observed_missing_behavior": "Method-only business analysis supplies no same-owner constructor assignment source for members referenced by the selected method. Retained invoice QA omitted the configuration setting identity initializing _ExcludeAccounts.",
+    "implementation_files": [
+      "crates/engram_server/src/services/business_member_origins.rs",
+      "crates/engram_server/src/services/business_outcome_dependencies.rs",
+      "crates/engram_server/src/handlers/business_source.rs"
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116\\contract.json",
     "finite_acceptance": [
-      "The existing typed batch accepts ReadMemoryBankRequest and calls the ordinary read_memory_bank handler. Project and __user__ identities, content/provenance, per-read JSON/budgets and citation/hash validation are preserved. Mutating operations remain excluded.",
-      "Shared1..16read bounds, correlation/order, independent errors and complete-result omission/recovery remain. Uncited recovery reruns a live read; supplied raw-hash guards refuse changed memory. No atomic section snapshot or policy adoption is inferred.",
-      "Owned project/user notes compare full source content and stable provenance with individual reads, retain a bad-project error, prove complete shared-budget omission/recovery, then preserve a stale-hash refusal beside another successful read.",
-      "Queue this one TODO33 document-read outcome beside TODO4 job reports and TODO28 complete history messages. One future combined native target has three cases; no standalone Cargo or full suite."
+      "For a source-verified VB member, expose bounded same-owner constructor assignment lines whose left-hand identifier occurs in the selected method, with exact full-file hash, constructor identity, original line spans, original text and excerpt hash.",
+      "Preserve multiple constructor observations, original method anchors and explicit unproven binding/execution. Ignore string/comment-only references and other owners; report bounds and missing/stale source without invented origins.",
+      "Persist context in existing outcome evidence and analysis fingerprint, supply it to analysis and raw document readers, and flag changed constructor source in downstream qualification even when the selected method is unchanged.",
+      "Use synthetic VB sources with different names/settings from the inspected task. Native behavior verification is deferred into a substantive combined batch; no model/task replay or standalone Cargo."
     ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 0,
-    "native_target": "job_history_memory_batch_tests",
-    "native_cases_written": 3,
     "full_original_goal_active": true,
-    "next_action": "Advance the remaining original research/TODO requirements from unmet acceptance. Preserve all unfinished qualitative/storage findings and holds. Do not rerun these delivered finite outcomes, CodeMap/Blast Radius, broad suites, inspected model/task comparisons or small filler edits to trigger a compiler.",
-    "release_live_owner": null,
-    "completion_driver": null,
-    "native_cases_passed_across_initial_and_targeted_retry": 3,
-    "native_initial_setup_failures": 1,
-    "public_current_artifact_checks": 17,
-    "native_distinct_behaviors_passed": 3,
-    "current_artifact_checks": 17,
-    "candidate_checks": 17,
-    "installed_checks": 17
+    "next_action": "Advance another unmet original requirement. Keep constructor-source behavior pending native and public validation; do not start a standalone build or replay the inspected invoice task.",
+    "source_commit": "3c1e68e00b41b5c573c87e18d552e88da439a2ac",
+    "source_progress": "eval/business-member-origins-progress-20261116.json",
+    "pending_source_outcomes": 1
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

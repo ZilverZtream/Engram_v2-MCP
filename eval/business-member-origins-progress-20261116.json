@@ -34,5 +34,7 @@
   "builds_started": 0,
   "native_tests_executed": 0,
   "runtime_deployed": false,
-  "full_original_goal_complete": false
+  "full_original_goal_complete": false,
+  "source_commit": "3c1e68e00b41b5c573c87e18d552e88da439a2ac",
+  "pending_source_outcomes": 1
 }
