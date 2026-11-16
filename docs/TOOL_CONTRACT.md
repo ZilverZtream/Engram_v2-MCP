@@ -818,6 +818,17 @@ failures disclose unknown lexical publication and suggest `project_health`
 instead of promising vector-only recovery. Validation and registry-write
 failures still return errors because persistence has not been established.
 
+`vector_search` also supports the existing opt-in immutable result-window
+delivery: use `retain_response=true` with `output_json=true`. The caller's
+`max_tokens` bounds the delivery manifest and recovery pages while the saved
+original result retains the selected `top_k` window, offset, filters, ranking
+and requested content limits. Follow `response_delivery.next_call` to recover
+the original MCP result using only its project ID and returned recovery
+controls, including after index changes or process restart. Recovery does not
+repeat embedding/search. Ordinary offset pages remain live; retention does
+not expand `top_k`, restore clipped per-hit content or retain underlying source
+objects. Existing retention size, age and count limits still apply.
+
 
 VB request tracing includes source-level SqlCommand text candidates. Literal
 constructor/CommandText values and stable same-method Const/Static string

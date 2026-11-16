@@ -1,0 +1,51 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform bounded replies and durable result cursors/recovery across tools.",
+  "user_outcome": "Vector-search selected results can be retained and recovered immutably with the caller reply budget, reusing existing result storage and delivery. Ordinary search and retrieval limits remain unchanged.",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\baseline2\\acceptance.json",
+  "baseline_status": "BASELINE_GAP_CONFIRMED",
+  "baseline_checks_passed": 4,
+  "implementation_files": [
+    "crates/engram_server/src/retained_results.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/tests/vector_retained_results_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_files_sha256": {
+    "crates/engram_server/src/retained_results.rs": "5d3d8ebb26fd1aee50c2cdbc2b8c8399ca48c98263a5f83d41d02251bdd4fa15",
+    "crates/engram_server/src/models/requests.rs": "f531cbdba85f9f7cb408550858368452858494297c643ad67122fe1548501c2f",
+    "crates/engram_server/tests/vector_retained_results_tests.rs": "d0c2fe646fb3983ab863c738ce8ecdaac33244cfa5cee04928aafc5a956fe6a1",
+    "docs/TOOL_CONTRACT.md": "44f4ceecc5ecb4be950980c1380bb2c4fcbdd54397d6c5ff75deb68976393eab"
+  },
+  "source_checks": [
+    "rustfmt passed on existing retention module and focused new tests",
+    "Request source syntax parsed without formatting legacy file",
+    "git diff --check passed for selected files"
+  ],
+  "native_target": "vector_retained_results_tests",
+  "native_execution": "NOT_RUN: two independent requirements queued; minimum three before combined native validation",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\verify-public.py",
+  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "deployed": false,
+  "source_commit": null,
+  "timing": {
+    "production_implementation_start_utc": "2026-11-16T07:53:42.383045+00:00",
+    "definition": "Direct production source reading/design/editing block, not pure typing time. Baseline/verifier authoring and bookkeeping excluded.",
+    "production_implementation_end_utc": "2026-11-16T07:54:34.334735+00:00",
+    "targeted_test_authoring_start_utc": "2026-11-16T07:54:34.334735+00:00",
+    "targeted_test_authoring_end_utc": "2026-11-16T07:55:34.604688+00:00",
+    "production_implementation_seconds": 51.95169,
+    "targeted_test_authoring_seconds": 60.269953,
+    "baseline_execution_seconds": 8.094110250473022,
+    "compilation_seconds": 0,
+    "full_suite_runs": 0
+  },
+  "resources": "Both owned baseline MCP processes/providers closed naturally; both temporary directories removed. Evidence retained in CASE until superseded. No preexisting deletions.",
+  "limits": [
+    "Only the requested ranking window and content selection are captured; no corpus completeness, expanded top_k, restored per-hit clipping or source-object retention claimed.",
+    "Existing TTL/count/size limits remain. Fresh captures still require provider/index availability; recovery reruns neither.",
+    "Source delivery awaits combined native and candidate/installed public verification; broader original backlog stays active."
+  ]
+}

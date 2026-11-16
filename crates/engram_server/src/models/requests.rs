@@ -2592,7 +2592,9 @@ pub struct VectorSearchRequest {
     #[serde(default = "default_top_k")]
     pub top_k: usize,
     /// Offset within the same top_k ranking window. Keep query, filters, top_k
-    /// and use_mmr unchanged across pages. Mutable ranking is not snapshotted.
+    /// and use_mmr unchanged across ordinary pages. Mutable ranking is not
+    /// snapshotted unless retain_response=true and output_json=true capture
+    /// the selected window for immutable response_id/response_offset recovery.
     /// To widen the window, increase top_k (max 200) and restart at offset=0.
     #[serde(default)]
     pub offset: usize,

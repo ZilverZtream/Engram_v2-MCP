@@ -9,7 +9,12 @@ use rmcp::{
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-const TOOLS: &[&str] = &["search_memory", "search_history", "grep_project"];
+const TOOLS: &[&str] = &[
+    "search_memory",
+    "search_history",
+    "grep_project",
+    "vector_search",
+];
 const CONTROLS: &[&str] = &["retain_response", "response_id", "response_offset"];
 
 fn eligible(tool: &Tool) -> Option<&'static str> {
