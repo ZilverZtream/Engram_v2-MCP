@@ -2772,7 +2772,7 @@
       "Queue this single original batch-read outcome alongside pending TODO28 procedure evidence and TODO4 discovery budgets. No standalone Cargo, new worktree, actual LegacyValidation/Q source read, sidecar or target-language expansion."
     ],
     "full_original_goal_active": true,
-    "next_action": "Poll existing release2 session20338 or exact pinned driver/relay. Release1 was explicitly canceled for the existing procedure ambiguity acceptance and all its owned resources are closed/removed. No new builds or native reruns. On release2 PASS, package that artifact, require corrected candidate MCP proof, then deploy/verify/restore normal runtime.",
+    "next_action": "Poll existing completion session48109 (driver pinned in completion_driver) and release2 session20338 as needed. Do not separately package/deploy while that runner is live. On terminal completion inspect current candidate/installed/normal-runtime receipts, record delivery and advance original backlog; on failure inspect retained exact evidence, never restart a build from a timeout.",
     "source_commit": "6b4d52e79d77a8bfd5079438fe78751afc2106fd",
     "source_progress": "eval/procedure-discovery-schema-batch-progress-20261116.json",
     "pending_source_outcomes": 3,
@@ -2805,7 +2805,17 @@
     "production_correction_commits": [
       "472ad57",
       "70f2843"
-    ]
+    ],
+    "completion_driver": {
+      "session_id": 48109,
+      "driver_pid": 88272,
+      "driver_created": 1794860280.609736,
+      "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\completion2-state.json",
+      "script": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\procedure-discovery-schema-release-batch-20261116\\finish-release2.py",
+      "verified_at_utc": "2026-11-16T20:18:53.768563+00:00",
+      "builds_launched": 0,
+      "purpose": "Wait for already-running release2, package, require candidate MCP acceptance before upgrade, verify installed behavior and restore normal daemon. Stop on failure; never recompile."
+    }
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
