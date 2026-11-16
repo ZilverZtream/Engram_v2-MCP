@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
   "original_requirement_id": "EG-31",
   "original_requirement": "Evidence-driven instruction maintenance after representative LegacyValidation changes, with complete before/current evidence, exceptions and stale-bound proposals.",
   "observed_missing_behavior": "Git automatic maintenance rejects a comparison at17paths before collecting any evidence, despite the existing768KiB packet budget. An actual recent LegacyValidation commit touches35files under explicit non-Q App_Code/ts/~.js scopes.",
@@ -38,8 +38,8 @@
   "previous_goal_turn": "PROGRESS: history/WebMethod/business batch installed and pushed in68bd7ec; no release still running.",
   "at_utc": "2026-11-16T05:35:13.140691+00:00",
   "deployed": false,
-  "native_tests_run": false,
-  "public_acceptance_run": false,
+  "native_tests_run": true,
+  "public_acceptance_run": true,
   "source_commit": "ef8eb82eb1d31be21a7de6a0d05aadce5ab0dd87",
   "source_sha256": {
     "crates/engram_server/src/services/instruction_maintenance.rs": "87611a7d5912d890b6400f43da5841326ce02a3085e811530acd4839b2eced02",
@@ -57,21 +57,37 @@
   "checks_completed": [
     "Installed owned35-file VB/TS/SQL comparison rejected at16; exact RPC error retained. Existing manual16-file slice still works; guidance untouched, owner closed, temporary fixture removed. Harness checked generic exception text initially; saved raw response reconciles baseline without replay.",
     "Automatic Git-derived/supplemental selection now admits128paths while explicit lists retain16. Complete source/packet budgets and all snapshot/proposal validation remain.",
-    "New wanted-behavior source fixture verifies all35before/current bytes/hashes, complete scoped exception text and late-file stale refusal; not executed yet. Rust syntax parsed and owned diff whitespace clean."
+    "New wanted-behavior source fixture verifies all35before/current bytes/hashes, complete scoped exception text and late-file stale refusal; not executed yet. Rust syntax parsed and owned diff whitespace clean.",
+    "Eight focused native cases accounted for with seven unaffected passes retained; all31public debug checks passed first public run on the reused paired server. All new native/compiler/public owners closed and fixture resources removed."
   ],
   "checks_pending": [
-    "Combine focused native and public debug/candidate/installed acceptance after two other distinct source-complete original requirements; no build for this item alone."
+    "Use one shared optimized release for owned candidate/installed public acceptance, verify installed identities and normal config/generation3151 restoration. Retain passed native/debug checks."
   ],
   "native_case": "multi_file_feature_retains_every_before_after_source_and_late_file_stale_guard",
   "future_fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
-  "runtime_source_commit": "6d99774ddd4c76a2c00780915fceb4ec498af5f5",
+  "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "combined_validation": {
-    "status": "SOURCE_FROZEN_NATIVE_PENDING",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_PASSED_RELEASE_PENDING",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
-    "native_target": "maintenance_state_parameter_batch_tests",
-    "native_cases": 8,
-    "native_builds": 0,
-    "release_builds": 0
+    "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
+    "native_cases_passed": 8,
+    "native_builds": 2,
+    "retained_unaffected_cases": 7,
+    "current_affected_cases": 1,
+    "native_seconds": 296.61605190008413,
+    "native_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\native-acceptance.json",
+      "sha256": "1b74fd606eb81e040be34111807088a470f0f78d48bd066404c750ad20a42c55"
+    },
+    "public_checks_passed": 31,
+    "public_acceptance": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116\\debug1\\receipt.json",
+      "sha256": "8ceb885e75698db97b814739870e78498b993bd38a8f458478c771ea3192c3c8"
+    },
+    "release_builds": 0,
+    "extra_debug_builds": 0,
+    "full_suite_run": false,
+    "deployed": false
   }
 }
