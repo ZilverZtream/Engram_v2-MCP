@@ -40,10 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "ACCUMULATING_SOURCE_OUTCOMES",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
       "eval/history-metadata-identity-progress-20261116.json",
-      "eval/webmethod-request-trace-progress-20261116.json"
+      "eval/webmethod-request-trace-progress-20261116.json",
+      "eval/business-analysis-delivery-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2575,6 +2576,14 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
         "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
         "user_outcome": "Existing LegacyValidation AJAX-style VB ASPX/ASMX URL suffixes reach authored attributed method candidates and the existing source-admitted call/database walker, including same-application App_Code partial services. Source complete; native/public/installed validation pending."
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\contract.json",
+        "progress_record": "eval/business-analysis-delivery-progress-20261116.json",
+        "user_outcome": "Large successful business-analysis JSON/Markdown reports use existing complete reply budgets and exact saved-result recovery after generation/persistence; recovery does not repeat either. Native/public/deployment pending."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2618,9 +2627,9 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "pending_count": 3,
     "last_installed_record": "eval/editing-report-batch-delivery-20261116.json",
-    "pending_count": 2,
     "native_builds": 0,
     "release_builds": 0
   },
@@ -2737,7 +2746,7 @@
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false,
-    "source_commit": "8b14ff1e6c777b55b16430e4488f647fcab598bd",
+    "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
       "original_requirement_id": "TODO-4",
@@ -2745,7 +2754,8 @@
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false
+      "deployed": false,
+      "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460"
     },
     "next_user_visible_deliverable": "Select a third distinct original LegacyValidation requirement for source implementation before one combined native/release validation. Do not compile these two items alone or count another WebMethod/parser variant, cache variant, documentation or fixture change as another requirement. No new agent comparison, closed-tool work or inspected-task replay."
   }

@@ -84,5 +84,6 @@
   "legacy_validation_runtime_filter": {
     "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "relevance": "Current LegacyValidation VB.NET/JS/TS business-analysis workflow and configured OpenAI-compatible backend; proof uses an owned deterministic local provider and VB source, not the current real LLM or any inspected task."
-  }
+  },
+  "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460"
 }
