@@ -40,10 +40,11 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "TWO_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
       "eval/request-trigger-paths-progress-20261116.json",
-      "eval/graph-read-delivery-progress-20261116.json"
+      "eval/graph-read-delivery-progress-20261116.json",
+      "eval/sql-instruction-evidence-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -2578,6 +2579,16 @@
         "source_progress_record": "eval/graph-read-delivery-progress-20261116.json",
         "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\verify-public.py",
         "user_outcome": "Three basic graph readers gain complete caller/default reply budgets and immutable selected-result recovery through the existing report owner."
+      },
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "d19b8843492f7e39306ffca91a7fbeb00ea8c677",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
+        "source_progress_record": "eval/sql-instruction-evidence-progress-20261116.json",
+        "focused_native_target": "sql_instruction_evidence_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\verify-public.py",
+        "user_outcome": "Instruction evidence recognizes referenced SQL table/view/trigger declarations with exact before/current ranges and distinguishes a changed declaration from unchanged declarations in the same file."
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2646,7 +2657,7 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\policy-revert-status-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-graph-guidance-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
@@ -2760,26 +2771,25 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO-4 complete delivery across remaining basic graph readers",
+    "active_original_item": "EG-27 SQL declaration evidence for authored instructions",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
     "implementation_items_active": 0,
-    "original_requirement": "Uniform complete reply budgets and exact original-result recovery across agent read tools.",
-    "observed_missing_behavior": "query_graph_nodes, find_references and graph_search lack caller max_tokens and original-result recovery although the common report owner already serves traversal and other graph readers.",
+    "original_requirement": "Instruction evidence dependencies include referenced files/symbols and distinguish relevant source changes while preserving scope, raw hashes and authority uncertainty.",
+    "observed_missing_behavior": "SQL evidence capture extracts stored procedures only. Ordinary table/view/trigger identifiers in authored SQL guidance remain unresolved despite the existing shared SQL declaration catalog.",
     "implementation_files": [
-      "crates/engram_server/src/read_report_delivery.rs",
-      "crates/engram_server/src/read_report_delivery_tests.rs",
+      "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs",
+      "crates/engram_server/tests/sql_instruction_evidence_tests.rs",
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "All three ordinary graph reads retain original selected node/reference/ranked output and fit caller reply budgets through existing immutable recovery.",
-      "Recover original selected MCP result and verify hash/independent authored source identities after owned source/index change and restart without rerunning graph search. Preserve existing record caps, ranking, clipping, graph freshness and ambiguity behavior.",
-      "No graph extraction, identity, ranking, CodeMap/Blast implementation or new snapshot system. Use existing shared-owner acceptance; no new implementation-mirroring unit tests or per-feature Cargo."
+      "Owned authored guide references dbo.Orders, dbo.OrdersView and dbo.OrderAudit in a captured SQL script. Return positive table/view/trigger declaration candidates with exact before/current raw byte and line spans and hashes, without live-index/default-schema/deployment assumptions.",
+      "Changing only the table declaration reports changed observed table bytes while unchanged view/trigger declaration bytes remain unchanged. Qualified names preserve schema distinctions and existing procedure behavior/caps remain.",
+      "Existing stale draft packet guard refuses after SQL source changes. Authored guide and its exception remain byte-identical; no policy changes or model requests. One dedicated behavioral native test plus public MCP proof join the two queued original source outcomes; no per-feature Cargo."
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-read-delivery-20261116\\contract.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\sql-instruction-evidence-20261116\\contract.json",
     "full_original_goal_active": true,
-    "concurrent_validation": "Policy/revert/migration source remains frozen in running release1; next source changes do not enter it.",
-    "next_action": "Select the next ready distinct original requirement; two next-batch source outcomes are retained, no per-feature Cargo. Preserve installed delivery and all unfinished original requirements.",
-    "previous_goal_turn_classification": "PROGRESS: previous turn completed native acceptance, started sole release and committed trigger tracing. Current turn completed candidate/installed37checks and restored runtime, and committed grouped graph reader source."
+    "previous_goal_turn_classification": "PROGRESS: policy/revert/migration installed with37public checks per candidate/installed; grouped graph reader source committed and queued with trigger tracing.",
+    "next_action": "One focused native target then one release for all three original source outcomes; preserve unaffected passes and reuse release for candidate/installed."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2866,5 +2876,6 @@
     },
     "runtime_source_commit": "fb55867377e28b64ecf76e446b98455e7f94f021",
     "installed_server_sha256": "54ae7bf78084f76c88cf9952fd178e39258a1843eec509528159d00f9c8d740d"
-  }
+  },
+  "sql_instruction_evidence_source_progress": "eval/sql-instruction-evidence-progress-20261116.json"
 }
