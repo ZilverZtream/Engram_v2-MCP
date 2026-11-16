@@ -760,7 +760,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Harvest reverted commits from git history into the immune system as anti-patterns (generates immune_* repo rules). Run after index_git_history; then immune_check scores new code against them."
+        description = "Collect Git revert-message references and selected original file diffs as historical evidence, with original/revert commit identities and exact stored-diff citations. Does not use LLM generation, generate repository rules, infer a regression or accept policy. Existing rules remain unchanged. Index the project first; max_commits bounds the Git walk. Fresh calls update the antipattern evidence index and links and can require embeddings; saved response recovery never repeats that work."
     )]
     pub async fn analyze_reverts(
         &self,

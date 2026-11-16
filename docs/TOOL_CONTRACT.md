@@ -1,5 +1,17 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: `analyze_reverts` retains
+Git revert-message references and selected original file diffs as historical evidence.
+It returns original/revert commit identities, affected paths and `get_chunk`
+citations. It makes no LLM generation requests and creates or replaces no repository
+rules. Revert reason and policy acceptance remain unestablished; existing
+manual and learned rows stay unchanged for their separate ownership decisions.
+Fresh analysis still indexes evidence and links and can require embeddings. Whole-report default/caller
+budgets and immutable recovery use the existing delivery mechanism; saved
+recovery repeats none of that work. Existing `max_commits`, per-file diff
+extraction and retention limits remain. This does not establish cause,
+regression, safety, runtime behavior or accepted policy.
+
 Source-complete, awaiting combined validation: `list_repo_rules` uses the
 existing whole-report reply budget and immutable original-result recovery in
 both ordinary-list and `ownership_inventory=true` modes. The default is40KiB;

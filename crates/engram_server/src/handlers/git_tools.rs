@@ -7,11 +7,10 @@ use crate::models::{
 };
 use crate::tools::Engram;
 use crate::utils::now_ms;
-use engram_core::{JobRecord, RepoRule};
+use engram_core::JobRecord;
 use engram_git::history::GitWalker;
 use engram_graph::EdgeKind;
 use engram_index::HybridQuery;
-use engram_ml::llm_provider::LlmError;
 use git2::Oid;
 use rmcp::{
     ErrorData as McpError,
@@ -2426,9 +2425,9 @@ impl Engram {
 
         struct RevertData {
             rule_id: String,
-            file_pattern: String,
             diff_text: String,
             original_commit: String,
+            revert_commit: String,
             file_path: engram_core::RelPath,
         }
 
@@ -2453,9 +2452,9 @@ impl Engram {
                         for doc in docs {
                             data.push(RevertData {
                                 rule_id: format!("immune_{}", doc.original_commit),
-                                file_pattern: format!("**/{}", doc.file_path),
                                 diff_text: doc.diff_text,
                                 original_commit: doc.original_commit.to_string(),
+                                revert_commit: oid.to_string(),
                                 file_path: doc.file_path,
                             });
                         }
@@ -2472,70 +2471,29 @@ impl Engram {
 
         let reverts_found = revert_data.len();
 
-        // Phase 2 (async): Generate LLM-powered descriptive rules + build IndexDocs.
-        let dreaming = self.state.dreaming.clone();
+        // A rollback establishes an event, not its cause or accepted policy.
+        // Preserve cited evidence without creating or replacing repository rules.
         let mut anti_docs = Vec::with_capacity(revert_data.len());
-        let mut rules_added = 0;
-
+        let mut evidence = Vec::with_capacity(revert_data.len());
         for rd in &revert_data {
-            // Try LLM-based analysis of the reverted diff to produce a descriptive rule
-            let diff_snippet = if rd.diff_text.len() > 2000 {
-                &rd.diff_text[..2000]
-            } else {
-                &rd.diff_text
-            };
-
-            let prompt = format!(
-                "Analyze this reverted code diff and explain in 1-2 concise sentences why this pattern should be avoided. \
-                 Focus on the root cause — what went wrong and what developers should do instead.\n\n\
-                 File: {}\nOriginal commit: {}\n\nDiff:\n```\n{}\n```\n\n\
-                 Respond with ONLY the rule text (no preamble).",
-                rd.file_path, rd.original_commit, diff_snippet
+            let content = format!(
+                "Revert evidence only; not accepted repository policy or proof of a regression.\n\
+                 Original commit: {}\nRevert commit: {}\nFile: {}\nEvidence basis: Git revert-message reference.\n\
+                 Revert reason: not established by the recorded revert.\n\
+                 Diff scope: selected original-commit file diff, existing limit of 50000 bytes per file; completeness is not independently verified.\n\n{}",
+                rd.original_commit, rd.revert_commit, rd.file_path, rd.diff_text
             );
-
-            let llm_analysis = match dreaming
-                .generate_text(&prompt, 200, std::time::Duration::from_secs(15))
-                .await
-            {
-                Ok(text) => text,
-                Err(err) => {
-                    log_llm_failure("git_tools.revert_antipattern", &rd.rule_id, &err);
-                    String::new()
-                }
-            };
-
-            let rule_text = if llm_analysis.is_empty() {
-                // Deterministic fallback with more detail than before
-                format!(
-                    "AVOID: Pattern in {} was reverted (commit {}). The change was rolled back indicating it introduced a regression. Review carefully before reintroducing similar changes.",
-                    rd.file_path, rd.original_commit
-                )
-            } else {
-                format!(
-                    "AVOID (reverted in {}): {}",
-                    rd.original_commit, llm_analysis
-                )
-            };
-
-            let rule = RepoRule {
-                rule_id: rd.rule_id.clone(),
-                file_pattern: rd.file_pattern.clone(),
-                rule_text,
-                priority: 10,
-                updated_at_ms: now_ms(),
-                introduced_at: None,
-                provenance: Some("revert-derived rule".into()),
-            };
-            self.state
-                .registry
-                .put_repo_rule(&req.project_id, &rule)
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
-            rules_added += 1;
-
-            // Build IndexDoc for Tantivy
-            let immune_content_hash = engram_core::ContentHash::compute(rd.diff_text.as_bytes());
+            let immune_content_hash = engram_core::ContentHash::compute(content.as_bytes());
             let immune_doc_id_str =
                 engram_core::DocIdStr::compute(rd.file_path.as_str(), 0, 0, &immune_content_hash).0;
+            evidence.push(json!({
+                "original_commit":rd.original_commit,"revert_commit":rd.revert_commit,
+                "path":rd.file_path,"evidence_basis":"git_revert_message_reference","policy_acceptance":"not_inferred",
+                "revert_reason":"not_established",
+                "diff_scope":"selected original-commit file diff; existing limit of 50000 bytes per file",
+                "recovery":{"tool":"get_chunk","arguments":{"project_id":req.project_id,
+                    "namespace":"antipattern","doc_id":immune_doc_id_str}}
+            }));
 
             anti_docs.push(engram_index::IndexDoc {
                 generation: active_gen,
@@ -2544,7 +2502,7 @@ impl Engram {
                 content_hash: immune_content_hash.0,
                 path: rd.file_path.clone(),
                 language: "code".into(),
-                content: rd.diff_text.clone(),
+                content,
                 namespace: "antipattern".into(),
                 author: None,
                 timestamp: None,
@@ -2574,7 +2532,9 @@ impl Engram {
                 edge_kind: EdgeKind::AntiPattern,
                 weight: 1,
                 generation: active_gen,
-                metadata: None,
+                metadata: Some(json!({"evidence_kind":"git_revert_message_reference",
+                    "original_commit":rd.original_commit,"revert_commit":rd.revert_commit,
+                    "policy_acceptance":"not_inferred","revert_reason":"not_established"})),
                 updated_at_ms: now_ms(),
             });
         }
@@ -2606,14 +2566,20 @@ impl Engram {
             .add(docs_indexed as u64);
 
         let summary = format!(
-            "\u{2705} Immune System active.\n\
-             Reverts analyzed: {reverts_found}\n\
-             Anti-patterns indexed: {docs_indexed}\n\
-             Repo rules generated: {rules_added}\n\
-             Graph edges created: {edges_created}",
+            "Revert evidence collected.\n\
+             Reverted file changes: {reverts_found}\n\
+             Evidence documents indexed: {docs_indexed}\n\
+             Repo rules generated: 0 (no policy acceptance inferred)\n\
+             Evidence edges created: {edges_created}\n\
+             A revert does not establish a regression or accepted policy. Existing repository rules were not changed."
         );
-
-        Ok(CallToolResult::success(vec![Content::text(summary)]))
+        Ok(CallToolResult::success(vec![Content::text(summary), Content::text(json!({
+            "tool":"analyze_reverts","status":"historical_evidence_collected",
+            "reverted_file_changes":reverts_found,"evidence_documents_indexed":docs_indexed,
+            "repo_rules_written":0,"llm_generation_requests":0,"evidence_edges_created":edges_created,
+            "evidence":evidence,
+            "limitation":"Git revert-message references and selected original diffs are evidence, not accepted rulings or proof of cause, defect, safety or runtime behavior. Existing legacy rules remain unchanged and require their separate ownership disposition."
+        }).to_string())]))
     }
 }
 
@@ -2639,18 +2605,6 @@ pub(crate) fn history_fully_indexed(
         return already_complete;
     }
     already_complete || reached_root || (backfill_ran && backfill_processed < backfill_requested)
-}
-
-fn log_llm_failure(operation: &str, target: &str, err: &LlmError) {
-    tracing::warn!(
-        operation = operation,
-        target = target,
-        provider = err.provider().unwrap_or("unknown"),
-        status_code = err.status_code(),
-        retry_exhausted = err.retry_exhausted(),
-        error = %err,
-        "LLM generation failed; using fallback"
-    );
 }
 
 #[cfg(test)]

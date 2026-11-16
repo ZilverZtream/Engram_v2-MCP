@@ -1,0 +1,62 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-17",
+  "original_requirement": "Preserve policy authority and accepted exceptions; workflow status does not automatically establish an accepted policy decision. Preserve completed generator/workflow deliveries.",
+  "user_outcome": "analyze_reverts collects source-cited revert-message evidence without LLM generation or creating/replacing repository policy. Existing rules are preserved; complete evidence reports reuse bounded immutable recovery.",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\baseline1\\acceptance.json",
+  "baseline_status": "BASELINE_GAP_CONFIRMED",
+  "baseline_checks_passed": 4,
+  "baseline_analyzer_llm_generation_requests": 1,
+  "baseline_new_rule_authority": "learned_evidence",
+  "baseline_new_rule_enforcement": "retained_unfiltered_registry_constraint",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/git_tools.rs",
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/revert_evidence_authority_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_files_sha256": {
+    "crates/engram_server/src/handlers/git_tools.rs": "e0e449ac3d399405302da489adb29adeee439d7e30d77aa3439889c23dccb2c2",
+    "crates/engram_server/src/read_report_delivery.rs": "f630b4b8e3084cb05681c94edaf3f5c4509e8976eb2af2115dee6c7e54e08be0",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "3f62d9f7c7d84139510faeb2527732b5863a760778995dc5ecdf9f6a05490076",
+    "crates/engram_server/src/tools.rs": "6322269df6f3227a936ae78b01541d5cbdd59b6f421eee75de491d510f2841f2",
+    "crates/engram_server/tests/revert_evidence_authority_tests.rs": "9eb68187486663322980370123de2171e9fdd5617dad47e0436c98606adbeadb",
+    "docs/TOOL_CONTRACT.md": "f7450f63616150e357e23cac0eb2337a0080ca95e8797700fe93de7ac25a2853"
+  },
+  "source_checks": [
+    "Legacy handler/tool/report source parsed with rustfmt without unrelated formatting",
+    "Dedicated real-Git behavioral native target parsed and formatted",
+    "Python public verifier parsed with ast; independent installed baseline passed four checks",
+    "Selected git diff --check passed"
+  ],
+  "native_target": "revert_evidence_authority_tests",
+  "native_execution": "NOT_RUN: two original source outcomes queued; wait for at least three before combined native validation",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\revert-evidence-authority-20261116\\verify-public.py",
+  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "deployed": false,
+  "source_commit": null,
+  "timing": {
+    "source_block_started_utc": "2026-11-16T09:31:53.434018+00:00",
+    "baseline_execution_seconds": 3.394515037536621,
+    "compilation_seconds": 0,
+    "full_suite_runs": 0,
+    "actual_complete_coding_percent": null,
+    "source_block_ended_utc": "2026-11-16T09:35:26.619817+00:00",
+    "targeted_verification_authoring_started_utc": "2026-11-16T09:35:26.619817+00:00",
+    "targeted_verification_authoring_ended_utc": "2026-11-16T09:47:59.773862+00:00",
+    "source_block_seconds": 213.185799,
+    "targeted_verification_authoring_seconds": 753.154045,
+    "limits": "Selected activity blocks only; later source/fixture clarifications and other elapsed work are not exhaustively timed. Actual complete coding percentage remains unknown."
+  },
+  "resources": "Owned baseline MCP process and fake OpenAI provider closed/joined naturally; owned temporary Git/data/config fixture removed. Evidence retained only under recorded CASE; no preexisting deletion.",
+  "limits": [
+    "This changes the analyze_reverts producer only. Existing manual/legacy/learned rules are preserved and their unresolved authority/ownership is not silently completed.",
+    "A parsed Git revert-message reference and selected original diff do not prove structural undo, cause, regression, safety, runtime execution or accepted policy.",
+    "Fresh evidence indexing preserves its configured embedding backend and can require embeddings. Removed and measured calls concern LLM generation only; the fake-provider baseline makes no real model requests.",
+    "Existing max_commits,50000-byte per-file extraction and saved-result retention limits remain. No new policy approval UI, model study, CodeMap/Blast improvement or target-language expansion.",
+    "Source is not compiled, runtime-verified or installed yet; the full original backlog remains active."
+  ]
+}
