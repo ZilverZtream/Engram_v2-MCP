@@ -1,5 +1,12 @@
 # Tool Contract
 
+Source-complete, awaiting combined validation: `explain_change` uses shared
+complete-report delivery with a40KiB default and caller `max_tokens` controls.
+Fitting commit-message, PR-description, changelog and narrative replies preserve
+their original formats. Oversized replies return immutable original MCP-result
+recovery without rereading the diff; follow the returned saved-report controls.
+Explanation classification, rendering and existing evidence limits are unchanged.
+
 Source-complete, awaiting combined validation: source-dossier admission gaps from
 `one_shot_feature_plan` recover through the registered `get_full_method_body`
 reader. The returned call requests a current file excerpt with normal source

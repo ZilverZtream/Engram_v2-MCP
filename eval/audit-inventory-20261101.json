@@ -10097,13 +10097,12 @@
   "current_execution_focus": {
     "selected_delivery_contract": {
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "original_requirement_id": "TODO-7",
-      "record": "eval/dossier-source-recovery-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dossier-source-recovery-20261116\\contract.json",
+      "original_requirement_id": "TODO-4",
+      "record": "eval/explain-change-report-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\explain-change-report-20261116\\contract.json",
       "native_tests_run": false,
       "public_acceptance_run": false,
-      "deployed": false,
-      "source_commit": "da72c8f7a2b75a34e0e03a654a20a006a5758018"
+      "deployed": false
     },
     "at_utc": "2026-11-15T10:07:21.226291+00:00",
     "reason": "User corrected generic language expansion back to the original LegacyValidation improvement priorities. Retain bounded EG14 and freshness deliveries and all unfinished limits.",
@@ -10135,7 +10134,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO7 source-dossier gap recovery source-complete. Queue with EG01 standalone editing guidance; no new build before at least a third distinct original source outcome.",
+    "active_original_item": "Three independent source outcomes complete: EG01 scoped standalone editing guidance, TODO7 executable source-dossier recovery, TODO4 budgeted diff explanations. Prepare one focused11-case combined validation; no build started yet.",
     "next_user_visible_deliverable": "Complete a third distinct original LegacyValidation source outcome before combined validation. Queued EG01 editing guidance and TODO7 executable source-gap recovery are unvalidated/uninstalled; no new compile or release has started.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."

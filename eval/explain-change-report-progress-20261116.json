@@ -1,0 +1,66 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform complete reply budgets and exact recovery for AI tool responses, without silent loss of selected evidence.",
+  "observed_missing_behavior": "Installed80-file TypeScript diff explanation retains80affected files but returns24091JSONbytes/4716Markdownbytes with no max_tokens/response_id/response_offset controls. Both exceed a caller4096-byte budget; default40KiB overflow was not reproduced and is not claimed.",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\explain-change-report-20261116\\baseline1\\receipt.json",
+  "wanted_behavior": "Use existing shared report delivery for explain_change: default40KiB preserves fitting original results, caller budgets defer complete selected MCP results with immutable recovery before any project/diff lookup. Keep original narrative, commit message, PR description, optional changelog, style and existing source/heuristic limits unchanged.",
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/read_report_delivery_tests.rs",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs",
+    "crates/engram_server/tests/explain_change_delivery_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "TODO.md",
+    "crates/engram_server/tests/editing_report_batch_tests.rs"
+  ],
+  "finite_acceptance": [
+    "Actual owned80-file TypeScript raw diff in a patch file: JSON and Markdown retain the supplied file inventory and existing rendered output. Default delivery equals the complete original; a1024-token budget defers both formats and recovers the exact original MCP result after deleting the patch.",
+    "Transport schemas in Full retain output_format/style/changelog controls and expose existing report controls; existing shared report owners/exclusions remain. No explanation classifier/risk/render/source changes."
+  ],
+  "native_target": "explain_change_delivery_tests",
+  "native_cases": 1,
+  "native_tests_run": false,
+  "public_acceptance_run": false,
+  "deployed": false,
+  "stop_rule": "Add this existing read-only tool to the shared delivery owner. No new envelope/store, wider report sweep, diff/risk/render changes, planner tuning or benchmark replay. Broader TODO4 stays partial.",
+  "build_rule": "Third distinct source outcome after EG01 and TODO7; use one focused combined native target and one release after source commit.",
+  "legacy_validation_runtime_filter": {
+    "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "verified_by": "eval/source-policy-batch-delivery-20261116.json",
+    "relevance": "Existing LegacyValidation JS/TS/VB.NET/SQL diff explanation and PR/commit preparation, independent of embedding provider. Owned TypeScript fixture only; no normal LegacyValidation/Q source operation."
+  },
+  "resources": {
+    "scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\explain-change-report-20261116",
+    "baseline_owners_closed": true,
+    "baseline_fixture_removed": true,
+    "retention": "Retain synthetic diff/report/check receipts until superseded. Native server/database owners close before the owned directory on success/unwind. No preexisting cleanup."
+  },
+  "source_sha256": {
+    "crates/engram_server/src/read_report_delivery.rs": "dfc5d2a9a3d74b47621fb5a7fbb86a235ecc31033b34ce2d2e18cf16271350fa",
+    "crates/engram_server/src/read_report_delivery_tests.rs": "ef875413c56a0d2604c34098203005d1343808abd72f66225d93f58fcbe28095",
+    "crates/engram_server/tests/webforms_report_delivery_tests.rs": "05f2e02a0264aee538beec5a13349bb3483506903908d861c38ca7bb841b5961",
+    "crates/engram_server/tests/explain_change_delivery_tests.rs": "3d20ad308fc1b63674d32b82142f973677b9e975cde7668085747d6d1797a8ca",
+    "docs/TOOL_CONTRACT.md": "06af92227adec82ea57e881ec9aaaf60a982fbf8d3119ccd4a2c1c0a143045ae",
+    "TODO.md": "4abdb63dda51d234120b94041019cc411e480f3f177d48c960598c10a8af6502",
+    "crates/engram_server/tests/editing_report_batch_tests.rs": "5825acf934c0e79bb1473ed7381c03bf40d7cdfe2aeb5095c6e7e6ab598f4c20"
+  },
+  "protected_wip_sha256": {
+    "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+    "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+    "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+    "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+    "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+    "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+    "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+    "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+    "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+  },
+  "combined_native_target": "editing_report_batch_tests",
+  "combined_native_cases": 11,
+  "checks_completed": [
+    "Installed owned80-file JSON/Markdown explanation and actual tool schema captured. Both formats exceed4096bytes and lack caller delivery controls. The failed default-overflow expectation is explicitly retained; no larger/repeated baseline used.",
+    "Rust2024 syntax parsed, new fixture/combined target formatted and selected-path diff whitespace check passed. No Cargo/test/release invoked for the new batch.",
+    "Existing shared owner reused; only explain_change eligibility and corresponding count expectations changed. Renderer/service, classifier, risk/graph logic, request fields and historical semantics unchanged."
+  ]
+}

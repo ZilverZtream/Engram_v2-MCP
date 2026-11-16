@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use std::path::Path;
 
 const TOOLS: &[&str] = &[
+    "explain_change",
     "get_method_edit_context",
     "traverse_graph",
     "list_memory_bank",
