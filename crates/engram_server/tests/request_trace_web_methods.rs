@@ -71,7 +71,8 @@ impl Fixture {
             .position(|s| s.contains(&format!("Class {name}")))
             .unwrap()
             + 1;
-        let end = lines.iter().rposition(|s| s.trim() == "End Class").unwrap() + 1;
+        // Match the existing VB fallback: class declaration lines, qualified members.
+        let end = start;
         let mut nodes = vec![node(
             &format!("class:{file}:{name}"),
             "class",
@@ -171,6 +172,21 @@ fn page_method_url_keeps_the_exact_entry_and_existing_sql_path_without_page_life
             .any(|m| m["excerpt"]
                 .as_str()
                 .is_some_and(|s| s.contains("UPDATE dbo.Preferences")))
+    );
+    // Complete type ranges from a richer parser retain the same selected entry.
+    let complete = node(
+        "class:Site/language.aspx.vb:Language",
+        "class",
+        "Language",
+        "Site/language.aspx.vb",
+        1,
+        VB.lines().count(),
+    );
+    f.graph.upsert_nodes("owned", &[complete]).unwrap();
+    let ranged = f.trace("POST /language.aspx/change");
+    assert_eq!(
+        ranged["trace"]["handlers"][0]["node_id"],
+        value["trace"]["handlers"][0]["node_id"]
     );
     let page = f.trace("GET /language.aspx");
     assert!(page["route"].get("web_method").is_none());

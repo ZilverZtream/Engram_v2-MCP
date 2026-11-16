@@ -167,6 +167,20 @@ pub(super) fn trace(
             ));
             continue;
         }
+        let short_type = expected.rsplit('.').next().unwrap_or(&expected);
+        let declaration = source
+            .content
+            .lines()
+            .skip(class.start_line.saturating_sub(1) as usize)
+            .take((class.end_line - class.start_line + 1).min(16) as usize)
+            .any(|line| {
+                routing::tokens(line, true)
+                    .windows(2)
+                    .any(|pair| word(&pair[0], "Class") && word(&pair[1], short_type))
+            });
+        if !declaration {
+            continue;
+        }
         let mut members = graph.query_nodes_in_file(project, Some("function"), source.path, 257)?;
         if members.len() > 256 {
             members.truncate(256);
@@ -183,17 +197,28 @@ pub(super) fn trace(
             ));
             continue;
         }
-        for node in members
-            .iter()
-            .filter(|n| n.start_line > class.start_line && n.end_line <= class.end_line)
-        {
+        for node in members.iter().filter(|n| n.start_line > class.start_line) {
             let owner = file_classes
                 .iter()
                 .filter(|c| n_contains(c, node))
                 .min_by_key(|c| c.end_line.saturating_sub(c.start_line));
-            if owner.is_none_or(|owner| owner.node_id != class.node_id)
-                || !entry(node, source, method, !service)
-            {
+            let ranged_owner = owner.is_some_and(|owner| owner.node_id == class.node_id);
+            // The existing VB fallback records a class declaration line, while
+            // its functions retain qualified names and complete method ranges.
+            // A one-line class record cannot establish enclosing body bounds.
+            let qualified = format!("{}.{method}", class.name);
+            let named_owner = class.start_line == class.end_line
+                && [
+                    Some(node.name.as_str()),
+                    node.metadata
+                        .as_ref()
+                        .and_then(|m| m.get("fqn"))
+                        .and_then(|v| v.as_str()),
+                ]
+                .into_iter()
+                .flatten()
+                .any(|name| name.eq_ignore_ascii_case(&qualified));
+            if (!ranged_owner && !named_owner) || !entry(node, source, method, !service) {
                 continue;
             }
             if seen.insert(node.node_id.clone()) {
@@ -204,7 +229,12 @@ pub(super) fn trace(
                     break 'types;
                 }
                 files.insert(source.path.to_owned());
-                chosen.push((node.clone(), format!("Authored {} Class/Inherits={expected} and public {}WebMethod {method}; source candidate, runtime dispatch not established", if service { "WebService" } else { "Page" }, if service { "" } else { "Shared " })));
+                let owner_basis = if ranged_owner {
+                    "indexed class/member ranges"
+                } else {
+                    "indexed qualified name with declaration-only class range; compiler ownership unverified"
+                };
+                chosen.push((node.clone(), format!("Authored {} Class/Inherits={expected} and public {}WebMethod {method}; {owner_basis}; source candidate, runtime dispatch not established", if service { "WebService" } else { "Page" }, if service { "" } else { "Shared " })));
             }
         }
     }

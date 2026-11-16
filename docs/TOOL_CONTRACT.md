@@ -15,8 +15,10 @@ literal VB WebMethod URL suffixes such as `POST /language.aspx/change` and
 `POST /api.asmx/getimg`. Page entries require a public Shared method with an
 observed WebMethod attribute and the directive's authored type/code file. ASMX
 Class directives can select public instance methods from matching App_Code
-partial classes under the same established application root. Selected entries
-reuse the existing source/revision-admitted call and database walker; ordinary
+partial classes under the same established application root. Declaration-only VB
+class records use exact same-file indexed qualified member names and an observed
+type declaration; compiler ownership remains unverified. Complete type ranges
+retain their enclosing-member checks. Selected entries reuse the existing source/revision-admitted call and database walker; ordinary
 page/lifecycle traces keep their behavior. An action cannot override the URL's
 method. Inherited/inline/aliased bindings, runtime hosting/protocol/verb dispatch,
 session availability and successful execution remain unproven. Nothing is
