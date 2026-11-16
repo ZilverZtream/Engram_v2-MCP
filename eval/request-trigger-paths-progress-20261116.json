@@ -2,11 +2,8 @@
   "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
   "original_requirement_id": "TODO-31",
   "original_requirement": "trace_user_request: URL/route to handler, SQL/procedures/tables, trigger side effects and response.",
-  "user_outcome": "A normal WebForms/API save trace can show matching source-declared trigger relationships and body table references rather than an unconditional unknown placeholder; source citations and runtime uncertainty stay explicit.",
-  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
-  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\baseline1\\acceptance.json",
-  "baseline_status": "BASELINE_GAP_CONFIRMED",
-  "baseline_checks_passed": 4,
+  "user_outcome": "Request traces connect reached literal qualified SQL writes to exact source trigger declarations and cited body references without claiming deployment/execution.",
+  "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
   "implementation_files": [
     "crates/engram_server/src/services/request_trace/triggers.rs",
     "crates/engram_server/src/services/request_trace.rs",
@@ -25,30 +22,30 @@
     "crates/engram_server/tests/request_trigger_paths_tests.rs": "a310aeca3e2aebb711c5d9c859a8e5f1471720c495ba2676c2c27519ab6876a4",
     "docs/TOOL_CONTRACT.md": "82b342b1999de6eee69d3e619ccf42280259393ee360ce7f92a23b1e7d7c632d"
   },
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\baseline1\\acceptance.json",
+  "baseline_checks_passed": 4,
   "native_target": "request_trigger_paths_tests",
-  "native_tests_run": false,
+  "native_execution": "NOT_RUN; one next-batch original source outcome, wait for at least three independent requirements.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "deployed": false,
-  "source_commit": "d3a10b3693172fc93e6574d50b7e592664710f7a",
   "source_checks": [
-    "New source and dedicated native behavior target parsed/formatted with rustfmt; legacy owners parsed without unrelated formatting",
-    "Owned installed baseline four checks pass; original update path present, requested trigger path absent, sources unchanged",
-    "Public verifier parsed with ast"
+    "New implementation and dedicated native behavior target parsed/formatted with rustfmt; existing source syntax parsed without formatting unrelated code.",
+    "Public Python verifier parsed; exact installed baseline confirms ordinary reached write with absent trigger source paths.",
+    "Selected source diff checked; current frozen build checkout untouched."
   ],
+  "resources": "Owned baseline MCP process exited naturally, reader joined, temporary source/data/config removed; CASE evidence retained until superseded.",
   "timing": {
-    "baseline_execution_seconds": 1.5946846008300781,
-    "compilation_seconds": 0,
-    "full_suite_runs": 0,
+    "baseline_seconds": 1.5946846008300781,
+    "new_cargo_builds": 0,
     "actual_production_coding_percent": null,
-    "concurrent_release": "Prior frozen policy/revert/status batch release runs separately; no source from this feature is included."
+    "concurrent_release": "policy-revert-status-batch release1 continues on frozen source, not this source."
   },
-  "resources": "Baseline isolated MCP owner exited naturally; its source/data/config fixture removed. CASE source/evidence retained until superseded. No preexisting deletion or actual LegacyValidation/Q source scan.",
   "limits": [
-    "Only exact qualified source write/target names and compatible declared DML events become candidates; bare/alias/dynamic SQL is unresolved, not assigned a default schema.",
-    "Trigger body tables retain the existing lexical basename convention and source citations; no physical database binding, chained-trigger/procedure expansion, deployed/disabled-state interpretation or execution proof.",
-    "Selected current source membership/citations and existing128path cap are used; omitted expansion counts and catalog gaps remain visible. No new parser framework, source-format change or graph persistence.",
-    "Current LegacyValidation trigger DDL availability/runtime binding is not established by the owned fixture.",
-    "Source not compiled, new-source runtime-verified or deployed; this one distinct original outcome waits for the next three-requirement batch."
+    "Current selected LegacyValidation index trigger DDL/deployment not established; owned WebForms/SQL contract only.",
+    "Only exact qualified literal write/event matches; dynamic/alias names, default schemas, trigger enablement/deployment/execution and nested trigger/procedure effects remain unresolved.",
+    "Trigger body table references use existing lexical basename convention; pseudo inserted/deleted tables are not physical dependencies. Existing128path cap discloses omitted paths.",
+    "One dedicated native behavior function prepared, not executed. No claim of installed functionality or full TODO31 completion."
   ]
 }
