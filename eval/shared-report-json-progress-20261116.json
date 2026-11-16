@@ -1,0 +1,64 @@
+{
+  "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+  "at_utc": "2026-11-16T18:12:18.698614+00:00",
+  "original_requirement_id": "TODO-4",
+  "original_requirement": "Uniform response envelope: token budgets, truncation metadata, pagination and consistent output_json",
+  "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\contract.json",
+    "sha256": "9553d4f0adacd305e193e29e52d7b2755920b026cf8f74b3a1a795160d2f5c9d"
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116",
+  "baseline_execution": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\baseline1\\acceptance.json",
+    "sha256": "b572f1a872a262a6e37af6d9ea532c45d5875b83d667a30b9f5660fe07ea17c1"
+  },
+  "baseline_reconciliation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\baseline-reconciliation.json",
+    "sha256": "e0e21ae2a23442090cec3079c03a89034a9e59701e2e536e0ef3b632211826c3"
+  },
+  "baseline_status": "Expected unknown-output_json RPC refusal confirmed from retained wire; original driver FAIL preserved. No repeat execution.",
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\verify-public.py",
+    "sha256": "ef878f4ee511df29bd6447e931069ae11872c695a551cc3760f6f453411575db"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\source-checks.json",
+    "sha256": "d42da082b69d621b06f262dd59aadb7c8011b76bf84751f8a62ee0decd610707"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/tests/shared_report_json_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "Shared text reports without native JSON accept an optional versioned JSON envelope containing tool/project, the complete original MCP result and delivery-scope qualifications. Escaped envelope bytes use existing budgets and immutable original-result recovery. Native JSON handlers and default replies retain their existing behavior.",
+  "finite_acceptance": [
+    "Shared project report tools without native output_json advertise and accept opt-in JSON delivery in Full/Core/advanced schemas, while tools with native output_json keep their own input/format semantics. Existing default replies are unchanged.",
+    "A versioned JSON envelope identifies tool/project and retains the entire original MCP result, including every text part, warnings, hashes and authored guidance. Delivery completeness is distinct from handler coverage and result limits; no invented source or total counts.",
+    "Complete escaped JSON text counts toward the existing caller budget. Oversized envelopes use existing immutable full-result recovery. Recovery retains the JSON envelope and original parts after source changes or restart, without rerunning the handler.",
+    "Owned public proof exercises ordinary/default and opt-in memory/state reports, typed schema advertisement, JSON escaping, small-budget exact recovery and existing native JSON preservation. No standalone Cargo; queue as one original requirement."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "native_cases_written": [
+    "json_report_surface_preserves_native_json_owners_and_default_replies",
+    "escaped_json_budget_and_recovery_retain_all_original_evidence_parts"
+  ],
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "remaining_acceptance": [
+    "Combined focused native batch after at least three distinct original source outcomes.",
+    "Candidate and installed public proof of schemas, ordinary/default replies, complete JSON parts and saved recovery after source changes."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "new_compilations": 0,
+    "new_worktree_created": false,
+    "protected_wip9_preserved": true,
+    "retention": "Keep original failed baseline, raw wire, reconciliation, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folders removed."
+  },
+  "next_action": "Accumulate the next distinct original source outcome; do not compile a two-outcome batch."
+}

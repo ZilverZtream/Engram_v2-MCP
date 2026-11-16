@@ -2562,6 +2562,14 @@
         "progress": "eval/browser-store-clear-progress-20261116.json",
         "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
         "counts_as_independent_deliverables": 1
+      },
+      {
+        "original_requirement_id": "TODO-4",
+        "outcome": "Opt-in uniform JSON delivery for shared reports without native JSON",
+        "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
+        "progress": "eval/shared-report-json-progress-20261116.json",
+        "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+        "counts_as_independent_deliverables": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2701,6 +2709,14 @@
       "progress": "eval/browser-store-clear-progress-20261116.json",
       "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
       "counts_as_independent_deliverables": 1
+    },
+    {
+      "original_requirement_id": "TODO-4",
+      "outcome": "Opt-in uniform JSON delivery for shared reports without native JSON",
+      "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
+      "progress": "eval/shared-report-json-progress-20261116.json",
+      "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
+      "counts_as_independent_deliverables": 1
     }
   ],
   "method_schema_area_batch_delivery": {
@@ -2719,22 +2735,22 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "TODO27 JS/TS store-wide clear candidates in authentication state tracing",
+    "active_original_item": "TODO4 opt-in JSON envelopes for shared project reports",
     "status": "SOURCE_COMPLETE_PENDING_BATCH_VALIDATION",
-    "original_requirement_id": "TODO-27",
+    "original_requirement_id": "TODO-4",
     "implementation_items_active": 0,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\contract.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116",
     "finite_acceptance": [
-      "Emit unshadowed JS/TS localStorage/sessionStorage clear() syntax as distinct store-wide mutation state edges, keeping them separate from literal keys and preserving source byte/line/hash evidence. Existing lexical shadow checks apply.",
-      "Key-specific trace_state_usage includes bounded source-admitted whole-store clear candidates even when a file has no access to that literal key. Distinguish local/session stores and source candidates from browser origin/tab/session and runtime execution. Ordinary trace remains visible.",
-      "A new per-script extraction marker makes old indexes require the relevant refresh. Preserve parked WIP9; changes use existing browser extractor, non-WIP postprocessing/source contract and a separate public handler wrapper. No language expansion or new storage interpreter.",
-      "Owned JS/TS auth-flow fixture verifies literal readers/writers plus two clear candidates, unrelated-store/shadow controls, changed-source withholding and existing complete report recovery. Queue without Cargo until three distinct original source outcomes are ready."
+      "Shared project report tools without native output_json advertise and accept opt-in JSON delivery in Full/Core/advanced schemas, while tools with native output_json keep their own input/format semantics. Existing default replies are unchanged.",
+      "A versioned JSON envelope identifies tool/project and retains the entire original MCP result, including every text part, warnings, hashes and authored guidance. Delivery completeness is distinct from handler coverage and result limits; no invented source or total counts.",
+      "Complete escaped JSON text counts toward the existing caller budget. Oversized envelopes use existing immutable full-result recovery. Recovery retains the JSON envelope and original parts after source changes or restart, without rerunning the handler.",
+      "Owned public proof exercises ordinary/default and opt-in memory/state reports, typed schema advertisement, JSON escaping, small-budget exact recovery and existing native JSON preservation. No standalone Cargo; queue as one original requirement."
     ],
     "full_original_goal_active": true,
-    "next_action": "Select the next ready original requirement; retain this one in the pending queue. No Cargo before three independent source outcomes. Current implementation is not compiled, validated or installed.",
-    "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
-    "source_progress": "eval/browser-store-clear-progress-20261116.json"
+    "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
+    "source_progress": "eval/shared-report-json-progress-20261116.json",
+    "next_action": "Select the next ready distinct original requirement. Two source outcomes are queued; no Cargo before at least three. Neither pending outcome is compiled, validated or installed."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
