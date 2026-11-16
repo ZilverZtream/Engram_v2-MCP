@@ -40,11 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "ONE_SOURCE_OUTCOME_AWAITING_COMBINED_VALIDATION",
     "pending_source_records": [
-      "eval/history-metadata-identity-progress-20261116.json",
-      "eval/webmethod-request-trace-progress-20261116.json",
-      "eval/business-analysis-delivery-progress-20261116.json"
+      "eval/memory-write-recovery-progress-20261116.json"
     ],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
@@ -991,7 +989,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Finish a third distinct useful original source outcome before one focused combined native target and one release. Canonical method callees and complete schema-report recovery are source-complete but remain unvalidated/uninstalled. Prior installed batch remains delivered.",
+  "next_user_visible_deliverable": "Accumulate remaining distinct original source outcomes, then validate and install the combined batch. Persisted-memory recovery is source-complete only; previous installed batch remains delivered.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2560,7 +2558,18 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "TODO-7",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "2ac232f32874bbf81dc161cc97c286146668dd64",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\contract.json",
+        "source_progress_record": "eval/memory-write-recovery-progress-20261116.json",
+        "focused_native_target": "memory_write_recovery_tests",
+        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\verify-public.py",
+        "user_outcome": "A saved memory append/import is reported as stored even when search publication fails, with exact readback and stage-appropriate existing recovery. Agents are explicitly told not to repeat the write."
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2738,26 +2747,30 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Advance the remaining original accepted backlog after the installed maintenance/state/parameter batch. Select a concrete unmet LegacyValidation behavior before new source work or compilation.",
+    "active_original_item": "TODO-7 truthful persisted-memory outcomes and actionable indexing recovery",
     "implementation_items_active": 0,
-    "completed_batch": {
-      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-      "record": {
-        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\maintenance-state-parameter-batch-delivery-20261116.json",
-        "sha256": "ab58ef2dc52b90c6ef8bba1cf38b3e6cec99d823991faf257ea6ece77151e955"
-      },
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
-      "runtime_source_commit": "3d3e9160bc3923f19a742a914ba6304da574662e",
-      "native_cases_passed": 8,
-      "native_builds": 2,
-      "public_checks_per_candidate_and_installed": 31,
-      "release_builds": 1,
-      "deployed": true
-    },
-    "previous_goal_turn_classification": "PROGRESS: validated and installed three original workflow improvements; same single release reused for candidate/installed acceptance.",
-    "scope_guard": "Full original31findings/19applicable gates and accepted TODO scope retained. Preserve all completed deliveries and unfinished findings. CodeMap/Blast closed; LegacyValidation VB.NET/WebForms/JS/TS/SQL priorities. Held planner semantic capacity, legacy ownership, cleanup restrictions and kernel/SSD items remain unfinished.",
-    "next_build_rule": "Accumulate three distinct original source-complete requirements; one focused combined native target and one release. Retain unaffected passes; no freshness replays, full-suite default or extra debug build.",
-    "full_original_goal_active": true
+    "original_requirement": "Actionable error messages with recovery hints; preserve already-completed error cases.",
+    "observed_missing_behavior": "update_memory_bank and import_memory_bank persist registry content before search indexing; a provider outage then returns a generic MCP error hiding the committed write. Retrying append can duplicate the note.",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/project_tools.rs",
+      "crates/engram_server/src/handlers/project_tools/memory_publication.rs",
+      "crates/engram_server/tests/memory_write_recovery_tests.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "finite_acceptance": [
+      "A public append during controlled embedding failure returns an explicit stored/search-incomplete outcome with exact readback identity and do-not-repeat-write guidance; readback contains the append exactly once.",
+      "A known post-lexical embedding failure supplies a complete existing vector_only repair action. After provider restoration executing the action recovers search without rewriting content or changing source selection.",
+      "Imports expose the same truthful partial persistence result. Other index failures must not promise vector-only recovery; pre-persistence validation failures remain errors. Normal successful writes retain their behavior.",
+      "Use an owned local fake provider and JS project only. One combined native/release validation after three distinct original source-complete requirements; no per-feature compile or full suite."
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\contract.json",
+    "previous_goal_turn_classification": "NO_PROGRESS toward source delivery: answered timing request with existing evidence. Revalidated clean protected-WIP state and selected next concrete missing behavior.",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "full_original_goal_active": true,
+    "next_build_rule": "At least three distinct original source-complete requirements; preserve current installed deliveries and WIP9.",
+    "source_commit": "2ac232f32874bbf81dc161cc97c286146668dd64",
+    "source_progress_record": "eval/memory-write-recovery-progress-20261116.json",
+    "next_action": "Select and implement the next concrete unmet original LegacyValidation requirement. One independent source outcome is queued; no Cargo before at least three."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2809,5 +2822,6 @@
     "public_checks_per_candidate_and_installed": 31,
     "release_builds": 1,
     "deployed": true
-  }
+  },
+  "memory_write_recovery_source_progress": "eval/memory-write-recovery-progress-20261116.json"
 }
