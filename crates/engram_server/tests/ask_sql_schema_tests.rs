@@ -105,6 +105,28 @@ async fn sql_question_preserves_complete_columns_and_withholds_changed_declarati
                 .contains("do not establish deployed state"))
     );
 
+    let ambiguous = fixture
+        .server
+        .handle_ask_codebase(serde_json::from_value(json!({
+            "project_id":project,"question":"What are the columns of the Orders table?",
+            "output_format":"json","max_tokens":1000000
+        }))?)
+        .await?;
+    let ambiguous: Value = serde_json::from_str(&ambiguous.content[0].as_text().unwrap().text)?;
+    ensure!(ambiguous["status"] == "ambiguous");
+    let candidates = ambiguous["evidence"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|item| item["provider"] == "schema")
+        .collect::<Vec<_>>();
+    ensure!(candidates.len() == 2);
+    for candidate in candidates {
+        let body: Value = serde_json::from_str(candidate["content"].as_str().unwrap())?;
+        ensure!(body["status"] == "ambiguous" && body["candidate"]["citation"]["path"].is_string());
+        ensure!(body.get("table").is_none());
+        ensure!(body["recovery"]["arguments"]["query_type"]["name"].is_string());
+    }
     std::fs::write(
         root.join("Orders.sql"),
         source.replace("Attribute48", "ChangedWithoutIndex"),

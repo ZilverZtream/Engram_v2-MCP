@@ -145,7 +145,8 @@ pub(super) async fn gather(
                 ));
             }
             for row in report["results"].as_array().into_iter().flatten() {
-                let table = &row["table"];
+                let ambiguous = report["status"] == "ambiguous";
+                let table = if ambiguous { row } else { &row["table"] };
                 let citation = &table["citation"];
                 let path = citation["path"]
                     .as_str()
@@ -167,12 +168,20 @@ pub(super) async fn gather(
                     path: Some(path.into()), lines: Some((start as u32, end as u32)),
                     symbol_id: Some(format!("schema:{path}:{start}:{hash}")),
                     title: Some(format!("Source table {}", table["name"])),
-                    content: json!({"table":table,"source_coverage":report["coverage"],
+                    content: if ambiguous { json!({"status":"ambiguous", "candidate":row,
+                        "source_coverage":report["coverage"],
+                        "clarification":"Choose a qualified source name; duplicate declarations may still require source inspection. No default schema or deployment binding is inferred.",
+                        "recovery":{"tool":"query_schema","arguments":{"project_id":project_id,"query_type":{"kind":"table","name":row["name"]}}}}).to_string()
+                    } else { json!({"table":table,"source_coverage":report["coverage"],
                         "table_gaps":report["table_gaps"],"unknown_nullability_columns":report["unknown_nullability_columns"],
-                        "next_page":report["next_page"]}).to_string(),
+                        "next_page":report["next_page"]}).to_string() },
                     generation: Some(generation), commit: None, timestamp: None,
                     confidence: 0.95, relevance: 1.0, extraction_method: "source_sql_schema".into(),
-                    warnings: vec!["Complete admitted CREATE TABLE declaration; ALTER/DROP and deployment order are not applied. Omitted nullability remains unknown.".into()],
+                    warnings: vec![if ambiguous {
+                        "Ambiguous source-name candidate identity only; columns are not supplied. Choose a qualified name before relying on its schema."
+                    } else {
+                        "Complete admitted CREATE TABLE declaration; ALTER/DROP and deployment order are not applied. Omitted nullability remains unknown."
+                    }.into()],
                     provider: "schema".into(), score: None, directness: Some(1.0),
                 });
             }
