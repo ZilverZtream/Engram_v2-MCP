@@ -168,10 +168,19 @@ pub(super) async fn gather(
                     path: Some(path.into()), lines: Some((start as u32, end as u32)),
                     symbol_id: Some(format!("schema:{path}:{start}:{hash}")),
                     title: Some(format!("Source table {}", table["name"])),
-                    content: if ambiguous { json!({"status":"ambiguous", "candidate":row,
+                    content: if ambiguous {
+                        let recovery = if engram.state.cfg.advertise_all_tools {
+                            json!({"tool":"query_schema","arguments":{"project_id":project_id,
+                                "query_type":{"kind":"table","name":row["name"]}}})
+                        } else {
+                            json!({"tool":"ask_codebase","arguments":{"project_id":project_id,
+                                "question":format!("What are the columns of the \"{}\" table?",row["name"].as_str().unwrap_or_default()),
+                                "output_format":"json"}})
+                        };
+                        json!({"status":"ambiguous", "candidate":row,
                         "source_coverage":report["coverage"],
                         "clarification":"Choose a qualified source name; duplicate declarations may still require source inspection. No default schema or deployment binding is inferred.",
-                        "recovery":{"tool":"query_schema","arguments":{"project_id":project_id,"query_type":{"kind":"table","name":row["name"]}}}}).to_string()
+                        "recovery":recovery}).to_string()
                     } else { json!({"table":table,"source_coverage":report["coverage"],
                         "table_gaps":report["table_gaps"],"unknown_nullability_columns":report["unknown_nullability_columns"],
                         "next_page":report["next_page"]}).to_string() },
