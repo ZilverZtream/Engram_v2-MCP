@@ -10144,7 +10144,7 @@
         "implementation": "Incomplete; EG24 remains open"
       }
     ],
-    "active_original_item": "TODO-4 complete recoverable business-analysis reports without repeating completed generation/publication",
+    "active_original_item": "Finish the concrete new WebMethod public-entry regression: declaration-only VB classes; three affected native cases then failed public proof only.",
     "next_user_visible_deliverable": "Select a third distinct original LegacyValidation requirement for source implementation before one combined native/release validation. Do not compile these two items alone or count another WebMethod/parser variant, cache variant, documentation or fixture change as another requirement. No new agent comparison, closed-tool work or inspected-task replay.",
     "following_original_items": [
       "Preserved original LegacyValidation workflow/instruction requirements and accepted TODOs; retain full TODO31 database/trigger remainder."
@@ -15868,8 +15868,8 @@
       "Native actual-handler plus existing delivery owner and public transport: JSON default overflow and caller-budgeted Markdown recover exact original MCP results, preserving method evidence/advisory/publication metadata. Fitting responses retain their original shape.",
       "After capture, remove source and stop the owned provider; complete saved-result paging within caller budgets with no additional provider requests or document publication. Existing failure/error semantics and extraction/runtime uncertainty remain."
     ],
-    "progress_record": "eval/business-analysis-delivery-progress-20261116.json",
-    "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
+    "source_status": "SOURCE_FIXED_AFFECTED_VALIDATION_PENDING",
     "native_tests_run": false,
     "public_acceptance_run": false,
     "deployed": false,
@@ -15964,16 +15964,16 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-metadata-identity-20261116\\contract.json",
         "progress_record": "eval/history-metadata-identity-progress-20261116.json",
         "user_outcome": "Unrelated tool/ranking releases retain persistent immutable Git card metadata compatibility. Extraction changes and canonical repository identities remain separate. No current timing gain claimed; validation/installation pending.",
-        "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5"
+        "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04"
       },
       {
         "original_requirement_id": "TODO-31",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "493be03f0da534f86d88424586593844812d050c",
+        "source_commit": "ca824a5eba1f5b625820e559ec4e3bf8949b4674",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webmethod-request-trace-20261116\\contract.json",
         "progress_record": "eval/webmethod-request-trace-progress-20261116.json",
         "user_outcome": "Existing LegacyValidation AJAX-style VB ASPX/ASMX URL suffixes reach authored attributed method candidates and the existing source-admitted call/database walker, including same-application App_Code partial services. Source complete; native/public/installed validation pending.",
-        "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5"
+        "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04"
       },
       {
         "original_requirement_id": "TODO-4",
@@ -15982,7 +15982,7 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-analysis-delivery-20261116\\contract.json",
         "progress_record": "eval/business-analysis-delivery-progress-20261116.json",
         "user_outcome": "Large successful business-analysis JSON/Markdown reports use existing complete reply budgets and exact saved-result recovery after generation/persistence; recovery does not repeat either. Native/public/deployment pending.",
-        "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5"
+        "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -16026,10 +16026,10 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "NATIVE_11_FUNCTIONAL_PASS_PUBLIC_DEBUG_PENDING",
+    "status": "WEBMETHOD_PUBLIC_ENTRY_CORRECTION_PENDING",
     "pending_count": 3,
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-    "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5",
+    "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
     "native_builds": 3,
@@ -16040,7 +16040,10 @@
     "native_cases_passed": 11,
     "failed_cases_pending": 4,
     "native_seconds": 242.70562930009328,
-    "retained_native_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
+    "retained_native_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
+    "retained_unaffected_native_cases": 8,
+    "pending_affected_cases": 3,
+    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction1.json"
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",

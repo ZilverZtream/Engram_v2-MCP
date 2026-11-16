@@ -83,7 +83,8 @@
     "Installed ad324385 owned-copy baseline reproduced both zero-candidate WebMethod URL results; original source copies unchanged, all owned owners closed and fixture removed.",
     "Rust2024 source syntax parsed; new implementation/three native fixtures formatted and selected-path diff whitespace check passed. No Cargo/native/release invocation.",
     "Existing selected physical source/hash admission and trace walker retained. Physical URL/event path does not acquire method binding unless the URL has a single identifier suffix. Registered route constructors preserve web_method=None.",
-    "Existing compact page-trace response projection already retains handlers/source-member hashes and immutable full-evidence recovery; no new report/store or projection required."
+    "Existing compact page-trace response projection already retains handlers/source-member hashes and immutable full-evidence recovery; no new report/store or projection required.",
+    "Actual owned LegacyValidation public trace exposed declaration-only class records; exact indexed qualified owner fallback and current lexical Class validation added. Native fixture now covers declaration-only and complete type ranges; no parser/store/closed-tool changes."
   ],
   "checks_pending": [
     "Three focused native WebMethod cases plus relevant ordinary-page/report regressions in a future combined source batch.",
@@ -92,10 +93,10 @@
   "source_sha256": {
     "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
     "crates/engram_server/src/services/request_trace/execution.rs": "a99d70c4e80862a624f212a01de0efaaa19c78a70f7b7c544a88f456cc0cbde6",
-    "crates/engram_server/src/services/request_trace/web_methods.rs": "a813cb35e3b3bdfd3a069279bca52e01d1c50d16a7a48efd4635f88e906894f7",
+    "crates/engram_server/src/services/request_trace/web_methods.rs": "e2545a06a1c76d7aaf2a324f21c9e9f867a9ff9d0e879437de2a63dd37eef6a4",
     "crates/engram_server/src/services/request_trace.rs": "6df28ec132e918a0cf978e11d12226469413c3168e9ae7c52556fade2948c41b",
-    "crates/engram_server/tests/request_trace_web_methods.rs": "e73eaf0f25d33c9b0ee1f5aba356e475829c6bf6bc85fdc395c1fd6d8587ef6a",
-    "docs/TOOL_CONTRACT.md": "3452b9bb3f5efeccee4188b5937f9456eb97b1d4d4de3f55b671a5f657a689ca",
+    "crates/engram_server/tests/request_trace_web_methods.rs": "42871db321cb6d118ce2a155e9cbeea0a589e2a5ef98988974f9a84cc688f7d3",
+    "docs/TOOL_CONTRACT.md": "d307e8e92e6bbd187c4d292526658796f0e0b5f4eeae20280d2820e5b5f788ab",
     "TODO.md": "94876a21ff744e161650a2d1ab98c5b4a32531e88cdb8a38aa85413e7be19516",
     "crates/engram_server/src/models/requests.rs": "36e63001752295083d5c5dbe8882169ba09fa657c9d8dc611e3dbbc8b5b6b170",
     "crates/engram_server/src/tools.rs": "31dc91dbdfdad85c6e0f1fcf0051e5846f1597aef74746b55c03fedf12094842",
@@ -110,15 +111,15 @@
     "verified_this_turn": true,
     "relevance": "Selected actual non-Q LegacyValidation WebForms/VB and JavaScript AJAX source paths; backend independent. Only owned copies indexed; no actual project operation or new language support."
   },
-  "source_commit": "493be03f0da534f86d88424586593844812d050c",
-  "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5",
+  "source_commit": "ca824a5eba1f5b625820e559ec4e3bf8949b4674",
+  "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
     "crates/engram_server/src/services/request_trace/execution.rs": "a99d70c4e80862a624f212a01de0efaaa19c78a70f7b7c544a88f456cc0cbde6",
-    "crates/engram_server/src/services/request_trace/web_methods.rs": "a813cb35e3b3bdfd3a069279bca52e01d1c50d16a7a48efd4635f88e906894f7",
+    "crates/engram_server/src/services/request_trace/web_methods.rs": "e2545a06a1c76d7aaf2a324f21c9e9f867a9ff9d0e879437de2a63dd37eef6a4",
     "crates/engram_server/src/services/request_trace.rs": "6df28ec132e918a0cf978e11d12226469413c3168e9ae7c52556fade2948c41b",
-    "crates/engram_server/tests/request_trace_web_methods.rs": "e73eaf0f25d33c9b0ee1f5aba356e475829c6bf6bc85fdc395c1fd6d8587ef6a",
+    "crates/engram_server/tests/request_trace_web_methods.rs": "42871db321cb6d118ce2a155e9cbeea0a589e2a5ef98988974f9a84cc688f7d3",
     "crates/engram_server/src/models/requests.rs": "36e63001752295083d5c5dbe8882169ba09fa657c9d8dc611e3dbbc8b5b6b170",
     "crates/engram_server/src/tools.rs": "31dc91dbdfdad85c6e0f1fcf0051e5846f1597aef74746b55c03fedf12094842",
     "crates/engram_server/src/handlers/request_trace_tools.rs": "8e78f47a5c55c1c23318622b3dfad0f5544b823834d2352807f35c674bc5eaf0"
@@ -133,7 +134,7 @@
     "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
     "retained_passed_cases": 7,
     "pending_failed_cases": 4,
-    "status": "FUNCTIONAL_PASS_WITH_OWNED_TEMP_RETAINED",
+    "status": "WEBMETHOD_PUBLIC_ENTRY_CORRECTION_PENDING_AFFECTED_NATIVE",
     "native_cases_passed": 11,
     "native_seconds": 242.70562930009328,
     "retried_cases": 4,
@@ -145,11 +146,19 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nuzmava3g",
       "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
       "reason": "Automatic approval review rejected exact deletion; no equivalent retry."
-    }
+    },
+    "retained_unaffected_cases": 8,
+    "pending_affected_cases": 3,
+    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction1.json",
+    "owned_native_temp_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
   },
   "component_source_commits": [
     "8b14ff1e6c777b55b16430e4488f647fcab598bd",
     "5c5ba401c3bba7ca0b3a32f24d973857377f918e",
-    "493be03f0da534f86d88424586593844812d050c"
+    "493be03f0da534f86d88424586593844812d050c",
+    "ca824a5eba1f5b625820e559ec4e3bf8949b4674"
+  ],
+  "retained_unselected_findings": [
+    "Existing VB fallback also indexes some comment words as class candidates. New entry admission checks a current lexical Class declaration; generic parser repair is not selected."
   ]
 }

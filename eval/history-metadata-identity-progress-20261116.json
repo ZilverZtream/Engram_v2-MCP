@@ -67,7 +67,7 @@
     "crates/engram_server/src/services/change_card_service/extraction.rs": "163342d8b9452cef1e23520dbd7c71e8cad2c5cba2440159fa29cc5e978f2ec3"
   },
   "source_commit": "4edf4a03e62f02cdf1ea1d13d87570b83eeb51bd",
-  "runtime_source_commit": "6cd0f0a03690fbb4dc35f823d0433a01d1ba9df5",
+  "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/services/change_card_service.rs": "bde26c51cb40057945e2650b7a9e551a62ccde86aef2ef55a52ce9ef1c61c9dd",
@@ -85,7 +85,7 @@
     "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
     "retained_passed_cases": 7,
     "pending_failed_cases": 4,
-    "status": "FUNCTIONAL_PASS_WITH_OWNED_TEMP_RETAINED",
+    "status": "WEBMETHOD_PUBLIC_ENTRY_CORRECTION_PENDING_AFFECTED_NATIVE",
     "native_cases_passed": 11,
     "native_seconds": 242.70562930009328,
     "retried_cases": 4,
@@ -97,6 +97,10 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\nuzmava3g",
       "record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json",
       "reason": "Automatic approval review rejected exact deletion; no equivalent retry."
-    }
+    },
+    "retained_unaffected_cases": 8,
+    "pending_affected_cases": 3,
+    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction1.json",
+    "owned_native_temp_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
   }
 }
