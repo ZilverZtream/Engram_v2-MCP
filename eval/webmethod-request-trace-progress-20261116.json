@@ -93,10 +93,10 @@
   "source_sha256": {
     "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
     "crates/engram_server/src/services/request_trace/execution.rs": "a99d70c4e80862a624f212a01de0efaaa19c78a70f7b7c544a88f456cc0cbde6",
-    "crates/engram_server/src/services/request_trace/web_methods.rs": "e2545a06a1c76d7aaf2a324f21c9e9f867a9ff9d0e879437de2a63dd37eef6a4",
+    "crates/engram_server/src/services/request_trace/web_methods.rs": "7dd9e425d438d4c2d0c33869c021e5304c011033dc27401dc10cf1c14e6b1c9a",
     "crates/engram_server/src/services/request_trace.rs": "6df28ec132e918a0cf978e11d12226469413c3168e9ae7c52556fade2948c41b",
-    "crates/engram_server/tests/request_trace_web_methods.rs": "42871db321cb6d118ce2a155e9cbeea0a589e2a5ef98988974f9a84cc688f7d3",
-    "docs/TOOL_CONTRACT.md": "d307e8e92e6bbd187c4d292526658796f0e0b5f4eeae20280d2820e5b5f788ab",
+    "crates/engram_server/tests/request_trace_web_methods.rs": "c5c3f03141bd420fcb2903fb031a72533f034df2832cf3518e098e77d2e076f9",
+    "docs/TOOL_CONTRACT.md": "b52a856afc041a1803aff7187f3a25581da11119593e205b1f9ae5aadaa0016e",
     "TODO.md": "94876a21ff744e161650a2d1ab98c5b4a32531e88cdb8a38aa85413e7be19516",
     "crates/engram_server/src/models/requests.rs": "36e63001752295083d5c5dbe8882169ba09fa657c9d8dc611e3dbbc8b5b6b170",
     "crates/engram_server/src/tools.rs": "31dc91dbdfdad85c6e0f1fcf0051e5846f1597aef74746b55c03fedf12094842",
@@ -111,15 +111,15 @@
     "verified_this_turn": true,
     "relevance": "Selected actual non-Q LegacyValidation WebForms/VB and JavaScript AJAX source paths; backend independent. Only owned copies indexed; no actual project operation or new language support."
   },
-  "source_commit": "ca824a5eba1f5b625820e559ec4e3bf8949b4674",
-  "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04",
+  "source_commit": "ed97416cc6663f5118e578ef7019bfebb5ddb2c8",
+  "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/services/request_trace/routing.rs": "c82d366d0972b614f4070e5dd2facbc14742eb998e9d35022aa4d4322582fb1e",
     "crates/engram_server/src/services/request_trace/execution.rs": "a99d70c4e80862a624f212a01de0efaaa19c78a70f7b7c544a88f456cc0cbde6",
-    "crates/engram_server/src/services/request_trace/web_methods.rs": "e2545a06a1c76d7aaf2a324f21c9e9f867a9ff9d0e879437de2a63dd37eef6a4",
+    "crates/engram_server/src/services/request_trace/web_methods.rs": "7dd9e425d438d4c2d0c33869c021e5304c011033dc27401dc10cf1c14e6b1c9a",
     "crates/engram_server/src/services/request_trace.rs": "6df28ec132e918a0cf978e11d12226469413c3168e9ae7c52556fade2948c41b",
-    "crates/engram_server/tests/request_trace_web_methods.rs": "42871db321cb6d118ce2a155e9cbeea0a589e2a5ef98988974f9a84cc688f7d3",
+    "crates/engram_server/tests/request_trace_web_methods.rs": "c5c3f03141bd420fcb2903fb031a72533f034df2832cf3518e098e77d2e076f9",
     "crates/engram_server/src/models/requests.rs": "36e63001752295083d5c5dbe8882169ba09fa657c9d8dc611e3dbbc8b5b6b170",
     "crates/engram_server/src/tools.rs": "31dc91dbdfdad85c6e0f1fcf0051e5846f1597aef74746b55c03fedf12094842",
     "crates/engram_server/src/handlers/request_trace_tools.rs": "8e78f47a5c55c1c23318622b3dfad0f5544b823834d2352807f35c674bc5eaf0"
@@ -128,13 +128,13 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
-    "native_builds": 3,
+    "native_builds": 4,
     "release_builds": 0,
     "native_status": "SEVEN_PASSED_FOUR_FIXTURE_CORRECTIONS",
     "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
     "retained_passed_cases": 7,
     "pending_failed_cases": 4,
-    "status": "WEBMETHOD_PUBLIC_ENTRY_CORRECTION_PENDING_AFFECTED_NATIVE",
+    "status": "ASMX_CANONICAL_CALLABLE_ENTRY_FIX_PENDING",
     "native_cases_passed": 11,
     "native_seconds": 242.70562930009328,
     "retried_cases": 4,
@@ -149,14 +149,15 @@
     },
     "retained_unaffected_cases": 8,
     "pending_affected_cases": 3,
-    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction1.json",
+    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction2.json",
     "owned_native_temp_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
   },
   "component_source_commits": [
     "8b14ff1e6c777b55b16430e4488f647fcab598bd",
     "5c5ba401c3bba7ca0b3a32f24d973857377f918e",
     "493be03f0da534f86d88424586593844812d050c",
-    "ca824a5eba1f5b625820e559ec4e3bf8949b4674"
+    "ca824a5eba1f5b625820e559ec4e3bf8949b4674",
+    "ed97416cc6663f5118e578ef7019bfebb5ddb2c8"
   ],
   "retained_unselected_findings": [
     "Existing VB fallback also indexes some comment words as class candidates. New entry admission checks a current lexical Class declaration; generic parser repair is not selected."

@@ -86,7 +86,7 @@
     "relevance": "Current LegacyValidation VB.NET/JS/TS business-analysis workflow and configured OpenAI-compatible backend; proof uses an owned deterministic local provider and VB source, not the current real LLM or any inspected task."
   },
   "source_commit": "4408401a60d927f0357a0900a1f220e7bcc9f460",
-  "runtime_source_commit": "498080d823e2efbe9a3359855eaca205ce37fa04",
+  "runtime_source_commit": "bbf2220b3c3df898640ebbb876659ef78033add5",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/read_report_delivery.rs": "5e77bffbf8c527a6318b1af096a2f964f489723bb2263a083da781c770e53087",
@@ -99,13 +99,13 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
     "native_target": "history_webmethod_business_batch_tests",
     "native_cases": 11,
-    "native_builds": 3,
+    "native_builds": 4,
     "release_builds": 0,
     "native_status": "SEVEN_PASSED_FOUR_FIXTURE_CORRECTIONS",
     "fixture_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\fixture-correction2.json",
     "retained_passed_cases": 7,
     "pending_failed_cases": 4,
-    "status": "WEBMETHOD_PUBLIC_ENTRY_CORRECTION_PENDING_AFFECTED_NATIVE",
+    "status": "ASMX_CANONICAL_CALLABLE_ENTRY_FIX_PENDING",
     "native_cases_passed": 11,
     "native_seconds": 242.70562930009328,
     "retried_cases": 4,
@@ -120,7 +120,7 @@
     },
     "retained_unaffected_cases": 8,
     "pending_affected_cases": 3,
-    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction1.json",
+    "public_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\public-entry-correction2.json",
     "owned_native_temp_retained": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116\\native3-owned-retention.json"
   }
 }
