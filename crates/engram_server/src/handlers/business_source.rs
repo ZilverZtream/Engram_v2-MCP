@@ -546,6 +546,8 @@ impl SourceAudit {
         let range = self.verified_range(document, root);
         result.extend(self.return_path_checklist(document, root, 2));
         let parameter_hash = range.as_ref().and_then(|(file, _, _)| self.raw_file_hashes.get(file)).map(String::as_str);
+        result.push(crate::services::business_member_origins::qualification(
+            evidence.as_ref().and_then(|item| item.member_origins.as_ref()), parameter_hash));
         result.extend(crate::services::business_return_paths::parameter_retrieval_qualification(
             evidence.as_ref().and_then(|e| e.return_paths.as_ref()), parameter_hash,
             range.as_ref().map(|(_, start, end)| (*start, *end))));

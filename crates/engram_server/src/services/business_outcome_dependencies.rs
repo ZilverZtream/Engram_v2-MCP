@@ -36,6 +36,8 @@ pub struct OutcomeEvidence {
     pub reaching_context: Option<super::business_reaching_context::ReachingContext>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub return_paths: Option<super::business_return_paths::ReturnPathEvidence>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub member_origins: Option<super::business_member_origins::ConstructorContext>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -199,6 +201,9 @@ impl OutcomeEvidence {
             "\nBounded immediate-return dependencies ({}). Caller source_line anchors remain in the original member. source_verified means declaration/body fingerprints matched, not compiler-verified call binding or certified return/throw outcomes. Project root namespaces, references and conditional compilation are unexamined. For each affected return, require normal completion of the preceding call; never infer that the following return executes merely because it is written. Other helpers/control flow are outside this slice.\n",
             self.scope
         );
+        if let Some(origins) = &self.member_origins {
+            text.push_str(&origins.prompt_context());
+        }
         text.push_str(&super::business_reaching_context::prompt_context(self.reaching_context.as_ref()));
         let parameter_source = self.return_paths.as_ref();
         for line in super::business_return_paths::parameter_qualification(parameter_source,
@@ -267,6 +272,16 @@ pub fn collect(
         ));
         return evidence;
     }
+    // Reuse this read below for immediate-return dependencies. Constructor
+    // evidence is useful even when the selected method has no such return.
+    let caller_source = (language == "vb").then(|| context.map(|ctx| read_verified_file(ctx, file))).flatten();
+    if language == "vb" {
+        evidence.member_origins = Some(match caller_source.as_ref() {
+            Some(Ok((source, _))) => super::business_member_origins::collect(file, source, body, owner, start_line),
+            Some(Err(reason)) => super::business_member_origins::ConstructorContext::unavailable(file, reason),
+            None => super::business_member_origins::ConstructorContext::unavailable(file, "No indexed source context supplied; constructor origins unexamined."),
+        });
+    }
     static CALL: LazyLock<Regex> = LazyLock::new(|| {
         Regex::new(
             r"(?i)^(?:Call\s+)?((?:global::)?[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)\s*\(.*\)\s*;?$",
@@ -330,7 +345,7 @@ pub fn collect(
     let Some(context) = context else {
         return evidence;
     };
-    let caller = read_verified_file(context, file);
+    let caller = caller_source.unwrap_or_else(|| read_verified_file(context, file));
     let caller_valid = caller.and_then(|(text, _)| {
         let matching = super::business_logic_service::extract_logic_methods(&text, language)
             .into_iter()

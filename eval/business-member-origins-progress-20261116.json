@@ -1,0 +1,38 @@
+{
+  "status": "SOURCE_IMPLEMENTED_NATIVE_AND_PUBLIC_ACCEPTANCE_PENDING",
+  "original_requirement_id": "EG-25",
+  "contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116\\contract.json",
+  "original_observation": "eval/legacy_validation-invoice-task-outcome-20261115.json",
+  "implementation_files": [
+    "crates/engram_server/src/services/business_member_origins.rs",
+    "crates/engram_server/src/services/business_outcome_dependencies.rs",
+    "crates/engram_server/src/handlers/business_source.rs",
+    "crates/engram_server/src/services/mod.rs",
+    "crates/engram_server/tests/business_member_origins_tests.rs"
+  ],
+  "source_checks": {
+    "rustfmt_parse": "PASS; new files formatted, legacy modules emitted to stdout only",
+    "git_diff_check": "PASS",
+    "protected_wip9_hashes": "UNCHANGED"
+  },
+  "behavior_cases_written": [
+    "Configuration identity is included for a verified method with no immediate-return dependency; persistence, changed-constructor currency and re-ingestion alter the evidence fingerprint.",
+    "Separate overloaded constructor observations exclude other owners and comment/string-only references."
+  ],
+  "verification_limits": [
+    "Native cases have not run. No Engram build, model call or replay started.",
+    "No candidate/installed delivery, demonstrated task-score gain or full EG25 closure claimed.",
+    "Existing persisted analyses lack constructor observations until explicitly reanalyzed.",
+    "Single-line name matches do not prove field binding, effective configuration, chosen constructor or later state."
+  ],
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116",
+  "temporary_resources": {
+    "created": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-member-origins-20261116",
+    "contains": "Contract and protected-source hashes only; no runtime fixture or child process created.",
+    "retention": "Keep for finite acceptance and review; preexisting folders unchanged."
+  },
+  "builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "full_original_goal_complete": false
+}
