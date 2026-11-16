@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "EG-27",
   "original_requirement": "Dependency-specific instruction freshness: referenced source changes affect dependent guidance; unrelated body edits do not invalidate every instruction.",
   "observed_missing_behavior": "Installed public maintenance already captures exact multiline VB method ranges and hashes, but labels all VB spans declaration-line-only and returns body coverage unavailable for both referenced and unrelated body edits.",
@@ -18,7 +18,7 @@
     "Candidate/installed public maintenance reproduces these distinctions with owned Git-before/current VB evidence; authored guidance unchanged."
   ],
   "stop_rule": "Reuse existing captured ranges, source limits and hashes. No new VB parser, Roslyn invocation, graph/index binding, broader corpus, absence proof, semantic policy adoption or expanded benchmark.",
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "build_rule": "Third distinct original source outcome after TODO33 and EG01; one combined validation/release after source commit.",
@@ -59,7 +59,7 @@
     "verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
     "relevance": "LegacyValidation primary VB.NET/WebForms instruction freshness, operating on captured source evidence independently of embedding provider. No new parser or target-language support."
   },
-  "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+  "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/services/instruction_maintenance/manifest/symbols.rs": "80801a2dcc1e1f97551c5d1d77ba428a1bf18e88cb09f0141e6ef9948eb8de9e",
@@ -67,5 +67,17 @@
     "crates/engram_server/tests/vb_instruction_body_freshness_tests.rs": "7c49e1b8079be879a3c095c22f01639eeed6511d7382f23908b72dbfabc90d32",
     "crates/engram_server/tests/source_policy_freshness_batch_tests.rs": "1cbe5a0f558a9c16cec7def39cdb80a5d97dd7c65387e381365e635e40a53bb8"
   },
-  "source_commit": "14598567828457126bc0ae85102b451cf389a282"
+  "source_commit": "14598567828457126bc0ae85102b451cf389a282",
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116",
+    "native_target": "source_policy_freshness_batch_tests",
+    "native_distinct_cases": 11,
+    "native_build_attempts": 3,
+    "retained_unaffected_cases": 10,
+    "fixture_only_retry_cases": 1,
+    "public_debug_checks": 26,
+    "receipt_sha256": "c6a3b735d2ef301a582e7aa2ce5ccbbd6bc4a21d8ee2c741c95f6c32873ace25",
+    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687"
+  }
 }

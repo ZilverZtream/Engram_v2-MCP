@@ -2567,7 +2567,7 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-source-reads-20261116\\contract.json",
         "progress_record": "eval/batch-source-reads-progress-20261116.json",
         "source_commit": "48aa784a2325cb9d8297e9e067e6c654f8bc624d",
-        "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f"
+        "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303"
       },
       {
         "original_requirement_id": "EG-01",
@@ -2575,13 +2575,13 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-context-report-delivery-20261116\\contract.json",
         "progress_record": "eval/edit-context-policy-progress-20261116.json",
         "source_commit": "bcd7ae91de65315c2eff1eb9472809b3abde49c5",
-        "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f"
+        "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303"
       },
       {
         "original_requirement_id": "EG-27",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "source_commit": "14598567828457126bc0ae85102b451cf389a282",
-        "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+        "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303",
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vb-instruction-body-freshness-20261116\\contract.json",
         "progress_record": "eval/vb-instruction-body-freshness-progress-20261116.json",
         "user_outcome": "VB instruction freshness compares existing observed method ranges, retaining unverified/partial coverage and declaration-only limits."
@@ -2628,16 +2628,18 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
     "pending_count": 3,
     "independent_requirements_source_complete": [
       "TODO-33",
       "EG-01",
       "EG-27"
     ],
-    "native_builds": 0,
+    "native_builds": 3,
     "release_builds": 0,
-    "minimum_before_compile": 3
+    "minimum_before_compile": 3,
+    "native_distinct_cases_passed": 11,
+    "public_debug_checks_passed": 26
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",

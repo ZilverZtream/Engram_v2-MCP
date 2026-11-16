@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "TODO-33",
   "original_requirement": "Batch hot reads under one response budget; extend the delivered typed batching contract to the existing complete-source read used by AI navigation actions.",
   "missing_behavior": "batch_read rejects get_full_method_body although navigation returns executable source requests, requiring one outer call per body.",
@@ -18,7 +18,7 @@
     "Explicit source ranges and existing immutable source recovery requests serialize/replay through batch; combined budget omits complete results with executable original requests."
   ],
   "stop_rule": "Add one read operation through existing handler. No parallel dispatcher, scheduler, transport/store redesign, broad tool sweep or performance claim.",
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "build_rule": "First source outcome for following batch. Do not alter frozen19d396a build checkout or start another compile before a new qualifying multi-item batch.",
@@ -59,12 +59,24 @@
     "config_unchanged_verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
     "relevance": "Existing VB.NET/WebForms/JavaScript/TypeScript/SQL source editing and scoped-guidance workflow. No target-language expansion; owned fixtures only."
   },
-  "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+  "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
     "crates/engram_server/src/models/requests.rs": "10bfbca24c10deb9b1f7cd64534aeed6624cd15ee76d117b193864b28e9ede7e",
     "crates/engram_server/src/handlers/batch_read_tools.rs": "98a63203ec7d81bc7d23e05d7bcc08cdce894a4b1da12a4d4209aa07bcf82f13",
     "crates/engram_server/src/tools.rs": "662a6de607618c05d77031e0b703211cab23e4e06b17433e13ad38b7835056b1",
     "crates/engram_server/tests/batch_source_read_tests.rs": "49805bc9f78d26111e8b4ea713baa143cf74756caecb4e844d5ff90e8e21f81e"
+  },
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116",
+    "native_target": "source_policy_freshness_batch_tests",
+    "native_distinct_cases": 11,
+    "native_build_attempts": 3,
+    "retained_unaffected_cases": 10,
+    "fixture_only_retry_cases": 1,
+    "public_debug_checks": 26,
+    "receipt_sha256": "c6a3b735d2ef301a582e7aa2ce5ccbbd6bc4a21d8ee2c741c95f6c32873ace25",
+    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687"
   }
 }

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "EG-01",
   "original_requirement": "Same applicable complete authored policy reaches planning, editing, retrieval and review, with exceptions and source recovery preserved.",
   "missing_behavior": "Installed get_method_edit_context omits applicable AGENTS.md and its authored exception entirely. It also lacks complete reply-budget/recovery controls; a small actual context already returns10094bytes. An attempted large-report baseline using only large guidance did not exceed40KiB because that guidance was omitted; no default-overflow claim from that probe.",
@@ -17,10 +17,10 @@
   ],
   "finite_acceptance": [
     "Real indexed owned TypeScript method and caller source: complete root/method/caller guidance with exception and hashes, unrelated policy excluded, JSON/Markdown and live guide edits without reindex.",
-    "Large authored guidance: capture original method-context MCP result, recover exact original through existing default/caller shared budgets after source/guidance deletion, preserving safety/freshness/source fields."
+    "Large actual indexed method body with complete selected policy: recover exact original pre-edit MCP result through default/caller budgets after source/guidance deletion, preserving source/safety/freshness. Existing policy resolver limits and omission recovery remain unchanged."
   ],
   "stop_rule": "Use existing policy resolver and read-report store. No retrieval provider tuning, downstream graph/CodeMap/Blast changes, semantic policy acceptance, new store or expanded benchmark.",
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "build_rule": "Second distinct source outcome in following batch; leave current release WORK19d396a untouched.",
@@ -64,15 +64,28 @@
     "config_unchanged_verified_by": "eval/method-schema-area-batch-delivery-20261116.json",
     "relevance": "Existing VB.NET/WebForms/JavaScript/TypeScript/SQL source editing and scoped-guidance workflow. No target-language expansion; owned fixtures only."
   },
-  "runtime_source_commit": "90e1ccd879ac854473f669acb78cd13e273f491f",
+  "runtime_source_commit": "fe7e62719bf13d2195ae19a44b133fd5d37be303",
   "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
   "physical_build_source_sha256": {
-    "crates/engram_server/src/handlers/access_layer_tools.rs": "dfe70bc102422276edd71f190a93cf1d7fc59bbfb50622d261d67c9f4b560c10",
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "5da4e518d8ffeeabe4ac45f0cabf4f6711c3d4fb1c791a67bc7b387012a2d135",
     "crates/engram_server/src/handlers/method_body_policy.rs": "46deb7ffe1a4cd11856df1c4ea00695a1e7d076259cf80eae712c43d7a020008",
     "crates/engram_server/src/read_report_delivery.rs": "989e58a7c89783abc17fa4e9706b56ff07db0403365543ef9e034c1d0ea000ac",
     "crates/engram_server/src/read_report_delivery_tests.rs": "b2af0f7c97b495553dbe37069850353c097c4e25c248c181d5c916d55418171a",
     "crates/engram_server/tests/webforms_report_delivery_tests.rs": "b60285d90bb14ad665c79de893f19ba185f99a3d95946befabcb2d2372ff7823",
-    "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "b9499b77445374335236cb2580bf821b36a6bc4fdd1061254615a6b5615ae8c8",
+    "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "880374484eb56dd088dd1bff362fb1661d2aeb9cb6b58c498de3f5dd9cfed2d6",
     "crates/engram_server/src/tools.rs": "662a6de607618c05d77031e0b703211cab23e4e06b17433e13ad38b7835056b1"
+  },
+  "source_correction_commit": "8cc91f9",
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\source-policy-batch-20261116",
+    "native_target": "source_policy_freshness_batch_tests",
+    "native_distinct_cases": 11,
+    "native_build_attempts": 3,
+    "retained_unaffected_cases": 10,
+    "fixture_only_retry_cases": 1,
+    "public_debug_checks": 26,
+    "receipt_sha256": "c6a3b735d2ef301a582e7aa2ce5ccbbd6bc4a21d8ee2c741c95f6c32873ace25",
+    "debug_receipt_sha256": "1ec846f0c8558f9aa76f88c523803faaafe60d709176afd5d4b7bea23cbff687"
   }
 }
