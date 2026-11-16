@@ -29,7 +29,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\verify-public.py",
   "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
   "deployed": false,
-  "source_commit": null,
+  "source_commit": "881153a9b7a54471a795fca2a5687a7b7ea3d4ec",
   "timing": {
     "production_implementation_start_utc": "2026-11-16T07:53:42.383045+00:00",
     "definition": "Direct production source reading/design/editing block, not pure typing time. Baseline/verifier authoring and bookkeeping excluded.",
