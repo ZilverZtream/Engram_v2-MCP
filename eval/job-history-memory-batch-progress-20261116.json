@@ -1,0 +1,93 @@
+{
+  "status": "NATIVE_BEHAVIORS_AND_MCP_PASS_RELEASE_RUNNING_NOT_INSTALLED",
+  "at_utc": "2026-11-16T21:37:03.933618+00:00",
+  "original_requirements": [
+    "TODO-4",
+    "TODO-28",
+    "TODO-33"
+  ],
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116",
+  "runtime_source_commit": "47b50db0ecabc222b3e2a7b65e9de5949e56081a",
+  "root_fixture_correction": "73ee93f",
+  "native": {
+    "combined_passed": 2,
+    "combined_failed": 1,
+    "targeted_failed_case_retry_passed": 1,
+    "targeted_filtered_out": 2,
+    "combined_seconds": 218.37135730008595,
+    "targeted_seconds": 40.237901799962856,
+    "failure": "Owned job fixture omitted required allowed_roots; corrected test configuration only.",
+    "server_and_library_reused": true,
+    "full_or_lib_suite": false,
+    "extra_debug_build": false
+  },
+  "current_artifact_mcp_checks_passed": 17,
+  "release": {
+    "label": "release1",
+    "session_id": 60381,
+    "driver_pid": 46168,
+    "driver_created": 1794864841.545874
+  },
+  "completion": {
+    "driver_pid": 69916,
+    "driver_created": 1794865012.7635188,
+    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\completion2-state.json",
+    "script": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\finish-release1.py",
+    "builds_launched": 0,
+    "session_id": 94435
+  },
+  "evidence": {
+    "implementation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\implementation1.json",
+      "sha256": "60875a7effade6ba4877e08e05ae002d126810407e3a487894f99b5c4e11a72e"
+    },
+    "implementation2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\implementation2.json",
+      "sha256": "64e0b44506f54be2b0aa332a0945fdae4d8918da65fc424f2a207b465de1dc64"
+    },
+    "source-validation1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\source-validation1.json",
+      "sha256": "2354c6a2937ac518d6b01d5a8ba42dc22a4a1e31d1df1571acd393c38964f3f9"
+    },
+    "source-validation2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\source-validation2.json",
+      "sha256": "9ce1dadef9a95f00deae4974aa8fda9a44067990539041baa65d709665c903ed"
+    },
+    "native1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\native1.json",
+      "sha256": "45796353bd1e1d3ba424720c8bddb62636a8e9002746839893ce504dfe309fc9"
+    },
+    "native1.log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\native1.log",
+      "sha256": "12e6a3e061114cbf43d512f077dd27af347d495116f283fdb01c67b43b33aa68"
+    },
+    "native2.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\native2.json",
+      "sha256": "52155fef838e2e76453f048ed2d525e898182346e03bf1e0ee5db99da1fdf347"
+    },
+    "native2.log": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\native2.log",
+      "sha256": "92fe3590adb10aff47a92fd2fc92ed762940dd1fc190e73607d9948c0e2b7dbf"
+    },
+    "native2-reuse.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\native2-reuse.json",
+      "sha256": "d5ebbc0fa64e27ce41f7afb38f89f7f6a0449a08144f05e0fd52318e9eaedc0e"
+    },
+    "debug-artifact1.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\debug-artifact1.json",
+      "sha256": "46249835fc2f0518900c79aaab36994dcd7725b8b47627942902d3a04a25b19d"
+    },
+    "debug1/receipt.json": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\debug1\\receipt.json",
+      "sha256": "ffffccf2c504fa1627324948daf945261c12ab96e517e26cbc7dd71bcbd874dd"
+    }
+  },
+  "installed": false,
+  "remaining_acceptance": [
+    "Existing release1 terminal success; do not start a replacement from an observation timeout.",
+    "Finisher package/candidate17/installer/installed17/normal runtime restoration; stop on failure.",
+    "Record installed identity, normal config/source preservation, resource ownership and matching bundle."
+  ],
+  "resources": "Existing shipping checkout/shared target. Both native Jobs/relays/temps closed/removed; current-artifact MCP owners/fixtures closed/removed. Release and finisher are live pinned owners. Keep evidence until reviewed/superseded; no preexisting deletion.",
+  "actual_coding_percent": null
+}

@@ -2730,12 +2730,12 @@
   },
   "current_execution_focus": {
     "active_original_item": "Job/history/memory source batch acceptance",
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "status": "NATIVE_BEHAVIORS_AND_MCP_PASS_RELEASE_RUNNING_NOT_INSTALLED",
     "original_requirement_id": "TODO-33",
     "source_commit": "81ea03eb4a8c80a458a743d37cc2439e80ef7164",
-    "source_progress": "eval/batch-memory-read-progress-20261116.json",
+    "source_progress": "eval/job-history-memory-batch-progress-20261116.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\batch-memory-read-20261116",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116",
     "finite_acceptance": [
       "The existing typed batch accepts ReadMemoryBankRequest and calls the ordinary read_memory_bank handler. Project and __user__ identities, content/provenance, per-read JSON/budgets and citation/hash validation are preserved. Mutating operations remain excluded.",
       "Shared1..16read bounds, correlation/order, independent errors and complete-result omission/recovery remain. Uncited recovery reruns a live read; supplied raw-hash guards refuse changed memory. No atomic section snapshot or policy adoption is inferred.",
@@ -2747,7 +2747,24 @@
     "native_target": "job_history_memory_batch_tests",
     "native_cases_written": 3,
     "full_original_goal_active": true,
-    "next_action": "Three distinct original source outcomes are ready. Inspect the finite source interfaces, freeze them in the existing shipping checkout, run the single combined native target and reuse its implicit executable for public checks. One optimized release for the batch; no full/lib suites or extra debug build."
+    "next_action": "Poll the existing release60381 and pinned completion driver/state. Do not package/deploy separately while finisher is live. On terminal success inspect installed and normal-runtime receipts, account for temporary resources and record delivery. No new native/full suites or replacement compile from timeouts.",
+    "release_live_owner": {
+      "label": "release1",
+      "session_id": 60381,
+      "driver_pid": 46168,
+      "driver_created": 1794864841.545874
+    },
+    "completion_driver": {
+      "driver_pid": 69916,
+      "driver_created": 1794865012.7635188,
+      "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\completion2-state.json",
+      "script": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\finish-release1.py",
+      "builds_launched": 0,
+      "session_id": 94435
+    },
+    "native_cases_passed_across_initial_and_targeted_retry": 3,
+    "native_initial_setup_failures": 1,
+    "public_current_artifact_checks": 17
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
