@@ -22,6 +22,7 @@ async fn captured_job_catalog_and_status_recover_after_rows_and_owners_are_gone(
     let captured = {
         let (state, _) = AppState::new(Config {
             data_dir: data.clone(),
+            allowed_roots: vec![owned.path().to_path_buf()],
             embedding_backend: "fts_only".into(),
             llm_backend: "none".into(),
             ..Default::default()
