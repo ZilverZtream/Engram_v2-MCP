@@ -1,0 +1,62 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_NEXT_BATCH_VALIDATION",
+  "at_utc": "2026-11-16T18:55:22.737081+00:00",
+  "original_requirement_id": "TODO-28",
+  "original_requirement": "Natural-language entry point composes existing specialized source evidence",
+  "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
+    "sha256": "3dc5c57d57b7a2529d50aa03055036d22e437daa9abe14c2e0c1bad1b20d3b10"
+  },
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116",
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\baseline1\\acceptance.json",
+    "sha256": "e91420d8b2a273f578381f43148ea04a8f22a45a864e64ffaf46b812dfebad51"
+  },
+  "baseline_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\verify-baseline1.py",
+    "sha256": "bff7e2d9ed12b2860cf35d2a11b55a811bfd983673289a501471af9c4e6c7fda"
+  },
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\verify-public.py",
+    "sha256": "17fa94e63c63cbbd702257c30692c2e2c0468a1a3982585daaf9ac6e9871c71d"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\source-checks.json",
+    "sha256": "620fd4e73610c65c19462b0e07eaee270f5a6f0e49c43c3d1d9044fa2679f67a"
+  },
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ask_schema.rs",
+    "crates/engram_server/src/services/ask_engine/resolver.rs",
+    "crates/engram_server/tests/ask_procedure_evidence_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "implemented": "Resolved SQL procedures select existing SQL modality and selected-source stored_proc schema queries. The natural-language report retains complete normalized declaration/reference/citation objects, question qualification, source/runtime limits, guidance and existing bounded recovery. Existing ambiguous/stale/source coverage behavior remains explicit. No parser, LLM or historical branch changes.",
+  "finite_acceptance": [
+    "An ordinary description of a graph-resolved SQL stored procedure selects existing SQL modality and the existing query_schema stored_proc selected-source lookup. No new parser, source scan, model, schema binding or historical-branch change.",
+    "Return the complete existing procedure object/declaration/references/citation as typed schema evidence, preserving the question qualification, selected hash/revision, root guidance, original lookup cap and deadlines. Source declaration is distinct from deployment/execution or runtime parameter values.",
+    "Retain ambiguous procedure candidates and source gaps. Withhold changed source through the existing reader; non-SQL function queries stay outside SQL evidence. Existing response budgets and immutable recovery preserve the original procedure/guidance after edits.",
+    "Use owned long-SQL procedure, same-name schema ambiguity and non-SQL method controls. Author relevant checks and queue this next-batch source outcome without touching the currently compiling release checkout or starting Cargo."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "native_case_written": "procedure_question_preserves_complete_reader_evidence_and_original_recovery",
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "checks_completed": [
+    "Installed owned baseline confirms original procedure tail available from direct existing reader but absent from the ordinary question;1.370s, process closed and fixture removed.",
+    "Rust syntax, native test format, public driver syntax, selected whitespace and protected WIP9 hashes pass; no current-source behavior or native execution claimed."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "new_cargo_invocations": 0,
+    "release_checkout_untouched": true,
+    "new_worktree_created": false,
+    "protected_wip9_preserved": true,
+    "retention": "Retain baseline/wire/source contract and future drivers until installed acceptance or supersession. No preexisting folder deletion."
+  },
+  "next_action": "Keep outside the compiling browser/JSON/history release. Accumulate further distinct original outcomes for the next combined validation batch."
+}
