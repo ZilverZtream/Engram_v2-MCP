@@ -65,7 +65,7 @@
     "Standalone completeness reuses the existing edit-session policy helper only at its public fresh-report boundary; composed checks and session lifecycle code remain unchanged. New guidance is captured before existing public wrapping/budget/recovery."
   ],
   "retained_unselected_findings": [],
-  "source_commit": "6e3577ce17c7530b5def32ae7449fe5aa6976799",
+  "source_commit": "b9d89f6754c3f0277f52887fb46bfc80e9e3a149",
   "standalone_safety_component_source_commit": "6e3577ce17c7530b5def32ae7449fe5aa6976799",
   "completeness_baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\completeness-baseline1\\receipt.json",
   "baseline_receipts": [
@@ -77,5 +77,9 @@
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-safety-policy-20261116\\completeness-baseline1\\receipt.json",
       "sha256": "2bb1edf5b61567daffb65d9c99b5bfb31f83741325ad529b7a1fcdfc8597b786"
     }
+  ],
+  "component_source_commits": [
+    "6e3577ce17c7530b5def32ae7449fe5aa6976799",
+    "b9d89f6754c3f0277f52887fb46bfc80e9e3a149"
   ]
 }
