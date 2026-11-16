@@ -63,5 +63,15 @@
     "Combine focused native and public debug/candidate/installed acceptance after two other distinct source-complete original requirements; no build for this item alone."
   ],
   "native_case": "multi_file_feature_retains_every_before_after_source_and_late_file_stale_guard",
-  "future_fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  "future_fixture_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check",
+  "runtime_source_commit": "6d99774ddd4c76a2c00780915fceb4ec498af5f5",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "combined_validation": {
+    "status": "SOURCE_FROZEN_NATIVE_PENDING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
+    "native_target": "maintenance_state_parameter_batch_tests",
+    "native_cases": 8,
+    "native_builds": 0,
+    "release_builds": 0
+  }
 }

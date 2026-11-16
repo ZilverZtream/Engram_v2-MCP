@@ -96,5 +96,15 @@
   "commit_hook_correction": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\dbml-parameter-trace-20261116\\commit-hook-correction1.json",
     "sha256": "78d86d38bce5e11559bf3d0fe5d22e1763e242448d57b9b39f71a6c72748eb76"
+  },
+  "runtime_source_commit": "6d99774ddd4c76a2c00780915fceb4ec498af5f5",
+  "source_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+  "combined_validation": {
+    "status": "SOURCE_FROZEN_NATIVE_PENDING",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
+    "native_target": "maintenance_state_parameter_batch_tests",
+    "native_cases": 8,
+    "native_builds": 0,
+    "release_builds": 0
   }
 }

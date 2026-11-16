@@ -10105,7 +10105,7 @@
   },
   "last_updated_at": "2026-11-15T10:07:21.226291+00:00",
   "current_execution_focus": {
-    "active_original_item": "Validate and deliver the three source-complete original improvements: EG31 multi-file maintenance, TODO4 complete state-report delivery, TODO31 typed-parameter DBML mapping.",
+    "active_original_item": "Run one focused8-case native target for the frozen three-original-requirement batch, then reused-debug public acceptance. No full/lib suite or extra debug build.",
     "original_requirement_id": "TODO-31",
     "observed_missing_behavior": "DBML mapping resolves only locally constructed VB receivers. LegacyValidation RelationHelper.LiveCustomerRelations receives db As iFaltDataContext and accesses db.CR_CopyDetails, whose current DBML mapping is dbo.CR_CopyDetail; the current binder has no parameter path.",
     "implementation_files": [
@@ -10123,7 +10123,7 @@
     ],
     "progress_record": "eval/dbml-parameter-trace-progress-20261116.json",
     "implementation_items_active": 0,
-    "source_status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_status": "SOURCE_FROZEN_FOR_COMBINED_VALIDATION",
     "deployed": false,
     "build_rule": "Source gate now has three distinct requirements. Reuse existing WORK/shared target. One focused combined native target, reused debug executable/public proof, then one release for candidate/installed checks. No broad suite or extra debug build.",
     "completed_batch": {
@@ -10168,7 +10168,9 @@
     ],
     "native_tests_run": false,
     "public_acceptance_run": false,
-    "next_user_visible_deliverable": "Installed complete multi-file maintenance, bounded state reports and source-declared parameter DBML mapping with their finite acceptance and limits."
+    "next_user_visible_deliverable": "Installed complete multi-file maintenance, bounded state reports and source-declared parameter DBML mapping with their finite acceptance and limits.",
+    "runtime_source_commit": "6d99774ddd4c76a2c00780915fceb4ec498af5f5",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -10340,24 +10342,24 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "deployed": true
   },
-  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
+  "current_combined_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
   "instruction_review_batch_delivery": {
     "record": "eval/instruction-review-batch-delivery-20261115.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\history-webmethod-business-batch-delivery-20261116.json",
-      "sha256": "418904739d3d327dd908af89cdac0dd9f8727875ca33bd339eb4c5ce2de7fc60"
-    },
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-webmethod-business-batch-20261116",
-    "native_cases_passed": 11,
-    "native_builds": 5,
-    "public_checks_per_candidate_and_installed": 33,
-    "release_builds": 1,
-    "deployed": true
+    "status": "SOURCE_FROZEN_FOR_COMBINED_VALIDATION",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\maintenance-state-parameter-batch-20261116",
+    "runtime_source_commit": "6d99774ddd4c76a2c00780915fceb4ec498af5f5",
+    "original_requirements": [
+      "EG-31",
+      "TODO-4",
+      "TODO-31"
+    ],
+    "native_cases": 8,
+    "native_builds": 0,
+    "release_builds": 0
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",
