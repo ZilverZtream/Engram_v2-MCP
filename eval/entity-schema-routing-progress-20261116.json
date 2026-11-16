@@ -1,0 +1,55 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-28",
+  "original_requirement": "Natural-language entry point chooses existing specialized evidence from resolved source entities.",
+  "source_commit": "4cc76ee4b485c244b0ad1bbe24439eb39a7d15c6",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\contract.json",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116",
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/resolver.rs",
+    "crates/engram_server/tests/ask_sql_schema_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\baseline1\\acceptance.json",
+    "sha256": "18857724e64a7b080581509804fe03fb9ddde7bacc3d88ab93b578cc9450befa"
+  },
+  "negative_control_reconciliation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\baseline-control-reconciliation.json",
+    "sha256": "ccca6eef3de4521684ca5ffe77545ce5db586f3cd79f509ec4eabed3b235e2b8"
+  },
+  "observed_missing_behavior": "Installed Describe sales.Orders resolves an indexed SQL table but invokes no schema provider and omits16of48source columns. Describe GetOrderLimit correctly invokes no SQL schema provider. Keyword-only modality routing loses known SQL entity type.",
+  "implemented": "Retained resolver candidates declared as SQL tables add existing SQL modality after final narrowing/collapse. This selects existing full schema evidence for ordinary entity descriptions without SQL keywords. Source file/type checks exclude DBML/file-only inference; no extra lookup, parser, model call, default-schema or ambiguity override.",
+  "compiled": false,
+  "native_tests_run": false,
+  "native_case_extended": "sql_question_preserves_complete_columns_and_withholds_changed_declarations",
+  "public_acceptance_run": false,
+  "installed": false,
+  "source_only": true,
+  "activity_observation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116\\activity-ledger.json",
+    "sha256": "7f8d8ce1b43f3756d025ead938fc26267c86bcaa39f1ad5306703a9d2d88359b"
+  },
+  "checks_completed": [
+    "Installed owned baseline confirms missing schema arm/16columns despite a resolved SQL table, with a correct VB-method control.",
+    "Saved baseline2 DBML report confirms actual Model.dbml evidence and absent SQL arm; its original incorrect coarse-table-resolution assertion is retained as FAIL, not silently converted to a passing execution. No repeated baseline was run to fix that verifier assumption.",
+    "Rust2024 syntax parsed and diff whitespace checked; one existing native behavior case extended, future public driver syntax checked. No Cargo/full suite or current-source candidate execution."
+  ],
+  "finite_acceptance": [
+    "Retained graph resolution of a table declared in a .sql source adds existing SQL modality, with no extra graph lookup, parser, model request or default-schema binding. Final resolution filtering/ambiguity remains authoritative.",
+    "Ordinary no-keyword table description gets the same complete admitted table facts/nullability/raw hash/span citations as an explicit SQL/table question. Preserve exact question qualification and existing source/version/budget checks.",
+    "Non-SQL method and DBML/file candidates do not become SQL merely from their names or coarse entity type. Existing historical branch remains separate; direct controls and previously delivered ambiguity/stale behavior remain.",
+    "Extend the existing SQL wanted-behavior native case and owned public proof; queue as a second independent original requirement with TODO31 value-lineage composition. No Cargo until at least3distinct source outcomes; no full suite."
+  ],
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\entity-schema-routing-20261116",
+    "baseline_owners_closed": true,
+    "baseline_fixtures_removed": true,
+    "new_builds": 0,
+    "sidecar_builds": 0,
+    "new_worktree_created": false,
+    "retention": "Keep source, baseline and original failed control expectation for review. Native fixtures not run. Protected WIP9 and installed binary unchanged; no actual LegacyValidation/Q source read."
+  },
+  "next_action": "Keep two distinct source outcomes queued and select the next ready original requirement; do not manufacture a third variant or compile either feature alone.",
+  "at_utc": "2026-11-16T15:04:15.042908+00:00"
+}
