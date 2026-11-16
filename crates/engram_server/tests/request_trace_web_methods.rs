@@ -156,13 +156,13 @@ fn page_method_url_keeps_the_exact_entry_and_existing_sql_path_without_page_life
     assert_eq!(value["route"]["web_method"], "change");
     assert_eq!(value["trace"]["handlers"].as_array().unwrap().len(), 1);
     assert_eq!(value["trace"]["handlers"][0]["name"], "change");
-    assert!(
-        value["trace"]["paths"]
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|p| p["target_name"] == "dbo.Preferences")
-    );
+    assert!(value["trace"]["paths"].as_array().unwrap().iter().any(|p| {
+        p["kind"] == "inline_sql_writes_table"
+            && p["target_name"] == "Preferences"
+            && p["evidence"]["sql"]
+                .as_str()
+                .is_some_and(|sql| sql.contains("UPDATE dbo.Preferences"))
+    }));
     assert!(
         value["trace"]["source_members"]
             .as_array()
