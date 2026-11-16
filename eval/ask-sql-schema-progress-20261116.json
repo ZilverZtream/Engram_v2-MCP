@@ -1,7 +1,7 @@
 {
   "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
   "original_requirement_id": "TODO-28",
-  "source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb",
+  "source_commit": "da8dc1dfa92b63c0ea130ae2ccd58c4b6ecfc055",
   "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\contract.json",
   "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116",
   "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\baseline1\\acceptance.json",
@@ -16,5 +16,16 @@
     "Protected WIP unchanged; no real LegacyValidation/Q source read."
   ],
   "temporary_resources": "Baseline owner closed naturally and owned fixture removed; retained case contains evidence and scripts only.",
-  "at_utc": "2026-11-16T12:58:50.784397+00:00"
+  "at_utc": "2026-11-16T12:58:50.784397+00:00",
+  "prior_source_commit": "8eda5970467b350e9dff89432a2038f31f6b19eb",
+  "candidate_first_attempt": {
+    "status": "FAILED_NOT_INSTALLED",
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-schema-20261116\\candidate1\\acceptance.json",
+    "real_defect": "Valid ambiguous catalog rows carry citation/name at top level, not nested table; preserve candidate evidence without pretending full columns.",
+    "verifier_corrections": [
+      "Compare authored guidance to its raw Windows bytes.",
+      "Historical fixture names Orders.sql explicitly, preserving existing literal Git-source retrieval semantics."
+    ]
+  },
+  "correction_scope": "Same original named-table contract; affected SQL native/public checks only. Unaffected safety/report passes retained with exact source-delta evidence."
 }
