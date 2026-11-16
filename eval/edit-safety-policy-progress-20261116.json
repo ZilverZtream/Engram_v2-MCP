@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "EG-01",
   "original_requirement": "Same applicable complete authored instructions reach planning, editing, retrieval and review, preserving scope, qualifications and recovery.",
   "observed_missing_behavior": "Installed00670b7e standalone check_edit_safety omits the root authored exception in JSON and Markdown although get_method_edit_context returns the same exact guidance for the same indexed method. Installed public standalone detect_incomplete_changes also omits the same authored exception in JSON and Markdown; its edit-session bookends already resolve authored guidance.",
@@ -20,7 +20,7 @@
   ],
   "native_target": "edit_context_policy_delivery_tests",
   "native_cases": 3,
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "stop_rule": "Finish the two standalone editing entry points: method safety and change completeness. No safety/completeness/downstream algorithms, lifecycle ownership, graph/CodeMap/Blast logic, generic all-tool sweep, new store or semantic policy enforcement. Both tools count as one EG-01 outcome.",
@@ -90,5 +90,16 @@
     "crates/engram_server/src/tools.rs": "4d5159b279eb3854c2b68a45f217f01d9297aadff2c0a13429efc0c6227341b7",
     "crates/engram_server/tests/edit_context_policy_delivery_tests.rs": "ded95659202fa209a2c846a68c5672281a298154faf4848f5c8d3128a324746e",
     "crates/engram_server/src/handlers/planning_tools.rs": "1308d36acd6a40ea71cc85aa76fb50adebf5ea7f31c821afc62c315a1b41e8ba"
+  },
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116",
+    "native_target": "editing_report_batch_tests",
+    "native_cases": 11,
+    "native_builds": 1,
+    "native_seconds": 206.31980030005798,
+    "public_debug_checks": 27,
+    "native_receipt_sha256": "1fc83d1cd2cde1e879d7664587aef57e54f6dff2bd5e81baecdd33f390c512c5",
+    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f"
   }
 }

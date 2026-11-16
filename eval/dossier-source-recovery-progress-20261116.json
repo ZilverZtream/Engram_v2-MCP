@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "TODO-7",
   "original_requirement": "Actionable recovery guidance: an AI must be able to execute the returned next step instead of receiving another unknown-tool error.",
   "observed_missing_behavior": "Installed00670b7e source dossier with a newly created registered WebForms control correctly withholds the unindexed control but returns recovery.tool=read_file, absent from tools/list. The existing get_full_method_body reader is registered.",
@@ -17,7 +17,7 @@
   ],
   "native_target": "dossier_source_recovery_tests",
   "native_cases": 1,
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "stop_rule": "Replace this unregistered source-gap recovery descriptor only. No planner prompt/model changes, generated-plan semantic tuning, source-admission relaxation, composition expansion, new reader/store or benchmark replay.",
@@ -61,5 +61,16 @@
   "physical_build_source_sha256": {
     "crates/engram_server/src/handlers/feature_plan_tools.rs": "440b38e033f13b256aa683e073a853d7c6546495751c787ef599a6e49517bf18",
     "crates/engram_server/tests/dossier_source_recovery_tests.rs": "5a4f3119254d65a14c428b3cf990455144c1de4cd7d258b2bcccd839e9f86fdb"
+  },
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116",
+    "native_target": "editing_report_batch_tests",
+    "native_cases": 11,
+    "native_builds": 1,
+    "native_seconds": 206.31980030005798,
+    "public_debug_checks": 27,
+    "native_receipt_sha256": "1fc83d1cd2cde1e879d7664587aef57e54f6dff2bd5e81baecdd33f390c512c5",
+    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f"
   }
 }

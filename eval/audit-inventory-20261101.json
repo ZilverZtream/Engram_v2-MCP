@@ -15999,16 +15999,18 @@
     "full_original_goal_complete": false
   },
   "latest_source_batch_progress": {
-    "status": "THREE_SOURCE_OUTCOMES_AWAITING_COMBINED_VALIDATION",
+    "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
     "pending_count": 3,
     "independent_requirements_source_complete": [
       "EG-01",
       "TODO-7",
       "TODO-4"
     ],
-    "native_builds": 0,
+    "native_builds": 1,
     "release_builds": 0,
-    "minimum_before_compile": 3
+    "minimum_before_compile": 3,
+    "native_cases_passed": 11,
+    "public_debug_checks_passed": 27
   },
   "ai_workflow_batch_delivery": {
     "record": "eval/ai-workflow-batch-delivery-20261115.json",

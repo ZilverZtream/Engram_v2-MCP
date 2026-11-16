@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "NATIVE_AND_PUBLIC_DEBUG_VALIDATED_RELEASE_PENDING",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform complete reply budgets and exact recovery for AI tool responses, without silent loss of selected evidence.",
   "observed_missing_behavior": "Installed80-file TypeScript diff explanation retains80affected files but returns24091JSONbytes/4716Markdownbytes with no max_tokens/response_id/response_offset controls. Both exceed a caller4096-byte budget; default40KiB overflow was not reproduced and is not claimed.",
@@ -20,7 +20,7 @@
   ],
   "native_target": "explain_change_delivery_tests",
   "native_cases": 1,
-  "native_tests_run": false,
+  "native_tests_run": true,
   "public_acceptance_run": false,
   "deployed": false,
   "stop_rule": "Add this existing read-only tool to the shared delivery owner. No new envelope/store, wider report sweep, diff/risk/render changes, planner tuning or benchmark replay. Broader TODO4 stays partial.",
@@ -72,5 +72,16 @@
     "crates/engram_server/tests/explain_change_delivery_tests.rs": "3d20ad308fc1b63674d32b82142f973677b9e975cde7668085747d6d1797a8ca",
     "crates/engram_server/tests/editing_report_batch_tests.rs": "5825acf934c0e79bb1473ed7381c03bf40d7cdfe2aeb5095c6e7e6ab598f4c20"
   },
-  "source_commit": "808cda0cd8f1ad29d9b31380abf414ecbc40cc6b"
+  "source_commit": "808cda0cd8f1ad29d9b31380abf414ecbc40cc6b",
+  "public_debug_acceptance_run": true,
+  "combined_validation": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\editing-report-batch-20261116",
+    "native_target": "editing_report_batch_tests",
+    "native_cases": 11,
+    "native_builds": 1,
+    "native_seconds": 206.31980030005798,
+    "public_debug_checks": 27,
+    "native_receipt_sha256": "1fc83d1cd2cde1e879d7664587aef57e54f6dff2bd5e81baecdd33f390c512c5",
+    "debug_receipt_sha256": "f8cd877169617f996ce48d2b88c8db25826be21fd0bf1a14a71f1e82b7d6c98f"
+  }
 }
