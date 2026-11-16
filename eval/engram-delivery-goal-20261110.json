@@ -2556,37 +2556,19 @@
     },
     "next_batch_pending": [
       {
-        "original_requirement_id": "TODO-27",
-        "outcome": "JS/TS key traces include source-admitted store-wide browser clear candidates",
-        "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
-        "progress": "eval/browser-store-clear-progress-20261116.json",
+        "original_requirement_id": "TODO-28",
+        "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
+        "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+        "progress": "eval/ask-procedure-evidence-progress-20261116.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1,
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\contract.json"
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "outcome": "Opt-in uniform JSON delivery for shared reports without native JSON",
-        "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
-        "progress": "eval/shared-report-json-progress-20261116.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1,
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\contract.json"
-      },
-      {
-        "original_requirement_id": "EG-20",
-        "outcome": "Complete scoped historical source patches through callable MCP actions",
-        "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
-        "progress": "eval/history-file-patch-progress-20261116.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "counts_as_independent_deliverables": 1,
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json"
+        "counts_as_independent_deliverables": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
-    "last_completed_batch": "eval/request-history-archive-batch-delivery-20261116.json",
+    "last_completed_batch": "eval/browser-json-history-batch-delivery-20261116.json",
     "incremental_codegen": {
       "enabled_for_future_runs": true,
       "source_commit": "48ec7f6cd9e93a43f90674ce4f7504ae98bd2e35",
@@ -2714,31 +2696,13 @@
   },
   "following_batch_pending": [
     {
-      "original_requirement_id": "TODO-27",
-      "outcome": "JS/TS key traces include source-admitted store-wide browser clear candidates",
-      "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
-      "progress": "eval/browser-store-clear-progress-20261116.json",
+      "original_requirement_id": "TODO-28",
+      "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
+      "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+      "progress": "eval/ask-procedure-evidence-progress-20261116.json",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
       "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1,
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\contract.json"
-    },
-    {
-      "original_requirement_id": "TODO-4",
-      "outcome": "Opt-in uniform JSON delivery for shared reports without native JSON",
-      "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
-      "progress": "eval/shared-report-json-progress-20261116.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1,
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\contract.json"
-    },
-    {
-      "original_requirement_id": "EG-20",
-      "outcome": "Complete scoped historical source patches through callable MCP actions",
-      "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
-      "progress": "eval/history-file-patch-progress-20261116.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1,
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json"
+      "counts_as_independent_deliverables": 1
     }
   ],
   "method_schema_area_batch_delivery": {
@@ -2757,37 +2721,22 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Three-outcome browser/JSON/history batch acceptance",
-    "status": "RELEASE_RUNNING_CURRENT_ARTIFACT_PUBLIC_PASS",
-    "original_requirement_id": "EG-20",
+    "active_original_item": "TODO28 complete procedure evidence in ordinary questions",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "TODO-28",
     "implementation_items_active": 0,
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116",
-    "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
-    "source_progress": "eval/history-file-patch-progress-20261116.json",
+    "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
+    "source_progress": "eval/ask-procedure-evidence-progress-20261116.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116",
     "finite_acceptance": [
-      "search_history mode=patch reads one exact UTF8 Git path at query=40hex commit, as a complete first-parent unified patch with original blob IDs, pinned scope, patch hash and explicit binary/unavailable status. No embeddings, LLM or history index.",
-      "Use the same explicit/as_of or origin-default reachability scope as commit details. Exact file_filter is required; unrelated search filters/nonzero offset refuse. Missing or oversized patches refuse instead of clipping.",
-      "Every commit-detail changed-file entry supplies a callable exact-path MCP patch action. Existing complete reply budgets and retain_response recovery preserve the original patch after HEAD/disk changes. Current policy, runtime execution, semantic correctness and reviewer approval remain unproved.",
-      "Owned VB/TS/SQL fixture compares returned patches byte-for-byte with independently invoked Git, follows a commit-detail action, checks a missing/scope refusal and recovers an original retained patch after later edits. Queue as one usable-history outcome, with no standalone Cargo."
+      "An ordinary description of a graph-resolved SQL stored procedure selects existing SQL modality and the existing query_schema stored_proc selected-source lookup. No new parser, source scan, model, schema binding or historical-branch change.",
+      "Return the complete existing procedure object/declaration/references/citation as typed schema evidence, preserving the question qualification, selected hash/revision, root guidance, original lookup cap and deadlines. Source declaration is distinct from deployment/execution or runtime parameter values.",
+      "Retain ambiguous procedure candidates and source gaps. Withhold changed source through the existing reader; non-SQL function queries stay outside SQL evidence. Existing response budgets and immutable recovery preserve the original procedure/guidance after edits.",
+      "Use owned long-SQL procedure, same-name schema ambiguity and non-SQL method controls. Author relevant checks and queue this next-batch source outcome without touching the currently compiling release checkout or starting Cargo."
     ],
     "full_original_goal_active": true,
-    "next_action": "Poll existing release session3203. Package and verify candidate/installed behavior after terminal success. The newly committed TODO28 procedure change belongs to the next source batch and is not in this release.",
-    "native_target": "browser_json_history_batch_tests",
-    "pending_source_outcomes": 3,
-    "new_builds_this_turn": 0,
-    "shipping_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
-    "public_checks_passed": 21,
-    "native_cases_executed": 0,
-    "native_test_compilation_failure_retained": true,
-    "native_build_attempts": 1,
-    "release_build_attempts": 1,
-    "release_exec_session": 3203,
-    "release_exec_session_id": 3203,
-    "release_driver_pid": 84600,
-    "current_artifact_public_checks_passed": 21,
-    "native_test_compile_failure_retained": true,
-    "next_source_progress": "eval/ask-procedure-evidence-progress-20261116.json"
+    "next_action": "Select the next ready distinct original source requirement. The procedure-answer change is source-complete but uncompiled/uninstalled; only one next-batch outcome is pending, so do not start Cargo. Preserve all earlier findings/holds."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2895,13 +2844,11 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
-    "record": {
-      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\request-history-archive-batch-delivery-20261116.json",
-      "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
-    },
-    "runtime_source_commit": "bc753b2a50186387fcdbb791f0c7f24fd6f7a2c6",
-    "installed_server_sha256": "e602c456da14358fae540c331f019b29757bb79ad9ecf4455a0c5f3297596a42"
+    "server_sha256": "7b88fd43c4260773a76a957a979c2c8bd6cf5ea77365fc1ceb9d35f3399abc18",
+    "manifest_sha256": "308fb6bf06267af5c95bd9921ed5a0727d173c44b1671bb9abc2982e1ff65f67",
+    "source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
+    "delivery": "eval/browser-json-history-batch-delivery-20261116.json",
+    "selected_generation": 3151
   },
   "remaining_report_delivery_source_progress": "eval/remaining-report-delivery-progress-20261116.json",
   "safety_assessment_basis_source_progress": "eval/safety-assessment-basis-progress-20261116.json",
@@ -2982,7 +2929,7 @@
   },
   "active_release_validation": {
     "active_original_item": "Three-outcome browser/JSON/history batch acceptance",
-    "status": "RELEASE_RUNNING_CURRENT_ARTIFACT_PUBLIC_PASS",
+    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "original_requirement_id": "EG-20",
     "implementation_items_active": 0,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\contract.json",
@@ -3011,17 +2958,16 @@
     "release_driver_pid": 84600,
     "current_artifact_public_checks_passed": 21,
     "native_test_compile_failure_retained": true,
-    "next_source_progress": "eval/ask-procedure-evidence-progress-20261116.json"
+    "next_source_progress": "eval/ask-procedure-evidence-progress-20261116.json",
+    "release_terminal_exit_code": 0,
+    "deployment_terminal_exit_code": 0,
+    "candidate_installed_public_checks_each": 22,
+    "delivery": "eval/browser-json-history-batch-delivery-20261116.json",
+    "normal_daemon_restored": 76584
   },
-  "next_source_batch_pending": [
-    {
-      "original_requirement_id": "TODO-28",
-      "outcome": "Complete selected-source procedure evidence in ordinary natural-language answers",
-      "source_commit": "2b045590daa12b3219efb11d803d360e75927426",
-      "progress": "eval/ask-procedure-evidence-progress-20261116.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-procedure-evidence-20261116\\contract.json",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "counts_as_independent_deliverables": 1
-    }
-  ]
+  "next_source_batch_pending": [],
+  "browser_json_history_batch_delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
+    "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
+  }
 }

@@ -62,6 +62,9 @@ These degrade or improve *every single interaction*. Nothing below matters until
   not 114 (see #28).
 
 - [~] **4. Uniform response envelope: token budgets, truncation metadata, pagination** (L) — *partial: deployed 2026-11-11 for search_memory, vector_search and grep_project. Optional max_tokens estimates ceil(UTF-8 complete reply-text bytes / 4), pages whole records and retains warnings/freshness and exact recovery actions. All three support output_json; search/vector now share a versioned envelope with typed identities/recovery, per-field truncation, live-guidance handling and explicit unknown-versus-bounded totals. Search retains requested-page guidance/omissions; vector exposes full_chunk guidance recovery within its fixed top_k/MMR window. Grep preserves coverage/stale-source warnings and continuation within max_results, including previously hidden Markdown matches. Candidate and installed MCP checks recovered independent source and distinct original memory sections exactly; JSON escaping counts toward the reply budget. See eval/p04-search-response-budget-delivery-20261111.json, eval/p04-vector-response-budget-delivery-20261111.json, eval/p04-grep-response-budget-delivery-20261111.json and eval/p04-search-json-delivery-20261111.json. get_chunk and read_memory_bank now also honor root max_tokens for complete text/JSON replies and offer output_json with exact hash-bound recovery. Open citation pages retain whole lines or UTF-8 boundaries; explicit ranges, quote proofs and transformed content remain complete or return a minimum-budget retry. Native candidate/installed checks retained provenance/guidance and reconstructed 114,000-byte project/user sections exactly in pages no larger than 8,192 bytes; see eval/p04-document-response-delivery-20261111.json. search_history text/precedent modes now also offer complete reply budgets, typed JSON and whole-record paging within the selected limit. Exact indexed citations and Git message/file actions are verified against independently authored history; capability, rerank and clipping disclosures remain. See eval/p04-history-response-delivery-20261111.json. prepare_implementation_context now supports complete-reply max_tokens with required policy/coverage/warnings and hash-bound source/context continuation records. Native candidate/installed checks reconstructed original typed contexts from authored method/caller sources and retained policy qualifications; changed evidence refuses. See eval/p04-context-response-delivery-20261111.json. get_page_context also supports complete text/JSON budgets with exact hash-bound recovery of controls, methods and other context entries, retaining provider/composition/house-style qualifications. Candidate/installed checks reconstructed four authored handler bodies and150controls; changed evidence refuses mixed pages. See eval/p04-page-response-delivery-20261111.json. pre_commit_review now also defaults to a40KiB complete reply-text budget, accepts max_tokens, preserves every selected finding in a bounded ledger and provides exact original-report recovery without rerunning gates. Candidate/installed JSON and Markdown checks preserve40findings and decision evidence after source edits; actual LegacyValidation returned6526B with exact recovery of its47369B report. The131s review is not a latency improvement. See eval/legacy_validation-review-response-budget-delivery-20261113.json. Remaining: budgets and consistent envelopes across other tools and durable cursors; provider-token accounting is not claimed.*
+  Installed November16: shared reports without native JSON also offer a common
+  opt-in JSON envelope; Full/Core preserve original parts and bounded recovery.
+  [Delivery](eval/browser-json-history-batch-delivery-20261116.json).
   Installed November16:18more project report readers use complete caller budgets
   and immutable original MCP recovery; owned QA guidance survives edits/restart.
   Public safety reports distinguish unassessed bypass from caller-input thresholds.
@@ -368,6 +371,11 @@ strategic gap between "niche migration tool" and "every agent's first MCP server
   nonsense.
 
 - [~] **27. Generalize state tracking to modern equivalents** (L)
+  Installed November16: browser key traces also return source-admitted store-wide
+  clear candidates, including keys without literal accesses. Hashes, guidance,
+  stale withholding, refresh preservation and saved recovery passed candidate/installed
+  MCP checks. Older script indexes require refresh; runtime effects remain unproven.
+  [Delivery](eval/browser-json-history-batch-delivery-20261116.json).
   Browser-storage tracing installed 2026-11-13. `trace_state_usage` accepts
   `LocalStorage` and `SessionStorage` with literal JS/TS getItem/setItem/removeItem
   keys and returns indexed readers/writers with source positions and hashes.
@@ -801,6 +809,9 @@ value is accuracy, this is the biggest meta-gap.
 ## P6 — Adoption & packaging
 
 - [~] **53. Prebuilt release binaries + one-command install** (M)
+  The latest installed browser/JSON/history runtime also has a matching219-entry
+  Windows ZIP with215verified assets. Public hosting remains open.
+  [Delivery](eval/browser-json-history-batch-delivery-20261116.json).
   Matching November16runtime ZIP now includes215runtime assets and both trusted
   installers, with219archive entry hashes verified. Public hosting and external
   download acceptance remain open. [Delivery](eval/request-history-archive-batch-delivery-20261116.json).

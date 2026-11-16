@@ -2,7 +2,7 @@
 
 Installed2026-11-16: `search_history` supports `mode: "commit"` with `query` set to an exact40hex Git ID. It reads the full original UTF-8 message and complete first-parent changed-file cohort, including generated paths and old/new object identities, through MCP without history reindexing, embeddings or an LLM. The commit must be reachable from `as_of_rev` or the origin default history scope; missing scope and unsupported search filters refuse. Previews retain normal ranking/caps and offer `recovery.complete_git_commit` using immutable result recovery. Full reads refuse rather than silently clip beyond256KiB message,10000paths or2MiB message/path text. Rename inference, deployment, reviewer approval and current-policy applicability are not established.
 
-Pending source change, not yet installed: `mode: "patch"` with an exact40hex
+Installed November16: `mode: "patch"` with an exact40hex
 commit `query` and exact repository-relative `file_filter` returns that path's
 complete first-parent unified patch, full old/new object IDs and BLAKE3 hash.
 Commit-detail `file_changes` entries provide callable `patch` actions using the
@@ -776,7 +776,7 @@ Aliases and property-style access are outside this extraction. Missing keys do
 not establish absence of runtime access. Run `update_project` after upgrading to
 acquire the browser-storage facts for previously indexed JS/TS files.
 
-Pending source change (not yet installed): the same key trace appends
+Installed November16: the same key trace appends
 `store_wide_mutation_candidates` for unshadowed calls to that store's `clear()`.
 These candidates apply to any queried key, including keys without literal
 accesses. A separate identity keeps clear-all mutations distinct from a literal
@@ -841,7 +841,7 @@ non-text content retain their existing delivery. Tools with their own delivery
 controls retain their semantics; composed in-process engines also retain their
 complete reports. This does not change feature-plan semantic acceptance.
 
-Pending source change (not yet installed): shared report tools that lack their
+Installed November16: shared report tools that lack their
 own `output_json` option advertise `output_json=true` for a common inline JSON
 envelope. Its `schema_version`, `tool` and `project_id` identify the format and
 request; `result` retains the original complete MCP result, including all text
@@ -1284,7 +1284,7 @@ deployed database state; ALTER/DROP, default schema and collation are not inferr
 Installed proof for these three changes: [reports, safety and SQL delivery](../eval/reports-safety-sql-batch-delivery-20261116.json). Ambiguous SQL lookup supplies cited candidate identities and qualified recovery actions; candidate identities do not supply columns or establish database name binding.
 
 
-Pending source change, separate from the compiling browser/JSON/history release:
+Pending next-batch source change, not in the installed browser/JSON/history release:
 `ask_codebase` ordinary descriptions of graph-resolved SQL stored procedures
 select the existing `query_schema` stored-procedure reader under the same selected
 source view. Typed `schema` evidence retains its complete token-normalized

@@ -1,6 +1,6 @@
 {
-  "status": "CURRENT_ARTIFACT_VALIDATED_RELEASE_RUNNING",
-  "at_utc": "2026-11-16T18:38:43.208616+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T19:09:14.683011+00:00",
   "original_requirement_id": "EG-20",
   "related_original_requirement": "Usable history; complete original selected change evidence for AI",
   "source_commit": "a09288986ce4c15dbafd346581762d6eda1b7841",
@@ -44,7 +44,7 @@
   "native_tests_run": false,
   "native_case_written": "selected_history_file_patch_matches_git_and_recovers_after_later_source_changes",
   "public_acceptance_run": true,
-  "installed": false,
+  "installed": true,
   "source_only": false,
   "checks_completed": [
     "Installed owned baseline reproduces missing patch actions/mode in2.334s; process closed and owned fixture removed.",
@@ -58,12 +58,15 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116",
     "baseline_owners_closed": true,
     "baseline_owned_fixture_removed": true,
-    "new_compilations": 0,
+    "new_compilations": 2,
     "new_worktree_created": false,
     "protected_wip9_preserved": true,
-    "retention": "Keep contract, original baseline/wire/oracle, public driver and source checks until installed acceptance or supersession. No preexisting folder deletion."
+    "retention": "Keep contract, original baseline/wire/oracle, public driver and source checks until installed acceptance or supersession. No preexisting folder deletion.",
+    "shared_batch_builds": true,
+    "all_new_owned_fixtures_closed_removed": true,
+    "normal_daemon_restored": 76584
   },
-  "next_action": "Finish the existing single release build, then candidate and installed MCP acceptance using that artifact. Do not start another native build.",
+  "next_action": "Finite installed behavior accepted through actual MCP proofs; broader original requirement limits remain.",
   "runtime_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
   "current_artifact_acceptance": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\debug1\\acceptance.json",
@@ -86,5 +89,20 @@
   "prior_future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\verify-public.py",
     "sha256": "61fdba17a6d09538ac636e24292bd79a06c496643c3a6d6a07c5f8fd1a10f590"
+  },
+  "native_test_compilation_failed": true,
+  "native_cases_executed": 0,
+  "native_test_corrections_recompiled": false,
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
+    "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\candidate1\\acceptance.json",
+    "sha256": "08a32e0e1f46cd2fe899a29bc07097da665fcf999254426dfa2faed5e1d0ada4"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-file-patch-20261116\\installed1\\acceptance.json",
+    "sha256": "5de1c2b0cf2d02aa5febdaf4c01fa764ff6a97140e496ad4eb9a7e12a0391e8f"
   }
 }

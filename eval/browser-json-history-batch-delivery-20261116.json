@@ -1,0 +1,127 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T19:09:14.683011+00:00",
+  "original_requirements": [
+    "TODO-27 browser store-wide clear candidates",
+    "TODO-4 common opt-in JSON report delivery",
+    "EG-20 usable complete historical file changes"
+  ],
+  "outcomes": [
+    "Browser key traces retain source-admitted store-wide clear candidates even without a literal key access, with hashes/positions, scoped guidance, changed-source withholding, cross-script refresh preservation and immutable original-result recovery. Browser runtime binding/origin/session/execution remains unproven.",
+    "Shared reports without native JSON offer a versioned opt-in JSON envelope preserving the complete original MCP result. Escaped text counts toward the existing budget; original complete results recover after source edits. Native JSON handlers/default replies remain. Actual Full/Core memory/state/freshness and native-JSON preservation passed.",
+    "Commit detail exposes callable exact-path first-parent patch reads through search_history mode=patch. Three independent VB/TS/SQL patches match Git bytes/hash, binary entries retain identities without text, outside-scope/missing paths refuse, and complete saved recovery survives later HEAD/disk changes."
+  ],
+  "runtime_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
+  "original_source_commits": [
+    "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
+    "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
+    "a09288986ce4c15dbafd346581762d6eda1b7841"
+  ],
+  "test_only_corrections": [
+    "381176e",
+    "feb7eba"
+  ],
+  "installed": {
+    "protected_wip9_unchanged": true,
+    "configuration_unchanged": true,
+    "installed_assets_verified": 215,
+    "server_sha256": "7b88fd43c4260773a76a957a979c2c8bd6cf5ea77365fc1ceb9d35f3399abc18",
+    "manifest_sha256": "308fb6bf06267af5c95bd9921ed5a0727d173c44b1671bb9abc2982e1ff65f67",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "configuration_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_generation": 3151,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214
+  },
+  "source_validation": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\source-validation1.json",
+    "sha256": "c2b824540f7fea578740d08427fc872d68bc5ed6c820fdaeb9ea94eb1d728a7e"
+  },
+  "validation": {
+    "native_attempts": 1,
+    "native_compilation_failed": true,
+    "native_cases_executed": 0,
+    "native_test_corrections_recompiled": false,
+    "native": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\native1.json",
+      "sha256": "7e9bca24d978876fd0790c9085cdbed1fd6dd488a2f968294f9c7476666a467b"
+    },
+    "native_failure_and_public_equivalence": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\native-acceptance.json",
+      "sha256": "ed6ef3b18b01cb3d564be3b49d7a279c1d8e631d6184d2f141cd22f7ff4b13ea"
+    },
+    "debug_artifact": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\debug-artifact1.json",
+      "sha256": "a885453967cf48cd798717be0e0effbb2f17f7f38289ebd9db340787ed472ae4"
+    },
+    "debug_public": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\debug1\\receipt.json",
+      "sha256": "b81809f024dcef1b7964c8bb1451cb04b4bbcc1378a01099a95dd39e6eda6075"
+    },
+    "debug_public_checks": 21,
+    "release_builds": 1,
+    "release": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\release1.json",
+      "sha256": "7412d512088372fa4e8afde445a2c5b4b55d9a6e7a395ceb73f6d147d0c63b75"
+    },
+    "candidate": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\candidate1\\acceptance.json",
+      "sha256": "fa9a7a3995a5982bf8aba3cf3931023ba26629fd390bc8a404cdd5201d9a4cff"
+    },
+    "installed": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\installed1\\acceptance.json",
+      "sha256": "d1bdc78c72f4cef251dded8b1d00b5a68ac8e1b3497d7abda087159386956632"
+    },
+    "public_checks_each": 22,
+    "deployment": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\deployment4-state.json",
+      "sha256": "a0de84e262161e5e7f150341a0db7c464c954670fcf56fbc41ae2aeb9f188d03"
+    },
+    "restored_runtime": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "8afe6fe70fb0f2b1445f4900a3d971a9f78431feaf11e8076767ea566b28c9be"
+    },
+    "full_or_lib_suite_run": false,
+    "extra_debug_builds": 0,
+    "original_full19gates_closed": false
+  },
+  "timing": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\coding-compile-timing-20261116.json",
+    "sha256": "49543104edc9a7dbf115b67530abc02e2e91cad068dde8d172f1904b604111cc"
+  },
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "new_worktree_created": false,
+    "protected_wip9": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\protected-work-before.json",
+      "sha256": "547754155fa6453bba184392cdc17694134319a3558f584dfbb3130a225c4710"
+    },
+    "all_new_owned_fixtures_and_build_temporaries_closed_removed": true,
+    "configuration_hold_closed_and_owned_copy_removed": true,
+    "normal_daemon_intentionally_restored": 76584,
+    "retained_old_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-d20269a1f4174d1a950582728151cf4f",
+    "retention": "Keep package, native failure, source/current-artifact/candidate/installed receipts until reviewed or superseded. Normal application owns the restored daemon; retain managed old-pair backup for rollback under the existing maintenance rules. No preexisting folder deletion."
+  },
+  "limits": [
+    "Native test source initially failed compilation with E0308 (Map instead of Value). The test argument and costly fixture refresh were corrected without recompiling tests. Zero native cases ran; no native pass is claimed. Production behavior is established by current executable and candidate/installed MCP proofs.",
+    "This does not establish browser runtime effects, Git approval/deployment/current-policy applicability, exhaustive query coverage, full original backlog or all19storage gates, or task productivity.",
+    "Current LegacyValidation source generation3151 and configuration are preserved. Older script extraction needs update_project to acquire the new browser clear marker; actual LegacyValidation clear tracing after refresh was not run.",
+    "The separately committed TODO28 complete procedure-answer improvement2b04559 is not part of this installed runtime and remains pending next-batch validation.",
+    "Actual complete coding percentage remains unknown. Build-runner share39.7percent is not a coding-versus-all-testing split."
+  ],
+  "bundle": {
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\bundle1.json",
+      "sha256": "64a336f2ebd23ba65515bafef79677533a696564af400184fc26ae07fc181968"
+    },
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-json-history-release-batch-20261116\\Engram-win-x64-browser-json-history.zip",
+    "sha256": "2594d78fa8b4d732303d36e64855ef741e2b17a3e215797027adc50d84cfac61",
+    "bytes": 115916283,
+    "entries": 219,
+    "runtime_assets": 215,
+    "publicly_published": false
+  }
+}

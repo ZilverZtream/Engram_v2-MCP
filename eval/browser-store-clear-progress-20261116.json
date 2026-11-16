@@ -1,6 +1,6 @@
 {
-  "status": "CURRENT_ARTIFACT_VALIDATED_RELEASE_RUNNING",
-  "at_utc": "2026-11-16T18:38:43.206760+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T19:09:14.683011+00:00",
   "original_requirement_id": "TODO-27",
   "original_requirement": "Usable JS/TS shared state tracing through existing state edges",
   "source_commit": "d61aad42d45d9a81a61b586d59cdeeeb76022b12",
@@ -58,7 +58,7 @@
   "native_tests_run": false,
   "native_case_written": "browser_key_trace_retains_store_wide_clear_sources_and_original_recovery",
   "public_acceptance_run": true,
-  "installed": false,
+  "installed": true,
   "source_only": false,
   "checks_completed": [
     "Installed baseline reproduces omitted clear calls while literal key readers/writers remain visible; owned fixture closed/removed.",
@@ -72,13 +72,16 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116",
     "baseline_owners_closed": true,
     "baseline_owned_fixture_removed": true,
-    "new_compilations": 0,
+    "new_compilations": 2,
     "sidecar_builds": 0,
     "new_worktree_created": false,
     "protected_wip9_preserved": true,
-    "retention": "Keep contract, baseline, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folder deletion."
+    "retention": "Keep contract, baseline, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folder deletion.",
+    "shared_batch_builds": true,
+    "all_new_owned_fixtures_closed_removed": true,
+    "normal_daemon_restored": 76584
   },
-  "next_action": "Finish the existing single release build, then candidate and installed MCP acceptance using that artifact. Do not start another native build.",
+  "next_action": "Finite installed behavior accepted through actual MCP proofs; broader original requirement limits remain.",
   "runtime_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
   "current_artifact_acceptance": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\debug1\\acceptance.json",
@@ -101,5 +104,20 @@
   "prior_future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\verify-public.py",
     "sha256": "aa46461138f6e3bbd921b68ca97659a36376321d06de02ab6c0379fe5d6800c6"
+  },
+  "native_test_compilation_failed": true,
+  "native_cases_executed": 0,
+  "native_test_corrections_recompiled": false,
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
+    "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\candidate1\\acceptance.json",
+    "sha256": "711f5eb50dc61b9f22f3ada19b6d8dd868416669dbb092a12ff26a34a65071e6"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\browser-store-clear-20261116\\installed1\\acceptance.json",
+    "sha256": "b91aa5704e703bd3051826010a298e40c362efb7bea289aa7300a4e6d98ae401"
   }
 }

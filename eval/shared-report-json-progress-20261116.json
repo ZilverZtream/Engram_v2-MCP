@@ -1,6 +1,6 @@
 {
-  "status": "CURRENT_ARTIFACT_VALIDATED_RELEASE_RUNNING",
-  "at_utc": "2026-11-16T18:38:43.207766+00:00",
+  "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
+  "at_utc": "2026-11-16T19:09:14.683011+00:00",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform response envelope: token budgets, truncation metadata, pagination and consistent output_json",
   "source_commit": "ba083033f15ed1ba38c14f4c95057740e1ada2b4",
@@ -20,7 +20,7 @@
   "baseline_status": "Expected unknown-output_json RPC refusal confirmed from retained wire; original driver FAIL preserved. No repeat execution.",
   "future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\verify-public.py",
-    "sha256": "8d152a32d7e43b8348da5267b94e48104744354a03fe2c2ce16037c4bca152b8"
+    "sha256": "74164313c65cc5922d08db8971487909c2f4d5a2e1ec51eda654710e21902e11"
   },
   "source_checks": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\source-checks.json",
@@ -45,7 +45,7 @@
     "escaped_json_budget_and_recovery_retain_all_original_evidence_parts"
   ],
   "public_acceptance_run": true,
-  "installed": false,
+  "installed": true,
   "source_only": false,
   "remaining_acceptance": [
     "One release build currently live as exec session3203; then candidate/installed public proof, identity accounting and normal lifecycle restoration.",
@@ -55,12 +55,15 @@
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116",
     "baseline_owners_closed": true,
     "baseline_owned_fixture_removed": true,
-    "new_compilations": 0,
+    "new_compilations": 2,
     "new_worktree_created": false,
     "protected_wip9_preserved": true,
-    "retention": "Keep original failed baseline, raw wire, reconciliation, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folders removed."
+    "retention": "Keep original failed baseline, raw wire, reconciliation, future public driver and source-check evidence until installed acceptance or supersession. No preexisting folders removed.",
+    "shared_batch_builds": true,
+    "all_new_owned_fixtures_closed_removed": true,
+    "normal_daemon_restored": 76584
   },
-  "next_action": "Finish the existing single release build, then candidate and installed MCP acceptance using that artifact. Do not start another native build.",
+  "next_action": "Finite installed behavior accepted through actual MCP proofs; broader original requirement limits remain.",
   "runtime_source_commit": "d6d884621cd6f2a23403ee3df8867458f0c01752",
   "current_artifact_acceptance": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\debug1\\acceptance.json",
@@ -83,5 +86,20 @@
   "prior_future_public_driver": {
     "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\verify-public.py",
     "sha256": "ef878f4ee511df29bd6447e931069ae11872c695a551cc3760f6f453411575db"
+  },
+  "native_test_compilation_failed": true,
+  "native_cases_executed": 0,
+  "native_test_corrections_recompiled": false,
+  "delivery": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\browser-json-history-batch-delivery-20261116.json",
+    "sha256": "a0cdde6e96500e17221ed373128a0150cdbb6485d7a53bcec1e61642f95243b9"
+  },
+  "candidate_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\candidate1\\acceptance.json",
+    "sha256": "83da9d734bacfb681b55c104ae6856b4683e086e650a35827fac49d59a6c0f17"
+  },
+  "installed_acceptance": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\shared-report-json-20261116\\installed1\\acceptance.json",
+    "sha256": "d9bc37781a9521e627cdcb9c9f6078dae8e9916597f569c1cc58639e6d7edda0"
   }
 }
