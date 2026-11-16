@@ -26,6 +26,14 @@ async fn sql_question_preserves_complete_columns_and_withholds_changed_declarati
         .join(",\n");
     let source = format!("CREATE TABLE [sales].[Orders] (\n{columns}\n);\n");
     std::fs::write(root.join("Orders.sql"), &source)?;
+    std::fs::write(
+        root.join("Settings.vb"),
+        "Public Module Settings\n Public Function GetOrderLimit() As Integer\n  Return 7\n End Function\nEnd Module\n",
+    )?;
+    std::fs::write(
+        root.join("Model.dbml"),
+        r#"<Database Name="Owned" xmlns="http://schemas.microsoft.com/linqtosql/dbml/2007"><Table Name="dbo.LegacyAccounts" Member="LegacyAccounts"><Type Name="LegacyAccount"><Column Name="Id" Member="Id" Type="System.Int32" /></Type></Table></Database>"#,
+    )?;
     // Same basename must not replace an explicitly qualified question target.
     std::fs::write(
         root.join("Archive.sql"),
@@ -105,6 +113,37 @@ async fn sql_question_preserves_complete_columns_and_withholds_changed_declarati
                 .contains("do not establish deployed state"))
     );
 
+    let described = fixture.server.handle_ask_codebase(serde_json::from_value(json!({
+        "project_id":project,"question":"Describe sales.Orders","output_format":"json","max_tokens":1000000
+    }))?).await?;
+    let described: Value = serde_json::from_str(&described.content[0].as_text().unwrap().text)?;
+    let described_table: Value = serde_json::from_str(
+        described["evidence"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|item| item["provider"] == "schema")
+            .expect("resolved SQL table selects schema evidence")["content"]
+            .as_str()
+            .unwrap(),
+    )?;
+    ensure!(described_table["table"] == *table);
+    for question in ["Describe GetOrderLimit", "Describe LegacyAccounts"] {
+        let control = fixture
+            .server
+            .handle_ask_codebase(serde_json::from_value(json!({
+                "project_id":project,"question":question,"output_format":"json","max_tokens":1000000
+            }))?)
+            .await?;
+        let control: Value = serde_json::from_str(&control.content[0].as_text().unwrap().text)?;
+        ensure!(
+            !control["providers"]
+                .as_array()
+                .unwrap()
+                .iter()
+                .any(|provider| provider["provider"] == "schema")
+        );
+    }
     let ambiguous = fixture
         .server
         .handle_ask_codebase(serde_json::from_value(json!({

@@ -5,7 +5,7 @@
 
 use engram_graph::{GraphStore, Node, ResolveResult};
 
-use super::plan::{EntityKind, EntityMention, QueryPlan, ResolvedEntity};
+use super::plan::{EntityKind, EntityMention, Modality, QueryPlan, ResolvedEntity};
 
 /// Cap on candidate branches kept for an ambiguous mention.
 const MAX_BRANCHES: usize = 4;
@@ -253,9 +253,17 @@ pub fn resolve_entities_in_context(
         let p = n.file_path.as_str().to_lowercase();
         p.ends_with(".vb") || p.ends_with(".cs") || p.ends_with(".asmx")
     };
+    let is_sql_declaration = |node: &Node| {
+        node_to_entity_kind(&node.node_type) == EntityKind::Table
+            && node.file_path.as_str().to_ascii_lowercase().ends_with(".sql")
+    };
+    let mut sql_declarations = std::collections::HashSet::new();
     for m in plan.entities.iter_mut() {
         match graph.resolve_symbol(project_id, &m.text, None, None) {
             Ok(ResolveResult::Unique(n)) => {
+                if is_sql_declaration(&n) {
+                    sql_declarations.insert(n.node_id.clone());
+                }
                 // Round-7: a server cue on a CLIENT-only unique resolution —
                 // "who calls DeleteImage on the server" resolving to a TS
                 // deleteImage — should reach the server definition. Look up a
@@ -327,6 +335,9 @@ pub fn resolve_entities_in_context(
                 }
             }
             Ok(ResolveResult::Ambiguous(v)) => {
+                for node in v.iter().filter(|node| is_sql_declaration(node)) {
+                    sql_declarations.insert(node.node_id.clone());
+                }
                 // Round-7: a SERVER cue disambiguates a client/server name clash
                 // toward the server definition (DeleteImage → the VB
                 // api.DeleteImage). Only narrows when it strictly reduces the set.
@@ -448,6 +459,15 @@ pub fn resolve_entities_in_context(
     }
     if let Some(m) = compound_file_mention(graph, project_id, question, &plan.entities) {
         plan.entities.push(m);
+    }
+    // A resolved SQL declaration is a stronger retrieval cue than prose
+    // keywords. Preserve the final narrowed resolutions and their ambiguity;
+    // DBML/table-like names alone do not establish a SQL source declaration.
+    if plan.entities.iter().flat_map(|mention| &mention.resolved).any(|resolved| {
+        resolved.kind == EntityKind::Table
+            && resolved.node_id.as_ref().is_some_and(|id| sql_declarations.contains(id))
+    }) && !plan.modalities.iter().any(|modality| matches!(modality, Modality::Sql)) {
+        plan.modalities.push(Modality::Sql);
     }
 }
 
