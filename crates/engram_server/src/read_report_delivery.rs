@@ -13,6 +13,8 @@ const TOOLS: &[&str] = &[
     "list_projects",
     "list_advanced_tools",
     "project_info",
+    "list_jobs",
+    "get_job_status",
     "derive_test_matrix",
     "query_business_logic",
     "describe_table",
@@ -89,7 +91,7 @@ const TOOLS: &[&str] = &[
 const CONTROLS: &[&str] = &["max_tokens", "response_id", "response_offset"];
 
 fn server_discovery(tool: &str) -> bool {
-    matches!(tool, "list_projects" | "list_advanced_tools")
+    matches!(tool, "list_projects" | "list_advanced_tools" | "list_jobs" | "get_job_status")
 }
 
 #[cfg(test)]

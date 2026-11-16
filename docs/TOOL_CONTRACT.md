@@ -1325,3 +1325,13 @@ Installed proof for procedure answers, discovery and SQL batches:
 The corrected runtime passed21candidate and21installed MCP checks. The retained
 native run passed three cases and failed procedure routing before its correction;
 that native case was not recompiled or claimed as passing.
+
+Pending source change, not yet compiled or installed: `list_jobs` and
+`get_job_status` gain the same complete-report budgets, optional JSON and exact
+saved recovery as project-free discovery. Fresh `list_jobs(project_id)` filters
+remain; fresh status calls still require `job_id`. Recovery needs only the
+returned delivery controls, retains the original observation after job changes
+or process restart, and does not poll, cancel or restart work. A captured running
+status is not evidence that a job is still running. `cancel_job` stays a separate
+mutation without these delivery controls. The shared `server_discovery` report
+scope identifies project-free retention, not a project record.
