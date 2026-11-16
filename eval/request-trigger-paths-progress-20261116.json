@@ -1,0 +1,54 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "TODO-31",
+  "original_requirement": "trace_user_request: URL/route to handler, SQL/procedures/tables, trigger side effects and response.",
+  "user_outcome": "A normal WebForms/API save trace can show matching source-declared trigger relationships and body table references rather than an unconditional unknown placeholder; source citations and runtime uncertainty stay explicit.",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\contract.json",
+  "baseline": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\baseline1\\acceptance.json",
+  "baseline_status": "BASELINE_GAP_CONFIRMED",
+  "baseline_checks_passed": 4,
+  "implementation_files": [
+    "crates/engram_server/src/services/request_trace/triggers.rs",
+    "crates/engram_server/src/services/request_trace.rs",
+    "crates/engram_server/src/handlers/request_trace_tools.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/tests/request_trigger_paths_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "source_files_sha256": {
+    "crates/engram_server/src/services/request_trace/triggers.rs": "bb475a4f0d43243247a73371b21ec6b084877defa1a050c7b699e80267b800a1",
+    "crates/engram_server/src/services/request_trace.rs": "69e91d4388a093385aa2cf83380a446202978d758d6f3f21d3089159a82826d1",
+    "crates/engram_server/src/handlers/request_trace_tools.rs": "319d2732a9a5e762604298fb696f1c17a33f500e81e637c2930b5d831ad8f7cd",
+    "crates/engram_server/src/tools.rs": "9c6e29f3c7863bafaca8eecd76bc612a65fe383597e927cd9c2a58276943d5f2",
+    "crates/engram_server/src/models/requests.rs": "c5abe6626821da3f373054c906ac286c13f1f05d7ecb83713bbeb741868ba30f",
+    "crates/engram_server/tests/request_trigger_paths_tests.rs": "a310aeca3e2aebb711c5d9c859a8e5f1471720c495ba2676c2c27519ab6876a4",
+    "docs/TOOL_CONTRACT.md": "82b342b1999de6eee69d3e619ccf42280259393ee360ce7f92a23b1e7d7c632d"
+  },
+  "native_target": "request_trigger_paths_tests",
+  "native_tests_run": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\request-trigger-paths-20261116\\verify-public.py",
+  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
+  "deployed": false,
+  "source_commit": null,
+  "source_checks": [
+    "New source and dedicated native behavior target parsed/formatted with rustfmt; legacy owners parsed without unrelated formatting",
+    "Owned installed baseline four checks pass; original update path present, requested trigger path absent, sources unchanged",
+    "Public verifier parsed with ast"
+  ],
+  "timing": {
+    "baseline_execution_seconds": 1.5946846008300781,
+    "compilation_seconds": 0,
+    "full_suite_runs": 0,
+    "actual_production_coding_percent": null,
+    "concurrent_release": "Prior frozen policy/revert/status batch release runs separately; no source from this feature is included."
+  },
+  "resources": "Baseline isolated MCP owner exited naturally; its source/data/config fixture removed. CASE source/evidence retained until superseded. No preexisting deletion or actual LegacyValidation/Q source scan.",
+  "limits": [
+    "Only exact qualified source write/target names and compatible declared DML events become candidates; bare/alias/dynamic SQL is unresolved, not assigned a default schema.",
+    "Trigger body tables retain the existing lexical basename convention and source citations; no physical database binding, chained-trigger/procedure expansion, deployed/disabled-state interpretation or execution proof.",
+    "Selected current source membership/citations and existing128path cap are used; omitted expansion counts and catalog gaps remain visible. No new parser framework, source-format change or graph persistence.",
+    "Current LegacyValidation trigger DDL availability/runtime binding is not established by the owned fixture.",
+    "Source not compiled, new-source runtime-verified or deployed; this one distinct original outcome waits for the next three-requirement batch."
+  ]
+}

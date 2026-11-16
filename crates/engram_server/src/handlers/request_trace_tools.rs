@@ -105,6 +105,7 @@ impl Engram {
                 "coverage":{"source_files_read":sources.len(),"source_bytes_read":bytes,"source_inventory":"selected managed paths; current disk contents","gaps":gaps,
                 "graph_consistency":"Per-expanded-member source hash and selected physical revision checks; no atomic graph/disk snapshot or complete call-binding proof.",
                 "runtime_execution_proven":false,"include_db":req.include_db,"include_triggers":req.include_triggers}});
+            crate::services::request_trace::triggers::attach(&mut report, &sources);
             let loaded_paths = sources.iter().map(|source| source.path).collect();
             policy::attach(Path::new(&record.directory), &mut report, &loaded_paths)?;
             Ok(serde_json::to_string(&report)?)

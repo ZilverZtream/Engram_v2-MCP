@@ -4047,7 +4047,8 @@ pub struct TraceUserRequestRequest {
     /// Include indexed SQL/procedure/table relationships. Default true.
     #[serde(default = "default_true")]
     pub include_db: bool,
-    /// Request trigger coverage. Missing trigger bindings are reported as unknown.
+    /// Include source-declared DML trigger candidates for reached qualified literal writes.
+    /// No deployed state or execution proof; missing source bindings stay unknown.
     #[serde(default = "default_true")]
     pub include_triggers: bool,
     /// Complete JSON reply budget in ceil(UTF-8 bytes/4); default 16384.
