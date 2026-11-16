@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_BEHAVIORS_AND_MCP_PASS_RELEASE_RUNNING_NOT_INSTALLED",
+  "status": "INSTALLED_ACCEPTANCE_COMPLETE",
   "at_utc": "2026-11-16T21:37:03.933618+00:00",
   "original_requirements": [
     "TODO-4",
@@ -24,18 +24,12 @@
   "current_artifact_mcp_checks_passed": 17,
   "release": {
     "label": "release1",
-    "session_id": 60381,
-    "driver_pid": 46168,
-    "driver_created": 1794864841.545874
+    "session_id": null,
+    "driver_pid": null,
+    "driver_created": null,
+    "status": "PASS"
   },
-  "completion": {
-    "driver_pid": 69916,
-    "driver_created": 1794865012.7635188,
-    "state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\completion2-state.json",
-    "script": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\finish-release1.py",
-    "builds_launched": 0,
-    "session_id": 94435
-  },
+  "completion": null,
   "evidence": {
     "implementation1.json": {
       "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-history-memory-release-batch-20261116\\implementation1.json",
@@ -89,5 +83,6 @@
     "Record installed identity, normal config/source preservation, resource ownership and matching bundle."
   ],
   "resources": "Existing shipping checkout/shared target. Both native Jobs/relays/temps closed/removed; current-artifact MCP owners/fixtures closed/removed. Release and finisher are live pinned owners. Keep evidence until reviewed/superseded; no preexisting deletion.",
-  "actual_coding_percent": null
+  "actual_coding_percent": null,
+  "delivery": "eval/job-history-memory-batch-delivery-20261116.json"
 }

@@ -1326,7 +1326,7 @@ The corrected runtime passed21candidate and21installed MCP checks. The retained
 native run passed three cases and failed procedure routing before its correction;
 that native case was not recompiled or claimed as passing.
 
-Pending source change, not yet compiled or installed: `list_jobs` and
+Installed November16: `list_jobs` and
 `get_job_status` gain the same complete-report budgets, optional JSON and exact
 saved recovery as project-free discovery. Fresh `list_jobs(project_id)` filters
 remain; fresh status calls still require `job_id`. Recovery needs only the
@@ -1336,7 +1336,7 @@ status is not evidence that a job is still running. `cancel_job` stays a separat
 mutation without these delivery controls. The shared `server_discovery` report
 scope identifies project-free retention, not a project record.
 
-Pending source change, not yet compiled or installed: ordinary `ask_codebase`
+Installed November16: ordinary `ask_codebase`
 history/rationale questions preserve each selected indexed commit message in full,
 including its recorded exceptions. Message evidence retains its indexed document
 identity, timestamp and exact commit ID. `recorded_history` distinguishes this
@@ -1346,7 +1346,7 @@ retrieval windows, scopes and historical-request routing stay unchanged. Complet
 question reports use the existing whole-report budget and immutable recovery;
 saved recovery does not query a later Git HEAD or promote historical intent.
 
-Pending source change, not yet compiled or installed: `batch_read` also accepts
+Installed November16: `batch_read` also accepts
 typed `read_memory_bank` requests for project and user sections. It calls the
 ordinary reader, preserving section identity/content, provenance, per-read JSON
 and budgets, byte/line citations and expected-raw-hash refusal. Read errors remain
@@ -1354,3 +1354,10 @@ independent and correlate to the original request IDs. The shared budget omits
 whole results with their complete single-tool recovery arguments. An uncited
 recovery is a fresh read; hash-bound recovery refuses changed stored content.
 This does not write memory, adopt its prose, or provide an atomic snapshot.
+
+Installed proof: [job, history and memory delivery](../eval/job-history-memory-batch-delivery-20261116.json).
+Seventeen checks passed on each current artifact, candidate and installed runtime.
+The initial native run passed history/memory and failed job-fixture setup; the
+corrected job case passed alone, reusing the existing library and server artifacts.
+The original setup failure is retained. These finite deliveries do not establish
+overall task productivity or close the original storage/resource gates.
