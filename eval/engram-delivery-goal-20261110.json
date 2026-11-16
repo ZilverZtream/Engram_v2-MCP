@@ -2563,6 +2563,15 @@
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\contract.json",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
         "counts_as_independent_deliverables": 1
+      },
+      {
+        "original_requirement_id": "TODO-28",
+        "outcome": "Complete recorded commit messages and historical-intent boundaries in ordinary questions",
+        "source_commit": "99d332b8c85435f3059763138437aa7600087cfd",
+        "progress": "eval/ask-history-message-progress-20261116.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\contract.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "counts_as_independent_deliverables": 1
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2711,23 +2720,23 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "Bounded complete background-job observation",
-    "original_requirement_id": "TODO-4",
+    "active_original_item": "Complete recorded messages in ordinary history questions",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "implementation_items_active": 0,
-    "source_commit": "ac1784329399fe1e4ef648127dfce3421e970697",
-    "source_progress": "eval/job-report-delivery-progress-20261116.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116",
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\job-report-delivery-20261116\\contract.json",
+    "original_requirement_id": "TODO-28",
+    "source_commit": "99d332b8c85435f3059763138437aa7600087cfd",
+    "source_progress": "eval/ask-history-message-progress-20261116.json",
+    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\contract.json",
     "finite_acceptance": [
-      "Both job-observation tools advertise the existing max_tokens/output_json/saved recovery controls without requiring a project ID. Fresh job/project filters retain normal handler validation; cancellation is unchanged.",
-      "Whole replies fit the requested budget or explicitly reject insufficient recovery metadata before the handler; complete original results, status/progress and errors are preserved. Recovery is immutable capture-time observation, not a fresh poll or completion claim.",
-      "An owned real background-indexing fixture demonstrates full list budgeting, fresh project filter, exact status JSON, new job arrival and exact original job-list recovery across restart. An owned native case retains large job-message/status content after job-row deletion and owner shutdown.",
-      "Count both tools as one TODO-4 outcome. Retain one pending source item until a genuine combined batch is ready; no Cargo, full suites, installed changes, normal daemon restart, LegacyValidation/Q read or new target language for this source delivery."
+      "Ordinary history/rationale retrieval preserves complete selected indexed commit-message bodies, including their exceptions, author/date text, indexed document identity, timestamp and exact40hex commit ID. Existing diff/other-provider snippets and retrieval scopes/windows are retained.",
+      "Indexed history uses recorded_history with the existing ranking weight, rather than treating index presence as verified merge, approval or current policy. Message warnings state the evidence boundary; no policy is adopted or source/current-history authority inferred.",
+      "Owned VB Git fixture compares returned complete message endings against independent immutable Git object bytes for two commits. Bounded whole-question recovery must preserve the full original report after a later checked-out commit; historical request routing/cutoffs remain separate unchanged code paths.",
+      "One TODO28 outcome, queued beside TODO4 jobs; no standalone Cargo/native/release run, new source/Git parser, extra Git reads/models, normal configuration/runtime change, actual LegacyValidation/Q reads or target-language expansion."
     ],
-    "pending_source_outcomes": 1,
+    "implementation_items_active": 0,
+    "pending_source_outcomes": 2,
     "full_original_goal_active": true,
-    "next_action": "Accumulate further distinct original source outcomes before one combined validation; do not compile or release this single report-wrapper extension."
+    "next_action": "Two original source outcomes are queued. Continue another genuine original requirement before combined validation; do not compile merely for this history change."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

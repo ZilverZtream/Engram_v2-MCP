@@ -1,0 +1,59 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-16T21:06:13.616365+00:00",
+  "original_requirement_id": "TODO-28",
+  "source_commit": "99d332b8c85435f3059763138437aa7600087cfd",
+  "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116",
+  "acceptance_contract": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\contract.json",
+    "sha256": "3bfa62fba533dabd103a61c07ab045b8a73209d8380513c76a416a237b99b4ad"
+  },
+  "baseline": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\baseline2\\acceptance.json",
+    "sha256": "94aa734cdf623cc8dcbf10e25bc8ee6caf9e6785a4f31954473064a579291902"
+  },
+  "baseline_seconds": 6.368975899997167,
+  "retained_initial_fixture_failure": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\baseline1\\acceptance.json",
+    "sha256": "aadc1354b420be2160fc7cc5ea98e4342c7e13f2c10294365a258391b0879e92"
+  },
+  "fixture_correction": "Initial owned default-branch ref remained at baseline, so history indexing correctly excluded later local commits. Corrected only the owned ref to include both authored records. Initial failure/wire retained; both fixture/server lifetimes removed/closed.",
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/evidence.rs",
+    "crates/engram_server/src/services/ask_engine/providers.rs",
+    "crates/engram_server/src/services/ask_engine/report.rs",
+    "crates/engram_server/src/services/ask_engine/retrieval.rs",
+    "crates/engram_server/tests/ask_history_message_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "future_public_driver": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\verify-public.py",
+    "sha256": "588b8e1cb14a21058605b5a17c83c6c0ef0567e49a30d497c03252c2d47c1f6c"
+  },
+  "source_checks": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-history-message-20261116\\source-checks.json",
+    "sha256": "0d691549cffe30176d413495c6a164e408c4c9e48bb31244c8d89133a4c0c9d8"
+  },
+  "implemented": "Retain the existing complete stored body for exact indexed commit-message identities before generic search-snippet windowing/clipping. Supply its exact commit identity/title and historical-intent warning. RecordedHistory retains the existing0.6weight; stored/index schema, Git writes/reads and history/diff retrieval windows are unchanged.",
+  "finite_acceptance": [
+    "Ordinary history/rationale retrieval preserves complete selected indexed commit-message bodies, including their exceptions, author/date text, indexed document identity, timestamp and exact40hex commit ID. Existing diff/other-provider snippets and retrieval scopes/windows are retained.",
+    "Indexed history uses recorded_history with the existing ranking weight, rather than treating index presence as verified merge, approval or current policy. Message warnings state the evidence boundary; no policy is adopted or source/current-history authority inferred.",
+    "Owned VB Git fixture compares returned complete message endings against independent immutable Git object bytes for two commits. Bounded whole-question recovery must preserve the full original report after a later checked-out commit; historical request routing/cutoffs remain separate unchanged code paths.",
+    "One TODO28 outcome, queued beside TODO4 jobs; no standalone Cargo/native/release run, new source/Git parser, extra Git reads/models, normal configuration/runtime change, actual LegacyValidation/Q reads or target-language expansion."
+  ],
+  "compiled": false,
+  "native_tests_run": false,
+  "current_source_public_acceptance_run": false,
+  "installed": false,
+  "independent_outcomes": 1,
+  "resources": {
+    "new_compilations": 0,
+    "baseline_owners_closed": true,
+    "baseline_fixtures_removed": true,
+    "normal_configuration_unchanged": true,
+    "protected_wip9_unchanged": true,
+    "normal_daemon_restarted": false,
+    "retention": "Keep immutable source oracle, baseline wires/failure/correction, contract and future verifier until installed acceptance or supersession. No preexisting deletion."
+  },
+  "next_action": "Two original source outcomes are queued. Continue another genuine original requirement before combined validation; do not compile merely for this history change."
+}
