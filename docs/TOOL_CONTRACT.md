@@ -829,6 +829,10 @@ repeat embedding/search. Ordinary offset pages remain live; retention does
 not expand `top_k`, restore clipped per-hit content or retain underlying source
 objects. Existing retention size, age and count limits still apply.
 
+Memory partial-write recovery, retained vector windows and truthful
+`tantivy_only` maintenance reporting were installed on November16.
+[Delivery evidence](../eval/memory-vector-contract-batch-delivery-20261116.json).
+
 
 VB request tracing includes source-level SqlCommand text candidates. Literal
 constructor/CommandText values and stable same-method Const/Static string

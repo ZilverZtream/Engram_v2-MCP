@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_VALIDATED_AWAITING_RELEASE_AND_INSTALLED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-26",
   "original_requirement": "Reconcile actual schemas, tool descriptions and capability claims with actual behavior. Preserve completed catalog/documentation deliveries.",
   "user_outcome": "Agents receive an explicit maintenance-only result instead of a successful-repair claim for tantivy_only, with an exact non-wiping source-rebuild handoff and matching capability/schema disclosures.",
@@ -29,8 +29,8 @@
   "native_target": "repair_maintenance_contract_tests",
   "native_execution": "PASS: six retained native2 cases plus corrected native3 case.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\repair-scope-contract-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "deployed": false,
+  "runtime_acceptance": "PASS: same single candidate/installed release, 25 public checks on each.",
+  "deployed": true,
   "source_commit": "747cbdf1abbb1c446b8a82f9cd1610158a21674d",
   "timing": {
     "production_implementation_start_utc": "2026-11-16T08:08:21.088629+00:00",
@@ -48,10 +48,12 @@
   "limits": [
     "This changes one identified runtime capability claim, not the underlying cleanup algorithm or other repair-scope semantics.",
     "Full repair remains an advisory broader reconstruction step and can require embedding work; the follow-up is not executed automatically.",
-    "Whole EG26 catalog reconciliation and broader storage-repair gates remain open. The source outcome is neither validated nor installed yet."
+    "Finite installed acceptance is recorded; the full original backlog remains active. No coding-majority or productivity claim."
   ],
   "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
   "native_tests_run": true,
   "combined_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
-  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5"
+  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+  "delivery": "eval/memory-vector-contract-batch-delivery-20261116.json",
+  "bounded_delivery_complete": true
 }

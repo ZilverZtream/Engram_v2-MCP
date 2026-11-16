@@ -40,12 +40,9 @@
   ],
   "activation_note": "Replacement goal remains active. Selected TODO35 schema lookup, repeated-query detection and source-based index suggestions are deployed with explicit limits. Follow current_execution_focus; preserve all earlier deliveries and unfinished original findings. No CodeMap/Blast or unrelated language expansion.",
   "immediate_next_delivery": {
-    "status": "NATIVE_ACCEPTED_SINGLE_RELEASE_RUNNING",
-    "pending_source_records": [
-      "eval/memory-write-recovery-progress-20261116.json",
-      "eval/vector-retained-window-progress-20261116.json",
-      "eval/repair-scope-contract-progress-20261116.json"
-    ],
+    "status": "LATEST_BATCH_IMPLEMENTED_VALIDATED_DEPLOYED",
+    "receipt": "eval/memory-vector-contract-batch-delivery-20261116.json",
+    "pending_source_records": [],
     "minimum_distinct_requirements_before_compile": 3,
     "full_original_goal_complete": false
   },
@@ -991,7 +988,7 @@
     "delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json"
   },
   "ai_readiness_batch_delivery": "eval/legacy_validation-ai-readiness-batch-delivery-20261114.json",
-  "next_user_visible_deliverable": "Validate and install the queued saved-memory outcomes, retained vector windows and truthful repair-scope runtime contract with one combined native target/release.",
+  "next_user_visible_deliverable": "Select the next concrete unfinished original LegacyValidation requirement from current source and evidence. No new implementation is active and no builds remain live for the delivered batch.",
   "retained_previous_delivery_contract": {
     "status": "BOUNDED_COMPONENT_IMPLEMENTED_VALIDATED_DEPLOYED",
     "finding": "TODO59 shared procedure parsing in database-intelligence call-chain reports",
@@ -2560,38 +2557,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "TODO-7",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "2ac232f32874bbf81dc161cc97c286146668dd64",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\contract.json",
-        "source_progress_record": "eval/memory-write-recovery-progress-20261116.json",
-        "focused_native_target": "memory_write_recovery_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\verify-public.py",
-        "user_outcome": "A saved memory append/import is reported as stored even when search publication fails, with exact readback and stage-appropriate existing recovery. Agents are explicitly told not to repeat the write."
-      },
-      {
-        "original_requirement_id": "TODO-4",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "881153a9b7a54471a795fca2a5687a7b7ea3d4ec",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\contract.json",
-        "source_progress_record": "eval/vector-retained-window-progress-20261116.json",
-        "focused_native_target": "vector_retained_results_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\verify-public.py",
-        "user_outcome": "Vector-search selected results can be retained and recovered immutably with the caller reply budget, reusing existing result storage and delivery. Ordinary search and retrieval limits remain unchanged."
-      },
-      {
-        "original_requirement_id": "EG-26",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "747cbdf1abbb1c446b8a82f9cd1610158a21674d",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\repair-scope-contract-20261116\\contract.json",
-        "source_progress_record": "eval/repair-scope-contract-progress-20261116.json",
-        "focused_native_target": "repair_maintenance_contract_tests",
-        "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\repair-scope-contract-20261116\\verify-public.py",
-        "user_outcome": "Agents receive an explicit maintenance-only result instead of a successful-repair claim for tantivy_only, with an exact non-wiping source-rebuild handoff and matching capability/schema disclosures."
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2769,43 +2735,27 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "active_original_item": "EG-26 truthful repair-scope capability and outcome contract",
+    "active_original_item": "Advance the remaining original accepted backlog after the installed memory/vector/repair-contract batch. Select a concrete unmet LegacyValidation behavior before new source work or compilation.",
     "implementation_items_active": 0,
-    "status": "NATIVE_ACCEPTED_SINGLE_RELEASE_RUNNING",
-    "original_requirement": "Reconcile actual schemas, tool descriptions and capability claims with actual behavior. Preserve completed catalog/documentation deliveries.",
-    "observed_missing_behavior": "repair_project describes scopes as index repair and returns a successful scoped-repair header for tantivy_only. Its existing service branch only purges superseded generations and performs no lexical reconstruction or health verification.",
-    "implementation_files": [
-      "crates/engram_server/src/handlers/project_tools.rs",
-      "crates/engram_server/src/models/requests.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/tests/repair_maintenance_contract_tests.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "finite_acceptance": [
-      "The actual tantivy_only result explicitly identifies maintenance-only cleanup, repair_performed=false and index_health_verified=false. It must not imply damaged lexical documents were reconstructed.",
-      "Supply a complete existing non-wiping full-repair call with max_commits=0 for source reconstruction, preserving the operator choice and avoiding an unnecessary Git-history replay. Follow-up is advisory, never executed automatically.",
-      "Advertised scope description and tool documentation disclose tantivy_only cleanup, vector initialization and unchanged actual supported scope semantics. Other repair scopes retain their current results.",
-      "Owned public baseline/candidate acceptance preserves source generation, source bytes and memory content. Use one focused combined native target/release for this and the two queued original outcomes; no full-suite run."
-    ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\repair-scope-contract-20261116\\contract.json",
-    "full_original_goal_active": true,
-    "next_build_rule": "Two independent source outcomes queued. Add this distinct runtime capability correction before one combined validation/release; no docs-only deliverable counting.",
-    "source_commit": "747cbdf1abbb1c446b8a82f9cd1610158a21674d",
-    "source_progress_record": "eval/repair-scope-contract-progress-20261116.json",
-    "combined_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
-    "next_action": "Observe existing release68125 and pipeline56790 handles. Same single release proceeds through package/candidate/install/installed/normal runtime restoration. No restart on timeout.",
-    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
-    "native_cases_passed": 7,
-    "native_runner_seconds": 571.4547026999062,
-    "release_owner": {
-      "pid": 84636,
-      "created": 1794817508.6781702,
-      "confirmed_utc": "2026-11-16T08:26:13.141651+00:00",
-      "owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\release1-owner.json",
-      "purpose": "Observe the same owned optimized release; never restart solely on an observation timeout"
+    "status": "READY_TO_SELECT_NEXT_ORIGINAL_ITEM",
+    "completed_batch": {
+      "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "record": {
+        "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\memory-vector-contract-batch-delivery-20261116.json",
+        "sha256": "3b27de4713a34dd64a61240aa6078ad979f5a97868dc5dd456b79498050977a4"
+      },
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+      "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+      "native_cases_passed": 7,
+      "native_builds": 3,
+      "public_checks_per_candidate_and_installed": 25,
+      "release_builds": 1,
+      "deployed": true
     },
-    "pipeline_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
-    "previous_goal_turn_classification": "PROGRESS: third runtime contract correction committed, seven distinct native cases accepted after fixture-only corrections; single release and deployment pipeline are live."
+    "previous_goal_turn_classification": "PROGRESS: same single release passed candidate and installed public acceptance, normal runtime restored, exact installed identity/configuration/source selection/resources accounted.",
+    "scope_guard": "Full original31findings/19applicable gates and accepted TODO scope retained. Preserve completed deliveries and unfinished findings. CodeMap/Blast closed; LegacyValidation VB.NET/WebForms/JS/TS/SQL priorities. Existing planner semantic, ownership, cleanup and kernel/SSD holds remain unfinished.",
+    "next_build_rule": "Accumulate three distinct original substantive source-complete requirements; one focused combined native target and one release. Retain unaffected passes; no full-suite default or extra debug build.",
+    "full_original_goal_active": true
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2860,5 +2810,14 @@
   },
   "memory_write_recovery_source_progress": "eval/memory-write-recovery-progress-20261116.json",
   "vector_retained_window_source_progress": "eval/vector-retained-window-progress-20261116.json",
-  "repair_scope_contract_source_progress": "eval/repair-scope-contract-progress-20261116.json"
+  "repair_scope_contract_source_progress": "eval/repair-scope-contract-progress-20261116.json",
+  "memory_vector_contract_batch_delivery": {
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\.worktrees\\instructions-20261031\\eval\\memory-vector-contract-batch-delivery-20261116.json",
+      "sha256": "3b27de4713a34dd64a61240aa6078ad979f5a97868dc5dd456b79498050977a4"
+    },
+    "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+    "installed_server_sha256": "8bdee03478a30c6ce254fcb45632549582f0d0a5ef8f50c6d8529c57b935c7a4"
+  }
 }

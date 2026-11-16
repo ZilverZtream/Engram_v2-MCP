@@ -1,0 +1,128 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-16T08:52:03.866582+00:00",
+  "original_requirements": [
+    "TODO-7",
+    "TODO-4",
+    "EG-26"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
+  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+  "source_freeze": {
+    "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\source-freeze.json",
+    "sha256": "bbcc6084351640202c7ee366fba76f240b95e63b855839f9d9c166e832792464"
+  },
+  "installed_pair": {
+    "server_sha256": "8bdee03478a30c6ce254fcb45632549582f0d0a5ef8f50c6d8529c57b935c7a4",
+    "manifest_sha256": "684e516213d2a1889dd2080d9411f592ea19e7e6fba4a8625f05e4e718591ff3",
+    "sidecar_sha256": "0199d344917619ce4b85a212b5b6e08726a0263c4bb52ebf6a362d0b77bc4079",
+    "assets_verified": 215,
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_companions": 214,
+    "retained_previous_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ac963dab729f4159a878334d8eba6cec"
+  },
+  "behavior": [
+    "Saved memory updates/imports return stored_search_incomplete instead of hiding a committed write behind an indexing error; exact readback and no-repeat guidance avoid duplicate append retries. Known post-lexical embedding failures offer the existing vector-only repair action.",
+    "Vector search optionally retains the complete selected result window for exact bounded-byte recovery across note deletion, removal of the owned source file and process restart, without another embedding request. Ranking/content/retention limits remain.",
+    "The tantivy_only repair scope truthfully reports maintenance_only cleanup with repair_performed=false and index_health_verified=false; schemas and descriptions agree, and a complete advisory non-wiping full-repair action skips Git replay. No lexical-rebuild capability was added."
+  ],
+  "native": {
+    "cases_passed": 7,
+    "attempts": 3,
+    "retained_cases": 6,
+    "current_cases": 1,
+    "runner_seconds": 571.4547026999062,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
+      "sha256": "1866c2d7be2217a3f92b236df0b7e0ca26e58c8f897d5e19dc74e208ef4eba96"
+    },
+    "failed_attempts_retained": true,
+    "fixture_only_corrections": [
+      "optional embedding-model type",
+      "documented invalid-kind rejection replaces unsupported slash assumption"
+    ]
+  },
+  "candidate": {
+    "checks_passed": 25,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\candidate1\\acceptance.json",
+      "sha256": "f860b9ffdfba835dde0492b7c21a8323aaa4ed3d988059889b7609249fcca1f4"
+    }
+  },
+  "installed": {
+    "checks_passed": 25,
+    "receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\installed1\\acceptance.json",
+      "sha256": "4a9b1e3950d3aae0289fdbb92937571b8d9c78e2d6118851c8aa6ece0bccf59b"
+    }
+  },
+  "vector_fixture": {
+    "authored_notes": 12,
+    "original_reply_bytes": 41264,
+    "saved_original_mcp_bytes": 42912,
+    "recovery_pages": 33
+  },
+  "builds": {
+    "native_runner_seconds": 571.4547026999062,
+    "release_runner_seconds": 1346.5733429000247,
+    "release_attempts": 1,
+    "release_receipt": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\release1.json",
+      "sha256": "86095fc5ac55fbe8aec319a6d0233c603b01293ee12ebe327281d6e0c696c7c1"
+    },
+    "extra_debug_builds": 0,
+    "full_or_lib_suite_runs": 0
+  },
+  "preservation": {
+    "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "selected_legacy_validation_generation": 3151,
+    "candidate_and_installed_registry_metadata_unchanged": true,
+    "protected_wip9_sha256": {
+      "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
+      "crates/engram_graph/src/store/python_modules.rs": "f7706ec87bfca1705c04022a9b989055f1229c8335a408d2811681c189aafebf",
+      "crates/engram_graph/src/store/typescript_modules/state.rs": "29e9cf28b45812856415a943a729f479e8578b76903ed6fc30c7244a7ec832ef",
+      "crates/engram_index/src/parsing/modern_state.rs": "6edfe6db3945a8e7e3c9dc50fc2939ef94bc23fd9268e34e3760608af06ddef5",
+      "crates/engram_index/src/parsing/modern_state/references.rs": "2c053f71c274990b19da84a3a4cc1786aaab032d47311efe94a11b58119eaa6b",
+      "crates/engram_index/src/parsing/python_modules.rs": "8eb650fd0a185f09fee1165f6d198ea2884dd031c5ace5c1b815b39980183ebf",
+      "crates/engram_server/src/handlers/cognitive_tools.rs": "c23d6d3d8c24280fc03d047cb12c4a9e878441268f5aa92dda2f02288ff1f8df",
+      "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
+      "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
+    }
+  },
+  "resources": {
+    "all_new_native_public_compiler_fixtures_closed_and_removed": true,
+    "private_config_removed": true,
+    "config_hold_released": true,
+    "normal_runtime_restored": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\restored-runtime\\receipt.json",
+      "sha256": "33a8964fb2c3ba5e294acb707c24cd7f1e1a63ca01d84ab04de788a7b86c977d"
+    },
+    "normal_daemon_pid_at_restore": 70972,
+    "normal_daemon_intentionally_retained": true,
+    "evidence_retention": "All new evidence/package/driver artifacts retained only in the recorded scratch CASE and three named feature CASEs until superseded. Existing shipping checkout/shared target reused.",
+    "previous_pair_retained": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-ac963dab729f4159a878334d8eba6cec",
+    "preexisting_deletion_restrictions_preserved": true,
+    "native1_exact_owned_telemetry_cleanup": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native1-telemetry-cleanup.json",
+      "sha256": "489e2ecbb1168436595bcf95da64da36c29a9d40cfc95f296a7f60e0b3080f7a"
+    }
+  },
+  "limits": [
+    "Actual LegacyValidation/Q source was not read by these owned fixtures. Four-dimensional local HTTP embedding fixtures test recovery contracts, not semantic quality or actual provider availability.",
+    "Vector retention does not expand the requested window/content selection, retain underlying source objects or prove corpus completeness.",
+    "Maintenance-only reporting does not rebuild Tantivy or prove health; broader EG26 catalog reconciliation remains incomplete.",
+    "Broader original backlog and all19 release-gate scope remain active; this receipt closes only the three finite contracts.",
+    "No coding-time majority, v1 readiness, superiority or financial-worth claim."
+  ],
+  "timing": {
+    "record": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\coding-compile-timing-20261116.json",
+      "sha256": "86017c6de0b3a290ed0f77b5009d32976db31a51b7d35e7fe9dcd4f741a1b97f"
+    },
+    "compile_test_runner_percent": 45.96545609061722,
+    "actual_production_coding_percent": null,
+    "promised_coding_majority_proven": false
+  }
+}

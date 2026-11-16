@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_VALIDATED_AWAITING_RELEASE_AND_INSTALLED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-4",
   "original_requirement": "Uniform bounded replies and durable result cursors/recovery across tools.",
   "user_outcome": "Vector-search selected results can be retained and recovered immutably with the caller reply budget, reusing existing result storage and delivery. Ordinary search and retrieval limits remain unchanged.",
@@ -27,8 +27,8 @@
   "native_target": "vector_retained_results_tests",
   "native_execution": "PASS: six retained native2 cases plus corrected native3 case.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\vector-retained-window-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "deployed": false,
+  "runtime_acceptance": "PASS: same single candidate/installed release, 25 public checks on each.",
+  "deployed": true,
   "source_commit": "881153a9b7a54471a795fca2a5687a7b7ea3d4ec",
   "timing": {
     "production_implementation_start_utc": "2026-11-16T07:53:42.383045+00:00",
@@ -46,10 +46,12 @@
   "limits": [
     "Only the requested ranking window and content selection are captured; no corpus completeness, expanded top_k, restored per-hit clipping or source-object retention claimed.",
     "Existing TTL/count/size limits remain. Fresh captures still require provider/index availability; recovery reruns neither.",
-    "Source delivery awaits combined native and candidate/installed public verification; broader original backlog stays active."
+    "Finite installed acceptance is recorded; the full original backlog remains active. No coding-majority or productivity claim."
   ],
   "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
   "native_tests_run": true,
   "combined_case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
-  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5"
+  "runtime_source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
+  "delivery": "eval/memory-vector-contract-batch-delivery-20261116.json",
+  "bounded_delivery_complete": true
 }

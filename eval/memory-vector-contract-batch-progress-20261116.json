@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_ACCEPTED_SINGLE_RELEASE_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116",
   "source_commit": "46528a4a94b6ba17a177e7b268d8bb132b0920c5",
   "source_outcomes": [
@@ -21,7 +21,7 @@
   },
   "pipeline_session": 56790,
   "release_session": 68125,
-  "deployed": false,
+  "deployed": true,
   "at_utc": "2026-11-16T08:28:00.830426+00:00",
   "preserved_wip9_sha256": {
     "crates/engram_core/src/modern_state.rs": "ec766c49380c5f708454a5cdf010098401a0f61623c5190d7609f9d78f19d4cb",
@@ -34,5 +34,11 @@
     "crates/engram_server/tests/modern_state_test.rs": "684b9e72427b51d2983dafc9c60e27eba7dc17d51808f38593653dba48ac0c91",
     "crates/engram_index/src/parsing/modern_state/python.rs": "f6c452abc702a488b9286f70901cde99c56332a1b0142cd7ae0acbe53c45ff7d"
   },
-  "build_policy": "No full/lib suite, extra debug build or per-feature release; failed attempts retained."
+  "build_policy": "No full/lib suite, extra debug build or per-feature release; failed attempts retained.",
+  "delivery": "eval/memory-vector-contract-batch-delivery-20261116.json",
+  "candidate_checks_passed": 25,
+  "installed_checks_passed": 25,
+  "installed_server_sha256": "8bdee03478a30c6ce254fcb45632549582f0d0a5ef8f50c6d8529c57b935c7a4",
+  "release_runner_seconds": 1346.5733429000247,
+  "resources_accounted": true
 }

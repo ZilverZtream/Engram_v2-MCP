@@ -1,5 +1,5 @@
 {
-  "status": "NATIVE_VALIDATED_AWAITING_RELEASE_AND_INSTALLED",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "TODO-7",
   "original_requirement": "Actionable error messages with recovery hints; preserve already-completed error cases.",
   "user_outcome": "A saved memory append/import is reported as stored even when search publication fails, with exact readback and stage-appropriate existing recovery. Agents are explicitly told not to repeat the write.",
@@ -27,8 +27,8 @@
   "native_target": "memory_write_recovery_tests",
   "native_execution": "PASS: six retained native2 cases plus corrected native3 case.",
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-write-recovery-20261116\\verify-public.py",
-  "runtime_acceptance": "NOT_RUN_ON_NEW_SOURCE",
-  "deployed": false,
+  "runtime_acceptance": "PASS: same single candidate/installed release, 25 public checks on each.",
+  "deployed": true,
   "source_commit": "2ac232f32874bbf81dc161cc97c286146668dd64",
   "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
   "source_activity_seconds": {
@@ -42,7 +42,7 @@
   "limits": [
     "Existing completed TODO7 error cases preserved; this record only covers the persisted-memory recovery gap.",
     "Provider recovery is offered only for the typed post-lexical embedding-provider failure; other failures disclose unknown lexical publication.",
-    "This source delivery is not validated or installed; full original backlog remains active."
+    "Finite installed acceptance is recorded; the full original backlog remains active. No coding-majority or productivity claim."
   ],
   "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\memory-vector-contract-batch-20261116\\native-acceptance.json",
   "native_tests_run": true,
@@ -51,5 +51,7 @@
   "fixture_correction_commits": [
     "441af5e",
     "0a05612"
-  ]
+  ],
+  "delivery": "eval/memory-vector-contract-batch-delivery-20261116.json",
+  "bounded_delivery_complete": true
 }
