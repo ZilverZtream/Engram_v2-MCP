@@ -2565,6 +2565,17 @@
         ],
         "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\contract.json",
         "progress": "eval/ui-conformance-guidance-progress-20261117.json"
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "outcome": "Source-bound root project-base PreInit/Init/Load context accompanies WebForms request traces",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "58baa63c6fb9621ef2a024547560f32828e9745d",
+        "source_commits": [
+          "58baa63c6fb9621ef2a024547560f32828e9745d"
+        ],
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\contract.json",
+        "progress": "eval/webforms-base-context-progress-20261117.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2714,92 +2725,93 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "EG-01",
+    "original_requirement_id": "TODO-31",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "at_utc": "2026-11-17T06:13:03.975688+00:00",
-    "original_requirement": "Applicable authored guidance accompanies pre-edit UI context; observed implementation patterns do not become approved policy.",
-    "observed_missing_behavior": "get_ui_conformance supplies indexed family/class observations without current applicable instructions. Its no-family reply says no house contract exists, and its structure axis can display a successful check despite being uncheckable from class names.",
+    "at_utc": "2026-11-17T06:46:23.579932+00:00",
+    "original_requirement": "Normal WebForms request navigation includes source-authored project-base lifecycle context that can affect the selected page.",
+    "observed_missing_behavior": "The cost-center page explicitly inherits DashboardBasePage. That project base has Handles Me.PreInit and a conditional MasterPageFile assignment, but request tracing selects only direct code-file and literal master handlers.",
     "source_pins": {
-      "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\permit_edit.aspx",
-        "sha256": "fa8e6d486e448356e9fa4fe3c6b2501adb5296f82eb2ab24a0e457345b23d287",
-        "bytes": 19587
+      "Site/modules/dashboard/pages/admin/system/costcenter/cost_center.aspx": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\system\\costcenter\\cost_center.aspx",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\sources\\cost_center.aspx",
+        "bytes": 11341,
+        "sha256": "21333cd425479917e2aa86f2929a19ab251c25e64f7408697a5ca219a537bfd6"
       },
-      "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx.vb": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx.vb",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\permit_edit.aspx.vb",
-        "sha256": "ca9e680ae57758c703865fc223570ab876a9b2227c0ad863fcf1ffcabd5c8ddd",
-        "bytes": 19692
+      "Site/modules/dashboard/pages/admin/system/costcenter/cost_center.aspx.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\system\\costcenter\\cost_center.aspx.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\sources\\cost_center.aspx.vb",
+        "bytes": 9664,
+        "sha256": "ddbb7f66c2c88b2dcc9b21b5d07391e02e9a9d2694413db502c34d088a4693f3"
       },
-      ".github/instructions/ui-ux.instructions.md": {
-        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\.github\\instructions\\ui-ux.instructions.md",
-        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\ui-ux.instructions.md",
-        "sha256": "041d51529e787313ec6fbd2fc8cd6d80ab3564f247e9c81f654de8cb3f3a7bd2",
-        "bytes": 22533
+      "Site/App_Code/DashboardBasePage.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\DashboardBasePage.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\sources\\DashboardBasePage.vb",
+        "bytes": 1890,
+        "sha256": "7095657b134d30999ac0ae8f5ea218b635371d9e82675e9e9296ff13c228ac02"
       }
     },
-    "normal_runtime_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "finite_acceptance": [
-      "Preserve indexed family membership, exemplars, generations and class comparisons while labeling them implementation observations rather than approval or authored requirements. An uncheckable structure axis is explicitly unassessed and receives no success marker.",
-      "Resolve complete current guidance through the existing shared policy service for an exact requested file, including an unindexed/new file, or bounded indexed file matches for directory/glob regions. Do not read repository source trees to discover targets. Disclose omitted targets, missing concrete scope and existing index/discovery limits; retain full-source hashes, exceptions and callable recovery.",
-      "No-family output still returns applicable authored guidance and does not imply that no requirements apply. Fresh guidance edits require no reindex; unrelated file scopes stay excluded. Existing shared whole-response budgets and immutable captured-result recovery remain.",
-      "One owned exact current LegacyValidation permit page/code/UI-guide copy establishes current omission; focused exact/new-file/region and unassessed-structure checks plus future combined public acceptance establish wanted behavior. No standalone compilation, task/model replay, actual LegacyValidation mutation/reindex, Q read, parser/graph producer expansion or closed-tool work."
+      "Follow existing resolved project inheritance edges from the root page class only, bounded to four base types. Admit root/base classes, edges and handler source only at the selected physical revisions with matching file hashes and source declaration owners. Unresolved or ambiguous bases remain gaps; no same-name class binding, graph producer or parser repair.",
+      "Include authored PreInit/Init/Load Handles Me/MyBase candidates from admitted root project bases in ordinary page and root/control-event context, and reuse existing source/call/database traversal. Keep direct page/control/master identity, deduplication and response budgets.",
+      "Return base link identities, source paths/lines/hashes and incomplete coverage separately from runtime execution. Conditional master assignment remains source evidence; it does not choose the effective master or establish lifecycle order, base-handler execution or authorization. Other override/inherited/master/control lifecycle resolution remains outside this finite context.",
+      "One owned exact cost-center/base-page copy proves the installed omission with the base handler already indexed and inheritance visible. Focused hierarchy/current-source and source-scope cases plus future combined public acceptance establish wanted behavior. No standalone compile, actual LegacyValidation mutation/reindex, Q read, frozen-task/model replay, CodeMap/Blast or target-language expansion."
     ],
     "implementation_files": [
-      "crates/engram_server/src/handlers/ui_conformance_tools.rs",
-      "crates/engram_server/src/handlers/mod.rs",
-      "crates/engram_server/src/tools.rs",
-      "crates/engram_server/src/services/ui_catalog.rs",
-      "crates/engram_server/tests/ui_conformance_guidance.rs",
+      "crates/engram_server/src/services/request_trace/base_pages.rs",
+      "crates/engram_server/src/services/request_trace.rs",
+      "crates/engram_server/src/services/request_trace/execution.rs",
+      "crates/engram_server/src/services/request_trace/master_pages.rs",
+      "crates/engram_server/tests/request_trace_base_pages.rs",
       "docs/TOOL_CONTRACT.md"
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\contract.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\contract.json",
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "engram_builds_started": 0,
-    "next_action": "Continue substantive accepted source work. Retain this single EG01 requirement for combined validation; no standalone compile or release.",
-    "source_commit": "679e1753c529cd2154ca69c043ab99ba0501ff4f",
-    "pending_source_outcomes": 1,
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\baseline1\\receipt.json",
-    "baseline_seconds": 3.8808156999293715,
+    "next_action": "Continue substantive independent accepted source work. Retain UI conformance and this TODO31 context for combined validation; no standalone build or release.",
+    "source_commit": "58baa63c6fb9621ef2a024547560f32828e9745d",
+    "pending_source_outcomes": 2,
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\baseline2\\receipt.json",
+    "baseline_seconds": 2.1834378999192268,
     "baseline_binary_sha256": "bceddf7980fe8a959081b2f90af7409c5bab538f456775789893dbc3f5a25358",
+    "retained_failed_probe": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\baseline1\\receipt.json",
+    "probe_correction": "The first graph traversal selected the nested CostCenterTableRow class by position. The corrected probe selects the exact system_cost_center class named by the authored Page.Inherits directive. Root-to-DashboardBasePage inheritance and omitted indexed PreInit are then confirmed; the failed probe remains retained.",
     "source_behavior": [
-      "UI conformance retains family membership, generations, exemplars and class comparisons while labeling them indexed observations rather than authored policy. Uncheckable structure is explicitly unassessed and receives no success marker.",
-      "Exact file targets receive current applicable guidance even before creation/indexing. Directory/glob guidance uses bounded matching indexed paths, including files without repeated UI families. Shared policy hashes, complete-source omissions/recovery and explicit target/inventory coverage remain.",
-      "No-family replies retain authored requirements instead of implying none exist. Guidance refreshes without reindex; current policy does not validate pattern freshness, inferred requirements, UI compliance or runtime behavior. Existing shared response budgets and captured-result recovery remain."
+      "Root page project-base context follows existing resolved inheritance edges only after matching the authored Page.Inherits value to one current admitted declaration. Class/source hashes, selected physical revisions and inheritance-edge epochs qualify links; unresolved, ambiguous or changed inputs remain gaps.",
+      "Authored PreInit/Init/Load subscriptions from at most4 project bases join ordinary root page and root/control-event context. Existing source/call/database traversal and deduplication apply; nested types do not become the page class merely because they sort first.",
+      "New base_context links retain source identities, paths, lines and hashes without adding raw class excerpts. Conditional master assignment is visible source context, not effective-master selection or proven lifecycle execution. Existing complete-response recovery handles the added method evidence."
     ],
     "source_checks": {
-      "rustfmt_parse": "PASS; new handler/tests formatted; existing large files parsed without rewriting",
+      "rustfmt_parse": "PASS; new module/tests formatted; existing files parsed without rewriting",
       "public_verifier_syntax": "PASS",
       "git_diff_check": "PASS",
       "protected_wip9": "UNCHANGED"
     },
     "source_sha256": {
-      "crates/engram_server/src/handlers/ui_conformance_tools.rs": "0bbbdba5a47ea69c3cf9f75b3e862ff898442e26f03686eac87017ba60a4fd94",
-      "crates/engram_server/src/handlers/mod.rs": "502e3b8b8577f688461f09d7509c0e8cb050a765d4ae46a2c00f024c5c633020",
-      "crates/engram_server/src/tools.rs": "e49e175235a919e145a219b3aa737346a5cd448d540a8c96c3ff3a7890da5304",
-      "crates/engram_server/src/services/ui_catalog.rs": "da09e2f6d1449ed7624fe0305bb861fbdb56d8892026736a2739f2872cf052f8",
-      "crates/engram_server/tests/ui_conformance_guidance.rs": "3a056698507136964c5a653abbd28e6f55c03155079906912a0e93e0e96692f0",
-      "docs/TOOL_CONTRACT.md": "f04f248d25f3b4cda7b110f2553aa598f910c5ac0a8ba14971ead5c56d315350"
+      "crates/engram_server/src/services/request_trace/base_pages.rs": "aa95f16727b3e67969b823f78ab2111d80185a82053ee9ceec1f4a6f9e90bb03",
+      "crates/engram_server/src/services/request_trace.rs": "c60cf57573ae5837ec44a2f086ff3c86061f1b9adfe48ae48628dbb06b8b679c",
+      "crates/engram_server/src/services/request_trace/execution.rs": "4f890c975cbc2bf92b412dc5e031dc1a208867eeb85d9dcd284e3591f835fee1",
+      "crates/engram_server/src/services/request_trace/master_pages.rs": "ccc13fdbabc7b52d0b851b7d0804b8845e5013b8503994fa51ccbb4f5194976c",
+      "crates/engram_server/tests/request_trace_base_pages.rs": "2a49be9ecd8dc6d357552aa461fb93191f7e6557ed01528a419bfe107936ac2d",
+      "docs/TOOL_CONTRACT.md": "4db8862184cc40bac9109fb87d880e39b9398b1b0cd60f262c197e19baf9e044"
     },
-    "native_test_cases_written": 3,
+    "native_test_cases_written": 2,
     "native_tests_executed": 0,
     "post_change_public_checks_executed": 0,
     "real_model_calls": 0,
     "runtime_deployed": false,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\verify-public.py",
-    "public_verifier_sha256": "320588a3025103f14bccf5dab6224248c0c48161029a02f80be0d2201af3064b",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\verify-public.py",
+    "public_verifier_sha256": "57297db2dd33edb738e7cae8016365a04d2089655aa6166fffe5eae824e8d1d1",
     "limits": [
-      "Source completion only: type checking, focused execution and positive public/installed acceptance remain pending. Installed runtime remains the completed QA/UI batch.",
-      "Directory/glob guidance covers a bounded indexed selection, not every future or unindexed file. Class comparison remains limited to observed class sets; authored policy compliance and overall task usefulness are not established.",
-      "No actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, CodeMap/Blast change, parser/graph producer expansion or target-language expansion."
+      "Source completion only: type checking, focused execution and positive public/installed acceptance remain pending. Installed runtime remains the preceding QA/UI batch.",
+      "This is source-bound root-page context, not compiler base binding, guaranteed base-handler execution, authorization, lifecycle order or effective master selection. Overrides, root namespace/import binding and master/control/framework inheritance remain unexamined.",
+      "No actual LegacyValidation mutation/reindex, Site/Q read, model/task replay, graph/parser producer repair, CodeMap/Blast change or target-language expansion."
     ],
     "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117",
+      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117",
       "baseline_owned_work_removed": true,
       "baseline_processes_closed": true,
-      "retention": "Retain finite contract, references to prior exact non-Q source pins, baseline transport and verifier for combined acceptance. New native fixtures drop graph/project/runtime handles before owned directory teardown. No preexisting deletion."
+      "retention": "Retain exact non-Q page/base source pins, contract, failed and corrected baseline transports and verifier for combined acceptance. Native graph fixtures close handles before owned directories on completion/unwinding. No preexisting deletion."
     }
   },
   "history_webmethod_business_batch_delivery": {
@@ -3074,9 +3086,9 @@
   "business_helper_source_leads_progress_20261117": "eval/business-helper-source-leads-progress-20261117.json",
   "method_matrix_selection_source_progress_20261117": "eval/method-matrix-selection-progress-20261117.json",
   "current_turn_progress_classification": {
-    "previous_turn": "PROGRESS_INSTALLED_SOURCE_DELIVERY",
-    "current_turn": "PROGRESS_ORIGINAL_EG01_SOURCE_CHANGE_COMMITTED",
-    "evidence": "eval/ui-conformance-guidance-progress-20261117.json",
+    "previous_turn": "PROGRESS_ORIGINAL_EG01_SOURCE_CHANGE_COMMITTED",
+    "current_turn": "PROGRESS_ORIGINAL_TODO31_BASE_CONTEXT_SOURCE_COMMITTED",
+    "evidence": "eval/webforms-base-context-progress-20261117.json",
     "engram_builds_started": 0,
     "full_original_goal_active": true
   },
@@ -3088,5 +3100,6 @@
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
   },
-  "ui_conformance_guidance_source_progress_20261117": "eval/ui-conformance-guidance-progress-20261117.json"
+  "ui_conformance_guidance_source_progress_20261117": "eval/ui-conformance-guidance-progress-20261117.json",
+  "webforms_base_context_source_progress_20261117": "eval/webforms-base-context-progress-20261117.json"
 }
