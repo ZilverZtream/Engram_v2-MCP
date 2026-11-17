@@ -19,7 +19,7 @@
     "Explicit max_tokens retains existing whole-record budget/pagination behavior. Explicit retain_response=true keeps its existing JSON-only complete-window capture semantics and can exceed40KiB when caller explicitly chooses a larger budget. Other search tools remain unchanged; schemas/default wording disclose automatic history overflow recovery."
   ],
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "runtime_deployed": false,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117",
@@ -55,7 +55,7 @@
   "native_test_cases_written": 3,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\verify-public.py",
   "public_verifier_sha256": "c442c1971e1d37fe467254ccdd05bf94bcbbb011c8f21a2349e75da30c6d498b",
-  "validation_status": "RUNNING_COMBINED_NATIVE",
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
   "next_action": "Prepare one combined validation batch for EG27 guidance drift, EG19 finding annotations and this default history overflow delivery. No full suite or separate debug build.",
   "source_sha256": {
     "crates/engram_server/src/retained_results.rs": "b903fc848251829964963a16680f1630535c99d9cc8bbe8d5128d5d42cf3d223",
@@ -71,5 +71,11 @@
     "No actual LegacyValidation source access, reindex or mutation, Site/Q traversal, CodeMap/Blast work, target-language expansion, model comparison or preexisting deletion."
   ],
   "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d",
-  "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
+  "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
+  "native_acceptance_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
+  "native_cases_distinct_covered": 3,
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\edit-review-history-batch-20261117-debug2\\receipt.json",
+  "debug_public_checks_verified": 10,
+  "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json"
 }

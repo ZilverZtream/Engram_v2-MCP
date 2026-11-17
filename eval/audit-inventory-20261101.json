@@ -10297,7 +10297,7 @@
   },
   "last_updated_at": "2026-11-17T22:03:04.201501+00:00",
   "current_execution_focus": {
-    "status": "SELECTED_POLICY_REGRESSION_RUNNING",
+    "status": "RELEASE_BUILD_RUNNING",
     "progress": "eval/edit-review-history-batch-progress-20261117.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
     "source_outcomes": [
@@ -10311,24 +10311,33 @@
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_goal_turn_classification": {
-      "classification": "PROGRESS_THIRD_SOURCE_OUTCOME_AND_BATCH_PREPARED",
-      "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d"
+      "classification": "PROGRESS_NATIVE_AND_DEBUG_PUBLIC_ACCEPTANCE_COMPLETE_RELEASE_STARTED",
+      "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
+      "public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json"
     },
-    "next_action": "Poll native4-resume session39532. On success consolidate15unique accepted cases and run exact debug public acceptance; do not repeat retained14passes.",
+    "next_action": "Poll only release1 session5192. On success verify source/Job/temp closure, package once, run candidate public acceptance, install the verified pair, run installed acceptance, restore the normal runtime and finalize prepared records. Do not replay accepted native/debug checks.",
     "active_native": {
-      "status": "SELECTED_POLICY_REGRESSION_RUNNING",
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
-      "label": "native4-resume",
-      "exec_session_id": 39532,
-      "guard_pid": 128268,
-      "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume-launch.json",
-      "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume.json",
-      "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume.log",
-      "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-      "retained_passes": 14,
-      "scope": "Only the corrected oversized-policy case. Native3 passed six unexecuted history/review cases; native2 retains eight passing cases. No production source changed after native2/3. Native4 original launch was interrupted before Cargo; evidence retained separately."
+      "status": "TERMINAL_ACCEPTED",
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json"
     },
-    "engram_builds_started_this_turn": 1
+    "engram_builds_started_this_turn": 1,
+    "active_release": {
+      "status": "RELEASE_BUILD_RUNNING",
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+      "label": "release1",
+      "exec_session_id": 5192,
+      "guard_pid": 17264,
+      "observed_guard_priority_class": 16384,
+      "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1-launch.json",
+      "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json",
+      "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.log",
+      "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+      "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
+      "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
+      "native_cases_covered": 15,
+      "public_debug_checks_passed": 35,
+      "installation_started": false
+    }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -16548,17 +16557,21 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "SELECTED_POLICY_REGRESSION_RUNNING",
+    "status": "RELEASE_BUILD_RUNNING",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
-    "label": "native4-resume",
-    "exec_session_id": 39532,
-    "guard_pid": 128268,
-    "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume-launch.json",
-    "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume.json",
-    "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume.log",
+    "label": "release1",
+    "exec_session_id": 5192,
+    "guard_pid": 17264,
+    "observed_guard_priority_class": 16384,
+    "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1-launch.json",
+    "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json",
+    "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.log",
     "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-    "retained_passes": 14,
-    "scope": "Only the corrected oversized-policy case. Native3 passed six unexecuted history/review cases; native2 retains eight passing cases. No production source changed after native2/3. Native4 original launch was interrupted before Cargo; evidence retained separately."
+    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
+    "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
+    "native_cases_covered": 15,
+    "public_debug_checks_passed": 35,
+    "installation_started": false
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {

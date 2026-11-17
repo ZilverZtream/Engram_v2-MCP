@@ -20,7 +20,7 @@
     "Default/caller response budgets preserve findings and per-finding evidence-link counts with complete original-report recovery. Recovery after source/event changes preserves original links and complete conditions without rerunning gates or silently using new decisions. Owned fixtures clean on completion/unwinding."
   ],
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "runtime_deployed": false,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117",
@@ -50,7 +50,7 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\verify-public.py",
   "public_verifier_sha256": "54b5dee92b9c71c4869d11d8639b30cb4728f2e614568f9783f6d8d97be3531d",
   "implementation_items_active": 0,
-  "validation_status": "RUNNING_COMBINED_NATIVE",
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
   "next_action": "Retain source outcome beside EG27; advance another distinct original requirement. No standalone Cargo/release.",
   "source_sha256": {
     "crates/engram_server/src/handlers/review_tools.rs": "af1f366a6f932592f226ee61197c42e437e7b8ef5da75a82aa72d9d7a754687a",
@@ -67,5 +67,11 @@
     "No actual LegacyValidation source read, reindex/mutation, Site/Q access, CodeMap/Blast work, target-language expansion or preexisting deletion."
   ],
   "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce",
-  "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
+  "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
+  "native_acceptance_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
+  "native_cases_distinct_covered": 3,
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\edit-review-history-batch-20261117-debug2\\receipt.json",
+  "debug_public_checks_verified": 10,
+  "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json"
 }

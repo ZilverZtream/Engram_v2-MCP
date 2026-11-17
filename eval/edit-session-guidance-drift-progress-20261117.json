@@ -30,7 +30,7 @@
     "current_fixture_processes": 0
   },
   "engram_builds_started": 0,
-  "native_tests_executed": 0,
+  "native_tests_executed": 3,
   "runtime_deployed": false,
   "original_research_evidence": "instruction_capabilities message4: Policy changes during a task. Planning, editing, and review can observe different source hashes. Surface that drift so an agent revisits affected assumptions.",
   "source_phase_completed_at_utc": "2026-11-17T22:17:31.115225+00:00",
@@ -41,7 +41,6 @@
   "baseline_wrapper_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\baseline1\\verifier-field-correction.json",
   "native_test_cases_written": 3,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\verify-public.py",
-  "post_change_public_checks_executed": 0,
   "source_checks": {
     "rust_syntax": "PASS via rustfmt parse; new files formatted; existing files not rewritten",
     "python_verifier_syntax": "PASS via compile(), no bytecode artifact",
@@ -58,8 +57,8 @@
     "crates/engram_server/tests/edit_session_policy_tests.rs": "3e1bcd40fbcc437337df7f68d6c170344ffb520d26e08c55abf596e7d35d9c88",
     "docs/TOOL_CONTRACT.md": "c6275985ba43f97147e480bfb5b42604db7aec00bcf9cd661f3be580e2513fa7"
   },
-  "public_verifier_sha256": "d913e61885ecc37a5b0bd05a82fa6d9ba7e811ff4c004c0c24482e0420723a94",
-  "validation_status": "RUNNING_COMBINED_NATIVE",
+  "public_verifier_sha256": "0603cc1066c9fa717f3a5ec48921dc80dbcd4781cf9fc0631fc651a8a0f4957a",
+  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
   "next_action": "Preserve this source outcome and advance a different original requirement before combined validation. No standalone Cargo or release.",
   "limits": [
     "This is observation of source identity changes on the original declared planned paths, not proof of applicable-policy completeness, semantic intent or compliance.",
@@ -75,5 +74,13 @@
   "public_core_transport_coverage": "Prepared the already-contracted Core transport check alongside Full and immutable-recovery cases; no acceptance expansion or post-change execution yet.",
   "public_core_acceptance_prepared": true,
   "public_core_acceptance_scope": "Previously selected finite acceptance explicitly requires Full/Core. Prepared Core tools/list plus opening/current-guidance comparison and authored-source preservation on the same owned fixture. Not executed yet; no build source changed.",
-  "test_correction_commit": "b0a34dab448c4fc11c29a34efe7acd4029c7fba2"
+  "test_correction_commit": "b0a34dab448c4fc11c29a34efe7acd4029c7fba2",
+  "public_driver_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug1-harness-correction.json",
+  "native_acceptance_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
+  "native_cases_distinct_covered": 3,
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\edit-review-history-batch-20261117-debug2\\receipt.json",
+  "debug_public_checks_verified": 15,
+  "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json",
+  "source_checkpoint_post_change_public_checks_executed": 0
 }
