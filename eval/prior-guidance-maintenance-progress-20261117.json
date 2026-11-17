@@ -1,0 +1,66 @@
+{
+  "original_requirement_id": "EG-31",
+  "supporting_original_requirement": "EG-27",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-17T07:49:17.103850+00:00",
+  "original_requirement": "Evidence-bound maintenance after code changes preserves exact prior guidance, scope and exceptions without accepting a policy weakening or substituting current policy for requested historical evidence.",
+  "observed_missing_behavior": "Changed-file selection explicitly only discovers current applicable guidance. A guide that applied at base_commit but is now deleted or scoped elsewhere is absent from the review. A directly changed conventional guide is evidence but is not necessarily a selected editable instruction.",
+  "implementation_files": [
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/prior_guidance.rs",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs",
+    "crates/engram_server/src/services/instruction_maintenance.rs",
+    "crates/engram_server/tests/prior_guidance_maintenance.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/services/project_policy.rs",
+    "crates/engram_server/src/services/project_policy/historical.rs"
+  ],
+  "finite_acceptance": [
+    "An owned exact VB base-page copy proves the installed current-only omission after guidance scope change/deletion. No actual LegacyValidation mutation or protected Site/Q read.",
+    "Changed-file maintenance supplies bounded prior guidance and linked-source context from the exact base_commit. Surviving formerly applicable guides become review candidates with complete current/before sources; prior scope never grants current authority. Removed guides remain explicit historical evidence requiring review, not editable current instructions or accepted removals.",
+    "Directly changed current conventional guides are selected for maintenance even when their applyTo does not match their own Markdown path. Existing scope, exceptions, stale-proposal refusal, eight-instruction limits and complete-source budgets remain.",
+    "Three focused behavior cases and an owned public contract are queued with future independent original source outcomes; no standalone Cargo/release, new evaluation framework, policy writes, graph/parser expansion or fault campaign."
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\contract.json",
+  "implementation_items_active": 0,
+  "engram_builds_started": 0,
+  "full_original_goal_active": true,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 2.22269339999184,
+  "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
+  "native_test_cases_written": 3,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "runtime_deployed": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117\\verify-public.py",
+  "public_verifier_sha256": "0d691a385cbd9efdde2dafac67374094cb93e1346086ace10365b9df2f452b7b",
+  "source_sha256": {
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence.rs": "8edb39230cd010b5cae618e2775a1703bf11d729ac3c776d74b730ef19fc17f8",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/prior_guidance.rs": "701910f72149e6ec088813c97caa50ceed4ae0a8fc9e5239740a36ca5be670db",
+    "crates/engram_server/src/services/instruction_maintenance/changed_evidence/references.rs": "a187c2da87e5c50fda4604be78ca8aa45504b45e75993646053a7f8d97717671",
+    "crates/engram_server/src/services/instruction_maintenance.rs": "77e0d7772588fc85071d6c2c636723dce347ce602bfbe9a93ab0fcf90c1a7c84",
+    "crates/engram_server/tests/prior_guidance_maintenance.rs": "d44e6e7c16ae191f45c9f0aa068394e31d328fe8223125ee327a718f5d1e5218",
+    "docs/TOOL_CONTRACT.md": "61a1bcbb5b7cff7a5e220fd9e3c1567bbaa7081e27d55cdcfc1313373d17b963",
+    "crates/engram_server/src/services/project_policy.rs": "273a1dcbffaa5e0d75c6a215ba6b1c923d8908c88441d7c4df5cabf6e72060c9",
+    "crates/engram_server/src/services/project_policy/historical.rs": "8bc6824399eb13fbaf567588561633165d1f25b0e5a12b9602e0b0fd14ed0f3a"
+  },
+  "source_checks": {
+    "rustfmt_parse": "PASS; existing files parsed without rewriting; new helper/test formatted",
+    "public_verifier_syntax": "PASS",
+    "git_diff_check": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\prior-guidance-maintenance-20261117",
+    "baseline_owner_closed": true,
+    "baseline_fixture_removed": true,
+    "retained": "Contract, installed baseline and original responses, verifier and source timing retained for review. No live fixture or current owned temporary directory."
+  },
+  "limits": [
+    "Source complete only: type checking, native execution and positive current public/installed acceptance remain pending.",
+    "Discovery and source recovery remain bounded. Prior applicability is historical evidence, not current authority, accepted deletion or semantic policy intent; no authored file is written. Complete prior bodies share the existing maintenance packet budget, so large comparisons may require a smaller explicit review slice.",
+    "No actual LegacyValidation mutation, Site/Q read, model/task replay, CodeMap/Blast change, new target-language support or standalone build."
+  ],
+  "source_commit": "e8a0c8528ec49f30780039c822758441a22e89b2",
+  "next_action": "Continue substantive independent original source work. Retain this single EG31 outcome for combined validation; no standalone compile or release. Existing installed delivery remains7fef8de9."
+}
