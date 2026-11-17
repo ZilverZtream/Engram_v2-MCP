@@ -44,7 +44,7 @@ pub fn advertise(mut tool: Tool) -> Tool {
     }
     schema.insert("required".into(), json!(["project_id"]));
     let description = tool.description.as_deref().unwrap_or("");
-    tool.description = Some(format!("{description} Retained result window: retain_response=true with output_json=true captures the complete original requested window before reply-budget clipping, then returns response_delivery.next_call for immutable recovery across restart or input changes. Existing fresh-query fields remain required for fresh calls. Recovery needs only project_id and returned controls and never reruns search. Retention: at most24hours/32newer captures,8MiB per original result. max_tokens budgets the retained reply (default40KiB), not capture size. Reassemble and verify the original result before interpreting it. Captured guidance/freshness is historical; source objects and results beyond the requested window are not retained.").into());
+    tool.description = Some(format!("{description} Retained result window: retain_response=true plus output_json=true captures the requested window before reply clipping. Follow response_delivery.next_call with project_id and returned controls; fresh-query fields are required only for new calls. Recovery never reruns retrieval. max_tokens budgets the reply (default40KiB); captures are limited to8MiB and at most24hours or32newer captures. Reassemble and verify the original MCP result before use. Captured guidance/freshness is historical; source objects and results outside that window are not retained.").into());
     tool
 }
 

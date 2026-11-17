@@ -1730,3 +1730,142 @@ If saved recovery is unavailable, reconcile `list_projects`/`project_info` and a
 returned job with `get_job_status`; do not repeat indexing solely to recover a reply.
 This adds delivery controls; it does not establish typical default-budget overflow,
 exhaustive extraction, runtime correctness or measured agent-task benefit.
+
+
+### Compact selection contracts for the main AI workflows
+
+Tool descriptions state the immediate use, returned evidence and adjacent tool to
+choose. The schemas remain the authority for parameter names, defaults and controls.
+The compact descriptions preserve the following detailed behavior; they do not add
+features, change schemas or establish model selection accuracy or task productivity.
+
+| Tool | Start here when | Prefer an adjacent tool when |
+| --- | --- | --- |
+| `ask_codebase` | A question spans code, data, settings, history or guidance and its entry point is uncertain. | Use `trace_user_request` for a known URL/action; use `get_method_edit_context` before editing a known method. |
+| `trace_user_request` | Follow a URL/action through its selected static source paths. | Use `get_page_context` for page inventory; use `get_method_edit_context` before changing a reached method. |
+| `search_history` | Find when/why code changed, precedents or exact Git message/patch records. | Use `get_change_set` to scope a new change. |
+| `get_change_set` | Scope a story and reconcile candidate/dependency file rows before planning. | Use `get_method_edit_context` once a method is selected. |
+| `get_method_edit_context` | Inspect a specific method's source, callers, policy, effects and available safety evidence before editing. | Use `get_full_method_body` for source alone or `get_change_set` for broader task scope. |
+
+`ask_codebase` defaults to a deterministic `retrieval_only` report across code, docs,
+memory, insights, business rules, history and graph. Its typed status and cited,
+authority-ranked evidence retain conflicts, freshness and missing coverage; an
+`answered` status is not a general correctness guarantee. Explicit literal VB setting
+keys retain source getter/store observations without proving effective values or
+physical store binding. Browser-key questions retain indexed access and separate
+store-wide clear candidates without proving shared origin, script inclusion, values
+or execution. Explicit HTTP/page/control questions compose at most two existing
+traces under the held source selection and retrieval deadline; path scopes constrain
+source reads. Examples include `POST /language.aspx/change`, `click btnSave on
+/Entry.aspx` and `event ddlType.SelectedIndexChanged in /Entry.aspx`.
+
+`route_with_model=true` makes one optional configured-model routing request. It may
+suggest retrieval intents and exact question mentions, while scope/answer constraints
+remain; failure retains deterministic routing with an explicit reason. Its
+`routing_timeout_ms` defaults to5000 and bounds that request only. `synthesize=true`
+opts into model-generated interpretation with checked evidence IDs and quotations;
+semantic interpretation remains unverified, status is not upgraded and failure
+preserves retrieval. `synthesis_timeout_ms` defaults to30000 and covers generation
+only. Historical `as_of` source and authored guidance use one resolved Git revision;
+live graph and checked-out guidance are excluded and historical coverage is partial.
+`depth`, `output_format`, `deadline_ms` and complete-result recovery retain their
+existing schemas and semantics.
+
+`trace_user_request` returns selected WebForms/conventional VB Web API routes,
+handlers, indexed calls, SQL/procedure/table references, state and response source.
+API requests take an HTTP verb. Literal page/service WebMethod URLs select public
+attributed methods; ASPX page methods require Shared. ASMX Class directives can
+resolve same-application App_Code partial implementations. An explicit action does
+not override a URL's method suffix. Event actions use authored OnEvent or VB Handles
+bindings; registered `instance/child.Event` selectors retain declared visibility and
+page/control/master context, with existing8component/8candidate bounds. Dynamic
+composition, lifecycle ordering and actual runtime instance/route binding are unknown.
+
+The trace's source-verified JS/TS incoming API callers remain bounded to8entries and
+64incoming edges. Existing value lineage is bounded to8entries with separate helper
+contexts. DBML declarations include required typed ByVal VB parameters; name matches
+do not prove compiler binding or runtime arguments. Literal ExecuteCommand,
+ExecuteQuery, SqlCommand constructor/CommandText and supported local Const/Static SQL
+retain initializer, command, execution-site and table citations. Parameter observations
+retain typed declarations, literal sizes and assignment lines without proving CLR or
+database binding. Supported literal IDENTITY_INSERT ON/INSERT/OFF wrappers retain
+INSERT candidates; source order does not guarantee session cleanup. General batches,
+dynamic SQL and deployment/execution remain unresolved. Literal RegisterType
+observations preserve type spellings and source but do not select/suppress interface
+candidates or prove active DI configuration. Optional source DML triggers require
+matching names/events and preserve their timing/body references; deployed/disabled
+state and nested trigger execution remain unknown. Ambiguous, missing and stale source
+retain gaps. Oversized traces retain selected paths and exact full-evidence recovery.
+
+`search_history` searches indexed commit messages, diffs and merged-PR records after
+history indexing, with one lead per commit. Text input is literal, ranked with lexical
+and available semantic evidence; the actual semantic/lexical tier is disclosed.
+`semantic_timeout_ms` defaults to5000, at most90000; zero skips embeddings. It covers
+precedent-mode document/query embeddings or text-mode hybrid rounds. Timeout/failure
+preserves filtered lexical matches. Git/metadata, local lexical work, rendering and
+optional LLM reranking remain outside that budget; dropping a request does not stop
+remote computation. `rerank_timeout_ms` bounds only reranking; zero skips it and
+failure preserves baseline order. Default/max rerank budget remains90000.
+
+The default search scope is the origin default branch. For leak-free replay use
+`as_of_rev`; exclusive `date_before` alone can still admit branch commits dated before
+merge. Offset pages whole records within the same limit window; mutable inputs and
+reranking can reorder live pages. Exact indexed documents, Git objects, preview
+clipping and matched-file coverage remain explicit. `mode=commit` with an exact40hex
+query returns the complete Git message and first-parent changed-file cohort, including
+generated paths and old/new object identities. `mode=patch` adds one exact
+`file_filter` path and complete first-parent unified text or binary identities. These
+modes require admission by the requested revision/default scope, use no embeddings or
+LLM, and refuse search filters/nonzero offset. They do not apply preview caps/result
+limits; unavailable or oversized text refuses clipping. Supplied complete-commit and
+patch recovery actions remain callable. History proves neither deployment nor approval
+nor policy applicability.
+
+`get_change_set` ranks code-shaped entities, concepts, history/co-change and graph
+evidence. Rows distinguish behavioral, historical and structural reasons, causal
+anchors, impact questions and required exclusion evidence; candidates are not a
+complete edit scope. Deployable families, direct callers and asset-bundle links retain
+scoped hash-bound authored instructions, applicable rules and explicit omissions.
+Repeated row guidance is losslessly referenced through `row_guidance`. Copy/classify
+every P/A/C row with its SHA-256 reconciliation receipt before planning. `detail=reconciled`
+is the complete receipt-bound planning payload; `full` retains diagnostic companions.
+Recover every omitted page before completing intake. Configured planning rules supply
+`hard_items` and `workflow_scaffold`; every MISSING field needs resolution, and no
+built-in domain checklist is inferred. Organization rules in
+`data_dir/rules/planning-contract-rules.yaml` and repository overrides in
+`.engram/planning-contract-rules.yaml` retain bounded hot loading and historical
+provenance. `history_semantic_timeout_ms` only bounds the hybrid history arm
+(default5000; zero uses lexical). Failure preserves scoped lexical candidates with
+incomplete history coverage; other arms, Git/metadata and lexical work are outside it.
+
+`get_method_edit_context` includes method info/body, bounded fingerprint-verified
+caller excerpts, database footprint, session/state flows, VB traps, sync hazards,
+business-rule evidence, optional history, downstream paths and the shared safety
+verdict. Distinct caller totals remain separate from display caps. Coverage states
+complete/partial/truncated/failed/not-run describe provider evidence, not exhaustive
+codebase coverage. Missing downstream and unassessed effect/call semantics prevent
+green; empty metadata does not prove no mutation, cancellation or outbound call.
+Unsupported sync-hazard languages stay explicit. Paths and heuristic scores do not
+prove runtime safety or value flow; input producers may lie outside reverse impact.
+Same-class overloads require `line`. `include_caller_bodies=true` adds full source;
+`include_history=false` omits history, and `merged_before` limits historical leads.
+Default downstream summaries retain counts, coverage, representative witnesses and
+bounded callable navigation. `downstream_detail=graph` changes presentation with the
+same safety evidence. Optional body/history/business content retain separate bounds.
+`source_routes.reads` coalesces connected indexed declarations within120lines; use
+those reads before another summary expansion. Available QA/VB repetition follow-ups
+are suggestions; retrieving context does not execute them. Applicable authored
+guidance for all actually returned source retains exceptions, hashes and exact recovery.
+
+Shared complete-report delivery still defaults to40KiB complete reply text, estimated
+at4UTF-8bytes/token. Fresh analysis/operation fields remain required for fresh calls.
+Deferred `response_delivery.next_call` reads the immutable original MCP result and
+never reruns the tool; reassemble the original before interpreting evidence. Errors
+and non-text parts retain their original delivery. Update/index outcome safeguards
+remain unchanged. Optional retained query windows still require `retain_response=true`
+and `output_json=true`: they capture before reply-budget clipping and survive restart
+or input changes, within8MiB and at most24hours/32newer captures. Recovery needs only
+project ID and returned controls; it does not retain underlying source objects or
+results outside the original window. Captured guidance/freshness describes capture
+time. Verify the reconstructed result before use. This byte reduction is metadata
+compaction, not a measured provider-token, latency or task-quality improvement.

@@ -201,7 +201,7 @@ pub fn advertise(mut tool: Tool) -> Tool {
     schema.insert("required".into(), if global { json!([]) } else { json!(["project_id"]) });
     let description = tool.description.as_deref().unwrap_or("");
     let recovery = if global { "returned delivery controls; no project_id is required" } else { "project_id and returned delivery controls" };
-    tool.description = Some(format!("{description} Read-report delivery: max_tokens budgets complete reply text (default40KiB). Original analysis fields are required for fresh calls. Oversized results provide response_delivery.next_call; recovery needs only {recovery} and does not rerun the tool. Reconstruct the original MCP result before interpreting its evidence. Errors and non-text content retain their original delivery.").into());
+    tool.description = Some(format!("{description} Complete-text budget: max_tokens (default40KiB). Original analysis fields are required for fresh calls. Follow response_delivery.next_call with {recovery} for the immutable original MCP result; reassemble before use. Recovery never reruns the tool. Errors/non-text unchanged.").into());
     if tool.name == "update_project" {
         tool.description = Some(format!("{} Delivery recovery never repeats the update. A returned operation is not proof of background-job completion; recover the original acknowledgement and poll its job if queued. If retaining an oversized result fails after the operation, the original outcome is returned with an explicit warning that its delivery budget was exceeded.", tool.description.as_deref().unwrap_or("")).into());
     }
