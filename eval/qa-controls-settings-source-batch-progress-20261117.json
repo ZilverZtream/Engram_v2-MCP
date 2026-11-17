@@ -1,6 +1,6 @@
 {
-  "at_utc": "2026-11-17T00:27:50.371563+00:00",
-  "status": "FOCUSED_NATIVE_RUNNING",
+  "at_utc": "2026-11-17T00:39:03.440019+00:00",
+  "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117",
   "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\plan1.json",
   "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
@@ -48,7 +48,7 @@
   "native_runner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native1.json",
   "native_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native1-owner.json",
   "native_commands_started": 1,
-  "release_commands_started": 0,
+  "release_commands_started": 1,
   "standalone_debug_build": false,
   "full_or_lib_suite": false,
   "runtime_deployed": false,
@@ -58,6 +58,18 @@
   "limits": [
     "Native and positive public acceptance are pending.",
     "Canonical EG-13 queue identity maps the same retained S06/S07/S16 work to its original parent finding; build guard is unchanged.",
-    "An accidentally repeated already-delivered shipping commit was empty and skipped; four source picks and the explicit harness commit are retained."
-  ]
+    "An accidentally repeated already-delivered shipping commit was empty and skipped; four source picks and the explicit harness commit are retained.",
+    "Initial native4passed/2setupfail retained; only graph2rerun on unchanged executable with a short owned TEMP passed.",
+    "Control recovery checker assumed64KiB deferral, then asked16KiB below reported19115B minimum; changed only private budget to20KiB and reran only that fixture against same debug artifact. All23checks now pass."
+  ],
+  "native_cases_passed": 6,
+  "native_same_artifact_fixture_retries": 1,
+  "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native-accepted1.json",
+  "native_runner_seconds": 361.26271599996835,
+  "native_retry_seconds": 2.8097177000017837,
+  "debug_public_checks_passed": 23,
+  "debug_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\debug-accepted1\\receipt.json",
+  "debug_server_sha256": "abfc734d9612d28b9a10c4b80fa88673dd1266c7632efbd10ff4b0325de8f08a",
+  "release_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\release1-owner.json",
+  "completion_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\completion1-state.json"
 }

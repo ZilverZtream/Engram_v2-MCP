@@ -2741,7 +2741,7 @@
   },
   "current_execution_focus": {
     "active_original_item": "Combined acceptance of four queued source outcomes",
-    "status": "VALIDATING_SOURCE_BATCH",
+    "status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
     "original_requirement_ids": [
       "EG-25",
       "TODO-31",
@@ -2752,7 +2752,11 @@
     "implementation_items_active": 0,
     "pending_source_outcomes": 4,
     "full_original_goal_active": true,
-    "next_action": "Run one focused six-case native target; reuse its debug executable for four public fixture contracts. Only after positive checks, build one optimized server and verify/install the pair. Retry only failed checks against the same artifact where possible."
+    "next_action": "Follow existing release driver89600/relay7196 and completion controller; do not restart. Controller packages this artifact, verifies23candidate and23installed checks, restores normal runtime and records all215asset identities. Full original goal remains active.",
+    "native_cases_passed": 6,
+    "debug_public_checks_passed": 23,
+    "release_commands_started": 1,
+    "progress": "eval/qa-controls-settings-source-batch-progress-20261117.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

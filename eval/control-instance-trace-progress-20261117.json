@@ -47,7 +47,7 @@
   "runtime_deployed": false,
   "real_model_calls": 0,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\verify-public.py",
-  "public_verifier_sha256": "fa68d6c823555d80fdb09323a2426ee8a24033cbf15748feff7fd0488e9f2371",
+  "public_verifier_sha256": "28acba37b8d2d45463cbfc7a2d853537d71c5188f210e42157a179abcae6a846",
   "prospective_phase_log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\effort.jsonl",
   "limits": [
     "Source completion only: Rust type-checking, focused native execution, actual source-copy positive runtime and bounded recovery checks remain pending.",
@@ -60,5 +60,7 @@
     "baseline_fixture_removed": true,
     "baseline_process_closed": true,
     "retention": "Keep pinned source snapshots, contract, verifiers and receipts for combined acceptance. No preexisting deletions."
-  }
+  },
+  "original_public_verifier_sha256": "fa68d6c823555d80fdb09323a2426ee8a24033cbf15748feff7fd0488e9f2371",
+  "public_recovery_budget_adjustment": "Owned actual report22758B fits64KiB.16KiB request was below19115B navigation minimum.20KiB exercises immutable recovery; debug1/debug2 retained, debug3PASS, no recompile."
 }
