@@ -1,0 +1,100 @@
+{
+  "original_requirement_id": "TODO-28",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "One natural-language entry point composes source/graph evidence for ordinary LegacyValidation WebForms questions instead of requiring specialized-tool knowledge.",
+  "observed_missing_behavior": "ask_codebase composes trace_user_request only for explicit HTTP method+URL and always passes action=None. A question naming a server-control click or event and page cannot obtain the already supported control-event trace through the ordinary question entry point.",
+  "priority_basis": "Actual LegacyValidation Full runtime config hash verified unchanged. Retained exact non-Q setup_gis_layers.aspx.vb has Handles btnSave.Click and ddlLayerType.SelectedIndexChanged; this composes existing VB/WebForms capability, without parser/framework expansion.",
+  "source_phase_started_at_utc": "2026-11-17T14:41:41.889266+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/request_trace.rs",
+    "crates/engram_server/src/handlers/ask_request_trace.rs",
+    "crates/engram_server/tests/ask_webforms_interactions.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Recognize explicit click controlID on/in URL and event controlID.EventName on/in URL phrases. Pass exact action to the ordinary selected-source tracer; deduplicate by entry+action and retain the existing shared two-trace cap. A caption, unnamed page or vague event is not a binding.",
+    "Owned WebForms page with unrelated handlers proves click and nonclick events select the authored handler and existing SQL evidence, plus lifecycle candidates; carry exact source hash, scoped guidance, scope limits and runtime uncertainty. No new event parser or runtime-dispatch claim.",
+    "Executable single-tool recovery preserves the original action and path scope. JSON/Markdown and immutable saved ask recovery retain event evidence after disk changes. Full/Core behavior follows existing advertised recovery.",
+    "Retained exact LegacyValidation GIS markup/VB pair in an owned fixture establishes btnSave.Click and ddlLayerType.SelectedIndexChanged source bindings without actual LegacyValidation traversal/reindex or model calls. Source checks/baseline only before combined validation."
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117",
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 3,
+  "baseline_source_sha256": {
+    "crates/engram_server/src/services/ask_engine/request_trace.rs": "72fa17c79277946100667f72dc55dc77f61e7db4b9f8e73c1fd0cff95e86d5ea",
+    "crates/engram_server/src/handlers/ask_request_trace.rs": "67c4ffb1eb53f679eb460d51d99e416ebfb3a0a7a947a62b606723ba6a23ae75",
+    "docs/TOOL_CONTRACT.md": "022cbe8bbb42c0ca68b7580c060e7d38f793fa8aba7a589e9bde805c085e8107"
+  },
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117",
+    "retention": "Retain contract, source checks and baseline/public evidence until delivery; fixtures own and close server/database handles then remove their directories. No preexisting paths removed.",
+    "current_fixtures_or_processes": 0,
+    "baseline_fixture_removed": true,
+    "baseline_owners_closed": true
+  },
+  "selection_evidence": {
+    "rejected_default_document_extension": {
+      "reason": "Exact non-Q Site/Web.config has zero authored root system.webServer/defaultDocument declarations; no runtime defaults inferred.",
+      "source_sha256": "7086ef87e02e331613a24491dee93734fc218af15b818313228bd812695fbbbf"
+    },
+    "previous_goal_turn_classification": "NO_PROGRESS: response to explicit user communication question only; current turn advances source delivery."
+  },
+  "source_pins": {
+    "Site/Area/setup_gis_layers.aspx": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\system\\integration\\gis\\setup_gis_layers.aspx",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-master-context-20261117\\sources\\setup_gis_layers.aspx",
+      "sha256": "da0b7d1c635e86a40f5721287595ae138a5b2a4913a26636b825bc34264bed9a",
+      "bytes": 20516
+    },
+    "Site/Area/setup_gis_layers.aspx.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\system\\integration\\gis\\setup_gis_layers.aspx.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-master-context-20261117\\sources\\setup_gis_layers.aspx.vb",
+      "sha256": "583fe8f4097e03e050fa472aab4ad410591248dba3f90abc009140ef8972cb97",
+      "bytes": 28978
+    }
+  },
+  "source_phase_completed_at_utc": "2026-11-17T14:48:20.870979+00:00",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\contract.json",
+  "source_checks": {
+    "crates/engram_server/src/services/ask_engine/request_trace.rs": {
+      "exit_code": 0,
+      "stderr": ""
+    },
+    "crates/engram_server/src/handlers/ask_request_trace.rs": {
+      "exit_code": 0,
+      "stderr": ""
+    },
+    "crates/engram_server/tests/ask_webforms_interactions.rs": {
+      "exit_code": 0,
+      "stderr": ""
+    },
+    "python_verifier_syntax": "PASS",
+    "diff_whitespace": "PASS",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0,
+    "protected_wip9": "UNCHANGED"
+  },
+  "native_target": "ask_webforms_interactions",
+  "native_test_cases_written": 3,
+  "post_change_public_checks_executed": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\verify-public.py",
+  "public_verifier_sha256": "2725c0c141e324ab97a7a3eac0676b1f163ee37efd61abc115de845a9dc6b3a6",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-webforms-interactions-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 4.712421200005338,
+  "baseline_checks_passed": 2,
+  "source_sha256": {
+    "crates/engram_server/src/services/ask_engine/request_trace.rs": "d610b7dc134a23d84337d9fbb152138806ee2ed8f7b609dc1350051a5711a91d",
+    "crates/engram_server/src/handlers/ask_request_trace.rs": "119dd82132e6a9cfce42c16fe8116bbe8560191cff24ad7b08f7055efba81ba8",
+    "crates/engram_server/tests/ask_webforms_interactions.rs": "66d850055a75f0e5ee8d47f75efbf934105bc7473aa7fdd21767c748e2d90097",
+    "docs/TOOL_CONTRACT.md": "e7b38385d732830d8aa916a2f45238eaf47e1abf01c5dc3d1a9574632318afd2"
+  },
+  "next_action": "Validate EG31 maintenance handoff, EG21 header filtering and this independent TODO28 interaction outcome together. No separate debug build or full/lib suite; retain prior installed deliveries.",
+  "limits": [
+    "Source completion only; Rust type/native/public post-change validation and deployment remain pending. Installed8de71b3 is unchanged.",
+    "Explicit control IDs and page URLs are required. Existing event-binding/parser, source caps and runtime uncertainty remain. No measured task usefulness or model compliance claim."
+  ],
+  "source_commit": "c42e34be62c084a59a2bfce777cfae9c5673c8c9"
+}
