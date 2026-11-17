@@ -500,9 +500,41 @@ pub(super) struct SourceAudit {
     bytes_read: u64,
     outcomes: crate::services::business_outcome_dependencies::OutcomeAudit,
     helper_leads: crate::services::business_helper_context::Audit,
+    rule_doc_ids: HashMap<(String, u32), Vec<String>>,
 }
 
 impl SourceAudit {
+    /// Standard persisted member analyses have path-stable identities. Resolve
+    /// requested declarations directly before unrelated file-wide hits are capped.
+    pub(super) fn direct_method_doc_ids(
+        &mut self,
+        root: &Path,
+        scopes: &[crate::models::MethodScope],
+        notes: &mut Vec<String>,
+    ) -> Vec<String> {
+        let mut files = std::collections::BTreeMap::<String, Vec<u32>>::new();
+        for scope in scopes {
+            files.entry(scope.file_path.clone()).or_default().push(scope.line_start);
+        }
+        let mut result = Vec::new();
+        for (file, lines) in files {
+            let loaded = self.load_with_rule_scopes(root, &file, Some(&lines));
+            if let Err(error) = &loaded {
+                notes.push(format!("{file}: direct method analysis identity unavailable ({error})"));
+            }
+            let usable = loaded.is_ok();
+            self.files.insert(file.clone(), loaded);
+            if !usable { continue; }
+            for line in lines {
+                match self.rule_doc_ids.get(&(file.clone(), line)) {
+                    Some(ids) => result.extend(ids.iter().cloned()),
+                    None => notes.push(format!("{file}:{line}: current source declaration unavailable for direct method analysis lookup")),
+                }
+            }
+        }
+        result
+    }
+
     pub(super) fn helper_input_evidence(&mut self, document: &str, root: &Path) -> String {
         let evidence = crate::services::business_outcome_dependencies::from_document(document);
         let Some(context) = evidence.as_ref().and_then(|item| item.helper_context.as_ref()) else { return String::new(); };
@@ -672,6 +704,15 @@ impl SourceAudit {
     }
 
     fn load(&mut self, root: &Path, path: &str) -> Result<MethodHashes, String> {
+        self.load_with_rule_scopes(root, path, None)
+    }
+
+    fn load_with_rule_scopes(
+        &mut self,
+        root: &Path,
+        path: &str,
+        requested: Option<&[u32]>,
+    ) -> Result<MethodHashes, String> {
         let full = engram_core::safe_join(root, path).map_err(|error| error.to_string())?;
         let root = root.canonicalize().map_err(|error| error.to_string())?;
         let full = full
@@ -699,7 +740,20 @@ impl SourceAudit {
         self.bytes_read += actual;
         self.raw_file_hashes.insert(path.to_owned(), blake3::hash(content.as_bytes()).to_hex().to_string());
         let language = detect_language(path, &content);
-        Ok(extract_logic_methods(&content, language)
+        let methods = extract_logic_methods(&content, language);
+        if let Some(lines) = requested {
+            for line in lines { self.rule_doc_ids.remove(&(path.to_owned(), *line)); }
+            for method in methods.iter().filter(|method| lines.contains(&method.start_line)) {
+                let key = method.overload_line
+                    .map(|line| format!("{}__L{line}", method.name))
+                    .unwrap_or_else(|| method.name.clone());
+                let synthetic = format!("__business_logic/{}/{key}.md", path.replace('\\', "/"));
+                let hash = ContentHash::compute(synthetic.as_bytes());
+                let id = engram_core::DocIdStr::compute(&synthetic, 0, 0, &hash).0;
+                self.rule_doc_ids.entry((path.to_owned(), method.start_line)).or_default().push(id);
+            }
+        }
+        Ok(methods
             .into_iter()
             .map(|method| {
                 (

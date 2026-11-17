@@ -1290,6 +1290,11 @@ pub(super) fn collect_scoped(
     search:&HybridSearchEngine,pid:&str,generation:u64,files:&[String],root:&Path,max_cases:usize,
     methods:Option<&[crate::models::MethodScope]>,
 )->Result<(Vec<RuleCase>,Vec<String>),String>{
+    let mut notes = Vec::new();
+    let mut audit = SourceAudit::default();
+    let direct_ids = methods
+        .map(|scopes| audit.direct_method_doc_ids(root, scopes, &mut notes))
+        .unwrap_or_default();
     let query = HybridQuery {
         project_id: pid.into(),
         namespace: "business_logic".into(),
@@ -1314,13 +1319,16 @@ pub(super) fn collect_scoped(
     let mut hits = search
         .lexical_search(&query)
         .map_err(|error| error.to_string())?;
-    let mut notes = Vec::new();
     if hits.len() > 200 {
-        notes.push("rule document coverage truncated at 200; narrow the requested files".into());
+        notes.push(if methods.is_some() {
+            "File-wide legacy fallback discovery capped at 200; current canonical method analyses are looked up directly before this cap. Historical/noncanonical analysis mappings outside that fallback remain unexamined.".into()
+        } else {"rule document coverage truncated at 200; narrow the requested files".into()});
         hits.truncate(200);
     }
+    struct RuleDoc { doc_id: String }
+    let hits = direct_ids.into_iter().map(|doc_id| RuleDoc { doc_id })
+        .chain(hits.into_iter().map(|hit| RuleDoc { doc_id: hit.doc_id }));
     let mut seen = HashSet::new();
-    let mut audit = SourceAudit::default();
     let mut cases = Vec::new();
     let mut outcome_audit = crate::services::business_outcome_dependencies::OutcomeAudit::default();
     for hit in hits {
