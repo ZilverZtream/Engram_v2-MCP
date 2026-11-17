@@ -1,5 +1,5 @@
 {
-  "original_requirement_id": "S06/S07/S16",
+  "original_requirement_id": "EG-13",
   "original_requirement": "Source readers retain one selected source view and direct graph observations respect selected physical file revisions, including inherited and deleted files, with a documented live-graph boundary.",
   "observed_missing_behavior": "handle_graph_search pins source for lexical results, but symbol lookup, parent boosts and expansion endpoints admit arbitrary live graph file revisions. Existing SelectedSourceRevisionLookup already supplies exact managed and bounded legacy membership.",
   "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
@@ -57,5 +57,10 @@
     "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117",
     "runtime_fixtures_started": 0,
     "retention": "Keep contract, verifiers, phase ledger and source receipts for combined acceptance. Future fixtures own cleanup after database/runtime shutdown; no preexisting deletion."
-  }
+  },
+  "storage_gate_ids": [
+    "S06",
+    "S07",
+    "S16"
+  ]
 }

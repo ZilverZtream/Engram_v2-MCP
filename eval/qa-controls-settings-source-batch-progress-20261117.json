@@ -1,0 +1,63 @@
+{
+  "at_utc": "2026-11-17T00:27:50.371563+00:00",
+  "status": "FOCUSED_NATIVE_RUNNING",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117",
+  "plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\plan1.json",
+  "shipping_source_commit": "cf9b6929a923f62e2bd9f8ea5b0639741ef79dbc",
+  "components": [
+    {
+      "original_requirement_id": "EG-25",
+      "outcome": "Current constructor input source carried once into QA matrix document evidence; stale support withheld",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "6ef0a736b851e10d4dbe5442598a875c830bd8a5",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-constructor-inputs-20261117\\contract.json",
+      "progress": "eval/qa-constructor-inputs-progress-20261117.json"
+    },
+    {
+      "original_requirement_id": "TODO-31",
+      "outcome": "Literal WebForms user-control instance event paths with preserved page context and source recovery",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "3bff8df1a2792efff584271ef6d8e45179ebe468",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\control-instance-trace-20261117\\contract.json",
+      "progress": "eval/control-instance-trace-progress-20261117.json"
+    },
+    {
+      "original_requirement_id": "TODO-28",
+      "outcome": "Natural-language named literal settings return current source getter/store evidence",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "a0c4fb34b80409368cbda4a455dbac8234187c49",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-literal-settings-20261117\\contract.json",
+      "progress": "eval/ask-literal-settings-progress-20261117.json"
+    },
+    {
+      "original_requirement_id": "EG-13",
+      "outcome": "graph_search selected physical source admission for symbol seeds and expansion endpoints",
+      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+      "source_commit": "c9ad7ac7087208d3e8f3e7b5e1c2a275f4ccf43e",
+      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\graph-search-source-boundary-20261117\\contract.json",
+      "progress": "eval/graph-search-source-boundary-progress-20261117.json",
+      "storage_gate_ids": [
+        "S06",
+        "S07",
+        "S16"
+      ]
+    }
+  ],
+  "native_target": "qa_controls_settings_source_batch_tests",
+  "native_expected_cases": 6,
+  "native_runner_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native1.json",
+  "native_owner_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\qa-controls-settings-source-batch-20261117\\native1-owner.json",
+  "native_commands_started": 1,
+  "release_commands_started": 0,
+  "standalone_debug_build": false,
+  "full_or_lib_suite": false,
+  "runtime_deployed": false,
+  "original_storage_gates_complete": false,
+  "previous_goal_turn": "PROGRESS: c9ad7ac source-bound graph-search observations committed and pushed.",
+  "resources": "Existing shipping checkout and shared target reused. Native runner owns its Job, relay and recorded temp. Preserve original nine uncommitted files; no preexisting deletion.",
+  "limits": [
+    "Native and positive public acceptance are pending.",
+    "Canonical EG-13 queue identity maps the same retained S06/S07/S16 work to its original parent finding; build guard is unchanged.",
+    "An accidentally repeated already-delivered shipping commit was empty and skipped; four source picks and the explicit harness commit are retained."
+  ]
+}
