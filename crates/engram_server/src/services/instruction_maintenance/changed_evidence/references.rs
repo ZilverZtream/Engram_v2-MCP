@@ -15,6 +15,7 @@ pub(super) struct Candidate {
     pub current_blake3: String,
     pub current_bytes: usize,
     pub matches: Vec<Value>,
+    pub selection_basis: &'static str,
 }
 pub(super) struct Discovery {
     pub candidates: Vec<Candidate>,
@@ -114,13 +115,19 @@ pub(super) fn discover(
     let tree = repo
         .find_commit(git2::Oid::from_str(&req.base_commit)?)?
         .tree()?;
+    let symbol_inputs = if paths.iter().any(|path| !selected.iter().any(|selected| same_path(path, selected))) {
+        changed
+    } else {
+        &[]
+    };
+    let symbols = super::symbols::Discovery::new(root, &repo, &tree, symbol_inputs);
     let mut reader = Reader {
         root,
         repo: &repo,
         tree: &tree,
         cache: BTreeMap::new(),
         remaining: READ_LIMIT,
-        omissions: vec![],
+        omissions: symbols.omissions.clone(),
     };
     let mut candidates = Vec::new();
     let mut steps = 0usize;
@@ -136,6 +143,12 @@ pub(super) fn discover(
             continue;
         };
         let (current_blake3, current_bytes) = (current.blake3.clone(), current.content.len());
+        let instruction_source = Instruction {
+            path: instruction.clone(),
+            current: current.clone(),
+            before: reader.cache[&instruction].0.clone(),
+        };
+        let symbol_matches = symbols.matches(&instruction_source, &mut reader.omissions);
         let mut matches = Vec::new();
         let mut queue = VecDeque::from([
             (instruction.clone(), true, Vec::<Value>::new()),
@@ -196,12 +209,28 @@ pub(super) fn discover(
                 }
             }
         }
+        for proof in symbol_matches {
+            if matches.len() >= MATCH_LIMIT {
+                reader.omissions.push(json!({"path":instruction,"reason":"combined_reference_match_limit","limit":MATCH_LIMIT}));
+                break;
+            }
+            matches.push(proof);
+        }
         if !matches.is_empty() {
+            let has_symbols = matches.iter().any(|proof| proof["kind"] == "symbol_reference");
+            let has_paths = matches.iter().any(|proof| proof["kind"] != "symbol_reference");
             candidates.push(Candidate {
                 path: instruction,
                 current_blake3,
                 current_bytes,
                 matches,
+                selection_basis: if has_symbols && has_paths {
+                    "literal_reference_and_changed_symbol"
+                } else if has_symbols {
+                    "changed_symbol_reference"
+                } else {
+                    "literal_reference_to_changed_evidence"
+                },
             });
         }
         if exhausted {

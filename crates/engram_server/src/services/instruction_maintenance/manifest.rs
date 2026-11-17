@@ -3,7 +3,7 @@ use super::*;
 use std::collections::{BTreeMap, VecDeque};
 
 pub(crate) mod markdown_links;
-mod symbols;
+pub(in crate::services::instruction_maintenance) mod symbols;
 
 const DEPENDENCY_LIMIT: usize = 16;
 const EDGE_LIMIT: usize = 256;

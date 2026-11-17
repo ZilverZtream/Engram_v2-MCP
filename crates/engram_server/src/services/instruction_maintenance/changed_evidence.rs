@@ -4,6 +4,7 @@ use crate::services::project_policy::{self, PolicyBudget};
 use serde_json::{Value, json};
 mod git_changes;
 mod references;
+mod symbols;
 
 const GIT_EVIDENCE_PATH_LIMIT: usize = 128;
 
@@ -116,7 +117,7 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         complete_bytes += candidate.current_bytes;
         instructions.push(candidate.path.clone());
         sources.push(json!({"path":candidate.path,"blake3":candidate.current_blake3,
-            "selection_basis":"literal_reference_to_changed_evidence",
+            "selection_basis":candidate.selection_basis,
             "applicability":["Maintenance review candidate only; no authority over changed files outside the instruction's own scope."],
             "reference_matches":candidate.matches}));
     }
@@ -135,8 +136,8 @@ pub(super) fn select(root: &Path, req: &MaintenanceRequest) -> Result<Selection>
         "notes":policy.notes,
         "reference_discovery":{"coverage":if referenced.omissions.is_empty() && referenced.notes.is_empty(){"bounded_candidates_examined"}else{"incomplete"},
             "omissions":referenced.omissions,"notes":referenced.notes,
-            "limits":{"documents":64,"complete_source_read_bytes":2097152,"links_per_snapshot":256,"reference_chain_depth":3,"matches_per_instruction":16,"reference_visits":4096},
-            "scope":"Current conventional guidance inventory and supported literal references in its before/current snapshots, following bounded Markdown guidance links only. No source-code inventory or referenced-code body scan. Reference observations have their own snapshot hashes; instruction_manifest reports captured dependency freshness. Unrelated observed body hashes are not packet inputs."},
+            "limits":{"documents":64,"complete_source_read_bytes":2097152,"links_per_snapshot":256,"reference_chain_depth":3,"matches_per_instruction":16,"reference_visits":4096,"changed_symbol_source_read_bytes":PACKET_LIMIT,"symbol_declaration_candidates":1024,"symbol_references_per_instruction":256},
+            "scope":"Current conventional guidance inventory, bounded literal Markdown links and direct authored symbol mentions. Symbol declarations are parsed once from complete before/current copies of the caller-selected VB/JS/TS/SQL changed files only; no codebase inventory, graph or model. Unchanged observed method bytes alone do not select an instruction. References retain their own snapshot hashes; instruction_manifest reports captured dependency freshness. Name matches and review selection do not establish bindings, semantic impact or expanded scope authority. Listing, discovery and final packet capture are separate observations."},
         "interpretation":format!("{interpretation} Discovery selects current scoped guidance and literal-reference maintenance candidates, including guidance scoped elsewhere that references changed evidence. A dependency review candidate does not gain authority over files outside its scope. Discovery does not inventory removed instructions or all formerly applicable guidance, infer semantic impact, accept policy or establish that no guidance change is warranted. Each selected instruction and evidence file retains exact base-commit and current snapshots in this packet; linked-reference coverage is reported by instruction_manifest. Explicit instruction_paths remain available for historical or otherwise undiscovered guidance. No index or authored file is changed.")
     });
     Ok(Selection {

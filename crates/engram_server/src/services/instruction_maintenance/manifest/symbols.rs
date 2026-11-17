@@ -120,6 +120,24 @@ pub(super) fn capture(
     dependencies: &BTreeMap<String, Dependency>,
     issues: &mut Vec<CoverageIssue>,
 ) -> (Vec<Reference>, Vec<Inventory>) {
+    let index = declarations(instructions, evidence, dependencies);
+    let references = references(&index, instructions, evidence, dependencies, issues);
+    (references, index.inventory)
+}
+
+/// One bounded declaration scan can serve multiple maintenance documents.
+pub(in crate::services::instruction_maintenance) struct DeclarationIndex {
+    records: Vec<Record>,
+    pub inventory: Vec<Inventory>,
+    lookup: BTreeMap<String, Vec<usize>>,
+    vb_lookup: BTreeMap<String, Vec<usize>>,
+}
+
+pub(in crate::services::instruction_maintenance) fn declarations(
+    instructions: &[Instruction],
+    evidence: &[Evidence],
+    dependencies: &BTreeMap<String, Dependency>,
+) -> DeclarationIndex {
     let paths: BTreeSet<_> = evidence
         .iter()
         .map(|e| e.path.clone())
@@ -317,6 +335,20 @@ pub(super) fn capture(
             }
         }
     }
+    DeclarationIndex { records, inventory, lookup, vb_lookup }
+}
+
+pub(in crate::services::instruction_maintenance) fn references(
+    index: &DeclarationIndex,
+    instructions: &[Instruction],
+    evidence: &[Evidence],
+    dependencies: &BTreeMap<String, Dependency>,
+    issues: &mut Vec<CoverageIssue>,
+) -> Vec<Reference> {
+    let records = &index.records;
+    let inventory = &index.inventory;
+    let lookup = &index.lookup;
+    let vb_lookup = &index.vb_lookup;
     let sources: BTreeSet<_> = instructions
         .iter()
         .map(|i| i.path.clone())
@@ -513,10 +545,10 @@ pub(super) fn capture(
             }
         }
     }
-    (references, inventory)
+    references
 }
 
-pub(super) fn changes(references: &[Reference], indices: &[usize]) -> Vec<Change> {
+pub(in crate::services::instruction_maintenance) fn changes(references: &[Reference], indices: &[usize]) -> Vec<Change> {
     let mut pairs: BTreeMap<String, (Vec<Candidate>, Vec<Candidate>)> = BTreeMap::new();
     for index in indices {
         let reference = &references[*index];
