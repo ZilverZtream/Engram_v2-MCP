@@ -10297,35 +10297,31 @@
   },
   "last_updated_at": "2026-11-17T22:03:04.201501+00:00",
   "current_execution_focus": {
-    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "EG-19: path-specific prior-decision annotations on review findings",
-    "progress": "eval/review-finding-evidence-links-progress-20261117.json",
-    "observed_missing_behavior": "pre_commit_review returns complete prior_review_context separately from its findings. Selected findings contain no path-specific link to admitted prior decisions or their scope/revision assessments, so the reviewing agent must reconstruct every association.",
+    "status": "THREE_SOURCE_OUTCOMES_READY_FOR_COMBINED_VALIDATION",
+    "original_requirement": "TODO-4: bounded ordinary history responses with exact overflow recovery",
+    "progress": "eval/history-default-delivery-progress-20261117.json",
+    "observed_missing_behavior": "search_history without max_tokens or retain_response bypasses all complete response budgets in both ordinary Markdown and JSON. Explicit commit/patch reads can emit arbitrarily large complete Git bodies up to existing capture bounds. Prior optional budget/retention deliveries do not bound normal calls.",
     "implementation_files": [
-      "crates/engram_server/src/handlers/review_tools.rs",
-      "crates/engram_server/src/handlers/review_tools/finding_context.rs",
-      "crates/engram_server/src/handlers/review_tools/response_delivery.rs",
-      "crates/engram_server/tests/review_finding_evidence_links.rs",
+      "crates/engram_server/src/retained_results.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/tests/history_default_delivery.rs",
       "docs/TOOL_CONTRACT.md"
     ],
     "finite_acceptance": [
-      "Link each selected finding to retained prior-review items only by exact referenced file or event relevance through the existing declared-scope/complete-path matcher. Link declared event scope and source/revision assessment separately from same-file indexed summary evidence; basename and unrelated same-review events do not become finding decisions.",
-      "JSON and compact/full Markdown expose finding identity, item/event pointers and a shared applicability warning. Keep original finding IDs, severities, messages, gate outcomes and verdict. Source/path relevance is a candidate for semantic review, never proof of the same issue, accepted authority or current applicability.",
-      "Default/caller response budgets preserve findings and per-finding evidence-link counts with complete original-report recovery. Recovery after source/event changes preserves original links and complete conditions without rerunning gates or silently using new decisions. Owned fixtures clean on completion/unwinding."
+      "Ordinary public search_history replies without max_tokens fit40KiB in text/precedent/commit/patch modes and both output formats. Fitting MCP results remain byte-for-byte unchanged; oversized results use existing complete immutable MCP-result recovery without clipping selected records or rerunning retrieval.",
+      "Recovery preserves complete authored Git message/file-cohort/patch evidence and original qualifications after subsequent source/Git changes or process restart; existing24hour/32snapshot/8MiB retention limits and project/tool binding stay explicit. Errors and nontext results remain unchanged.",
+      "Explicit max_tokens retains existing whole-record budget/pagination behavior. Explicit retain_response=true keeps its existing JSON-only complete-window capture semantics and can exceed40KiB when caller explicitly chooses a larger budget. Other search tools remain unchanged; schemas/default wording disclose automatic history overflow recovery."
     ],
     "implementation_items_active": 0,
-    "pending_source_outcomes": 2,
+    "pending_source_outcomes": 3,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_goal_turn_classification": {
       "classification": "PROGRESS_SOURCE_COMPLETE_QUEUED",
-      "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c"
+      "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce"
     },
-    "next_action": "Advance a different ready original requirement. Retain EG27 guidance drift and EG19 finding evidence links for combined validation; no standalone build or filler to satisfy the minimum.",
-    "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce",
-    "engram_builds_started_this_turn": 0,
-    "native_tests_executed_this_turn": 0,
-    "post_change_public_checks_this_turn": 0
+    "next_action": "Prepare reused shipping checkout and unchanged owned runner; run one combined15case native command for the three independent original outcomes. No full suite, separate debug build or delivered-batch replay.",
+    "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d"
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
   "delivery_records": {
@@ -17102,5 +17098,15 @@
       "EG-07"
     ],
     "full_original_goal_complete": false
+  },
+  "history_default_delivery_source_progress_20261117": {
+    "original_requirement_id": "TODO-4",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d",
+    "progress": "eval/history-default-delivery-progress-20261117.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
+    "behavior": "Ordinary history replies default to40KiB with complete immutable original-MCP overflow recovery; explicit caller budgets remain handler-owned.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false
   }
 }

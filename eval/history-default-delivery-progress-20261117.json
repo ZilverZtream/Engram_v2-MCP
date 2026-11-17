@@ -1,0 +1,74 @@
+{
+  "original_requirement_id": "TODO-4",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Complete response budgets and exact recovery for normal AI tool use; preserve complete history evidence without unbounded default replies.",
+  "observed_missing_behavior": "search_history without max_tokens or retain_response bypasses all complete response budgets in both ordinary Markdown and JSON. Explicit commit/patch reads can emit arbitrarily large complete Git bodies up to existing capture bounds. Prior optional budget/retention deliveries do not bound normal calls.",
+  "priority_basis": "Original bounded-evidence/usable-history shortlist and accepted TODO4. Current LegacyValidation Full configuration hash unchanged; Git history affects its VB/WebForms, JS/TS and SQL workflow. No current application-source traversal.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
+  "source_phase_started_at_utc": "2026-11-17T22:30:30.106384+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/retained_results.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/tests/history_default_delivery.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Ordinary public search_history replies without max_tokens fit40KiB in text/precedent/commit/patch modes and both output formats. Fitting MCP results remain byte-for-byte unchanged; oversized results use existing complete immutable MCP-result recovery without clipping selected records or rerunning retrieval.",
+    "Recovery preserves complete authored Git message/file-cohort/patch evidence and original qualifications after subsequent source/Git changes or process restart; existing24hour/32snapshot/8MiB retention limits and project/tool binding stay explicit. Errors and nontext results remain unchanged.",
+    "Explicit max_tokens retains existing whole-record budget/pagination behavior. Explicit retain_response=true keeps its existing JSON-only complete-window capture semantics and can exceed40KiB when caller explicitly chooses a larger budget. Other search tools remain unchanged; schemas/default wording disclose automatic history overflow recovery."
+  ],
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117",
+    "purpose": "Finite acceptance, owned baseline and future public receipts",
+    "cleanup_condition": "Close Git/server/registry resources before fixture cleanup; retain evidence until delivery; no preexisting deletion.",
+    "baseline_fixture_removed": true,
+    "baseline_server_owners_closed": true,
+    "current_fixtures_or_processes": 0
+  },
+  "build_policy": "Third distinct original outcome only after source implementation complete; then prepare one guarded combined native/release batch, no full suite or separate debug build.",
+  "source_phase_completed_at_utc": "2026-11-17T22:36:34.064430+00:00",
+  "implementation_items_active": 0,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\baseline1\\receipt.json",
+  "baseline_checks_passed": 8,
+  "baseline_seconds": 11.201027400093153,
+  "baseline_binary_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+  "baseline_default_reply_bytes": {
+    "commit_markdown": 65906,
+    "commit_json": 69187,
+    "patch_markdown": 72054,
+    "patch_json": 75877
+  },
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt; new test formatted, existing sources parsed without rewriting",
+    "python_verifier_syntax": "PASS via compile(); no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0,
+    "post_change_public_checks_executed": 0
+  },
+  "native_target": "history_default_delivery",
+  "native_test_cases_written": 3,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\verify-public.py",
+  "public_verifier_sha256": "c442c1971e1d37fe467254ccdd05bf94bcbbb011c8f21a2349e75da30c6d498b",
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "next_action": "Prepare one combined validation batch for EG27 guidance drift, EG19 finding annotations and this default history overflow delivery. No full suite or separate debug build.",
+  "source_sha256": {
+    "crates/engram_server/src/retained_results.rs": "b903fc848251829964963a16680f1630535c99d9cc8bbe8d5128d5d42cf3d223",
+    "crates/engram_server/src/models/requests.rs": "1332aa476634fcc57d49e10a9993cb7b376c833cf142b88c8d41748e92c02c8c",
+    "crates/engram_server/tests/history_default_delivery.rs": "84dcff2c013fa08904213d821051aba880356b6521c236809b1537b02142513f",
+    "docs/TOOL_CONTRACT.md": "98f314593a235a34c233205054448cacea8ef3f31278006e98f32a8111d14223"
+  },
+  "limits": [
+    "Automatic complete-result overflow handling applies at the public MCP transport, reusing existing immutable MCP-result recovery. Internal composed history handlers keep their original full evidence.",
+    "Explicit max_tokens remains handler-controlled whole-record pagination/refusal; explicit retained-window capture remains JSON-only. No new retrieval, ranking, provider call or storage format.",
+    "Small ordinary replies remain unchanged. Captures retain only the selected result/qualifications, not source objects or exhaustive corpus history. Existing8MiB/24hour/32newer-snapshot limits apply.",
+    "Native tests and post-change public acceptance/deployment have not run. Baseline establishes the previous public failure; syntax is not runtime proof.",
+    "No actual LegacyValidation source access, reindex or mutation, Site/Q traversal, CodeMap/Blast work, target-language expansion, model comparison or preexisting deletion."
+  ],
+  "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d"
+}
