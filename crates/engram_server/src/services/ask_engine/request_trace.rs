@@ -1,4 +1,4 @@
-//! Compose the existing request tracer for explicit HTTP request mentions.
+//! Compose the existing request tracer for explicit HTTP and WebForms actions.
 use super::{
     evidence::{Authority, EvidenceItem, EvidenceKind},
     status::{AnswerStatus, ProviderReport, ProviderStatus},
@@ -15,6 +15,67 @@ static REQUESTS: LazyLock<Regex> = LazyLock::new(|| {
     )
     .expect("explicit HTTP request mentions")
 });
+static INTERACTIONS: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?i)\b(?:(?:click|clicking|clicked)\s+`?(?P<click>[a-z_][a-z0-9_]*)`?|event\s+`?(?P<event>[a-z_][a-z0-9_]*(?:/[a-z_][a-z0-9_]*){0,7}\.[a-z_][a-z0-9_]*)`?)\s+(?:on|in)\s+`?(?P<page>(?:https?://|~/|/)[^\s"'`<>]+)"#,
+    )
+    .expect("explicit page and control actions")
+});
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct TraceQuery {
+    pub entry_point: String,
+    pub action: Option<String>,
+}
+
+/// At most three distinct requests, in mention order, including the overflow
+/// witness. A different action on the same page is a distinct trace.
+pub fn requests(question: &str) -> Vec<TraceQuery> {
+    let mut mentions = Vec::new();
+    for capture in REQUESTS.captures_iter(question) {
+        let url = capture[2].trim_end_matches([',', ';', ')', ']', '}']);
+        let query = TraceQuery {
+            entry_point: format!("{} {url}", capture[1].to_ascii_uppercase()),
+            action: None,
+        };
+        if !mentions.iter().any(|(_, existing)| existing == &query) {
+            mentions.push((capture.get(0).unwrap().start(), query));
+        }
+        if mentions.len() == 3 { break; }
+    }
+    let mut interactions = Vec::new();
+    for capture in INTERACTIONS.captures_iter(question) {
+        let action = if let Some(control) = capture.name("click") {
+            if control.as_str().len() > 128 { continue; }
+            format!("click {}", control.as_str())
+        } else {
+            format!("event {}", &capture["event"])
+        };
+        if action.len() > 256
+            || crate::services::request_trace::control_events::requested(Some(&action)).is_err()
+        {
+            continue;
+        }
+        let query = TraceQuery {
+            entry_point: capture["page"].trim_end_matches([',', ';', ')', ']', '}']).into(),
+            action: Some(action),
+        };
+        if !interactions.iter().any(|(_, existing)| existing == &query) {
+            interactions.push((capture.get(0).unwrap().start(), query));
+        }
+        if interactions.len() == 3 { break; }
+    }
+    mentions.extend(interactions);
+    mentions.sort_by_key(|(offset, _)| *offset);
+    let mut out = Vec::new();
+    for (_, mention) in mentions {
+        if !out.contains(&mention) {
+            out.push(mention);
+        }
+        if out.len() == 3 { break; }
+    }
+    out
+}
 
 /// Retain a third mention to disclose the two-request selection cap.
 pub fn queries(question: &str) -> Vec<String> {
@@ -91,6 +152,11 @@ impl RequestEvidence {
         }
         let mut recovery = json!({"project_id":project,"entry_point":entry,"include_db":true,
             "include_triggers":true,"max_tokens":TRACE_TOKENS});
+        let action = trace["action"].as_str();
+        let label = action.map_or_else(|| entry.to_owned(), |action| format!("{entry}: {action}"));
+        if let Some(action) = action {
+            recovery["action"] = json!(action);
+        }
         if let Some(scopes) = trace["coverage"]["path_prefixes"].as_array().filter(|scopes| !scopes.is_empty()) {
             recovery["path_prefixes"] = json!(scopes);
         }
@@ -100,10 +166,10 @@ impl RequestEvidence {
             source_verification: Some("HELD_SELECTED_SOURCE_REQUEST_TRACE: nested per-member raw hash and physical revision checks".into()),
             kind: EvidenceKind::GraphRelation, authority: Authority::CurrentCode,
             // A trace spans markup, handlers and dependencies. Its identity is
-            // the HTTP request; every actual file/range stays in the report.
-            path: None, lines: None, symbol_id: Some(format!("request_trace:{entry}")),
-            title: Some(format!("{entry}: static request trace candidates")),
-            content: json!({"evidence_kind":"http_request_trace_candidates","entry_point":entry,
+            // the entry/action pair; actual file/range stays in the report.
+            path: None, lines: None, symbol_id: Some(format!("request_trace:{label}")),
+            title: Some(format!("{label}: static request trace candidates")),
+            content: json!({"evidence_kind":if action.is_some() {"webforms_interaction_trace_candidates"} else {"http_request_trace_candidates"},"entry_point":entry,
                 "trace":trace,"recovery":{"tool":"trace_user_request","arguments":recovery},
                 "interpretation":INTERPRETATION}).to_string(),
             generation: Some(generation), commit: None, timestamp: None,
@@ -111,7 +177,7 @@ impl RequestEvidence {
             warnings: vec![INTERPRETATION.into()], provider: "request_trace".into(),
             score: None, directness: Some(0.9),
         });
-        self.matched_names.push(entry.into());
+        self.matched_names.push(label);
         self.provider.count = self.items.len();
         self.provider.status = ProviderStatus::Hit;
         Ok(())

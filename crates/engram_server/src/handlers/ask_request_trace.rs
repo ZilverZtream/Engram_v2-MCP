@@ -1,4 +1,4 @@
-//! Explicit HTTP questions compose the ordinary tracer without another source pin.
+//! Explicit requests and page/control questions reuse the held source selection.
 use crate::services::ask_engine::status::ProviderStatus;
 use crate::{
     models::TraceUserRequestRequest,
@@ -20,7 +20,7 @@ pub(super) async fn gather(
     view: Option<Arc<SourceSnapshotGuard>>,
     deadline: Duration,
 ) -> Option<RequestEvidence> {
-    let queries = request_trace::queries(question);
+    let queries = request_trace::requests(question);
     if queries.is_empty() {
         return None;
     }
@@ -52,7 +52,8 @@ pub(super) async fn gather(
         }
     };
     let start = tokio::time::Instant::now();
-    for entry in queries.iter().take(2) {
+    for query in queries.iter().take(2) {
+        let entry = &query.entry_point;
         out.provider.examined += 1;
         if let Err(error) = crate::services::request_trace::routing::resolve(entry, &[]) {
             out.provider.status = ProviderStatus::Failed;
@@ -64,7 +65,7 @@ pub(super) async fn gather(
             project_id: project.into(),
             path_prefixes: plan.qualifiers.path_prefixes.clone(),
             entry_point: entry.clone(),
-            action: None,
+            action: query.action.clone(),
             include_db: true,
             include_triggers: true,
             max_tokens: Some(request_trace::TRACE_TOKENS),
@@ -106,6 +107,6 @@ pub(super) async fn gather(
             }
         }
     }
-    out.note("At most two explicit HTTP requests are traced; mention discovery stops at the third distinct request. The ordinary tracer retains its existing source, memory, routing and graph expansion limits.");
+    out.note("At most two explicit HTTP or page/control requests are traced; mention discovery stops at the third distinct entry/action pair. The ordinary tracer retains its existing source, memory, routing and graph expansion limits. Control identifiers are caller-supplied; captions and runtime event dispatch are not inferred.");
     Some(out)
 }

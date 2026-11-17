@@ -1616,3 +1616,19 @@ Saved footprint recovery preserves the original action and hash after later
 edits; it does not claim that old guidance is still current. Existing scope,
 policy/discovery budgets, historical/unfingerprinted refusal, response limits
 and source-reader semantics remain. Reading guidance does not certify compliance.
+
+### WebForms interaction questions in ask_codebase
+
+Explicit phrases such as `click btnSave on /Area/Entry.aspx` and
+`event ddlType.SelectedIndexChanged in /Area/Entry.aspx` compose the existing
+selected-source request tracer with that action. A control identifier and page
+are both required; captions and vague event descriptions do not establish a
+binding. Explicit event paths may use the existing naming-container syntax,
+for example `event panel/save.Click on /Area/Entry.aspx`.
+
+HTTP and interaction mentions share the existing two-trace cap. Distinct actions
+on the same page remain distinct. JSON and Markdown retain authored bindings,
+source hashes, applicable guidance, scope/coverage limits and executable recovery
+with the same action and path prefixes. These are static candidates; runtime
+dispatch and execution remain unproved. Saved ask-report recovery preserves the
+original captured answer, while a fresh trace reads then-current evidence.
