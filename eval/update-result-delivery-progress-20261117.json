@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-4",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "FOCUSED_NATIVE_AND_PUBLIC_DEBUG_PASS_AWAITING_DEPLOYMENT",
   "at_utc": "2026-11-17T07:04:29.797516+00:00",
   "original_requirement": "Uniform complete response budgets and exact continuation across the normal agent update loop.",
   "observed_missing_behavior": "update_project lacks shared max_tokens/recovery controls. Optional instruction observations contain full linked-document before/after snapshots; those observations can exceed the default40KiB delivery budget after the source operation has already returned.",
@@ -24,8 +24,8 @@
   "baseline_seconds": 3.4081668000435457,
   "baseline_binary_sha256": "bceddf7980fe8a959081b2f90af7409c5bab538f456775789893dbc3f5a25358",
   "native_test_cases_written": 3,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 3,
+  "post_change_public_checks_executed": 9,
   "runtime_deployed": false,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\verify-public.py",
   "source_checks": {
@@ -49,5 +49,7 @@
     "crates/engram_server/tests/update_result_delivery.rs": "0503dfaf5eb33c9513d3baa5d65220d10b12687dd0cea877071a8079aebd1468",
     "docs/TOOL_CONTRACT.md": "45a78ea361ee0f534beb59caf660509e254bf5992cb5aaf7e26cb10095b0ac79"
   },
-  "public_verifier_sha256": "50509ee7ed528801fda4d4ad212d0ed5a7086dd34b238ba0fd98a06d41e05f7e"
+  "public_verifier_sha256": "50509ee7ed528801fda4d4ad212d0ed5a7086dd34b238ba0fd98a06d41e05f7e",
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\update-result-delivery-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json"
 }

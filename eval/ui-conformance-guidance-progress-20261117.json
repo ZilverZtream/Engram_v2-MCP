@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-01",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "FOCUSED_NATIVE_AND_PUBLIC_DEBUG_PASS_AWAITING_DEPLOYMENT",
   "at_utc": "2026-11-17T06:13:03.975688+00:00",
   "original_requirement": "Applicable authored guidance accompanies pre-edit UI context; observed implementation patterns do not become approved policy.",
   "observed_missing_behavior": "get_ui_conformance supplies indexed family/class observations without current applicable instructions. Its no-family reply says no house contract exists, and its structure axis can display a successful check despite being uncheckable from class names.",
@@ -69,8 +69,8 @@
     "docs/TOOL_CONTRACT.md": "f04f248d25f3b4cda7b110f2553aa598f910c5ac0a8ba14971ead5c56d315350"
   },
   "native_test_cases_written": 3,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 3,
+  "post_change_public_checks_executed": 5,
   "real_model_calls": 0,
   "runtime_deployed": false,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\verify-public.py",
@@ -85,5 +85,7 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Retain finite contract, references to prior exact non-Q source pins, baseline transport and verifier for combined acceptance. New native fixtures drop graph/project/runtime handles before owned directory teardown. No preexisting deletion."
-  }
+  },
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-conformance-guidance-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json"
 }

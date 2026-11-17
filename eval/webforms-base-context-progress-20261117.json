@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-31",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "FOCUSED_NATIVE_AND_PUBLIC_DEBUG_PASS_AWAITING_DEPLOYMENT",
   "at_utc": "2026-11-17T06:46:23.579932+00:00",
   "original_requirement": "Normal WebForms request navigation includes source-authored project-base lifecycle context that can affect the selected page.",
   "observed_missing_behavior": "The cost-center page explicitly inherits DashboardBasePage. That project base has Handles Me.PreInit and a conditional MasterPageFile assignment, but request tracing selects only direct code-file and literal master handlers.",
@@ -70,8 +70,8 @@
     "docs/TOOL_CONTRACT.md": "4db8862184cc40bac9109fb87d880e39b9398b1b0cd60f262c197e19baf9e044"
   },
   "native_test_cases_written": 2,
-  "native_tests_executed": 0,
-  "post_change_public_checks_executed": 0,
+  "native_tests_executed": 2,
+  "post_change_public_checks_executed": 8,
   "real_model_calls": 0,
   "runtime_deployed": false,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\verify-public.py",
@@ -86,5 +86,7 @@
     "baseline_owned_work_removed": true,
     "baseline_processes_closed": true,
     "retention": "Retain exact non-Q page/base source pins, contract, failed and corrected baseline transports and verifier for combined acceptance. Native graph fixtures close handles before owned directories on completion/unwinding. No preexisting deletion."
-  }
+  },
+  "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\instruction-update-source-batch-20261117\\native1.json",
+  "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-base-context-20261117\\instruction-update-source-batch-20261117-debug1\\receipt.json"
 }
