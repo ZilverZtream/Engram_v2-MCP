@@ -1,0 +1,132 @@
+{
+  "original_requirement_id": "EG-18",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "The original tool_roi research explicitly requested dependency-closed development, QA and migration presets after repairing Core. Full discovery remains the default and LegacyValidation .NET tools remain available.",
+  "observed_missing_behavior": "Configuration and tools/list support only Full or Core. Core omits workflow specialists; switching to Full exposes the entire registered catalog. No named workflow surface exists.",
+  "priority_basis": "Original dependency-complete tool-presets shortlist. Current LegacyValidation config is verified Full and remains Full. Opt-in profiles target its existing VB.NET/WebForms, JavaScript/TypeScript and SQL workflows; no claim that an unselected profile already changes its runtime.",
+  "source_phase_started_at_utc": "2026-11-17T15:46:14.764195+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\contract.json",
+  "implementation_files": [
+    "crates/engram_core/src/config.rs",
+    "crates/engram_server/src/tool_surface.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/handlers/access_layer_tools.rs",
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/handlers/schema_tools.rs",
+    "crates/engram_server/src/handlers/ask_schema.rs",
+    "crates/engram_server/tests/workflow_tool_presets.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/src/handlers/edit_session_maintenance.rs"
+  ],
+  "profiles": {
+    "development": [
+      "batch_read",
+      "get_method_info",
+      "search_history",
+      "pre_push_audit"
+    ],
+    "qa": [
+      "derive_test_matrix",
+      "analyze_business_logic",
+      "trace_state_usage",
+      "query_schema",
+      "batch_read",
+      "pre_push_audit"
+    ],
+    "migration": [
+      "query_schema",
+      "analyze_database_intelligence",
+      "generate_migration_blueprint",
+      "generate_migration_plan",
+      "generate_migration_scaffold",
+      "pre_push_audit"
+    ]
+  },
+  "finite_acceptance": [
+    "Explicit optional tool_preset selects full/core/development/qa/migration. Omitted field preserves advertise_all_tools true/default Full or false/Core; unknown values fail configuration deserialization. Existing normal LegacyValidation config is unchanged.",
+    "Named profiles retain the34 shared Core tools plus their declared workflow roots: development38,qa40,migration40 maximum before actual capability filtering. Use existing registered schemas, source/citation/job/memory/review recovery and capability gating. No new dispatcher or hidden proxy surface.",
+    "Startup/catalog and response navigation use the effective preset, not the legacy boolean. Existing source/schema and completed-edit maintenance recovery emits only an advertised target; named profiles can use their pre_push_audit actions. All Full/default and legacyCore behavior remains.",
+    "Actual MCP tools/list on an owned mixed VB/WebForms+JS/TS+SQL fixture validates profile identities, exact membership, sanitized schema equality and callable source/schema/maintenance/bounded-report recovery. Explicitly scoped coverage only: no universal closure of prose recommendations, model quality, migration-code correctness or task-productivity claim.",
+    "Write finite relevant native/public cases and source checks before consolidated validation with at least two other independent original outcomes. No standalone Cargo/release or full-suite run."
+  ],
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 1,
+  "baseline_source_sha256": {
+    "crates/engram_core/src/config.rs": "7c3592fcef4e2bf50e2875c1152b22e04489e2edf802243659fd486946388761",
+    "crates/engram_server/src/tool_surface.rs": "6db2496d2988bece02164f944f2f6ebc38c8600fef9fb127d8e9d3825ed80fb0",
+    "crates/engram_server/src/tools.rs": "0c99ad0c0c9ee70183affab0ae08d6808dd7fb4bef3a15febbbd13469e8c659d",
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "e7ada9c848c9233e13704c729e5850f78f80819cfa94eb38fefbdd2707d9d60d",
+    "crates/engram_server/src/handlers/planning_tools.rs": "12d712e8a4765a47a3c7f631e32f26d0b638cc5d52764a678b186fd1fc00ce7e",
+    "crates/engram_server/src/handlers/schema_tools.rs": "fd74883cee832203403fc5e9902d08bb39a3bb952c1e1f68ba8defa538fc20cb",
+    "crates/engram_server/src/handlers/ask_schema.rs": "b486d2eec34be293bec384f58fae657fef7b9add36ddf076cdb952a60525dfc3",
+    "docs/TOOL_CONTRACT.md": "e7b38385d732830d8aa916a2f45238eaf47e1abf01c5dc3d1a9574632318afd2"
+  },
+  "actual_runtime_config": {
+    "sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+    "advertise_all_tools": true,
+    "tool_preset": null
+  },
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117",
+    "retention": "Retain finite contract and fixture evidence until delivery. Own new server/database fixture handles and directories; close before cleanup on normal/error paths. No preexisting folder deletion.",
+    "current_fixtures_or_processes": 0,
+    "baseline_fixture_removed": true,
+    "baseline_owners_closed": true
+  },
+  "previous_goal_turn_classification": {
+    "classification": "PROGRESS_INSTALLED_DELIVERY",
+    "evidence": "eval/maintenance-history-interaction-batch-delivery-20261117.json"
+  },
+  "full_original_goal_active": true,
+  "supplemental_baseline_git_blob": {
+    "crates/engram_server/src/handlers/edit_session_maintenance.rs": "91f0d5bd87b81a313571fffce9009101701aa3ee"
+  },
+  "source_phase_completed_at_utc": "2026-11-17T16:06:48.415291+00:00",
+  "source_sha256": {
+    "crates/engram_core/src/config.rs": "45d24e6e7de9f7fdfe0ff52e4beafcbff61c46f70fef6cf9b7187463e991bea3",
+    "crates/engram_server/src/tool_surface.rs": "c933fdc9c4b8aedad4c6f13b1e38620ecf8ee3123f0e414b4d0a1810c009d5e2",
+    "crates/engram_server/src/tools.rs": "ae4fd44d8e352bdc1771651f45509cba240d5eecf1f93c5ab439a0e708e35200",
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "2b8ab31d8720bc3565ccae3dd4e1bc43841d36cdcc94f7f34e131a0bea91bddd",
+    "crates/engram_server/src/handlers/planning_tools.rs": "9116e20d0c3dbba6a4c0650196c556cf27931e3b3bc2a5a11113812d5f7aa37b",
+    "crates/engram_server/src/handlers/schema_tools.rs": "df5b0335729fd71bbe1b9f5b821680347a96500e063d934040d2567951b81c07",
+    "crates/engram_server/src/handlers/ask_schema.rs": "f1fdca57fad8cba87718ead09dec88eb931de9158ce294e3e53c97a75aa1654f",
+    "crates/engram_server/tests/workflow_tool_presets.rs": "015b356704899563f75ea6b9bd81bfc157c66d47088739f66679fb7fc578d6fd",
+    "docs/TOOL_CONTRACT.md": "83083f0cbb78221d7ce65b4fab72ad5507f377411c4c761a2fefce2870d6587f",
+    "crates/engram_server/src/handlers/edit_session_maintenance.rs": "18e5710a24f5559b316d9c503343cb36e07f58a1778c6be659f52cc71aa2ee45"
+  },
+  "source_checks": {
+    "crates/engram_core/src/config.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/tool_surface.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/tools.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/handlers/access_layer_tools.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/handlers/planning_tools.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/handlers/schema_tools.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/handlers/ask_schema.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/tests/workflow_tool_presets.rs": "RUST_SYNTAX_PASS",
+    "crates/engram_server/src/handlers/edit_session_maintenance.rs": "RUST_SYNTAX_PASS",
+    "public_python_syntax": "PASS",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0,
+    "post_change_public_checks_executed": 0
+  },
+  "native_target": "workflow_tool_presets",
+  "native_test_cases_written": 3,
+  "public_checks_written": 19,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\verify-public.py",
+  "public_verifier_sha256": "8e00633ac700d9d91c5b7afdf64dc928bd0e6bba32fd17c1bff603c4ab6b7ccd",
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\workflow-tool-presets-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 2.633704400039278,
+  "baseline_checks_passed": 3,
+  "next_action": "Queue this original EG18 named-preset outcome with the next two ready independent original requirements. Do not compile this feature separately or replay the completed installed batch.",
+  "limits": [
+    "Source completion only; Rust type/native checks and post-change MCP verification remain pending. Installed46c5e89 is unchanged and stays configured Full.",
+    "Named preset closure covers shared Core dependencies, explicit workflow roots and emitted structured source/schema/maintenance recovery. Every specialist mentioned in prose, backend/model availability, migration-code correctness and task productivity remain unproved."
+  ],
+  "source_commit": "1bd5f54584c0a18438390d1c9f17425c07c30c05"
+}
