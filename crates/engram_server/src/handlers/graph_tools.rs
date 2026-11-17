@@ -235,7 +235,7 @@ impl Engram {
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let (gen_, _source_snapshot) = if req.namespace == "memory" {
             let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
-            (generation, Some(guard))
+            (generation, Some(std::sync::Arc::new(guard)))
         } else { (self.get_active_generation(&req.project_id).await?, None) };
         #[cfg(test)]
         super::search_tools::selected_source_tests::after_selection(&req.project_id).await;
@@ -253,26 +253,40 @@ impl Engram {
             let graph = self.state.graph.clone();
             let pid = req.project_id.clone();
             let path_s = path.as_str().to_string();
-            let nodes = tokio::task::spawn_blocking(move || {
-                graph
-                    .query_nodes(&pid, None, None, Some(&path_s), 200)
-                    .unwrap_or_default()
-            })
-            .await
-            .unwrap_or_default();
-            let overlapping: Vec<String> = nodes
-                .iter()
-                .filter(|n| {
-                    n.node_type != "file"
-                        && !(n.start_line == 0 && n.end_line == 0)
-                        && n.start_line <= end_line
-                        && start_line <= n.end_line
-                })
-                .take(5)
-                .map(|n| format!("{} ({}) node_id={}", n.name, n.node_type, n.node_id))
-                .collect();
-            if !overlapping.is_empty() {
-                out.push_str(&format!("symbols: {}\n", overlapping.join("; ")));
+            let membership = _source_snapshot.as_ref().map(|view|
+                ps.search.selected_source_revision_lookup(&req.project_id, gen_, view.clone()))
+                .transpose().map_err(|error| error.to_string());
+            // The lookup owns the same source capability inside the blocking
+            // worker, including when cancellation drops the waiting request.
+            let bridge = tokio::task::spawn_blocking(move || -> Result<_, String> {
+                let membership = membership?;
+                let nodes = graph.query_nodes_in_file(&pid, None, &path_s, 200)
+                    .map_err(|error| error.to_string())?;
+                let scan_capped = nodes.len() >= 200;
+                let mut withheld = [0usize; 2];
+                let mut overlapping = Vec::new();
+                let mut admitted = 0usize;
+                for node in nodes.iter().filter(|node| node.node_type != "file"
+                    && !(node.start_line == 0 && node.end_line == 0)
+                    && node.start_line <= end_line && start_line <= node.end_line) {
+                    if !admit_graph_source(membership.as_ref(), Some(node), &mut withheld) { continue; }
+                    admitted += 1;
+                    if overlapping.len() < 5 {
+                        overlapping.push(format!("{} ({}) node_id={} physical revision={}",
+                            node.name, node.node_type, node.node_id, node.generation));
+                    }
+                }
+                Ok((overlapping, withheld, scan_capped, admitted))
+            }).await;
+            match bridge {
+                Ok(Ok((overlapping, withheld, scan_capped, admitted))) => {
+                    if !overlapping.is_empty() { out.push_str(&format!("symbols: {}\n", overlapping.join("; "))); }
+                    let boundary = if req.namespace == "memory" { "selected_source" } else { "live_graph_not_source_admitted" };
+                    out.push_str(&format!("symbol_bridge: {boundary}; source_generation={gen_}; unselected_observations={}; unavailable_observations={}; candidate_scan_capped={scan_capped}; display_omitted={}\n", withheld[0], withheld[1], admitted.saturating_sub(overlapping.len())));
+                    out.push_str("The bridge covers observed same-file overlapping entries only; no complete declaration inventory, current disk freshness, compiler binding or atomic historical graph snapshot is proven.\n");
+                }
+                Ok(Err(error)) => out.push_str(&format!("symbol_bridge: unavailable; mapping withheld, selected document identity retained: {error}\n")),
+                Err(error) => out.push_str(&format!("symbol_bridge: unavailable; mapping worker failed, selected document identity retained: {error}\n")),
             }
             out.push_str("use with: get_chunk(doc_id) for full text\n");
             return Ok(CallToolResult::success(vec![Content::text(out)]));
