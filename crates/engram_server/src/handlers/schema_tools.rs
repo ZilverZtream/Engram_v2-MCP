@@ -41,7 +41,8 @@ impl Engram {
         }
         crate::tool_guidance::annotate(
             "query_schema", &crate::tool_guidance::context(Some(&guidance)),
-            &mut original, &self.tool_router.list_all(), self.state.cfg.advertise_all_tools,
+            &mut original, &crate::tool_surface::registered_for_preset(
+                self.tool_router.list_all(), self.state.cfg.effective_tool_preset()), true,
         );
         delivery.finish(&self.state.cfg.data_dir, original)
     }

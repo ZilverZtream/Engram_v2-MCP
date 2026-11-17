@@ -14,6 +14,7 @@
 //! and `advanced`; their transport handling lives in `read_report_delivery`.
 
 use serde_json::{Map, Value};
+use engram_core::config::ToolPreset;
 
 // Counted structural JSON levels include properties, arrays and nullable
 // branches, not just referenced Rust types. Complete maintenance drafts need
@@ -204,21 +205,45 @@ pub const CORE_TOOLS: &[&str] = &[
     "get_review_decisions",
 ];
 
+/// Workflow roots share Core's project/citation/source/memory/job dependencies.
+/// These are opt-in surfaces, not proof of every specialist's semantic quality.
+pub fn workflow_tools(preset: ToolPreset) -> &'static [&'static str] {
+    match preset {
+        ToolPreset::Development => &[
+            "batch_read", "get_method_info", "search_history", "pre_push_audit",
+        ],
+        ToolPreset::Qa => &[
+            "derive_test_matrix", "analyze_business_logic", "trace_state_usage",
+            "query_schema", "batch_read", "pre_push_audit",
+        ],
+        ToolPreset::Migration => &[
+            "query_schema", "analyze_database_intelligence", "generate_migration_blueprint",
+            "generate_migration_plan", "generate_migration_scaffold", "pre_push_audit",
+        ],
+        ToolPreset::Full | ToolPreset::Core => &[],
+    }
+}
+
+pub fn includes(preset: ToolPreset, name: &str) -> bool {
+    preset == ToolPreset::Full || CORE_TOOLS.contains(&name) || workflow_tools(preset).contains(&name)
+}
+
+/// Navigation needs registration metadata, without rebuilding discovery schemas.
+pub fn registered_for_preset(items: Vec<rmcp::model::Tool>, preset: ToolPreset) -> Vec<rmcp::model::Tool> {
+    items.into_iter().filter(|tool| includes(preset, tool.name.as_ref())).collect()
+}
+
+pub fn advertised_with_preset(items: Vec<rmcp::model::Tool>, preset: ToolPreset) -> Vec<rmcp::model::Tool> {
+    registered_for_preset(items, preset).into_iter()
+        .map(crate::read_report_delivery::advertise)
+        .map(crate::retained_results::advertise)
+        .collect()
+}
+
 /// The one filter `list_tools` applies. `true` (default) advertises every
 /// registered tool, including .NET tools; `false` advertises the core tier.
 pub fn advertised(items: Vec<rmcp::model::Tool>, advertise_all: bool) -> Vec<rmcp::model::Tool> {
-    items
-        .into_iter()
-        .map(crate::read_report_delivery::advertise)
-        .map(crate::retained_results::advertise)
-        .filter(|t| {
-            if advertise_all {
-                true
-            } else {
-                CORE_TOOLS.contains(&t.name.as_ref())
-            }
-        })
-        .collect()
+    advertised_with_preset(items, if advertise_all { ToolPreset::Full } else { ToolPreset::Core })
 }
 
 /// Tools outside the optional core tier.

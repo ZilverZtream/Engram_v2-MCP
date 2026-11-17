@@ -90,7 +90,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Browse tools outside the core tier, with an optional substring filter on name/description. All tools are advertised by default. If configured with advertise_all_tools=false, enable it and reconnect to make advanced tools available to clients."
+        description = "Browse tools outside the core tier, with an optional substring filter on name/description. Full discovery is the default. An explicit tool_preset selects a workflow surface; use tools/list for callable schemas. Set tool_preset=full and reconnect for the complete capability-filtered catalog."
     )]
     pub async fn list_advanced_tools(
         &self,
@@ -99,6 +99,7 @@ impl Engram {
         let filter = params.0.filter.unwrap_or_default().to_ascii_lowercase();
         let mut out = String::new();
         let mut n = 0usize;
+        let preset = self.state.cfg.effective_tool_preset();
         for t in crate::tool_surface::advanced(self.tool_router.list_all()) {
             let desc = t.description.as_deref().unwrap_or("");
             if !filter.is_empty()
@@ -110,6 +111,9 @@ impl Engram {
             n += 1;
             let first = desc.split(". ").next().unwrap_or(desc);
             out.push_str(&format!("- `{}` — {}\n", t.name, first));
+            if !matches!(preset, engram_core::config::ToolPreset::Full | engram_core::config::ToolPreset::Core) {
+                out.push_str(&format!("  advertised_in_active_profile: {}\n", crate::tool_surface::includes(preset, t.name.as_ref())));
+            }
         }
         let header = format!(
             "# Advanced tools — {n} tool(s) outside the core tier ({} core tools){}\n\n",
@@ -120,10 +124,14 @@ impl Engram {
                 format!(", filter `{filter}`")
             }
         );
-        let availability = if self.state.cfg.advertise_all_tools {
+        let availability = if preset == engram_core::config::ToolPreset::Full {
             "active_profile: full\nadvertised_in_active_profile: true\nUse the schemas returned by tools/list. Backend and project-data requirements still apply.\n\n"
+                .to_owned()
+        } else if preset == engram_core::config::ToolPreset::Core {
+            "active_profile: core\nadvertised_in_active_profile: false\nThis catalog describes registered tools; it does not add callable tools to this client. To use these tools, set tool_preset=full (or omit tool_preset and set advertise_all_tools=true), restart Engram, then reconnect the client to refresh tools/list.\n\n"
+                .to_owned()
         } else {
-            "active_profile: core\nadvertised_in_active_profile: false\nThis catalog describes registered tools; it does not add callable tools to this client. To use these tools, set advertise_all_tools=true in the server configuration, restart Engram, then reconnect the client to refresh tools/list.\n\n"
+            format!("active_profile: {}\nadvertised_in_active_profile: mixed\nEach entry marks preset membership; use tools/list for actual callable schemas and project capability filtering. Set tool_preset=full, restart and reconnect for Full.\n\n", preset.as_str())
         };
         Ok(CallToolResult::success(vec![Content::text(format!(
             "{header}{availability}{out}"
@@ -1742,6 +1750,7 @@ impl Engram {
 
 impl ServerHandler for Engram {
     fn get_info(&self) -> ServerInfo {
+        let preset = self.state.cfg.effective_tool_preset();
         let core_instructions = "Engram's limited profile advertises up to 34 tools, filtered by registered project capabilities. Start with \
             `list_projects` and `project_info` to select the project. Use `search_memory` \
             or `grep_project` to find indexed code, then pass returned citation arguments \
@@ -1758,11 +1767,17 @@ impl ServerHandler for Engram {
             tools advertised in this session can be assumed available to this client. \
             Follow returned review evidence calls with `get_review_decisions` for \
             exact retained events or discussions; workflow closure is not policy acceptance. \
-            Set `advertise_all_tools=true`, restart Engram and reconnect the client \
+            Set `tool_preset=full` (or omit tool_preset and set advertise_all_tools=true), restart Engram and reconnect the client \
             when full-profile capabilities are required.";
         ServerInfo {
-            instructions: if !self.state.cfg.advertise_all_tools {
-                Some(core_instructions.to_owned())
+            instructions: if preset != engram_core::config::ToolPreset::Full {
+                if preset == engram_core::config::ToolPreset::Core {
+                    Some(core_instructions.to_owned())
+                } else {
+                    let count = crate::tool_surface::CORE_TOOLS.len() + crate::tool_surface::workflow_tools(preset).len();
+                    let instructions = core_instructions.replacen("limited profile advertises up to 34 tools", &format!("{} profile advertises up to {count} tools", preset.as_str()), 1);
+                    Some(format!("{instructions}\nWorkflow tools added to Core: {}.\n", crate::tool_surface::workflow_tools(preset).join(", ")))
+                }
             } else {
                 Some(
                     "Engram gives agents a persistent, indexed memory of a codebase: hybrid \
@@ -1825,8 +1840,8 @@ impl ServerHandler for Engram {
         let mut result = self.tool_router.call(tcc).await;
         if let (Some(guidance_input), Ok(response)) = (&guidance_input, &mut result) {
             let guidance = crate::tool_guidance::annotate(
-                &tool_name, guidance_input, response, &self.tool_router.list_all(),
-                self.state.cfg.advertise_all_tools,
+                &tool_name, guidance_input, response, &crate::tool_surface::registered_for_preset(
+                    self.tool_router.list_all(), self.state.cfg.effective_tool_preset()), true,
             );
             tracing::debug!(tool = %tool_name, guidance, "specialty tool navigation");
         }
@@ -1863,9 +1878,9 @@ impl ServerHandler for Engram {
         _context: rmcp::service::RequestContext<rmcp::RoleServer>,
     ) -> Result<ListToolsResult, McpError> {
         // Full discovery by default; constrained clients can opt into core.
-        let mut items = crate::tool_surface::advertised(
+        let mut items = crate::tool_surface::advertised_with_preset(
             self.tool_router.list_all(),
-            self.state.cfg.advertise_all_tools,
+            self.state.cfg.effective_tool_preset(),
         );
         let registry = self.state.registry.clone();
         let projects = tokio::task::spawn_blocking(move || registry.list_projects()).await

@@ -1632,3 +1632,44 @@ source hashes, applicable guidance, scope/coverage limits and executable recover
 with the same action and path prefixes. These are static candidates; runtime
 dispatch and execution remain unproved. Saved ask-report recovery preserves the
 original captured answer, while a fresh trace reads then-current evidence.
+
+### Named workflow tool presets
+
+`tool_preset` optionally selects `full`, `core`, `development`, `qa`, or
+`migration` for the server instance. It overrides `advertise_all_tools` when
+present. Omit it to preserve the existing boolean behavior: Full by default,
+Core when `advertise_all_tools: false`. Unknown preset names are rejected.
+Restart the server and reconnect clients after changing its tool surface.
+
+```yaml
+tool_preset: qa
+```
+
+Each named workflow includes the 34 Core tools for project selection, source
+and citation reads, memory sections, review records, indexing/jobs and edit
+sessions. The additions and maximum counts before project capability filtering are:
+
+| Preset | Maximum | Added workflow tools |
+| --- | ---: | --- |
+| development | 38 | batch_read, get_method_info, search_history, pre_push_audit |
+| qa | 40 | derive_test_matrix, analyze_business_logic, trace_state_usage, query_schema, batch_read, pre_push_audit |
+| migration | 40 | query_schema, analyze_database_intelligence, generate_migration_blueprint, generate_migration_plan, generate_migration_scaffold, pre_push_audit |
+
+These surfaces use the same registered schemas and handlers as Full. Actual
+`tools/list` also applies existing project capability filters; the presets do
+not disable .NET support for WebForms/VB projects. Full continues to advertise
+all registered tools allowed by those capabilities. Existing Full/Core
+configuration remains supported, including the normal LegacyValidation Full configuration.
+
+Returned structured navigation uses preset membership. QA can advertise its
+focused test-matrix call without offering the excluded N+1 tool. Schema
+clarification retains typed query_schema calls in QA/migration and the existing
+ask_codebase fallback in development/Core. Named presets include pre_push_audit,
+so completed sessions can supply their exact-base maintenance-only actions.
+The actions still require explicit invocation; they do not write or approve policy.
+
+Only advertised tools can be assumed callable by a client. Preset membership
+does not grant every specialist mentioned in prose, satisfy model/backend/data
+requirements, establish migration-code correctness or prove task productivity.
+For the full catalog select `tool_preset: full`; setting the legacy boolean alone
+does not override an explicit workflow preset.

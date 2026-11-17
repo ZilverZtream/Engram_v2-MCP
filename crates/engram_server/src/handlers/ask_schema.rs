@@ -195,7 +195,7 @@ pub(super) async fn gather(
                         _ => format!("Source table {}", table["name"]),
                     }),
                     content: if ambiguous {
-                        let recovery = if engram.state.cfg.advertise_all_tools {
+                        let recovery = if crate::tool_surface::includes(engram.state.cfg.effective_tool_preset(), "query_schema") {
                             json!({"tool":"query_schema","arguments":{"project_id":project_id,
                                 "query_type":if is_procedure {json!({"kind":"stored_proc","sp_name":row["name"]})}
                                     else {json!({"kind":"table","name":row["name"]})}}})

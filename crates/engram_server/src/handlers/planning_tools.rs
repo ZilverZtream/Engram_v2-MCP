@@ -13676,7 +13676,8 @@ impl Engram {
         out.push_str(&policy);
         out.push_str(&check_text);
         let maintenance = edit_session_maintenance::handoff(&req.project_id,
-            session["snapshot"]["head"].as_str(), &edited, self.state.cfg.advertise_all_tools);
+            session["snapshot"]["head"].as_str(), &edited,
+            crate::tool_surface::includes(self.state.cfg.effective_tool_preset(), "pre_push_audit"));
         out.push_str("\n## Instruction maintenance handoff (review not performed)\n```json\n");
         out.push_str(&serde_json::to_string_pretty(&maintenance)
             .map_err(|error| McpError::internal_error(error.to_string(), None))?);

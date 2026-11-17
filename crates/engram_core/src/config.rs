@@ -4,6 +4,30 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+/// An explicit workflow surface overrides the legacy Full/Core switch.
+/// Tool availability still depends on registered project capabilities.
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolPreset {
+    Full,
+    Core,
+    Development,
+    Qa,
+    Migration,
+}
+
+impl ToolPreset {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Full => "full",
+            Self::Core => "core",
+            Self::Development => "development",
+            Self::Qa => "qa",
+            Self::Migration => "migration",
+        }
+    }
+}
+
 // ENG-AUD-2026-N2-0001: reject unknown YAML keys so operator typos are caught at startup.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -281,6 +305,11 @@ pub struct Config {
     /// Schemas are sanitized in both modes.
     #[serde(default = "default_true")]
     pub advertise_all_tools: bool,
+
+    /// Optional Full/Core or development/qa/migration workflow surface.
+    /// When absent, advertise_all_tools keeps its existing meaning and default.
+    #[serde(default)]
+    pub tool_preset: Option<ToolPreset>,
 
     // --- ADP vNext ---
     /// Default evidence depth: "fast", "standard", or "deep". Default: "standard".
@@ -579,6 +608,7 @@ impl Default for Config {
             multi_client_connect_timeout_secs: default_multi_client_connect_timeout_secs(),
             log_file: None,
             advertise_all_tools: true,
+            tool_preset: None,
             adp_default_evidence_depth: default_adp_evidence_depth(),
             adp_cache_retrieval: default_adp_cache_retrieval(),
             adp_evidence_timeout_ms: default_adp_evidence_timeout_ms(),
@@ -598,6 +628,14 @@ impl Default for Config {
 }
 
 impl Config {
+    pub fn effective_tool_preset(&self) -> ToolPreset {
+        self.tool_preset.unwrap_or(if self.advertise_all_tools {
+            ToolPreset::Full
+        } else {
+            ToolPreset::Core
+        })
+    }
+
     fn validate_positive_usize(field: &str, value: usize) -> Result<()> {
         if value == 0 {
             return Err(EngramError::Config(format!("{field} must be > 0")));

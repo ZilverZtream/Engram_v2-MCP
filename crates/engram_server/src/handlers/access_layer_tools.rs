@@ -4376,12 +4376,15 @@ impl Engram {
         .map_err(|e| McpError::internal_error(e.to_string(), None))?;
 
         let mut ctx = result.map_err(|e| McpError::invalid_params(e, None))?;
-        if self.state.cfg.advertise_all_tools && ctx.method_info.line_start>0 {
+        if ctx.method_info.line_start>0 {
             let info=&ctx.method_info;
-            ctx.focused_checks.push(serde_json::json!({"tool":"derive_test_matrix","arguments":{
-                "project_id":req.project_id,"files":[info.file_path],
-                "methods":[{"file_path":info.file_path,"line_start":info.line_start}]}}));
-            if matches!(info.language.as_str(),"vb"|"vbnet") {
+            let preset=self.state.cfg.effective_tool_preset();
+            if crate::tool_surface::includes(preset,"derive_test_matrix") {
+                ctx.focused_checks.push(serde_json::json!({"tool":"derive_test_matrix","arguments":{
+                    "project_id":req.project_id,"files":[info.file_path],
+                    "methods":[{"file_path":info.file_path,"line_start":info.line_start}]}}));
+            }
+            if matches!(info.language.as_str(),"vb"|"vbnet") && crate::tool_surface::includes(preset,"detect_n_plus_one") {
                 ctx.focused_checks.push(serde_json::json!({"tool":"detect_n_plus_one","arguments":{
                     "project_id":req.project_id,"file_path":info.file_path,"method_start_line":info.line_start}}));
             }
