@@ -2751,9 +2751,19 @@
     "full_or_lib_suite": false,
     "extra_debug_build": false,
     "reason_for_validation": "Three separately useful original workflow gaps are source-complete with finite contracts, existing installed gap evidence and fixed user-facing behavior cases. The selected source items and necessary preset compatibility corrections are finished; no additional source change has been selected for this batch. Validate these integrated outcomes before claiming or deploying behavior. The minimum is not an automatic release schedule.",
-    "engram_builds_started": 0,
+    "engram_builds_started": 1,
     "full_original_goal_active": true,
-    "at_utc": "2026-11-17T12:53:41.677623+00:00"
+    "at_utc": "2026-11-17T12:53:41.677623+00:00",
+    "validation_status": "NATIVE1_STARTING",
+    "shipping_source_commit": "53f858bddc9de4a3854b0687576458a6defbeb67",
+    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\source-preparation.json",
+    "native_commands_started": 1,
+    "release_commands_started": 0,
+    "native_exec_session_id": 86192,
+    "native_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-owner.json",
+    "native_commands_terminal": false,
+    "public_driver_sha256": "4a013109a9a611b0a3cd494e0e12389d440a61d79c7c8aa3272d576a2387caae",
+    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\release-plan.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3161,8 +3171,8 @@
     "completion_terminal_exit_code": 0
   },
   "previous_goal_turn_classification": {
-    "classification": "PROGRESS_SOURCE_IMPLEMENTATION",
-    "evidence": "Public path-first review discovery implemented using existing bounded reader, three focused native cases written, installed unknown-field gap established from retained0.74s wire, source syntax passed; no build started."
+    "classification": "PROGRESS_SOURCE_IMPLEMENTATION_AND_FOCUSED_VALIDATION_STARTED",
+    "evidence": "EG19 path-first discovery source7062086 committed; three original source outcomes queued; shipping53f858b has exact canonical committed source and retained WIP unchanged. Native16case session86192 running; no extra debug/release/full suite. Public and owned install scripts prepared, old runtime identities pinned."
   },
   "scoped_http_ask_progress_20261117": "eval/scoped-http-ask-progress-20261117.json",
   "retained_scoped_http_source_focus_20261117": {
