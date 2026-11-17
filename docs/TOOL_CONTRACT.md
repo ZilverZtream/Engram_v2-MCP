@@ -1452,7 +1452,7 @@ reports through saved recovery. Historical requests keep their separate Git
 source path and never consult current SQL. These are source declarations, not
 deployed database state; ALTER/DROP, default schema and collation are not inferred.
 
-Source change November17 (combined validation/deployment pending): unambiguous
+Installed 2026-11-17 ([delivery](../eval/guidance-sql-review-batch-delivery-20261117.json)): unambiguous
 table answers retain the existing reader's complete row, including index/key
 constraints, trigger/view/procedure metadata, and separately cited ALTER foreign-key
 and column candidates. Related object bodies can remain deferred as disclosed by
@@ -1972,7 +1972,7 @@ usefulness remain unproved where the source evidence does not establish them.
 
 ## Review finding qualifications
 
-Source change November17 (combined validation/deployment pending):
+Installed 2026-11-17 ([delivery](../eval/guidance-sql-review-batch-delivery-20261117.json)):
 `ingest_review_findings` retains complete submitted messages when promoting them
 to repo rules, including conditions and exceptions beyond the former 300-character
 prefix. Rule identity uses that complete text, so two findings with the same prefix

@@ -2554,35 +2554,7 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [
-      {
-        "original_requirement_id": "EG-27",
-        "progress": "eval/inline-linked-guidance-progress-20261117.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "a22c1a103279b95ddd28caf8d8692b2b04e510dd",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
-        "source_outcomes": 1,
-        "runtime_deployed": false
-      },
-      {
-        "original_requirement_id": "TODO-28",
-        "progress": "eval/ask-sql-related-declarations-progress-20261117.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
-        "source_outcomes": 1,
-        "runtime_deployed": false
-      },
-      {
-        "original_requirement_id": "EG-07",
-        "progress": "eval/review-finding-qualifications-progress-20261117.json",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "52c4022d60b189c3ac12fb5cdfff72edb70e32ce",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\contract.json",
-        "source_outcomes": 1,
-        "runtime_deployed": false
-      }
-    ],
+    "next_batch_pending": [],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2812,22 +2784,17 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "NATIVE_AND_DEBUG_ACCEPTED_OPTIMIZED_RELEASE_RUNNING",
-    "original_requirement_ids": [
-      "EG-27",
-      "TODO-28",
-      "EG-07"
-    ],
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
-    "shipping_source_commit": "5c7e6e066041e269f51d62abbd1aedf198d80da4",
-    "source_outcomes": 3,
-    "active_implementation_items": 0,
-    "expected_native_cases": 14,
-    "expected_public_checks": 31,
+    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
+    "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "pending_source_outcomes": 0,
+    "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "next_action": "Poll live57881/release1 only. Native81108/12915 and debug31494 are terminal; do not restart. After releasePASS, package and execute candidate/installed31checks using prepared deploy7, then restore normal runtime and verify215assets/ZIP.",
-    "live_session": 57881
+    "previous_goal_turn_classification": {
+      "classification": "PROGRESS_IMPLEMENTED_VALIDATED_DEPLOYED",
+      "evidence": "eval/guidance-sql-review-batch-delivery-20261117.json"
+    },
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not poll/restart terminal handles or replay this delivered batch."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2935,10 +2902,10 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "record": "eval/contract-config-review-batch-delivery-20261117.json",
-    "server_sha256": "ab166a7b4e810c9c2796ab076bf14d776fba62ec589a61363c21cee5e49e6b59",
-    "manifest_sha256": "6b98678cd4eff767c47abcf0ea0f5891a3e56c52589b3ecb0d4cceec6ace52ee",
-    "shipping_source_commit": "5fd11fa4b08970da0e47d9dd50902aaff32fec56",
+    "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "server_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+    "manifest_sha256": "e9870c9bdfcaa740a6686e7252bc8d2f0eca59af49591675750fb4e3e4d78b8c",
+    "shipping_source_commit": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -3669,8 +3636,8 @@
   },
   "active_delivery_batch_20261117": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
-    "stage": "OPTIMIZED_RELEASE_RUNNING",
-    "runtime_deployed": false,
+    "stage": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
     "native_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
     "native_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-owner.json",
     "expected_native_cases": 14,
@@ -3679,9 +3646,9 @@
     "launch_priority": "BelowNormal",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\source-preparation.json",
     "active_implementation_items": 0,
-    "next_action": "Poll live57881/release1 only. Native81108/12915 and debug31494 are terminal; do not restart. After releasePASS, package and execute candidate/installed31checks using prepared deploy7, then restore normal runtime and verify215assets/ZIP.",
-    "unified_exec_session_id": 57881,
-    "unified_exec_session_status": "RUNNING",
+    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not poll/restart terminal handles or replay this delivered batch.",
+    "unified_exec_session_id": 73709,
+    "unified_exec_session_status": "TERMINAL_PASS",
     "driver_pid": 105076,
     "relay_pid": 123492,
     "priority_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-priority.json",
@@ -3695,7 +3662,14 @@
     "native_commands": 2,
     "public_checks_passed": 31,
     "release_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1-owner.json",
-    "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1-state.json"
+    "release_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1-state.json",
+    "release_session_status": "TERMINAL_PASS",
+    "deployment_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\deployment7-state.json",
+    "package_pair": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\pair1.json",
+    "installed_server_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+    "installed_public_checks": 31,
+    "completion_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\completion4-state.json",
+    "record": "eval/guidance-sql-review-batch-delivery-20261117.json"
   },
   "previous_runtime_before_preset_browser_bootstrap_20261117": {
     "record": "eval/maintenance-history-interaction-batch-delivery-20261117.json",
@@ -3799,7 +3773,11 @@
     "source_commit": "ff784c52b09873aa99df70a3ad6eeee067aff42f",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117\\contract.json",
     "source_outcomes": 1,
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "queue_membership": "CLEARED_AFTER_INSTALLED_ACCEPTANCE",
+    "historical_source_status": true
   },
   "queued_ask_sql_related_declarations_20261117": {
     "original_requirement_id": "TODO-28",
@@ -3808,7 +3786,11 @@
     "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
     "source_outcomes": 1,
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "queue_membership": "CLEARED_AFTER_INSTALLED_ACCEPTANCE",
+    "historical_source_status": true
   },
   "queued_review_finding_qualifications_20261117": {
     "original_requirement_id": "EG-07",
@@ -3817,6 +3799,30 @@
     "source_commit": "52c4022d60b189c3ac12fb5cdfff72edb70e32ce",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\contract.json",
     "source_outcomes": 1,
-    "runtime_deployed": false
+    "runtime_deployed": true,
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "delivery_record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "queue_membership": "CLEARED_AFTER_INSTALLED_ACCEPTANCE",
+    "historical_source_status": true
+  },
+  "previous_runtime_before_guidance_sql_review_20261117": {
+    "record": "eval/contract-config-review-batch-delivery-20261117.json",
+    "server_sha256": "ab166a7b4e810c9c2796ab076bf14d776fba62ec589a61363c21cee5e49e6b59",
+    "manifest_sha256": "6b98678cd4eff767c47abcf0ea0f5891a3e56c52589b3ecb0d4cceec6ace52ee",
+    "shipping_source_commit": "5fd11fa4b08970da0e47d9dd50902aaff32fec56",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "guidance_sql_review_batch_delivery_20261117": {
+    "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "EG-27",
+      "TODO-28",
+      "EG-07"
+    ],
+    "full_original_goal_complete": false
   }
 }

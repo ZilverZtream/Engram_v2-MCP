@@ -1,0 +1,167 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-17T22:03:04.201501+00:00",
+  "original_requirement_ids": [
+    "EG-27",
+    "TODO-28",
+    "EG-07"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
+  "source_preparation": {
+    "status": "COMMITTED_SOURCE_PREPARED",
+    "canonical_root_head": "a22c1a103279b95ddd28caf8d8692b2b04e510dd",
+    "previous_shipping_head": "5fd11fa4b08970da0e47d9dd50902aaff32fec56",
+    "shipping_head": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "changed_source_sha256": {
+      "crates/engram_server/src/handlers/ask_schema.rs": "1925780e7c9098e6799500445c3746a69f68aba08e5e4b36ef82f8b30159a549",
+      "crates/engram_server/src/handlers/ask_tools.rs": "87ca7c4058867986765969bbd822a861d1a07b556a4b78c4c5044459348d4d8c",
+      "crates/engram_server/src/handlers/planning_tools.rs": "981ff5f632929db2ebcde1ee154350ca13be2d33f232af3ef65b2da544f7258e",
+      "crates/engram_server/src/models/requests.rs": "fc41a922a4f8b37800d7c4654972ddfec7284bd69bc4ddb10269dcffc619757f",
+      "crates/engram_server/src/services/ask_engine/report.rs": "bd91459acda3d7cf307852a1e5dc3b34f3925e395b7ee80d0e76fbb26bf4155a",
+      "crates/engram_server/src/services/project_policy.rs": "0a74e20b67a16909700509691e28947de1c3100eab25d23ee9a8a4028439fe2b",
+      "crates/engram_server/src/services/project_policy/linked_sources.rs": "a03e74fc15767d60d4316ae836f3e1e68dfb87197058e63d8843406e1e6f9b02",
+      "crates/engram_server/src/services/project_policy/references.rs": "de99448ecbf9988cc46e33fecf124c7e8e9ce306491e13bf475d0797749491e5",
+      "crates/engram_server/src/tools.rs": "ff1e0f9df8dc59899e298be0e254a92ebbb3a8fd029c8affe5420e6802429d9f",
+      "crates/engram_server/tests/ask_sql_related_declarations.rs": "13946bb48c2b441504f09180f20efacb8fb2c29abb6e34be2a6d2e87b9869958",
+      "crates/engram_server/tests/inline_policy_paths_tests.rs": "a45fda033fc035c5646081f96443d7baa897d4dca72e14cf322be8bc4e2c7bb8",
+      "crates/engram_server/tests/review_finding_qualifications.rs": "fb5730431048424b507aa2e3daa0422ddc1ba7aed257758d6e009e51027131b3",
+      "docs/TOOL_CONTRACT.md": "57c9b5e8b94eef92c63b3ad8c8d00df6e9b0bb859a86c1e8113765723e1b2855"
+    },
+    "protected_wip9": "UNCHANGED_EXCLUDED",
+    "new_worktrees_created": 0,
+    "builds_started": 0,
+    "active_implementation_items": 0,
+    "source_outcomes": 3,
+    "selection": "All three selected genuine original source outcomes are complete. Rust type/native and ordinary MCP behavior need validation on one exact server; no more source work is selected. This is not filler or a timed release cadence.",
+    "native_targets": [
+      "inline_policy_paths_tests",
+      "linked_policy_sources_tests",
+      "ask_sql_related_declarations",
+      "ask_sql_schema_tests",
+      "review_finding_qualifications"
+    ],
+    "expected_native_cases": 14,
+    "expected_public_checks": 31,
+    "launch_priority": "BelowNormal",
+    "cargo_parallel_jobs": 1,
+    "component_progress": [
+      "eval/inline-linked-guidance-progress-20261117.json",
+      "eval/ask-sql-related-declarations-progress-20261117.json",
+      "eval/review-finding-qualifications-progress-20261117.json"
+    ],
+    "public_verifiers_sha256": {
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117": "d1676373ab04b4086d8d8af98e810cebe148dfb79ea7bc25705c7b6152baa9fe",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117": "b78aa3e659172c500ed1484ff7115be8452e81e9bbb159ee88402563ac75a0b1",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117": "cfab2d55ec2b1950d4b99f01f819df91606a812cab1925abcc137b4838ff3c46"
+    },
+    "native_correction": "native1 retained4SQLpasses; reference-cap omission counter corrected without changing fixtures/oracle. native2reruns3inlinecases and7unrun linked/reviewcases. Final exact-artifact SQL public acceptance still required."
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\package1",
+    "server_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+    "manifest_sha256": "e9870c9bdfcaa740a6686e7252bc8d2f0eca59af49591675750fb4e3e4d78b8c",
+    "old_server_sha256": "ab166a7b4e810c9c2796ab076bf14d776fba62ec589a61363c21cee5e49e6b59",
+    "old_manifest_sha256": "6b98678cd4eff767c47abcf0ea0f5891a3e56c52589b3ecb0d4cceec6ace52ee",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1.json",
+      "sha256": "8c9ba5d0cf88ea6ff3184200e8f368f0d78735ab02886c654391e507ab2c9f95"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "6b98678cd4eff767c47abcf0ea0f5891a3e56c52589b3ecb0d4cceec6ace52ee",
+      "capture_phase": "Before pair swap; immutable input companion manifest, not the current installed manifest."
+    },
+    "source_commit": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 14,
+    "native_case_executions": 17,
+    "native_commands": 2,
+    "latest_successful_native_label": "native2",
+    "native_total_seconds": 1380.4496079999954,
+    "target_case_counts": {
+      "ask_sql_related_declarations": 3,
+      "ask_sql_schema_tests": 1,
+      "inline_policy_paths_tests": 3,
+      "linked_policy_sources_tests": 4,
+      "review_finding_qualifications": 3
+    },
+    "retained_sql_passes": {
+      "count": 4,
+      "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1.json",
+      "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-source-correction.json",
+      "scope": "Only the inline omission-count branch changed; SQL fixtures have no inline path references. Four SQL native passes were retained. All11SQLpublic checks subsequently passed on the final debug/candidate/installed artifacts."
+    },
+    "current_source_native_cases": 10,
+    "source_corrections": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_checks_per_artifact": 31,
+  "public_receipts": {
+    "debug1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\debug1\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-source-correction.json",
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\Engram-win-x64-guidance-sql-review.zip",
+    "sha256": "18A79FA7040AA0479799D788EF4C5B43B58155AED85CFA829D271ACF0296B458",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "E9870C9BDFCAA740A6686E7252BC8D2F0ECA59AF49591675750FB4E3E4D78B8C"
+  },
+  "build_accounting": {
+    "native_invocations": 2,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_seconds": 1380.4496079999954,
+    "release_seconds": 2711.386137100053,
+    "pure_coding_percentage": null,
+    "note": "One new omission-count defect triggered a3line correction. Retained4unaffected SQLnativepasses;10follow-up cases passed. All31public checks passed on final debug/candidate/installed artifacts. Source/read/design/check time is not pure coding."
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-fab364c5030e4955a182f25532d0cf64",
+    "retention": "Keep source/build/acceptance/ZIP/rollback evidence; remove retained paths only under their recorded cleanup conditions and exact-path authorization.",
+    "intentionally_retained_runtime": "Normal installed daemon under ordinary application lifecycle.",
+    "retained_component_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\inline-linked-guidance-20261117",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117"
+    ],
+    "recorded_scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "limitations": [
+    "Inline candidate paths/bodies do not establish the author-intended path base, authority, semantic applicability or policy compliance; nested links remain unexpanded and existing caps apply.",
+    "SQL metadata/index/ALTER observations do not establish deployed schema, default-schema binding, migration order or execution. Deferred bodies require their recovery actions.",
+    "Full finding preservation prevents new qualification loss/identity collapse. Existing truncated rules/94legacy ownership decisions are not migrated, deleted, adopted or resolved; imported text is not authenticated policy or guaranteed defect prevention.",
+    "Original31findings/19gates, held work and semantic/task-usefulness requirements remain open."
+  ],
+  "priority_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-priority.json",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native1-launch.json",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-launch.json",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1-priority.json",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\release1-launch.json"
+  ]
+}

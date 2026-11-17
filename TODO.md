@@ -423,6 +423,11 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed November17: named-table answers retain the existing SQL reader's related
+  indexes/key constraints, trigger/view/procedure metadata and ALTER candidates,
+  with independent citations, scoped guidance, complete Markdown evidence and
+  callable Core source recovery. Deployed schema/execution remain unproven.
+  [Delivery](eval/guidance-sql-review-batch-delivery-20261117.json).
   Installed November17: ordinary exact setting-key questions now include raw
   `appSettings` declarations with file hashes and callable source recovery, alongside
   separate VB getter evidence. Multiple files stay distinct; effective values,

@@ -1,5 +1,5 @@
 {
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement_id": "EG-07",
   "original_requirement": "Preserve complete authored qualifications when review/instruction evidence is imported into guidance; do not convert a qualified source into a broader mandate.",
   "observed_missing_behavior": "ingest_review_findings indexes complete messages but cuts promoted repo-rule text to300characters. Two messages sharing that prefix also generate the same rule identity and overwrite one another. Rule injection then supplies the incomplete promoted text.",
@@ -22,7 +22,7 @@
   ],
   "native_tests_executed": 3,
   "engram_builds_started": 0,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_requirement_complete": false,
   "resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117",
@@ -63,17 +63,20 @@
     "crates/engram_server/tests/review_finding_qualifications.rs": "fb5730431048424b507aa2e3daa0422ddc1ba7aed257758d6e009e51027131b3"
   },
   "limits": [
-    "Focused native and final debug public acceptance passed; optimized release/candidate/installed acceptance is pending. Installed ab166a7 and normal LegacyValidation corpus/config unchanged.",
+    "Focused native and exact-artifact debug/candidate/installed public acceptance passed. Broader original authority, semantic/usefulness, held and platform requirements remain open.",
     "This prevents new text loss/identity collapse; it does not reconstruct lost qualifications, migrate existing truncated rules, infer ownership or resolve the94live legacy policy decisions.",
     "Complete imported text is not authenticated policy, semantic applicability, guaranteed recurrence prevention or measured agent benefit. Prior index/rule writes can remain after a later promotion error."
   ],
-  "next_action": "All3selected independent original source outcomes are ready and native/user-facing validation is now needed. Freeze a combined source checkout and run focused14native cases/31public checks; no full suite or separate debug build.",
-  "validation_status": "NATIVE_AND_DEBUG_PASS_RELEASE_RUNNING",
+  "next_action": "Finite component accepted and installed. Advance the next ready original requirement without replaying this batch; broader original limits remain.",
+  "validation_status": "PASS",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117",
   "native_batch_state": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native2-state.json",
   "shared_build_accounting": "Two focused native invocations:17executions cover14unique cases. Native1found one omission-counter defect;3source lines corrected and native2ran10cases, retaining4unaffected SQLpasses. All31public checks pass on the final implicit debug executable. One optimized release is now running; no full suite/extra debug build.",
   "native_validation_status": "PASS",
   "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-sql-review-batch-20261117\\native-acceptance.json",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\guidance-sql-review-batch-20261117-debug1\\receipt.json",
-  "native_unique_primary_cases_covered": 3
+  "native_unique_primary_cases_covered": 3,
+  "delivery_record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+  "installed_runtime_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\guidance-sql-review-batch-20261117-installed1\\receipt.json"
 }
