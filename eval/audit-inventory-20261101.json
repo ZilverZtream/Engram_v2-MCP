@@ -295,6 +295,12 @@
         "record": "eval/instruction-update-source-batch-delivery-20261117.json",
         "finite_component_installed": true,
         "full_original_requirement_complete": false
+      },
+      "page_context_guidance_source_progress_20261117": {
+        "record": "eval/page-context-guidance-progress-20261117.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "runtime_deployed": false,
+        "whole_finding_complete": false
       }
     },
     {
