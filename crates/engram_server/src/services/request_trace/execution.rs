@@ -45,6 +45,8 @@ pub struct PageTrace {
     pub control_routes: Option<super::control_routes::Resolution>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub master_pages: Option<super::master_pages::Resolution>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub base_context: Option<super::base_pages::Resolution>,
     pub handlers: Vec<Handler>,
     pub paths: Vec<Hop>,
     pub source_members: Vec<serde_json::Value>,
@@ -155,7 +157,7 @@ pub(crate) fn verified_node(
 }
 
 /// A source-authored binding, not a suffix-based guess that every *_Click runs.
-fn handler_bindings(
+pub(super) fn handler_bindings(
     markup: &str,
     source: &str,
     methods: &[Node],
@@ -196,7 +198,7 @@ fn handler_bindings(
                 let event = binding[2].text.as_str();
                 if (lifecycle_context
                     && matches!(control.to_ascii_lowercase().as_str(), "me" | "mybase")
-                    && (event.eq_ignore_ascii_case("init") || event.eq_ignore_ascii_case("load")))
+                    && (event.eq_ignore_ascii_case("preinit") || event.eq_ignore_ascii_case("init") || event.eq_ignore_ascii_case("load")))
                     || click.is_some_and(|target| {
                         control.eq_ignore_ascii_case(target) && event.eq_ignore_ascii_case("click")
                     })
@@ -232,7 +234,7 @@ fn handler_bindings(
             }
         }
         if lifecycle_context
-            && (name.eq_ignore_ascii_case("Page_Init") || name.eq_ignore_ascii_case("Page_Load"))
+            && (name.eq_ignore_ascii_case("Page_PreInit") || name.eq_ignore_ascii_case("Page_Init") || name.eq_ignore_ascii_case("Page_Load"))
             && attribute(markup, "AutoEventWireup")
                 .is_some_and(|value| value.eq_ignore_ascii_case("true"))
         {
@@ -320,6 +322,7 @@ pub fn trace_page(
     }
     result.control_event = requested_event.map(|(control, event)| super::control_events::collect(page.path, page.content, control, event));
     let mut chosen = handler_bindings(&markup, source.content, &methods, action, result.control_event.as_ref());
+    add_base_context(graph,project,&mut result,*page,*source,&mut chosen,sources,selected)?;
     if chosen.is_empty() {
         result.gaps.push("No requested authored handler binding found; dynamic, multiline and inherited bindings are not inferred".into());
     }
@@ -337,6 +340,12 @@ fn merge_context_entry(chosen:&mut Vec<(Node,String)>,node:Node,binding:String,g
     else if !gaps.iter().any(|gap|gap.starts_with("Master context entry cap")) {
         gaps.push(format!("Master context entry cap{MAX_NODES} reached; remaining entries unexamined"));
     }
+}
+
+fn add_base_context<'a>(graph:&Arc<GraphStore>,project:&str,result:&mut PageTrace,page:Source<'a>,code:Source<'a>,chosen:&mut Vec<(Node,String)>,sources:&[Source<'a>],selected:&BTreeMap<String,u64>)->anyhow::Result<()> {
+    let (context,entries)=super::base_pages::collect(graph,project,page,code,sources,selected)?;
+    for (node,binding) in entries {merge_context_entry(chosen,node,binding,&mut result.gaps);}
+    result.base_context=context;Ok(())
 }
 
 fn add_master_context<'a>(graph:&Arc<GraphStore>,project:&str,result:&mut PageTrace,page:Source<'a>,chosen:&mut Vec<(Node,String)>,sources:&[Source<'a>],selected:&BTreeMap<String,u64>)->anyhow::Result<()> {
@@ -391,7 +400,11 @@ fn trace_control_instances<'a>(
     let mut positions:BTreeMap<String,usize>=BTreeMap::new();
     for markup_source in markup_files {
         let Some(code)=control_codebehind(markup_source,sources,&mut result.gaps) else {continue};
-        if markup_source.path==page.path {result.codebehind=Some(code.path.into());}
+        if markup_source.path==page.path {
+            result.codebehind=Some(code.path.into());
+            add_base_context(graph,project,&mut result,page,code,&mut chosen,sources,selected)?;
+            for (position,(node,_)) in chosen.iter().enumerate() {positions.insert(node.node_id.clone(),position);}
+        }
         let mut methods=graph.query_nodes_in_file(project,Some("function"),code.path,MAX_METHODS+1)?;
         if methods.len()>MAX_METHODS {methods.truncate(MAX_METHODS);result.gaps.push(format!("{}: method inventory truncated at{MAX_METHODS}",code.path));}
         let is_terminal=routes.terminals.iter().any(|path|path==markup_source.path);
@@ -426,6 +439,7 @@ pub(super) fn empty_trace(path: &str, include_db: bool, include_triggers: bool) 
         control_event: None,
         control_routes: None,
         master_pages: None,
+        base_context: None,
         handlers: Vec::new(),
         paths: Vec::new(),
         source_members: Vec::new(),

@@ -689,6 +689,23 @@ omissions and recovery use the shared policy resolver; guidance changes require
 no reindex. Current guidance does not verify pattern freshness or runtime UI
 behavior. Existing complete-response budgets and captured-result recovery apply.
 
+### Root page project-base context
+
+`trace_user_request` can include `base_context` for a VB root page's existing
+resolved project inheritance edges. The class named by the current admitted
+`Page.Inherits` directive must match one selected source declaration. Root/base
+class identities, edge revisions, complete-file hashes and handler declaration
+owners are checked before base PreInit/Init/Load context is added. Unresolved,
+ambiguous or changed source stays explicit; there is no name-only base binding.
+At most four project bases contribute context. Existing source/call/database
+traversal, deduplication and complete-response recovery still apply.
+
+The returned inheritance links and authored event subscriptions are static
+source observations. They do not prove base-handler execution, event order,
+authorization or the effective master page. Conditional master assignments
+remain unexecuted source evidence. Overrides, external framework behavior and
+master/control inheritance are not resolved by this root-page context.
+
 ### Database analysis delivery
 
 Database intelligence table/column/key reports use the same declaration
