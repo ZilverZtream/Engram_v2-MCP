@@ -27,7 +27,7 @@ impl Fixture {
         let state_id = engram_core::ids::NodeId::state("Session", "K").0;
         let mut nodes = Vec::new();
         for (id, kind, name, first, last) in [
-            (format!("file:{FILE}"), "file", FILE, 1, 8),
+            (format!("file:{FILE}"), "file", FILE, 0, 0),
             ("writer".into(), "function", "StateDemo.SetProject", 2, 4),
             ("reader".into(), "function", "StateDemo.GetProject", 5, 7),
             (state_id, "global_state", "Session:K", 1, 1),
@@ -147,6 +147,22 @@ fn admitted_reader_and_writer_facts_keep_real_source_hashes_spans_and_graph_endp
         );
     }
     ensure!(fixture.collect(&["Elsewhere".into()])?.items.is_empty());
+    fixture.edge(&format!("file:{FILE}"), EdgeKind::ReadsState, 1)?;
+    let with_file = fixture.collect(&[])?;
+    let file_item = with_file
+        .items
+        .iter()
+        .find(|item| item.title.as_deref().unwrap_or("").ends_with(FILE))
+        .expect("File-scoped reader must remain recoverable");
+    let file_fact: Value = serde_json::from_str(&file_item.content)?;
+    ensure!(file_item.lines.is_none() && file_fact["source_scope"] == "file");
+    ensure!(file_fact["source_excerpt"].is_null() && file_fact["declaration_lines"].is_null());
+    ensure!(file_fact["source_recovery"]["arguments"]["line_start"] == 1);
+    ensure!(
+        with_file
+            .qualify_status(engram_server::services::ask_engine::status::AnswerStatus::Answered)
+            == engram_server::services::ask_engine::status::AnswerStatus::Partial
+    );
     Ok(())
 }
 

@@ -703,7 +703,10 @@ containing lines, a literal-key source window and its hash. Its evidence identit
 distinguishes each declaration/key relationship. This is an indexed candidate,
 not a verified access-site, runtime value or executed reader/writer. Coverage is
 bounded and omissions do not prove absence. Incomplete requested state evidence
-qualifies the answer as partial. Existing report budgets, source guidance and
+qualifies the answer as partial. File-level indexed relationships retain their
+current-file hash and a guarded whole-file read, with no invented method, line
+or excerpt; they also keep the answer partial until access locations are inspected.
+Existing report budgets, source guidance and
 immutable result recovery apply. Historical requests retain their separate
 revision-pinned source path. No state extraction, project data or policy is changed.
 

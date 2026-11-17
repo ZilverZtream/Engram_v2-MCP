@@ -9,6 +9,7 @@ use serde_json::{Value, json};
 use std::{collections::BTreeMap, io::Read, path::Path, sync::LazyLock};
 
 const INTERPRETATION: &str = "Indexed legacy state reader/writer candidates whose containing source matches the held selected revision and raw file hash. The excerpt is a literal-key window inside the indexed declaration, not a verified access-site or compiler binding. Static relationships do not prove runtime execution, stored values or shared session identity. Dynamic keys and unsupported extraction remain unknown; independent reads are not an atomic filesystem snapshot.";
+const FILE_SCOPE: &str = "File-level indexed relationship only: no access-site line, method attribution or source excerpt is supplied. Recover the hash-bound file to locate and inspect its accesses; the candidate alone is incomplete location evidence.";
 static MENTIONS: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
     r#"(?i)\b(Session|ViewState|Application|Cache)\s*[\(\[]\s*(?:"([^"\r\n]{1,512})"|'([^'\r\n]{1,512})')\s*[\)\]]"#,
@@ -50,12 +51,14 @@ pub struct StateEvidence {
     pub items: Vec<EvidenceItem>,
     pub provider: ProviderReport,
     pub matched_names: Vec<String>,
+    pub file_scoped_count: usize,
 }
 impl StateEvidence {
     pub fn empty() -> Self {
         Self {
             items: vec![],
             matched_names: vec![],
+            file_scoped_count: 0,
             provider: ProviderReport {
                 provider: "legacy_state".into(),
                 status: ProviderStatus::Empty,
@@ -74,7 +77,9 @@ impl StateEvidence {
     }
     pub fn qualify_status(&self, status: AnswerStatus) -> AnswerStatus {
         if matches!(status, AnswerStatus::Answered | AnswerStatus::Partial)
-            && (self.provider.status != ProviderStatus::Hit || self.provider.truncated)
+            && (self.provider.status != ProviderStatus::Hit
+                || self.provider.truncated
+                || self.file_scoped_count > 0)
         {
             AnswerStatus::Partial
         } else {
@@ -198,15 +203,20 @@ pub fn collect(
                     continue;
                 };
                 let lines: Vec<_> = source.lines().collect();
-                if node.start_line == 0
-                    || node.end_line < node.start_line
-                    || node.end_line as usize > lines.len()
+                let file_level = node.node_type == "file" && node.node_id == format!("file:{path}");
+                if !file_level
+                    && (node.start_line == 0
+                        || node.end_line < node.start_line
+                        || node.end_line as usize > lines.len())
                 {
                     missing += 1;
                     continue;
                 }
-                let start = node.start_line as usize - 1;
-                let end = node.end_line as usize;
+                let (start, end) = if file_level {
+                    (0, lines.len())
+                } else {
+                    (node.start_line as usize - 1, node.end_line as usize)
+                };
                 let Some(offset) = lines[start..end]
                     .iter()
                     .position(|line| line.contains(&query.key))
@@ -226,33 +236,48 @@ pub fn collect(
                     out.provider.truncated = true;
                     continue;
                 }
-                let low = (start + offset).saturating_sub(2).max(start);
-                let high = (start + offset + 4).min(end);
+                let low = if file_level {
+                    0
+                } else {
+                    (start + offset).saturating_sub(2).max(start)
+                };
+                let high = if file_level {
+                    0
+                } else {
+                    (start + offset + 4).min(end)
+                };
                 let window = lines[low..high].join("\n");
                 let excerpt_truncated = window.chars().count() > 2048;
                 let excerpt: String = window.chars().take(2048).collect();
                 if !out.matched_names.contains(&query.key) {
                     out.matched_names.push(query.key.clone());
                 }
+                out.file_scoped_count += usize::from(file_level);
+                let warnings = if file_level {
+                    vec![INTERPRETATION.into(), FILE_SCOPE.into()]
+                } else {
+                    vec![INTERPRETATION.into()]
+                };
                 positions.insert(identity.clone(), out.items.len());
                 out.items.push(EvidenceItem {
                     evidence_id: format!("legacy_state_{}", out.items.len() + 1),
                     document_id: None, document_namespace: None,
                     source_verification: Some(format!("CURRENT_FILE_HASH_MATCH:{hash}")),
                     kind: EvidenceKind::GraphRelation, authority: Authority::CurrentCode,
-                    path: Some(path.into()), lines: Some((low as u32 + 1, high as u32)),
+                    path: Some(path.into()), lines: (!file_level).then_some((low as u32 + 1, high as u32)),
                     symbol_id: Some(format!("legacy_state:{identity}")),
                     title: Some(format!("{}(\"{}\") indexed state candidate: {}", query.state_type, query.key, node.name)),
                     content: json!({"evidence_kind":"legacy_state_access_candidate","state_type":query.state_type,
                         "state_key":query.key,"roles":[role],"indexed_symbol_id":node.node_id,"indexed_declaration":node.name,
-                        "declaration_lines":[node.start_line,node.end_line],"raw_blake3":hash,
-                        "source_excerpt":excerpt,"excerpt_truncated":excerpt_truncated,
+                        "source_scope":if file_level {"file"} else {"indexed_declaration"},
+                        "declaration_lines":if file_level {Value::Null} else {json!([node.start_line,node.end_line])},"raw_blake3":hash,
+                        "source_excerpt":if file_level {Value::Null} else {json!(excerpt)},"excerpt_truncated":excerpt_truncated,
                         "source_recovery":{"tool":"get_full_method_body","arguments":{"project_id":project,
                             "file_path":path,"line_start":low+1,"context_lines":0,"output_json":true,"expected_file_blake3":hash}},
                         "interpretation":INTERPRETATION}).to_string(),
                     generation: Some(node.generation), commit: None, timestamp: None,
                     confidence: 0.85, relevance: 1.0, extraction_method: "selected_source_indexed_state".into(),
-                    warnings: vec![INTERPRETATION.into()], provider: "legacy_state".into(), score: None, directness: Some(1.0),
+                    warnings, provider: "legacy_state".into(), score: None, directness: Some(1.0),
                 });
             }
         }
@@ -265,7 +290,8 @@ pub fn collect(
     }
     out.provider.truncated |= missing > 0;
     out.provider.note = Some(format!(
-        "{INTERPRETATION} Unavailable or mismatched candidates: {missing}. Coverage is bounded to3literal keys,128indexed candidates/direction/key,8source files of at most1MiB each and12retained declaration/key facts; missing observations are not absence proof."
+        "{INTERPRETATION} Unavailable or mismatched candidates: {missing}. File-level candidates without localized access evidence: {}. Coverage is bounded to3literal keys,128indexed candidates/direction/key,8source files of at most1MiB each and12retained declaration/key facts; missing observations are not absence proof.",
+        out.file_scoped_count
     ));
     Ok(out)
 }
