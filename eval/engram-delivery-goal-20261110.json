@@ -2564,6 +2564,16 @@
         "progress": "eval/edit-session-maintenance-handoff-progress-20261117.json",
         "native_target": "edit_session_maintenance_tests",
         "runtime_deployed": false
+      },
+      {
+        "original_requirement_id": "EG-21",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "behavior": "Skip header-excluded cold history metadata construction/cache work before existing full predicates",
+        "source_commit": "61f2aa3bc254a229eb779f1a1aa925de25068092",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117\\contract.json",
+        "progress": "eval/history-header-filter-progress-20261117.json",
+        "native_target": "history_header_filter_tests",
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2735,7 +2745,7 @@
     "native_tests_executed": 0,
     "runtime_deployed": false,
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1,
+    "pending_source_outcomes": 2,
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117\\contract.json",
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-header-filter-20261117",
     "baseline_source_sha256": {
@@ -2778,7 +2788,8 @@
       "The old40.49s observation predates later cache delivery. No current LegacyValidation speedup or whole-request deadline is established. Git traversal, eligible metadata, lexical fallback and rendering retain their existing latency scope.",
       "Only commit-header author/date work moves earlier. File/bulk predicates still need capped non-generated file metadata. Existing immutable cache identities/formats,8192row/32MiB retention and embedding profiles remain.",
       "No real LegacyValidation read/reindex/mutation or Site/Q access, corruption/fault campaign, model calls, broad benchmark, preset change, new target language, CodeMap or Blast improvement."
-    ]
+    ],
+    "source_commit": "61f2aa3bc254a229eb779f1a1aa925de25068092"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
