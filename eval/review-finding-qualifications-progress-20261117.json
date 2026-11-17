@@ -1,0 +1,71 @@
+{
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement_id": "EG-07",
+  "original_requirement": "Preserve complete authored qualifications when review/instruction evidence is imported into guidance; do not convert a qualified source into a broader mandate.",
+  "observed_missing_behavior": "ingest_review_findings indexes complete messages but cuts promoted repo-rule text to300characters. Two messages sharing that prefix also generate the same rule identity and overwrite one another. Rule injection then supplies the incomplete promoted text.",
+  "priority_basis": "Ordinary LegacyValidation VB/WebForms/JS/TS/SQL review workflows. Current Full runtime exposes review import/rule inventory/source injection. Typical multi-sentence review findings can put conditions/exceptions beyond300characters; no target-language expansion or model/evaluation replay.",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117",
+  "source_phase_started_at_utc": "2026-11-17T20:29:53.698535+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/models/requests.rs",
+    "crates/engram_server/src/tools.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/tests/review_finding_qualifications.rs"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\contract.json",
+  "finite_acceptance": [
+    "Preserve complete finding messages in newly promoted rules and source injection; full differing messages remain distinct even when their first300characters match. No qualification synthesis or inferred authority.",
+    "Keep promote_rules default/opt-out, severity/file eligibility and existing unrelated/legacy rules. Count successful rule writes and propagate storage failure without claiming atomic rollback.",
+    "Manual and SonarQube imports retain complete evidence. Actual owned Full MCP baseline/proof checks stored rule identities/text and injected current/stored source; native focused cases and public checks join the existing combined batch.",
+    "Do not auto-rewrite/delete/adopt existing truncated promotions or resolve the94live legacy ownership decisions. Correct advertised/result automatic-detection claims; retrieval/injection is not demonstrated recurrence prevention or semantic policy acceptance."
+  ],
+  "native_tests_executed": 0,
+  "engram_builds_started": 0,
+  "runtime_deployed": false,
+  "full_original_requirement_complete": false,
+  "resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117",
+    "retention": "Retain contract/source/verifier/receipts until delivery. New owned fixture handles close before temporary directories are removed on completion/unwind. No preexisting directory deletion.",
+    "baseline_owners_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "current_fixture_processes": 0
+  },
+  "source_commit": "52c4022d60b189c3ac12fb5cdfff72edb70e32ce",
+  "source_outcomes": 1,
+  "source_phase_completed_at_utc": "2026-11-17T20:37:26.054593+00:00",
+  "implementation_items_active": 0,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\baseline1\\receipt.json",
+  "baseline_checks_passed": 3,
+  "baseline_seconds": 4.464979100041091,
+  "native_target": "review_finding_qualifications",
+  "native_test_cases_written": 3,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\verify-public.py",
+  "public_verifier_sha256": "cfab2d55ec2b1950d4b99f01f819df91606a812cab1925abcc137b4838ff3c46",
+  "public_checks_written": 10,
+  "post_change_public_checks_executed": 0,
+  "source_after": [
+    "Full submitted finding text now supplies both promoted rule text and existing text-derived identity; distinct qualifications after the same300character prefix no longer collapse.",
+    "Existing promotion default/opt-out and blocker/critical/high-with-file eligibility remain. Successful rule writes are counted and errors propagate with accurate partial-write scope. No new transaction, store or model.",
+    "Public descriptions/results preserve complete-qualification and authority/semantic/recurrence limits rather than promising automatic detection. Existing legacy/truncated rows remain untouched."
+  ],
+  "source_checks": {
+    "rust_syntax": "PASS for3implementation modules/new focused native source; type/native execution pending",
+    "python_syntax": "PASS",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/planning_tools.rs": "981ff5f632929db2ebcde1ee154350ca13be2d33f232af3ef65b2da544f7258e",
+    "crates/engram_server/src/models/requests.rs": "d0645eb46a71bf53499ab6720bd08c82687046a6d922dacf7ce05273024bb38d",
+    "crates/engram_server/src/tools.rs": "e1e77fd76be89177a6f2093b07e366b5e1213844cdd672af3ca3967b6fb36f9d",
+    "docs/TOOL_CONTRACT.md": "ca4f31e0c48c013e8e6161dcec03221379ca43a906d2d4a360f22bbc070f093d",
+    "crates/engram_server/tests/review_finding_qualifications.rs": "fb5730431048424b507aa2e3daa0422ddc1ba7aed257758d6e009e51027131b3"
+  },
+  "limits": [
+    "Source complete only; native/post-change public/candidate/installed acceptance is pending. Installed ab166a7 and normal LegacyValidation corpus/config unchanged.",
+    "This prevents new text loss/identity collapse; it does not reconstruct lost qualifications, migrate existing truncated rules, infer ownership or resolve the94live legacy policy decisions.",
+    "Complete imported text is not authenticated policy, semantic applicability, guaranteed recurrence prevention or measured agent benefit. Prior index/rule writes can remain after a later promotion error."
+  ],
+  "next_action": "All3selected independent original source outcomes are ready and native/user-facing validation is now needed. Freeze a combined source checkout and run focused14native cases/31public checks; no full suite or separate debug build."
+}

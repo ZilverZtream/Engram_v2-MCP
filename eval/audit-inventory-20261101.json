@@ -412,7 +412,16 @@
       "current_evidence": "execution_evidence_20261101.eg06_eg08_authored_scope_and_source_lifecycle_20261102",
       "publication_reconciliation": "execution_evidence_20261101.ledger_publication_status_reconciliation_20261105",
       "closure_state_before_installed_acceptance_20261111": "OriginalEG06-08 localacceptance verified:30public+33actualcore/parser cases pernative/no-vector configuration (126currentexecutions); earlier92rendering perbuild alsoPASS. Implementation included in later published/deployed lineage; feature-specific deployed acceptance and full-audit gates remain open.",
-      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json"
+      "current_installed_delivery": "eval\\eg06-eg08-installed-policy-lifecycle-20261111.json",
+      "review_finding_qualification_source_progress_20261117": {
+        "original_requirement_id": "EG-07",
+        "progress": "eval/review-finding-qualifications-progress-20261117.json",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "52c4022d60b189c3ac12fb5cdfff72edb70e32ce",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\contract.json",
+        "source_outcomes": 1,
+        "runtime_deployed": false
+      }
     },
     {
       "id": "EG-08",
@@ -10247,34 +10256,33 @@
       "new_implementation": false
     }
   },
-  "last_updated_at": "2026-11-17T20:18:17.155981+00:00",
+  "last_updated_at": "2026-11-17T20:37:26.054593+00:00",
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement_id": "TODO-28",
-    "original_requirement": "The ordinary natural-language entry point composes complete admitted SQL source evidence so AI callers do not need specialist-tool discovery to recover already collected facts.",
-    "observed_missing_behavior": "ask_schema calls the source table reader, but retains only row.table, dropping its independently cited indexes, triggers, views, stored_procedures, alter_table_foreign_keys and alter_table_columns.",
-    "priority_basis": "LegacyValidation SQL workflows; normal Full configuration last observed unchanged. Reuse existing selected/current SQL reader and catalog. No new SQL parser, target language, database execution, graph/Blast work or real LegacyValidation mutation.",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117",
+    "original_requirement_id": "EG-07",
+    "original_requirement": "Preserve complete authored qualifications when review/instruction evidence is imported into guidance; do not convert a qualified source into a broader mandate.",
+    "observed_missing_behavior": "ingest_review_findings indexes complete messages but cuts promoted repo-rule text to300characters. Two messages sharing that prefix also generate the same rule identity and overwrite one another. Rule injection then supplies the incomplete promoted text.",
+    "priority_basis": "Ordinary LegacyValidation VB/WebForms/JS/TS/SQL review workflows. Current Full runtime exposes review import/rule inventory/source injection. Typical multi-sentence review findings can put conditions/exceptions beyond300characters; no target-language expansion or model/evaluation replay.",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117",
     "implementation_files": [
-      "crates/engram_server/src/handlers/ask_schema.rs",
-      "crates/engram_server/src/handlers/ask_tools.rs",
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/models/requests.rs",
+      "crates/engram_server/src/tools.rs",
       "docs/TOOL_CONTRACT.md",
-      "crates/engram_server/tests/ask_sql_related_declarations.rs",
-      "crates/engram_server/src/services/ask_engine/report.rs",
-      "crates/engram_server/src/services/ask_engine/report.rs"
+      "crates/engram_server/tests/review_finding_qualifications.rs"
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
-    "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
-    "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay.",
-    "progress": "eval/ask-sql-related-declarations-progress-20261117.json",
-    "pending_source_outcomes": 2,
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-qualifications-20261117\\contract.json",
+    "source_commit": "52c4022d60b189c3ac12fb5cdfff72edb70e32ce",
+    "next_action": "All3selected independent original source outcomes are ready and native/user-facing validation is now needed. Freeze a combined source checkout and run focused14native cases/31public checks; no full suite or separate debug build.",
+    "progress": "eval/review-finding-qualifications-progress-20261117.json",
+    "pending_source_outcomes": 3,
     "implementation_items_active": 0,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_goal_turn_classification": {
       "classification": "PROGRESS_SOURCE_IMPLEMENTATION_COMMITTED",
-      "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
-      "progress": "eval/ask-sql-related-declarations-progress-20261117.json"
+      "source_commit": "52c4022d60b189c3ac12fb5cdfff72edb70e32ce",
+      "progress": "eval/review-finding-qualifications-progress-20261117.json"
     }
   },
   "latest_ai_readiness_priority": "eval/legacy_validation-ai-readiness-priority-20261113.json",
@@ -17014,5 +17022,34 @@
     "pending_source_outcomes": 1,
     "full_original_goal_active": true,
     "full_original_goal_complete": false
+  },
+  "retained_execution_focus_before_review_qualification_source_20261117": {
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement_id": "TODO-28",
+    "original_requirement": "The ordinary natural-language entry point composes complete admitted SQL source evidence so AI callers do not need specialist-tool discovery to recover already collected facts.",
+    "observed_missing_behavior": "ask_schema calls the source table reader, but retains only row.table, dropping its independently cited indexes, triggers, views, stored_procedures, alter_table_foreign_keys and alter_table_columns.",
+    "priority_basis": "LegacyValidation SQL workflows; normal Full configuration last observed unchanged. Reuse existing selected/current SQL reader and catalog. No new SQL parser, target language, database execution, graph/Blast work or real LegacyValidation mutation.",
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/ask_schema.rs",
+      "crates/engram_server/src/handlers/ask_tools.rs",
+      "docs/TOOL_CONTRACT.md",
+      "crates/engram_server/tests/ask_sql_related_declarations.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs",
+      "crates/engram_server/src/services/ask_engine/report.rs"
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-sql-related-declarations-20261117\\contract.json",
+    "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+    "next_action": "Queue this genuine TODO-28 source outcome beside EG-27 inline guidance. Continue the next ready independent original requirement before combined validation; no standalone compile or accepted-batch replay.",
+    "progress": "eval/ask-sql-related-declarations-progress-20261117.json",
+    "pending_source_outcomes": 2,
+    "implementation_items_active": 0,
+    "full_original_goal_active": true,
+    "full_original_goal_complete": false,
+    "previous_goal_turn_classification": {
+      "classification": "PROGRESS_SOURCE_IMPLEMENTATION_COMMITTED",
+      "source_commit": "330f2e2abfcdd358dd34d8c9c306fcc0fb53edb8",
+      "progress": "eval/ask-sql-related-declarations-progress-20261117.json"
+    }
   }
 }
