@@ -45,6 +45,9 @@ pub(super) fn observe(context: &mut PolicyContext) {
             if link.kind == "image" || (!markdown_path(&link.target) && link.unresolved_status.is_none()) { continue; }
             if context.references.len() >= REFERENCE_LIMIT {
                 context.references_omitted += 1;
+                if link.unresolved_status.is_none() && link.kind == "inline_code_path" {
+                    context.references_omitted += inline_candidates(&source.path, &link.target).len();
+                }
                 continue;
             }
             let (path, fragment) = if link.unresolved_status.is_none() && link.kind == "link" {
