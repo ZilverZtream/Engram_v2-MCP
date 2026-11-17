@@ -107,8 +107,17 @@ async fn oversized_policy_is_recoverable_and_completion_uses_actual_instead_of_p
     let (opened,revision)=fixture.begin().await?;
     ensure!(opened.contains(MAP) && !opened.contains("END_OF_COMPLETE_GUIDE"));
     ensure!(opened.contains("Policy source omitted/unresolved: `.github/instructions/large.instructions.md`")
-        && opened.contains(blake3::hash(large.as_bytes()).to_hex().as_str())
-        && opened.contains("Read the complete project-relative file"),"{opened}");
+        && opened.contains(blake3::hash(large.as_bytes()).to_hex().as_str()),"{opened}");
+    let recovery = opened.split("```json\n").skip(1).filter_map(|block| {
+        serde_json::from_str::<serde_json::Value>(block.split("\n```").next()?).ok()
+    }).find(|action| action["arguments"]["file_path"]==".github/instructions/large.instructions.md")
+        .ok_or_else(|| anyhow::anyhow!("Omitted guidance needs callable exact-file recovery"))?;
+    ensure!(recovery["tool"]=="get_full_method_body"
+        && recovery["arguments"]["project_id"]==PID
+        && recovery["arguments"]["line_start"]==1
+        && recovery["arguments"]["context_lines"]==0
+        && recovery["arguments"]["output_json"]==true
+        && recovery["arguments"]["expected_file_blake3"]==blake3::hash(large.as_bytes()).to_hex().as_str());
     fixture.edit("Site/billing/Invoice.vb")?;
     let closed=fixture.complete(&revision,&["Site/billing/Invoice.vb"]).await?;
     ensure!(closed.contains(ROOT) && closed.contains(BILLING) && !closed.contains(MAP),"{closed}");
