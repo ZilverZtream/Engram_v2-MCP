@@ -1982,6 +1982,21 @@ this collector. No new request fields, schema, decision store, model call or app
 workflow is introduced. Semantic applicability, decision authority and general agent
 usefulness remain unproved where the source evidence does not establish them.
 
+## Default core-query reply budgets
+
+Source change 2026-11-18 (following batch; validation/deployment pending):
+ordinary `search_memory`, `vector_search` and `grep_project` results without
+`max_tokens` use the same40KiB complete public reply ceiling and original-MCP
+recovery as history. Fitting replies retain their existing shapes. Oversized
+JSON or Markdown results supply `DEFERRED_READ_REPORT`; recover every page to
+restore the complete original selected evidence, guidance, warnings and offset
+metadata. Existing query/content/window caps and source-object limits remain.
+
+Explicit caller budgets keep handler-owned whole-record paging/refusal.
+`retain_response=true` with JSON still captures a selected window even when it
+fits. Capability errors and nontext results keep their existing behavior;
+source-backed search delivery does not prove semantic ranking equivalence.
+
 ## Default history reply budget
 
 Source change 2026-11-17 (combined validation/deployment pending): ordinary
