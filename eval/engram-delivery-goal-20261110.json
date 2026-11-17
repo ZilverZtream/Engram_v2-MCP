@@ -2754,16 +2754,20 @@
     "engram_builds_started": 1,
     "full_original_goal_active": true,
     "at_utc": "2026-11-17T12:53:41.677623+00:00",
-    "validation_status": "NATIVE1_STARTING",
+    "validation_status": "NATIVE1_FAILED_CORRECTIONS_SOURCE_COMPLETE",
     "shipping_source_commit": "53f858bddc9de4a3854b0687576458a6defbeb67",
     "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\source-preparation.json",
     "native_commands_started": 1,
     "release_commands_started": 0,
     "native_exec_session_id": 86192,
     "native_runner_owner": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-owner.json",
-    "native_commands_terminal": false,
+    "native_commands_terminal": true,
     "public_driver_sha256": "4a013109a9a611b0a3cd494e0e12389d440a61d79c7c8aa3272d576a2387caae",
-    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\release-plan.json"
+    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\release-plan.json",
+    "native1_terminal_exit_code": 101,
+    "native1_passed_cases": 12,
+    "native1_failed_cases": 4,
+    "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json"
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",

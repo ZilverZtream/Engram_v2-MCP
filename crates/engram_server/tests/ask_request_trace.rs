@@ -255,7 +255,7 @@ async fn scoped_http_question_and_recovery_read_only_the_area_and_withhold_stale
         SOURCE.len() as u64 + std::fs::metadata(fixture.owned.path().join("r/Site/Area/language.aspx"))?.len()));
     ensure!(trace["coverage"]["gaps"].as_array().unwrap().is_empty(), "{trace}");
     ensure!(trace["coverage"]["application_root_path_markers"] == json!(["Site/Global.asax"]));
-    ensure!(trace["coverage"]["path_prefixes"].as_array().unwrap().iter().any(|scope| scope == "Site/Area"));
+    ensure!(trace["coverage"]["path_prefixes"].as_array().unwrap().iter().any(|scope| scope.as_str().is_some_and(|scope| scope.eq_ignore_ascii_case("Site/Area"))));
     ensure!(trace["project_policy_sources"].to_string().contains("read-only previews never submit"));
     let args = &facts[0]["recovery"]["arguments"];
     ensure!(args["path_prefixes"] == trace["coverage"]["path_prefixes"]);

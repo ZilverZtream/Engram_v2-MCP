@@ -12,12 +12,15 @@ fn engram() -> (tempfile::TempDir, Engram) {
 }
 
 fn engram_with_surface(advertise_all_tools: bool) -> (tempfile::TempDir, Engram) {
-    let tmp = tempfile::TempDir::new().unwrap();
+    let fixture_root = std::env::var_os("ENGRAM_TEST_FIXTURE_ROOT")
+        .map(std::path::PathBuf::from).unwrap_or_else(std::env::temp_dir);
+    let tmp = tempfile::Builder::new().prefix("cp-").tempdir_in(fixture_root).unwrap();
     std::fs::create_dir_all(tmp.path().join("proj")).unwrap();
     let cfg = Config {
         allowed_roots: vec![tmp.path().join("proj")],
         data_dir: tmp.path().join("data"),
         embedding_backend: "fts_only".into(),
+        llm_backend: "none".into(),
         advertise_all_tools,
         ..Default::default()
     };
@@ -130,7 +133,14 @@ fn advertise_all_tools_defaults_to_full_for_rust_and_yaml() {
 #[tokio::test]
 async fn protocol_discovery_includes_pilotapp_agent_dependencies_with_schemas() {
     use rmcp::ServiceExt;
-    let (_tmp, engram) = engram();
+    let (tmp, engram) = engram();
+    // Full discovery is capability-aware. Register the owned Website whose
+    // .NET/JavaScript schemas this protocol contract is meant to exercise.
+    let root = tmp.path().join("proj");
+    std::fs::write(root.join("Page.aspx"), "<%@ Page Language=\"VB\" CodeFile=\"Page.aspx.vb\" Inherits=\"FixturePage\" %>\n").unwrap();
+    std::fs::write(root.join("Page.aspx.vb"), "Public Class FixturePage\nInherits System.Web.UI.Page\nEnd Class\n").unwrap();
+    std::fs::write(root.join("page.js"), "function preview() { return true; }\n").unwrap();
+    engram.handle_index_project(serde_json::from_value(serde_json::json!({"directory":root,"project_name":"Owned Website schemas","project_type":"general","wait":true})).unwrap()).await.unwrap();
     let expected: BTreeSet<String> = engram
         .tool_router
         .list_all()
@@ -337,7 +347,7 @@ async fn core_client_can_choose_a_project_and_recover_search_and_memory_citation
             );
         }
         anyhow::ensure!(
-            advertised.len() <= 32,
+            advertised.len() <= 34,
             "limited client exceeded its tool ceiling"
         );
         for required in [
@@ -614,7 +624,7 @@ fn core_review_client_can_follow_advertised_discussion_recovery_without_suppress
         }
         let scenario:anyhow::Result<()>=async {
             let advertised=client.list_all_tools().await?;
-            ensure!(advertised.len()<=32);
+            ensure!(advertised.len()<=34);
             let recovery_schema=advertised.iter().find(|tool|tool.name=="get_review_decisions")
                 .context("Core cannot follow the recovery call emitted by its ordinary review")?;
             ensure!(recovery_schema.input_schema["type"]=="object");

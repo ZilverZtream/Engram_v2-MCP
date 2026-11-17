@@ -87,9 +87,12 @@
   ],
   "source_commit": "6d53aeb782554e870cc6989befd9aad6f5743372",
   "necessary_supporting_changes": [
-    "Reconcile the existing tool_surface_tier_tests guard with the current34-tool Core surface and require trace_user_request membership. Correct current tool-slot documentation; no runtime tool membership changed in this correction. This is not another independent deliverable."
+    "Reconcile the existing tool_surface_tier_tests guard with the current34-tool Core surface and require trace_user_request membership. Correct current tool-slot documentation; no runtime tool membership changed in this correction. This is not another independent deliverable.",
+    "Retain already-scoped multi-file traces after the generic single-path filter; correct affected owned Core/schema/case-normalization fixtures. No new independent deliverable."
   ],
   "supporting_validation_pending": [
     "Core surface focused checks including request-trace dependency and34-tool ceiling"
-  ]
+  ],
+  "validation_status": "NATIVE1_FOUND_INTEGRATION_FAILURE_CORRECTED_SOURCE_AWAITING_NATIVE2",
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\scoped-request-sql-review-batch-20261117\\native1-correction.json"
 }

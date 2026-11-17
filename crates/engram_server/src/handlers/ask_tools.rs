@@ -170,7 +170,6 @@ impl Engram {
             providers.push(state.provider.clone());
         }
         if let Some(request) = &mut request_evidence {
-            raw.append(&mut request.items);
             providers.push(request.provider.clone());
         }
         // Round-2 audit P0-4c (owner 2026-08-30): one bounded call-graph hop
@@ -304,6 +303,12 @@ impl Engram {
         // whole pool before ranking — every arm honors it (fail-safe inside).
         let mut raw = raw;
         ranking::retain_path_scoped(&mut raw, &plan.qualifiers.path_prefixes);
+        // Request traces already constrain every admitted source/body read to
+        // these scopes. The complete fact spans multiple files and deliberately
+        // has no representative path, so retain it after the single-path filter.
+        if let Some(request) = &mut request_evidence {
+            raw.append(&mut request.items);
+        }
         // Round-2 audit P0-4: the requested modality survives the cap.
         let raw_pool = raw.clone();
         // Doc-13 Phase C (round-3 audit P0-2): a Callees + ExhaustiveSet
