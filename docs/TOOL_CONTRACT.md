@@ -1556,6 +1556,25 @@ trace recovery actions are advertised and callable; Full remains the default.
 Core currently advertises 34 tools; clients selecting it need at least 34 tool
 slots. Its focused surface checks include the request-trace recovery dependency.
 
+### Discover prior review evidence from file paths
+
+`get_review_decisions` accepts `discover_for_paths: ["Site/Preview.aspx.vb"]`
+without a known `review_id`. It reuses the bounded internal latest-event reader:
+declared scopes must intersect a selected exact path; legacy unscoped events
+need a complete selected path in their finding ID or rationale. Each admitted
+candidate preserves its complete event, conditions and provenance, with an
+ordinary exact-review history action. Superseded events do not replace an
+unrelated latest ruling. Existing response budgets and immutable saved-report
+recovery apply to the complete discovery result.
+
+Discovery always reports partial coverage, including legacy identity gaps,
+unavailable records and candidate/byte omissions. It authenticates no authority,
+checks no current-head fix, establishes no semantic applicability and suppresses
+no findings. External fix attestations remain explicitly unchecked. History
+actions are fresh reads and may include later events. For historical reads,
+discussion recovery or `view=current`, use the returned exact `review_id`;
+those selectors cannot be combined with discovery.
+
 ### Concept-footprint guidance recovery (installed November17)
 
 `get_concept_footprint` already supplied authored guidance for returned paths.

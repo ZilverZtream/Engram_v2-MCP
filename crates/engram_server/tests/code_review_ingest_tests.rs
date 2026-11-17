@@ -118,6 +118,7 @@ async fn unavailable_or_malformed_legacy_review_history_cannot_become_verified_o
         state.registry.set_meta(&pid, &key, &encoded).unwrap();
         let error = engram
             .handle_get_review_decisions(GetReviewDecisionsRequest {
+            discover_for_paths: Vec::new(),
                 project_id: pid.clone(),
                 review_id: "PR-9".into(),
             discussion: None,
@@ -224,6 +225,7 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
 
     let snapshot = Engram::new(state.clone())
         .handle_get_review_decisions(GetReviewDecisionsRequest {
+            discover_for_paths: Vec::new(),
             project_id: project_id.clone(),
             review_id: "PR-4".into(),
             discussion: None,
@@ -257,6 +259,7 @@ async fn jsonl_ingest_indexes_clusters_and_separates_wontfix() {
         .unwrap();
     let engram = Engram::new(state.clone());
     let read = || GetReviewDecisionsRequest {
+            discover_for_paths: Vec::new(),
         project_id: project_id.clone(),
         review_id: "PR-4".into(),
             discussion: None,
@@ -394,6 +397,7 @@ async fn changed_thread_disposition_appends_a_superseding_event() {
 
     let snapshot = Engram::new(state)
         .handle_get_review_decisions(GetReviewDecisionsRequest {
+            discover_for_paths: Vec::new(),
             project_id,
             review_id: "PR-8".into(),
             discussion: None,

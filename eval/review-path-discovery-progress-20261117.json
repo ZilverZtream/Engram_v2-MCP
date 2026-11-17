@@ -1,0 +1,71 @@
+{
+  "original_requirement_id": "EG-19",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Supply relevant prior review rulings with scope, provenance, revision applicability and complete qualifications; changed code must never inherit blanket suppression.",
+  "observed_missing_behavior": "The public get_review_decisions request requires an exact review_id. Bounded path relevance discovery already exists for internal review consumers, but an agent starting from a file cannot use it through this Core/Full read tool to find those IDs and complete conditions.",
+  "priority_basis": "One of the original shortlist workflows; current LegacyValidation Full configuration advertises the existing review decision read. Declared VB/WebForms/JS/SQL paths share the existing provider-neutral scope semantics; no new language or catalog.",
+  "source_phase_started_at_utc": "2026-11-17T12:43:03.877488+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/review_decisions.rs",
+    "crates/engram_server/src/handlers/review_decision_discovery.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/review_path_discovery_tests.rs",
+    "docs/TOOL_CONTRACT.md",
+    "crates/engram_server/tests/code_review_ingest_tests.rs",
+    "crates/engram_server/tests/scoped_request_sql_review_batch.rs"
+  ],
+  "finite_acceptance": [
+    "get_review_decisions accepts discover_for_paths without review_id and reuses the bounded identity/latest-event/path-relevance reader. Return complete admitted current events and conditions, review identities, explicit declared-scope versus legacy-text relevance, exact history actions and existing omission/legacy coverage.",
+    "Discovery remains advisory, independent current metadata observations; no authenticated authority, accepted policy inference, current-head fix check, semantic applicability or automatic suppression. Reject combinations with exact-review/discussion/historical selectors instead of silently mixing modes.",
+    "Owned recorded transitions and disjoint/legacy paths demonstrate newest relevant evidence and callable exact history; immutable generic report recovery retains the discovery after later event append. Core advertises the same existing reader. Syntax and installed baseline checks are build-free; focused native/public checks join the two queued source outcomes. No new tool, discovery index, model call, broader audit or live project mutation."
+  ],
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 2,
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\contract.json",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117",
+  "baseline_source_sha256": {
+    "crates/engram_server/src/handlers/review_decisions.rs": "74d786b1d11e99bd038344c2d986ac08fe830f11d6633c9dd5b6e61cdca70f86",
+    "crates/engram_server/src/tools.rs": "11e95b6338c4df4d14a3a522278964803b48b6272a3f6818382c00da5395c4c0",
+    "docs/TOOL_CONTRACT.md": "a4dde6baebaa5af571f8920c245c6310a5838718c057da6994df864397870352"
+  },
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117",
+    "current_fixtures_or_processes": 0,
+    "retention": "Retain finite contract/source checks/public verifier and owned-run receipts through delivery; new server/database fixtures close owners before removing their own source/data on completion and unwinding. Preexisting copies untouched.",
+    "baseline_fixture_removed": true,
+    "baseline_owners_closed": true
+  },
+  "source_phase_completed_at_utc": "2026-11-17T12:52:20.452786+00:00",
+  "source_sha256": {
+    "crates/engram_server/src/handlers/review_decisions.rs": "fcd41d6ad9f5d139444e6e7efe43017072fbc51e894f1f73f69eeaa8cd47d787",
+    "crates/engram_server/src/handlers/review_decision_discovery.rs": "725de1fe1d0e9f85c650837257d61448d1bdc51b28687931a92f1398ecb40d03",
+    "crates/engram_server/src/tools.rs": "0c99ad0c0c9ee70183affab0ae08d6808dd7fb4bef3a15febbbd13469e8c659d",
+    "crates/engram_server/tests/review_path_discovery_tests.rs": "81550b1c76a968f6c2eb8fed3856f9c0e5c8c04fc4334ad60c3e1b257d85808e",
+    "docs/TOOL_CONTRACT.md": "52f8b405e038bd5d92a26e26c675de7aa7d9073a2a47f0faad235b5b1ceba514",
+    "crates/engram_server/tests/code_review_ingest_tests.rs": "dc8dba74de2114f16c0d40624249eeaf56708d53aeab84a152bf18512a432611",
+    "crates/engram_server/tests/scoped_request_sql_review_batch.rs": "89a5b876f98154c1fdd0e70f226f220297ce047c6c58ec68608c080b5bbfcf6d"
+  },
+  "source_checks": {
+    "rust_syntax": "PASS; parse-only, new module/tests formatted",
+    "python_verifier_syntax": "PASS",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\baseline-reconciliation.json",
+  "retained_initial_baseline_failure": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\baseline1\\receipt.json",
+  "baseline_seconds": 0.7393862999742851,
+  "baseline_checks_passed": 2,
+  "native_test_cases_written": 3,
+  "post_change_public_checks_executed": 0,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-path-discovery-20261117\\verify-public.py",
+  "public_verifier_sha256": "9d21eb70152b99185b2cfb28c73e4a8bd2acba553beeb3ed384367aad751a78f",
+  "limits": [
+    "Source implementation only; type/native/post-change public validation pending. Installed runtime remains unchanged.",
+    "Existing64identity/256KiB raw-record/24candidate/8KiBevent discovery limits and legacy identity gaps remain. Exact history actions are fresh observations, not immutable corpus recovery or authenticated rulings.",
+    "No live project/LegacyValidation read or mutation, Site/Q access, new discovery index, new tool, paid model replay, broad audit, language support or closed-tool work."
+  ],
+  "next_action": "Queue this third independent source outcome. Consolidate the focused native/public checks for all three completed workflows; no additional debug build or full/lib suite."
+}

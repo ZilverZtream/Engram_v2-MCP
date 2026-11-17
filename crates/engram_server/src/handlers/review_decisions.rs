@@ -15,6 +15,9 @@ const DISCOVERY_RECORDS: usize = 64;
 const DISCOVERY_RECORD_BYTES: usize = 64 * 1024;
 const DISCOVERY_TOTAL_BYTES: usize = 256 * 1024;
 
+#[path = "review_decision_discovery.rs"]
+mod path_discovery;
+
 fn identity_key(review: &str) -> Result<String, String> {
     key(review)?;
     Ok(format!("{IDENTITY_PREFIX}{}", blake3::hash(review.as_bytes()).to_hex()))
@@ -89,7 +92,17 @@ pub struct RecordReviewDecisionsRequest {
 #[serde(deny_unknown_fields)]
 pub struct GetReviewDecisionsRequest {
     pub project_id: String,
+    /// Exact review identity for history/discussion reads. Omit only when
+    /// discover_for_paths selects bounded latest-event discovery instead.
+    #[serde(default)]
     pub review_id: String,
+    /// Discover relevant latest recorded events for 1..16 exact repository-relative
+    /// forward-slash paths without knowing review IDs. Reuses bounded declared-
+    /// scope/legacy full-path relevance; complete admitted events include history
+    /// actions. Missing/omitted/legacy identities mean coverage remains partial.
+    /// Cannot combine with review_id, recorded_before, discussion or view=current.
+    #[serde(default)]
+    pub discover_for_paths: Vec<String>,
     /// history (default) includes every eligible event. current retains only the
     /// latest ruling per finding with complete evidence and a full-history action.
     /// Both views are advisory; current cannot be combined with discussion.
@@ -544,6 +557,21 @@ impl Engram {
         &self,
         req: GetReviewDecisionsRequest,
     ) -> Result<CallToolResult, McpError> {
+        if !req.discover_for_paths.is_empty() {
+            path_discovery::validate(&req).map_err(|error| McpError::invalid_params(error, None))?;
+            self.ensure_project_record(&req.project_id).await?;
+            let reservation = engram_core::memory::AllocationGuard::try_new(
+                &self.state.memory_budget, 4 * 1024 * 1024,
+                engram_core::Subsystem::Misc, "review decision path discovery",
+            ).map_err(|error| McpError::internal_error(error.to_string(), None))?;
+            let state = self.state.clone();
+            let report = tokio::task::spawn_blocking(move || {
+                let _reservation = reservation;
+                path_discovery::read(&state, &req.project_id, &req.discover_for_paths)
+            }).await.map_err(|error| McpError::internal_error(format!("review discovery worker failed: {error}"), None))?
+                .map_err(|error| McpError::internal_error(error, None))?;
+            return Ok(CallToolResult::success(vec![Content::text(report)]));
+        }
         if req.recorded_before.is_some() && req.discussion.is_some() {
             return Err(McpError::invalid_params("recorded_before filters decision events and cannot be combined with discussion capture recovery; event dates do not certify historical discussion contents",None));
         }
