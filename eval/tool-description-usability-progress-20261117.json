@@ -1,0 +1,103 @@
+{
+  "original_requirement_id": "EG-26",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Original tool-ROI shortlist: descriptions state when to use the tool, what it returns and which existing tool fits an adjacent task; reduce avoidable tool-selection context while preserving actual contracts.",
+  "observed_missing_behavior": "The installed Full surface advertises125tools with94241UTF8description bytes. The5selected primary descriptions total14013bytes; cumulative implementation histories and repeated delivery prose obscure selection guidance.",
+  "priority_basis": "The real unchanged LegacyValidation configuration is Full, so all advertised descriptions enter its available AI tool surface. This metadata change affects VB/WebForms, JS/TS and SQL navigation without changing languages, project data, behavior or tool presets.",
+  "source_phase_started_at_utc": "2026-11-17T17:54:19.786595+00:00",
+  "implementation_files": [
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/src/read_report_delivery.rs",
+    "crates/engram_server/src/retained_results.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "selected_tools": [
+    "ask_codebase",
+    "trace_user_request",
+    "search_history",
+    "get_change_set",
+    "get_method_edit_context"
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117\\baseline1-receipt.json",
+  "baseline_tools": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117\\baseline1-tools.json",
+  "baseline_binary_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
+  "baseline_total_description_bytes": 94241,
+  "baseline_tool_count": 125,
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117",
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117\\contract.json",
+  "finite_acceptance": [
+    "Rewrite5primary descriptions around use/returns/adjacent tool choices; retain important authority, freshness, effect, routing, historical cutoff, latency-budget and recovery qualifications in the compact contract or existing property descriptions/detailed docs. Do not remove a feature or claim exhaustive coverage or safety.",
+    "Shorten repeated shared read-report and retained-window description suffixes, preserving fresh-argument, complete-result, replay, budget and immutable-recovery semantics. Operation-specific update/index safeguards stay intact.",
+    "Actual Full tools/list descriptions shrink by at least15percent total and30percent across the5selected tools. Every tool name, input schema, other tool metadata, request/result contract and unselected base description remains unchanged. Core/Development/QA/Migration retain their existing surfaces. Byte reduction is not a measured provider-token, latency or selection-quality improvement.",
+    "No new native string-assertion tests or standalone compile: source syntax and metadata migration checks now; one actual MCP metadata comparison after the next combined native build. Retain baseline source/full descriptions for comparison. No full suite, closed CodeMap/Blast change or actual LegacyValidation mutation."
+  ],
+  "source_checks": {
+    "status": "SOURCE_ONLY_PASS",
+    "checks": {
+      "crates/engram_server/src/tools.rs": "DESCRIPTION_ONLY_AND_RUST_SYNTAX_PASS",
+      "crates/engram_server/src/read_report_delivery.rs": "DESCRIPTION_ONLY_AND_RUST_SYNTAX_PASS",
+      "crates/engram_server/src/retained_results.rs": "DESCRIPTION_ONLY_AND_RUST_SYNTAX_PASS",
+      "docs/TOOL_CONTRACT.md": "APPENDED_DETAILED_CONTRACT_ONLY",
+      "projected_full_description_reduction_at_least15percent": true,
+      "projected_selected_description_reduction_at_least30percent": true,
+      "protected_wip9": "UNCHANGED"
+    },
+    "before_bytes": 94241,
+    "projected_after_bytes": 79416,
+    "projected_reduction_percent": 15.730945130038943,
+    "selected_before_bytes": 14013,
+    "selected_projected_after_bytes": 5689,
+    "selected_reduction_percent": 59.40198387211875,
+    "post_change_runtime_checks_executed": 0,
+    "engram_builds_started": 0,
+    "provider_token_or_latency_gain_measured": false
+  },
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "native_tests_written": 0,
+  "runtime_deployed": false,
+  "implementation_items_active": 0,
+  "pending_source_outcomes": 1,
+  "full_original_goal_active": true,
+  "baseline_source_sha256": {
+    "crates/engram_server/src/tools.rs": "b6e206037452d39a4f62df3a6da8b466ce2d0e092bd466c28b1872b751dc1d1d",
+    "crates/engram_server/src/read_report_delivery.rs": "7e8456a2474a5d6b9bc4be3347fc997d629343a9f926bfbc77a18d5de8d3d100",
+    "crates/engram_server/src/retained_results.rs": "5d3d8ebb26fd1aee50c2cdbc2b8c8399ca48c98263a5f83d41d02251bdd4fa15",
+    "docs/TOOL_CONTRACT.md": "c8e79f325bb0e8e87d452ff9356f1e1f6c35b6d644d8f187dc94969838f1425f"
+  },
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117",
+    "baseline_processes_closed": true,
+    "baseline_owned_fixture_removed": true,
+    "retention": "Keep baseline advertisement, contract, compact descriptors and public verifier until delivery; all new fixture processes own and close handles before removal. No preexisting folders deleted.",
+    "baseline_profile_owners_closed": true,
+    "baseline_profile_fixture_removed": true,
+    "current_fixtures_or_processes": 0
+  },
+  "previous_goal_turn_classification": {
+    "classification": "PROGRESS_IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/preset-browser-bootstrap-batch-delivery-20261117.json"
+  },
+  "limits": [
+    "Metadata usability only; no claim of measured AI task benefit, model selection accuracy or runtime latency improvement.",
+    "Whole catalog drift/reconciliation, original31findings/19gates and original semantic/task-usefulness requirements remain open."
+  ],
+  "source_phase_completed_at_utc": "2026-11-17T18:05:22.418388+00:00",
+  "baseline_profiles": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117\\baseline-profiles.json",
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117\\verify-public.py",
+  "public_verifier_sha256": "8c1a22ba7973c8d6c03cc6a412a656728080324d82d3ce81693c10fa706c08a1",
+  "source_validator": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\tool-description-usability-20261117\\check-source.py",
+  "native_target": null,
+  "native_tests_required": 0,
+  "public_checks_written": 12,
+  "post_change_public_checks_executed": 0,
+  "next_action": "Queue this compiled metadata change with other substantive original source outcomes. No standalone Cargo/release. After the next implicit test server exists, compare actual tools/list metadata across5presets, unchanged schemas and expected15percent/30percent byte reductions. Do not claim runtime/token/selection benefit before actual proof.",
+  "source_sha256": {
+    "crates/engram_server/src/tools.rs": "0c52b7f0ed9a70bb97a3967d3555bd5645a6567ef1fd44bcefaaff7e6271c9f3",
+    "crates/engram_server/src/read_report_delivery.rs": "501938c0c82b124260a2ad8ebecd2a93c24029b4f1cdb8ec2192fa62c4000bc9",
+    "crates/engram_server/src/retained_results.rs": "add809b0c24725f9be348274ffbab6ec1983cbc0532536ad87a1d725d80c7ad7",
+    "docs/TOOL_CONTRACT.md": "00baacef529d955e52444942480454a54bfa0b07c30575830bd61f0ba789fd30"
+  },
+  "projection": "15.730945percent fewer Full description UTF8bytes;59.401984percent fewer selected description bytes. Source projection only, not provider tokens, speed or task-quality measurement.",
+  "source_commit": "64521cf305250f5a8dd6676770d6f8fc81de0a98"
+}
