@@ -1869,3 +1869,36 @@ project ID and returned controls; it does not retain underlying source objects o
 results outside the original window. Captured guidance/freshness describes capture
 time. Verify the reconstructed result before use. This byte reduction is metadata
 compaction, not a measured provider-token, latency or task-quality improvement.
+
+
+### Named appSettings declarations in ordinary questions
+
+Current `ask_codebase` questions naming a setting also compose existing indexed
+`app_setting` declaration candidates. Each candidate file must be within the question's
+path scope, belong to the held selected source revision and match its raw-file BLAKE3.
+The existing configuration parser re-extracts the requested declarations from admitted
+source. Discovery metadata alone supplies no returned value. Unreadable or changed
+source is withheld, with independent provider diagnostics alongside VB getter evidence.
+
+The `config_settings` provider returns file-level `app_settings_declaration_candidates`
+with `declarations[].key` and `authored_value_attribute`. These attribute strings are
+source observations; they are not decoded/effective/default runtime values or proven
+bindings to similarly named VB getters. Same-key declarations in separate files remain
+separate. Configuration inheritance, location/transform precedence, clear/remove,
+external config files and execution remain unevaluated. Connection-string values are
+not collected by this provider. Its presence keeps the answer partial.
+
+Existing parser positions are not promoted into declaration line numbers. Facts carry
+file provenance, the admitted raw hash and `get_full_method_body` excerpt recovery with
+that expected hash; Core can follow the call and ordinary source pagination. Source
+and applicable authored guidance retain existing admission and recovery behavior.
+The already-bounded declaration set is composed after generic ranking, so per-file
+ranking does not select an apparent effective configuration winner.
+
+Discovery is bounded to3named query entities,5000indexed candidates/key,8files of at
+most1MiB,24declarations and256KiB retained observations. Whole omitted rows/files retain
+coverage warnings and are not absence proof. The getter and declaration collectors
+share the held source selection/deadline but report their failures independently.
+No configuration is evaluated or written; no new parser, extraction format, request
+parameter or schema is introduced. This does not establish exhaustive configuration
+coverage, runtime semantics or measured agent-task usefulness.

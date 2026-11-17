@@ -91,7 +91,7 @@ impl StateEvidence {
     }
 }
 
-fn scoped(path: &str, scopes: &[String]) -> bool {
+pub(super) fn scoped(path: &str, scopes: &[String]) -> bool {
     let path = path.replace('\\', "/").to_lowercase();
     scopes.is_empty()
         || scopes.iter().any(|scope| {
@@ -105,7 +105,7 @@ fn scoped(path: &str, scopes: &[String]) -> bool {
         })
 }
 
-fn current_source(
+pub(super) fn current_source(
     graph: &GraphStore,
     project: &str,
     root: &Path,

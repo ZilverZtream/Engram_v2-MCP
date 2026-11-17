@@ -7,6 +7,7 @@
 
 pub mod evidence;
 pub mod browser_state;
+pub mod config_settings;
 pub mod historical;
 pub mod literal_settings;
 pub mod literal_state;

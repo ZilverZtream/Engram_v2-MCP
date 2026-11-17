@@ -44,7 +44,8 @@ impl SettingsEvidence {
     }
     pub fn qualify_status(&self, status: AnswerStatus) -> AnswerStatus {
         if matches!(status, AnswerStatus::Answered | AnswerStatus::Partial)
-            && (self.provider.status != ProviderStatus::Hit || self.provider.truncated)
+            && (self.provider.provider == "config_settings"
+                || self.provider.status != ProviderStatus::Hit || self.provider.truncated)
         {
             AnswerStatus::Partial
         } else {

@@ -161,8 +161,10 @@ impl Engram {
             raw.append(&mut schema.items);
             providers.push(schema.provider.clone());
         }
-        if let Some(settings) = &mut settings_evidence {
-            raw.append(&mut settings.items);
+        for settings in &mut settings_evidence {
+            if settings.provider.provider != "config_settings" {
+                raw.append(&mut settings.items);
+            }
             providers.push(settings.provider.clone());
         }
         for state in &mut state_evidence {
@@ -470,6 +472,13 @@ impl Engram {
                 evidence.append(&mut state.items);
             }
         }
+        // The configuration provider already bounds its explicit declaration
+        // set; generic lookup/file ranking must not select an apparent winner.
+        for settings in &mut settings_evidence {
+            if settings.provider.provider == "config_settings" {
+                evidence.append(&mut settings.items);
+            }
+        }
         let conflicts = ranking::detect_conflicts(&evidence, gen_);
         let snapshot = status::build_snapshot(
             &ctx,
@@ -500,7 +509,7 @@ impl Engram {
         let adequate = status::has_adequate_support_with(&req.question, &evidence, &known);
         let st = status::assess_status(&plan, &evidence, &providers, &snapshot, adequate);
         let st = schema_evidence.as_ref().map_or(st, |schema| schema.qualify_status(st));
-        let st = settings_evidence.as_ref().map_or(st, |settings| settings.qualify_status(st));
+        let st = settings_evidence.iter().fold(st, |status, settings| settings.qualify_status(status));
         let st = state_evidence.iter().fold(st, |status, state| state.qualify_status(status));
         let st = request_evidence.as_ref().map_or(st, |request| request.qualify_status(st));
         let mut unknowns = report::coverage_gaps(&plan, &evidence, &providers);
