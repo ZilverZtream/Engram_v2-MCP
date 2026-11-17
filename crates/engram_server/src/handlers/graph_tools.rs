@@ -137,6 +137,25 @@ fn no_graph_matches_note(query: &str, namespace: &str, text_hits: usize, symbols
     )
 }
 
+// This is file-revision admission, not reconstruction of historical graph edges.
+fn admit_graph_source(
+    selected: Option<&engram_index::hybrid::SelectedSourceRevisionLookup>,
+    node: Option<&engram_graph::Node>, withheld: &mut [usize; 2],
+) -> bool {
+    let Some(selected) = selected else { return true; };
+    let Some(node) = node else { withheld[1] += 1; return false; };
+    match selected.matches(node.file_path.as_str(), node.generation) {
+        Ok(Some(true)) => true,
+        Ok(Some(false)) => { withheld[0] += 1; false },
+        Ok(None) | Err(_) => { withheld[1] += 1; false },
+    }
+}
+
+fn graph_source_boundary(generation: u64, applied: bool, withheld: &[usize; 2]) -> String {
+    if !applied { return String::new(); }
+    format!("\nSource boundary: selected source snapshot {generation}; withheld {} unselected and {} unavailable graph source observations (attempts, not distinct nodes). File revisions are checked before symbol boosts and each expansion. Live graph edges are not an atomic historical snapshot; indexed source does not establish current disk freshness or runtime execution. Missing/overwritten graph nodes are not reconstructed.\n", withheld[0], withheld[1])
+}
+
 /// Render one node as an identity card with follow-up tool hints.
 fn render_node_identity(node: &engram_graph::Node) -> String {
     let mut out = String::with_capacity(256);
@@ -424,10 +443,14 @@ impl Engram {
     ) -> Result<CallToolResult, McpError> {
         validate_project_id(&req.project_id)?;
         let ps = self.ensure_project_runtime(&req.project_id).await?;
-        let (gen_, _source_snapshot) = if req.namespace == "memory" {
+        let (gen_, source_snapshot) = if req.namespace == "memory" {
             let (generation, guard) = self.pin_active_source_generation(&req.project_id, &ps.search).await?;
-            (generation, Some(guard))
+            (generation, Some(std::sync::Arc::new(guard)))
         } else { (self.get_active_generation(&req.project_id).await?, None) };
+        let selected = source_snapshot.as_ref().map(|view|
+            ps.search.selected_source_revision_lookup(&req.project_id, gen_, view.clone()))
+            .transpose().map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        let mut withheld = [0usize; 2];
         let max_results = req.sanitized_max_results();
         let hop_depth = req.sanitized_hop_depth();
         let max_content_chars = req.sanitized_max_content_chars();
@@ -470,7 +493,9 @@ impl Engram {
             .state
             .graph
             .query_nodes(&req.project_id, None, Some(&req.query), None, 30)
-            .unwrap_or_default();
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+        let symbol_nodes: Vec<_> = symbol_nodes.into_iter()
+            .filter(|node| admit_graph_source(selected.as_ref(), Some(node), &mut withheld)).collect();
 
         // Build score map: node_id -> (score, label, path_for_content, source).
         // `source` records WHICH insertion produced the winning score, so a row
@@ -576,6 +601,11 @@ impl Engram {
                 .collect();
 
             for (node_id, parent_score) in &seed_nodes {
+                if selected.is_some() {
+                    let node = self.state.graph.get_node(&req.project_id, node_id)
+                        .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                    if !admit_graph_source(selected.as_ref(), node.as_ref(), &mut withheld) { continue; }
+                }
                 let neighbors_per_kind = 5.max(10 / expansion_kinds.len());
                 for kind in &expansion_kinds {
                     if let Ok(neighbors) = self.state.graph.neighbors(
@@ -585,13 +615,19 @@ impl Engram {
                         neighbors_per_kind,
                     ) {
                         for (neigh_id, weight) in neighbors {
+                            let path = if selected.is_some() {
+                                let node = self.state.graph.get_node(&req.project_id, &neigh_id)
+                                    .map_err(|error| McpError::internal_error(error.to_string(), None))?;
+                                if !admit_graph_source(selected.as_ref(), node.as_ref(), &mut withheld) { continue; }
+                                node.map(|node| node.file_path.as_str().to_owned())
+                            } else { None };
                             let hop_decay = 0.7f32.powi((_hop + 1) as i32);
                             let weight_factor =
                                 0.5 + (weight.min(10) as f32 * req.symbol_boost * 0.05);
                             let neigh_score = parent_score * weight_factor.min(0.90) * hop_decay;
                             let entry = scores
                                 .entry(neigh_id)
-                                .or_insert((0.0, None, None, GraphRowSource::GraphExpansion));
+                                .or_insert((0.0, None, path, GraphRowSource::GraphExpansion));
                             if neigh_score > entry.0 {
                                 entry.0 = neigh_score;
                                 entry.3 = GraphRowSource::GraphExpansion;
@@ -609,7 +645,7 @@ impl Engram {
                     &req.namespace,
                     hits.len(),
                     symbol_nodes.len(),
-                ),
+                ) + &graph_source_boundary(gen_, selected.is_some(), &withheld),
             )]));
         }
 
@@ -632,8 +668,14 @@ impl Engram {
             hop_depth
         ));
 
-        for (id, (score, label, _path, source)) in sorted.iter().take(max_results) {
+        for (id, (score, label, path, source)) in sorted.iter().take(max_results) {
             out.push_str(&graph_row(id, *score, label.as_deref(), *source));
+            if let (Some(view), Some(path)) = (source_snapshot.as_ref(), path.as_ref()) {
+                let revision = view.selected_file_revisions().map_or(Some(gen_), |files| files.get(path).copied());
+                if let Some(revision) = revision {
+                    out.push_str(&format!("  Indexed source: {path}; selected physical revision {revision}.\n"));
+                }
+            }
 
             // Include content preview if requested
             if req.include_content && max_content_chars > 0 {
@@ -658,6 +700,7 @@ impl Engram {
             }
         }
 
+        out.push_str(&graph_source_boundary(gen_, selected.is_some(), &withheld));
         Ok(CallToolResult::success(vec![Content::text(
             out.trim().to_string(),
         )]))
