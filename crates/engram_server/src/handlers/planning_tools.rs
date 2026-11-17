@@ -6481,8 +6481,8 @@ pub(crate) fn parse_sonarqube_issues(json: &str) -> Vec<crate::models::ReviewFin
 
 impl Engram {
     /// Feed external review findings (CTO comments, SonarQube issues) into
-    /// the anti-pattern index — what a reviewer caught once becomes something
-    /// immune_check and pre_commit_review catch automatically forever.
+    /// the anti-pattern index as imported evidence for later checks. Retrieval
+    /// and rule injection do not prove recurrence detection or policy authority.
     pub async fn handle_ingest_review_findings(
         &self,
         req: crate::models::IngestReviewFindingsRequest,
@@ -6570,14 +6570,11 @@ impl Engram {
                             Some("blocker") | Some("critical") | Some("high")
                         )
                 })
-                .map(|f| {
-                    let text: String = f.message.chars().take(300).collect();
-                    (f.file.clone().unwrap_or_default(), text)
-                })
+                .map(|f| (f.file.clone().unwrap_or_default(), f.message.clone()))
                 .collect();
-            promoted = candidates.len();
             if !candidates.is_empty() {
-                tokio::task::spawn_blocking(move || {
+                promoted = tokio::task::spawn_blocking(move || {
+                    let count = candidates.len();
                     for (file, text) in candidates {
                         let hash =
                             engram_core::ContentHash::compute(format!("{file}:{text}").as_bytes());
@@ -6590,20 +6587,23 @@ impl Engram {
                             introduced_at: None,
                             provenance: Some("manually ingested review finding".into()),
                         };
-                        let _ = reg.put_repo_rule(&pid, &rule);
+                        reg.put_repo_rule(&pid, &rule)?;
                     }
+                    Ok::<usize, anyhow::Error>(count)
                 })
                 .await
-                .map_err(|e| McpError::internal_error(e.to_string(), None))?;
+                .map_err(|e| McpError::internal_error(e.to_string(), None))?
+                .map_err(|e| McpError::internal_error(format!("Review finding promotion failed after anti-pattern indexing; earlier rule writes may remain: {e}"), None))?;
             }
         }
 
         let mut out = format!(
             "Ingested {doc_count} review finding(s) into the anti-pattern index \
-             ({sq_count} from SonarQube), {promoted} promoted to repo rules.\n\
-             They are now checked by: immune_check (scoring), pre_commit_review's \
-             antipattern + immune gates, and injected into get_chunk for the \
-             affected files.\n"
+             ({sq_count} from SonarQube), {promoted} successful repo-rule upsert(s).\n\
+             Promoted rules retain complete submitted messages and file patterns. \
+             Anti-pattern lookup, review gates and optional get_chunk rule injection \
+             supply imported evidence; they do not guarantee automatic detection, \
+             semantic applicability or policy acceptance.\n"
         );
         out.push_str(&self.freshness_footer(&req.project_id, gen_).await);
         Ok(CallToolResult::success(vec![Content::text(out)]))

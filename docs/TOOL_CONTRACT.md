@@ -1969,3 +1969,21 @@ Instruction-maintenance-only requests retain their original JSON path and do not
 this collector. No new request fields, schema, decision store, model call or approval
 workflow is introduced. Semantic applicability, decision authority and general agent
 usefulness remain unproved where the source evidence does not establish them.
+
+## Review finding qualifications
+
+Source change November17 (combined validation/deployment pending):
+`ingest_review_findings` retains complete submitted messages when promoting them
+to repo rules, including conditions and exceptions beyond the former 300-character
+prefix. Rule identity uses that complete text, so two findings with the same prefix
+and different qualifications remain separate; repeating the same full message
+retains its identity. Existing truncated rules are not migrated, overwritten by a
+guessed identity, deleted or adopted by this change.
+
+Promotion remains enabled by default for blocker/critical/high findings with a
+file; `promote_rules=false` retains index evidence without promoting rules.
+Successful upsert counts describe completed writes, not unique new rule identities.
+Promotion storage errors are returned; prior index/rule writes are separate and
+are not represented as an atomic rollback. Imported text is evidence, not proof
+of authority, semantic applicability, future defect detection or accepted policy.
+No existing legacy ownership decisions are resolved by retaining complete text.

@@ -739,7 +739,8 @@ pub struct ReviewFindingIn {
     /// Rule/check identifier (e.g. "csharpsquid:S2076", "cto:always-audit").
     #[serde(default)]
     pub rule: Option<String>,
-    /// The finding text — what was wrong and what to do instead.
+    /// Complete finding text, including conditions and exceptions; retained
+    /// without summarization in the index and any requested rule promotion.
     pub message: String,
     /// blocker|critical|major|minor|info (free-form accepted).
     #[serde(default)]
@@ -747,7 +748,7 @@ pub struct ReviewFindingIn {
 }
 
 /// Ingest external review findings into the anti-pattern index so
-/// immune_check / pre_commit_review catch the same mistake next time.
+/// immune_check / pre_commit_review can retrieve it as imported evidence.
 #[derive(Debug, Clone, Deserialize, JsonSchema)]
 #[serde(deny_unknown_fields)]
 pub struct IngestReviewFindingsRequest {
@@ -759,7 +760,9 @@ pub struct IngestReviewFindingsRequest {
     /// /api/issues/search). Parsed in addition to `findings`.
     #[serde(default)]
     pub sonarqube_json: Option<String>,
-    /// Promote blocker/critical findings with a file to repo rules. Default true.
+    /// Promote blocker/critical/high findings with a file to repo rules. Default
+    /// true. Retains complete messages; promotion does not prove policy authority
+    /// or that future review gates will recognize the same semantic defect.
     #[serde(default = "default_true")]
     pub promote_rules: bool,
 }

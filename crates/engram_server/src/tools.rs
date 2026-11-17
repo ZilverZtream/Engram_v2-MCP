@@ -503,7 +503,7 @@ impl Engram {
     }
 
     #[tool(
-        description = "Feed external review findings into Engram's anti-pattern memory: pass CTO/manual findings as a list and/or a SonarQube issues export JSON. What a reviewer caught once is then caught automatically by immune_check, pre_commit_review's gates, and get_chunk rule injection. Blocker/critical file-scoped findings auto-promote to repo rules. Run after every review cycle."
+        description = "Import manual findings and/or a SonarQube issues export into anti-pattern search evidence. promote_rules=true (default) also stores complete blocker/critical/high messages with a file as repo rules; false imports findings only. Conditions and exceptions remain verbatim. Promoted rules can be consulted by review gates and optional get_chunk injection, but import does not prove policy authority, semantic applicability or automatic recurrence detection. Use pre_commit_review for actual gate outcomes."
     )]
     pub async fn ingest_review_findings(
         &self,
