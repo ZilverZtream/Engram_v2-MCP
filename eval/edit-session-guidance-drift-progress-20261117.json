@@ -1,0 +1,73 @@
+{
+  "original_requirement_id": "EG-27",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Surface policy changes during a task so the agent revisits affected assumptions; preserve source hashes, complete qualifications and task scope.",
+  "observed_missing_behavior": "begin_edit_session supplies current scoped guidance but persists no opening guidance hashes. complete_edit_session refreshes actual-scope guidance without comparing to opening observations.",
+  "priority_basis": "LegacyValidation current Full VB/WebForms, JS/TS and SQL edit workflow; exact normal configuration hash checked without reading application source.",
+  "config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "source_phase_started_at_utc": "2026-11-17T22:11:09.905969+00:00",
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117",
+  "implementation_files": [
+    "crates/engram_server/src/handlers/planning_tools.rs",
+    "crates/engram_server/src/handlers/edit_session_guidance.rs",
+    "crates/engram_server/src/handlers/edit_session_maintenance.rs",
+    "crates/engram_server/tests/edit_session_guidance_drift.rs",
+    "crates/engram_server/tests/edit_session_policy_tests.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "finite_acceptance": [
+    "Persist hash-only opening observations of scoped guidance, linked evidence and fingerprinted omissions under the existing lifecycle; completion compares fresh observations of the identical planned paths and names changed/new/no-longer-observed paths with old/new hashes. Never infer acceptance or compliance.",
+    "Unchanged guidance produces no false drift when actual edited scope expands or narrows. Existing sessions without an opening observation and incomplete/unfingerprinted inputs remain explicitly unverified. Explicit no-edit completion skips comparison and guidance applicability.",
+    "Complete JSON/Markdown and bounded immutable recovery preserve all drift evidence, original scope and lifecycle ownership; recovery never reruns comparison or closes a reused session. Owned Full/Core checks preserve authored files and clean all owned resources."
+  ],
+  "build_policy": "Source work and installed owned baseline only. Await at least three genuine independent source outcomes before unchanged guarded combined native/release validation; no full suite or separate debug build.",
+  "temporary_resources": {
+    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117",
+    "purpose": "Finite contract, owned public baseline and later acceptance evidence",
+    "cleanup_condition": "Fixtures and process handles removed on completion/unwinding; retain evidence through delivery. No preexisting cleanup.",
+    "baseline_fixture_removed": true,
+    "baseline_server_owners_closed": true,
+    "current_fixture_processes": 0
+  },
+  "engram_builds_started": 0,
+  "native_tests_executed": 0,
+  "runtime_deployed": false,
+  "original_research_evidence": "instruction_capabilities message4: Policy changes during a task. Planning, editing, and review can observe different source hashes. Surface that drift so an agent revisits affected assumptions.",
+  "source_phase_completed_at_utc": "2026-11-17T22:17:31.115225+00:00",
+  "implementation_items_active": 0,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\baseline1\\receipt.json",
+  "baseline_behavior_checks_passed": 5,
+  "baseline_seconds": 3.150969099951908,
+  "baseline_wrapper_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\baseline1\\verifier-field-correction.json",
+  "native_test_cases_written": 3,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\verify-public.py",
+  "post_change_public_checks_executed": 0,
+  "source_checks": {
+    "rust_syntax": "PASS via rustfmt parse; new files formatted; existing files not rewritten",
+    "python_verifier_syntax": "PASS via compile(), no bytecode artifact",
+    "diff_whitespace": "PASS",
+    "protected_wip9": "UNCHANGED",
+    "engram_builds_started": 0,
+    "native_tests_executed": 0
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/planning_tools.rs": "dd2f05de515da2d83c40e6295a6ddf784718456bda6c1e9fc04eabe4b9fd8106",
+    "crates/engram_server/src/handlers/edit_session_guidance.rs": "27440e6561a19a2228d609036b279a2d25ed78bbf0d5d5b7597371d35274a7c6",
+    "crates/engram_server/src/handlers/edit_session_maintenance.rs": "a4fcb4fe7c0e6ad63f3b28ef0b26133e1eeddee7521d08101938dc7bd07cc865",
+    "crates/engram_server/tests/edit_session_guidance_drift.rs": "88b2310c4621d2efb314a065b30159d09853a0a0b77bbe1ec28777652d6c5565",
+    "crates/engram_server/tests/edit_session_policy_tests.rs": "a0b02395cc8bcb3b5aaea77e965ef6c5c43cc3eb3501877e319ce453418dbe8e",
+    "docs/TOOL_CONTRACT.md": "c6275985ba43f97147e480bfb5b42604db7aec00bcf9cd661f3be580e2513fa7"
+  },
+  "public_verifier_sha256": "9a4dbe1ae7508fc501c9b6c2c084801ead8bbd9f144d2b4c419bf1811c3074ca",
+  "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+  "next_action": "Preserve this source outcome and advance a different original requirement before combined validation. No standalone Cargo or release.",
+  "limits": [
+    "This is observation of source identity changes on the original declared planned paths, not proof of applicable-policy completeness, semantic intent or compliance.",
+    "Linked document evidence and candidates are not adopted policy. Missing/unsupported opening observations and unfingerprinted inputs remain explicit.",
+    "Opening bodies are not persisted in lifecycle metadata. Existing immutable complete report recovery retains comparison evidence; no authored instruction is changed.",
+    "When actual edited paths differ from the original plan, completion performs one additional bounded guidance resolution for the original planned scope. The ordinary identical-path case reuses the current guidance observation. No latency improvement is claimed.",
+    "No post-change native/public acceptance or runtime delivery yet. Source syntax does not prove user-facing correctness.",
+    "Actual LegacyValidation application source was not read or changed. Normal configuration identity checked; no Site/Q traversal, reindex, closed-tool work or language expansion."
+  ],
+  "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c"
+}

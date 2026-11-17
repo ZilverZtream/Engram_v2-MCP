@@ -2554,7 +2554,18 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-27",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
+        "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\contract.json",
+        "behavior": "Opening/current hash comparison on the same planned edit scope, with explicit linked/omitted coverage and immutable drift recovery.",
+        "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2784,17 +2795,36 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "status": "PREVIOUS_FINITE_BATCH_DELIVERED_SELECT_NEXT_ORIGINAL_REQUIREMENT",
-    "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
-    "pending_source_outcomes": 0,
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement": "EG-27 / instruction_capabilities: policy changes during a task",
+    "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
+    "observed_missing_behavior": "begin_edit_session supplies current scoped guidance but persists no opening guidance hashes. complete_edit_session refreshes actual-scope guidance without comparing to opening observations.",
+    "implementation_files": [
+      "crates/engram_server/src/handlers/planning_tools.rs",
+      "crates/engram_server/src/handlers/edit_session_guidance.rs",
+      "crates/engram_server/src/handlers/edit_session_maintenance.rs",
+      "crates/engram_server/tests/edit_session_guidance_drift.rs",
+      "crates/engram_server/tests/edit_session_policy_tests.rs",
+      "docs/TOOL_CONTRACT.md"
+    ],
+    "finite_acceptance": [
+      "Persist hash-only opening observations of scoped guidance, linked evidence and fingerprinted omissions under the existing lifecycle; completion compares fresh observations of the identical planned paths and names changed/new/no-longer-observed paths with old/new hashes. Never infer acceptance or compliance.",
+      "Unchanged guidance produces no false drift when actual edited scope expands or narrows. Existing sessions without an opening observation and incomplete/unfingerprinted inputs remain explicitly unverified. Explicit no-edit completion skips comparison and guidance applicability.",
+      "Complete JSON/Markdown and bounded immutable recovery preserve all drift evidence, original scope and lifecycle ownership; recovery never reruns comparison or closes a reused session. Owned Full/Core checks preserve authored files and clean all owned resources."
+    ],
     "implementation_items_active": 0,
+    "pending_source_outcomes": 1,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
     "previous_goal_turn_classification": {
-      "classification": "PROGRESS_IMPLEMENTED_VALIDATED_DEPLOYED",
-      "evidence": "eval/guidance-sql-review-batch-delivery-20261117.json"
+      "classification": "PROGRESS_COMPLETED_DELIVERY_RECORDS",
+      "evidence": "15b3e197b2ebe967b09e5199307794501d0a857d"
     },
-    "next_action": "Advance the next ready unfinished original requirement. Preserve31findings/19gates and held work; do not poll/restart terminal handles or replay this delivered batch."
+    "next_action": "Advance a different unfinished original requirement. Preserve this queued outcome until a meaningful combined batch is ready; do not compile this change alone.",
+    "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
+    "engram_builds_started_this_turn": 0,
+    "native_tests_executed_this_turn": 0,
+    "post_change_public_checks_this_turn": 0
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3136,13 +3166,12 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "original_requirement_id": "EG-01",
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "progress": "eval/footprint-guidance-recovery-progress-20261117.json",
+    "status": "NONE_ONE_SOURCE_OUTCOME_QUEUED",
     "implementation_items_active": 0,
-    "source_commit": "53215bf279bc03ef20026a89856339d844a6d3aa",
-    "runtime_deployed": true,
-    "delivery_record": "eval/page-request-guidance-batch-delivery-20261117.json"
+    "pending_source_outcomes": 1,
+    "latest_source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
+    "latest_progress": "eval/edit-session-guidance-drift-progress-20261117.json",
+    "next_action": "Advance a different unfinished original requirement. Preserve this queued outcome until a meaningful combined batch is ready; do not compile this change alone."
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3824,5 +3853,15 @@
       "EG-07"
     ],
     "full_original_goal_complete": false
+  },
+  "edit_session_guidance_drift_source_progress_20261117": {
+    "original_requirement_id": "EG-27",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
+    "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\contract.json",
+    "behavior": "Opening/current hash comparison on the same planned edit scope, with explicit linked/omitted coverage and immutable drift recovery.",
+    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
+    "runtime_deployed": false
   }
 }
