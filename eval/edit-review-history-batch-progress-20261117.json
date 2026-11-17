@@ -1,5 +1,5 @@
 {
-  "status": "RELEASE_BUILD_RUNNING",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
   "at_utc": "2026-11-17T22:38:58.093957+00:00",
   "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\source-preparation.json",
@@ -12,9 +12,11 @@
       "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\contract.json",
       "behavior": "Opening/current hash comparison on the same planned edit scope, with explicit linked/omitted coverage and immutable drift recovery.",
-      "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-      "runtime_deployed": false,
-      "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
+      "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "runtime_deployed": true,
+      "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
+      "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+      "historical_source_status": true
     },
     {
       "original_requirement_id": "EG-19",
@@ -23,9 +25,11 @@
       "progress": "eval/review-finding-evidence-links-progress-20261117.json",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\contract.json",
       "behavior": "Path-specific finding links to admitted prior-review items and independently scoped events, preserving current findings, conditions, revision assessments and immutable recovery.",
-      "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-      "runtime_deployed": false,
-      "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
+      "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "runtime_deployed": true,
+      "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
+      "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+      "historical_source_status": true
     },
     {
       "original_requirement_id": "TODO-4",
@@ -34,9 +38,11 @@
       "progress": "eval/history-default-delivery-progress-20261117.json",
       "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
       "behavior": "Ordinary history replies default to40KiB with complete immutable original-MCP overflow recovery; explicit caller budgets remain handler-owned.",
-      "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-      "runtime_deployed": false,
-      "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
+      "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+      "runtime_deployed": true,
+      "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
+      "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+      "historical_source_status": true
     }
   ],
   "native_targets": {
@@ -51,7 +57,7 @@
   "release_builds_planned": 1,
   "native_commands_started": 4,
   "release_builds_started": 1,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "full_original_goal_complete": false,
   "build_constraints": {
     "unchanged_guard": "scripts/run_delivery_build.py",
@@ -68,7 +74,7 @@
     "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\verify-public.py",
     "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\verify-public.py"
   ],
-  "next_action": "Poll only release1 session5192. On success verify source/Job/temp closure, package once, run candidate public acceptance, install the verified pair, run installed acceptance, restore the normal runtime and finalize prepared records. Do not replay accepted native/debug checks.",
+  "next_action": "Installed batch complete. Preserve and advance following original source work; do not replay terminal builds or acceptance.",
   "active_native": {
     "status": "TERMINAL_ACCEPTED",
     "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json"
@@ -91,24 +97,13 @@
   "native_case_executions": 16,
   "release_exec_session_id": 5192,
   "active_release": {
-    "status": "RELEASE_BUILD_RUNNING",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
-    "label": "release1",
-    "exec_session_id": 5192,
-    "guard_pid": 17264,
-    "observed_guard_priority_class": 16384,
-    "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1-launch.json",
-    "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json",
-    "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.log",
-    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
-    "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
-    "native_cases_covered": 15,
-    "public_debug_checks_passed": 35,
-    "installation_started": false
+    "status": "TERMINAL_PASS",
+    "receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json"
   },
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
   "debug_public_checks_passed": 35,
   "debug_binary_sha256": "df980a987e626c7a250a3d4588f6d78286f6e86f3271b00264cff493e3590186",
-  "delivery_recorders_prepared": true
+  "delivery_recorders_prepared": true,
+  "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+  "all_build_sessions_terminal": true
 }

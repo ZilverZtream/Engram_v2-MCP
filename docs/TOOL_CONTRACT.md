@@ -332,7 +332,7 @@ The provider reads one current snapshot with the existing4MiB raw-file cap. JSON
 - `begin_edit_session(project_id, planned_files, story=null, session_id=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — opens a session and returns its lifecycle token, the expectation brief and current authored guidance for the declared planned paths, including new files. Complete policy sources retain hashes and exceptions; oversized or unresolved sources carry recovery instructions.
 - `complete_edit_session(project_id, session_id=null, session_revision=null, edited_files=null, dossier=null, max_tokens=null, output_json=false, response_id=null, response_offset=0)` — checks the declared edited scope and refreshes authored guidance for that scope before closing the session. Omitted `edited_files` uses the planned set; explicit `[]` declares no edits and skips completeness/policy applicability analysis. Use the returned session identity/revision to select the correct lifecycle. Guidance is advisory evidence, not semantic enforcement, approval or proof that edits comply.
 
-  Source change 2026-11-17 (combined validation/deployment pending): opening
+  Installed ([delivery](../eval/edit-review-history-batch-delivery-20261117.json)): opening
   sessions retain hash-only guidance observations. Completion compares fresh
   observations for the identical original planned paths and reports changed,
   newly observed or no-longer-observed sources with opening/current hashes.
@@ -1999,7 +1999,7 @@ source-backed search delivery does not prove semantic ranking equivalence.
 
 ## Default history reply budget
 
-Source change 2026-11-17 (combined validation/deployment pending): ordinary
+Installed ([delivery](../eval/edit-review-history-batch-delivery-20261117.json)): ordinary
 `search_history` calls without `max_tokens` use a40KiB complete public reply
 budget in both Markdown and JSON. Fitting results keep their existing format.
 An oversized complete result returns `DEFERRED_READ_REPORT` with the existing
@@ -2015,7 +2015,7 @@ This bounds delivery, not query latency, ranking quality or history completeness
 
 ## Prior review evidence on individual findings
 
-Source change 2026-11-17 (combined validation/deployment pending):
+Installed ([delivery](../eval/edit-review-history-batch-delivery-20261117.json)):
 `pre_commit_review` links a selected finding to admitted prior-review items by
 exact referenced file or the existing declared-scope/complete-path event match.
 `prior_review_annotations` contains report-local JSON pointers to the complete

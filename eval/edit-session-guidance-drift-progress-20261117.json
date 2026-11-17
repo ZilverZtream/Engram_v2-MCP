@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-27",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Surface policy changes during a task so the agent revisits affected assumptions; preserve source hashes, complete qualifications and task scope.",
   "observed_missing_behavior": "begin_edit_session supplies current scoped guidance but persists no opening guidance hashes. complete_edit_session refreshes actual-scope guidance without comparing to opening observations.",
   "priority_basis": "LegacyValidation current Full VB/WebForms, JS/TS and SQL edit workflow; exact normal configuration hash checked without reading application source.",
@@ -31,7 +31,7 @@
   },
   "engram_builds_started": 0,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "original_research_evidence": "instruction_capabilities message4: Policy changes during a task. Planning, editing, and review can observe different source hashes. Surface that drift so an agent revisits affected assumptions.",
   "source_phase_completed_at_utc": "2026-11-17T22:17:31.115225+00:00",
   "implementation_items_active": 0,
@@ -58,15 +58,13 @@
     "docs/TOOL_CONTRACT.md": "c6275985ba43f97147e480bfb5b42604db7aec00bcf9cd661f3be580e2513fa7"
   },
   "public_verifier_sha256": "0603cc1066c9fa717f3a5ec48921dc80dbcd4781cf9fc0631fc651a8a0f4957a",
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-  "next_action": "Preserve this source outcome and advance a different original requirement before combined validation. No standalone Cargo or release.",
+  "validation_status": "PASS",
+  "next_action": "Finite component accepted and installed. Advance the next ready original requirement without replaying this batch; broader original limits remain.",
   "limits": [
-    "This is observation of source identity changes on the original declared planned paths, not proof of applicable-policy completeness, semantic intent or compliance.",
-    "Linked document evidence and candidates are not adopted policy. Missing/unsupported opening observations and unfingerprinted inputs remain explicit.",
-    "Opening bodies are not persisted in lifecycle metadata. Existing immutable complete report recovery retains comparison evidence; no authored instruction is changed.",
-    "When actual edited paths differ from the original plan, completion performs one additional bounded guidance resolution for the original planned scope. The ordinary identical-path case reuses the current guidance observation. No latency improvement is claimed.",
-    "No post-change native/public acceptance or runtime delivery yet. Source syntax does not prove user-facing correctness.",
-    "Actual LegacyValidation application source was not read or changed. Normal configuration identity checked; no Site/Q traversal, reindex, closed-tool work or language expansion."
+    "Guidance drift compares observed hashes for the same planned scope; incomplete/unfingerprinted inputs remain explicit. Linked evidence is not accepted policy, and unchanged observations do not certify completeness or compliance.",
+    "Finding links are path-relevance leads, not proof of the same defect, authenticated authority, accepted exception or current applicability. Original findings/gate outcomes remain; context discovery caps still apply.",
+    "Default history delivery retains the selected complete result, not exhaustive corpus/source objects. Explicit budgets retain whole-record paging and existing8MiB/24hour/32capture limits apply.",
+    "Original31findings/19gates, held work and semantic/task-usefulness requirements remain open."
   ],
   "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
   "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
@@ -82,5 +80,17 @@
   "debug_public_checks_verified": 15,
   "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
   "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json",
-  "source_checkpoint_post_change_public_checks_executed": 0
+  "source_checkpoint_post_change_public_checks_executed": 0,
+  "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+  "installed_runtime_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\edit-review-history-batch-20261117-installed1\\receipt.json",
+  "source_stage_limits_retained": [
+    "This is observation of source identity changes on the original declared planned paths, not proof of applicable-policy completeness, semantic intent or compliance.",
+    "Linked document evidence and candidates are not adopted policy. Missing/unsupported opening observations and unfingerprinted inputs remain explicit.",
+    "Opening bodies are not persisted in lifecycle metadata. Existing immutable complete report recovery retains comparison evidence; no authored instruction is changed.",
+    "When actual edited paths differ from the original plan, completion performs one additional bounded guidance resolution for the original planned scope. The ordinary identical-path case reuses the current guidance observation. No latency improvement is claimed.",
+    "No post-change native/public acceptance or runtime delivery yet. Source syntax does not prove user-facing correctness.",
+    "Actual LegacyValidation application source was not read or changed. Normal configuration identity checked; no Site/Q traversal, reindex, closed-tool work or language expansion."
+  ],
+  "installed_public_checks": 15
 }

@@ -2556,37 +2556,14 @@
     },
     "next_batch_pending": [
       {
-        "original_requirement_id": "EG-27",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "138acfab51ea996f9e42d00652734bfe2613b14c",
-        "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\contract.json",
-        "behavior": "Opening/current hash comparison on the same planned edit scope, with explicit linked/omitted coverage and immutable drift recovery.",
-        "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-        "runtime_deployed": false,
-        "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
-      },
-      {
-        "original_requirement_id": "EG-19",
-        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce",
-        "progress": "eval/review-finding-evidence-links-progress-20261117.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\contract.json",
-        "behavior": "Path-specific finding links to admitted prior-review items and independently scoped events, preserving current findings, conditions, revision assessments and immutable recovery.",
-        "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-        "runtime_deployed": false,
-        "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
-      },
-      {
         "original_requirement_id": "TODO-4",
         "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-        "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d",
-        "progress": "eval/history-default-delivery-progress-20261117.json",
-        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
-        "behavior": "Ordinary history replies default to40KiB with complete immutable original-MCP overflow recovery; explicit caller budgets remain handler-owned.",
-        "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-        "runtime_deployed": false,
-        "validation_batch": "eval/edit-review-history-batch-progress-20261117.json"
+        "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
+        "progress": "eval/query-default-delivery-progress-20261118.json",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
+        "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
+        "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
+        "runtime_deployed": false
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2801,18 +2778,7 @@
     "combined_delivery_record": "eval/method-schema-area-batch-delivery-20261116.json",
     "reconciliation": "The linked progress and installed batch receipts already prove this delivery, whose frozen source is an ancestor of current WORK. Retain prior acceptance and stated limits; do not reimplement or replay to refresh this status. This is a bookkeeping correction, not another deliverable or a reason to compile."
   },
-  "following_batch_pending": [
-    {
-      "original_requirement_id": "TODO-4",
-      "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-      "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363",
-      "progress": "eval/query-default-delivery-progress-20261118.json",
-      "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\query-default-delivery-20261118\\contract.json",
-      "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
-      "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
-      "runtime_deployed": false
-    }
-  ],
+  "following_batch_pending": [],
   "method_schema_area_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "record": "eval/method-schema-area-batch-delivery-20261116.json",
@@ -2830,43 +2796,14 @@
   },
   "current_execution_focus": {
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "TODO-4: bounded ordinary core query replies",
     "progress": "eval/query-default-delivery-progress-20261118.json",
-    "observed_missing_behavior": "Only ordinary history now gets automatic default40KiB overflow delivery in the queued current release. search_memory, vector_search and grep_project still pass unbounded max_tokens=None replies through their ordinary transport path; explicit opt-in retention/budgets do not cover normal calls.",
-    "implementation_files": [
-      "crates/engram_server/src/retained_results.rs",
-      "crates/engram_server/tests/query_default_delivery.rs",
-      "docs/TOOL_CONTRACT.md"
-    ],
-    "finite_acceptance": [
-      "Ordinary default search_memory/vector_search/grep_project complete MCP text or JSON results fit40KiB or return existing exact saved-result recovery; fitting results and explicit max_tokens/retained-window controls retain original behavior. Existing internal result/window/source caps and provider capability errors remain truthful.",
-      "Recover exact original selected evidence, identifiers, guidance, warnings and pagination after source/index/note changes and process restart without rerunning retrieval or embeddings. Recovery retains existing project/tool binding,8MiB and24hour/32capture bounds.",
-      "Verify owned normal TS source/grep queries demonstrate the old overflow, source syntax plus meaningful focused integration cases and public checks. Keep this next source outcome in following_batch_pending, separate from the frozen edit/review/history release; no added compile or mutation of its shipping checkout."
-    ],
+    "original_requirement": "TODO-4",
+    "pending_source_outcomes": 1,
     "implementation_items_active": 0,
-    "pending_current_release_outcomes": 3,
-    "following_source_outcomes": 1,
     "full_original_goal_active": true,
     "full_original_goal_complete": false,
-    "active_release": {
-      "status": "RELEASE_BUILD_RUNNING",
-      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
-      "label": "release1",
-      "exec_session_id": 5192,
-      "guard_pid": 17264,
-      "observed_guard_priority_class": 16384,
-      "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1-launch.json",
-      "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json",
-      "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.log",
-      "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-      "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
-      "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
-      "native_cases_covered": 15,
-      "public_debug_checks_passed": 35,
-      "installation_started": false
-    },
-    "next_action": "Finish the already-running frozen release and its candidate/installed acceptance. Preserve this following source outcome uncompiled; subsequently accumulate substantive original outcomes before combined validation.",
-    "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363"
+    "previous_batch_delivery": "eval/edit-review-history-batch-delivery-20261117.json",
+    "next_action": "Preserve the following source outcomes and advance another substantive original requirement before combined validation. Do not replay the installed batch or compile merely because the minimum count is reached."
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -2974,10 +2911,10 @@
     "installed_server_sha256": "d942d2ce1769805d945c9ea43acf2fcaa482ec4b03434f13edf5f125f125b163"
   },
   "latest_delivered_runtime": {
-    "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
-    "server_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
-    "manifest_sha256": "e9870c9bdfcaa740a6686e7252bc8d2f0eca59af49591675750fb4e3e4d78b8c",
-    "shipping_source_commit": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
+    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+    "manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
+    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
     "selected_generation": 3151,
     "source_format": 9,
     "assets_verified": 215,
@@ -3062,21 +2999,9 @@
     "sha256": "98fc3f0c5e1384b6d8d5a2ad680c4bb0fa8b7144375be41a4fc7e0f57cb17fb5"
   },
   "active_release_validation": {
-    "status": "RELEASE_BUILD_RUNNING",
-    "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
-    "label": "release1",
-    "exec_session_id": 5192,
-    "guard_pid": 17264,
-    "observed_guard_priority_class": 16384,
-    "launch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1-launch.json",
-    "receipt_when_terminal": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json",
-    "log": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.log",
-    "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-    "native_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native-acceptance.json",
-    "debug_public_acceptance": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
-    "native_cases_covered": 15,
-    "public_debug_checks_passed": 35,
-    "installation_started": false
+    "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "all_build_sessions_terminal": true
   },
   "next_source_batch_pending": [],
   "browser_json_history_batch_delivery": {
@@ -3187,11 +3112,9 @@
     "does_not_pause_or_replace_goal": true
   },
   "active_source_implementation": {
-    "status": "NONE_ONE_FOLLOWING_SOURCE_OUTCOME_READY",
+    "status": "NONE_FOLLOWING_SOURCE_RETAINED",
     "implementation_items_active": 0,
-    "following_source_outcomes": 1,
-    "progress": "eval/query-default-delivery-progress-20261118.json",
-    "source_commit": "028d57dfdbcf83821b89bd6c8068b80375386363"
+    "pending_source_outcomes": 1
   },
   "maintenance_state_context_batch_delivery_20261117": {
     "record": "eval/maintenance-state-context-batch-delivery-20261117.json",
@@ -3881,9 +3804,11 @@
     "progress": "eval/edit-session-guidance-drift-progress-20261117.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117\\contract.json",
     "behavior": "Opening/current hash comparison on the same planned edit scope, with explicit linked/omitted coverage and immutable drift recovery.",
-    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false,
-    "source_correction_commit": "130cfea5520917ebd40136411c86080ed39b1c9a"
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "source_correction_commit": "130cfea5520917ebd40136411c86080ed39b1c9a",
+    "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "historical_source_status": true
   },
   "review_finding_evidence_links_source_progress_20261117": {
     "original_requirement_id": "EG-19",
@@ -3892,8 +3817,10 @@
     "progress": "eval/review-finding-evidence-links-progress-20261117.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\contract.json",
     "behavior": "Path-specific finding links to admitted prior-review items and independently scoped events, preserving current findings, conditions, revision assessments and immutable recovery.",
-    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "historical_source_status": true
   },
   "history_default_delivery_source_progress_20261117": {
     "original_requirement_id": "TODO-4",
@@ -3902,8 +3829,10 @@
     "progress": "eval/history-default-delivery-progress-20261117.json",
     "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\contract.json",
     "behavior": "Ordinary history replies default to40KiB with complete immutable original-MCP overflow recovery; explicit caller budgets remain handler-owned.",
-    "validation_status": "PENDING_COMBINED_NATIVE_AND_PUBLIC_ACCEPTANCE",
-    "runtime_deployed": false
+    "validation_status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "runtime_deployed": true,
+    "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "historical_source_status": true
   },
   "edit_review_history_batch_progress_20261117": "eval/edit-review-history-batch-progress-20261117.json",
   "retained_execution_focus_before_query_default_source_20261118": {
@@ -3958,5 +3887,31 @@
     "behavior": "Ordinary source, grep and vector queries receive default40KiB complete original-result overflow recovery while explicit budgets retain handler behavior.",
     "validation_status": "PENDING_FOLLOWING_BATCH_NATIVE_AND_PUBLIC_ACCEPTANCE",
     "runtime_deployed": false
+  },
+  "previous_runtime_before_edit_review_history_20261117": {
+    "record": "eval/guidance-sql-review-batch-delivery-20261117.json",
+    "server_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+    "manifest_sha256": "e9870c9bdfcaa740a6686e7252bc8d2f0eca59af49591675750fb4e3e4d78b8c",
+    "shipping_source_commit": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
+    "selected_generation": 3151,
+    "source_format": 9,
+    "assets_verified": 215,
+    "normal_runtime_restored": true,
+    "full_original_goal_complete": false
+  },
+  "edit_review_history_batch_delivery_20261117": {
+    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "original_requirement_ids": [
+      "EG-27",
+      "EG-19",
+      "TODO-4"
+    ],
+    "full_original_goal_complete": false
+  },
+  "active_edit_review_history_delivery_batch_20261117": {
+    "stage": "IMPLEMENTED_VALIDATED_DEPLOYED",
+    "record": "eval/edit-review-history-batch-delivery-20261117.json",
+    "runtime_deployed": true,
+    "all_sessions_terminal": true
   }
 }

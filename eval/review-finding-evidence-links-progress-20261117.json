@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-19",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Original tool_roi priority2: annotate relevant review findings with scoped prior decisions, evidence and revision applicability; preserve findings and require reassessment of changed code.",
   "observed_missing_behavior": "pre_commit_review returns complete prior_review_context separately from its findings. Selected findings contain no path-specific link to admitted prior decisions or their scope/revision assessments, so the reviewing agent must reconstruct every association.",
   "priority_basis": "Original decision-aware-review shortlist; current LegacyValidation Full preset configuration unchanged and checked by hash. Owned VB/JS workflow fixtures only.",
@@ -21,7 +21,7 @@
   ],
   "engram_builds_started": 0,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117",
     "purpose": "Finite contract, owned baseline and future acceptance evidence",
@@ -50,8 +50,8 @@
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\verify-public.py",
   "public_verifier_sha256": "54b5dee92b9c71c4869d11d8639b30cb4728f2e614568f9783f6d8d97be3531d",
   "implementation_items_active": 0,
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-  "next_action": "Retain source outcome beside EG27; advance another distinct original requirement. No standalone Cargo/release.",
+  "validation_status": "PASS",
+  "next_action": "Finite component accepted and installed. Advance the next ready original requirement without replaying this batch; broader original limits remain.",
   "source_sha256": {
     "crates/engram_server/src/handlers/review_tools.rs": "af1f366a6f932592f226ee61197c42e437e7b8ef5da75a82aa72d9d7a754687a",
     "crates/engram_server/src/handlers/review_tools/finding_context.rs": "a9dc69441eead3aa534a0ff8b0fa1a15842719a1f279da94159f7015e4c174dd",
@@ -60,11 +60,10 @@
     "docs/TOOL_CONTRACT.md": "2c3cce1657d7263867f96d5566984a87e6444c47175d4f08aa8bc295bad72e20"
   },
   "limits": [
-    "Links connect findings to already-retained evidence by path relevance only. They do not identify the same defect, authenticate author authority, accept an exception or validate semantic/current applicability.",
-    "Summary file evidence and each event are matched independently; the original context collection/byte/omission bounds and revision assessments remain unchanged. No new retrieval, model call, decision store or finding suppression.",
-    "Pointers resolve within the complete original report, not the compact deferred manifest. Manifest ledgers retain per-finding link counts and existing exact original-report recovery.",
-    "Syntax checks and installed baseline prove source readiness and the previous missing behavior only. Post-change native/public acceptance and deployment are pending.",
-    "No actual LegacyValidation source read, reindex/mutation, Site/Q access, CodeMap/Blast work, target-language expansion or preexisting deletion."
+    "Guidance drift compares observed hashes for the same planned scope; incomplete/unfingerprinted inputs remain explicit. Linked evidence is not accepted policy, and unchanged observations do not certify completeness or compliance.",
+    "Finding links are path-relevance leads, not proof of the same defect, authenticated authority, accepted exception or current applicability. Original findings/gate outcomes remain; context discovery caps still apply.",
+    "Default history delivery retains the selected complete result, not exhaustive corpus/source objects. Explicit budgets retain whole-record paging and existing8MiB/24hour/32capture limits apply.",
+    "Original31findings/19gates, held work and semantic/task-usefulness requirements remain open."
   ],
   "source_commit": "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce",
   "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
@@ -73,5 +72,16 @@
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\edit-review-history-batch-20261117-debug2\\receipt.json",
   "debug_public_checks_verified": 10,
   "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json"
+  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json",
+  "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+  "installed_runtime_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117\\edit-review-history-batch-20261117-installed1\\receipt.json",
+  "source_stage_limits_retained": [
+    "Links connect findings to already-retained evidence by path relevance only. They do not identify the same defect, authenticate author authority, accept an exception or validate semantic/current applicability.",
+    "Summary file evidence and each event are matched independently; the original context collection/byte/omission bounds and revision assessments remain unchanged. No new retrieval, model call, decision store or finding suppression.",
+    "Pointers resolve within the complete original report, not the compact deferred manifest. Manifest ledgers retain per-finding link counts and existing exact original-report recovery.",
+    "Syntax checks and installed baseline prove source readiness and the previous missing behavior only. Post-change native/public acceptance and deployment are pending.",
+    "No actual LegacyValidation source read, reindex/mutation, Site/Q access, CodeMap/Blast work, target-language expansion or preexisting deletion."
+  ],
+  "installed_public_checks": 10
 }

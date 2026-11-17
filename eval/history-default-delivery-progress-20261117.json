@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-4",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Complete response budgets and exact recovery for normal AI tool use; preserve complete history evidence without unbounded default replies.",
   "observed_missing_behavior": "search_history without max_tokens or retain_response bypasses all complete response budgets in both ordinary Markdown and JSON. Explicit commit/patch reads can emit arbitrarily large complete Git bodies up to existing capture bounds. Prior optional budget/retention deliveries do not bound normal calls.",
   "priority_basis": "Original bounded-evidence/usable-history shortlist and accepted TODO4. Current LegacyValidation Full configuration hash unchanged; Git history affects its VB/WebForms, JS/TS and SQL workflow. No current application-source traversal.",
@@ -20,7 +20,7 @@
   ],
   "engram_builds_started": 0,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "temporary_resources": {
     "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117",
     "purpose": "Finite acceptance, owned baseline and future public receipts",
@@ -55,8 +55,8 @@
   "native_test_cases_written": 3,
   "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\verify-public.py",
   "public_verifier_sha256": "c442c1971e1d37fe467254ccdd05bf94bcbbb011c8f21a2349e75da30c6d498b",
-  "validation_status": "NATIVE_AND_DEBUG_PUBLIC_ACCEPTED_RELEASE_RUNNING",
-  "next_action": "Prepare one combined validation batch for EG27 guidance drift, EG19 finding annotations and this default history overflow delivery. No full suite or separate debug build.",
+  "validation_status": "PASS",
+  "next_action": "Finite component accepted and installed. Advance the next ready original requirement without replaying this batch; broader original limits remain.",
   "source_sha256": {
     "crates/engram_server/src/retained_results.rs": "b903fc848251829964963a16680f1630535c99d9cc8bbe8d5128d5d42cf3d223",
     "crates/engram_server/src/models/requests.rs": "1332aa476634fcc57d49e10a9993cb7b376c833cf142b88c8d41748e92c02c8c",
@@ -64,11 +64,10 @@
     "docs/TOOL_CONTRACT.md": "98f314593a235a34c233205054448cacea8ef3f31278006e98f32a8111d14223"
   },
   "limits": [
-    "Automatic complete-result overflow handling applies at the public MCP transport, reusing existing immutable MCP-result recovery. Internal composed history handlers keep their original full evidence.",
-    "Explicit max_tokens remains handler-controlled whole-record pagination/refusal; explicit retained-window capture remains JSON-only. No new retrieval, ranking, provider call or storage format.",
-    "Small ordinary replies remain unchanged. Captures retain only the selected result/qualifications, not source objects or exhaustive corpus history. Existing8MiB/24hour/32newer-snapshot limits apply.",
-    "Native tests and post-change public acceptance/deployment have not run. Baseline establishes the previous public failure; syntax is not runtime proof.",
-    "No actual LegacyValidation source access, reindex or mutation, Site/Q traversal, CodeMap/Blast work, target-language expansion, model comparison or preexisting deletion."
+    "Guidance drift compares observed hashes for the same planned scope; incomplete/unfingerprinted inputs remain explicit. Linked evidence is not accepted policy, and unchanged observations do not certify completeness or compliance.",
+    "Finding links are path-relevance leads, not proof of the same defect, authenticated authority, accepted exception or current applicability. Original findings/gate outcomes remain; context discovery caps still apply.",
+    "Default history delivery retains the selected complete result, not exhaustive corpus/source objects. Explicit budgets retain whole-record paging and existing8MiB/24hour/32capture limits apply.",
+    "Original31findings/19gates, held work and semantic/task-usefulness requirements remain open."
   ],
   "source_commit": "094fa5ea8a06f4479b9205722ebc86df31f1876d",
   "validation_batch": "eval/edit-review-history-batch-progress-20261117.json",
@@ -77,5 +76,16 @@
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\edit-review-history-batch-20261117-debug2\\receipt.json",
   "debug_public_checks_verified": 10,
   "shipping_source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
-  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json"
+  "release_batch_progress": "eval/edit-review-history-batch-progress-20261117.json",
+  "delivery_record": "eval/edit-review-history-batch-delivery-20261117.json",
+  "installed_runtime_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117\\edit-review-history-batch-20261117-installed1\\receipt.json",
+  "source_stage_limits_retained": [
+    "Automatic complete-result overflow handling applies at the public MCP transport, reusing existing immutable MCP-result recovery. Internal composed history handlers keep their original full evidence.",
+    "Explicit max_tokens remains handler-controlled whole-record pagination/refusal; explicit retained-window capture remains JSON-only. No new retrieval, ranking, provider call or storage format.",
+    "Small ordinary replies remain unchanged. Captures retain only the selected result/qualifications, not source objects or exhaustive corpus history. Existing8MiB/24hour/32newer-snapshot limits apply.",
+    "Native tests and post-change public acceptance/deployment have not run. Baseline establishes the previous public failure; syntax is not runtime proof.",
+    "No actual LegacyValidation source access, reindex or mutation, Site/Q traversal, CodeMap/Blast work, target-language expansion, model comparison or preexisting deletion."
+  ],
+  "installed_public_checks": 10
 }

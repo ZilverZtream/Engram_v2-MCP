@@ -1,0 +1,384 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-17T23:55:00.718569+00:00",
+  "original_requirement_ids": [
+    "EG-27",
+    "EG-19",
+    "TODO-4"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+  "source_preparation": {
+    "status": "CLEAN_SHIPPING_SOURCE_PREPARED",
+    "at_utc": "2026-11-17T22:38:25.515148+00:00",
+    "root_head": "380c6d5b271e4000ab18ccf0d8a4c1c9f6a7197f",
+    "shipping_worktree": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "shipping_head_before": "abc58c50f130bda8cbd42e1ffea2eea008d4edc6",
+    "shipping_head": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "source_commits": [
+      "138acfab51ea996f9e42d00652734bfe2613b14c",
+      "f7dfc6a749e97e4c5722a60e7d703cb7faebfcce",
+      "094fa5ea8a06f4479b9205722ebc86df31f1876d"
+    ],
+    "source_files": {
+      "crates/engram_server/src/handlers/edit_session_guidance.rs": {
+        "root_sha256": "27440e6561a19a2228d609036b279a2d25ed78bbf0d5d5b7597371d35274a7c6",
+        "shipping_sha256": "b592dd3db7540ce42e998dc8586f92d586336deedcb1538d2d7dc9d2d2109b9d"
+      },
+      "crates/engram_server/src/handlers/edit_session_maintenance.rs": {
+        "root_sha256": "a4fcb4fe7c0e6ad63f3b28ef0b26133e1eeddee7521d08101938dc7bd07cc865",
+        "shipping_sha256": "79216d93a6154b7e60c6b09186fa10c6e6141a7588e96011340c49dcd5071275"
+      },
+      "crates/engram_server/src/handlers/planning_tools.rs": {
+        "root_sha256": "ed3d82eef1dcc6293d60cd3a6767a56d89355d89caed680fb29b5c7ae05f8084",
+        "shipping_sha256": "ed3d82eef1dcc6293d60cd3a6767a56d89355d89caed680fb29b5c7ae05f8084"
+      },
+      "crates/engram_server/src/handlers/review_tools.rs": {
+        "root_sha256": "af1f366a6f932592f226ee61197c42e437e7b8ef5da75a82aa72d9d7a754687a",
+        "shipping_sha256": "af1f366a6f932592f226ee61197c42e437e7b8ef5da75a82aa72d9d7a754687a"
+      },
+      "crates/engram_server/src/handlers/review_tools/finding_context.rs": {
+        "root_sha256": "a9dc69441eead3aa534a0ff8b0fa1a15842719a1f279da94159f7015e4c174dd",
+        "shipping_sha256": "c2e8dfec19af1745214399db573b46fd69a737e586ed4cb9881d1dd4cc5d9548"
+      },
+      "crates/engram_server/src/handlers/review_tools/response_delivery.rs": {
+        "root_sha256": "f82f201dd276783a7d023a1622279dd1f8ee1913f54a02f7900d77ed5c0b3609",
+        "shipping_sha256": "f82f201dd276783a7d023a1622279dd1f8ee1913f54a02f7900d77ed5c0b3609"
+      },
+      "crates/engram_server/src/models/requests.rs": {
+        "root_sha256": "1332aa476634fcc57d49e10a9993cb7b376c833cf142b88c8d41748e92c02c8c",
+        "shipping_sha256": "1332aa476634fcc57d49e10a9993cb7b376c833cf142b88c8d41748e92c02c8c"
+      },
+      "crates/engram_server/src/retained_results.rs": {
+        "root_sha256": "b903fc848251829964963a16680f1630535c99d9cc8bbe8d5128d5d42cf3d223",
+        "shipping_sha256": "b903fc848251829964963a16680f1630535c99d9cc8bbe8d5128d5d42cf3d223"
+      },
+      "crates/engram_server/tests/edit_session_guidance_drift.rs": {
+        "root_sha256": "88b2310c4621d2efb314a065b30159d09853a0a0b77bbe1ec28777652d6c5565",
+        "shipping_sha256": "4fc3c2f0c94ad612f7ad2a82b784cd575abbfd5c3dd724fe9ecce7868394487d"
+      },
+      "crates/engram_server/tests/edit_session_policy_tests.rs": {
+        "root_sha256": "3e1bcd40fbcc437337df7f68d6c170344ffb520d26e08c55abf596e7d35d9c88",
+        "shipping_sha256": "3e1bcd40fbcc437337df7f68d6c170344ffb520d26e08c55abf596e7d35d9c88"
+      },
+      "crates/engram_server/tests/history_default_delivery.rs": {
+        "root_sha256": "84dcff2c013fa08904213d821051aba880356b6521c236809b1537b02142513f",
+        "shipping_sha256": "f2c0b7eaa6f657077badab9cba470e9e55fc3192a30b88ff9e8dea0cbe4112f3"
+      },
+      "crates/engram_server/tests/review_finding_evidence_links.rs": {
+        "root_sha256": "55612e934a2776ee646baa3fc6a81dad1b8339f725a2bc2ede379ccdd251bc43",
+        "shipping_sha256": "f25509beee82d4859cafb7732d550f3dc9fbc8af070d22c2395cba4d458b6751"
+      },
+      "docs/TOOL_CONTRACT.md": {
+        "root_sha256": "98f314593a235a34c233205054448cacea8ef3f31278006e98f32a8111d14223",
+        "shipping_sha256": "98f314593a235a34c233205054448cacea8ef3f31278006e98f32a8111d14223"
+      }
+    },
+    "preparation_correction": "Initial source comparison stopped before any Cargo because the reused shipping checkout retained prior pre-delivery documentation markers. All production/test sources matched. Synced only the current contract document and committed it in the shipping checkout; all13selected source/document files now match normalized root contents. No source outcome was replaced and no compile restarted.",
+    "build_runner_sha256": "d1e91aaabccb555a33faef525675e0bf62a75d51a366d6549365f8267b372afe",
+    "launch_runner_sha256": "030bfb32719c84d06d838b30e84d1401fba77945ddf407710cae60c7b6b79e39",
+    "protected_wip9": "UNCHANGED",
+    "temporary_resources": {
+      "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+      "purpose": "Combined acceptance for EG27 guidance drift, EG19 finding evidence links and TODO4 default history delivery",
+      "shipping_checkout_removal_condition": "Existing checkout reused; no new worktree or preexisting deletion.",
+      "cleanup": "Runner owns new Job/relay/temp. Close public fixture owners before deleting only their owned resources; retain receipts/package until delivery."
+    },
+    "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native1-source-correction.json",
+    "test_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native2-test-correction.json"
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\package1",
+    "server_sha256": "7a3e1a18742bd23b3953a12d8642f1af2cc3d462a520175b67fef64a120d6276",
+    "manifest_sha256": "dd7f2a008647f85df4ff9c7df65f93fb3e5ff80a4c7bb35caf736a5343bf2e87",
+    "old_server_sha256": "7762462734af91f0f634e078e106b333c6a20ccfdbb1f813e3d1f6b3f1f17e0f",
+    "old_manifest_sha256": "e9870c9bdfcaa740a6686e7252bc8d2f0eca59af49591675750fb4e3e4d78b8c",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\release1.json",
+      "sha256": "aa8decadda5ac8e43264699b3bad7148c17cac6b4094d565552174c6566e85d6"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "e9870c9bdfcaa740a6686e7252bc8d2f0eca59af49591675750fb4e3e4d78b8c",
+      "capture_phase": "Before pair swap; immutable input companion manifest, not the current installed manifest."
+    },
+    "source_commit": "4d68280cfc07884a157d949da8a2f116c9e9a692",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 15,
+    "native_case_executions": 16,
+    "native_commands": 4,
+    "latest_successful_native_label": "native4-resume",
+    "target_case_counts": {
+      "edit_session_guidance_drift": 3,
+      "edit_session_maintenance_tests": 3,
+      "edit_session_policy_tests": 3,
+      "history_default_delivery": 3,
+      "review_finding_evidence_links": 3
+    },
+    "native_total_seconds": 1022.7047758001136,
+    "covered_cases": [
+      {
+        "target": "edit_session_guidance_drift",
+        "case": "bounded_completion_recovers_original_drift_without_touching_reused_lifecycle",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_guidance_drift",
+        "case": "scope_changes_unresolved_inputs_legacy_and_no_edits_do_not_claim_policy_freshness",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_guidance_drift",
+        "case": "source_changes_name_opening_and_current_evidence_without_conflating_edit_scope",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_maintenance_tests",
+        "case": "bounded_completed_report_recovers_every_partitioned_call_without_reopening_the_session",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_maintenance_tests",
+        "case": "completed_edit_handoff_uses_recorded_start_commit_and_collects_real_before_after_evidence",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_maintenance_tests",
+        "case": "unavailable_profiles_start_commits_and_explicit_no_edits_do_not_emit_guessed_calls",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "completion_refreshes_changed_guidance_and_includes_unplanned_edited_scope",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "new_planned_files_receive_full_scoped_policy_and_no_edits_skip_applicability",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "history_default_delivery",
+        "case": "default_recovery_keeps_original_history_after_subsequent_git_and_disk_changes",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "history_default_delivery",
+        "case": "fitting_default_and_explicit_budget_or_capture_keep_existing_contracts",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "history_default_delivery",
+        "case": "ordinary_commit_and_patch_replies_preserve_complete_evidence_in_both_formats",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "review_finding_evidence_links",
+        "case": "bounded_review_preserves_annotation_counts_and_exact_original_evidence_after_changes",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "review_finding_evidence_links",
+        "case": "exact_scoped_decision_links_to_its_finding_without_changing_gate_results",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "review_finding_evidence_links",
+        "case": "summary_relevance_does_not_promote_unrelated_events_and_legacy_paths_stay_qualified",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "oversized_policy_is_recoverable_and_completion_uses_actual_instead_of_planned_scope",
+        "result": "ok",
+        "label": "native4-resume"
+      }
+    ],
+    "all_executions": [
+      {
+        "target": "edit_session_guidance_drift",
+        "case": "bounded_completion_recovers_original_drift_without_touching_reused_lifecycle",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_guidance_drift",
+        "case": "scope_changes_unresolved_inputs_legacy_and_no_edits_do_not_claim_policy_freshness",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_guidance_drift",
+        "case": "source_changes_name_opening_and_current_evidence_without_conflating_edit_scope",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_maintenance_tests",
+        "case": "bounded_completed_report_recovers_every_partitioned_call_without_reopening_the_session",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_maintenance_tests",
+        "case": "completed_edit_handoff_uses_recorded_start_commit_and_collects_real_before_after_evidence",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_maintenance_tests",
+        "case": "unavailable_profiles_start_commits_and_explicit_no_edits_do_not_emit_guessed_calls",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "completion_refreshes_changed_guidance_and_includes_unplanned_edited_scope",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "new_planned_files_receive_full_scoped_policy_and_no_edits_skip_applicability",
+        "result": "ok",
+        "label": "native2"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "oversized_policy_is_recoverable_and_completion_uses_actual_instead_of_planned_scope",
+        "result": "FAILED",
+        "label": "native2"
+      },
+      {
+        "target": "history_default_delivery",
+        "case": "default_recovery_keeps_original_history_after_subsequent_git_and_disk_changes",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "history_default_delivery",
+        "case": "fitting_default_and_explicit_budget_or_capture_keep_existing_contracts",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "history_default_delivery",
+        "case": "ordinary_commit_and_patch_replies_preserve_complete_evidence_in_both_formats",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "review_finding_evidence_links",
+        "case": "bounded_review_preserves_annotation_counts_and_exact_original_evidence_after_changes",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "review_finding_evidence_links",
+        "case": "exact_scoped_decision_links_to_its_finding_without_changing_gate_results",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "review_finding_evidence_links",
+        "case": "summary_relevance_does_not_promote_unrelated_events_and_legacy_paths_stay_qualified",
+        "result": "ok",
+        "label": "native3"
+      },
+      {
+        "target": "edit_session_policy_tests",
+        "case": "oversized_policy_is_recoverable_and_completion_uses_actual_instead_of_planned_scope",
+        "result": "ok",
+        "label": "native4-resume"
+      }
+    ],
+    "receipts": {
+      "native1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native1.json",
+      "native2": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native2.json",
+      "native3": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native3.json",
+      "native4-resume": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-resume.json"
+    },
+    "source_corrections": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native1-source-correction.json",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native2-test-correction.json"
+    ],
+    "retention_scope": "native2 eight passing cases and native3 six passing cases retained; only the old policy test expectation changed afterward. All production inputs match latest source. Native4-resume passed only the corrected policy case. Native1 was a compile failure with zero test executions.",
+    "interrupted_before_cargo": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native4-interrupted-before-cargo.json",
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_checks_per_artifact": 35,
+  "public_receipts": {
+    "debug2": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\debug2\\receipt.json",
+    "candidate1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\candidate1\\acceptance.json",
+    "installed1": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\installed1\\acceptance.json"
+  },
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "native_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\native1-source-correction.json",
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117\\Engram-win-x64-edit-review-history.zip",
+    "sha256": "FC37A14340ECC1649A3309275EFC4C8FE480A42588DDEB56712CFDCA9C64A007",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "DD7F2A008647F85DF4FF9C7DF65F93FB3E5FF80A4C7BB35CAF736A5343BF2E87"
+  },
+  "build_accounting": {
+    "native_invocations": 4,
+    "release_invocations": 1,
+    "full_suites": 0,
+    "separate_debug_builds": 0,
+    "native_seconds": 1022.7047758001136,
+    "release_seconds": 2519.998220599955,
+    "pure_coding_percentage": null,
+    "note": "A missed caller required one production-line correction. An old test expected obsolete prose; its assertion now checks the callable exact-file/hash recovery.15unique cases accepted across retained source-compatible passes;16test executions include the superseded expectation failure. Native4 original launch was interrupted before Cargo and is not a compilation. Source/read/design/check time is not pure coding."
+  },
+  "temporary_resources": {
+    "native_and_release_jobs_closed": true,
+    "owned_build_temps_removed": true,
+    "public_owners_closed_and_owned_fixtures_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-review-history-batch-20261117",
+    "managed_rollback_pair": "C:\\Users\\Dennis\\AppData\\Local\\engram\\engram-pair-backup-968d3bf6c9614654b3470c9cfe8e6dba",
+    "retention": "Keep source/build/acceptance/ZIP/rollback evidence; remove retained paths only under their recorded cleanup conditions and exact-path authorization.",
+    "intentionally_retained_runtime": "Normal installed daemon under ordinary application lifecycle.",
+    "retained_component_locations": [
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\edit-session-guidance-drift-20261117",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\review-finding-evidence-links-20261117",
+      "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\history-default-delivery-20261117"
+    ],
+    "recorded_scratch_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check"
+  },
+  "limitations": [
+    "Guidance drift compares observed hashes for the same planned scope; incomplete/unfingerprinted inputs remain explicit. Linked evidence is not accepted policy, and unchanged observations do not certify completeness or compliance.",
+    "Finding links are path-relevance leads, not proof of the same defect, authenticated authority, accepted exception or current applicability. Original findings/gate outcomes remain; context discovery caps still apply.",
+    "Default history delivery retains the selected complete result, not exhaustive corpus/source objects. Explicit budgets retain whole-record paging and existing8MiB/24hour/32capture limits apply.",
+    "Original31findings/19gates, held work and semantic/task-usefulness requirements remain open."
+  ],
+  "following_source_excluded_from_this_runtime": "eval/query-default-delivery-progress-20261118.json"
+}
