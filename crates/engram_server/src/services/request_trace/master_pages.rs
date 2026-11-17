@@ -46,7 +46,7 @@ pub(super) fn resolve<'a>(
         gaps: vec![],
         truncated: false,
         sources: vec![],
-        interpretation: "Literal MasterPageFile source links and master Load context only, at most4links with complete directives up to8192bytes. Parent/master file hashes and selected physical revisions are checked. This is not compiler hosting proof, an atomic disk/graph snapshot, effective visibility or execution/lifecycle order. Dynamic master selection, master-control event wiring, Init/PreRender and other lifecycle phases remain unexamined.",
+        interpretation: "Literal MasterPageFile source links and master Init/Load context only, at most4links with complete directives up to8192bytes. Parent/master file hashes and selected physical revisions are checked. This is not compiler hosting proof, an atomic disk/graph snapshot, effective visibility or execution/lifecycle order. Dynamic master selection, master-control event wiring, PreRender and other lifecycle phases remain unexamined.",
     };
     let mut parent = page;
     let app = routing::app_root(page.path, sources);
