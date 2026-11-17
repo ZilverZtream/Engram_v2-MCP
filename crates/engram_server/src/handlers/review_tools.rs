@@ -19,6 +19,7 @@ use crate::services::pre_commit_review_service::{
 use crate::services::project_service::ensure_project_record;
 use crate::tools::Engram;
 mod prior_context;
+mod pre_push_context;
 mod response_delivery;
 
 impl Engram {

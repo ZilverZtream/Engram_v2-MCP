@@ -401,6 +401,7 @@ impl Engram {
         }
         let ps = self.ensure_project_runtime(&req.project_id).await?;
         let code = resolve_audit_input(&req, std::path::Path::new(&ps.info.directory))?;
+        let retrieved = async {
         let mut input_binding = format!("Input: {} bytes, BLAKE3 {} ({}).\n",code.len(),blake3::hash(code.as_bytes()).to_hex(),if req.diff_file.is_some(){"project-relative file"}else{"inline"});
         let audit_paths = req.file_path.as_deref().map(|path| [path]);
         match quality_source::effective_repo_rules(&self.state, &req.project_id, audit_paths.as_ref().map(|paths| paths.as_slice())) {
@@ -537,7 +538,24 @@ impl Engram {
         }
         out.push_str("## Other relevant rules\n");
         out.push_str(&general.join("\n"));
-        Ok(CallToolResult::success(vec![Content::text(out)]))
+        Ok::<_, McpError>(CallToolResult::success(vec![Content::text(out)]))
+        }.await?;
+        let prior = self.pre_push_prior_context(
+            &req.project_id, &ps, &code, req.file_path.as_deref(),
+        ).await;
+        let section = format!("\n\n## Prior review evidence (advisory)\n{}", prior);
+        let mut response = retrieved;
+        // Preserve the ordinary single-text shape and its original prefix so
+        // existing navigation/delivery annotations retain their behavior.
+        if response.content.len() == 1 {
+            if let Some(text) = response.content[0].as_text() {
+                let combined = format!("{}{section}", text.text);
+                response.content[0] = Content::text(combined);
+                return Ok(response);
+            }
+        }
+        response.content.push(Content::text(section));
+        Ok(response)
     }
 
     /// Distill a raw finding corpus (CodeRabbit/Sonar history) into GENERIC,

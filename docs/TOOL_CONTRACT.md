@@ -1902,3 +1902,46 @@ share the held source selection/deadline but report their failures independently
 No configuration is evaluated or written; no new parser, extraction format, request
 parameter or schema is introduced. This does not establish exhaustive configuration
 coverage, runtime semantics or measured agent-task usefulness.
+
+
+### Prior decisions in the ordinary pre-push audit
+
+The regular `pre_push_audit` appends a `Prior review evidence (advisory)` section
+containing `prior_review_context` and `prior_context_input_binding`. Quality-rule
+retrieval stays separate: its original inactive/no-match/candidate result remains the
+reply prefix, including the distinction between retrieved rules and verified code.
+Prior evidence never suppresses a rule/finding, approves a push or authenticates an
+imported author. An inactive quality-rule corpus does not prevent separately recorded
+relevant decisions from being supplied.
+
+The collector reuses the existing pre-commit lexical/decision discovery, declared
+scope, source/revision comparison, complete conditions, authority warnings, omission
+ledger and exact stored-event/summary recovery. Parsed unified-diff paths take
+precedence over the optional `file_path` ranking hint. For raw code, an exact
+repository-relative `file_path` supplies the proposed scope. A prose path mention,
+basename or missing/non-exact hint does not invent scope; the section reports
+unavailable evidence instead. The original code/diff input is resolved once, including
+hash-bound `diff_file` input, and the section retains that exact byte count and BLAKE3.
+
+Current-file comparisons use the registered project directory disclosed in the input
+binding and are collected after rule retrieval. Imported reviewed-commit bytes may be
+compared with bounded current-file observations, but matching bytes or HEAD do not
+certify that a submitted patch is applied or that an old exception applies. Changed
+code requires reassessment. Observations are independent, not one atomic source/corpus
+snapshot; temporal scope is current observations rather than historical replay.
+
+Context input is bounded to4MiB and16comparison paths. Existing source snapshots keep
+8MiB/file and64MiB total bounds. The shared prior-context collector retains at most
+24indexed/24decision candidates with its combined24candidate bound,8delivered items
+and16KiB compact context limit; omissions retain existing recovery actions. The outer
+input-binding metadata is additional to that context limit. Missing evidence or a
+context-worker/budget failure never replaces the original successful rule outcome.
+The original retrieval errors retain their existing error path.
+
+Shared complete-report budgets and immutable original-MCP recovery include the new
+section without rerunning rule retrieval or refreshing captured source observations.
+Existing `get_review_decisions`/`get_chunk` actions remain callable in named presets.
+Instruction-maintenance-only requests retain their original JSON path and do not run
+this collector. No new request fields, schema, decision store, model call or approval
+workflow is introduced. Semantic applicability, decision authority and general agent
+usefulness remain unproved where the source evidence does not establish them.
