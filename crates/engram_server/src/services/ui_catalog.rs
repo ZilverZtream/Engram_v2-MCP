@@ -18,9 +18,9 @@ use engram_graph::GraphStore;
 /// How uniform an axis is across a family's instances.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize)]
 pub enum Consistency {
-    /// Every instance carries the canonical value → conform (hard rule).
+    /// Every indexed instance carries the observed canonical value.
     Consistent,
-    /// The modal value is canonical, deviations are listed → prescribe.
+    /// The modal observed value is listed with alternatives; this is not authored policy.
     Chaotic,
 }
 
@@ -292,7 +292,7 @@ pub fn render_families(families: &[UiFamily], skipped_singletons: usize) -> Stri
 
 /// Region → match: an exact file, a directory prefix (trailing `/`), or a
 /// glob (`*` within a segment, `**` across segments, `?` one character).
-fn region_matches(region: &str, path: &str) -> bool {
+pub(crate) fn region_matches(region: &str, path: &str) -> bool {
     let r = region.trim().replace('\\', "/");
     if r.is_empty() {
         return false;
@@ -338,6 +338,9 @@ pub fn families_for_region(
 #[derive(Debug, Clone, serde::Serialize)]
 pub struct AxisVerdict {
     pub axis: &'static str,
+    /// False when the supplied class list cannot assess this axis.
+    pub assessed: bool,
+    /// Comparison result only when assessed; unassessed axes retain the legacy value.
     pub ok: bool,
     pub expected: String,
     pub found: String,
@@ -374,6 +377,7 @@ pub fn check_classes(family: &UiFamily, css_class: &str) -> Vec<AxisVerdict> {
             };
             out.push(AxisVerdict {
                 axis: a.axis,
+                assessed: true,
                 ok,
                 expected: a.canonical.clone(),
                 found: set_key(&found),
@@ -382,6 +386,7 @@ pub fn check_classes(family: &UiFamily, css_class: &str) -> Vec<AxisVerdict> {
         } else {
             out.push(AxisVerdict {
                 axis: a.axis,
+                assessed: false,
                 ok: true,
                 expected: a.canonical.clone(),
                 found: String::new(),
@@ -401,6 +406,7 @@ pub fn render_conformance(families: &[UiFamily], verdicts: Option<&[AxisVerdict]
         families.len(),
         if families.len() == 1 { "y" } else { "ies" }
     );
+    s.push_str("Pattern evidence: indexed observations, not authored policy. A class-list comparison does not assess structure or establish compliance with authored requirements.\n\n");
     for f in families {
         s.push_str(&format!(
             "## {} — {} instance(s), derived at generation {}\nexemplar: {}:{} ({})\n",
@@ -433,11 +439,12 @@ pub fn render_conformance(families: &[UiFamily], verdicts: Option<&[AxisVerdict]
             .first()
             .map(|f| f.family_name.as_str())
             .unwrap_or("");
-        let bad = vs.iter().filter(|v| !v.ok).count();
+        let bad = vs.iter().filter(|v| v.assessed && !v.ok).count();
+        let unassessed = vs.iter().filter(|v| !v.assessed).count();
         s.push_str(&format!(
-            "## Check against `{fam}` — {}\n",
+            "## Observed class comparison against `{fam}` — {}; {unassessed} axis/axes unassessed\n",
             if bad == 0 {
-                "conforms".to_string()
+                "class set matches".to_string()
             } else {
                 format!("{bad} deviation(s)")
             }
@@ -445,7 +452,7 @@ pub fn render_conformance(families: &[UiFamily], verdicts: Option<&[AxisVerdict]
         for v in vs {
             s.push_str(&format!(
                 "- {} {}: expected `{}`{} — {}\n",
-                if v.ok { "✓" } else { "✗" },
+                if !v.assessed { "?" } else if v.ok { "✓" } else { "✗" },
                 v.axis,
                 v.expected,
                 if v.found.is_empty() {

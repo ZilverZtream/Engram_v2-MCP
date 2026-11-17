@@ -672,6 +672,23 @@ scope. Current guidance does not validate inferred migration recommendations,
 report freshness or runtime behavior. Shared response budgets and immutable
 captured-result recovery include the added guidance.
 
+### UI pattern observations and authored guidance
+
+`get_ui_conformance` reports indexed family membership, exemplars, generations
+and observed class comparisons separately from authored requirements. Matching
+the observed class set is not approval or policy compliance. Structure cannot
+be checked from a class list: its verdict has `assessed: false` and the report
+uses an unassessed marker instead of a success marker.
+
+An exact file target receives current scoped guidance even before that file is
+created or indexed. Directory/glob requests use bounded indexed file matches
+(including files without repeated UI patterns), with explicit target/inventory
+omissions. No repository source tree is walked to discover targets. Missing
+families do not imply missing requirements. Complete-source hashes, conditions,
+omissions and recovery use the shared policy resolver; guidance changes require
+no reindex. Current guidance does not verify pattern freshness or runtime UI
+behavior. Existing complete-response budgets and captured-result recovery apply.
+
 ### Database analysis delivery
 
 Database intelligence table/column/key reports use the same declaration
