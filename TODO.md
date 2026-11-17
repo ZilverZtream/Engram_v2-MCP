@@ -165,6 +165,14 @@ These degrade or improve *every single interaction*. Nothing below matters until
   changes lifecycle ownership. Remaining TODO4 coverage stays open.
   [Delivery](eval/legacy_validation-edit-workflow-batch-delivery-20261115.json).
 
+  November17 source complete, awaiting combined validation: `update_project`
+  gains complete-reply budgeting and exact original-outcome recovery, including
+  separate large instruction observations. Recovery bypasses the operation; a
+  post-operation retention failure preserves its original outcome and explicitly
+  discloses an exceeded budget. Installed baseline returned76,911bytes without
+  delivery controls. See eval/update-result-delivery-progress-20261117.json; this
+  change is not yet type checked, validated or deployed.
+
 - [x] **5. Staleness metadata on every response** (S) — *done 2026-06-12: last_index_completed_ms recorded by process_ingest_stats; get_index_freshness tool (generation, age, watcher, disk-drift count, advice); footer on hot read tools.*
   `state.rs`, `metrics.rs`, handlers. There is no "index generation age", "last reindex",
   or "commits behind HEAD" signal anywhere. An agent getting stale results has zero way to
