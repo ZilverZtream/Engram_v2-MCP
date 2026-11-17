@@ -44,6 +44,9 @@ pub(crate) mod change_set_delivery;
 #[path = "edit_workflow_delivery.rs"]
 mod edit_workflow_delivery;
 
+#[path = "edit_session_maintenance.rs"]
+mod edit_session_maintenance;
+
 #[path = "footprint_delivery.rs"]
 mod footprint_delivery;
 
@@ -13672,10 +13675,17 @@ impl Engram {
         out.push_str("\n");
         out.push_str(&policy);
         out.push_str(&check_text);
+        let maintenance = edit_session_maintenance::handoff(&req.project_id,
+            session["snapshot"]["head"].as_str(), &edited, self.state.cfg.advertise_all_tools);
+        out.push_str("\n## Instruction maintenance handoff (review not performed)\n```json\n");
+        out.push_str(&serde_json::to_string_pretty(&maintenance)
+            .map_err(|error| McpError::internal_error(error.to_string(), None))?);
+        out.push_str("\n```\n");
         let reply=edit_workflow_delivery::finish(&self.state.cfg.data_dir,&req.project_id,change_set_delivery::EditReport::Complete,out,
             serde_json::json!({"tool":"complete_edit_session","session_id":session_id,"session_revision":session["revision"],
                 "started_snapshot":session["snapshot"],"planned_file_count":planned.len(),"edited_file_count":edited.len(),
                 "unedited_plan_count":unedited_plan_count,"session_state":"COMPLETE",
+                "instruction_maintenance":maintenance,
                 "completeness_analysis":if edited.is_empty() {"NOT_REQUESTED_NO_EDITS"} else {"IN_ORIGINAL_REPORT"}}),req.output_json,budget)?;
 
         // Prepare delivery before consuming the exact lifecycle checked above.

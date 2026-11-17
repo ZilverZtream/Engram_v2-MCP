@@ -1575,6 +1575,23 @@ actions are fresh reads and may include later events. For historical reads,
 discussion recovery or `view=current`, use the returned exact `review_id`;
 those selectors cannot be combined with discovery.
 
+### Instruction maintenance after an edit session
+
+`complete_edit_session` returns an instruction-maintenance handoff using the
+recorded starting Git commit and the normalized declared edited files. In Full
+mode its `pre_push_audit` actions invoke the existing maintenance-only workflow,
+with at most 16 selected files per call. This captures Git-before/disk-after
+evidence for an agent's review; completion does not run that review, generate
+instructions, infer intent or certify compliance. The starting commit does not
+capture an initially dirty worktree or establish session-exclusive changes.
+Missing start commits and Core availability are disclosed without guessed or
+unadvertised actions. Explicit no-edit completion requests no maintenance.
+
+Full JSON summaries and Markdown retain complete calls. Deferred summaries keep
+status/base/counts and recover all call details through the existing immutable
+completion report. Following a maintenance action is a fresh disk observation;
+recovering the saved completion does not reopen or complete the session again.
+
 ### Concept-footprint guidance recovery (installed November17)
 
 `get_concept_footprint` already supplied authored guidance for returned paths.

@@ -50,7 +50,7 @@ pub(super) fn finish(
         return Ok(original);
     }
     let id = blake3::hash(original.as_bytes()).to_hex().to_string();
-    let manifest = json!({"summary":summary,"advisory":true,"report_content":"DEFERRED_NOT_SUPPLIED",
+    let manifest = json!({"summary":super::edit_session_maintenance::compact_summary(&summary),"advisory":true,"report_content":"DEFERRED_NOT_SUPPLIED",
         "response_delivery":{"status":"DEFERRED_EDIT_WORKFLOW","complete":false,"response_id":id,
             "original_bytes":original.len(),"original_format":if output_json {"json"} else {"markdown"},
             "response_budget_bytes":budget,"estimate":"ceil(UTF-8 reply-text bytes/4); not provider tokens or transport envelope bytes",
