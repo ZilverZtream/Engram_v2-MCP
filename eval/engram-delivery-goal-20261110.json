@@ -2554,7 +2554,16 @@
       "reason": "Already-running release before this correction; finish and reuse the same artifact. No replacement build. Candidate/installed acceptance remains finite.",
       "subsequent_compiles_authorized": false
     },
-    "next_batch_pending": [],
+    "next_batch_pending": [
+      {
+        "original_requirement_id": "EG-25",
+        "outcome": "Qualified VB helper source leads reach generation and current-source QA evidence",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "32afc2d551eebed96f1661061b97be7567cf60de",
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\contract.json",
+        "progress": "eval/business-helper-source-leads-progress-20261117.json"
+      }
+    ],
     "full_original_goal_scope_unchanged": true,
     "required_build_entrypoint": "python -B scripts/run_delivery_build.py --case <recorded-case> -- <existing runner arguments>",
     "direct_cargo_or_legacy_runner_use": "Do not bypass the batch gate by invoking Cargo or a case build.py directly. The already-completed release1 is the sole prior-build exception; reuse its artifact.",
@@ -2702,42 +2711,89 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "EG-31",
-    "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
-    "implementation_items_active": 0,
-    "original_requirement_ids": [
-      "EG-13",
-      "TODO-31",
-      "EG-27",
-      "EG-31"
+    "original_requirement_id": "EG-25",
+    "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+    "original_requirement": "Useful method-specific generation and QA context includes bounded cited supporting source, preserving uncertainty and changed-source disclosure.",
+    "observed_missing_behavior": "Actual GetCurrentlyAppliedPriceList assigns _gd.projekt.GetTopProjectID(...) before its query. Existing helper source is restricted to explicit-global standalone calls immediately preceding returns; the ordinary namespaced helper body is not supplied to generation or handed into QA evidence.",
+    "source_pins": {
+      "Site/App_Code/redovisning/code/redovisninglista.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\redovisning\\code\\redovisninglista.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\sources\\redovisninglista.vb",
+        "bytes": 46938,
+        "sha256": "0bd622eec379dd8cf7a91d0aa3bfaa74580b5a5f364665bc885bd5620f8f811f"
+      },
+      "Site/App_Code/grunddata/code/projekt.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\App_Code\\grunddata\\code\\projekt.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\sources\\projekt.vb",
+        "bytes": 94906,
+        "sha256": "b69a260f27dbf6d2e54775862820cde5f3df4d7424bb059eae7037d145e68a13"
+      }
+    },
+    "finite_acceptance": [
+      "Collect at most16 distinct qualified namespace/type/method spellings from the selected VB method, at most16 caller-line leads each and512bytes per spelling, excluding comments/literals. Reuse existing exact-name graph lookup, source fingerprints, complete declaration spans and Shared checks; at most4lookup attempts supply whole helper bodies within8192bytes. Bare/simple receiver spellings remain outside this source-lead slice.",
+      "Expose these separately as source-name candidates, not resolved call bindings, proven effects, normal completion, branch reachability or test oracles. Preserve the strict existing immediate-return resolver and its shadowing tests. No compiler/project binding analysis or target-language expansion.",
+      "Supply cited complete helper bodies once to generation without duplicate helper-body persistence. Persist exact candidate identity/file/hash/span/body-hash and bounded call-site leads. QA handoff can recover current matching helper excerpts once per document; changed/missing supporting files withhold those excerpts even when the caller is unchanged.",
+      "One owned actual caller/helper copy with a local fixed-response endpoint proves the installed input omission, then verifies supplied helper evidence, persistence, QA handoff and stale-source withholding. Synthetic native cases exercise these wanted behaviors and ambiguity/unavailable source. Keep the independent custom-form comparison packets frozen; no real model call, inspected-task replay or standalone Cargo."
     ],
-    "source_preparation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-preparation.json",
-    "diagnostics": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117",
-    "native_target": "guidance_master_source_batch_tests",
-    "native_cases": 10,
-    "shipping_source_commit": "d21eeff05e28c6e0a76ecdaf9fadf9554346c274",
-    "next_action": "Advance the next ready unfinished original requirement, preserving this installed delivery, all31findings/19gates, held items and the frozen matched QA task. No replay or additional build for this passed batch.",
+    "implementation_files": [
+      "crates/engram_server/src/services/business_helper_context.rs",
+      "crates/engram_server/src/services/business_outcome_dependencies.rs",
+      "crates/engram_server/src/services/mod.rs",
+      "crates/engram_server/src/handlers/business_source.rs",
+      "crates/engram_server/src/handlers/test_derivation.rs",
+      "crates/engram_server/src/handlers/settings_tools.rs",
+      "crates/engram_server/tests/business_helper_source_leads.rs"
+    ],
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\contract.json",
+    "implementation_items_active": 0,
+    "pending_source_outcomes": 1,
     "full_original_goal_active": true,
-    "native_exec_session": 21997,
-    "native_commands_started": 2,
-    "native_driver_pid": 34356,
-    "native_cases_passed": 10,
-    "native_runner_seconds": 182.35885720001534,
-    "native_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\native2.json",
-    "debug_artifact": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug-artifact2.json",
-    "source_correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\source-correction1.json",
-    "debug_public_checks_passed": 26,
-    "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\debug2\\receipt.json",
-    "release_plan": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\guidance-master-source-batch-20261117\\release-plan.json",
-    "release_commands_started": 1,
-    "release_exec_session": 70934,
-    "release_driver_pid": 6212,
-    "native_runner_seconds_total": 407.3305407000007,
-    "native_current_cases_passed": 10,
-    "delivery_record": "eval/guidance-master-source-batch-delivery-20261117.json",
-    "release_terminal_exit_code": 0,
-    "candidate_installed_public_checks_each": 26,
-    "normal_daemon_restored": 84768
+    "next_action": "Continue substantive original source work and retain this outcome for combined validation. No standalone Cargo or tiny-change release; the independent frozen QA task remains unchanged and pending its explicit agent request.",
+    "at_utc": "2026-11-17T04:08:28.442153+00:00",
+    "source_commit": "32afc2d551eebed96f1661061b97be7567cf60de",
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\baseline1\\receipt.json",
+    "baseline_seconds": 3.053614199976437,
+    "baseline_binary_sha256": "ba9750324b87ec00cda653e0257e5d1c1bd229385b542b6d19230efb6d7d98a2",
+    "source_behavior": [
+      "Ordinary three-component VB call-name spellings can supply exact qualified Shared source candidates to generation, including assignment calls outside the immediate-return slice. Each complete body is supplied once with file/span/body fingerprints and explicit unverified binding/outcome qualifications.",
+      "The strict existing immediate-return resolver remains separate. Supporting bodies are excluded from stored analysis serialization; exact candidate metadata participates in the analysis fingerprint.",
+      "QA carries supporting evidence once per document beside constructor inputs. It rereads only matching caller/helper source and exact body spans/hashes; changed/missing source withholds excerpts. Whole excerpts are bounded at4KiB per document, with an eight-file/2MiB retained-source audit budget across the matrix."
+    ],
+    "source_checks": {
+      "rustfmt_parse": "PASS; new module/tests formatted, legacy files emitted to stdout only",
+      "python_verifier_syntax": "PASS",
+      "git_diff_check": "PASS",
+      "protected_wip9": "UNCHANGED"
+    },
+    "source_sha256": {
+      "crates/engram_server/src/services/business_helper_context.rs": "8a5f0b076442355e323d706cf0dfb7851e88adac12018fc677fdf5b7eb0eda08",
+      "crates/engram_server/src/services/business_outcome_dependencies.rs": "2033dcbefdc11f91fabe91d82e1fa954ab6dc470414dea5314eca74d12cbe1a2",
+      "crates/engram_server/src/services/mod.rs": "1dc8ac80fd081d5f66a501e9aef2dad23721dff4d3c1d603c68b2899e4b1046c",
+      "crates/engram_server/src/handlers/business_source.rs": "f698aa4141b27ae784042e8acad3fd5af0ac6a3c365188ec619329567f065734",
+      "crates/engram_server/src/handlers/test_derivation.rs": "48fc50ee0820b2f825bfe4219fec94123a1d45afbe9225c7c263ce038c3819f9",
+      "crates/engram_server/src/handlers/settings_tools.rs": "36db17d51beaec55a8964700725e885a47079efae10ef44093fc32b1e72f3940",
+      "crates/engram_server/tests/business_helper_source_leads.rs": "15b689116848375cc5e387bdde8459f7f10b3be6f4329884dde7aeb02d3a69f7"
+    },
+    "native_test_cases_written": 2,
+    "native_tests_executed": 0,
+    "post_change_public_checks_executed": 0,
+    "engram_builds_started": 0,
+    "real_model_calls": 0,
+    "runtime_deployed": false,
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117\\verify-public.py",
+    "public_verifier_sha256": "cc39384d31e4aa0da463bdbf6a604c0611df8e096f7659eea7e1512681d316ff",
+    "limits": [
+      "Source complete only: type-checking, focused native execution and positive public/installed acceptance remain pending. The installed binary remains the previously delivered guidance/master/source batch.",
+      "Source-name candidates do not establish receiver/namespace binding, normal completion, semantic effects, runtime behavior or executable test outcomes. Bare/simple receiver spellings, transitive helpers and other target languages remain outside this finite change.",
+      "No measured QA/productivity benefit, full EG25 closure, frozen custom-form task/packet/producer change, real model replay, actual LegacyValidation mutation/reindex, Site/Q read, CodeMap/Blast change or target-language expansion."
+    ],
+    "temporary_resources": {
+      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\business-helper-source-leads-20261117",
+      "baseline_owned_work_removed": true,
+      "baseline_processes_closed": true,
+      "local_fixed_response_endpoint_closed": true,
+      "retention": "Keep exact source pins, contract, baseline requests/receipt and verifier for combined acceptance. Native fixtures own graph/temp resources and close the graph first. No preexisting deletion."
+    }
   },
   "history_webmethod_business_batch_delivery": {
     "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
@@ -3007,5 +3063,6 @@
     "record": "eval/guidance-master-source-batch-delivery-20261117.json",
     "status": "IMPLEMENTED_VALIDATED_PUSHED_DEPLOYED",
     "full_original_goal_complete": false
-  }
+  },
+  "business_helper_source_leads_progress_20261117": "eval/business-helper-source-leads-progress-20261117.json"
 }
