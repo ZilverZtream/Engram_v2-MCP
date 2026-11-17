@@ -1,0 +1,62 @@
+{
+  "original_requirement_id": "TODO-28",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "at_utc": "2026-11-17T08:19:18.231152+00:00",
+  "original_requirement": "One natural-language evidence entry point composes existing relevant source/graph capabilities for ordinary LegacyValidation work.",
+  "observed_missing_behavior": "ask_codebase has no typed Session/ViewState state reader/writer provider; literal-key questions rely on generic source retrieval although trace_state_usage already has these indexed relationships.",
+  "finite_acceptance": [
+    "An owned exact dashboard master VB copy establishes indexed Session readers/writers and records the current natural-language reply; no real project mutation or model calls.",
+    "Explicit legacy state expressions in the question select bounded indexed reader/writer candidates. Admit only current hash-matching source and held selected physical revisions; preserve path scope, gaps and static/runtime qualifications. Do not change trace_state_usage, WIP modern-language tracking or graph/parser producers.",
+    "Focused literal-query parsing and admitted/stale relationship cases plus future owned MCP acceptance are queued with independent original source work. Historical asks retain their current historical path. No standalone compile/release, broad benchmark, agent comparison or language expansion."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/services/ask_engine/literal_state.rs",
+    "crates/engram_server/src/services/ask_engine.rs",
+    "crates/engram_server/src/handlers/ask_state.rs",
+    "crates/engram_server/src/handlers/ask_tools.rs",
+    "crates/engram_server/tests/ask_legacy_state.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\contract.json",
+  "implementation_items_active": 0,
+  "engram_builds_started": 0,
+  "full_original_goal_active": true,
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\baseline2\\receipt.json",
+  "baseline_seconds": 2.628861599951051,
+  "retained_failed_probe": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\baseline1\\receipt.json",
+  "probe_correction": "The first probe sent output_json to the native ask schema; corrected to output_format=json. Both owners exited and fixtures were removed; no build or source change was involved.",
+  "native_test_cases_written": 3,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "runtime_deployed": false,
+  "baseline_binary_sha256": "7fef8de9a7a604768a6f5a1fe0a3d3b27e13f58087cd74c83ee48a25dd7bb0de",
+  "source_sha256": {
+    "crates/engram_server/src/services/ask_engine/literal_state.rs": "cc2acd880f1585ddaed73a1abd88fde2bc0ca9f97fbf3e183c16fc1123dd4194",
+    "crates/engram_server/src/services/ask_engine.rs": "60a5e89da59fb64c701c4666f968296fc7b67b2f48815f721050f981742dc329",
+    "crates/engram_server/src/handlers/ask_state.rs": "37cccbef477215e2409f67151b38447190e740120935d48ed9fcb00b3d3d13d6",
+    "crates/engram_server/src/handlers/ask_tools.rs": "bd324a55a8eaafebf6930038beab85f4e13e4a831d6d95fd1b9ca0abdc312c50",
+    "crates/engram_server/tests/ask_legacy_state.rs": "26a2795732ee665848363fbd46ec1d2857985b9b8a9cde6b536d60c939843304",
+    "docs/TOOL_CONTRACT.md": "69cbdcfc2cc413d16691af107df2dd41ce606c8f090a03bd2d56b63b8545aff9"
+  },
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117\\verify-public.py",
+  "public_verifier_sha256": "2e8247eafdfbf5f39aef1de87a2596382f825c253d7deca1f721f117658295c3",
+  "source_checks": {
+    "rustfmt_parse": "PASS; new files formatted, existing files parsed without rewriting",
+    "public_verifier_syntax": "PASS",
+    "git_diff_check": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-legacy-state-20261117",
+    "all_baseline_owners_closed": true,
+    "all_baseline_fixtures_removed": true,
+    "retained": "Original failed schema probe, corrected baseline and wire responses, verifier, contract and source timing retained for review; no live owned fixture."
+  },
+  "limits": [
+    "Source complete only: type checking, focused execution and positive public/installed acceptance remain pending.",
+    "Evidence is a source-qualified indexed relationship candidate, not a verified access-site, compiler binding, runtime execution, stored value or shared session identity. Missing/capped observations do not prove absence. Computed keys do not activate the provider.",
+    "This extends the current natural-language path only; it does not change state extraction, trace_state_usage, historical source retrieval, protected modern-language WIP or actual LegacyValidation data. No standalone compile/release or new model comparison."
+  ],
+  "source_commit": "a11f9e3e26610fd59c21861ad14e43610a23a058",
+  "next_action": "Continue substantive independent original source work; retain this TODO28 source outcome and EG31 prior-guidance outcome for one combined validation batch. No standalone compile/release."
+}
