@@ -1,0 +1,88 @@
+{
+  "original_requirement_id": "EG-01",
+  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "original_requirement": "Applicable authored guidance accompanies source context used by an agent to plan UI changes.",
+  "observed_missing_behavior": "get_ui_blueprint returns a layout tree without applicable repository instructions. Current LegacyValidation UI/UX guidance applies to the selected permit page but is absent from that report.",
+  "source_pins": {
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\permit_edit.aspx",
+      "sha256": "fa8e6d486e448356e9fa4fe3c6b2501adb5296f82eb2ab24a0e457345b23d287",
+      "bytes": 19587
+    },
+    "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx.vb": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx.vb",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\permit_edit.aspx.vb",
+      "sha256": "ca9e680ae57758c703865fc223570ab876a9b2227c0ad863fcf1ffcabd5c8ddd",
+      "bytes": 19692
+    },
+    ".github/instructions/ui-ux.instructions.md": {
+      "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\.github\\instructions\\ui-ux.instructions.md",
+      "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\sources\\ui-ux.instructions.md",
+      "sha256": "041d51529e787313ec6fbd2fc8cd6d80ab3564f247e9c81f654de8cb3f3a7bd2",
+      "bytes": 22533
+    }
+  },
+  "finite_acceptance": [
+    "Preserve the existing layout tree and attach project_policy_sources resolved for the requested project-relative file, using the shared bounded policy service with source hashes, scope, complete-source recovery and explicit omissions.",
+    "Read current guidance on every fresh call without reindexing, preserving authored exceptions and excluding unrelated file scopes. Keep graph/source freshness and runtime UI semantics unverified.",
+    "Retain the existing shared complete-response budget/JSON/immutable recovery. Recovery returns original captured guidance after later edits and does not rerun analysis. Do not modify protected cognitive_tools work or introduce a new policy resolver.",
+    "One owned actual page/current UI/UX guide copy proves installed omission and later source inclusion or exact disclosed recovery. Focused current-scope/refresh/no-layout cases establish wanted behavior. No standalone compile, actual LegacyValidation mutation/reindex, Q read or model call."
+  ],
+  "implementation_files": [
+    "crates/engram_server/src/handlers/ui_blueprint_policy.rs",
+    "crates/engram_server/src/handlers/mod.rs",
+    "crates/engram_server/src/tools.rs",
+    "crates/engram_server/tests/ui_blueprint_policy.rs",
+    "docs/TOOL_CONTRACT.md"
+  ],
+  "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\contract.json",
+  "implementation_items_active": 0,
+  "full_original_goal_active": true,
+  "engram_builds_started": 0,
+  "next_action": "Continue substantive accepted source work and consolidate combined validation. Reaching the three-requirement minimum does not schedule a compile or deployment.",
+  "at_utc": "2026-11-17T05:04:49.319931+00:00",
+  "source_commit": "89e7f4cb62fbe1b6936b55128c04658ac8cc9873",
+  "pending_source_outcomes": 3,
+  "source_behavior": [
+    "The registered UI blueprint tool retains indexed layout fields and adds current project_policy_sources for its requested file using the shared resolver, complete-source scope/hash/exception handling and callable omission recovery.",
+    "A missing indexed layout retains its original explanation in a layout_unavailable object alongside guidance. Fresh calls reread policy without reindexing; shared captured-result recovery retains the original response and does not rerun analysis.",
+    "The protected cognitive_tools handler remains unchanged. Existing graph-layout identity/freshness, source coverage and runtime compliance remain unverified rather than upgraded by current guidance."
+  ],
+  "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\baseline2\\receipt.json",
+  "baseline_seconds": 3.445774700026959,
+  "baseline_binary_sha256": "ba9750324b87ec00cda653e0257e5d1c1bd229385b542b6d19230efb6d7d98a2",
+  "retained_failed_fixture": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\baseline1\\receipt.json",
+  "fixture_correction": "The first fixture omitted the actual code-behind, so indexing refused absent companion metadata before the UI request. The corrected owned copy contains the exact page/code pair and application marker. Original failure retained; no compiler/model call.",
+  "source_checks": {
+    "rustfmt_parse": "PASS; new module/tests formatted; tools/module declaration parsed without rewriting",
+    "public_verifier_syntax": "PASS",
+    "git_diff_check": "PASS",
+    "protected_wip9": "UNCHANGED"
+  },
+  "source_sha256": {
+    "crates/engram_server/src/handlers/ui_blueprint_policy.rs": "b873bdfe365cb9b8a0dca7b07a29c5d8dd99f5067fbc44c4c8a3014b94e368df",
+    "crates/engram_server/src/handlers/mod.rs": "26830299470c1a21647e177865e6668a75f7f8cac5dccb04e705507656ed6fe9",
+    "crates/engram_server/src/tools.rs": "641a8328fcd597300367746ed7ba3683379b0b4a12dc4fa687fb00f0fba7917e",
+    "crates/engram_server/tests/ui_blueprint_policy.rs": "54c02b175a0cdb59ff927199d8d46da3db9e1aad49eef878b80549a340ecb2af",
+    "docs/TOOL_CONTRACT.md": "240f07c8188e19a85d0ec5dd777d6ec2ed7079cf7f654eb35fc282c185e1b7f9"
+  },
+  "native_test_cases_written": 2,
+  "native_tests_executed": 0,
+  "post_change_public_checks_executed": 0,
+  "real_model_calls": 0,
+  "runtime_deployed": false,
+  "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117\\verify-public.py",
+  "public_verifier_sha256": "4d1bf95c49d23949a65692754081d305c953259b37d4e06386646b55a943ec9d",
+  "limits": [
+    "Source completion only: type checking, focused native execution, complete-source/captured guidance recovery and positive public/installed acceptance remain pending. Installed runtime is unchanged.",
+    "Current authored guidance is not proof of UI correctness, layout freshness, complete edit scope or task usefulness. Existing layout discovery/graph limits remain.",
+    "No actual LegacyValidation mutation/reindex, Site/Q read, model call, inspected-task replay, CodeMap/Blast change or target-language expansion."
+  ],
+  "temporary_resources": {
+    "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ui-blueprint-policy-20261117",
+    "baseline_owned_fixtures_removed": true,
+    "baseline_processes_closed": true,
+    "retention": "Retain exact non-Q source pins, finite contract, failed and passed baseline transports and verifier until combined acceptance. New native fixtures close project/runtime handles before owned directory teardown. No preexisting deletion."
+  }
+}
