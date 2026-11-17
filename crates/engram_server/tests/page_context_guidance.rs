@@ -26,7 +26,7 @@ impl Fixture {
         let mut markup = "<%@ Page Language='VB' CodeFile='Host.aspx.vb' Inherits='Host' %>\n<%@ Register Src='~/Widgets/Editor.ascx' TagPrefix='shared' TagName='Editor' %>\n<shared:Editor ID='Details' runat='server' />\n".to_owned();
         for number in 0..120 {
             markup.push_str(&format!(
-                "<asp:TextBox ID='Value{number}' runat='server' />\n"
+                "<asp:TextBox ID=\"Value{number}\" runat=\"server\" />\n"
             ));
         }
         for (path, body) in [
