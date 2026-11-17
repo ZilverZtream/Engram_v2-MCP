@@ -1,0 +1,144 @@
+{
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
+  "at_utc": "2026-11-17T19:32:52.861421+00:00",
+  "original_requirement_ids": [
+    "EG-26",
+    "TODO-28",
+    "EG-19"
+  ],
+  "case": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117",
+  "source_preparation": {
+    "status": "COMMITTED_SOURCE_PREPARED",
+    "canonical_root_head": "fad4cd29c2ace1c44259a33eec85c1689a0562dd",
+    "previous_shipping_head": "b54808bdaf4c500f10c2ea494f4b52ad24142cce",
+    "shipping_head": "5fd11fa4b08970da0e47d9dd50902aaff32fec56",
+    "shipping_checkout": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\batch-read-source",
+    "changed_source_sha256": {
+      "crates/engram_server/src/handlers/ask_settings.rs": "174a5d511c73c7e59707a179a0e25f0d4f4b973c44b67dfefcefdd7ad4d6e3c5",
+      "crates/engram_server/src/handlers/ask_tools.rs": "7a1052ea80921bf3fa58831d4fc558f1b658221c0c42099a728ed867a8815ec8",
+      "crates/engram_server/src/handlers/quality_gate_tools.rs": "2f4dec2ce17fa0324788dcd06a7a12ea469090c455b5b7a2ebec601067603e31",
+      "crates/engram_server/src/handlers/review_tools.rs": "52ec88b6be20dfcd10cefc6a922def888eda9af8345b02dbe8520cbb20e90bb1",
+      "crates/engram_server/src/handlers/review_tools/pre_push_context.rs": "81dac2446fdb19c84e02699d7d23e5b28160aca567835afd7792bd0f9a4b30fd",
+      "crates/engram_server/src/read_report_delivery.rs": "ed67e4d0f1625a7af7f35e4bdf2c843baabea6da6fe4e4c4deb1b28d5aa5e65e",
+      "crates/engram_server/src/retained_results.rs": "4eeb01636ec571841619f5c2afb2c3799226f8197278ec8b7ea4dd7db4699719",
+      "crates/engram_server/src/services/ask_engine.rs": "e2b9b333eefd4038656556c18ab2d43bf0f4d14fbb0701ee09d838ea49805395",
+      "crates/engram_server/src/services/ask_engine/config_settings.rs": "d23e5c202fbd239fa560197c85a594edab6c3ef5f38386fbd58bd1bd58d82750",
+      "crates/engram_server/src/services/ask_engine/literal_settings.rs": "cfbb66f52b376cd9e95c31484e7ab88a43a2d83cb74dff2732cc081b73d1702c",
+      "crates/engram_server/src/services/ask_engine/literal_state.rs": "6fa3a7ed2fd06468180bce3919e847edfcfcdaccf217bd253a95d4f278305ff7",
+      "crates/engram_server/src/tools.rs": "4419cc508b4f53104824537fb9b7d29e2275d198e51fbe0b1a9fa48f410f0212",
+      "crates/engram_server/tests/ask_config_declarations.rs": "8f39a353d0a45b0892c0f665f3455b01e2428048e8f85f35674636790ccc939c",
+      "crates/engram_server/tests/pre_push_prior_decisions.rs": "4ffa5559669efffa628856fc30508a4467a8b731da37a322c922d6941e7d6f55",
+      "docs/TOOL_CONTRACT.md": "cb245e8d3a0079256b43f95018aaaf74ebc89c207b12360520e97eae5e694437"
+    },
+    "protected_wip9": "UNCHANGED_EXCLUDED",
+    "new_worktrees_created": 0,
+    "builds_started": 0,
+    "active_implementation_items": 0,
+    "source_outcomes": 3,
+    "selection": "Three distinct original outcomes are source complete with no additional selected source work left. Native behavior/type validation is needed for the configuration/prior-review changes; descriptor acceptance uses actual tools/list after that same implicit server build. This is not a standalone description build or filler threshold.",
+    "native_targets": [
+      "ask_config_declarations",
+      "pre_push_prior_decisions",
+      "ask_literal_settings"
+    ],
+    "expected_native_cases": 8,
+    "expected_public_checks": 34,
+    "launch_priority": "BelowNormal",
+    "cargo_parallel_jobs": 1,
+    "original_expected_native_cases": 9,
+    "count_correction": "Initial estimate9 counted3existing getter cases; actual target has2. All wanted cases passed; no test added and no run repeated to satisfy the mistaken estimate."
+  },
+  "runtime": {
+    "status": "INSTALLED_ACCEPTANCE_PASS",
+    "package_root": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\package1",
+    "server_sha256": "ab166a7b4e810c9c2796ab076bf14d776fba62ec589a61363c21cee5e49e6b59",
+    "manifest_sha256": "6b98678cd4eff767c47abcf0ea0f5891a3e56c52589b3ecb0d4cceec6ace52ee",
+    "old_server_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
+    "old_manifest_sha256": "56b12d187c47d4920ce14c1538279db1e3b93e84e5928f7cca075eb301e5d0dc",
+    "changed_assets": [
+      "engram_server.exe"
+    ],
+    "unchanged_assets": 214,
+    "build": {
+      "path": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\release1.json",
+      "sha256": "3798e73f8d58eb954610e33ae3c5f5c6ecbb387a2c6618220cec230755154ca2"
+    },
+    "companion_source_manifest": {
+      "path": "C:\\Users\\Dennis\\AppData\\Local\\engram\\bin\\windows-release-manifest.json",
+      "sha256": "56b12d187c47d4920ce14c1538279db1e3b93e84e5928f7cca075eb301e5d0dc",
+      "capture_phase": "Immutable input companion manifest before pair swap; this hash is not the current installed manifest."
+    },
+    "source_commit": "5fd11fa4b08970da0e47d9dd50902aaff32fec56",
+    "package_pair_record": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\pair1.json"
+  },
+  "native_acceptance": {
+    "status": "PASS",
+    "native_cases_covered": 8,
+    "native_case_executions": 8,
+    "native_commands": 1,
+    "latest_successful_native_label": "native1",
+    "native_total_seconds": 266.4320624000393,
+    "target_case_counts": {
+      "ask_config_declarations": 3,
+      "ask_literal_settings": 2,
+      "pre_push_prior_decisions": 3
+    },
+    "planned_count_correction": "Initial estimate9 counted3existing getter cases; actual target has2. All wanted cases passed; no test added and no run repeated to satisfy the mistaken estimate.",
+    "full_suites": 0,
+    "separate_debug_builds": 0
+  },
+  "public_checks_per_artifact": 34,
+  "installed_assets_verified": 215,
+  "normal_runtime_restored": true,
+  "normal_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
+  "selected_generation": 3151,
+  "source_format": 9,
+  "protected_wip9": "UNCHANGED",
+  "full_original_goal_complete": false,
+  "build_accounting": {
+    "native_invocations": 1,
+    "release_invocations": 1,
+    "separate_debug_builds": 0,
+    "full_suites": 0,
+    "native_seconds": 266.4320624000393,
+    "release_seconds": 655.3833610999864,
+    "combined_runner_seconds": 921.8154235000256,
+    "pure_coding_percentage": null,
+    "note": "One combined native invocation passed3configuration,2existing getter and3pre-push cases; no native rerun. Only a hardcoded tool-count verifier assumption was corrected, retaining12unchanged MCP metadata checks. Both compiler runs used verified BelowNormal priority with-j1. Source/read/design/fixture time is not pure coding."
+  },
+  "correction": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\public1-verifier-correction.json",
+  "temporary_resources": {
+    "all_new_fixture_processes_closed": true,
+    "all_owned_fixture_and_build_temp_removed": true,
+    "retained_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117",
+    "retained_purpose": "Build, source, public acceptance, managed rollback pair and Windows ZIP evidence; no preexisting directory deletion.",
+    "intentionally_retained_runtime": "Normal installed daemon under ordinary application lifecycle.",
+    "managed_rollback_pair": "C:/Users/Dennis/AppData/Local/engram/engram-pair-backup-f5f64a2b3a1f458a9c33557f54ce063d",
+    "rollback_cleanup_condition": "Retain for managed rollback; removal requires approval of the exact path."
+  },
+  "limitations": [
+    "Description bytes measured on the owned empty-project Full125-tool surface; capability filtering changes project/profile counts. UTF8bytes are not measured provider tokens, latency, selection accuracy or task usefulness.",
+    "Configuration declarations are raw file-level source observations, not decoded/effective runtime values, inheritance/transform evaluation, getter/store binding or exhaustive coverage. Connection-string values are not collected by this provider.",
+    "Prior rulings are imported advisory evidence; matching paths/source/HEAD do not authenticate authority, establish semantic applicability, prove a supplied patch applied or approve/suppress anything. Original rule outcomes and maintenance-only behavior are retained.",
+    "Original31findings/19gates, semantic/usefulness evidence and held items remain tracked; this finite scoped delivery does not complete the broader goal."
+  ],
+  "descriptor_metrics": {
+    "before": 94241,
+    "after": 79416,
+    "reduction_percent": 15.730945130038943,
+    "selected_before": 14013,
+    "selected_after": 5689,
+    "selected_reduction_percent": 59.40198387211875
+  },
+  "windows_bundle": {
+    "archive": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\Engram-win-x64-contract-config-review.zip",
+    "sha256": "74DF2F6127039B2D32C5D23F3AD368C49920D29FC69113038D2CD725B2C1C52E",
+    "entries": 219,
+    "runtime_assets": 215,
+    "runtime_manifest_sha256": "6B98678CD4EFF767C47ABCF0EA0F5891A3E56C52589B3ECB0D4CCEEC6ACE52EE"
+  },
+  "priority_receipts": [
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\native1-priority.json",
+    "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\release1-priority.json"
+  ]
+}

@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "EG-19",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Decision-aware review supplies bounded relevant prior rulings with declared scope, source/revision evidence and exact recovery; changed code never inherits blanket suppression.",
   "observed_missing_behavior": "pre_commit_review collects prior_review_context, but pre_push_audit only retrieves quality_gate rules. Its empty/no-match rule outcomes also omit existing explicitly recorded decisions, so a normal pre-push caller lacks that existing review context.",
   "priority_basis": "Pre-push audit is advertised in the unchanged actual Full LegacyValidation runtime and the named workflow presets. Use owned VB/WebForms sources and existing lexical/decision collectors; no actual project mutation, review-model run or new approval workflow.",
@@ -22,9 +22,9 @@
   ],
   "engram_builds_started": 2,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 3,
+  "pending_source_outcomes": 0,
   "full_original_goal_active": true,
   "previous_goal_turn_classification": {
     "classification": "PROGRESS_SOURCE_DELIVERY",
@@ -66,11 +66,10 @@
   "baseline_seconds": 2.00350150000304,
   "baseline_binary_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
   "post_change_public_checks_executed": 12,
-  "next_action": "Poll exact live release session90986; never restart on timeout. On PASS run release.py package, deploy7.py candidate1/installed1, finish-install4.py restore/ZIP, record-delivery.py. Same artifact for candidate/installed34checks. No extra native/debug/release builds absent failed behavior.",
+  "next_action": "Finite component accepted and installed; advance the next ready original requirement without replaying this passed batch. Original scope and broader limitations remain.",
   "limits": [
-    "Source completion only; native type/behavior and post-change public acceptance remain pending. Installed0b590ecb and actual Full/LegacyValidation data are unchanged.",
-    "Prior decisions remain imported advisory evidence with unverified authority/semantic applicability. Scope/source matches cannot approve a push, suppress a rule/finding or prove a submitted patch was applied. Existing current-observation/coverage/candidate/source/response bounds remain.",
-    "No new request schema/fields, decision store, language support, model call/comparison, CodeMap/Blast work or actual LegacyValidation mutation. Source context uses the registered project directory, not an independently selected linked worktree."
+    "Prior rulings are imported advisory evidence; matching paths/source/HEAD do not authenticate authority, establish semantic applicability, prove a supplied patch applied or approve/suppress anything. Original rule outcomes and maintenance-only behavior are retained.",
+    "Finite native/public/candidate/installed acceptance passed; broader original semantic/usefulness requirements remain open."
   ],
   "source_sha256": {
     "crates/engram_server/src/handlers/quality_gate_tools.rs": "c50b1ebf42dc802136e42c8602edd03dcd4b1f8a4c37fd87e4a653df02d25498",
@@ -85,5 +84,9 @@
   "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\native-acceptance.json",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117\\contract-config-review-batch-20261117-debug2\\receipt.json",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117",
-  "build_count_scope": "One focused native Cargo invocation8cases and one live optimized release across all3outcomes. No full suite, separate debug build or native rerun."
+  "build_count_scope": "One focused native invocation8cases and one optimized release shared by3outcomes; terminal, owned fixtures/build processes closed and temporary resources removed. No full suite or extra debug build.",
+  "delivery_record": "eval/contract-config-review-batch-delivery-20261117.json",
+  "native_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\native-acceptance.json",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\pre-push-prior-decisions-20261117\\contract-config-review-batch-20261117-installed1\\receipt.json",
+  "installed_runtime_sha256": "ab166a7b4e810c9c2796ab076bf14d776fba62ec589a61363c21cee5e49e6b59"
 }

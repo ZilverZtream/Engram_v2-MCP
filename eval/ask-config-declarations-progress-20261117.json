@@ -1,6 +1,6 @@
 {
   "original_requirement_id": "TODO-28",
-  "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+  "status": "IMPLEMENTED_VALIDATED_DEPLOYED",
   "original_requirement": "Compose existing indexed setting knowledge into the ordinary natural-language entry point for LegacyValidation VB/WebForms workflows.",
   "observed_missing_behavior": "ask_settings only collects literal VB setting_key getter observations. Existing app_setting catalog declarations in Web.config/App.config are not composed as typed source-admitted declaration evidence; get_setting shows catalog identity/usage but does not resolve effective configuration values.",
   "priority_basis": "LegacyValidation is the retained VB/WebForms workflow and current runtime remains Full. Use owned Web.config/VB fixtures and existing ASP.NET configuration extraction; no claim about an uninspected real LegacyValidation setting, no actual project query/reindex or Site/Q access.",
@@ -25,9 +25,9 @@
   ],
   "engram_builds_started": 2,
   "native_tests_executed": 3,
-  "runtime_deployed": false,
+  "runtime_deployed": true,
   "implementation_items_active": 0,
-  "pending_source_outcomes": 3,
+  "pending_source_outcomes": 0,
   "full_original_goal_active": true,
   "previous_goal_turn_classification": {
     "classification": "PROGRESS_SOURCE_DELIVERY",
@@ -75,11 +75,10 @@
   "baseline_seconds": 2.235702499980107,
   "baseline_binary_sha256": "0b590ecb08237997caba8807bdf47bfc7d1388f8b486d4414d9f04bf2aa66660",
   "post_change_public_checks_executed": 10,
-  "next_action": "Poll exact live release session90986; never restart on timeout. On PASS run release.py package, deploy7.py candidate1/installed1, finish-install4.py restore/ZIP, record-delivery.py. Same artifact for candidate/installed34checks. No extra native/debug/release builds absent failed behavior.",
+  "next_action": "Finite component accepted and installed; advance the next ready original requirement without replaying this passed batch. Original scope and broader limitations remain.",
   "limits": [
-    "Source completion only: no Rust type/native or post-change MCP validation yet; installed0b590ecb and actual Full/LegacyValidation data remain unchanged.",
-    "AppSettings values are raw source attribute observations in admitted UTF8files, not decoded/effective/default runtime values, merged configuration, getter/store binding or execution. Existing parser coverage,1MiB/file and discovery/row/output caps remain explicit.",
-    "Only owned Web.config/VB fixtures were indexed. No actual LegacyValidation query/reindex, Site/Q access, connection-string value collection, extraction-format change, target-language expansion, model comparison or closed-tool improvement."
+    "Configuration declarations are raw file-level source observations, not decoded/effective runtime values, inheritance/transform evaluation, getter/store binding or exhaustive coverage. Connection-string values are not collected by this provider.",
+    "Finite native/public/candidate/installed acceptance passed; broader original semantic/usefulness requirements remain open."
   ],
   "source_sha256": {
     "crates/engram_server/src/services/ask_engine/config_settings.rs": "d23e5c202fbd239fa560197c85a594edab6c3ef5f38386fbd58bd1bd58d82750",
@@ -97,5 +96,9 @@
   "native_batch_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\native-acceptance.json",
   "debug_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\contract-config-review-batch-20261117-debug2\\receipt.json",
   "validation_batch": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117",
-  "build_count_scope": "One focused native Cargo invocation8cases and one live optimized release across all3outcomes. No full suite, separate debug build or native rerun."
+  "build_count_scope": "One focused native invocation8cases and one optimized release shared by3outcomes; terminal, owned fixtures/build processes closed and temporary resources removed. No full suite or extra debug build.",
+  "delivery_record": "eval/contract-config-review-batch-delivery-20261117.json",
+  "native_validation": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\contract-config-review-batch-20261117\\native-acceptance.json",
+  "installed_public_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\ask-config-declarations-20261117\\contract-config-review-batch-20261117-installed1\\receipt.json",
+  "installed_runtime_sha256": "ab166a7b4e810c9c2796ab076bf14d776fba62ec589a61363c21cee5e49e6b59"
 }

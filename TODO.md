@@ -423,6 +423,11 @@ proposals that duplicate the existing surface:
 `find_hardcoded_secrets` ≈ secret gate, `calculate_change_risk_score` ≈ `check_edit_safety`.
 
 - [~] **28. `ask_codebase` - one natural-language entry point (spec 43-1)** (L)
+  Installed November17: ordinary exact setting-key questions now include raw
+  `appSettings` declarations with file hashes and callable source recovery, alongside
+  separate VB getter evidence. Multiple files stay distinct; effective values,
+  inheritance/transform evaluation and getter/store binding remain unproven.
+  [Delivery](eval/contract-config-review-batch-delivery-20261117.json).
   Installed November17: explicit browser-storage key questions compose indexed
   readers/writers and separate store-wide clear candidates, retaining scope,
   source hashes, authored guidance and current-source recovery. The bounded facts
@@ -507,6 +512,13 @@ proposals that duplicate the existing surface:
   selected-source action traces and action-preserving recovery. Repeated markup
   scans were removed; exact GIS questions pass with the original trace budget.
   See eval/maintenance-history-interaction-batch-delivery-20261117.json.
+
+  Installed November17: `pre_push_audit` adds bounded prior review decisions for
+  the supplied change paths, preserving the original rule outcome and source/revision
+  qualifications. Decisions remain advisory and never suppress findings. Five core
+  workflow descriptions and shared recovery guidance are shorter; the owned Full
+  advertisement used 15.73% fewer description bytes, without a measured task gain.
+  [Delivery](eval/contract-config-review-batch-delivery-20261117.json).
 
 - [x] **29. Edit Session Protocol (spec 45: begin/complete_edit_session, detect_incomplete_changes)** (M) - *done 2026-06-13: bookends persist intent (registry meta), begin returns the expectation brief on the PLANNED set, complete reports scope drift (planned-but-unedited) + full completeness on actuals, session consumed on close. Was: engine done 2026-06-13: detect_incomplete_changes — untouched co-change partners (with historical evidence, tail-matched against path-spelling variants) + state keys shared with untouched files; 3-case behavioral test through real graph. Both session bookends are delivered; their expectations remain advisory evidence for the agent.*
   Bookends an agent's edit: snapshot expectations at start, verify coupled files/tests/
