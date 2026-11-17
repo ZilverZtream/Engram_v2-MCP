@@ -2571,6 +2571,17 @@
           "eval/method-matrix-selection-progress-20261117.json"
         ],
         "source_preparation": "Apply every source_commits entry in order to the existing shipping checkout; the latest source commit alone does not contain the preceding helper-source delivery."
+      },
+      {
+        "original_requirement_id": "TODO-31",
+        "outcome": "Authored WebForms initialization reaches normal request context",
+        "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
+        "source_commit": "c8e770d38d37db8e4d37c1eeb3b027afc49a0b97",
+        "source_commits": [
+          "c8e770d38d37db8e4d37c1eeb3b027afc49a0b97"
+        ],
+        "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\contract.json",
+        "progress": "eval/webforms-init-context-progress-20261117.json"
       }
     ],
     "full_original_goal_scope_unchanged": true,
@@ -2720,65 +2731,79 @@
     "full_original_goal_complete": false
   },
   "current_execution_focus": {
-    "original_requirement_id": "EG-25",
+    "original_requirement_id": "TODO-31",
     "status": "SOURCE_COMPLETE_AWAITING_COMBINED_VALIDATION",
-    "original_requirement": "Method-specific QA requests return the stored current analysis for the exact requested declaration, without unrelated file-wide records consuming its retrieval window.",
-    "observed_missing_behavior": "collect_scoped first takes201file-wide business-logic hits and truncates to200, then checks the requested method declarations. An existing exact requested method can disappear behind unrelated analyses, while the caller has already narrowed its method scope.",
+    "original_requirement": "Normal WebForms request traces include source-authored initialization context before reusing existing call/database traversal.",
+    "observed_missing_behavior": "The actual permit edit page assigns its upload control document type in Handles Me.Init. Existing handler_bindings includes only Load lifecycle context, so a normal page or control-event trace omits this authored setup.",
+    "source_pins": {
+      "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\sources\\permit_edit.aspx",
+        "bytes": 19587,
+        "sha256": "fa8e6d486e448356e9fa4fe3c6b2501adb5296f82eb2ab24a0e457345b23d287"
+      },
+      "Site/modules/dashboard/pages/admin/permits/permit_edit.aspx.vb": {
+        "actual": "C:\\Users\\Dennis\\source\\repos\\LegacyValidation\\Site\\modules\\dashboard\\pages\\admin\\permits\\permit_edit.aspx.vb",
+        "snapshot": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\sources\\permit_edit.aspx.vb",
+        "bytes": 19692,
+        "sha256": "ca9e680ae57758c703865fc223570ab876a9b2227c0ad863fcf1ffcabd5c8ddd"
+      }
+    },
+    "normal_runtime_config_sha256": "3f96687e88acc20c72bbfb864945b81390249b645d1265cc463953a730265f66",
     "finite_acceptance": [
-      "Use current source declaration identities and the existing path-stable persisted analysis key to look up requested canonical method documents directly before the file-wide200-document fallback cap. Reuse the same source audit and retain exact method/hash/scope checks.",
-      "Keep existing file-wide selection, source-case budgets, round-robin sampling, legacy fallback and its explicit incomplete-coverage limits. No global cap increase or broad history/graph/index rewrite. Current canonical records and original fallback candidates are deduplicated.",
-      "An owned201-method VB source file, local fixed-response provider and public search identify one stored current analysis beyond the same bounded retrieval window. Method-specific derive_test_matrix must include its source-linked case; baseline omission and positive native/public behavior remain distinct. No real model call or frozen matched-task replay."
+      "Include explicit VB Handles Me.Init/MyBase.Init alongside existing Load context for ordinary page load, click, submit and server-control requests; retain the actual binding reason and complete source span/hash.",
+      "Recognize Page_Init by convention only with authored AutoEventWireup=true. Explicit source-method selection remains distinct from established HTTP binding. No suffix-based arbitrary init inference.",
+      "Reuse the shared selector for existing admitted root/control/master contexts, preserving selected revision/hash checks, handler deduplication, graph/case/response budgets and exact recovery. Initialization context is not a lifecycle order or runtime execution claim.",
+      "An owned exact actual-page/code copy proves installed omission and later inclusion. Focused page/control/master/automatic-wiring cases establish wanted behavior; changed code withholds its entries. No standalone Cargo, actual LegacyValidation mutation/reindex, Q read, model call or frozen-task replay."
     ],
     "implementation_files": [
-      "crates/engram_server/src/handlers/business_source.rs",
-      "crates/engram_server/src/handlers/test_derivation.rs",
-      "crates/engram_server/tests/method_matrix_selection.rs"
+      "crates/engram_server/src/services/request_trace/execution.rs",
+      "crates/engram_server/src/services/request_trace/master_pages.rs",
+      "crates/engram_server/tests/request_trace_init_context.rs"
     ],
-    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-matrix-selection-20261117\\contract.json",
+    "acceptance_contract": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\contract.json",
     "implementation_items_active": 0,
-    "pending_source_outcomes": 1,
     "full_original_goal_active": true,
-    "next_action": "Retain both EG25 source changes in one original-requirement queue entry; continue independent accepted source work without triggering Cargo.",
-    "at_utc": "2026-11-17T04:49:58.020000+00:00",
-    "source_commit": "525aa59565d6249c51de4cd349c49d261ba07110",
-    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-matrix-selection-20261117\\baseline-accepted1.json",
-    "original_failed_counter_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-matrix-selection-20261117\\baseline1\\receipt.json",
-    "baseline_seconds": 17.312971399980597,
-    "baseline_binary_sha256": "ba9750324b87ec00cda653e0257e5d1c1bd229385b542b6d19230efb6d7d98a2",
-    "baseline_counter_reconciliation": "The original verifier expected201total requests. Retained transport contains201member generations plus the normal single file-purpose summary. Exact current-source Rule200 exists beyond the200-result window and is omitted by its method-specific QA request. No fixture or provider replay; the failed receipt and all raw requests remain unchanged.",
+    "engram_builds_started": 0,
+    "next_action": "Continue independent accepted source work; retain this TODO31 change and both EG25 source commits for combined validation. No standalone compile or release.",
+    "at_utc": "2026-11-17T04:56:25.772354+00:00",
+    "source_commit": "c8e770d38d37db8e4d37c1eeb3b027afc49a0b97",
+    "pending_source_outcomes": 2,
     "source_behavior": [
-      "Resolve the standard persisted document keys for exact current requested declarations before unrelated file-wide hits are capped. Overload line suffixes follow the existing writer identity.",
-      "Direct and legacy fallback candidates share deduplication, current method-body verification, exact declaration scope and existing case budgets. File-wide discovery stays capped and historical/noncanonical coverage is explicitly incomplete."
+      "The existing shared handler selector includes authored VB Handles Me.Init/MyBase.Init alongside Load context in page load/click/submit/control requests. Existing page/control/master source membership, fingerprints, traversal, budgets and deduplication remain in force.",
+      "Page_Init convention requires authored AutoEventWireup=true. An explicitly selected source method keeps its HTTP-binding uncertainty. Source reasons and excerpts identify the observed setup without asserting lifecycle order or runtime execution."
     ],
+    "baseline_receipt": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\baseline1\\receipt.json",
+    "baseline_seconds": 2.5275106999324635,
+    "baseline_binary_sha256": "ba9750324b87ec00cda653e0257e5d1c1bd229385b542b6d19230efb6d7d98a2",
     "source_checks": {
-      "rustfmt_parse": "PASS",
+      "rustfmt_parse": "PASS; new focused tests formatted; legacy files parsed without rewriting",
       "public_verifier_syntax": "PASS",
       "git_diff_check": "PASS",
       "protected_wip9": "UNCHANGED"
     },
     "source_sha256": {
-      "crates/engram_server/src/handlers/business_source.rs": "1cfa99904c54af3c9c1c09922fe2aa78b8b57c0ab84b809793c82bf9046463c5",
-      "crates/engram_server/src/handlers/test_derivation.rs": "ab8bb9bb4e35376ee255da64a446fb29bee657ea114a36655fb9301cc52966f6",
-      "crates/engram_server/tests/method_matrix_selection.rs": "96e13df9292a72e9905554de59410ffd11f44abfe8fccb474ce290f71809df52"
+      "crates/engram_server/src/services/request_trace/execution.rs": "07f34ecd5998cc46ffde2f515ce1b39cd9a2b118a32c92d9ea55dadf633db0ca",
+      "crates/engram_server/src/services/request_trace/master_pages.rs": "0f6c853ca9fe613ce2c79400a0b320d922fe846d4e417d42313f881addccb6a4",
+      "crates/engram_server/tests/request_trace_init_context.rs": "10e86b0de24f2047b0e4a1afe75bdb8efbb024763ae5389af71c77842bee9f68"
     },
     "native_test_cases_written": 2,
     "native_tests_executed": 0,
     "post_change_public_checks_executed": 0,
-    "engram_builds_started": 0,
     "real_model_calls": 0,
     "runtime_deployed": false,
-    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-matrix-selection-20261117\\verify-public.py",
-    "public_verifier_sha256": "b8c63101a94050e7e0be3678da6b66e4dc66ca79839ae16ea79ffd63c684ae75",
+    "public_verifier": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117\\verify-public.py",
+    "public_verifier_sha256": "b8801bc1c4b77899378cebc0764bb8b95d8b9ca369ac84ce3f899127668c8c11",
     "limits": [
-      "Source completion only: type checking and positive native/public/installed execution remain pending. Installed runtime is unchanged.",
-      "The 201-method source is an owned supported-capacity fixture, not a measured LegacyValidation file or demonstrated agent usefulness. No actual LegacyValidation/Q read, mutation or reindex, matched-task replay, model call, CodeMap/Blast change or target-language expansion."
+      "Source complete only: type checking, focused execution and positive public/installed acceptance remain pending. Installed runtime is unchanged.",
+      "Init/Load entries are source-authored possible context, not proof of effective values, event order or execution. Dynamic/multiline/inherited binding, other lifecycle phases and the wider TODO31 requirement remain unfinished.",
+      "No actual LegacyValidation mutation/reindex, Site/Q read, model call, inspected-task replay, CodeMap/Blast change or target-language expansion."
     ],
     "temporary_resources": {
-      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\method-matrix-selection-20261117",
+      "recorded_location": "C:\\ai-projects\\Engram-MCP_v2\\target\\diagnostics\\snapshot-verification-20261101\\p131-modern-state-20261112\\current-task-check\\webforms-init-context-20261117",
       "baseline_owned_work_removed": true,
       "baseline_processes_closed": true,
-      "local_fixed_response_endpoint_closed": true,
-      "retention": "Keep finite contract, baseline raw transports including the failed counter receipt, reconciled evidence and verifier for combined acceptance. New native fixtures close runtime and project handles before removing owned directories. No preexisting deletion."
+      "retention": "Retain actual-source pins, finite contract, public baseline transport and verifier for combined acceptance. New focused fixtures drop graph handles before owned directories on completion and unwinding. No preexisting deletion."
     }
   },
   "history_webmethod_business_batch_delivery": {
@@ -3053,10 +3078,11 @@
   "business_helper_source_leads_progress_20261117": "eval/business-helper-source-leads-progress-20261117.json",
   "method_matrix_selection_source_progress_20261117": "eval/method-matrix-selection-progress-20261117.json",
   "current_turn_progress_classification": {
-    "previous_turn": "NO_PROGRESS_STATUS_RESPONSE",
-    "current_turn": "PROGRESS_SOURCE_CHANGE_COMMITTED",
-    "evidence": "eval/method-matrix-selection-progress-20261117.json",
+    "previous_turn": "PROGRESS_SOURCE_CHANGE_COMMITTED",
+    "current_turn": "PROGRESS_ORIGINAL_TODO31_SOURCE_CHANGE_COMMITTED",
+    "evidence": "eval/webforms-init-context-progress-20261117.json",
     "engram_builds_started": 0,
     "full_original_goal_active": true
-  }
+  },
+  "webforms_init_context_source_progress_20261117": "eval/webforms-init-context-progress-20261117.json"
 }
